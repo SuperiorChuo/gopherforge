@@ -5,14 +5,14 @@ import (
 	"net/http"
 )
 
-// AppError 应用错误
+// AppError is an application error with an HTTP-like code.
 type AppError struct {
 	Code    int
 	Message string
 	Err     error
 }
 
-// Error 实现 error 接口
+// Error implements the error interface.
 func (e *AppError) Error() string {
 	if e.Err != nil {
 		return fmt.Sprintf("%s: %v", e.Message, e.Err)
@@ -20,12 +20,12 @@ func (e *AppError) Error() string {
 	return e.Message
 }
 
-// Unwrap 返回底层错误
+// Unwrap returns the underlying error.
 func (e *AppError) Unwrap() error {
 	return e.Err
 }
 
-// NewAppError 创建应用错误
+// NewAppError creates an application error.
 func NewAppError(code int, message string) *AppError {
 	return &AppError{
 		Code:    code,
@@ -33,7 +33,7 @@ func NewAppError(code int, message string) *AppError {
 	}
 }
 
-// NewAppErrorWithErr 创建带底层错误的应用错误
+// NewAppErrorWithErr creates an application error with an underlying error.
 func NewAppErrorWithErr(code int, message string, err error) *AppError {
 	return &AppError{
 		Code:    code,
@@ -42,7 +42,7 @@ func NewAppErrorWithErr(code int, message string, err error) *AppError {
 	}
 }
 
-// 预定义错误
+// Predefined application errors.
 var (
 	ErrInvalidInput  = NewAppError(400, "invalid input")
 	ErrUnauthorized  = NewAppError(401, "unauthorized")
@@ -51,7 +51,7 @@ var (
 	ErrInternalError = NewAppError(500, "internal server error")
 )
 
-// GetHTTPStatus 获取 HTTP 状态码
+// GetHTTPStatus maps an application code to an HTTP status.
 func GetHTTPStatus(code int) int {
 	switch code {
 	case 400:

@@ -14,7 +14,7 @@ func NewRedisService() *RedisService {
 	return &RedisService{}
 }
 
-// GetRedisInfo 获取 Redis 信息
+// GetRedisInfo returns Redis information.
 func (s *RedisService) GetRedisInfo() (map[string]any, error) {
 	return s.GetRedisInfoContext(context.Background())
 }
@@ -27,12 +27,12 @@ func (s *RedisService) GetRedisInfoContext(ctx context.Context) (map[string]any,
 
 	info := parseRedisInfo(infoStr)
 
-	// 获取 Key 数量
+	// Load key counts.
 	dbsize, _ := redis.Client.DBSize(ctx).Result()
 	poolStats := redis.Client.PoolStats()
 	keyspace := parseRedisKeyspace(info)
 
-	// 获取内存使用
+	// Build memory and runtime usage details.
 	data := make(map[string]any)
 	data["status"] = "ok"
 
@@ -115,7 +115,7 @@ func calculateRedisHitRate(info map[string]string) string {
 	hitsStr := info["keyspace_hits"]
 	missesStr := info["keyspace_misses"]
 
-	// 简单的字符串转数字
+	// Parse string counters from Redis INFO.
 	var hits, misses float64
 	fmt.Sscanf(hitsStr, "%f", &hits)
 	fmt.Sscanf(missesStr, "%f", &misses)

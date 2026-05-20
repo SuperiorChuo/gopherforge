@@ -1,4 +1,4 @@
-package system
+package auth
 
 import (
 	"os"
@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestUserAPIUsesEnglishSourceText(t *testing.T) {
+func TestUserServiceUsesEnglishSourceText(t *testing.T) {
 	content, err := os.ReadFile("user.go")
 	if err != nil {
 		t.Fatalf("read user.go: %v", err)

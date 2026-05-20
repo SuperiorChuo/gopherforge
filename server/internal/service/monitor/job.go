@@ -83,7 +83,7 @@ type JobAbnormalStatus struct {
 var jobService *JobService
 var once sync.Once
 
-// GetJobService 单例模式获取服务实例
+// GetJobService returns the singleton job service instance.
 func GetJobService() *JobService {
 	once.Do(func() {
 		jobDAO := monitor.NewJobDAO()
@@ -104,7 +104,7 @@ func newJobService(dao jobDAO, bootstrapJobs bool) *JobService {
 	return service
 }
 
-// 初始化任务
+// initJobs loads active jobs into the scheduler.
 func (s *JobService) initJobs() {
 	jobs, err := s.dao.GetAllActiveJobsContext(context.Background())
 	if err != nil {
@@ -117,9 +117,9 @@ func (s *JobService) initJobs() {
 	}
 }
 
-// StartJob 启动任务
+// StartJob starts a scheduled job.
 func (s *JobService) StartJob(job model.ScheduledJob) error {
-	// 如果已经在运行，先停止
+	// Stop an existing schedule before registering the new one.
 	if _, ok := s.runningMap.Load(job.ID); ok {
 		s.StopJob(job.ID)
 	}
@@ -128,7 +128,7 @@ func (s *JobService) StartJob(job model.ScheduledJob) error {
 		return err
 	}
 
-	// 定义任务函数
+	// Define the scheduled task function.
 	cmd := func() {
 		s.runTask(job)
 	}
@@ -142,7 +142,7 @@ func (s *JobService) StartJob(job model.ScheduledJob) error {
 	return nil
 }
 
-// StopJob 停止任务
+// StopJob stops a scheduled job.
 func (s *JobService) StopJob(jobID uint) {
 	if entryID, ok := s.runningMap.Load(jobID); ok {
 		s.cron.Remove(entryID.(cron.EntryID))
@@ -150,7 +150,7 @@ func (s *JobService) StopJob(jobID uint) {
 	}
 }
 
-// runTask 执行任务并记录日志 (供Cron和手动调用复用)
+// runTask executes a job and records a log entry for cron and manual runs.
 func (s *JobService) runTask(job model.ScheduledJob) {
 	s.runTaskContext(context.Background(), job)
 }
@@ -160,7 +160,7 @@ func (s *JobService) runTaskContext(ctx context.Context, job model.ScheduledJob)
 	var status int8 = 1
 	message := "Success"
 
-	// 执行任务
+	// Execute the task.
 	executeMessage, err := s.executeTaskContext(ctx, job.InvokeTarget)
 	if err != nil {
 		status = 0
@@ -171,7 +171,7 @@ func (s *JobService) runTaskContext(ctx context.Context, job model.ScheduledJob)
 
 	duration := int(time.Since(startTime).Milliseconds())
 
-	// 记录日志
+	// Record the job log.
 	logEntry := model.ScheduledJobLog{
 		JobID:    job.ID,
 		JobName:  job.Name,
@@ -183,16 +183,16 @@ func (s *JobService) runTaskContext(ctx context.Context, job model.ScheduledJob)
 		log.Printf("Failed to create job log for %s: %v", job.Name, err)
 	}
 
-	// 更新任务最后运行时间
+	// Update the job's last run time.
 	job.LastRunTime = &startTime
 	if err := s.dao.UpdateJobContext(ctx, &job); err != nil {
 		log.Printf("Failed to update last run time for %s: %v", job.Name, err)
 	}
 }
 
-// executeTask 执行具体任务逻辑 (利用反射或switch case)
+// executeTaskContext executes a specific job target.
 func (s *JobService) executeTaskContext(ctx context.Context, target string) (string, error) {
-	// 这里简单演示，实际可以用反射调用注册的函数
+	// Dispatch the built-in job targets.
 	switch target {
 	case "CleanExpiredLogs":
 		result, err := s.CleanupJobLogsContext(ctx, DefaultJobLogRetentionDays)
@@ -212,7 +212,7 @@ func (s *JobService) executeTaskContext(ctx context.Context, target string) (str
 	}
 }
 
-// CleanupJobLogs 按保留天数清理定时任务执行日志。
+// CleanupJobLogs deletes scheduled job logs by retention days.
 func (s *JobService) CleanupJobLogs(retentionDays int) (*JobLogCleanupResult, error) {
 	return s.CleanupJobLogsContext(context.Background(), retentionDays)
 }
@@ -235,7 +235,7 @@ func (s *JobService) CleanupJobLogsContext(ctx context.Context, retentionDays in
 	}, nil
 }
 
-// CheckJobHealth 汇总任务治理健康状态。
+// CheckJobHealth summarizes job health status.
 func (s *JobService) CheckJobHealth(windowHours int) (*JobHealthCheck, error) {
 	return s.CheckJobHealthContext(context.Background(), windowHours)
 }
@@ -339,7 +339,7 @@ func (s *JobService) buildAbnormalJobsContext(ctx context.Context, jobs []model.
 	return abnormalJobs, nil
 }
 
-// GetJobList 获取任务列表 (保持不变)
+// GetJobList returns scheduled jobs.
 func (s *JobService) GetJobList(req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error) {
 	return s.GetJobListContext(context.Background(), req, name, status)
 }
@@ -348,13 +348,13 @@ func (s *JobService) GetJobListContext(ctx context.Context, req pagination.PageR
 	return s.dao.GetJobListContext(ctx, req, name, status)
 }
 
-// CreateJob 创建任务
+// CreateJob creates a scheduled job.
 func (s *JobService) CreateJob(job *model.ScheduledJob) error {
 	return s.CreateJobContext(context.Background(), job)
 }
 
 func (s *JobService) CreateJobContext(ctx context.Context, job *model.ScheduledJob) error {
-	// 验证Cron表达式
+	// Validate the cron expression.
 	if err := validateCronExpression(job.CronExpression); err != nil {
 		return err
 	}
@@ -363,16 +363,16 @@ func (s *JobService) CreateJobContext(ctx context.Context, job *model.ScheduledJ
 		return err
 	}
 	if job.Status == 1 {
-		// 如果启动失败，仅记录错误，不影响创建（或根据需求回滚）
+		// Keep the persisted job even if scheduler registration fails.
 		if err := s.StartJob(*job); err != nil {
 			log.Printf("Failed to start job %s: %v", job.Name, err)
-			return nil // 返回 nil 表示创建成功，但启动可能有警告
+			return nil // Creation succeeded, but startup may have a warning.
 		}
 	}
 	return nil
 }
 
-// UpdateJob 更新任务
+// UpdateJob updates a scheduled job.
 func (s *JobService) UpdateJob(job *model.ScheduledJob) error {
 	return s.UpdateJobContext(context.Background(), job)
 }
@@ -383,7 +383,7 @@ func (s *JobService) UpdateJobContext(ctx context.Context, job *model.ScheduledJ
 		return err
 	}
 
-	// 验证Cron表达式
+	// Validate the cron expression.
 	if err := validateCronExpression(job.CronExpression); err != nil {
 		return err
 	}
@@ -398,21 +398,21 @@ func (s *JobService) UpdateJobContext(ctx context.Context, job *model.ScheduledJ
 		job.NextRunTime = existingJob.NextRunTime
 	}
 
-	// 先停止旧任务
+	// Stop the old schedule first.
 	s.StopJob(job.ID)
 
 	if err := s.dao.UpdateJobContext(ctx, job); err != nil {
 		return err
 	}
 
-	// 如果状态是运行，则重新启动
+	// Restart when the job should be running.
 	if job.Status == 1 {
 		return s.StartJob(*job)
 	}
 	return nil
 }
 
-// StartJobByID 根据ID启动任务
+// StartJobByID starts a job by ID.
 func (s *JobService) StartJobByID(id uint) error {
 	return s.StartJobByIDContext(context.Background(), id)
 }
@@ -423,7 +423,7 @@ func (s *JobService) StartJobByIDContext(ctx context.Context, id uint) error {
 		return err
 	}
 
-	// 尝试添加到调度器验证表达式
+	// Validate the expression before registering it in the scheduler.
 	if err := validateCronExpression(job.CronExpression); err != nil {
 		return err
 	}
@@ -432,12 +432,12 @@ func (s *JobService) StartJobByIDContext(ctx context.Context, id uint) error {
 		return err
 	}
 
-	// 只有启动成功才更新数据库状态
+	// Update database status only after successful startup.
 	job.Status = 1
 	return s.dao.UpdateJobContext(ctx, job)
 }
 
-// StopJobByID 根据ID停止任务
+// StopJobByID stops a job by ID.
 func (s *JobService) StopJobByID(id uint) error {
 	return s.StopJobByIDContext(context.Background(), id)
 }
@@ -453,7 +453,7 @@ func (s *JobService) StopJobByIDContext(ctx context.Context, id uint) error {
 	return s.dao.UpdateJobContext(ctx, job)
 }
 
-// DeleteJob 删除任务
+// DeleteJob deletes a scheduled job.
 func (s *JobService) DeleteJob(id uint) error {
 	return s.DeleteJobContext(context.Background(), id)
 }
@@ -466,7 +466,7 @@ func (s *JobService) DeleteJobContext(ctx context.Context, id uint) error {
 	return s.dao.DeleteJobContext(ctx, id)
 }
 
-// RunJob 立即执行一次
+// RunJob executes a job immediately.
 func (s *JobService) RunJob(id uint) error {
 	return s.RunJobContext(context.Background(), id)
 }
@@ -477,7 +477,7 @@ func (s *JobService) RunJobContext(ctx context.Context, id uint) error {
 		return err
 	}
 
-	// 异步执行并记录日志
+	// Execute asynchronously and record the job log.
 	go s.runTaskContext(context.WithoutCancel(ctx), *job)
 	return nil
 }

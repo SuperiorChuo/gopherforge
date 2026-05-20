@@ -7,7 +7,7 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/cache"
 )
 
-// InvalidatePermissionCacheForUsers 清理指定用户的权限缓存。
+// InvalidatePermissionCacheForUsers clears permission caches for specific users.
 func InvalidatePermissionCacheForUsers(userIDs ...uint) error {
 	return InvalidatePermissionCacheForUsersContext(context.Background(), userIDs...)
 }
@@ -17,7 +17,7 @@ func InvalidatePermissionCacheForUsersContext(ctx context.Context, userIDs ...ui
 	return cache.NewCacheService().DelUserPermissionsBatchContext(ctx, uniqueUserIDs)
 }
 
-// InvalidatePermissionCacheByRoles 清理拥有指定角色用户的权限缓存。
+// InvalidatePermissionCacheByRoles clears permission caches for users with specific roles.
 func InvalidatePermissionCacheByRoles(roleIDs ...uint) error {
 	return InvalidatePermissionCacheByRolesContext(context.Background(), roleIDs...)
 }
@@ -36,7 +36,7 @@ func InvalidatePermissionCacheByRolesContext(ctx context.Context, roleIDs ...uin
 	return InvalidatePermissionCacheForUsersContext(ctx, userIDs...)
 }
 
-// InvalidatePermissionCacheByPermissions 清理拥有指定权限用户的权限缓存。
+// InvalidatePermissionCacheByPermissions clears permission caches for users with specific permissions.
 func InvalidatePermissionCacheByPermissions(permissionIDs ...uint) error {
 	return InvalidatePermissionCacheByPermissionsContext(context.Background(), permissionIDs...)
 }
@@ -55,7 +55,7 @@ func InvalidatePermissionCacheByPermissionsContext(ctx context.Context, permissi
 	return InvalidatePermissionCacheByRolesContext(ctx, roleIDs...)
 }
 
-// InvalidatePermissionCacheAll 清理全部用户权限缓存，用于影响面难以精准判断的权限资源变更。
+// InvalidatePermissionCacheAll clears all user permission caches for broad permission resource changes.
 func InvalidatePermissionCacheAll() error {
 	return InvalidatePermissionCacheAllContext(context.Background())
 }

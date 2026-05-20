@@ -16,11 +16,11 @@ func NewServerService() *ServerService {
 	return &ServerService{}
 }
 
-// GetServerInfo 获取服务器信息
+// GetServerInfo returns server information.
 func (s *ServerService) GetServerInfo() (map[string]any, error) {
 	data := make(map[string]any)
 
-	// 1. 内存信息
+	// Memory information.
 	vMem, err := mem.VirtualMemory()
 	if err != nil {
 		vMem = &mem.VirtualMemoryStat{}
@@ -33,7 +33,7 @@ func (s *ServerService) GetServerInfo() (map[string]any, error) {
 		"used_percent": vMem.UsedPercent,
 	}
 
-	// 2. CPU 信息
+	// CPU information.
 	cpuInfo, err := cpu.Info()
 	var modelName string
 	var cores int
@@ -54,7 +54,7 @@ func (s *ServerService) GetServerInfo() (map[string]any, error) {
 		"used_percent": usedPercent,
 	}
 
-	// 3. 主机信息
+	// Host information.
 	hostInfo, err := host.Info()
 	if err != nil {
 		hostInfo = &host.InfoStat{}
@@ -71,7 +71,7 @@ func (s *ServerService) GetServerInfo() (map[string]any, error) {
 		"boot_time":     time.Unix(int64(hostInfo.BootTime), 0).Format("2006-01-02 15:04:05"),
 	}
 
-	// 4. 磁盘信息 (根目录)
+	// Disk information for the root filesystem.
 	diskInfo, err := disk.Usage("/")
 	if err != nil {
 		diskInfo = &disk.UsageStat{}

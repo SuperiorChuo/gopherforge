@@ -10,15 +10,15 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/redis"
 )
 
-// CacheService 缓存服务
+// CacheService provides Redis-backed cache operations.
 type CacheService struct{}
 
-// NewCacheService 创建CacheService实例
+// NewCacheService creates a CacheService instance.
 func NewCacheService() *CacheService {
 	return &CacheService{}
 }
 
-// 缓存键常量
+// Cache key templates.
 const (
 	KeyJWTBlacklist           = "jwt:blacklist:%s"
 	KeyLoginCaptcha           = "login:captcha:%s"
@@ -27,7 +27,7 @@ const (
 	KeyUserPermissionsPattern = "user:permissions:*"
 )
 
-// 缓存过期时间
+// Cache expiration durations.
 const (
 	JWTBlacklistExpire    = 24 * time.Hour
 	LoginCaptchaExpire    = 5 * time.Minute
@@ -35,7 +35,7 @@ const (
 	UserPermissionsExpire = 1 * time.Hour
 )
 
-// AddJWTToBlacklist 将JWT加入黑名单
+// AddJWTToBlacklist adds a JWT to the blacklist.
 func (s *CacheService) AddJWTToBlacklist(token string, expire time.Duration) error {
 	return s.AddJWTToBlacklistContext(context.Background(), token, expire)
 }
@@ -49,7 +49,7 @@ func (s *CacheService) AddJWTToBlacklistContext(ctx context.Context, token strin
 	return redis.Client.Set(ctx, key, "1", expire).Err()
 }
 
-// IsJWTInBlacklist 检查JWT是否在黑名单中
+// IsJWTInBlacklist reports whether a JWT is blacklisted.
 func (s *CacheService) IsJWTInBlacklist(token string) bool {
 	return s.IsJWTInBlacklistContext(context.Background(), token)
 }
@@ -64,7 +64,7 @@ func (s *CacheService) IsJWTInBlacklistContext(ctx context.Context, token string
 	return err == nil && result == "1"
 }
 
-// RemoveJWTFromBlacklist 删除JWT黑名单记录，主要用于清理短期测试或会话残留。
+// RemoveJWTFromBlacklist removes a JWT blacklist entry for short-lived tests or session cleanup.
 func (s *CacheService) RemoveJWTFromBlacklist(token string) error {
 	return s.RemoveJWTFromBlacklistContext(context.Background(), token)
 }
@@ -78,7 +78,7 @@ func (s *CacheService) RemoveJWTFromBlacklistContext(ctx context.Context, token 
 	return redis.Client.Del(ctx, key).Err()
 }
 
-// AddTokenToBlacklistUntilExpiry 按token剩余有效期加入黑名单。
+// AddTokenToBlacklistUntilExpiry blacklists a token until its expiry time.
 func (s *CacheService) AddTokenToBlacklistUntilExpiry(token string, expiresAt time.Time) error {
 	return s.AddTokenToBlacklistUntilExpiryContext(context.Background(), token, expiresAt)
 }
@@ -99,7 +99,7 @@ func tokenIDFromJWT(token string) (string, error) {
 	return tokenID, nil
 }
 
-// SetLoginCaptcha 设置登录验证码
+// SetLoginCaptcha stores a login captcha.
 func (s *CacheService) SetLoginCaptcha(key string, captcha string) error {
 	return s.SetLoginCaptchaContext(context.Background(), key, captcha)
 }
@@ -109,7 +109,7 @@ func (s *CacheService) SetLoginCaptchaContext(ctx context.Context, key string, c
 	return redis.Client.Set(ctx, cacheKey, captcha, LoginCaptchaExpire).Err()
 }
 
-// GetLoginCaptcha 获取登录验证码
+// GetLoginCaptcha returns a login captcha.
 func (s *CacheService) GetLoginCaptcha(key string) (string, error) {
 	return s.GetLoginCaptchaContext(context.Background(), key)
 }
@@ -119,7 +119,7 @@ func (s *CacheService) GetLoginCaptchaContext(ctx context.Context, key string) (
 	return redis.Client.Get(ctx, cacheKey).Result()
 }
 
-// DelLoginCaptcha 删除登录验证码
+// DelLoginCaptcha deletes a login captcha.
 func (s *CacheService) DelLoginCaptcha(key string) error {
 	return s.DelLoginCaptchaContext(context.Background(), key)
 }
@@ -129,7 +129,7 @@ func (s *CacheService) DelLoginCaptchaContext(ctx context.Context, key string) e
 	return redis.Client.Del(ctx, cacheKey).Err()
 }
 
-// SetUserInfo 缓存用户信息
+// SetUserInfo caches user information.
 func (s *CacheService) SetUserInfo(user *model.User) error {
 	return s.SetUserInfoContext(context.Background(), user)
 }
@@ -139,7 +139,7 @@ func (s *CacheService) SetUserInfoContext(ctx context.Context, user *model.User)
 	return redis.Client.Set(ctx, key, user, UserInfoExpire).Err()
 }
 
-// GetUserInfo 获取缓存的用户信息
+// GetUserInfo returns cached user information.
 func (s *CacheService) GetUserInfo(userID uint) (*model.User, error) {
 	return s.GetUserInfoContext(context.Background(), userID)
 }
@@ -151,7 +151,7 @@ func (s *CacheService) GetUserInfoContext(ctx context.Context, userID uint) (*mo
 	return &user, err
 }
 
-// DelUserInfo 删除缓存的用户信息
+// DelUserInfo deletes cached user information.
 func (s *CacheService) DelUserInfo(userID uint) error {
 	return s.DelUserInfoContext(context.Background(), userID)
 }
@@ -161,7 +161,7 @@ func (s *CacheService) DelUserInfoContext(ctx context.Context, userID uint) erro
 	return redis.Client.Del(ctx, key).Err()
 }
 
-// SetUserPermissions 缓存用户权限
+// SetUserPermissions caches user permissions.
 func (s *CacheService) SetUserPermissions(userID uint, permissions []string) error {
 	return s.SetUserPermissionsContext(context.Background(), userID, permissions)
 }
@@ -178,7 +178,7 @@ func (s *CacheService) SetUserPermissionsContext(ctx context.Context, userID uin
 	return err
 }
 
-// GetUserPermissions 获取缓存的用户权限
+// GetUserPermissions returns cached user permissions.
 func (s *CacheService) GetUserPermissions(userID uint) ([]string, error) {
 	return s.GetUserPermissionsContext(context.Background(), userID)
 }
@@ -188,7 +188,7 @@ func (s *CacheService) GetUserPermissionsContext(ctx context.Context, userID uin
 	return redis.Client.SMembers(ctx, key).Result()
 }
 
-// DelUserPermissions 删除缓存的用户权限
+// DelUserPermissions deletes cached user permissions.
 func (s *CacheService) DelUserPermissions(userID uint) error {
 	return s.DelUserPermissionsContext(context.Background(), userID)
 }
@@ -198,7 +198,7 @@ func (s *CacheService) DelUserPermissionsContext(ctx context.Context, userID uin
 	return redis.Client.Del(ctx, key).Err()
 }
 
-// DelUserPermissionsBatch 批量删除用户权限缓存
+// DelUserPermissionsBatch deletes user permission caches in bulk.
 func (s *CacheService) DelUserPermissionsBatch(userIDs []uint) error {
 	return s.DelUserPermissionsBatchContext(context.Background(), userIDs)
 }
@@ -215,7 +215,7 @@ func (s *CacheService) DelUserPermissionsBatchContext(ctx context.Context, userI
 	return redis.Client.Del(ctx, keys...).Err()
 }
 
-// DelAllUserPermissions 删除所有用户权限缓存
+// DelAllUserPermissions deletes all cached user permissions.
 func (s *CacheService) DelAllUserPermissions() error {
 	return s.DelAllUserPermissionsContext(context.Background())
 }

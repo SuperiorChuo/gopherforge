@@ -23,10 +23,10 @@ func requireTestDatabase(t *testing.T) {
 func TestUserAPI_Register(t *testing.T) {
 	requireTestDatabase(t)
 
-	// 设置 Gin 为测试模式
+	// Set Gin to test mode.
 	gin.SetMode(gin.TestMode)
 
-	// 创建测试请求
+	// Create the test router.
 	router := gin.New()
 	api := router.Group("/api/v1")
 	{
@@ -34,7 +34,7 @@ func TestUserAPI_Register(t *testing.T) {
 		api.POST("/register", userAPI.Register)
 	}
 
-	// 测试数据
+	// Test data.
 	registerData := map[string]string{
 		"username": "testuser",
 		"password": "testpass123",
@@ -42,15 +42,15 @@ func TestUserAPI_Register(t *testing.T) {
 	}
 	jsonData, _ := json.Marshal(registerData)
 
-	// 创建请求
+	// Create the request.
 	req, _ := http.NewRequest("POST", "/api/v1/register", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
-	// 执行请求
+	// Execute the request.
 	router.ServeHTTP(w, req)
 
-	// 断言
+	// Assert the response.
 	if w.Code != http.StatusOK && w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status code %d or %d, got %d", http.StatusOK, http.StatusBadRequest, w.Code)
 	}
@@ -59,10 +59,10 @@ func TestUserAPI_Register(t *testing.T) {
 func TestUserAPI_Login(t *testing.T) {
 	requireTestDatabase(t)
 
-	// 设置 Gin 为测试模式
+	// Set Gin to test mode.
 	gin.SetMode(gin.TestMode)
 
-	// 创建测试请求
+	// Create the test router.
 	router := gin.New()
 	api := router.Group("/api/v1")
 	{
@@ -70,23 +70,22 @@ func TestUserAPI_Login(t *testing.T) {
 		api.POST("/login", userAPI.Login)
 	}
 
-	// 测试数据
+	// Test data.
 	loginData := map[string]string{
 		"username": "testuser",
 		"password": "testpass123",
 	}
 	jsonData, _ := json.Marshal(loginData)
 
-	// 创建请求
+	// Create the request.
 	req, _ := http.NewRequest("POST", "/api/v1/login", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
-	// 执行请求
+	// Execute the request.
 	router.ServeHTTP(w, req)
 
-	// 断言 - 这里可能会失败，因为用户可能不存在
-	// 实际测试中需要先创建用户或使用 mock
+	// The user may not exist in a sparse test database.
 	if w.Code != http.StatusOK && w.Code != http.StatusUnauthorized {
 		t.Errorf("Expected status code %d or %d, got %d", http.StatusOK, http.StatusUnauthorized, w.Code)
 	}

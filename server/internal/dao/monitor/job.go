@@ -21,7 +21,7 @@ func (d *JobDAO) Ready() bool {
 	return database.DB != nil
 }
 
-// GetJobByID 根据ID获取任务
+// GetJobByID returns a job by ID.
 func (d *JobDAO) GetJobByID(id uint) (*model.ScheduledJob, error) {
 	return d.GetJobByIDContext(context.Background(), id)
 }
@@ -32,7 +32,7 @@ func (d *JobDAO) GetJobByIDContext(ctx context.Context, id uint) (*model.Schedul
 	return &job, result.Error
 }
 
-// GetJobList 获取任务列表（分页）
+// GetJobList returns jobs with pagination.
 func (d *JobDAO) GetJobList(req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error) {
 	return d.GetJobListContext(context.Background(), req, name, status)
 }
@@ -62,7 +62,7 @@ func (d *JobDAO) GetJobListContext(ctx context.Context, req pagination.PageReque
 	return jobs, total, result.Error
 }
 
-// CreateJob 创建任务
+// CreateJob creates a job.
 func (d *JobDAO) CreateJob(job *model.ScheduledJob) error {
 	return d.CreateJobContext(context.Background(), job)
 }
@@ -71,7 +71,7 @@ func (d *JobDAO) CreateJobContext(ctx context.Context, job *model.ScheduledJob) 
 	return database.DB.WithContext(ctx).Create(job).Error
 }
 
-// UpdateJob 更新任务
+// UpdateJob updates a job.
 func (d *JobDAO) UpdateJob(job *model.ScheduledJob) error {
 	return d.UpdateJobContext(context.Background(), job)
 }
@@ -80,7 +80,7 @@ func (d *JobDAO) UpdateJobContext(ctx context.Context, job *model.ScheduledJob) 
 	return database.DB.WithContext(ctx).Save(job).Error
 }
 
-// DeleteJob 删除任务
+// DeleteJob deletes a job.
 func (d *JobDAO) DeleteJob(id uint) error {
 	return d.DeleteJobContext(context.Background(), id)
 }
@@ -89,7 +89,7 @@ func (d *JobDAO) DeleteJobContext(ctx context.Context, id uint) error {
 	return database.DB.WithContext(ctx).Delete(&model.ScheduledJob{}, id).Error
 }
 
-// CreateJobLog 创建任务日志
+// CreateJobLog creates a job log.
 func (d *JobDAO) CreateJobLog(log *model.ScheduledJobLog) error {
 	return d.CreateJobLogContext(context.Background(), log)
 }
@@ -98,7 +98,7 @@ func (d *JobDAO) CreateJobLogContext(ctx context.Context, log *model.ScheduledJo
 	return database.DB.WithContext(ctx).Create(log).Error
 }
 
-// CleanupJobLogsBefore 清理指定时间之前的任务日志
+// CleanupJobLogsBefore deletes job logs before the given time.
 func (d *JobDAO) CleanupJobLogsBefore(before time.Time) (int64, error) {
 	return d.CleanupJobLogsBeforeContext(context.Background(), before)
 }
@@ -108,7 +108,7 @@ func (d *JobDAO) CleanupJobLogsBeforeContext(ctx context.Context, before time.Ti
 	return result.RowsAffected, result.Error
 }
 
-// GetJobLogList 获取任务日志列表（分页）
+// GetJobLogList returns job logs with pagination.
 func (d *JobDAO) GetJobLogList(req pagination.PageRequest, jobID uint, success *int8) ([]model.ScheduledJobLog, int64, error) {
 	return d.GetJobLogListContext(context.Background(), req, jobID, success)
 }
@@ -138,7 +138,7 @@ func (d *JobDAO) GetJobLogListContext(ctx context.Context, req pagination.PageRe
 	return logs, total, result.Error
 }
 
-// GetAllActiveJobs 获取所有激活的任务
+// GetAllActiveJobs returns all active jobs.
 func (d *JobDAO) GetAllActiveJobs() ([]model.ScheduledJob, error) {
 	return d.GetAllActiveJobsContext(context.Background())
 }
@@ -149,7 +149,7 @@ func (d *JobDAO) GetAllActiveJobsContext(ctx context.Context) ([]model.Scheduled
 	return jobs, result.Error
 }
 
-// GetAllJobs 获取所有任务
+// GetAllJobs returns all jobs.
 func (d *JobDAO) GetAllJobs() ([]model.ScheduledJob, error) {
 	return d.GetAllJobsContext(context.Background())
 }
@@ -160,7 +160,7 @@ func (d *JobDAO) GetAllJobsContext(ctx context.Context) ([]model.ScheduledJob, e
 	return jobs, result.Error
 }
 
-// CountJobsByStatus 按状态统计任务数量，status 为 nil 时统计全部
+// CountJobsByStatus counts jobs by status, or all jobs when status is nil.
 func (d *JobDAO) CountJobsByStatus(status *int8) (int64, error) {
 	return d.CountJobsByStatusContext(context.Background(), status)
 }
@@ -175,7 +175,7 @@ func (d *JobDAO) CountJobsByStatusContext(ctx context.Context, status *int8) (in
 	return count, err
 }
 
-// CountFailedJobLogsSince 统计指定时间之后失败的任务日志数量
+// CountFailedJobLogsSince counts failed job logs since the given time.
 func (d *JobDAO) CountFailedJobLogsSince(since time.Time) (int64, error) {
 	return d.CountFailedJobLogsSinceContext(context.Background(), since)
 }
@@ -188,7 +188,7 @@ func (d *JobDAO) CountFailedJobLogsSinceContext(ctx context.Context, since time.
 	return count, err
 }
 
-// GetLatestJobRunTime 获取最近一次任务运行时间
+// GetLatestJobRunTime returns the latest job run time.
 func (d *JobDAO) GetLatestJobRunTime() (*time.Time, error) {
 	return d.GetLatestJobRunTimeContext(context.Background())
 }
@@ -208,7 +208,7 @@ func (d *JobDAO) GetLatestJobRunTimeContext(ctx context.Context) (*time.Time, er
 	return job.LastRunTime, nil
 }
 
-// GetLatestJobLog 获取任务最近一条执行日志
+// GetLatestJobLog returns the latest execution log for a job.
 func (d *JobDAO) GetLatestJobLog(jobID uint) (*model.ScheduledJobLog, error) {
 	return d.GetLatestJobLogContext(context.Background(), jobID)
 }

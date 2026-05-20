@@ -3,7 +3,7 @@ package system
 import (
 	"net/http/httptest"
 	"os"
-	"strings"
+	"regexp"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -42,19 +42,8 @@ func TestNoticeAPIMessagesUseEnglish(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read notice.go: %v", err)
 	}
-	source := string(content)
-	for _, phrase := range []string{
-		"通知公告",
-		"公告",
-		"无效",
-		"不存在",
-		"创建成功",
-		"更新成功",
-		"删除成功",
-		"状态更新成功",
-	} {
-		if strings.Contains(source, phrase) {
-			t.Fatalf("notice.go contains non-English API phrase %q", phrase)
-		}
+
+	if regexp.MustCompile(`\p{Han}`).Find(content) != nil {
+		t.Fatal("notice.go contains non-English source text")
 	}
 }

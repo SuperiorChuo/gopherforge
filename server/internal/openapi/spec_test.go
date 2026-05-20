@@ -1,10 +1,23 @@
 package openapi
 
 import (
+	"os"
+	"regexp"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 )
+
+func TestSpecUsesEnglishDescriptions(t *testing.T) {
+	content, err := os.ReadFile("spec.go")
+	if err != nil {
+		t.Fatalf("read spec.go: %v", err)
+	}
+
+	if regexp.MustCompile(`\p{Han}`).Find(content) != nil {
+		t.Fatal("spec.go contains non-English source text")
+	}
+}
 
 func TestNormalizeGinPathConvertsParams(t *testing.T) {
 	got := NormalizeGinPath("/api/v1/users/:id/files/*filepath")

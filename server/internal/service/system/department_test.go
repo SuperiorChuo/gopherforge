@@ -23,7 +23,7 @@ func TestDepartmentServiceCreateInvalidatesDepartmentTreeCache(t *testing.T) {
 	service := DepartmentService{deptDAO: dao}
 
 	_, err := service.Create(CreateDepartmentRequest{
-		Name:   "研发部",
+		Name:   "Engineering",
 		Code:   "rd",
 		Status: 1,
 	})
@@ -52,11 +52,11 @@ func TestDepartmentServiceUpdateInvalidatesDepartmentTreeCache(t *testing.T) {
 	setupDepartmentServiceTestRedis(t)
 	seedDepartmentTreeCache(t)
 
-	dept := &model.Department{ID: 10, Name: "研发部", Code: "rd", Status: 1}
+	dept := &model.Department{ID: 10, Name: "Engineering", Code: "rd", Status: 1}
 	dao := &fakeDepartmentDAO{byID: map[uint]*model.Department{10: dept}}
 	service := DepartmentService{deptDAO: dao}
 
-	_, err := service.Update(10, UpdateDepartmentRequest{Name: "产品研发部"})
+	_, err := service.Update(10, UpdateDepartmentRequest{Name: "Product Engineering"})
 	if err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}

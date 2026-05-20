@@ -5,8 +5,6 @@ import (
 )
 
 func TestGetPageRequest(t *testing.T) {
-	// 这个测试需要 gin.Context，实际项目中应该使用更完整的测试
-	// 这里只是示例结构
 	t.Run("default values", func(t *testing.T) {
 		req := PageRequest{
 			Page:     1,
@@ -63,6 +61,6 @@ func TestNewPageResponse(t *testing.T) {
 		t.Errorf("Expected Total 25, got %d", resp.Total)
 	}
 	if resp.Pages != 3 {
-		t.Errorf("Expected Pages 3, got %d", resp.Pages) // 25 / 10 = 2.5, 向上取整为 3
+		t.Errorf("Expected Pages 3, got %d", resp.Pages)
 	}
 }

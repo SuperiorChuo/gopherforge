@@ -26,7 +26,7 @@ func NewMySQLService() *MySQLService {
 	return &MySQLService{dao: monitordao.NewMySQLDAO()}
 }
 
-// GetMySQLInfo 获取 MySQL 信息
+// GetMySQLInfo returns MySQL information.
 func (s *MySQLService) GetMySQLInfo() (map[string]any, error) {
 	return s.GetMySQLInfoContext(context.Background())
 }
@@ -37,7 +37,7 @@ func (s *MySQLService) GetMySQLInfoContext(ctx context.Context) (map[string]any,
 		return nil, err
 	}
 
-	// 获取版本和运行时信息
+	// Load version and runtime information.
 	version, err := s.dao.GetVersionContext(ctx)
 	if err != nil {
 		return nil, err

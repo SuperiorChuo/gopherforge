@@ -2,7 +2,7 @@ package system
 
 import (
 	"os"
-	"strings"
+	"regexp"
 	"testing"
 )
 
@@ -12,18 +12,7 @@ func TestPermissionAPICommentsUseEnglish(t *testing.T) {
 		t.Fatalf("read permission.go: %v", err)
 	}
 
-	source := string(content)
-	for _, phrase := range []string{
-		"权限",
-		"创建",
-		"获取",
-		"更新",
-		"删除",
-		"默认分页",
-		"解析类型",
-	} {
-		if strings.Contains(source, phrase) {
-			t.Fatalf("permission.go contains non-English phrase %q", phrase)
-		}
+	if regexp.MustCompile(`\p{Han}`).Find(content) != nil {
+		t.Fatal("permission.go contains non-English source text")
 	}
 }

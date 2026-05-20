@@ -111,7 +111,7 @@ func BuildSpec(routes []gin.RouteInfo, opts Options) Spec {
 						"code":    {Type: "integer"},
 						"message": {Type: "string"},
 						"data": {
-							Description:          "业务响应数据",
+							Description:          "Business response data",
 							AdditionalProperties: true,
 						},
 					},
@@ -175,10 +175,10 @@ func buildOperation(method, path string) Operation {
 		OperationID: operationID(method, path),
 		Parameters:  pathParameters(path),
 		Responses: map[string]Response{
-			"200": jsonResponse("请求成功", Schema{Ref: "#/components/schemas/ApiResponse"}),
-			"400": jsonResponse("请求参数错误", Schema{Ref: "#/components/schemas/ApiResponse"}),
-			"401": jsonResponse("未认证或登录已过期", Schema{Ref: "#/components/schemas/ApiResponse"}),
-			"500": jsonResponse("服务器内部错误", Schema{Ref: "#/components/schemas/ApiResponse"}),
+			"200": jsonResponse("Request succeeded", Schema{Ref: "#/components/schemas/ApiResponse"}),
+			"400": jsonResponse("Invalid request parameters", Schema{Ref: "#/components/schemas/ApiResponse"}),
+			"401": jsonResponse("Unauthenticated or session expired", Schema{Ref: "#/components/schemas/ApiResponse"}),
+			"500": jsonResponse("Internal server error", Schema{Ref: "#/components/schemas/ApiResponse"}),
 		},
 	}
 	if !isPublicRoute(method, path) {
@@ -214,11 +214,11 @@ func buildOperation(method, path string) Operation {
 		}
 	}
 	if hasContract && contract.ResponseSchema != "" {
-		op.Responses["200"] = jsonResponse("请求成功", refSchema(contract.ResponseSchema))
+		op.Responses["200"] = jsonResponse("Request succeeded", refSchema(contract.ResponseSchema))
 	}
 	if path == "/api/v1/metrics" {
 		op.Responses["200"] = Response{
-			Description: "Prometheus 指标文本",
+			Description: "Prometheus metrics text",
 			Content: map[string]MediaType{
 				"text/plain": {Schema: Schema{Type: "string"}},
 			},

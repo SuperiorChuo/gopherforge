@@ -7,14 +7,14 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/logger"
 )
 
-// Response 统一响应结构
+// Response is the standard API response shape.
 type Response struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    any    `json:"data,omitempty"`
 }
 
-// PageResponse 分页响应结构
+// PageResponse is the paginated API response shape.
 type PageResponse struct {
 	Code     int    `json:"code"`
 	Message  string `json:"message"`
@@ -24,7 +24,7 @@ type PageResponse struct {
 	PageSize int    `json:"page_size,omitempty"`
 }
 
-// Success 成功响应
+// Success writes a successful response.
 func Success(c *gin.Context, data any) {
 	c.JSON(http.StatusOK, Response{
 		Code:    200,
@@ -33,7 +33,7 @@ func Success(c *gin.Context, data any) {
 	})
 }
 
-// SuccessWithMessage 成功响应（自定义消息）
+// SuccessWithMessage writes a successful response with a custom message.
 func SuccessWithMessage(c *gin.Context, message string, data any) {
 	c.JSON(http.StatusOK, Response{
 		Code:    200,
@@ -42,7 +42,7 @@ func SuccessWithMessage(c *gin.Context, message string, data any) {
 	})
 }
 
-// Error 错误响应
+// Error writes an error response with a custom code.
 func Error(c *gin.Context, code int, message string) {
 	c.JSON(httpStatusFromCode(code), Response{
 		Code:    code,
@@ -50,7 +50,7 @@ func Error(c *gin.Context, code int, message string) {
 	})
 }
 
-// BadRequest 400 错误
+// BadRequest writes a 400 response.
 func BadRequest(c *gin.Context, message string) {
 	c.JSON(http.StatusBadRequest, Response{
 		Code:    http.StatusBadRequest,
@@ -58,7 +58,7 @@ func BadRequest(c *gin.Context, message string) {
 	})
 }
 
-// Unauthorized 401 错误
+// Unauthorized writes a 401 response.
 func Unauthorized(c *gin.Context, message string) {
 	c.JSON(http.StatusUnauthorized, Response{
 		Code:    http.StatusUnauthorized,
@@ -66,7 +66,7 @@ func Unauthorized(c *gin.Context, message string) {
 	})
 }
 
-// Forbidden 403 错误
+// Forbidden writes a 403 response.
 func Forbidden(c *gin.Context, message string) {
 	c.JSON(http.StatusForbidden, Response{
 		Code:    http.StatusForbidden,
@@ -74,7 +74,7 @@ func Forbidden(c *gin.Context, message string) {
 	})
 }
 
-// NotFound 404 错误
+// NotFound writes a 404 response.
 func NotFound(c *gin.Context, message string) {
 	c.JSON(http.StatusNotFound, Response{
 		Code:    http.StatusNotFound,
@@ -82,7 +82,7 @@ func NotFound(c *gin.Context, message string) {
 	})
 }
 
-// InternalServerError 500 错误
+// InternalServerError writes a generic 500 response and logs details.
 func InternalServerError(c *gin.Context, detail string) {
 	if detail != "" && logger.Logger != nil {
 		logger.Error("internal server error", logger.String("detail", detail))
@@ -100,8 +100,7 @@ func httpStatusFromCode(code int) int {
 	return http.StatusInternalServerError
 }
 
-// PageSuccess 分页成功响应
-// PageSuccess 分页成功响应
+// PageSuccess writes a successful paginated response.
 func PageSuccess(c *gin.Context, data any, total int64, page, pageSize int) {
 	c.JSON(http.StatusOK, Response{
 		Code:    200,

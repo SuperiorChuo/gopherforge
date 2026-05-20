@@ -172,26 +172,26 @@ var (
 	Cfg Config
 )
 
-// LoadConfig 加载配置文件
+// LoadConfig loads the configuration file.
 func LoadConfig(filePath string) error {
-	// 读取配置文件
+	// Read the configuration file.
 	file, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	// 解析 YAML
+	// Parse YAML.
 	if err := yaml.Unmarshal(file, &Cfg); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	// 替换环境变量
+	// Replace environment variables.
 	replaceEnvVars(&Cfg)
 
 	return nil
 }
 
-// Validate 检查配置中的高风险组合。
+// Validate checks high-risk configuration combinations.
 func Validate() error {
 	if Cfg.CORS.AllowCredentials && containsString(Cfg.CORS.AllowOrigins, "*") {
 		return fmt.Errorf("CORS cannot use '*' when credentials are enabled")
@@ -351,7 +351,7 @@ func normalizeSecretValue(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }
 
-// replaceEnvVars 替换配置中的环境变量
+// replaceEnvVars replaces environment variables in the configuration.
 func replaceEnvVars(config *Config) {
 	config.App.Env = getEnvString("APP_ENV", config.App.Env)
 	config.App.Port = getEnvInt("APP_PORT", config.App.Port)
@@ -537,7 +537,7 @@ func (c UploadConfig) EffectiveLocalURLPrefix() string {
 	return "/uploads"
 }
 
-// GetDSN 获取数据库连接字符串
+// GetDSN returns the database connection string.
 func (c *DatabaseConfig) GetDSN() string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local",
 		c.User, c.Password, c.Host, c.Port, c.DBName, c.Charset)
@@ -557,7 +557,7 @@ func (c DatabaseConfig) EffectiveConnMaxIdleTime() time.Duration {
 	return time.Duration(c.ConnMaxIdleTimeSeconds) * time.Second
 }
 
-// GetRedisAddr 获取Redis地址
+// GetRedisAddr returns the Redis address.
 func (c *RedisConfig) GetRedisAddr() string {
 	return fmt.Sprintf("%s:%d", c.Host, c.Port)
 }

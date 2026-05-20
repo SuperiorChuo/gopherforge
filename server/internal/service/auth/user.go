@@ -16,12 +16,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserService 用户认证服务
+// UserService handles user authentication.
 type UserService struct {
 	userDAO auth.UserDAO
 }
 
-// LoginRequest 登录请求
+// LoginRequest is the login request payload.
 type LoginRequest struct {
 	Username    string `json:"username" binding:"required"`
 	Password    string `json:"password" binding:"required"`
@@ -29,27 +29,27 @@ type LoginRequest struct {
 	CaptchaCode string `json:"captcha_code" binding:"required"`
 }
 
-// LoginResponse 登录响应
+// LoginResponse is the login response payload.
 type LoginResponse struct {
 	User         model.User `json:"user"`
 	AccessToken  string     `json:"access_token"`
 	RefreshToken string     `json:"refresh_token"`
 }
 
-// RegisterRequest 注册请求
+// RegisterRequest is the registration request payload.
 type RegisterRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 	Email    string `json:"email" binding:"required,email"`
 }
 
-// ChangePasswordRequest 修改密码请求
+// ChangePasswordRequest is the password change request payload.
 type ChangePasswordRequest struct {
 	OldPassword string `json:"old_password" binding:"required"`
 	NewPassword string `json:"new_password" binding:"required"`
 }
 
-// UpdateProfileRequest 更新当前用户个人资料请求
+// UpdateProfileRequest updates the current user's profile.
 type UpdateProfileRequest struct {
 	Nickname *string `json:"nickname"`
 	Email    *string `json:"email"`
@@ -58,15 +58,15 @@ type UpdateProfileRequest struct {
 }
 
 var (
-	// ErrUserNotFound 当前用户不存在
+	// ErrUserNotFound indicates the current user does not exist.
 	ErrUserNotFound = errors.New("user not found")
-	// ErrEmailAlreadyExists 邮箱已被其他用户占用
+	// ErrEmailAlreadyExists indicates the email is used by another user.
 	ErrEmailAlreadyExists = errors.New("email already exists")
-	// ErrPhoneAlreadyExists 手机号已被其他用户占用
+	// ErrPhoneAlreadyExists indicates the phone number is used by another user.
 	ErrPhoneAlreadyExists = errors.New("phone already exists")
 )
 
-// ProfileValidationError 个人资料参数校验错误
+// ProfileValidationError reports invalid profile input.
 type ProfileValidationError struct {
 	Message string
 }
@@ -75,18 +75,16 @@ func (e ProfileValidationError) Error() string {
 	return e.Message
 }
 
-// Login 用户登录
+// Login authenticates a user.
 func (s *UserService) Login(req LoginRequest) (*LoginResponse, error) {
 	return s.LoginContext(context.Background(), req)
 }
 
 func (s *UserService) LoginContext(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
-	// 验证验证码
 	if !captcha.CheckTextCaptchaContext(ctx, req.CaptchaID, req.CaptchaCode) {
-		return nil, errors.New("验证码错误或已过期")
+		return nil, errors.New("captcha is invalid or expired")
 	}
 
-	// 根据用户名获取用户
 	return s.LoginPasswordContext(ctx, req.Username, req.Password)
 }
 
@@ -111,12 +109,10 @@ func (s *UserService) LoginPasswordWithAccessTTLContext(ctx context.Context, use
 		return nil, errors.New("invalid username or password")
 	}
 
-	// 检查用户状态
 	if user.Status != 1 {
 		return nil, errors.New("user is disabled")
 	}
 
-	// 验证密码
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		return nil, errors.New("invalid username or password")
 	}
@@ -126,13 +122,11 @@ func (s *UserService) LoginPasswordWithAccessTTLContext(ctx context.Context, use
 		_ = s.userDAO.UpdateUserContext(ctx, user)
 	}
 
-	// 生成token
 	accessToken, refreshToken, err := jwt.GenerateTokenWithAccessTTL(user.ID, user.Username, accessTTL)
 	if err != nil {
 		return nil, err
 	}
 
-	// 重新获取用户完整信息（包含角色和权限）
 	userWithRoles, err := s.userDAO.GetUserWithRolesAndPermissionsContext(ctx, user.ID)
 	if err == nil {
 		user = userWithRoles
@@ -145,36 +139,31 @@ func (s *UserService) LoginPasswordWithAccessTTLContext(ctx context.Context, use
 	}, nil
 }
 
-// Register 用户注册
+// Register creates a user account.
 func (s *UserService) Register(req RegisterRequest) (*model.User, error) {
 	return s.RegisterContext(context.Background(), req)
 }
 
 func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) (*model.User, error) {
-	// 检查用户名是否已存在
 	_, err := s.userDAO.GetUserByUsernameContext(ctx, req.Username)
 	if err == nil {
 		return nil, errors.New("username already exists")
 	}
 
-	// 检查邮箱是否已存在
 	_, err = s.userDAO.GetUserByEmailContext(ctx, req.Email)
 	if err == nil {
 		return nil, errors.New("email already exists")
 	}
 
-	// 验证密码强度
 	if err := validatePasswordStrength(req.Password); err != nil {
 		return nil, err
 	}
 
-	// 哈希密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 
-	// 创建用户
 	user := &model.User{
 		Username: req.Username,
 		Password: string(hashedPassword),
@@ -189,7 +178,7 @@ func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) 
 	return user, nil
 }
 
-// GetUserWithRoles 获取用户及其角色
+// GetUserWithRoles returns a user with roles.
 func (s *UserService) GetUserWithRoles(id uint) (*model.User, error) {
 	return s.GetUserWithRolesContext(context.Background(), id)
 }
@@ -198,7 +187,7 @@ func (s *UserService) GetUserWithRolesContext(ctx context.Context, id uint) (*mo
 	return s.userDAO.GetUserWithRolesContext(ctx, id)
 }
 
-// ChangePassword 修改密码
+// ChangePassword changes a user's password.
 func (s *UserService) ChangePassword(userID uint, req ChangePasswordRequest) error {
 	return s.ChangePasswordContext(context.Background(), userID, req)
 }
@@ -209,17 +198,14 @@ func (s *UserService) ChangePasswordContext(ctx context.Context, userID uint, re
 		return ErrUserNotFound
 	}
 
-	// 验证旧密码
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword)); err != nil {
 		return errors.New("old password is incorrect")
 	}
 
-	// 验证新密码强度
 	if err := validatePasswordStrength(req.NewPassword); err != nil {
 		return err
 	}
 
-	// 哈希新密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -230,7 +216,7 @@ func (s *UserService) ChangePasswordContext(ctx context.Context, userID uint, re
 	return s.userDAO.UpdateUserContext(ctx, user)
 }
 
-// UpdateProfile 更新当前用户个人资料
+// UpdateProfile updates the current user's profile.
 func (s *UserService) UpdateProfile(userID uint, req UpdateProfileRequest) (*model.User, error) {
 	return s.UpdateProfileContext(context.Background(), userID, req)
 }
@@ -328,7 +314,7 @@ func shouldMarkDefaultAdminPassword(user *model.User, plainPassword string) bool
 	return user.Username == username && !user.MustChangePassword && plainPassword == "admin123"
 }
 
-// GetUserWithRolesAndPermissions 获取用户及其完整的角色和权限
+// GetUserWithRolesAndPermissions returns a user with roles and permissions.
 func (s *UserService) GetUserWithRolesAndPermissions(id uint) (*model.User, error) {
 	return s.GetUserWithRolesAndPermissionsContext(context.Background(), id)
 }
@@ -337,19 +323,16 @@ func (s *UserService) GetUserWithRolesAndPermissionsContext(ctx context.Context,
 	return s.userDAO.GetUserWithRolesAndPermissionsContext(ctx, id)
 }
 
-// GetUserPermissions 获取用户的所有权限代码（去重）
+// GetUserPermissions returns a deduplicated list of permission codes.
 func (s *UserService) GetUserPermissions(user *model.User) []string {
 	permissionMap := make(map[string]bool)
 
-	// 遍历用户的所有角色
 	for _, role := range user.Roles {
-		// 遍历角色的所有权限
 		for _, perm := range role.Permissions {
 			permissionMap[perm.Code] = true
 		}
 	}
 
-	// 转换为数组
 	permissions := make([]string, 0, len(permissionMap))
 	for code := range permissionMap {
 		permissions = append(permissions, code)
@@ -358,7 +341,7 @@ func (s *UserService) GetUserPermissions(user *model.User) []string {
 	return permissions
 }
 
-// validatePasswordStrength 验证密码强度
+// validatePasswordStrength validates password strength.
 func validatePasswordStrength(password string) error {
 	if len(password) < 8 {
 		return errors.New("password must be at least 8 characters")

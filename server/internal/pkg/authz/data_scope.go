@@ -15,7 +15,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// DataScope 数据权限范围。
+// DataScope is a data permission scope.
 type DataScope string
 
 const (
@@ -37,7 +37,7 @@ type departmentTreeCacheRow struct {
 	ParentID uint `json:"parent_id"`
 }
 
-// UserDataScope 是业务查询可复用的数据权限解析结果。
+// UserDataScope is a reusable data permission result for business queries.
 type UserDataScope struct {
 	Scope         DataScope
 	UserID        uint
@@ -47,10 +47,10 @@ type UserDataScope struct {
 	RoleCodes     []string
 }
 
-// ResolveUserDataScope 根据用户与角色解析基础数据权限范围。
+// ResolveUserDataScope resolves the base data permission scope from a user and roles.
 //
-// 角色 data_scope 为主配置；旧角色编码仅作为兼容兜底：
-// super_admin/admin 始终拥有全部数据，dept_admin 在未配置 data_scope 时拥有本部门及子部门。
+// Role data_scope is the primary configuration; legacy role codes are compatibility fallbacks:
+// super_admin/admin always get all data, and dept_admin gets department-tree data when data_scope is unset.
 func ResolveUserDataScope(user *model.User) UserDataScope {
 	scope, err := ResolveUserDataScopeContext(context.Background(), user)
 	if err != nil {
@@ -146,12 +146,12 @@ func ResolveUserDataScopeContext(ctx context.Context, user *model.User) (UserDat
 	return scope, nil
 }
 
-// CanAccessAll 判断解析结果是否拥有全量数据权限。
+// CanAccessAll reports whether the resolved scope can access all data.
 func (s UserDataScope) CanAccessAll() bool {
 	return s.Scope == DataScopeAll
 }
 
-// ResolveUserDataScopeFromContext 从 Gin 上下文中的 user_id 解析当前用户数据权限。
+// ResolveUserDataScopeFromContext resolves data permissions for the current Gin user_id.
 func ResolveUserDataScopeFromContext(c *gin.Context) (UserDataScope, error) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -177,7 +177,7 @@ func ResolveUserDataScopeFromContext(c *gin.Context) (UserDataScope, error) {
 	return ResolveUserDataScopeContext(ctx, user)
 }
 
-// ApplyUserEntityScope 给用户表列表追加数据权限条件。
+// ApplyUserEntityScope appends data permission conditions to user table queries.
 func ApplyUserEntityScope(query *gorm.DB, scope UserDataScope, idColumn, departmentColumn string) *gorm.DB {
 	switch scope.Scope {
 	case DataScopeAll:
@@ -197,7 +197,7 @@ func ApplyUserEntityScope(query *gorm.DB, scope UserDataScope, idColumn, departm
 	}
 }
 
-// ApplyOwnerScope 给带 user_id 归属字段的业务表追加数据权限条件。
+// ApplyOwnerScope appends data permission conditions to business tables with a user_id owner column.
 func ApplyOwnerScope(query *gorm.DB, scope UserDataScope, userColumn string) *gorm.DB {
 	switch scope.Scope {
 	case DataScopeAll:
@@ -222,8 +222,8 @@ func ApplyOwnerScope(query *gorm.DB, scope UserDataScope, userColumn string) *go
 	}
 }
 
-// ApplyUnownedResourceScope 用于尚未持久化 user_id/department_id 归属字段的资源。
-// 后续给资源表补齐归属列后，应切换为 ApplyOwnerScope 或 ApplyUserEntityScope。
+// ApplyUnownedResourceScope is for resources without persisted user_id or department_id ownership columns.
+// Switch to ApplyOwnerScope or ApplyUserEntityScope after resource tables gain ownership columns.
 func ApplyUnownedResourceScope(query *gorm.DB, scope UserDataScope) *gorm.DB {
 	if scope.CanAccessAll() {
 		return query

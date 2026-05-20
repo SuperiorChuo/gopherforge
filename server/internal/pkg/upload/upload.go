@@ -23,7 +23,7 @@ var (
 	ErrFileTypeNotAllowed = errors.New("file type not allowed")
 )
 
-// FileInfo 文件信息
+// FileInfo describes an uploaded file.
 type FileInfo struct {
 	FileName    string `json:"file_name"`
 	FilePath    string `json:"file_path"`
@@ -36,14 +36,14 @@ type FileInfo struct {
 	Hash        string `json:"hash"`
 }
 
-// Uploader 文件上传器
+// Uploader uploads files through the configured storage provider.
 type Uploader struct {
 	config      config.UploadConfig
 	provider    StorageProvider
 	providerErr error
 }
 
-// NewUploader 创建上传器
+// NewUploader creates an uploader.
 func NewUploader() *Uploader {
 	return NewUploaderWithConfig(config.Cfg.Upload)
 }
@@ -57,7 +57,7 @@ func NewUploaderWithConfig(cfg config.UploadConfig) *Uploader {
 	}
 }
 
-// Upload 上传文件
+// Upload uploads one file.
 func (u *Uploader) Upload(file *multipart.FileHeader) (*FileInfo, error) {
 	return u.UploadContext(context.Background(), file)
 }
@@ -70,31 +70,31 @@ func (u *Uploader) UploadContext(ctx context.Context, file *multipart.FileHeader
 		return nil, err
 	}
 
-	// 检查文件大小
+	// Check file size.
 	maxSize := int64(u.config.MaxSize) * 1024 * 1024
 	if file.Size > maxSize {
 		return nil, ErrFileTooLarge
 	}
 
-	// 获取文件扩展名
+	// Resolve file extension.
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	if ext == "" {
 		return nil, ErrFileTypeNotAllowed
 	}
 
-	// 检查文件类型
+	// Check allowed file type.
 	if !u.isAllowedType(ext) {
 		return nil, ErrFileTypeNotAllowed
 	}
 
-	// 打开文件
+	// Open the source file.
 	src, err := file.Open()
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer src.Close()
 
-	// 用文件头嗅探真实 MIME，避免只凭扩展名放行伪装文件。
+	// Sniff the real MIME type from the file header instead of trusting the extension.
 	mimeType, err := detectContentType(src)
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect content type: %w", err)
@@ -107,28 +107,28 @@ func (u *Uploader) UploadContext(ctx context.Context, file *multipart.FileHeader
 		return nil, fmt.Errorf("failed to reset file pointer: %w", err)
 	}
 
-	// 计算文件哈希
+	// Calculate the file hash.
 	hash, err := u.calculateHash(src)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate hash: %w", err)
 	}
 
-	// 重置文件指针
+	// Reset the file pointer.
 	if _, err := src.Seek(0, 0); err != nil {
 		return nil, fmt.Errorf("failed to reset file pointer: %w", err)
 	}
 
-	// 生成对象键并写入配置的存储后端。
+	// Generate the object key and store the file.
 	objectKey := u.generateObjectKey(ext)
 	stored, err := u.provider.Store(ctx, objectKey, src)
 	if err != nil {
 		return nil, err
 	}
 
-	// 获取文件类型
+	// Resolve file type.
 	fileType := u.getFileType(ext)
 
-	// 构建文件信息
+	// Build file metadata.
 	info := &FileInfo{
 		FileName:    safeFileName(file.Filename),
 		FilePath:    stored.FilePath,
@@ -144,7 +144,7 @@ func (u *Uploader) UploadContext(ctx context.Context, file *multipart.FileHeader
 	return info, nil
 }
 
-// UploadMultiple 批量上传文件
+// UploadMultiple uploads multiple files.
 func (u *Uploader) UploadMultiple(files []*multipart.FileHeader) ([]*FileInfo, []error) {
 	return u.UploadMultipleContext(context.Background(), files)
 }
@@ -168,7 +168,7 @@ func (u *Uploader) UploadMultipleContext(ctx context.Context, files []*multipart
 	return results, errs
 }
 
-// Delete 删除文件
+// Delete deletes a file from storage.
 func (u *Uploader) Delete(filePath string) error {
 	return u.DeleteContext(context.Background(), filePath)
 }
@@ -183,7 +183,7 @@ func (u *Uploader) DeleteContext(ctx context.Context, filePath string) error {
 	return u.provider.Delete(ctx, filePath)
 }
 
-// isAllowedType 检查文件类型是否允许
+// isAllowedType reports whether an extension is allowed.
 func (u *Uploader) isAllowedType(ext string) bool {
 	for _, allowed := range u.config.AllowedTypes {
 		if strings.EqualFold(ext, allowed) {
@@ -193,7 +193,7 @@ func (u *Uploader) isAllowedType(ext string) bool {
 	return false
 }
 
-// calculateHash 计算文件MD5哈希
+// calculateHash calculates an MD5 hash.
 func (u *Uploader) calculateHash(file io.Reader) (string, error) {
 	hash := md5.New()
 	if _, err := io.Copy(hash, file); err != nil {
@@ -202,12 +202,12 @@ func (u *Uploader) calculateHash(file io.Reader) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-// generateObjectKey 生成对象存储键
+// generateObjectKey creates an object storage key.
 func (u *Uploader) generateObjectKey(ext string) string {
-	// 按日期分目录
+	// Partition objects by date.
 	now := time.Now()
 	dateDir := now.Format("2006/01/02")
-	// 生成唯一文件名
+	// Generate a unique filename.
 	fileName := fmt.Sprintf("%d%s", now.UnixNano(), ext)
 
 	return path.Join(dateDir, fileName)
@@ -223,7 +223,7 @@ func (u *Uploader) ensureProvider() error {
 	return nil
 }
 
-// getFileType 根据扩展名判断文件类型
+// getFileType classifies a file by extension.
 func (u *Uploader) getFileType(ext string) string {
 	ext = strings.ToLower(ext)
 
@@ -256,10 +256,10 @@ func (u *Uploader) getFileType(ext string) string {
 	return "other"
 }
 
-// GetFileByHash 通过哈希查找文件（用于秒传）
+// GetFileByHash is reserved for instant-upload lookup by hash.
 func (u *Uploader) GetFileByHash(hash string) string {
-	// 这个功能需要配合数据库使用
-	// 这里只是预留接口
+	// This feature needs database support.
+	// Keep the method as a placeholder for future integration.
 	return ""
 }
 

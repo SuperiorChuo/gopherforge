@@ -7,26 +7,25 @@ import (
 	"gorm.io/gorm"
 )
 
-// PageRequest 分页请求
+// PageRequest contains pagination query parameters.
 type PageRequest struct {
-	Page     int `json:"page" form:"page"`           // 页码，从1开始
-	PageSize int `json:"page_size" form:"page_size"` // 每页数量
+	Page     int `json:"page" form:"page"`
+	PageSize int `json:"page_size" form:"page_size"`
 }
 
-// PageResponse 分页响应
+// PageResponse contains pagination metadata.
 type PageResponse struct {
-	Page     int   `json:"page"`      // 当前页码
-	PageSize int   `json:"page_size"` // 每页数量
-	Total    int64 `json:"total"`     // 总记录数
-	Pages    int   `json:"pages"`     // 总页数
+	Page     int   `json:"page"`
+	PageSize int   `json:"page_size"`
+	Total    int64 `json:"total"`
+	Pages    int   `json:"pages"`
 }
 
-// GetPageRequest 从请求中获取分页参数
+// GetPageRequest reads pagination parameters from a request.
 func GetPageRequest(c *gin.Context) PageRequest {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
-	// 限制范围
 	if page < 1 {
 		page = 1
 	}
@@ -34,7 +33,7 @@ func GetPageRequest(c *gin.Context) PageRequest {
 		pageSize = 10
 	}
 	if pageSize > 100 {
-		pageSize = 100 // 最大每页100条
+		pageSize = 100
 	}
 
 	return PageRequest{
@@ -43,7 +42,7 @@ func GetPageRequest(c *gin.Context) PageRequest {
 	}
 }
 
-// Paginate 分页查询
+// Paginate applies offset and limit to a GORM query.
 func Paginate(req PageRequest) func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		offset := (req.Page - 1) * req.PageSize
@@ -51,7 +50,7 @@ func Paginate(req PageRequest) func(db *gorm.DB) *gorm.DB {
 	}
 }
 
-// CalculatePages 计算总页数
+// CalculatePages calculates the number of pages.
 func CalculatePages(total int64, pageSize int) int {
 	if pageSize <= 0 {
 		return 0
@@ -63,7 +62,7 @@ func CalculatePages(total int64, pageSize int) int {
 	return pages
 }
 
-// NewPageResponse 创建分页响应
+// NewPageResponse creates pagination metadata.
 func NewPageResponse(req PageRequest, total int64) PageResponse {
 	return PageResponse{
 		Page:     req.Page,
