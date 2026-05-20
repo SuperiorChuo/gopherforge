@@ -1,0 +1,14 @@
+{
+  "name": "go-admin-kit-workspace",
+  "private": true,
+  "scripts": {
+    "openapi": "cd server && go run ./cmd/openapi -output ./docs/openapi.json",
+    "api:types": "node scripts/generate-openapi-types.mjs",
+    "api:contract": "npm run openapi && npm run api:types",
+    "test:smoke:unit": "node --test tests/api-smoke-lib.test.mjs",
+    "test:contract": "node --test tests/openapi-contract.test.mjs",
+    "smoke:api": "node tests/api-smoke.mjs",
+    "e2e:api": "node tests/api-smoke.mjs",
+    "e2e:frontend": "cd tdesign-vue-go && npm run e2e:frontend"
+  }
+}

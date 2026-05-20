@@ -1,0 +1,699 @@
+package auth
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/go-admin-kit/server/internal/model"
+	"github.com/go-admin-kit/server/internal/pkg/database"
+	"gorm.io/gorm"
+)
+
+const DefaultConsoleRouteSeedVersion = 6
+
+var ErrConsoleRouteNotFound = errors.New("console route not found")
+
+type ConsoleRouteValidationError struct {
+	Message string
+}
+
+func (e ConsoleRouteValidationError) Error() string {
+	return e.Message
+}
+
+type ConsoleRouteService struct{}
+
+type ConsoleRouteView struct {
+	RouteKey     string         `json:"route_key"`
+	Path         string         `json:"path"`
+	Name         string         `json:"name"`
+	ComponentKey string         `json:"component_key"`
+	Redirect     string         `json:"redirect,omitempty"`
+	ParentKey    string         `json:"parent_key,omitempty"`
+	SortOrder    int            `json:"sort_order"`
+	Hidden       bool           `json:"hidden"`
+	Public       bool           `json:"public"`
+	Enabled      bool           `json:"enabled"`
+	Permissions  []string       `json:"permissions"`
+	Roles        []string       `json:"roles"`
+	Meta         map[string]any `json:"meta"`
+}
+
+type ConsoleRouteCreateRequest struct {
+	RouteKey     string         `json:"route_key"`
+	Path         string         `json:"path"`
+	Name         string         `json:"name"`
+	ComponentKey string         `json:"component_key"`
+	Redirect     string         `json:"redirect"`
+	ParentKey    string         `json:"parent_key"`
+	SortOrder    *int           `json:"sort_order"`
+	Hidden       *bool          `json:"hidden"`
+	Public       *bool          `json:"public"`
+	Enabled      *bool          `json:"enabled"`
+	Permissions  []string       `json:"permissions"`
+	Roles        []string       `json:"roles"`
+	Meta         map[string]any `json:"meta"`
+}
+
+type ConsoleRouteUpdateRequest struct {
+	Path         *string         `json:"path"`
+	Name         *string         `json:"name"`
+	ComponentKey *string         `json:"component_key"`
+	Redirect     *string         `json:"redirect"`
+	ParentKey    *string         `json:"parent_key"`
+	SortOrder    *int            `json:"sort_order"`
+	Hidden       *bool           `json:"hidden"`
+	Public       *bool           `json:"public"`
+	Enabled      *bool           `json:"enabled"`
+	Permissions  *[]string       `json:"permissions"`
+	Roles        *[]string       `json:"roles"`
+	Meta         *map[string]any `json:"meta"`
+}
+
+type ConsoleRouteBootstrapResult struct {
+	Routes  int `json:"routes"`
+	Updated int `json:"updated"`
+}
+
+func (s ConsoleRouteService) BootstrapDefaults() (ConsoleRouteBootstrapResult, error) {
+	return s.bootstrapDefaults(database.DB)
+}
+
+func (s ConsoleRouteService) ListRoutes() ([]ConsoleRouteView, error) {
+	if _, err := s.BootstrapDefaults(); err != nil {
+		return nil, err
+	}
+
+	var rows []model.ConsoleRoute
+	if err := database.DB.Order("sort_order ASC").Order("route_key ASC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return serializeConsoleRoutes(rows), nil
+}
+
+func (s ConsoleRouteService) ListAccessibleRoutes(permissions, roles []string) ([]ConsoleRouteView, error) {
+	if _, err := s.BootstrapDefaults(); err != nil {
+		return nil, err
+	}
+
+	var rows []model.ConsoleRoute
+	if err := database.DB.Where("enabled = ?", true).Order("sort_order ASC").Order("route_key ASC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return FilterConsoleRoutes(serializeConsoleRoutes(rows), permissions, roles), nil
+}
+
+func (s ConsoleRouteService) AllRoutePermissions() ([]string, error) {
+	if _, err := s.BootstrapDefaults(); err != nil {
+		return nil, err
+	}
+	var rows []model.ConsoleRoute
+	if err := database.DB.Select("permissions_json").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	values := []string{}
+	for _, route := range rows {
+		values = append(values, route.PermissionsJSON...)
+	}
+	return uniqueSortedConsoleStrings(values), nil
+}
+
+func (s ConsoleRouteService) GetRoute(routeKey string) (ConsoleRouteView, error) {
+	route, err := s.getRouteModel(database.DB, routeKey)
+	if err != nil {
+		return ConsoleRouteView{}, err
+	}
+	return serializeConsoleRoute(*route), nil
+}
+
+func (s ConsoleRouteService) CreateRoute(req ConsoleRouteCreateRequest) (ConsoleRouteView, error) {
+	routeKey, err := normalizeConsoleRouteKey(req.RouteKey)
+	if err != nil {
+		return ConsoleRouteView{}, err
+	}
+	path, err := normalizeConsoleRoutePath(req.Path)
+	if err != nil {
+		return ConsoleRouteView{}, err
+	}
+	name, err := normalizeConsoleRouteName(req.Name)
+	if err != nil {
+		return ConsoleRouteView{}, err
+	}
+	componentKey, err := normalizeConsoleRouteComponent(req.ComponentKey)
+	if err != nil {
+		return ConsoleRouteView{}, err
+	}
+	redirect, err := normalizeOptionalConsoleRoutePath(req.Redirect)
+	if err != nil {
+		return ConsoleRouteView{}, err
+	}
+	parentKey, err := normalizeConsoleRouteOptional(req.ParentKey, "parent_key", 64)
+	if err != nil {
+		return ConsoleRouteView{}, err
+	}
+
+	sortOrder := 1000
+	if req.SortOrder != nil {
+		sortOrder = *req.SortOrder
+	}
+	hidden := false
+	if req.Hidden != nil {
+		hidden = *req.Hidden
+	}
+	public := false
+	if req.Public != nil {
+		public = *req.Public
+	}
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
+	if err := ensureUniqueConsoleRoute(database.DB, routeKey, path, name, routeKey); err != nil {
+		return ConsoleRouteView{}, err
+	}
+
+	route := model.ConsoleRoute{
+		RouteKey:        routeKey,
+		Path:            path,
+		Name:            name,
+		ComponentKey:    componentKey,
+		Redirect:        redirect,
+		ParentKey:       parentKey,
+		SortOrder:       sortOrder,
+		Hidden:          hidden,
+		Public:          public,
+		Enabled:         enabled,
+		PermissionsJSON: normalizeConsoleList(req.Permissions),
+		RolesJSON:       normalizeConsoleList(req.Roles),
+		MetaJSON:        normalizeConsoleMeta(req.Meta),
+	}
+	if err := database.DB.Create(&route).Error; err != nil {
+		return ConsoleRouteView{}, err
+	}
+	return serializeConsoleRoute(route), nil
+}
+
+func (s ConsoleRouteService) UpdateRoute(routeKey string, req ConsoleRouteUpdateRequest) (ConsoleRouteView, error) {
+	normalizedKey, err := normalizeConsoleRouteKey(routeKey)
+	if err != nil {
+		return ConsoleRouteView{}, err
+	}
+
+	route, err := s.getRouteModel(database.DB, normalizedKey)
+	if err != nil {
+		return ConsoleRouteView{}, err
+	}
+
+	nextPath := route.Path
+	if req.Path != nil {
+		nextPath, err = normalizeConsoleRoutePath(*req.Path)
+		if err != nil {
+			return ConsoleRouteView{}, err
+		}
+	}
+	nextName := route.Name
+	if req.Name != nil {
+		nextName, err = normalizeConsoleRouteName(*req.Name)
+		if err != nil {
+			return ConsoleRouteView{}, err
+		}
+	}
+	if err := ensureUniqueConsoleRoute(database.DB, normalizedKey, nextPath, nextName, normalizedKey); err != nil {
+		return ConsoleRouteView{}, err
+	}
+
+	if req.Path != nil {
+		route.Path = nextPath
+	}
+	if req.Name != nil {
+		route.Name = nextName
+	}
+	if req.ComponentKey != nil {
+		componentKey, err := normalizeConsoleRouteComponent(*req.ComponentKey)
+		if err != nil {
+			return ConsoleRouteView{}, err
+		}
+		route.ComponentKey = componentKey
+	}
+	if req.Redirect != nil {
+		redirect, err := normalizeOptionalConsoleRoutePath(*req.Redirect)
+		if err != nil {
+			return ConsoleRouteView{}, err
+		}
+		route.Redirect = redirect
+	}
+	if req.ParentKey != nil {
+		parentKey, err := normalizeConsoleRouteOptional(*req.ParentKey, "parent_key", 64)
+		if err != nil {
+			return ConsoleRouteView{}, err
+		}
+		route.ParentKey = parentKey
+	}
+	if req.SortOrder != nil {
+		route.SortOrder = *req.SortOrder
+	}
+	if req.Hidden != nil {
+		route.Hidden = *req.Hidden
+	}
+	if req.Public != nil {
+		route.Public = *req.Public
+	}
+	if req.Enabled != nil {
+		route.Enabled = *req.Enabled
+	}
+	if req.Permissions != nil {
+		route.PermissionsJSON = normalizeConsoleList(*req.Permissions)
+	}
+	if req.Roles != nil {
+		route.RolesJSON = normalizeConsoleList(*req.Roles)
+	}
+	if req.Meta != nil {
+		route.MetaJSON = normalizeConsoleMeta(*req.Meta)
+	}
+
+	if err := database.DB.Save(route).Error; err != nil {
+		return ConsoleRouteView{}, err
+	}
+	return serializeConsoleRoute(*route), nil
+}
+
+func (s ConsoleRouteService) DeleteRoute(routeKey string) (ConsoleRouteView, error) {
+	route, err := s.getRouteModel(database.DB, routeKey)
+	if err != nil {
+		return ConsoleRouteView{}, err
+	}
+	before := serializeConsoleRoute(*route)
+	if err := database.DB.Delete(route).Error; err != nil {
+		return ConsoleRouteView{}, err
+	}
+	return before, nil
+}
+
+func (s ConsoleRouteService) bootstrapDefaults(db *gorm.DB) (ConsoleRouteBootstrapResult, error) {
+	var result ConsoleRouteBootstrapResult
+	if db == nil {
+		return result, errors.New("database is not initialized")
+	}
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		for _, item := range DefaultConsoleRoutes() {
+			var route model.ConsoleRoute
+			err := tx.Where("route_key = ?", item.RouteKey).First(&route).Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				modelRoute := consoleRouteViewToModel(item)
+				if err := tx.Create(&modelRoute).Error; err != nil {
+					return err
+				}
+				result.Routes++
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			if syncExistingDefaultConsoleRoute(&route, item) {
+				if err := tx.Save(&route).Error; err != nil {
+					return err
+				}
+				result.Updated++
+			}
+		}
+		return nil
+	})
+	return result, err
+}
+
+func (s ConsoleRouteService) getRouteModel(db *gorm.DB, routeKey string) (*model.ConsoleRoute, error) {
+	normalizedKey, err := normalizeConsoleRouteKey(routeKey)
+	if err != nil {
+		return nil, err
+	}
+	var route model.ConsoleRoute
+	if err := db.Where("route_key = ?", normalizedKey).First(&route).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrConsoleRouteNotFound
+		}
+		return nil, err
+	}
+	return &route, nil
+}
+
+func ensureUniqueConsoleRoute(db *gorm.DB, routeKey, path, name, currentKey string) error {
+	currentKey, _ = normalizeConsoleRouteKey(currentKey)
+	if routeKey != currentKey {
+		var count int64
+		if err := db.Model(&model.ConsoleRoute{}).Where("route_key = ?", routeKey).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return ConsoleRouteValidationError{Message: fmt.Sprintf("Console route key already exists: %s", routeKey)}
+		}
+	}
+
+	var owner string
+	err := db.Model(&model.ConsoleRoute{}).Select("route_key").Where("path = ?", path).Limit(1).Scan(&owner).Error
+	if err != nil {
+		return err
+	}
+	if owner != "" && owner != currentKey {
+		return ConsoleRouteValidationError{Message: fmt.Sprintf("Console route path already exists: %s", path)}
+	}
+
+	owner = ""
+	err = db.Model(&model.ConsoleRoute{}).Select("route_key").Where("name = ?", name).Limit(1).Scan(&owner).Error
+	if err != nil {
+		return err
+	}
+	if owner != "" && owner != currentKey {
+		return ConsoleRouteValidationError{Message: fmt.Sprintf("Console route name already exists: %s", name)}
+	}
+	return nil
+}
+
+func serializeConsoleRoutes(rows []model.ConsoleRoute) []ConsoleRouteView {
+	result := make([]ConsoleRouteView, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, serializeConsoleRoute(row))
+	}
+	return result
+}
+
+func serializeConsoleRoute(route model.ConsoleRoute) ConsoleRouteView {
+	permissions := normalizeConsoleList(route.PermissionsJSON)
+	roles := normalizeConsoleList(route.RolesJSON)
+	meta := normalizeConsoleMeta(route.MetaJSON)
+	meta["hidden"] = route.Hidden
+	meta["public"] = route.Public
+	meta["permissions"] = permissions
+	meta["roles"] = roles
+	meta["routeKey"] = route.RouteKey
+	meta["sortOrder"] = route.SortOrder
+
+	return ConsoleRouteView{
+		RouteKey:     route.RouteKey,
+		Path:         route.Path,
+		Name:         route.Name,
+		ComponentKey: route.ComponentKey,
+		Redirect:     route.Redirect,
+		ParentKey:    route.ParentKey,
+		SortOrder:    route.SortOrder,
+		Hidden:       route.Hidden,
+		Public:       route.Public,
+		Enabled:      route.Enabled,
+		Permissions:  permissions,
+		Roles:        roles,
+		Meta:         meta,
+	}
+}
+
+func ConsoleRouteSnapshot(route ConsoleRouteView) map[string]any {
+	return map[string]any{
+		"route_key":     route.RouteKey,
+		"path":          route.Path,
+		"name":          route.Name,
+		"component_key": route.ComponentKey,
+		"redirect":      route.Redirect,
+		"parent_key":    route.ParentKey,
+		"sort_order":    route.SortOrder,
+		"hidden":        route.Hidden,
+		"public":        route.Public,
+		"enabled":       route.Enabled,
+		"permissions":   append([]string{}, route.Permissions...),
+		"roles":         append([]string{}, route.Roles...),
+		"meta":          normalizeConsoleMeta(route.Meta),
+	}
+}
+
+func FilterConsoleRoutes(routes []ConsoleRouteView, permissions, roles []string) []ConsoleRouteView {
+	result := []ConsoleRouteView{}
+	permissionSet := consoleStringSet(permissions)
+	roleSet := consoleStringSet(roles)
+	for _, route := range routes {
+		if !route.Enabled {
+			continue
+		}
+		if !consoleSetHasAll(permissionSet, route.Permissions) {
+			continue
+		}
+		if len(route.Roles) > 0 && !consoleSetHasAny(roleSet, route.Roles) {
+			continue
+		}
+		result = append(result, route)
+	}
+	return result
+}
+
+func AllConsoleRoutePermissions() []string {
+	values := []string{}
+	for _, route := range defaultConsoleRouteSeed {
+		values = append(values, route.Permissions...)
+	}
+	return uniqueSortedConsoleStrings(values)
+}
+
+func DefaultConsoleRoutes() []ConsoleRouteView {
+	result := make([]ConsoleRouteView, 0, len(defaultConsoleRouteSeed))
+	for _, route := range defaultConsoleRouteSeed {
+		copied := route
+		copied.Permissions = append([]string{}, route.Permissions...)
+		copied.Roles = append([]string{}, route.Roles...)
+		copied.Meta = normalizeConsoleMeta(route.Meta)
+		result = append(result, copied)
+	}
+	return result
+}
+
+func consoleRouteViewToModel(route ConsoleRouteView) model.ConsoleRoute {
+	return model.ConsoleRoute{
+		RouteKey:        route.RouteKey,
+		Path:            route.Path,
+		Name:            route.Name,
+		ComponentKey:    route.ComponentKey,
+		Redirect:        route.Redirect,
+		ParentKey:       route.ParentKey,
+		SortOrder:       route.SortOrder,
+		Hidden:          route.Hidden,
+		Public:          route.Public,
+		Enabled:         route.Enabled,
+		PermissionsJSON: append([]string{}, route.Permissions...),
+		RolesJSON:       append([]string{}, route.Roles...),
+		MetaJSON:        normalizeConsoleMeta(route.Meta),
+	}
+}
+
+func syncExistingDefaultConsoleRoute(route *model.ConsoleRoute, item ConsoleRouteView) bool {
+	updated := false
+	if strings.TrimSpace(route.ComponentKey) == "" {
+		route.ComponentKey = item.ComponentKey
+		updated = true
+	}
+	if strings.TrimSpace(route.Path) == "" {
+		route.Path = item.Path
+		updated = true
+	}
+	if strings.TrimSpace(route.Name) == "" {
+		route.Name = item.Name
+		updated = true
+	}
+	if len(normalizeConsoleList(route.PermissionsJSON)) == 0 {
+		route.PermissionsJSON = append([]string{}, item.Permissions...)
+		updated = true
+	}
+
+	seedVersion := intFromMeta(route.MetaJSON["seedVersion"])
+	if seedVersion != DefaultConsoleRouteSeedVersion {
+		route.Enabled = item.Enabled
+		route.PermissionsJSON = append([]string{}, item.Permissions...)
+		route.RolesJSON = append([]string{}, item.Roles...)
+		route.MetaJSON = normalizeConsoleMeta(item.Meta)
+		updated = true
+	}
+	return updated
+}
+
+func normalizeConsoleRouteKey(value string) (string, error) {
+	normalized := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(value), " ", "-"))
+	if normalized == "" {
+		return "", ConsoleRouteValidationError{Message: "Route key is required"}
+	}
+	if len(normalized) > 64 {
+		return "", ConsoleRouteValidationError{Message: "route_key must be no more than 64 characters"}
+	}
+	return normalized, nil
+}
+
+func normalizeConsoleRoutePath(value string) (string, error) {
+	normalized := strings.TrimSpace(value)
+	if normalized == "" {
+		return "", ConsoleRouteValidationError{Message: "Route path is required"}
+	}
+	if !strings.HasPrefix(normalized, "/") {
+		normalized = "/" + normalized
+	}
+	if len(normalized) > 255 {
+		return "", ConsoleRouteValidationError{Message: "path must be no more than 255 characters"}
+	}
+	return normalized, nil
+}
+
+func normalizeOptionalConsoleRoutePath(value string) (string, error) {
+	if strings.TrimSpace(value) == "" {
+		return "", nil
+	}
+	return normalizeConsoleRoutePath(value)
+}
+
+func normalizeConsoleRouteName(value string) (string, error) {
+	normalized := strings.TrimSpace(value)
+	if normalized == "" {
+		return "", ConsoleRouteValidationError{Message: "Route name is required"}
+	}
+	if len(normalized) > 128 {
+		return "", ConsoleRouteValidationError{Message: "name must be no more than 128 characters"}
+	}
+	return normalized, nil
+}
+
+func normalizeConsoleRouteComponent(value string) (string, error) {
+	normalized := strings.TrimSpace(value)
+	if normalized == "" {
+		return "", ConsoleRouteValidationError{Message: "component_key is required"}
+	}
+	if len(normalized) > 128 {
+		return "", ConsoleRouteValidationError{Message: "component_key must be no more than 128 characters"}
+	}
+	return normalized, nil
+}
+
+func normalizeConsoleRouteOptional(value, field string, maxLen int) (string, error) {
+	normalized := strings.TrimSpace(value)
+	if len(normalized) > maxLen {
+		return "", ConsoleRouteValidationError{Message: fmt.Sprintf("%s must be no more than %d characters", field, maxLen)}
+	}
+	return normalized, nil
+}
+
+func normalizeConsoleList(value []string) []string {
+	if value == nil {
+		return []string{}
+	}
+	result := make([]string, 0, len(value))
+	for _, item := range value {
+		trimmed := strings.TrimSpace(item)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
+func normalizeConsoleMeta(value map[string]any) map[string]any {
+	result := map[string]any{}
+	for key, item := range value {
+		result[key] = item
+	}
+	return result
+}
+
+func consoleStringSet(values []string) map[string]bool {
+	set := map[string]bool{}
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			set[trimmed] = true
+		}
+	}
+	return set
+}
+
+func consoleSetHasAll(set map[string]bool, required []string) bool {
+	for _, item := range normalizeConsoleList(required) {
+		if !set[item] {
+			return false
+		}
+	}
+	return true
+}
+
+func consoleSetHasAny(set map[string]bool, required []string) bool {
+	for _, item := range normalizeConsoleList(required) {
+		if set[item] {
+			return true
+		}
+	}
+	return false
+}
+
+func uniqueSortedConsoleStrings(values []string) []string {
+	set := consoleStringSet(values)
+	result := make([]string, 0, len(set))
+	for value := range set {
+		result = append(result, value)
+	}
+	sortStrings(result)
+	return result
+}
+
+func intFromMeta(value any) int {
+	switch typed := value.(type) {
+	case int:
+		return typed
+	case int64:
+		return int(typed)
+	case float64:
+		return int(typed)
+	case float32:
+		return int(typed)
+	case uint:
+		return int(typed)
+	case uint64:
+		return int(typed)
+	default:
+		return 0
+	}
+}
+
+func sortStrings(values []string) {
+	for i := 1; i < len(values); i++ {
+		value := values[i]
+		j := i - 1
+		for j >= 0 && values[j] > value {
+			values[j+1] = values[j]
+			j--
+		}
+		values[j+1] = value
+	}
+}
+
+func defaultRoute(routeKey, path, name, componentKey string, sortOrder int, permissions []string, groupID, navTitle string, enabled bool) ConsoleRouteView {
+	metaPermissions := append([]string{}, permissions...)
+	return ConsoleRouteView{
+		RouteKey:     routeKey,
+		Path:         path,
+		Name:         name,
+		ComponentKey: componentKey,
+		SortOrder:    sortOrder,
+		Enabled:      enabled,
+		Permissions:  append([]string{}, permissions...),
+		Roles:        []string{},
+		Meta: map[string]any{
+			"title":       navTitle,
+			"navTitle":    navTitle,
+			"groupId":     groupID,
+			"icon":        "SettingIcon",
+			"permissions": metaPermissions,
+			"seedVersion": DefaultConsoleRouteSeedVersion,
+		},
+	}
+}
+
+var defaultConsoleRouteSeed = []ConsoleRouteView{
+	defaultRoute("dashboard", "/dashboard", "Dashboard", "DashboardPage", 100, []string{"dashboard.view"}, "monitor", "仪表盘", true),
+	defaultRoute("rbac-users", "/rbac/users", "RbacUsers", "RbacGovernancePage", 210, []string{"rbac.read", "logs.read"}, "rbac", "用户管理", true),
+	defaultRoute("rbac-roles", "/rbac/roles", "RbacRoles", "RbacGovernancePage", 220, []string{"rbac.read", "logs.read"}, "rbac", "角色管理", true),
+	defaultRoute("rbac-policies", "/rbac/policies", "RbacPolicies", "RbacGovernancePage", 230, []string{"rbac.read", "logs.read"}, "rbac", "权限管理", true),
+	defaultRoute("rbac-departments", "/rbac/departments", "RbacDepartments", "RbacGovernancePage", 240, []string{"rbac.read", "logs.read"}, "rbac", "部门管理", true),
+	defaultRoute("audit", "/audit", "Audit", "AuditPage", 270, []string{"logs.read"}, "security", "审计日志", true),
+	defaultRoute("security-logins", "/security/logins", "SecurityLogins", "SecurityLoginsPage", 280, []string{"logs.read"}, "security", "登录日志", true),
+	defaultRoute("settings-routes", "/settings/routes", "ConsoleRoutes", "ConsoleRoutesPage", 315, []string{"settings.write"}, "settings", "路由设置", true),
+}

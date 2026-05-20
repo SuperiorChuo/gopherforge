@@ -1,0 +1,67 @@
+package auth
+
+import (
+	"time"
+
+	"github.com/go-admin-kit/server/internal/model"
+)
+
+// UserInfoResponse 用户信息响应 DTO
+type UserInfoResponse struct {
+	ID                 uint      `json:"id"`
+	Username           string    `json:"username"`
+	Email              string    `json:"email"`
+	Phone              string    `json:"phone"`
+	Nickname           string    `json:"nickname"`
+	Avatar             string    `json:"avatar"`
+	Status             int8      `json:"status"`
+	MustChangePassword bool      `json:"must_change_password"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+	Roles              []RoleDTO `json:"roles,omitempty"`
+	Permissions        []string  `json:"permissions"` // 用户权限代码数组
+}
+
+// RoleDTO 角色信息 DTO
+type RoleDTO struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Code        string `json:"code"`
+	Description string `json:"description,omitempty"`
+}
+
+// ConvertUserToResponse 转换用户模型为响应 DTO
+func ConvertUserToResponse(user *model.User, permissions []string) *UserInfoResponse {
+	return &UserInfoResponse{
+		ID:                 user.ID,
+		Username:           user.Username,
+		Email:              user.Email,
+		Phone:              user.Phone,
+		Nickname:           user.Nickname,
+		Avatar:             user.Avatar,
+		Status:             user.Status,
+		MustChangePassword: user.MustChangePassword,
+		CreatedAt:          user.CreatedAt,
+		UpdatedAt:          user.UpdatedAt,
+		Roles:              ConvertRolesToDTO(user.Roles),
+		Permissions:        permissions,
+	}
+}
+
+// ConvertRolesToDTO 转换角色模型为 DTO
+func ConvertRolesToDTO(roles []model.Role) []RoleDTO {
+	if len(roles) == 0 {
+		return []RoleDTO{}
+	}
+
+	roleDTOs := make([]RoleDTO, 0, len(roles))
+	for _, role := range roles {
+		roleDTOs = append(roleDTOs, RoleDTO{
+			ID:          role.ID,
+			Name:        role.Name,
+			Code:        role.Code,
+			Description: role.Description,
+		})
+	}
+	return roleDTOs
+}

@@ -1,0 +1,54 @@
+@import './font-family.less';
+@import './reset.less';
+@import './operation-list.less';
+@import './system-management.less';
+
+// 全局样式优化
+
+// 1. 通透感 (Glassmorphism) & 卡片优化
+.t-card {
+  transition: all 0.3s cubic-bezier(0.38, 0, 0.24, 1);
+
+  &:hover {
+    box-shadow: 0 4px 12px rgb(0 0 0 / 5%);
+  }
+
+  // 配合背景图使用时可开启
+  // background: rgba(255, 255, 255, 0.8) !important;
+  // backdrop-filter: blur(10px);
+}
+
+// 2. 微交互 (Micro-interactions)
+.t-button {
+  transition: all 0.2s cubic-bezier(0.38, 0, 0.24, 1);
+
+  // 点击时的缩放效果
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+// 3. 表格视觉优化
+.t-table {
+  // 表头背景透明化，仅保留下划线
+  th {
+    background-color: transparent !important;
+    font-weight: 600 !important;
+    border-bottom: 2px solid var(--td-component-stroke) !important;
+  }
+}
+
+// 4. 滚动条美化
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--td-scrollbar-color);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}

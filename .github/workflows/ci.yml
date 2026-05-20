@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  workspace:
+    name: Workspace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - run: npm run api:contract
+      - run: npm run test:contract
+      - run: npm run test:smoke:unit
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: server/go.sum
+
+      - run: go mod download
+      - run: go test ./...
+      - run: go vet ./...
+
+  integration:
+    name: Integration Smoke
+    runs-on: ubuntu-latest
+    needs:
+      - workspace
+      - backend
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: 123456
+          MYSQL_DATABASE: go_admin_kit_ci
+          TZ: Asia/Shanghai
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -p123456 --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: server/go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - run: go mod download
+        working-directory: server
+
+      - name: Run backend migrations and API smoke
+        shell: bash
+        working-directory: server
+        env:
+          APP_ENV: development
+          APP_PORT: 8081
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASSWORD: 123456
+          DB_NAME: go_admin_kit_ci
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+          REDIS_PASSWORD: ''
+          REDIS_DB: 0
+          JWT_SECRET: ci-secret-at-least-32-characters-long
+          JWT_REFRESH_TOKEN_ROTATION: 'true'
+          CORS_ALLOW_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+          CORS_ALLOW_CREDENTIALS: 'true'
+          DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD: 'false'
+          SMOKE_API_BASE_URL: http://127.0.0.1:8081/api/v1
+        run: |
+          go run ./cmd/migrate -config ./configs/config.yaml -dir ./migrations up
+          nohup go run ./cmd/main.go > /tmp/go-admin-kit-api.log 2>&1 &
+          echo $! > /tmp/go-admin-kit-api.pid
+          trap 'kill "$(cat /tmp/go-admin-kit-api.pid)" 2>/dev/null || true' EXIT
+
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8081/api/v1/health/ready >/dev/null; then
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              cat /tmp/go-admin-kit-api.log
+              exit 1
+            fi
+            sleep 2
+          done
+
+          cd ..
+          npm run test:smoke:unit
+          API_BASE_URL="$SMOKE_API_BASE_URL" npm run smoke:api
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tdesign-vue-go
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tdesign-vue-go/package-lock.json
+
+      - run: npm ci
+      - run: npm audit --omit=dev
+      - run: npm run test
+      - run: npm run build:type
+      - run: npm run lint
+      - run: npm run stylelint
+      - run: npm run build

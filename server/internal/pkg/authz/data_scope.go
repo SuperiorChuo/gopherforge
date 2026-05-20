@@ -1,0 +1,316 @@
+package authz
+
+import (
+	"fmt"
+	"slices"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/server/internal/dao/auth"
+	"github.com/go-admin-kit/server/internal/model"
+	"github.com/go-admin-kit/server/internal/pkg/database"
+	"gorm.io/gorm"
+)
+
+// DataScope 数据权限范围。
+type DataScope string
+
+const (
+	DataScopeAll            DataScope = "all"
+	DataScopeDepartment     DataScope = "department"
+	DataScopeDepartmentTree DataScope = "department_tree"
+	DataScopeSelf           DataScope = "self"
+	DataScopeCustom         DataScope = "custom"
+	DataScopeNone           DataScope = "none"
+)
+
+// UserDataScope 是业务查询可复用的数据权限解析结果。
+type UserDataScope struct {
+	Scope         DataScope
+	UserID        uint
+	DepartmentID  uint
+	DepartmentIDs []uint
+	RoleIDs       []uint
+	RoleCodes     []string
+}
+
+// ResolveUserDataScope 根据用户与角色解析基础数据权限范围。
+//
+// 角色 data_scope 为主配置；旧角色编码仅作为兼容兜底：
+// super_admin/admin 始终拥有全部数据，dept_admin 在未配置 data_scope 时拥有本部门及子部门。
+func ResolveUserDataScope(user *model.User) UserDataScope {
+	if user == nil {
+		return UserDataScope{Scope: DataScopeNone}
+	}
+
+	scope := UserDataScope{
+		Scope:        DataScopeNone,
+		UserID:       user.ID,
+		DepartmentID: user.DepartmentID,
+		RoleIDs:      make([]uint, 0, len(user.Roles)),
+		RoleCodes:    make([]string, 0, len(user.Roles)),
+	}
+
+	if len(user.Roles) == 0 {
+		scope.Scope = DataScopeSelf
+		scope.DepartmentIDs = departmentIDs(user.DepartmentID)
+		return scope
+	}
+
+	customRoleIDs := make([]uint, 0)
+	departmentIDsByRole := make([]uint, 0)
+
+	for _, role := range user.Roles {
+		scope.RoleIDs = append(scope.RoleIDs, role.ID)
+		scope.RoleCodes = append(scope.RoleCodes, role.Code)
+
+		roleScope := resolveRoleDataScope(role)
+		switch roleScope {
+		case DataScopeAll:
+			scope.Scope = DataScopeAll
+			return scope
+		case DataScopeDepartmentTree:
+			scope.Scope = maxDataScope(scope.Scope, roleScope)
+			departmentIDsByRole = append(departmentIDsByRole, resolveDepartmentTreeIDs(user.DepartmentID)...)
+		case DataScopeDepartment:
+			scope.Scope = maxDataScope(scope.Scope, roleScope)
+			departmentIDsByRole = append(departmentIDsByRole, departmentIDs(user.DepartmentID)...)
+		case DataScopeCustom:
+			scope.Scope = maxDataScope(scope.Scope, roleScope)
+			roleDepartmentIDs := roleDataScopeDepartmentIDs(role)
+			if len(roleDepartmentIDs) == 0 {
+				customRoleIDs = append(customRoleIDs, role.ID)
+				continue
+			}
+			departmentIDsByRole = append(departmentIDsByRole, roleDepartmentIDs...)
+		case DataScopeSelf:
+			scope.Scope = maxDataScope(scope.Scope, roleScope)
+		case DataScopeNone:
+			scope.Scope = maxDataScope(scope.Scope, roleScope)
+		}
+	}
+
+	if len(customRoleIDs) > 0 {
+		departmentIDsByRole = append(departmentIDsByRole, loadRoleDataScopeDepartmentIDs(customRoleIDs)...)
+	}
+
+	switch scope.Scope {
+	case DataScopeDepartment, DataScopeDepartmentTree, DataScopeCustom:
+		scope.DepartmentIDs = uniqueUintIDs(departmentIDsByRole)
+	case DataScopeSelf:
+		scope.DepartmentIDs = departmentIDs(user.DepartmentID)
+	default:
+		scope.DepartmentIDs = nil
+	}
+
+	return scope
+}
+
+// CanAccessAll 判断解析结果是否拥有全量数据权限。
+func (s UserDataScope) CanAccessAll() bool {
+	return s.Scope == DataScopeAll
+}
+
+// ResolveUserDataScopeFromContext 从 Gin 上下文中的 user_id 解析当前用户数据权限。
+func ResolveUserDataScopeFromContext(c *gin.Context) (UserDataScope, error) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		return UserDataScope{Scope: DataScopeNone}, fmt.Errorf("user not found in context")
+	}
+
+	uid, ok := userID.(uint)
+	if !ok {
+		return UserDataScope{Scope: DataScopeNone}, fmt.Errorf("invalid user id in context")
+	}
+
+	userDAO := auth.UserDAO{}
+	user, err := userDAO.GetUserWithRoles(uid)
+	if err != nil {
+		return UserDataScope{Scope: DataScopeNone}, err
+	}
+
+	scope := ResolveUserDataScope(user)
+	return scope, nil
+}
+
+// ApplyUserEntityScope 给用户表列表追加数据权限条件。
+func ApplyUserEntityScope(query *gorm.DB, scope UserDataScope, idColumn, departmentColumn string) *gorm.DB {
+	switch scope.Scope {
+	case DataScopeAll:
+		return query
+	case DataScopeDepartment, DataScopeDepartmentTree, DataScopeCustom:
+		if len(scope.DepartmentIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		return query.Where(departmentColumn+" IN ?", scope.DepartmentIDs)
+	case DataScopeSelf:
+		if scope.UserID == 0 {
+			return query.Where("1 = 0")
+		}
+		return query.Where(idColumn+" = ?", scope.UserID)
+	default:
+		return query.Where("1 = 0")
+	}
+}
+
+// ApplyOwnerScope 给带 user_id 归属字段的业务表追加数据权限条件。
+func ApplyOwnerScope(query *gorm.DB, scope UserDataScope, userColumn string) *gorm.DB {
+	switch scope.Scope {
+	case DataScopeAll:
+		return query
+	case DataScopeDepartment, DataScopeDepartmentTree, DataScopeCustom:
+		if len(scope.DepartmentIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		return query.Where(userColumn+" IN (?)",
+			database.DB.Model(&model.User{}).Select("id").Where("department_id IN ?", scope.DepartmentIDs),
+		)
+	case DataScopeSelf:
+		if scope.UserID == 0 {
+			return query.Where("1 = 0")
+		}
+		return query.Where(userColumn+" = ?", scope.UserID)
+	default:
+		return query.Where("1 = 0")
+	}
+}
+
+// ApplyUnownedResourceScope 用于尚未持久化 user_id/department_id 归属字段的资源。
+// 后续给资源表补齐归属列后，应切换为 ApplyOwnerScope 或 ApplyUserEntityScope。
+func ApplyUnownedResourceScope(query *gorm.DB, scope UserDataScope) *gorm.DB {
+	if scope.CanAccessAll() {
+		return query
+	}
+	return query.Where("1 = 0")
+}
+
+func departmentIDs(departmentID uint) []uint {
+	if departmentID == 0 {
+		return nil
+	}
+	return []uint{departmentID}
+}
+
+func resolveDepartmentTreeIDs(departmentID uint) []uint {
+	ids := departmentIDs(departmentID)
+	if departmentID == 0 {
+		return ids
+	}
+
+	var depts []model.Department
+	if err := database.DB.Model(&model.Department{}).Select("id", "parent_id").Find(&depts).Error; err != nil {
+		return ids
+	}
+
+	collectChildDepartmentIDs(depts, departmentID, &ids)
+	return ids
+}
+
+func resolveRoleDataScope(role model.Role) DataScope {
+	if role.Code == "super_admin" || role.Code == "admin" {
+		return DataScopeAll
+	}
+
+	if dataScope, ok := normalizeDataScope(role.DataScope); ok {
+		return dataScope
+	}
+
+	switch role.Code {
+	case "dept_admin":
+		return DataScopeDepartmentTree
+	default:
+		return DataScopeSelf
+	}
+}
+
+func normalizeDataScope(value string) (DataScope, bool) {
+	switch DataScope(value) {
+	case DataScopeAll, DataScopeDepartment, DataScopeDepartmentTree, DataScopeSelf, DataScopeCustom, DataScopeNone:
+		return DataScope(value), true
+	default:
+		return "", false
+	}
+}
+
+func maxDataScope(current, candidate DataScope) DataScope {
+	if dataScopeRank(candidate) > dataScopeRank(current) {
+		return candidate
+	}
+	return current
+}
+
+func dataScopeRank(scope DataScope) int {
+	switch scope {
+	case DataScopeAll:
+		return 5
+	case DataScopeDepartmentTree:
+		return 4
+	case DataScopeCustom:
+		return 3
+	case DataScopeDepartment:
+		return 2
+	case DataScopeSelf:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func roleDataScopeDepartmentIDs(role model.Role) []uint {
+	ids := append([]uint(nil), role.DataScopeDepartmentIDs...)
+	for _, relation := range role.DataScopeDepartments {
+		ids = append(ids, relation.DepartmentID)
+	}
+	return uniqueUintIDs(ids)
+}
+
+func loadRoleDataScopeDepartmentIDs(roleIDs []uint) []uint {
+	roleIDs = uniqueUintIDs(roleIDs)
+	if len(roleIDs) == 0 {
+		return nil
+	}
+
+	var relations []model.RoleDataScopeDepartment
+	if err := database.DB.
+		Model(&model.RoleDataScopeDepartment{}).
+		Select("department_id").
+		Where("role_id IN ?", roleIDs).
+		Find(&relations).Error; err != nil {
+		return nil
+	}
+
+	ids := make([]uint, 0, len(relations))
+	for _, relation := range relations {
+		ids = append(ids, relation.DepartmentID)
+	}
+	return uniqueUintIDs(ids)
+}
+
+func uniqueUintIDs(ids []uint) []uint {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	unique := make([]uint, 0, len(ids))
+	seen := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		if id == 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+	slices.Sort(unique)
+	return unique
+}
+
+func collectChildDepartmentIDs(depts []model.Department, parentID uint, ids *[]uint) {
+	for _, dept := range depts {
+		if dept.ParentID == parentID {
+			*ids = append(*ids, dept.ID)
+			collectChildDepartmentIDs(depts, dept.ID, ids)
+		}
+	}
+}
