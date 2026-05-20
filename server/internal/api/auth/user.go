@@ -59,7 +59,7 @@ func (a *UserAPI) Login(c *gin.Context) {
 		if middleware.LoginLimitEnabled() {
 			middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 		}
-		response.Unauthorized(c, err.Error())
+		writeAuthServiceError(c, "login failed", err)
 		return
 	}
 	if middleware.LoginLimitEnabled() {
@@ -119,7 +119,7 @@ func (a *UserAPI) Register(c *gin.Context) {
 
 	user, err := a.userService.RegisterContext(c.Request.Context(), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeAuthServiceError(c, "failed to register user", err)
 		return
 	}
 
@@ -198,7 +198,7 @@ func (a *UserAPI) RefreshToken(c *gin.Context) {
 	// Refresh the access token and rotate the refresh token.
 	accessToken, refreshToken, err := jwt.RefreshToken(req.RefreshToken)
 	if err != nil {
-		response.Unauthorized(c, err.Error())
+		writeJWTUnauthorizedError(c, err)
 		return
 	}
 	a.recordOnlineUser(c, accessToken)
@@ -219,7 +219,7 @@ func (a *UserAPI) Logout(c *gin.Context) {
 
 	claims, err := jwt.ParseToken(accessToken)
 	if err != nil {
-		response.Unauthorized(c, err.Error())
+		writeJWTUnauthorizedError(c, err)
 		return
 	}
 	if err := jwt.RevokeToken(accessToken, claims); err != nil {
@@ -259,7 +259,7 @@ func (a *UserAPI) ChangePassword(c *gin.Context) {
 	}
 
 	if err := a.userService.ChangePasswordContext(c.Request.Context(), userID.(uint), req); err != nil {
-		response.BadRequest(c, err.Error())
+		writeAuthServiceError(c, "failed to change password", err)
 		return
 	}
 

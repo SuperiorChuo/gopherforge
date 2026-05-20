@@ -69,3 +69,14 @@ func TestValidateProfilePhone(t *testing.T) {
 		})
 	}
 }
+
+func TestValidatePasswordStrengthReturnsPasswordValidationError(t *testing.T) {
+	err := validatePasswordStrength("short")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var validationErr PasswordValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected PasswordValidationError, got %T", err)
+	}
+}

@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"regexp"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -19,6 +20,23 @@ func TestUserServiceLoginPasswordContextHonorsCanceledContext(t *testing.T) {
 	_, err := (&UserService{}).LoginPasswordContext(ctx, "alice", "Password123")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("LoginPasswordContext() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestUserServiceRegisterContextReturnsUsernameLookupError(t *testing.T) {
+	mock := setupAuthServiceContextTestDB(t)
+	lookupErr := errors.New("database lookup failed")
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? ORDER BY `users`.`id` LIMIT ?")).
+		WithArgs("alice", 1).
+		WillReturnError(lookupErr)
+
+	_, err := (&UserService{}).RegisterContext(context.Background(), RegisterRequest{
+		Username: "alice",
+		Password: "Password123",
+		Email:    "alice@example.com",
+	})
+	if !errors.Is(err, lookupErr) {
+		t.Fatalf("RegisterContext() error = %v, want username lookup error", err)
 	}
 }
 

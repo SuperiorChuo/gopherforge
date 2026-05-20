@@ -58,8 +58,18 @@ type UpdateProfileRequest struct {
 }
 
 var (
+	// ErrInvalidCaptcha indicates an invalid or expired captcha.
+	ErrInvalidCaptcha = errors.New("captcha is invalid or expired")
+	// ErrInvalidCredentials indicates an invalid username/password pair.
+	ErrInvalidCredentials = errors.New("invalid username or password")
+	// ErrUserDisabled indicates a disabled user account.
+	ErrUserDisabled = errors.New("user is disabled")
 	// ErrUserNotFound indicates the current user does not exist.
 	ErrUserNotFound = errors.New("user not found")
+	// ErrOldPasswordIncorrect indicates the old password did not match.
+	ErrOldPasswordIncorrect = errors.New("old password is incorrect")
+	// ErrUsernameAlreadyExists indicates the username is already registered.
+	ErrUsernameAlreadyExists = errors.New("username already exists")
 	// ErrEmailAlreadyExists indicates the email is used by another user.
 	ErrEmailAlreadyExists = errors.New("email already exists")
 	// ErrPhoneAlreadyExists indicates the phone number is used by another user.
@@ -75,6 +85,15 @@ func (e ProfileValidationError) Error() string {
 	return e.Message
 }
 
+// PasswordValidationError reports invalid password input.
+type PasswordValidationError struct {
+	Message string
+}
+
+func (e PasswordValidationError) Error() string {
+	return e.Message
+}
+
 // Login authenticates a user.
 func (s *UserService) Login(req LoginRequest) (*LoginResponse, error) {
 	return s.LoginContext(context.Background(), req)
@@ -82,7 +101,7 @@ func (s *UserService) Login(req LoginRequest) (*LoginResponse, error) {
 
 func (s *UserService) LoginContext(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
 	if !captcha.CheckTextCaptchaContext(ctx, req.CaptchaID, req.CaptchaCode) {
-		return nil, errors.New("captcha is invalid or expired")
+		return nil, ErrInvalidCaptcha
 	}
 
 	return s.LoginPasswordContext(ctx, req.Username, req.Password)
@@ -106,15 +125,15 @@ func (s *UserService) LoginPasswordWithAccessTTLContext(ctx context.Context, use
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, err
 		}
-		return nil, errors.New("invalid username or password")
+		return nil, ErrInvalidCredentials
 	}
 
 	if user.Status != 1 {
-		return nil, errors.New("user is disabled")
+		return nil, ErrUserDisabled
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return nil, errors.New("invalid username or password")
+		return nil, ErrInvalidCredentials
 	}
 
 	if shouldMarkDefaultAdminPassword(user, password) {
@@ -147,12 +166,18 @@ func (s *UserService) Register(req RegisterRequest) (*model.User, error) {
 func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) (*model.User, error) {
 	_, err := s.userDAO.GetUserByUsernameContext(ctx, req.Username)
 	if err == nil {
-		return nil, errors.New("username already exists")
+		return nil, ErrUsernameAlreadyExists
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
 	}
 
 	_, err = s.userDAO.GetUserByEmailContext(ctx, req.Email)
 	if err == nil {
-		return nil, errors.New("email already exists")
+		return nil, ErrEmailAlreadyExists
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
 	}
 
 	if err := validatePasswordStrength(req.Password); err != nil {
@@ -199,7 +224,7 @@ func (s *UserService) ChangePasswordContext(ctx context.Context, userID uint, re
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword)); err != nil {
-		return errors.New("old password is incorrect")
+		return ErrOldPasswordIncorrect
 	}
 
 	if err := validatePasswordStrength(req.NewPassword); err != nil {
@@ -344,10 +369,10 @@ func (s *UserService) GetUserPermissions(user *model.User) []string {
 // validatePasswordStrength validates password strength.
 func validatePasswordStrength(password string) error {
 	if len(password) < 8 {
-		return errors.New("password must be at least 8 characters")
+		return PasswordValidationError{Message: "password must be at least 8 characters"}
 	}
 	if len(password) > 32 {
-		return errors.New("password must be no more than 32 characters")
+		return PasswordValidationError{Message: "password must be no more than 32 characters"}
 	}
 
 	hasUpper := false
@@ -366,7 +391,7 @@ func validatePasswordStrength(password string) error {
 	}
 
 	if !hasUpper || !hasLower || !hasDigit {
-		return errors.New("password must contain uppercase, lowercase and digit")
+		return PasswordValidationError{Message: "password must contain uppercase, lowercase and digit"}
 	}
 
 	return nil
