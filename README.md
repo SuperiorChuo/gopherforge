@@ -6,7 +6,7 @@
 [![Vue](https://img.shields.io/badge/Vue-3.5-42b883?logo=vue.js&logoColor=white)](tdesign-vue-go/package.json)
 [![TDesign](https://img.shields.io/badge/TDesign%20Vue%20Next-1.20-0052d9)](tdesign-vue-go/package.json)
 
-Go Admin Kit 是一套干净、可二次开发的 Go 全栈后台管理脚手架。项目保留后台系统常用能力，移除了旧业务页面、专项接口、历史迁移数据和运行产物，适合作为新管理后台、内部运营系统或 SaaS 控制台的起点。
+Go Admin Kit 是一套基于 Go + Gin、Vue 3 和 TDesign 的全栈后台管理脚手架，内置认证、RBAC、系统管理、审计日志、监控面板和 Docker 本地环境。项目已清理业务耦合内容，适合作为企业内部管理系统、运营后台或 SaaS 控制台的二次开发起点。
 
 ## 项目截图
 
