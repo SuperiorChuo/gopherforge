@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -47,6 +48,28 @@ func TestMetricsRecordsSnapshotAndPrometheusOutput(t *testing.T) {
 		if !strings.Contains(prometheus, expected) {
 			t.Fatalf("PrometheusMetrics() missing %q in:\n%s", expected, prometheus)
 		}
+	}
+}
+
+func TestMetricsHotPathDoesNotTakeGlobalWriteLock(t *testing.T) {
+	content, err := os.ReadFile("metrics.go")
+	if err != nil {
+		t.Fatalf("read metrics.go: %v", err)
+	}
+
+	source := string(content)
+	start := strings.Index(source, "func Metrics() gin.HandlerFunc")
+	if start == -1 {
+		t.Fatal("Metrics function not found")
+	}
+	end := strings.Index(source[start:], "const httpStatusInternalServerError")
+	if end == -1 {
+		t.Fatal("Metrics function end marker not found")
+	}
+
+	metricsFunction := source[start : start+end]
+	if strings.Contains(metricsFunction, "globalMetrics.mu.Lock()") {
+		t.Fatal("Metrics hot path should not take the global metrics write lock")
 	}
 }
 
