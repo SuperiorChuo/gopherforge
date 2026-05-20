@@ -1,13 +1,17 @@
 package authz
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/dao/auth"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/database"
+	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
 	"gorm.io/gorm"
 )
 
@@ -22,6 +26,16 @@ const (
 	DataScopeCustom         DataScope = "custom"
 	DataScopeNone           DataScope = "none"
 )
+
+const (
+	departmentTreeCacheKey = "authz:department_tree"
+	departmentTreeCacheTTL = 5 * time.Minute
+)
+
+type departmentTreeCacheRow struct {
+	ID       uint `json:"id"`
+	ParentID uint `json:"parent_id"`
+}
 
 // UserDataScope 是业务查询可复用的数据权限解析结果。
 type UserDataScope struct {
@@ -38,8 +52,27 @@ type UserDataScope struct {
 // 角色 data_scope 为主配置；旧角色编码仅作为兼容兜底：
 // super_admin/admin 始终拥有全部数据，dept_admin 在未配置 data_scope 时拥有本部门及子部门。
 func ResolveUserDataScope(user *model.User) UserDataScope {
+	scope, err := ResolveUserDataScopeContext(context.Background(), user)
+	if err != nil {
+		if user == nil {
+			return UserDataScope{Scope: DataScopeNone}
+		}
+		return UserDataScope{
+			Scope:         DataScopeSelf,
+			UserID:        user.ID,
+			DepartmentID:  user.DepartmentID,
+			DepartmentIDs: departmentIDs(user.DepartmentID),
+		}
+	}
+	return scope
+}
+
+func ResolveUserDataScopeContext(ctx context.Context, user *model.User) (UserDataScope, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if user == nil {
-		return UserDataScope{Scope: DataScopeNone}
+		return UserDataScope{Scope: DataScopeNone}, nil
 	}
 
 	scope := UserDataScope{
@@ -53,7 +86,7 @@ func ResolveUserDataScope(user *model.User) UserDataScope {
 	if len(user.Roles) == 0 {
 		scope.Scope = DataScopeSelf
 		scope.DepartmentIDs = departmentIDs(user.DepartmentID)
-		return scope
+		return scope, nil
 	}
 
 	customRoleIDs := make([]uint, 0)
@@ -67,10 +100,14 @@ func ResolveUserDataScope(user *model.User) UserDataScope {
 		switch roleScope {
 		case DataScopeAll:
 			scope.Scope = DataScopeAll
-			return scope
+			return scope, nil
 		case DataScopeDepartmentTree:
 			scope.Scope = maxDataScope(scope.Scope, roleScope)
-			departmentIDsByRole = append(departmentIDsByRole, resolveDepartmentTreeIDs(user.DepartmentID)...)
+			ids, err := resolveDepartmentTreeIDsContext(ctx, user.DepartmentID)
+			if err != nil {
+				return scope, err
+			}
+			departmentIDsByRole = append(departmentIDsByRole, ids...)
 		case DataScopeDepartment:
 			scope.Scope = maxDataScope(scope.Scope, roleScope)
 			departmentIDsByRole = append(departmentIDsByRole, departmentIDs(user.DepartmentID)...)
@@ -90,7 +127,11 @@ func ResolveUserDataScope(user *model.User) UserDataScope {
 	}
 
 	if len(customRoleIDs) > 0 {
-		departmentIDsByRole = append(departmentIDsByRole, loadRoleDataScopeDepartmentIDs(customRoleIDs)...)
+		ids, err := loadRoleDataScopeDepartmentIDsContext(ctx, customRoleIDs)
+		if err != nil {
+			return scope, err
+		}
+		departmentIDsByRole = append(departmentIDsByRole, ids...)
 	}
 
 	switch scope.Scope {
@@ -102,7 +143,7 @@ func ResolveUserDataScope(user *model.User) UserDataScope {
 		scope.DepartmentIDs = nil
 	}
 
-	return scope
+	return scope, nil
 }
 
 // CanAccessAll 判断解析结果是否拥有全量数据权限。
@@ -122,14 +163,18 @@ func ResolveUserDataScopeFromContext(c *gin.Context) (UserDataScope, error) {
 		return UserDataScope{Scope: DataScopeNone}, fmt.Errorf("invalid user id in context")
 	}
 
+	ctx := context.Background()
+	if c.Request != nil {
+		ctx = c.Request.Context()
+	}
+
 	userDAO := auth.UserDAO{}
-	user, err := userDAO.GetUserWithRoles(uid)
+	user, err := userDAO.GetUserWithRolesContext(ctx, uid)
 	if err != nil {
 		return UserDataScope{Scope: DataScopeNone}, err
 	}
 
-	scope := ResolveUserDataScope(user)
-	return scope, nil
+	return ResolveUserDataScopeContext(ctx, user)
 }
 
 // ApplyUserEntityScope 给用户表列表追加数据权限条件。
@@ -162,7 +207,10 @@ func ApplyOwnerScope(query *gorm.DB, scope UserDataScope, userColumn string) *go
 			return query.Where("1 = 0")
 		}
 		return query.Where(userColumn+" IN (?)",
-			database.DB.Model(&model.User{}).Select("id").Where("department_id IN ?", scope.DepartmentIDs),
+			query.Session(&gorm.Session{NewDB: true}).
+				Model(&model.User{}).
+				Select("id").
+				Where("department_id IN ?", scope.DepartmentIDs),
 		)
 	case DataScopeSelf:
 		if scope.UserID == 0 {
@@ -191,18 +239,106 @@ func departmentIDs(departmentID uint) []uint {
 }
 
 func resolveDepartmentTreeIDs(departmentID uint) []uint {
+	ids, err := resolveDepartmentTreeIDsContext(context.Background(), departmentID)
+	if err != nil {
+		return departmentIDs(departmentID)
+	}
+	return ids
+}
+
+func resolveDepartmentTreeIDsContext(ctx context.Context, departmentID uint) ([]uint, error) {
 	ids := departmentIDs(departmentID)
 	if departmentID == 0 {
-		return ids
+		return ids, nil
 	}
 
-	var depts []model.Department
-	if err := database.DB.Model(&model.Department{}).Select("id", "parent_id").Find(&depts).Error; err != nil {
-		return ids
+	depts, err := loadDepartmentTreeContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	collectChildDepartmentIDs(depts, departmentID, &ids)
-	return ids
+	return ids, nil
+}
+
+func loadDepartmentTreeContext(ctx context.Context) ([]model.Department, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if depts, ok := getCachedDepartmentTreeContext(ctx); ok {
+		return depts, nil
+	}
+
+	var depts []model.Department
+	if err := database.DB.WithContext(ctx).Model(&model.Department{}).Select("id", "parent_id").Find(&depts).Error; err != nil {
+		return nil, err
+	}
+
+	_ = setCachedDepartmentTreeContext(ctx, depts)
+	return depts, nil
+}
+
+func getCachedDepartmentTreeContext(ctx context.Context) ([]model.Department, bool) {
+	if redisstore.Client == nil {
+		return nil, false
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	data, err := redisstore.Client.Get(ctx, departmentTreeCacheKey).Bytes()
+	if err != nil {
+		return nil, false
+	}
+
+	var rows []departmentTreeCacheRow
+	if err := json.Unmarshal(data, &rows); err != nil {
+		_ = InvalidateDepartmentTreeCache()
+		return nil, false
+	}
+
+	return departmentRowsToModels(rows), true
+}
+
+func setCachedDepartmentTreeContext(ctx context.Context, depts []model.Department) error {
+	if redisstore.Client == nil {
+		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	rows := make([]departmentTreeCacheRow, 0, len(depts))
+	for _, dept := range depts {
+		rows = append(rows, departmentTreeCacheRow{
+			ID:       dept.ID,
+			ParentID: dept.ParentID,
+		})
+	}
+
+	data, err := json.Marshal(rows)
+	if err != nil {
+		return err
+	}
+	return redisstore.Client.Set(ctx, departmentTreeCacheKey, data, departmentTreeCacheTTL).Err()
+}
+
+func departmentRowsToModels(rows []departmentTreeCacheRow) []model.Department {
+	depts := make([]model.Department, 0, len(rows))
+	for _, row := range rows {
+		depts = append(depts, model.Department{
+			ID:       row.ID,
+			ParentID: row.ParentID,
+		})
+	}
+	return depts
+}
+
+func InvalidateDepartmentTreeCache() error {
+	if redisstore.Client == nil {
+		return nil
+	}
+	return redisstore.Client.Del(context.Background(), departmentTreeCacheKey).Err()
 }
 
 func resolveRoleDataScope(role model.Role) DataScope {
@@ -263,26 +399,29 @@ func roleDataScopeDepartmentIDs(role model.Role) []uint {
 	return uniqueUintIDs(ids)
 }
 
-func loadRoleDataScopeDepartmentIDs(roleIDs []uint) []uint {
+func loadRoleDataScopeDepartmentIDsContext(ctx context.Context, roleIDs []uint) ([]uint, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	roleIDs = uniqueUintIDs(roleIDs)
 	if len(roleIDs) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	var relations []model.RoleDataScopeDepartment
-	if err := database.DB.
+	if err := database.DB.WithContext(ctx).
 		Model(&model.RoleDataScopeDepartment{}).
 		Select("department_id").
 		Where("role_id IN ?", roleIDs).
 		Find(&relations).Error; err != nil {
-		return nil
+		return nil, err
 	}
 
 	ids := make([]uint, 0, len(relations))
 	for _, relation := range relations {
 		ids = append(ids, relation.DepartmentID)
 	}
-	return uniqueUintIDs(ids)
+	return uniqueUintIDs(ids), nil
 }
 
 func uniqueUintIDs(ids []uint) []uint {

@@ -8,11 +8,10 @@ import (
 
 	"github.com/go-admin-kit/server/internal/config"
 	"github.com/go-admin-kit/server/internal/pkg/redis"
-	"github.com/golang-jwt/jwt/v5"
+	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
-// 自定义错误
 var (
 	ErrInvalidToken   = errors.New("invalid token")
 	ErrExpiredToken   = errors.New("token expired")
@@ -26,21 +25,18 @@ const (
 	RefreshTokenType = "refresh"
 )
 
-// Claims 自定义JWT声明
 type Claims struct {
 	UserID    uint   `json:"user_id"`
 	Username  string `json:"username"`
 	TokenType string `json:"token_type"`
-	jwt.RegisteredClaims
+	jwtlib.RegisteredClaims
 }
 
-// GenerateToken 生成AccessToken和RefreshToken
 func GenerateToken(userID uint, username string) (accessToken, refreshToken string, err error) {
 	cfg := config.Cfg.JWT
 	return GenerateTokenWithAccessTTL(userID, username, time.Duration(cfg.AccessTokenExpire)*time.Second)
 }
 
-// GenerateTokenWithAccessTTL generates access/refresh tokens with a custom access-token TTL.
 func GenerateTokenWithAccessTTL(userID uint, username string, accessTTL time.Duration) (accessToken, refreshToken string, err error) {
 	cfg := config.Cfg.JWT
 	now := time.Now()
@@ -48,42 +44,40 @@ func GenerateTokenWithAccessTTL(userID uint, username string, accessTTL time.Dur
 		accessTTL = time.Duration(cfg.AccessTokenExpire) * time.Second
 	}
 
-	// 生成AccessToken
 	accessClaims := Claims{
 		UserID:    userID,
 		Username:  username,
 		TokenType: AccessTokenType,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(now.Add(accessTTL)),
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
+		RegisteredClaims: jwtlib.RegisteredClaims{
+			ExpiresAt: jwtlib.NewNumericDate(now.Add(accessTTL)),
+			IssuedAt:  jwtlib.NewNumericDate(now),
+			NotBefore: jwtlib.NewNumericDate(now),
 			Issuer:    cfg.Issuer,
 			Subject:   fmt.Sprintf("%d", userID),
 			ID:        uuid.NewString(),
 		},
 	}
 
-	accessToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims).SignedString([]byte(cfg.Secret))
+	accessToken, err = jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, accessClaims).SignedString([]byte(cfg.Secret))
 	if err != nil {
 		return "", "", err
 	}
 
-	// 生成RefreshToken
 	refreshClaims := Claims{
 		UserID:    userID,
 		Username:  username,
 		TokenType: RefreshTokenType,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(cfg.RefreshTokenExpire) * time.Second)),
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
+		RegisteredClaims: jwtlib.RegisteredClaims{
+			ExpiresAt: jwtlib.NewNumericDate(now.Add(time.Duration(cfg.RefreshTokenExpire) * time.Second)),
+			IssuedAt:  jwtlib.NewNumericDate(now),
+			NotBefore: jwtlib.NewNumericDate(now),
 			Issuer:    cfg.Issuer,
 			Subject:   fmt.Sprintf("%d", userID),
 			ID:        uuid.NewString(),
 		},
 	}
 
-	refreshToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString([]byte(cfg.Secret))
+	refreshToken, err = jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, refreshClaims).SignedString([]byte(cfg.Secret))
 	if err != nil {
 		return "", "", err
 	}
@@ -91,44 +85,47 @@ func GenerateTokenWithAccessTTL(userID uint, username string, accessTTL time.Dur
 	return accessToken, refreshToken, nil
 }
 
-// ParseToken 解析Token
 func ParseToken(tokenString string) (*Claims, error) {
+	return parseToken(tokenString, true)
+}
+
+func TokenID(tokenString string) (string, error) {
+	claims, err := parseToken(tokenString, false)
+	if err != nil || claims.ID == "" {
+		return "", ErrInvalidToken
+	}
+	return claims.ID, nil
+}
+
+func parseToken(tokenString string, checkRevocation bool) (*Claims, error) {
 	cfg := config.Cfg.JWT
 
-	// 解析token
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		// 验证签名方法
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+	token, err := jwtlib.ParseWithClaims(tokenString, &Claims{}, func(token *jwtlib.Token) (any, error) {
+		if _, ok := token.Method.(*jwtlib.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(cfg.Secret), nil
 	})
-
 	if err != nil {
-		// 处理过期错误
 		if err.Error() == "token is expired" {
 			return nil, ErrExpiredToken
 		}
 		return nil, ErrInvalidToken
 	}
 
-	// 验证token是否有效
-	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-		// 检查token是否在黑名单中
-		if IsTokenBlacklisted(tokenString) {
-			return nil, ErrRevokedToken
-		}
-		return claims, nil
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, ErrInvalidToken
 	}
-
-	return nil, ErrInvalidToken
+	if checkRevocation && IsTokenIDBlacklisted(claims.ID) {
+		return nil, ErrRevokedToken
+	}
+	return claims, nil
 }
 
-// RefreshToken 轮换RefreshToken并签发新的AccessToken。
 func RefreshToken(refreshToken string) (accessToken, newRefreshToken string, err error) {
 	cfg := config.Cfg.JWT
 
-	// 解析refreshToken
 	claims, err := ParseToken(refreshToken)
 	if err != nil {
 		return "", "", err
@@ -137,22 +134,22 @@ func RefreshToken(refreshToken string) (accessToken, newRefreshToken string, err
 		return "", "", ErrWrongTokenType
 	}
 
-	// 生成新的AccessToken
+	now := time.Now()
 	newAccessClaims := Claims{
 		UserID:    claims.UserID,
 		Username:  claims.Username,
 		TokenType: AccessTokenType,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(cfg.AccessTokenExpire) * time.Second)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
+		RegisteredClaims: jwtlib.RegisteredClaims{
+			ExpiresAt: jwtlib.NewNumericDate(now.Add(time.Duration(cfg.AccessTokenExpire) * time.Second)),
+			IssuedAt:  jwtlib.NewNumericDate(now),
+			NotBefore: jwtlib.NewNumericDate(now),
 			Issuer:    cfg.Issuer,
 			Subject:   fmt.Sprintf("%d", claims.UserID),
 			ID:        uuid.NewString(),
 		},
 	}
 
-	accessToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, newAccessClaims).SignedString([]byte(cfg.Secret))
+	accessToken, err = jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, newAccessClaims).SignedString([]byte(cfg.Secret))
 	if err != nil {
 		return "", "", err
 	}
@@ -161,21 +158,22 @@ func RefreshToken(refreshToken string) (accessToken, newRefreshToken string, err
 		return accessToken, refreshToken, nil
 	}
 
+	now = time.Now()
 	newRefreshClaims := Claims{
 		UserID:    claims.UserID,
 		Username:  claims.Username,
 		TokenType: RefreshTokenType,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(cfg.RefreshTokenExpire) * time.Second)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
+		RegisteredClaims: jwtlib.RegisteredClaims{
+			ExpiresAt: jwtlib.NewNumericDate(now.Add(time.Duration(cfg.RefreshTokenExpire) * time.Second)),
+			IssuedAt:  jwtlib.NewNumericDate(now),
+			NotBefore: jwtlib.NewNumericDate(now),
 			Issuer:    cfg.Issuer,
 			Subject:   fmt.Sprintf("%d", claims.UserID),
 			ID:        uuid.NewString(),
 		},
 	}
 
-	newRefreshToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, newRefreshClaims).SignedString([]byte(cfg.Secret))
+	newRefreshToken, err = jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, newRefreshClaims).SignedString([]byte(cfg.Secret))
 	if err != nil {
 		return "", "", err
 	}
@@ -187,13 +185,25 @@ func RefreshToken(refreshToken string) (accessToken, newRefreshToken string, err
 	return accessToken, newRefreshToken, nil
 }
 
-// BlacklistToken 将Token加入黑名单
 func BlacklistToken(tokenString string, expireTime time.Duration) error {
-	ctx := context.Background()
-	return redis.Client.Set(ctx, fmt.Sprintf("jwt:blacklist:%s", tokenString), "1", expireTime).Err()
+	claims, err := parseToken(tokenString, false)
+	if err != nil || claims.ID == "" {
+		return ErrInvalidToken
+	}
+	return BlacklistTokenID(claims.ID, expireTime)
 }
 
-// RevokeToken 将未过期Token加入黑名单。
+func BlacklistTokenID(tokenID string, expireTime time.Duration) error {
+	if tokenID == "" {
+		return ErrInvalidToken
+	}
+	if expireTime <= 0 {
+		return nil
+	}
+	ctx := context.Background()
+	return redis.Client.Set(ctx, blacklistKey(tokenID), "1", expireTime).Err()
+}
+
 func RevokeToken(tokenString string, claims *Claims) error {
 	if claims == nil || claims.ExpiresAt == nil {
 		return ErrInvalidToken
@@ -202,12 +212,34 @@ func RevokeToken(tokenString string, claims *Claims) error {
 	if expireTime <= 0 {
 		return nil
 	}
-	return BlacklistToken(tokenString, expireTime)
+	tokenID := claims.ID
+	if tokenID == "" {
+		parsed, err := parseToken(tokenString, false)
+		if err != nil || parsed.ID == "" {
+			return ErrInvalidToken
+		}
+		tokenID = parsed.ID
+	}
+	return BlacklistTokenID(tokenID, expireTime)
 }
 
-// IsTokenBlacklisted 检查Token是否在黑名单中
 func IsTokenBlacklisted(tokenString string) bool {
+	claims, err := parseToken(tokenString, false)
+	if err != nil || claims.ID == "" {
+		return false
+	}
+	return IsTokenIDBlacklisted(claims.ID)
+}
+
+func IsTokenIDBlacklisted(tokenID string) bool {
+	if tokenID == "" {
+		return false
+	}
 	ctx := context.Background()
-	result, err := redis.Client.Get(ctx, fmt.Sprintf("jwt:blacklist:%s", tokenString)).Result()
+	result, err := redis.Client.Get(ctx, blacklistKey(tokenID)).Result()
 	return err == nil && result == "1"
+}
+
+func blacklistKey(tokenID string) string {
+	return fmt.Sprintf("jwt:blacklist:%s", tokenID)
 }

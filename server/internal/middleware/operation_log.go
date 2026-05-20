@@ -13,29 +13,29 @@ import (
 	"github.com/go-admin-kit/server/internal/service/system"
 )
 
-// 操作模块映射
+// Operation module mapping.
 var moduleMap = map[string]string{
-	"/api/v1/users":          "用户管理",
-	"/api/v1/roles":          "角色管理",
-	"/api/v1/permissions":    "权限管理",
-	"/api/v1/menus":          "菜单管理",
-	"/api/v1/user":           "个人中心",
-	"/api/v1/oauth":          "OAuth认证",
-	"/api/v1/login":          "系统登录",
-	"/api/v1/register":       "用户注册",
-	"/api/v1/captcha":        "验证码",
-	"/api/v1/operation-logs": "操作日志",
+	"/api/v1/users":          "User Management",
+	"/api/v1/roles":          "Role Management",
+	"/api/v1/permissions":    "Permission Management",
+	"/api/v1/menus":          "Menu Management",
+	"/api/v1/user":           "Profile",
+	"/api/v1/oauth":          "OAuth",
+	"/api/v1/login":          "Login",
+	"/api/v1/register":       "Registration",
+	"/api/v1/captcha":        "Captcha",
+	"/api/v1/operation-logs": "Operation Logs",
 }
 
-// 操作类型映射
+// Operation action mapping.
 var actionMap = map[string]string{
-	"GET":    "查询",
-	"POST":   "新增",
-	"PUT":    "修改",
-	"DELETE": "删除",
+	"GET":    "Query",
+	"POST":   "Create",
+	"PUT":    "Update",
+	"DELETE": "Delete",
 }
 
-// responseBodyWriter 用于捕获响应体
+// responseBodyWriter captures response bodies when enabled.
 type responseBodyWriter struct {
 	gin.ResponseWriter
 	body *bytes.Buffer
@@ -46,13 +46,13 @@ func (w responseBodyWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
-// OperationLogger 操作日志中间件
+// OperationLogger records operation logs with default options.
 func OperationLogger() gin.HandlerFunc {
 	return OperationLoggerWithOptions(OperationLogOptions{
 		RecordRequestBody:   true,
-		RecordResponseBody:  false, // 默认不记录响应体，可能会很大
-		MaxRequestBodySize:  4096,  // 最大请求体大小 4KB
-		MaxResponseBodySize: 4096,  // 最大响应体大小 4KB
+		RecordResponseBody:  false,
+		MaxRequestBodySize:  4096,
+		MaxResponseBodySize: 4096,
 		SkipPaths: []string{
 			"/api/v1/health",
 			"/api/v1/captcha",
@@ -60,25 +60,23 @@ func OperationLogger() gin.HandlerFunc {
 	})
 }
 
-// OperationLogOptions 操作日志配置选项
+// OperationLogOptions configures operation logging.
 type OperationLogOptions struct {
-	RecordRequestBody   bool     // 是否记录请求体
-	RecordResponseBody  bool     // 是否记录响应体
-	MaxRequestBodySize  int      // 最大请求体大小
-	MaxResponseBodySize int      // 最大响应体大小
-	SkipPaths           []string // 跳过的路径
+	RecordRequestBody   bool
+	RecordResponseBody  bool
+	MaxRequestBodySize  int
+	MaxResponseBodySize int
+	SkipPaths           []string
 }
 
-// OperationLoggerWithOptions 带配置的操作日志中间件
+// OperationLoggerWithOptions records operation logs with custom options.
 func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 跳过 OPTIONS 预检请求
 		if c.Request.Method == http.MethodOptions {
 			c.Next()
 			return
 		}
 
-		// 检查是否跳过当前路径
 		path := c.Request.URL.Path
 		for _, skipPath := range opts.SkipPaths {
 			if strings.HasPrefix(path, skipPath) {
@@ -89,26 +87,17 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 
 		start := time.Now()
 
-		// 读取请求体
 		var requestBody string
 		if opts.RecordRequestBody && c.Request.Body != nil {
-			bodyBytes, err := io.ReadAll(c.Request.Body)
+			bodyPreview, restoredBody, err := readRequestBodyForLog(c.Request.Body, opts.MaxRequestBodySize)
+			c.Request.Body = restoredBody
 			if err == nil {
-				// 截断过长的请求体
-				if len(bodyBytes) > opts.MaxRequestBodySize {
-					requestBody = string(bodyBytes[:opts.MaxRequestBodySize]) + "...[truncated]"
-				} else {
-					requestBody = string(bodyBytes)
-				}
-				// 重置请求体，以便后续处理器可以读取
-				c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+				requestBody = bodyPreview
 			}
 		}
 
-		// 过滤敏感字段
 		requestBody = filterSensitiveFields(requestBody)
 
-		// 包装响应写入器以捕获响应体
 		var responseBody string
 		if opts.RecordResponseBody {
 			blw := &responseBodyWriter{body: bytes.NewBufferString(""), ResponseWriter: c.Writer}
@@ -116,7 +105,6 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 
 			c.Next()
 
-			// 截断过长的响应体
 			if blw.body.Len() > opts.MaxResponseBodySize {
 				responseBody = blw.body.String()[:opts.MaxResponseBodySize] + "...[truncated]"
 			} else {
@@ -126,13 +114,11 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 			c.Next()
 		}
 
-		// 获取完整路径
 		fullPath := c.FullPath()
 		if fullPath == "" {
 			fullPath = c.Request.URL.Path
 		}
 
-		// 获取用户信息
 		var userID uint
 		if uid, ok := c.Get("user_id"); ok {
 			if v, ok := uid.(uint); ok {
@@ -149,13 +135,11 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 		actor := GetAuditActor(c)
 		requestID := GetRequestID(c)
 
-		// 获取错误信息
 		var errorMsg string
 		if len(c.Errors) > 0 {
 			errorMsg = c.Errors.String()
 		}
 
-		// 解析模块和操作类型
 		module := getModule(fullPath)
 		action := getAction(c.Request.Method, fullPath)
 
@@ -179,29 +163,51 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 			ErrorMsg:     truncateString(errorMsg, 1024),
 		}
 
-		// 使用带缓冲的通道记录日志，避免阻塞和无限 Goroutine
 		select {
 		case logChan <- log:
-			// 写入成功
 		default:
-			// 通道已满，丢弃日志以保护服务
-			// 实际生产中可以记录错误日志或监控指标
 		}
 	}
 }
 
-// 日志通道缓冲大小
+type replayReadCloser struct {
+	io.Reader
+	closer io.Closer
+}
+
+func (r replayReadCloser) Close() error {
+	return r.closer.Close()
+}
+
+func readRequestBodyForLog(body io.ReadCloser, maxSize int) (string, io.ReadCloser, error) {
+	if maxSize < 0 {
+		maxSize = 0
+	}
+
+	bodyBytes, err := io.ReadAll(io.LimitReader(body, int64(maxSize)+1))
+	restoredBody := replayReadCloser{
+		Reader: io.MultiReader(bytes.NewReader(bodyBytes), body),
+		closer: body,
+	}
+	if err != nil {
+		return "", restoredBody, err
+	}
+	if len(bodyBytes) > maxSize {
+		return string(bodyBytes[:maxSize]) + "...[truncated]", restoredBody, nil
+	}
+	return string(bodyBytes), restoredBody, nil
+}
+
+// logChanBufferSize limits queued operation log writes.
 const logChanBufferSize = 1000
 
-// 日志通道
 var logChan = make(chan *model.OperationLog, logChanBufferSize)
 
 func init() {
-	// 启动日志处理协程
 	go processLogs()
 }
 
-// processLogs 处理日志
+// processLogs persists queued operation logs.
 func processLogs() {
 	service := &system.OperationLogService{}
 	for log := range logChan {
@@ -209,52 +215,50 @@ func processLogs() {
 	}
 }
 
-// getModule 根据路径获取模块名
+// getModule resolves a module name from a route path.
 func getModule(path string) string {
 	for prefix, module := range moduleMap {
 		if strings.HasPrefix(path, prefix) {
 			return module
 		}
 	}
-	return "其他"
+	return "Other"
 }
 
-// getAction 根据方法和路径获取操作类型
+// getAction resolves an operation action from method and path.
 func getAction(method, path string) string {
-	// 特殊处理登录、注册等操作
 	if strings.HasSuffix(path, "/login") {
-		return "登录"
+		return "Login"
 	}
 	if strings.HasSuffix(path, "/register") {
-		return "注册"
+		return "Register"
 	}
 	if strings.HasSuffix(path, "/password") {
-		return "修改密码"
+		return "Change Password"
 	}
 	if strings.Contains(path, "/status") {
-		return "修改状态"
+		return "Update Status"
 	}
 	if strings.Contains(path, "/roles") && method == "POST" {
-		return "分配角色"
+		return "Assign Roles"
 	}
 	if strings.Contains(path, "/permissions") && method == "POST" {
-		return "分配权限"
+		return "Assign Permissions"
 	}
 
-	// 默认使用 HTTP 方法映射
 	if action, ok := actionMap[method]; ok {
 		return action
 	}
 	return method
 }
 
-// filterSensitiveFields 过滤敏感字段
+// filterSensitiveFields masks sensitive JSON fields.
 func filterSensitiveFields(body string) string {
 	if body == "" {
 		return body
 	}
 
-	var payload interface{}
+	var payload any
 	if err := json.Unmarshal([]byte(body), &payload); err != nil {
 		return body
 	}
@@ -268,9 +272,9 @@ func filterSensitiveFields(body string) string {
 	return string(masked)
 }
 
-func maskSensitivePayload(payload interface{}) {
+func maskSensitivePayload(payload any) {
 	switch value := payload.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		for key, item := range value {
 			if isSensitiveField(key) {
 				value[key] = "***"
@@ -278,7 +282,7 @@ func maskSensitivePayload(payload interface{}) {
 			}
 			maskSensitivePayload(item)
 		}
-	case []interface{}:
+	case []any:
 		for _, item := range value {
 			maskSensitivePayload(item)
 		}
@@ -294,7 +298,7 @@ func isSensitiveField(field string) bool {
 	}
 }
 
-// truncateString 截断字符串
+// truncateString truncates a string to maxLen bytes.
 func truncateString(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s

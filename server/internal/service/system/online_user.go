@@ -3,14 +3,16 @@ package system
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-admin-kit/server/internal/pkg/jwt"
 	"github.com/go-admin-kit/server/internal/pkg/redis"
+	goredis "github.com/redis/go-redis/v9"
 )
 
-// OnlineUser 在线用户信息
 type OnlineUser struct {
 	UserID               uint      `json:"user_id"`
 	Username             string    `json:"username"`
@@ -25,97 +27,74 @@ type OnlineUser struct {
 	AccessTokenExpiresAt time.Time `json:"access_token_expires_at,omitempty"`
 }
 
-// OnlineUserService 在线用户服务
 type OnlineUserService struct{}
 
-const onlineUserPrefix = "online_user:"
+const (
+	onlineUserPrefix   = "online_user:"
+	onlineUserIndexKey = "online_users"
+)
 
-// SetOnlineUser 设置用户在线状态
 func (s *OnlineUserService) SetOnlineUser(user OnlineUser, expiration time.Duration) error {
-	ctx := context.Background()
-	key := onlineUserPrefix + user.TokenID
+	return s.SetOnlineUserContext(context.Background(), user, expiration)
+}
+
+func (s *OnlineUserService) SetOnlineUserContext(ctx context.Context, user OnlineUser, expiration time.Duration) error {
+	user.AccessToken = ""
 
 	data, err := json.Marshal(user)
 	if err != nil {
 		return err
 	}
 
-	return redis.Client.Set(ctx, key, data, expiration).Err()
+	score := onlineUserExpiryScore(expiration, user.AccessTokenExpiresAt)
+	pipe := redis.Client.TxPipeline()
+	pipe.Set(ctx, onlineUserKey(user.TokenID), data, expiration)
+	pipe.ZAdd(ctx, onlineUserIndexKey, goredis.Z{
+		Score:  score,
+		Member: user.TokenID,
+	})
+	_, err = pipe.Exec(ctx)
+	return err
 }
 
-// RemoveOnlineUser 移除用户在线状态（强制下线）
 func (s *OnlineUserService) RemoveOnlineUser(tokenID string) error {
-	ctx := context.Background()
-	key := onlineUserPrefix + tokenID
-	return redis.Client.Del(ctx, key).Err()
+	return s.RemoveOnlineUserContext(context.Background(), tokenID)
 }
 
-// GetOnlineUsers 获取所有在线用户
+func (s *OnlineUserService) RemoveOnlineUserContext(ctx context.Context, tokenID string) error {
+	pipe := redis.Client.TxPipeline()
+	pipe.Del(ctx, onlineUserKey(tokenID))
+	pipe.ZRem(ctx, onlineUserIndexKey, tokenID)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
 func (s *OnlineUserService) GetOnlineUsers() ([]OnlineUser, error) {
-	ctx := context.Background()
-
-	// 使用 SCAN 遍历所有在线用户 key
-	var cursor uint64
-	var users []OnlineUser
-
-	for {
-		keys, nextCursor, err := redis.Client.Scan(ctx, cursor, onlineUserPrefix+"*", 100).Result()
-		if err != nil {
-			return nil, err
-		}
-
-		for _, key := range keys {
-			data, err := redis.Client.Get(ctx, key).Result()
-			if err != nil {
-				continue
-			}
-
-			var user OnlineUser
-			if err := json.Unmarshal([]byte(data), &user); err != nil {
-				continue
-			}
-			users = append(users, user)
-		}
-
-		cursor = nextCursor
-		if cursor == 0 {
-			break
-		}
-	}
-
-	return users, nil
+	return s.GetOnlineUsersContext(context.Background())
 }
 
-// GetOnlineUserCount 获取在线用户数量
+func (s *OnlineUserService) GetOnlineUsersContext(ctx context.Context) ([]OnlineUser, error) {
+	return getIndexedOnlineUsers(ctx)
+}
+
 func (s *OnlineUserService) GetOnlineUserCount() (int64, error) {
-	ctx := context.Background()
-
-	var count int64
-	var cursor uint64
-
-	for {
-		keys, nextCursor, err := redis.Client.Scan(ctx, cursor, onlineUserPrefix+"*", 100).Result()
-		if err != nil {
-			return 0, err
-		}
-
-		count += int64(len(keys))
-
-		cursor = nextCursor
-		if cursor == 0 {
-			break
-		}
-	}
-
-	return count, nil
+	return s.GetOnlineUserCountContext(context.Background())
 }
 
-// ForceLogout 强制用户下线
-func (s *OnlineUserService) ForceLogout(tokenID string) error {
-	ctx := context.Background()
-	key := onlineUserPrefix + tokenID
+func (s *OnlineUserService) GetOnlineUserCountContext(ctx context.Context) (int64, error) {
+	users, err := getIndexedOnlineUsers(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return int64(len(users)), nil
+}
 
-	data, err := redis.Client.Get(ctx, key).Result()
+func (s *OnlineUserService) ForceLogout(tokenID string) error {
+	return s.ForceLogoutContext(context.Background(), tokenID)
+}
+
+func (s *OnlineUserService) ForceLogoutContext(ctx context.Context, tokenID string) error {
+	data, err := redis.Client.Get(ctx, onlineUserKey(tokenID)).Result()
 	var targetUserID uint
 	if err == nil {
 		var user OnlineUser
@@ -125,45 +104,34 @@ func (s *OnlineUserService) ForceLogout(tokenID string) error {
 		}
 	}
 	if targetUserID != 0 {
-		_ = s.revokeUserOnlineTokens(targetUserID)
+		_ = s.revokeUserOnlineTokensContext(ctx, targetUserID)
 	}
-	return s.RemoveOnlineUser(tokenID)
+	return s.RemoveOnlineUserContext(ctx, tokenID)
 }
 
-func (s *OnlineUserService) revokeUserOnlineTokens(userID uint) error {
-	ctx := context.Background()
-	var cursor uint64
-
-	for {
-		keys, nextCursor, err := redis.Client.Scan(ctx, cursor, onlineUserPrefix+"*", 100).Result()
-		if err != nil {
-			return err
-		}
-
-		for _, key := range keys {
-			data, err := redis.Client.Get(ctx, key).Result()
-			if err != nil {
-				continue
-			}
-
-			var user OnlineUser
-			if json.Unmarshal([]byte(data), &user) != nil || user.UserID != userID {
-				continue
-			}
-			s.revokeOnlineUserToken(user)
-			_ = redis.Client.Del(ctx, key).Err()
-		}
-
-		cursor = nextCursor
-		if cursor == 0 {
-			break
-		}
+func (s *OnlineUserService) revokeUserOnlineTokensContext(ctx context.Context, userID uint) error {
+	users, err := s.GetOnlineUsersContext(ctx)
+	if err != nil {
+		return err
 	}
 
+	for _, user := range users {
+		if user.UserID != userID {
+			continue
+		}
+		s.revokeOnlineUserToken(user)
+		_ = s.RemoveOnlineUserContext(ctx, user.TokenID)
+	}
 	return nil
 }
 
 func (s *OnlineUserService) revokeOnlineUserToken(user OnlineUser) {
+	if user.TokenID != "" && !user.AccessTokenExpiresAt.IsZero() {
+		if ttl := time.Until(user.AccessTokenExpiresAt); ttl > 0 {
+			_ = jwt.BlacklistTokenID(user.TokenID, ttl)
+			return
+		}
+	}
 	if user.AccessToken == "" {
 		return
 	}
@@ -176,24 +144,95 @@ func (s *OnlineUserService) revokeOnlineUserToken(user OnlineUser) {
 	}
 }
 
-// IsUserOnline 检查用户是否在线
 func (s *OnlineUserService) IsUserOnline(tokenID string) bool {
-	ctx := context.Background()
-	key := onlineUserPrefix + tokenID
+	return s.IsUserOnlineContext(context.Background(), tokenID)
+}
 
-	exists, err := redis.Client.Exists(ctx, key).Result()
+func (s *OnlineUserService) IsUserOnlineContext(ctx context.Context, tokenID string) bool {
+	exists, err := redis.Client.Exists(ctx, onlineUserKey(tokenID)).Result()
 	if err != nil {
 		return false
 	}
-
-	return exists > 0
+	if exists > 0 {
+		return true
+	}
+	_ = redis.Client.ZRem(ctx, onlineUserIndexKey, tokenID).Err()
+	return false
 }
 
-// ParseUserAgent 解析 User-Agent 获取浏览器和操作系统信息
+func getIndexedOnlineUsers(ctx context.Context) ([]OnlineUser, error) {
+	if err := pruneExpiredOnlineUsers(ctx); err != nil {
+		return nil, err
+	}
+
+	tokenIDs, err := redis.Client.ZRange(ctx, onlineUserIndexKey, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+	if len(tokenIDs) == 0 {
+		return nil, nil
+	}
+
+	keys := make([]string, 0, len(tokenIDs))
+	for _, tokenID := range tokenIDs {
+		keys = append(keys, onlineUserKey(tokenID))
+	}
+	values, err := redis.Client.MGet(ctx, keys...).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	users := make([]OnlineUser, 0, len(values))
+	staleTokenIDs := make([]any, 0)
+	for i, value := range values {
+		if value == nil {
+			staleTokenIDs = append(staleTokenIDs, tokenIDs[i])
+			continue
+		}
+
+		data, ok := value.(string)
+		if !ok {
+			data = fmt.Sprint(value)
+		}
+
+		var user OnlineUser
+		if err := json.Unmarshal([]byte(data), &user); err != nil {
+			staleTokenIDs = append(staleTokenIDs, tokenIDs[i])
+			continue
+		}
+		if user.TokenID == "" {
+			user.TokenID = tokenIDs[i]
+		}
+		users = append(users, user)
+	}
+	if len(staleTokenIDs) > 0 {
+		_ = redis.Client.ZRem(ctx, onlineUserIndexKey, staleTokenIDs...).Err()
+	}
+	return users, nil
+}
+
+func onlineUserKey(tokenID string) string {
+	return onlineUserPrefix + tokenID
+}
+
+func onlineUserExpiryScore(expiration time.Duration, expiresAt time.Time) float64 {
+	if !expiresAt.IsZero() {
+		return float64(expiresAt.Unix())
+	}
+	if expiration <= 0 {
+		return float64(time.Now().Unix())
+	}
+	return float64(time.Now().Add(expiration).Unix())
+}
+
+func pruneExpiredOnlineUsers(ctx context.Context) error {
+	now := strconv.FormatInt(time.Now().Unix(), 10)
+	return redis.Client.ZRemRangeByScore(ctx, onlineUserIndexKey, "-inf", now).Err()
+}
+
 func ParseUserAgent(userAgent string) (browser, os string) {
 	ua := strings.ToLower(userAgent)
 
-	// 解析浏览器
 	switch {
 	case strings.Contains(ua, "chrome") && !strings.Contains(ua, "edge"):
 		browser = "Chrome"
@@ -208,10 +247,9 @@ func ParseUserAgent(userAgent string) (browser, os string) {
 	case strings.Contains(ua, "msie") || strings.Contains(ua, "trident"):
 		browser = "IE"
 	default:
-		browser = "未知浏览器"
+		browser = "Unknown Browser"
 	}
 
-	// 解析操作系统
 	switch {
 	case strings.Contains(ua, "windows"):
 		os = "Windows"
@@ -224,7 +262,7 @@ func ParseUserAgent(userAgent string) (browser, os string) {
 	case strings.Contains(ua, "iphone") || strings.Contains(ua, "ipad"):
 		os = "iOS"
 	default:
-		os = "未知系统"
+		os = "Unknown OS"
 	}
 
 	return browser, os

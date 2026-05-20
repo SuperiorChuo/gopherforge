@@ -8,19 +8,19 @@ import (
 	"github.com/go-admin-kit/server/internal/service/system"
 )
 
-// NoticeAPI 通知公告 API
+// NoticeAPI handles notice endpoints.
 type NoticeAPI struct {
 	noticeService system.NoticeService
 }
 
-// NewNoticeAPI 创建 NoticeAPI 实例
+// NewNoticeAPI creates a NoticeAPI instance.
 func NewNoticeAPI() *NoticeAPI {
 	return &NoticeAPI{
 		noticeService: system.NoticeService{},
 	}
 }
 
-// GetNoticeList 获取公告列表
+// GetNoticeList returns paginated notices.
 func (a *NoticeAPI) GetNoticeList(c *gin.Context) {
 	var req system.NoticeListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -28,7 +28,6 @@ func (a *NoticeAPI) GetNoticeList(c *gin.Context) {
 		return
 	}
 
-	// 设置默认分页参数
 	if req.Page <= 0 {
 		req.Page = 1
 	}
@@ -36,7 +35,6 @@ func (a *NoticeAPI) GetNoticeList(c *gin.Context) {
 		req.PageSize = 10
 	}
 
-	// 解析类型参数
 	if typeStr := c.Query("type"); typeStr != "" {
 		t, err := strconv.ParseInt(typeStr, 10, 8)
 		if err == nil {
@@ -45,7 +43,6 @@ func (a *NoticeAPI) GetNoticeList(c *gin.Context) {
 		}
 	}
 
-	// 解析状态参数
 	if statusStr := c.Query("status"); statusStr != "" {
 		s, err := strconv.ParseInt(statusStr, 10, 8)
 		if err == nil {
@@ -54,9 +51,9 @@ func (a *NoticeAPI) GetNoticeList(c *gin.Context) {
 		}
 	}
 
-	notices, total, err := a.noticeService.GetList(req)
+	notices, total, err := a.noticeService.GetListContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get notice list", err)
 		return
 	}
 
@@ -68,7 +65,7 @@ func (a *NoticeAPI) GetNoticeList(c *gin.Context) {
 	})
 }
 
-// GetActiveNotices 获取有效的公告列表（前台展示用）
+// GetActiveNotices returns active notices for display.
 func (a *NoticeAPI) GetActiveNotices(c *gin.Context) {
 	var noticeType *int8
 	if typeStr := c.Query("type"); typeStr != "" {
@@ -79,34 +76,34 @@ func (a *NoticeAPI) GetActiveNotices(c *gin.Context) {
 		}
 	}
 
-	notices, err := a.noticeService.GetActiveList(noticeType)
+	notices, err := a.noticeService.GetActiveListContext(c.Request.Context(), noticeType)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get active notices", err)
 		return
 	}
 
 	response.Success(c, notices)
 }
 
-// GetNotice 获取公告详情
+// GetNotice returns a notice by id.
 func (a *NoticeAPI) GetNotice(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.BadRequest(c, "无效的公告ID")
+		response.BadRequest(c, "invalid notice id")
 		return
 	}
 
-	notice, err := a.noticeService.GetByID(uint(id))
+	notice, err := a.noticeService.GetByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
-		response.NotFound(c, "公告不存在")
+		response.NotFound(c, "notice not found")
 		return
 	}
 
 	response.Success(c, notice)
 }
 
-// CreateNotice 创建公告
+// CreateNotice creates a notice.
 func (a *NoticeAPI) CreateNotice(c *gin.Context) {
 	var req system.CreateNoticeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -114,34 +111,23 @@ func (a *NoticeAPI) CreateNotice(c *gin.Context) {
 		return
 	}
 
-	// 获取当前用户信息
-	userID, _ := c.Get("user_id")
-	username, _ := c.Get("username")
+	creatorID, creatorName := resolveNoticeCreator(c)
 
-	creatorID := uint(0)
-	creatorName := "系统"
-	if userID != nil {
-		creatorID = userID.(uint)
-	}
-	if username != nil {
-		creatorName = username.(string)
-	}
-
-	notice, err := a.noticeService.Create(req, creatorID, creatorName)
+	notice, err := a.noticeService.CreateContext(c.Request.Context(), req, creatorID, creatorName)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	response.SuccessWithMessage(c, "创建成功", notice)
+	response.SuccessWithMessage(c, "notice created", notice)
 }
 
-// UpdateNotice 更新公告
+// UpdateNotice updates a notice.
 func (a *NoticeAPI) UpdateNotice(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.BadRequest(c, "无效的公告ID")
+		response.BadRequest(c, "invalid notice id")
 		return
 	}
 
@@ -151,38 +137,38 @@ func (a *NoticeAPI) UpdateNotice(c *gin.Context) {
 		return
 	}
 
-	notice, err := a.noticeService.Update(uint(id), req)
+	notice, err := a.noticeService.UpdateContext(c.Request.Context(), uint(id), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	response.SuccessWithMessage(c, "更新成功", notice)
+	response.SuccessWithMessage(c, "notice updated", notice)
 }
 
-// DeleteNotice 删除公告
+// DeleteNotice deletes a notice.
 func (a *NoticeAPI) DeleteNotice(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.BadRequest(c, "无效的公告ID")
+		response.BadRequest(c, "invalid notice id")
 		return
 	}
 
-	if err := a.noticeService.Delete(uint(id)); err != nil {
-		response.InternalServerError(c, err.Error())
+	if err := a.noticeService.DeleteContext(c.Request.Context(), uint(id)); err != nil {
+		internalServerError(c, "failed to delete notice", err)
 		return
 	}
 
-	response.SuccessWithMessage(c, "删除成功", nil)
+	response.SuccessWithMessage(c, "notice deleted", nil)
 }
 
-// UpdateNoticeStatus 更新公告状态
+// UpdateNoticeStatus updates a notice status.
 func (a *NoticeAPI) UpdateNoticeStatus(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.BadRequest(c, "无效的公告ID")
+		response.BadRequest(c, "invalid notice id")
 		return
 	}
 
@@ -194,10 +180,26 @@ func (a *NoticeAPI) UpdateNoticeStatus(c *gin.Context) {
 		return
 	}
 
-	if err := a.noticeService.UpdateStatus(uint(id), req.Status); err != nil {
-		response.InternalServerError(c, err.Error())
+	if err := a.noticeService.UpdateStatusContext(c.Request.Context(), uint(id), req.Status); err != nil {
+		internalServerError(c, "failed to update notice status", err)
 		return
 	}
 
-	response.SuccessWithMessage(c, "状态更新成功", nil)
+	response.SuccessWithMessage(c, "notice status updated", nil)
+}
+
+func resolveNoticeCreator(c *gin.Context) (uint, string) {
+	creatorID := uint(0)
+	creatorName := "system"
+	if userID, exists := c.Get("user_id"); exists {
+		if typed, ok := userID.(uint); ok {
+			creatorID = typed
+		}
+	}
+	if username, exists := c.Get("username"); exists {
+		if typed, ok := username.(string); ok && typed != "" {
+			creatorName = typed
+		}
+	}
+	return creatorID, creatorName
 }

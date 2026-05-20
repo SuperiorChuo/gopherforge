@@ -1,4 +1,4 @@
-# 使用 Go 1.26 构建后端
+# Build backend with Go 1.26.
 FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
@@ -9,19 +9,24 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -trimpath -o main ./cmd/main.go
+RUN go build -trimpath -o main ./cmd/main.go \
+    && go build -trimpath -o migrate ./cmd/migrate
 
-# 使用轻量 Alpine 运行后端
-FROM alpine:latest
+# Run the backend on a pinned Alpine image as an unprivileged user.
+FROM alpine:3.20
 
 WORKDIR /app
 
-COPY --from=builder /app/main .
-COPY ./configs ./configs
-COPY ./resources ./resources
+RUN addgroup -S app && adduser -S app -G app && mkdir -p ./logs && chown -R app:app /app
 
-RUN mkdir -p ./logs
+COPY --from=builder --chown=app:app /app/main .
+COPY --from=builder --chown=app:app /app/migrate .
+COPY --chown=app:app ./configs ./configs
+COPY --chown=app:app ./migrations ./migrations
+COPY --chown=app:app ./resources ./resources
+
+USER app
 
 EXPOSE 8081
 
-CMD ["./main"]
+CMD ["sh", "-c", "./migrate -config ./configs/config.yaml -dir ./migrations up && ./main"]

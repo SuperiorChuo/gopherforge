@@ -1,20 +1,19 @@
 package system
 
 import (
+	"context"
 	"time"
 
-	"github.com/go-admin-kit/server/internal/dao/system"
+	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// OperationLogService 操作日志服务
 type OperationLogService struct {
-	logDAO system.OperationLogDAO
+	logDAO systemdao.OperationLogDAO
 }
 
-// OperationLogListRequest 操作日志列表请求
 type OperationLogListRequest struct {
 	pagination.PageRequest
 	UserID    *uint               `form:"user_id" json:"user_id"`
@@ -32,24 +31,33 @@ type OperationLogListRequest struct {
 	DataScope authz.UserDataScope `json:"-" form:"-"`
 }
 
-// ClearLogsRequest 清理日志请求
 type ClearLogsRequest struct {
-	Days int `json:"days" binding:"required,min=1"` // 保留最近多少天的日志
+	Days int `json:"days" binding:"required,min=1"`
 }
 
-// Record 记录操作日志
 func (s *OperationLogService) Record(log *model.OperationLog) error {
-	return s.logDAO.CreateLog(log)
+	return s.RecordContext(context.Background(), log)
 }
 
-// GetLogByID 根据ID获取操作日志详情
+func (s *OperationLogService) RecordContext(ctx context.Context, log *model.OperationLog) error {
+	return s.logDAO.CreateLogContext(ctx, log)
+}
+
 func (s *OperationLogService) GetLogByID(id uint) (*model.OperationLog, error) {
-	return s.logDAO.GetLogByID(id)
+	return s.GetLogByIDContext(context.Background(), id)
 }
 
-// GetLogList 获取操作日志列表
+func (s *OperationLogService) GetLogByIDContext(ctx context.Context, id uint) (*model.OperationLog, error) {
+	return s.logDAO.GetLogByIDContext(ctx, id)
+}
+
 func (s *OperationLogService) GetLogList(req OperationLogListRequest) ([]model.OperationLog, int64, error) {
-	return s.logDAO.GetLogList(
+	return s.GetLogListContext(context.Background(), req)
+}
+
+func (s *OperationLogService) GetLogListContext(ctx context.Context, req OperationLogListRequest) ([]model.OperationLog, int64, error) {
+	return s.logDAO.GetLogListContext(
+		ctx,
 		req.PageRequest,
 		req.UserID,
 		req.Username,
@@ -67,38 +75,30 @@ func (s *OperationLogService) GetLogList(req OperationLogListRequest) ([]model.O
 	)
 }
 
-// ClearLogs 清理旧日志
 func (s *OperationLogService) ClearLogs(days int) (int64, error) {
+	return s.ClearLogsContext(context.Background(), days)
+}
+
+func (s *OperationLogService) ClearLogsContext(ctx context.Context, days int) (int64, error) {
 	before := time.Now().AddDate(0, 0, -days)
-	return s.logDAO.DeleteLogsBefore(before)
+	return s.logDAO.DeleteLogsBeforeContext(ctx, before)
 }
 
-// GetLogStats 获取日志统计信息
-func (s *OperationLogService) GetLogStats(startTime, endTime *time.Time) (*system.LogStats, error) {
-	return s.logDAO.GetLogStats(startTime, endTime)
+func (s *OperationLogService) GetLogStats(startTime, endTime *time.Time) (*systemdao.LogStats, error) {
+	return s.GetLogStatsContext(context.Background(), startTime, endTime)
 }
 
-// ExportLogs 导出日志（返回符合条件的所有日志）
+func (s *OperationLogService) GetLogStatsContext(ctx context.Context, startTime, endTime *time.Time) (*systemdao.LogStats, error) {
+	return s.logDAO.GetLogStatsContext(ctx, startTime, endTime)
+}
+
 func (s *OperationLogService) ExportLogs(req OperationLogListRequest) ([]model.OperationLog, error) {
-	// 导出时不分页，获取所有符合条件的日志
-	req.Page = 1
-	req.PageSize = 10000 // 最大导出数量限制
+	return s.ExportLogsContext(context.Background(), req)
+}
 
-	logs, _, err := s.logDAO.GetLogList(
-		req.PageRequest,
-		req.UserID,
-		req.Username,
-		req.ActorType,
-		req.ActorID,
-		req.RequestID,
-		req.Method,
-		req.Path,
-		req.Module,
-		req.Action,
-		req.Status,
-		req.StartTime,
-		req.EndTime,
-		req.DataScope,
-	)
+func (s *OperationLogService) ExportLogsContext(ctx context.Context, req OperationLogListRequest) ([]model.OperationLog, error) {
+	req.Page = 1
+	req.PageSize = 10000
+	logs, _, err := s.GetLogListContext(ctx, req)
 	return logs, err
 }

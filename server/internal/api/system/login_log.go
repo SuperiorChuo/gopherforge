@@ -6,23 +6,24 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
+	"github.com/go-admin-kit/server/internal/pkg/logger"
 	"github.com/go-admin-kit/server/internal/pkg/response"
 	"github.com/go-admin-kit/server/internal/service/system"
 )
 
-// LoginLogAPI 登录日志 API
+// LoginLogAPI handles login log endpoints.
 type LoginLogAPI struct {
 	logService system.LoginLogService
 }
 
-// NewLoginLogAPI 创建 LoginLogAPI 实例
+// NewLoginLogAPI creates a LoginLogAPI instance.
 func NewLoginLogAPI() *LoginLogAPI {
 	return &LoginLogAPI{
 		logService: system.LoginLogService{},
 	}
 }
 
-// GetLoginLogs 获取登录日志列表
+// GetLoginLogs returns paginated login logs.
 func (a *LoginLogAPI) GetLoginLogs(c *gin.Context) {
 	var req system.LoginLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -39,21 +40,23 @@ func (a *LoginLogAPI) GetLoginLogs(c *gin.Context) {
 
 	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logLoginLogError("failed to resolve login log data scope", err)
+		response.InternalServerError(c, "failed to get login logs")
 		return
 	}
 	req.DataScope = dataScope
 
-	logs, total, err := a.logService.GetLogList(req)
+	logs, total, err := a.logService.GetLogListContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logLoginLogError("failed to get login logs", err)
+		response.InternalServerError(c, "failed to get login logs")
 		return
 	}
 
 	response.PageSuccess(c, logs, total, req.Page, req.PageSize)
 }
 
-// GetMyLoginLogs 获取当前用户的登录日志
+// GetMyLoginLogs returns login logs for the current user.
 func (a *LoginLogAPI) GetMyLoginLogs(c *gin.Context) {
 	var req system.LoginLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -76,29 +79,30 @@ func (a *LoginLogAPI) GetMyLoginLogs(c *gin.Context) {
 		UserID: uid,
 	}
 
-	logs, total, err := a.logService.GetLogList(req)
+	logs, total, err := a.logService.GetLogListContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logLoginLogError("failed to get current user login logs", err)
+		response.InternalServerError(c, "failed to get login logs")
 		return
 	}
 
 	response.PageSuccess(c, logs, total, req.Page, req.PageSize)
 }
 
-// GetLastLogin 获取最后登录信息
+// GetLastLogin returns the current user's last login record.
 func (a *LoginLogAPI) GetLastLogin(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
-	log, err := a.logService.GetUserLastLogin(userID.(uint))
+	log, err := a.logService.GetUserLastLoginContext(c.Request.Context(), userID.(uint))
 	if err != nil {
-		response.Success(c, nil) // 如果没有记录，返回空
+		response.Success(c, nil) // Return empty data when no record exists.
 		return
 	}
 
 	response.Success(c, log)
 }
 
-// GetLoginStats 获取登录统计
+// GetLoginStats returns login statistics.
 func (a *LoginLogAPI) GetLoginStats(c *gin.Context) {
 	var startTime, endTime *time.Time
 
@@ -113,7 +117,7 @@ func (a *LoginLogAPI) GetLoginStats(c *gin.Context) {
 		}
 	}
 
-	// 默认最近7天
+	// Default to the last 7 days.
 	if startTime == nil {
 		t := time.Now().AddDate(0, 0, -7)
 		startTime = &t
@@ -123,34 +127,36 @@ func (a *LoginLogAPI) GetLoginStats(c *gin.Context) {
 		endTime = &t
 	}
 
-	stats, err := a.logService.GetLoginStats(startTime, endTime)
+	stats, err := a.logService.GetLoginStatsContext(c.Request.Context(), startTime, endTime)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logLoginLogError("failed to get login stats", err)
+		response.InternalServerError(c, "failed to get login stats")
 		return
 	}
 
 	response.Success(c, stats)
 }
 
-// GetLoginTrend 获取登录趋势
+// GetLoginTrend returns the login trend.
 func (a *LoginLogAPI) GetLoginTrend(c *gin.Context) {
-	days := 7 // 默认最近7天
+	days := 7 // Default to the last 7 days.
 	if daysStr := c.Query("days"); daysStr != "" {
 		if d, err := strconv.Atoi(daysStr); err == nil && d > 0 && d <= 30 {
 			days = d
 		}
 	}
 
-	trend, err := a.logService.GetLoginTrend(days)
+	trend, err := a.logService.GetLoginTrendContext(c.Request.Context(), days)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logLoginLogError("failed to get login trend", err)
+		response.InternalServerError(c, "failed to get login trend")
 		return
 	}
 
 	response.Success(c, trend)
 }
 
-// ClearLoginLogs 清理登录日志
+// ClearLoginLogs deletes old login logs.
 func (a *LoginLogAPI) ClearLoginLogs(c *gin.Context) {
 	var req struct {
 		Days int `json:"days" binding:"required,min=1"`
@@ -160,9 +166,10 @@ func (a *LoginLogAPI) ClearLoginLogs(c *gin.Context) {
 		return
 	}
 
-	count, err := a.logService.ClearLogs(req.Days)
+	count, err := a.logService.ClearLogsContext(c.Request.Context(), req.Days)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logLoginLogError("failed to clear login logs", err)
+		response.InternalServerError(c, "failed to clear login logs")
 		return
 	}
 
@@ -171,7 +178,7 @@ func (a *LoginLogAPI) ClearLoginLogs(c *gin.Context) {
 	})
 }
 
-// GetUserLoginHistory 获取指定用户的登录历史
+// GetUserLoginHistory returns login history for a specific user.
 func (a *LoginLogAPI) GetUserLoginHistory(c *gin.Context) {
 	userIDStr := c.Param("user_id")
 	userID, err := strconv.ParseUint(userIDStr, 10, 32)
@@ -197,16 +204,25 @@ func (a *LoginLogAPI) GetUserLoginHistory(c *gin.Context) {
 	req.UserID = &uid
 	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logLoginLogError("failed to resolve user login history data scope", err)
+		response.InternalServerError(c, "failed to get user login history")
 		return
 	}
 	req.DataScope = dataScope
 
-	logs, total, err := a.logService.GetLogList(req)
+	logs, total, err := a.logService.GetLogListContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logLoginLogError("failed to get user login history", err)
+		response.InternalServerError(c, "failed to get user login history")
 		return
 	}
 
 	response.PageSuccess(c, logs, total, req.Page, req.PageSize)
+}
+
+func logLoginLogError(message string, err error) {
+	if logger.Logger == nil {
+		return
+	}
+	logger.Error(message, logger.Err(err))
 }

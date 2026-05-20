@@ -2,6 +2,7 @@ package captcha
 
 import (
 	"bytes"
+	"context"
 	cryptorand "crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -23,38 +24,50 @@ const (
 	textCaptchaChars  = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 )
 
-func GetTextCaptcha(key string) (interface{}, error) {
+func GetTextCaptcha(key string) (any, error) {
+	return GetTextCaptchaContext(context.Background(), key)
+}
+
+func GetTextCaptchaContext(ctx context.Context, key string) (any, error) {
 	code, err := generateTextCaptchaCode()
 	if err != nil {
 		return nil, err
 	}
-	if err := cache.NewCacheService().SetLoginCaptcha(key, code); err != nil {
+	if err := cache.NewCacheService().SetLoginCaptchaContext(ctx, key, code); err != nil {
 		return nil, err
 	}
 	imageBase64, err := renderTextCaptchaPNG(code)
 	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{
-		"key":       key,
-		"type":      "text",
-		"image":     imageBase64,
-		"code_hint": code,
-		"width":     textCaptchaWidth,
-		"height":    textCaptchaHeight,
+	return map[string]any{
+		"key":    key,
+		"type":   "text",
+		"image":  imageBase64,
+		"width":  textCaptchaWidth,
+		"height": textCaptchaHeight,
 	}, nil
 }
 
 func CheckTextCaptcha(key, code string) bool {
-	return checkTextCaptcha(key, code, true)
+	return CheckTextCaptchaContext(context.Background(), key, code)
+}
+
+func CheckTextCaptchaContext(ctx context.Context, key, code string) bool {
+	return checkTextCaptchaContext(ctx, key, code, true)
 }
 
 func VerifyTextCaptcha(key, code string) bool {
-	return checkTextCaptcha(key, code, false)
+	return VerifyTextCaptchaContext(context.Background(), key, code)
 }
 
-func checkTextCaptcha(key, code string, consume bool) bool {
-	stored, err := cache.NewCacheService().GetLoginCaptcha(key)
+func VerifyTextCaptchaContext(ctx context.Context, key, code string) bool {
+	return checkTextCaptchaContext(ctx, key, code, false)
+}
+
+func checkTextCaptchaContext(ctx context.Context, key, code string, consume bool) bool {
+	cacheService := cache.NewCacheService()
+	stored, err := cacheService.GetLoginCaptchaContext(ctx, key)
 	if err != nil {
 		return false
 	}
@@ -62,7 +75,7 @@ func checkTextCaptcha(key, code string, consume bool) bool {
 		return false
 	}
 	if consume {
-		_ = cache.NewCacheService().DelLoginCaptcha(key)
+		_ = cacheService.DelLoginCaptchaContext(ctx, key)
 	}
 	return true
 }

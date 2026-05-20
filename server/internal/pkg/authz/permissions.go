@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -10,6 +11,10 @@ import (
 
 // UserHasPermission checks role bypasses and explicit permission codes for a user.
 func UserHasPermission(userID uint, requiredPermission string) (bool, error) {
+	return UserHasPermissionContext(context.Background(), userID, requiredPermission)
+}
+
+func UserHasPermissionContext(ctx context.Context, userID uint, requiredPermission string) (bool, error) {
 	requiredPermission = strings.TrimSpace(requiredPermission)
 	if requiredPermission == "" {
 		return true, nil
@@ -19,7 +24,7 @@ func UserHasPermission(userID uint, requiredPermission string) (bool, error) {
 	}
 
 	userDAO := auth.UserDAO{}
-	user, err := userDAO.GetUserWithRoles(userID)
+	user, err := userDAO.GetUserWithRolesContext(ctx, userID)
 	if err != nil {
 		return false, err
 	}
@@ -30,7 +35,7 @@ func UserHasPermission(userID uint, requiredPermission string) (bool, error) {
 	}
 
 	permissionDAO := auth.PermissionDAO{}
-	permissions, err := permissionDAO.GetUserPermissions(userID)
+	permissions, err := permissionDAO.GetUserPermissionsContext(ctx, userID)
 	if err != nil {
 		return false, err
 	}
@@ -47,7 +52,11 @@ func UserHasPermissionFromContext(c *gin.Context, requiredPermission string) (bo
 	if !ok {
 		return false, fmt.Errorf("invalid user id in context")
 	}
-	return UserHasPermission(uid, requiredPermission)
+	ctx := context.Background()
+	if c.Request != nil {
+		ctx = c.Request.Context()
+	}
+	return UserHasPermissionContext(ctx, uid, requiredPermission)
 }
 
 // MatchesPermission applies the same wildcard rules used by the permission middleware.

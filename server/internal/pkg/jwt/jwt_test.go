@@ -53,9 +53,12 @@ func TestRevokeTokenBlacklistsUnexpiredToken(t *testing.T) {
 		t.Fatalf("revoke token: %v", err)
 	}
 
-	key := fmt.Sprintf("jwt:blacklist:%s", accessToken)
+	key := fmt.Sprintf("jwt:blacklist:%s", claims.ID)
 	if !store.Exists(key) {
 		t.Fatalf("blacklist key %q was not written", key)
+	}
+	if store.Exists(fmt.Sprintf("jwt:blacklist:%s", accessToken)) {
+		t.Fatal("blacklist should not use the full token as the redis key")
 	}
 	if !IsTokenBlacklisted(accessToken) {
 		t.Fatal("token should be reported as blacklisted")
@@ -88,11 +91,11 @@ func TestGenerateTokenWithAccessTTLUsesCustomTTL(t *testing.T) {
 		t.Fatal("access token should include issued and expiry timestamps")
 	}
 
-	accessTTL := accessClaims.ExpiresAt.Time.Sub(accessClaims.IssuedAt.Time)
+	accessTTL := accessClaims.ExpiresAt.Sub(accessClaims.IssuedAt.Time)
 	if accessTTL < 8*time.Hour-time.Second || accessTTL > 8*time.Hour+time.Second {
 		t.Fatalf("access token ttl = %s, want about 8h", accessTTL)
 	}
-	refreshTTL := refreshClaims.ExpiresAt.Time.Sub(refreshClaims.IssuedAt.Time)
+	refreshTTL := refreshClaims.ExpiresAt.Sub(refreshClaims.IssuedAt.Time)
 	if refreshTTL < 2*time.Hour-time.Second || refreshTTL > 2*time.Hour+time.Second {
 		t.Fatalf("refresh token ttl = %s, want about default 2h", refreshTTL)
 	}

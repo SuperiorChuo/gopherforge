@@ -6,7 +6,7 @@ import (
 	"github.com/go-admin-kit/server/internal/model"
 )
 
-// UserInfoResponse 用户信息响应 DTO
+// UserInfoResponse is the user profile response DTO.
 type UserInfoResponse struct {
 	ID                 uint      `json:"id"`
 	Username           string    `json:"username"`
@@ -19,10 +19,10 @@ type UserInfoResponse struct {
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
 	Roles              []RoleDTO `json:"roles,omitempty"`
-	Permissions        []string  `json:"permissions"` // 用户权限代码数组
+	Permissions        []string  `json:"permissions"`
 }
 
-// RoleDTO 角色信息 DTO
+// RoleDTO is the role response DTO.
 type RoleDTO struct {
 	ID          uint   `json:"id"`
 	Name        string `json:"name"`
@@ -30,7 +30,7 @@ type RoleDTO struct {
 	Description string `json:"description,omitempty"`
 }
 
-// ConvertUserToResponse 转换用户模型为响应 DTO
+// ConvertUserToResponse converts a user model to the response DTO.
 func ConvertUserToResponse(user *model.User, permissions []string) *UserInfoResponse {
 	return &UserInfoResponse{
 		ID:                 user.ID,
@@ -48,7 +48,7 @@ func ConvertUserToResponse(user *model.User, permissions []string) *UserInfoResp
 	}
 }
 
-// ConvertRolesToDTO 转换角色模型为 DTO
+// ConvertRolesToDTO converts role models to response DTOs.
 func ConvertRolesToDTO(roles []model.Role) []RoleDTO {
 	if len(roles) == 0 {
 		return []RoleDTO{}

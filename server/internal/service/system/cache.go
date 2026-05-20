@@ -1,56 +1,67 @@
 package system
 
 import (
-	"github.com/go-admin-kit/server/internal/model"
+	"context"
+
+	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/pkg/cache"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 )
 
 // InvalidatePermissionCacheForUsers 清理指定用户的权限缓存。
 func InvalidatePermissionCacheForUsers(userIDs ...uint) error {
+	return InvalidatePermissionCacheForUsersContext(context.Background(), userIDs...)
+}
+
+func InvalidatePermissionCacheForUsersContext(ctx context.Context, userIDs ...uint) error {
 	uniqueUserIDs := uniqueUint(userIDs)
-	return cache.NewCacheService().DelUserPermissionsBatch(uniqueUserIDs)
+	return cache.NewCacheService().DelUserPermissionsBatchContext(ctx, uniqueUserIDs)
 }
 
 // InvalidatePermissionCacheByRoles 清理拥有指定角色用户的权限缓存。
 func InvalidatePermissionCacheByRoles(roleIDs ...uint) error {
+	return InvalidatePermissionCacheByRolesContext(context.Background(), roleIDs...)
+}
+
+func InvalidatePermissionCacheByRolesContext(ctx context.Context, roleIDs ...uint) error {
 	roleIDs = uniqueUint(roleIDs)
 	if len(roleIDs) == 0 {
 		return nil
 	}
 
-	var userIDs []uint
-	if err := database.DB.Model(&model.UserRole{}).
-		Where("role_id IN ?", roleIDs).
-		Distinct().
-		Pluck("user_id", &userIDs).Error; err != nil {
+	userIDs, err := (&systemdao.PermissionCacheDAO{}).FindUserIDsByRoleIDsContext(ctx, roleIDs)
+	if err != nil {
 		return err
 	}
 
-	return InvalidatePermissionCacheForUsers(userIDs...)
+	return InvalidatePermissionCacheForUsersContext(ctx, userIDs...)
 }
 
 // InvalidatePermissionCacheByPermissions 清理拥有指定权限用户的权限缓存。
 func InvalidatePermissionCacheByPermissions(permissionIDs ...uint) error {
+	return InvalidatePermissionCacheByPermissionsContext(context.Background(), permissionIDs...)
+}
+
+func InvalidatePermissionCacheByPermissionsContext(ctx context.Context, permissionIDs ...uint) error {
 	permissionIDs = uniqueUint(permissionIDs)
 	if len(permissionIDs) == 0 {
 		return nil
 	}
 
-	var roleIDs []uint
-	if err := database.DB.Model(&model.RolePermission{}).
-		Where("permission_id IN ?", permissionIDs).
-		Distinct().
-		Pluck("role_id", &roleIDs).Error; err != nil {
+	roleIDs, err := (&systemdao.PermissionCacheDAO{}).FindRoleIDsByPermissionIDsContext(ctx, permissionIDs)
+	if err != nil {
 		return err
 	}
 
-	return InvalidatePermissionCacheByRoles(roleIDs...)
+	return InvalidatePermissionCacheByRolesContext(ctx, roleIDs...)
 }
 
 // InvalidatePermissionCacheAll 清理全部用户权限缓存，用于影响面难以精准判断的权限资源变更。
 func InvalidatePermissionCacheAll() error {
-	return cache.NewCacheService().DelAllUserPermissions()
+	return InvalidatePermissionCacheAllContext(context.Background())
+}
+
+func InvalidatePermissionCacheAllContext(ctx context.Context) error {
+	return cache.NewCacheService().DelAllUserPermissionsContext(ctx)
 }
 
 func uniqueUint(values []uint) []uint {

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -8,8 +9,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	authDAO "github.com/go-admin-kit/server/internal/dao/auth"
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	jwtpkg "github.com/go-admin-kit/server/internal/pkg/jwt"
 	"gorm.io/gorm"
 )
@@ -23,7 +24,15 @@ var (
 // ConsoleSessionService persists and validates web-console cookie sessions.
 type ConsoleSessionService struct{}
 
+func (s ConsoleSessionService) sessionDAO() authDAO.ConsoleSessionDAO {
+	return authDAO.ConsoleSessionDAO{}
+}
+
 func (s ConsoleSessionService) CreateFromToken(token, clientIP, userAgent string) (*model.ConsoleSession, error) {
+	return s.CreateFromTokenContext(context.Background(), token, clientIP, userAgent)
+}
+
+func (s ConsoleSessionService) CreateFromTokenContext(ctx context.Context, token, clientIP, userAgent string) (*model.ConsoleSession, error) {
 	claims, err := jwtpkg.ParseToken(strings.TrimSpace(token))
 	if err != nil {
 		return nil, err
@@ -31,7 +40,8 @@ func (s ConsoleSessionService) CreateFromToken(token, clientIP, userAgent string
 	if claims.TokenType != jwtpkg.AccessTokenType || claims.ID == "" || claims.ExpiresAt == nil || claims.IssuedAt == nil {
 		return nil, ErrConsoleSessionInvalid
 	}
-	if database.DB == nil {
+	sessionDAO := s.sessionDAO()
+	if !sessionDAO.Ready() {
 		return nil, ErrConsoleSessionInvalid
 	}
 
@@ -39,28 +49,33 @@ func (s ConsoleSessionService) CreateFromToken(token, clientIP, userAgent string
 	record := &model.ConsoleSession{
 		SessionID:        claims.ID,
 		Username:         claims.Username,
-		IssuedAt:         claims.IssuedAt.Time.UTC(),
-		ExpiresAt:        claims.ExpiresAt.Time.UTC(),
+		IssuedAt:         claims.IssuedAt.UTC(),
+		ExpiresAt:        claims.ExpiresAt.UTC(),
 		LastSeenAt:       &now,
 		ClientIPHash:     hashSummary(clientIP),
 		UserAgentHash:    hashSummary(userAgent),
 		UserAgentPreview: truncateRunes(strings.TrimSpace(userAgent), 255),
 		CreatedAt:        now,
 	}
-	if err := database.DB.Create(record).Error; err != nil {
+	if err := sessionDAO.CreateContext(ctx, record); err != nil {
 		return nil, err
 	}
 	return record, nil
 }
 
 func (s ConsoleSessionService) ValidateActiveSession(sessionID, username string) (*model.ConsoleSession, error) {
+	return s.ValidateActiveSessionContext(context.Background(), sessionID, username)
+}
+
+func (s ConsoleSessionService) ValidateActiveSessionContext(ctx context.Context, sessionID, username string) (*model.ConsoleSession, error) {
 	sessionID = strings.TrimSpace(sessionID)
-	if sessionID == "" || database.DB == nil {
+	sessionDAO := s.sessionDAO()
+	if sessionID == "" || !sessionDAO.Ready() {
 		return nil, ErrConsoleSessionInvalid
 	}
 
-	var record model.ConsoleSession
-	if err := database.DB.First(&record, "session_id = ?", sessionID).Error; err != nil {
+	record, err := sessionDAO.GetBySessionIDContext(ctx, sessionID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrConsoleSessionInvalid
 		}
@@ -77,32 +92,38 @@ func (s ConsoleSessionService) ValidateActiveSession(sessionID, username string)
 	}
 
 	now := time.Now().UTC()
-	if err := database.DB.Model(&model.ConsoleSession{}).
-		Where("session_id = ?", record.SessionID).
-		Update("last_seen_at", now).
-		Error; err != nil {
+	if err := sessionDAO.TouchContext(ctx, record.SessionID, now); err != nil {
 		return nil, err
 	}
 	record.LastSeenAt = &now
-	return &record, nil
+	return record, nil
 }
 
 func (s ConsoleSessionService) RevokeByToken(token string) (*model.ConsoleSession, error) {
+	return s.RevokeByTokenContext(context.Background(), token)
+}
+
+func (s ConsoleSessionService) RevokeByTokenContext(ctx context.Context, token string) (*model.ConsoleSession, error) {
 	claims, err := jwtpkg.ParseToken(strings.TrimSpace(token))
 	if err != nil {
 		return nil, err
 	}
-	return s.RevokeBySessionID(claims.ID)
+	return s.RevokeBySessionIDContext(ctx, claims.ID)
 }
 
 func (s ConsoleSessionService) RevokeBySessionID(sessionID string) (*model.ConsoleSession, error) {
+	return s.RevokeBySessionIDContext(context.Background(), sessionID)
+}
+
+func (s ConsoleSessionService) RevokeBySessionIDContext(ctx context.Context, sessionID string) (*model.ConsoleSession, error) {
 	sessionID = strings.TrimSpace(sessionID)
-	if sessionID == "" || database.DB == nil {
+	sessionDAO := s.sessionDAO()
+	if sessionID == "" || !sessionDAO.Ready() {
 		return nil, ErrConsoleSessionInvalid
 	}
 
-	var record model.ConsoleSession
-	if err := database.DB.First(&record, "session_id = ?", sessionID).Error; err != nil {
+	record, err := sessionDAO.GetBySessionIDContext(ctx, sessionID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrConsoleSessionInvalid
 		}
@@ -110,12 +131,12 @@ func (s ConsoleSessionService) RevokeBySessionID(sessionID string) (*model.Conso
 	}
 	if record.RevokedAt == nil {
 		now := time.Now().UTC()
-		if err := database.DB.Model(&record).Update("revoked_at", now).Error; err != nil {
+		if err := sessionDAO.RevokeContext(ctx, record, now); err != nil {
 			return nil, err
 		}
 		record.RevokedAt = &now
 	}
-	return &record, nil
+	return record, nil
 }
 
 func ConsoleSessionSnapshot(record *model.ConsoleSession) map[string]any {

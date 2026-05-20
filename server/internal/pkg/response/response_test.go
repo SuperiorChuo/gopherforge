@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	applogger "github.com/go-admin-kit/server/internal/pkg/logger"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 func TestErrorResponsesUseRealHTTPStatusCodes(t *testing.T) {
@@ -58,11 +61,11 @@ func TestErrorResponsesUseRealHTTPStatusCodes(t *testing.T) {
 		{
 			name: "internal server error",
 			respond: func(c *gin.Context) {
-				InternalServerError(c, "failed")
+				InternalServerError(c, "database password leaked in driver error")
 			},
 			wantStatus: http.StatusInternalServerError,
 			wantCode:   http.StatusInternalServerError,
-			wantMsg:    "failed",
+			wantMsg:    "internal server error",
 		},
 		{
 			name: "generic http error",
@@ -98,6 +101,33 @@ func TestErrorResponsesUseRealHTTPStatusCodes(t *testing.T) {
 				t.Fatalf("message = %q, want %q", body.Message, tt.wantMsg)
 			}
 		})
+	}
+}
+
+func TestInternalServerErrorMasksResponseAndLogsDetail(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	core, logs := observer.New(zap.ErrorLevel)
+	oldLogger := applogger.Logger
+	applogger.Logger = zap.New(core)
+	t.Cleanup(func() {
+		applogger.Logger = oldLogger
+	})
+
+	_, body := recordResponse(t, func(c *gin.Context) {
+		InternalServerError(c, "database password=secret failed")
+	})
+
+	if body.Message != "internal server error" {
+		t.Fatalf("message = %q, want internal server error", body.Message)
+	}
+	entries := logs.FilterMessage("internal server error").All()
+	if len(entries) != 1 {
+		t.Fatalf("log entries = %d, want 1", len(entries))
+	}
+	fields := entries[0].ContextMap()
+	if fields["detail"] != "database password=secret failed" {
+		t.Fatalf("logged detail = %#v, want original error detail", fields["detail"])
 	}
 }
 

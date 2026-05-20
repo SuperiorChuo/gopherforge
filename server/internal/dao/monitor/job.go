@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -16,19 +17,31 @@ func NewJobDAO() *JobDAO {
 	return &JobDAO{}
 }
 
+func (d *JobDAO) Ready() bool {
+	return database.DB != nil
+}
+
 // GetJobByID 根据ID获取任务
 func (d *JobDAO) GetJobByID(id uint) (*model.ScheduledJob, error) {
+	return d.GetJobByIDContext(context.Background(), id)
+}
+
+func (d *JobDAO) GetJobByIDContext(ctx context.Context, id uint) (*model.ScheduledJob, error) {
 	var job model.ScheduledJob
-	result := database.DB.First(&job, id)
+	result := database.DB.WithContext(ctx).First(&job, id)
 	return &job, result.Error
 }
 
 // GetJobList 获取任务列表（分页）
 func (d *JobDAO) GetJobList(req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error) {
+	return d.GetJobListContext(context.Background(), req, name, status)
+}
+
+func (d *JobDAO) GetJobListContext(ctx context.Context, req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error) {
 	var jobs []model.ScheduledJob
 	var total int64
 
-	query := database.DB.Model(&model.ScheduledJob{})
+	query := database.DB.WithContext(ctx).Model(&model.ScheduledJob{})
 
 	if name != "" {
 		query = query.Where("name LIKE ?", "%"+name+"%")
@@ -51,36 +64,60 @@ func (d *JobDAO) GetJobList(req pagination.PageRequest, name string, status *int
 
 // CreateJob 创建任务
 func (d *JobDAO) CreateJob(job *model.ScheduledJob) error {
-	return database.DB.Create(job).Error
+	return d.CreateJobContext(context.Background(), job)
+}
+
+func (d *JobDAO) CreateJobContext(ctx context.Context, job *model.ScheduledJob) error {
+	return database.DB.WithContext(ctx).Create(job).Error
 }
 
 // UpdateJob 更新任务
 func (d *JobDAO) UpdateJob(job *model.ScheduledJob) error {
-	return database.DB.Save(job).Error
+	return d.UpdateJobContext(context.Background(), job)
+}
+
+func (d *JobDAO) UpdateJobContext(ctx context.Context, job *model.ScheduledJob) error {
+	return database.DB.WithContext(ctx).Save(job).Error
 }
 
 // DeleteJob 删除任务
 func (d *JobDAO) DeleteJob(id uint) error {
-	return database.DB.Delete(&model.ScheduledJob{}, id).Error
+	return d.DeleteJobContext(context.Background(), id)
+}
+
+func (d *JobDAO) DeleteJobContext(ctx context.Context, id uint) error {
+	return database.DB.WithContext(ctx).Delete(&model.ScheduledJob{}, id).Error
 }
 
 // CreateJobLog 创建任务日志
 func (d *JobDAO) CreateJobLog(log *model.ScheduledJobLog) error {
-	return database.DB.Create(log).Error
+	return d.CreateJobLogContext(context.Background(), log)
+}
+
+func (d *JobDAO) CreateJobLogContext(ctx context.Context, log *model.ScheduledJobLog) error {
+	return database.DB.WithContext(ctx).Create(log).Error
 }
 
 // CleanupJobLogsBefore 清理指定时间之前的任务日志
 func (d *JobDAO) CleanupJobLogsBefore(before time.Time) (int64, error) {
-	result := database.DB.Where("created_at < ?", before).Delete(&model.ScheduledJobLog{})
+	return d.CleanupJobLogsBeforeContext(context.Background(), before)
+}
+
+func (d *JobDAO) CleanupJobLogsBeforeContext(ctx context.Context, before time.Time) (int64, error) {
+	result := database.DB.WithContext(ctx).Where("created_at < ?", before).Delete(&model.ScheduledJobLog{})
 	return result.RowsAffected, result.Error
 }
 
 // GetJobLogList 获取任务日志列表（分页）
 func (d *JobDAO) GetJobLogList(req pagination.PageRequest, jobID uint, success *int8) ([]model.ScheduledJobLog, int64, error) {
+	return d.GetJobLogListContext(context.Background(), req, jobID, success)
+}
+
+func (d *JobDAO) GetJobLogListContext(ctx context.Context, req pagination.PageRequest, jobID uint, success *int8) ([]model.ScheduledJobLog, int64, error) {
 	var logs []model.ScheduledJobLog
 	var total int64
 
-	query := database.DB.Model(&model.ScheduledJobLog{})
+	query := database.DB.WithContext(ctx).Model(&model.ScheduledJobLog{})
 
 	if jobID > 0 {
 		query = query.Where("job_id = ?", jobID)
@@ -103,22 +140,34 @@ func (d *JobDAO) GetJobLogList(req pagination.PageRequest, jobID uint, success *
 
 // GetAllActiveJobs 获取所有激活的任务
 func (d *JobDAO) GetAllActiveJobs() ([]model.ScheduledJob, error) {
+	return d.GetAllActiveJobsContext(context.Background())
+}
+
+func (d *JobDAO) GetAllActiveJobsContext(ctx context.Context) ([]model.ScheduledJob, error) {
 	var jobs []model.ScheduledJob
-	result := database.DB.Where("status = ?", 1).Find(&jobs)
+	result := database.DB.WithContext(ctx).Where("status = ?", 1).Find(&jobs)
 	return jobs, result.Error
 }
 
 // GetAllJobs 获取所有任务
 func (d *JobDAO) GetAllJobs() ([]model.ScheduledJob, error) {
+	return d.GetAllJobsContext(context.Background())
+}
+
+func (d *JobDAO) GetAllJobsContext(ctx context.Context) ([]model.ScheduledJob, error) {
 	var jobs []model.ScheduledJob
-	result := database.DB.Order("created_at DESC").Find(&jobs)
+	result := database.DB.WithContext(ctx).Order("created_at DESC").Find(&jobs)
 	return jobs, result.Error
 }
 
 // CountJobsByStatus 按状态统计任务数量，status 为 nil 时统计全部
 func (d *JobDAO) CountJobsByStatus(status *int8) (int64, error) {
+	return d.CountJobsByStatusContext(context.Background(), status)
+}
+
+func (d *JobDAO) CountJobsByStatusContext(ctx context.Context, status *int8) (int64, error) {
 	var count int64
-	query := database.DB.Model(&model.ScheduledJob{})
+	query := database.DB.WithContext(ctx).Model(&model.ScheduledJob{})
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -128,8 +177,12 @@ func (d *JobDAO) CountJobsByStatus(status *int8) (int64, error) {
 
 // CountFailedJobLogsSince 统计指定时间之后失败的任务日志数量
 func (d *JobDAO) CountFailedJobLogsSince(since time.Time) (int64, error) {
+	return d.CountFailedJobLogsSinceContext(context.Background(), since)
+}
+
+func (d *JobDAO) CountFailedJobLogsSinceContext(ctx context.Context, since time.Time) (int64, error) {
 	var count int64
-	err := database.DB.Model(&model.ScheduledJobLog{}).
+	err := database.DB.WithContext(ctx).Model(&model.ScheduledJobLog{}).
 		Where("status = ? AND created_at >= ?", 0, since).
 		Count(&count).Error
 	return count, err
@@ -137,8 +190,12 @@ func (d *JobDAO) CountFailedJobLogsSince(since time.Time) (int64, error) {
 
 // GetLatestJobRunTime 获取最近一次任务运行时间
 func (d *JobDAO) GetLatestJobRunTime() (*time.Time, error) {
+	return d.GetLatestJobRunTimeContext(context.Background())
+}
+
+func (d *JobDAO) GetLatestJobRunTimeContext(ctx context.Context) (*time.Time, error) {
 	var job model.ScheduledJob
-	err := database.DB.
+	err := database.DB.WithContext(ctx).
 		Where("last_run_time IS NOT NULL").
 		Order("last_run_time DESC").
 		First(&job).Error
@@ -153,8 +210,12 @@ func (d *JobDAO) GetLatestJobRunTime() (*time.Time, error) {
 
 // GetLatestJobLog 获取任务最近一条执行日志
 func (d *JobDAO) GetLatestJobLog(jobID uint) (*model.ScheduledJobLog, error) {
+	return d.GetLatestJobLogContext(context.Background(), jobID)
+}
+
+func (d *JobDAO) GetLatestJobLogContext(ctx context.Context, jobID uint) (*model.ScheduledJobLog, error) {
 	var log model.ScheduledJobLog
-	err := database.DB.
+	err := database.DB.WithContext(ctx).
 		Where("job_id = ?", jobID).
 		Order("created_at DESC").
 		First(&log).Error

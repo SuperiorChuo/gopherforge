@@ -13,69 +13,67 @@ type OAuthAPI struct {
 	oauthService auth.OAuthService
 }
 
-// NewOAuthAPI 创建OAuthAPI实例
+// NewOAuthAPI creates an OAuthAPI instance.
 func NewOAuthAPI() *OAuthAPI {
 	return &OAuthAPI{
 		oauthService: auth.OAuthService{},
 	}
 }
 
-// GithubLogin GitHub登录
+// GithubLogin redirects to GitHub OAuth.
 func (a *OAuthAPI) GithubLogin(c *gin.Context) {
 	url, err := a.oauthService.GetGithubAuthURL()
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get GitHub auth URL", err)
 		return
 	}
 	c.Redirect(http.StatusFound, url)
 }
 
-// GithubCallback GitHub登录回调
+// GithubCallback handles the GitHub OAuth callback.
 func (a *OAuthAPI) GithubCallback(c *gin.Context) {
 	code := c.Query("code")
 	state := c.Query("state")
 
-	resp, err := a.oauthService.GithubCallback(code, state)
+	resp, err := a.oauthService.GithubCallbackContext(c.Request.Context(), code, state)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to handle GitHub callback", err)
 		return
 	}
 
 	response.SuccessWithMessage(c, "login success", resp)
 }
 
-// WechatLogin 微信登录
+// WechatLogin redirects to WeChat OAuth.
 func (a *OAuthAPI) WechatLogin(c *gin.Context) {
 	url, err := a.oauthService.GetWechatAuthURL()
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get WeChat auth URL", err)
 		return
 	}
 	c.Redirect(http.StatusFound, url)
 }
 
-// WechatCallback 微信登录回调
+// WechatCallback handles the WeChat OAuth callback.
 func (a *OAuthAPI) WechatCallback(c *gin.Context) {
 	code := c.Query("code")
 	state := c.Query("state")
 
-	resp, err := a.oauthService.WechatCallback(code, state)
+	resp, err := a.oauthService.WechatCallbackContext(c.Request.Context(), code, state)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to handle WeChat callback", err)
 		return
 	}
 
 	response.SuccessWithMessage(c, "login success", resp)
 }
 
-// BindOAuth 绑定第三方账号
+// BindOAuth binds a third-party account.
 func (a *OAuthAPI) BindOAuth(c *gin.Context) {
-	// 实现绑定第三方账号逻辑
 	response.SuccessWithMessage(c, "bind success", nil)
 }
 
-// UnbindOAuth 解绑第三方账号
+// UnbindOAuth unbinds a third-party account.
 func (a *OAuthAPI) UnbindOAuth(c *gin.Context) {
-	// 实现解绑第三方账号逻辑
 	response.SuccessWithMessage(c, "unbind success", nil)
 }

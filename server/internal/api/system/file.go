@@ -14,19 +14,19 @@ import (
 	"github.com/go-admin-kit/server/internal/service/system"
 )
 
-// FileAPI 文件管理 API
+// FileAPI handles file management endpoints.
 type FileAPI struct {
 	fileService *system.FileService
 }
 
-// NewFileAPI 创建 FileAPI 实例
+// NewFileAPI creates a FileAPI instance.
 func NewFileAPI() *FileAPI {
 	return &FileAPI{
 		fileService: system.NewFileService(),
 	}
 }
 
-// Upload 上传单个文件
+// Upload uploads a single file.
 func (a *FileAPI) Upload(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
@@ -36,7 +36,7 @@ func (a *FileAPI) Upload(c *gin.Context) {
 
 	userID, _ := c.Get("user_id")
 
-	fileRecord, err := a.fileService.Upload(file, userID.(uint))
+	fileRecord, err := a.fileService.UploadContext(c.Request.Context(), file, userID.(uint))
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -45,7 +45,7 @@ func (a *FileAPI) Upload(c *gin.Context) {
 	response.SuccessWithMessage(c, "file uploaded successfully", fileRecord)
 }
 
-// UploadMultiple 批量上传文件
+// UploadMultiple uploads multiple files.
 func (a *FileAPI) UploadMultiple(c *gin.Context) {
 	form, err := c.MultipartForm()
 	if err != nil {
@@ -61,9 +61,9 @@ func (a *FileAPI) UploadMultiple(c *gin.Context) {
 
 	userID, _ := c.Get("user_id")
 
-	results, errs := a.fileService.UploadMultiple(files, userID.(uint))
+	results, errs := a.fileService.UploadMultipleContext(c.Request.Context(), files, userID.(uint))
 
-	// 构建响应
+	// Preserve per-file errors in a compact response.
 	var errMsgs []string
 	for _, err := range errs {
 		errMsgs = append(errMsgs, err.Error())
@@ -77,7 +77,7 @@ func (a *FileAPI) UploadMultiple(c *gin.Context) {
 	})
 }
 
-// GetFileList 获取文件列表
+// GetFileList returns paginated files.
 func (a *FileAPI) GetFileList(c *gin.Context) {
 	var req system.FileListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -94,21 +94,21 @@ func (a *FileAPI) GetFileList(c *gin.Context) {
 
 	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to resolve file data scope", err)
 		return
 	}
 	req.DataScope = dataScope
 
-	files, total, err := a.fileService.GetFileList(req)
+	files, total, err := a.fileService.GetFileListContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get file list", err)
 		return
 	}
 
 	response.PageSuccess(c, files, total, req.Page, req.PageSize)
 }
 
-// GetFile 获取文件详情
+// GetFile returns a file by id.
 func (a *FileAPI) GetFile(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -119,11 +119,11 @@ func (a *FileAPI) GetFile(c *gin.Context) {
 
 	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to resolve file data scope", err)
 		return
 	}
 
-	file, err := a.fileService.GetFileByIDInScope(uint(id), dataScope)
+	file, err := a.fileService.GetFileByIDInScopeContext(c.Request.Context(), uint(id), dataScope)
 	if err != nil {
 		response.NotFound(c, "file not found")
 		return
@@ -132,7 +132,7 @@ func (a *FileAPI) GetFile(c *gin.Context) {
 	response.Success(c, file)
 }
 
-// Download 下载文件
+// Download streams a file as an attachment.
 func (a *FileAPI) Download(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -143,29 +143,29 @@ func (a *FileAPI) Download(c *gin.Context) {
 
 	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to resolve file data scope", err)
 		return
 	}
 
-	file, err := a.fileService.GetFileByIDInScope(uint(id), dataScope)
+	file, err := a.fileService.GetFileByIDInScopeContext(c.Request.Context(), uint(id), dataScope)
 	if err != nil {
 		response.NotFound(c, "file not found")
 		return
 	}
 
-	// 检查文件是否存在
+	// Verify the file still exists on disk.
 	if _, err := os.Stat(file.FilePath); os.IsNotExist(err) {
 		response.NotFound(c, "file not found on disk")
 		return
 	}
 
-	// 设置下载头
+	// Set download headers before streaming the file.
 	c.Header("Content-Disposition", "attachment; filename="+file.FileName)
 	c.Header("Content-Type", file.MimeType)
 	c.File(file.FilePath)
 }
 
-// DeleteFile 删除文件
+// DeleteFile deletes a file.
 func (a *FileAPI) DeleteFile(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -177,11 +177,11 @@ func (a *FileAPI) DeleteFile(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to resolve file data scope", err)
 		return
 	}
 
-	if err := a.fileService.DeleteFile(uint(id), userID.(uint), dataScope); err != nil {
+	if err := a.fileService.DeleteFileContext(c.Request.Context(), uint(id), userID.(uint), dataScope); err != nil {
 		a.handleFileError(c, err)
 		return
 	}
@@ -189,7 +189,7 @@ func (a *FileAPI) DeleteFile(c *gin.Context) {
 	response.SuccessWithMessage(c, "file deleted successfully", nil)
 }
 
-// DeleteFiles 批量删除文件
+// DeleteFiles deletes multiple files.
 func (a *FileAPI) DeleteFiles(c *gin.Context) {
 	var req struct {
 		IDs []uint `json:"ids" binding:"required"`
@@ -202,11 +202,11 @@ func (a *FileAPI) DeleteFiles(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to resolve file data scope", err)
 		return
 	}
 
-	if err := a.fileService.DeleteFiles(req.IDs, userID.(uint), dataScope); err != nil {
+	if err := a.fileService.DeleteFilesContext(c.Request.Context(), req.IDs, userID.(uint), dataScope); err != nil {
 		a.handleFileError(c, err)
 		return
 	}
@@ -214,7 +214,7 @@ func (a *FileAPI) DeleteFiles(c *gin.Context) {
 	response.SuccessWithMessage(c, "files deleted successfully", nil)
 }
 
-// GetFileStats 获取文件统计
+// GetFileStats returns file statistics.
 func (a *FileAPI) GetFileStats(c *gin.Context) {
 	var userID *uint
 	if uidStr := c.Query("user_id"); uidStr != "" {
@@ -227,20 +227,20 @@ func (a *FileAPI) GetFileStats(c *gin.Context) {
 
 	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to resolve file data scope", err)
 		return
 	}
 
-	stats, err := a.fileService.GetFileStats(userID, dataScope)
+	stats, err := a.fileService.GetFileStatsContext(c.Request.Context(), userID, dataScope)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get file stats", err)
 		return
 	}
 
 	response.Success(c, stats)
 }
 
-// ServeStatic 静态文件服务（注册到路由）
+// ServeStaticFiles registers static file serving for local storage.
 func ServeStaticFiles(router *gin.Engine) {
 	if config.Cfg.Upload.EffectiveStorageType() != "local" {
 		return
@@ -249,13 +249,13 @@ func ServeStaticFiles(router *gin.Engine) {
 	uploadPath := config.Cfg.Upload.EffectiveLocalPath()
 	urlPrefix := config.Cfg.Upload.EffectiveLocalURLPrefix()
 
-	// 确保上传目录存在
+	// Ensure the upload directory exists before registering the route.
 	if err := os.MkdirAll(uploadPath, 0755); err == nil {
 		router.Static(urlPrefix, uploadPath)
 	}
 }
 
-// Preview 预览文件（图片）
+// Preview streams an image file inline.
 func (a *FileAPI) Preview(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -266,29 +266,29 @@ func (a *FileAPI) Preview(c *gin.Context) {
 
 	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to resolve file data scope", err)
 		return
 	}
 
-	file, err := a.fileService.GetFileByIDInScope(uint(id), dataScope)
+	file, err := a.fileService.GetFileByIDInScopeContext(c.Request.Context(), uint(id), dataScope)
 	if err != nil {
 		response.NotFound(c, "file not found")
 		return
 	}
 
-	// 检查是否是图片
+	// Only image files can be previewed inline.
 	if file.FileType != "image" {
 		response.BadRequest(c, "file is not an image")
 		return
 	}
 
-	// 检查文件是否存在
+	// Verify the file still exists on disk.
 	if _, err := os.Stat(file.FilePath); os.IsNotExist(err) {
 		response.NotFound(c, "file not found on disk")
 		return
 	}
 
-	// 获取文件扩展名对应的 MIME 类型
+	// Resolve the MIME type from the file extension.
 	ext := filepath.Ext(file.FilePath)
 	contentType := "image/jpeg"
 	switch ext {
@@ -306,7 +306,7 @@ func (a *FileAPI) Preview(c *gin.Context) {
 	c.File(file.FilePath)
 }
 
-// CheckHash 检查文件哈希（用于秒传）
+// CheckHash checks whether a file hash already exists.
 func (a *FileAPI) CheckHash(c *gin.Context) {
 	hash := c.Query("hash")
 	if hash == "" {
@@ -316,11 +316,11 @@ func (a *FileAPI) CheckHash(c *gin.Context) {
 
 	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to resolve file data scope", err)
 		return
 	}
 
-	file, err := a.fileService.GetFileByHash(hash, dataScope)
+	file, err := a.fileService.GetFileByHashContext(c.Request.Context(), hash, dataScope)
 	if err != nil {
 		response.Success(c, gin.H{"exists": false})
 		return
@@ -332,7 +332,7 @@ func (a *FileAPI) CheckHash(c *gin.Context) {
 	})
 }
 
-// GetMyFiles 获取当前用户的文件
+// GetMyFiles returns files owned by the current user.
 func (a *FileAPI) GetMyFiles(c *gin.Context) {
 	var req system.FileListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -355,16 +355,16 @@ func (a *FileAPI) GetMyFiles(c *gin.Context) {
 		UserID: uid,
 	}
 
-	files, total, err := a.fileService.GetFileList(req)
+	files, total, err := a.fileService.GetFileListContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get current user files", err)
 		return
 	}
 
 	response.PageSuccess(c, files, total, req.Page, req.PageSize)
 }
 
-// ImageResize 图片缩放（预留接口）
+// ImageResize is reserved for future image resizing.
 func (a *FileAPI) ImageResize(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, gin.H{"message": "not implemented"})
 }

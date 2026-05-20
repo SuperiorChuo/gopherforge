@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
@@ -76,22 +77,37 @@ func (e ProfileValidationError) Error() string {
 
 // Login 用户登录
 func (s *UserService) Login(req LoginRequest) (*LoginResponse, error) {
+	return s.LoginContext(context.Background(), req)
+}
+
+func (s *UserService) LoginContext(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
 	// 验证验证码
-	if !captcha.CheckTextCaptcha(req.CaptchaID, req.CaptchaCode) {
+	if !captcha.CheckTextCaptchaContext(ctx, req.CaptchaID, req.CaptchaCode) {
 		return nil, errors.New("验证码错误或已过期")
 	}
 
 	// 根据用户名获取用户
-	return s.LoginPassword(req.Username, req.Password)
+	return s.LoginPasswordContext(ctx, req.Username, req.Password)
 }
 
 func (s *UserService) LoginPassword(username, password string) (*LoginResponse, error) {
-	return s.LoginPasswordWithAccessTTL(username, password, 0)
+	return s.LoginPasswordContext(context.Background(), username, password)
+}
+
+func (s *UserService) LoginPasswordContext(ctx context.Context, username, password string) (*LoginResponse, error) {
+	return s.LoginPasswordWithAccessTTLContext(ctx, username, password, 0)
 }
 
 func (s *UserService) LoginPasswordWithAccessTTL(username, password string, accessTTL time.Duration) (*LoginResponse, error) {
-	user, err := s.userDAO.GetUserByUsername(username)
+	return s.LoginPasswordWithAccessTTLContext(context.Background(), username, password, accessTTL)
+}
+
+func (s *UserService) LoginPasswordWithAccessTTLContext(ctx context.Context, username, password string, accessTTL time.Duration) (*LoginResponse, error) {
+	user, err := s.userDAO.GetUserByUsernameContext(ctx, username)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, err
+		}
 		return nil, errors.New("invalid username or password")
 	}
 
@@ -107,7 +123,7 @@ func (s *UserService) LoginPasswordWithAccessTTL(username, password string, acce
 
 	if shouldMarkDefaultAdminPassword(user, password) {
 		user.MustChangePassword = true
-		_ = s.userDAO.UpdateUser(user)
+		_ = s.userDAO.UpdateUserContext(ctx, user)
 	}
 
 	// 生成token
@@ -117,7 +133,7 @@ func (s *UserService) LoginPasswordWithAccessTTL(username, password string, acce
 	}
 
 	// 重新获取用户完整信息（包含角色和权限）
-	userWithRoles, err := s.userDAO.GetUserWithRolesAndPermissions(user.ID)
+	userWithRoles, err := s.userDAO.GetUserWithRolesAndPermissionsContext(ctx, user.ID)
 	if err == nil {
 		user = userWithRoles
 	}
@@ -131,14 +147,18 @@ func (s *UserService) LoginPasswordWithAccessTTL(username, password string, acce
 
 // Register 用户注册
 func (s *UserService) Register(req RegisterRequest) (*model.User, error) {
+	return s.RegisterContext(context.Background(), req)
+}
+
+func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) (*model.User, error) {
 	// 检查用户名是否已存在
-	_, err := s.userDAO.GetUserByUsername(req.Username)
+	_, err := s.userDAO.GetUserByUsernameContext(ctx, req.Username)
 	if err == nil {
 		return nil, errors.New("username already exists")
 	}
 
 	// 检查邮箱是否已存在
-	_, err = s.userDAO.GetUserByEmail(req.Email)
+	_, err = s.userDAO.GetUserByEmailContext(ctx, req.Email)
 	if err == nil {
 		return nil, errors.New("email already exists")
 	}
@@ -162,7 +182,7 @@ func (s *UserService) Register(req RegisterRequest) (*model.User, error) {
 		Status:   1,
 	}
 
-	if err := s.userDAO.CreateUser(user); err != nil {
+	if err := s.userDAO.CreateUserContext(ctx, user); err != nil {
 		return nil, err
 	}
 
@@ -171,12 +191,20 @@ func (s *UserService) Register(req RegisterRequest) (*model.User, error) {
 
 // GetUserWithRoles 获取用户及其角色
 func (s *UserService) GetUserWithRoles(id uint) (*model.User, error) {
-	return s.userDAO.GetUserWithRoles(id)
+	return s.GetUserWithRolesContext(context.Background(), id)
+}
+
+func (s *UserService) GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error) {
+	return s.userDAO.GetUserWithRolesContext(ctx, id)
 }
 
 // ChangePassword 修改密码
 func (s *UserService) ChangePassword(userID uint, req ChangePasswordRequest) error {
-	user, err := s.userDAO.GetUserByID(userID)
+	return s.ChangePasswordContext(context.Background(), userID, req)
+}
+
+func (s *UserService) ChangePasswordContext(ctx context.Context, userID uint, req ChangePasswordRequest) error {
+	user, err := s.userDAO.GetUserByIDContext(ctx, userID)
 	if err != nil {
 		return ErrUserNotFound
 	}
@@ -199,17 +227,21 @@ func (s *UserService) ChangePassword(userID uint, req ChangePasswordRequest) err
 
 	user.Password = string(hashedPassword)
 	user.MustChangePassword = false
-	return s.userDAO.UpdateUser(user)
+	return s.userDAO.UpdateUserContext(ctx, user)
 }
 
 // UpdateProfile 更新当前用户个人资料
 func (s *UserService) UpdateProfile(userID uint, req UpdateProfileRequest) (*model.User, error) {
-	user, err := s.userDAO.GetUserByID(userID)
+	return s.UpdateProfileContext(context.Background(), userID, req)
+}
+
+func (s *UserService) UpdateProfileContext(ctx context.Context, userID uint, req UpdateProfileRequest) (*model.User, error) {
+	user, err := s.userDAO.GetUserByIDContext(ctx, userID)
 	if err != nil {
 		return nil, ErrUserNotFound
 	}
 
-	updates := make(map[string]interface{})
+	updates := make(map[string]any)
 
 	if req.Nickname != nil {
 		nickname := strings.TrimSpace(*req.Nickname)
@@ -229,7 +261,7 @@ func (s *UserService) UpdateProfile(userID uint, req UpdateProfileRequest) (*mod
 				return nil, err
 			}
 			if !strings.EqualFold(email, user.Email) {
-				existing, err := s.userDAO.GetUserByEmail(email)
+				existing, err := s.userDAO.GetUserByEmailContext(ctx, email)
 				if err == nil && existing.ID != userID {
 					return nil, ErrEmailAlreadyExists
 				}
@@ -253,7 +285,7 @@ func (s *UserService) UpdateProfile(userID uint, req UpdateProfileRequest) (*mod
 				return nil, err
 			}
 			if phone != user.Phone {
-				existing, err := s.userDAO.GetUserByPhone(phone)
+				existing, err := s.userDAO.GetUserByPhoneContext(ctx, phone)
 				if err == nil && existing.ID != userID {
 					return nil, ErrPhoneAlreadyExists
 				}
@@ -276,12 +308,12 @@ func (s *UserService) UpdateProfile(userID uint, req UpdateProfileRequest) (*mod
 	}
 
 	if len(updates) > 0 {
-		if err := s.userDAO.UpdateUserProfile(userID, updates); err != nil {
+		if err := s.userDAO.UpdateUserProfileContext(ctx, userID, updates); err != nil {
 			return nil, err
 		}
 	}
 
-	return s.userDAO.GetUserWithRolesAndPermissions(userID)
+	return s.userDAO.GetUserWithRolesAndPermissionsContext(ctx, userID)
 }
 
 func shouldMarkDefaultAdminPassword(user *model.User, plainPassword string) bool {
@@ -298,7 +330,11 @@ func shouldMarkDefaultAdminPassword(user *model.User, plainPassword string) bool
 
 // GetUserWithRolesAndPermissions 获取用户及其完整的角色和权限
 func (s *UserService) GetUserWithRolesAndPermissions(id uint) (*model.User, error) {
-	return s.userDAO.GetUserWithRolesAndPermissions(id)
+	return s.GetUserWithRolesAndPermissionsContext(context.Background(), id)
+}
+
+func (s *UserService) GetUserWithRolesAndPermissionsContext(ctx context.Context, id uint) (*model.User, error) {
+	return s.userDAO.GetUserWithRolesAndPermissionsContext(ctx, id)
 }
 
 // GetUserPermissions 获取用户的所有权限代码（去重）

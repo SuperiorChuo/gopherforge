@@ -8,23 +8,24 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
+	"github.com/go-admin-kit/server/internal/pkg/logger"
 	"github.com/go-admin-kit/server/internal/pkg/response"
 	"github.com/go-admin-kit/server/internal/service/system"
 )
 
-// OperationLogAPI 操作日志 API
+// OperationLogAPI handles operation log endpoints.
 type OperationLogAPI struct {
 	logService system.OperationLogService
 }
 
-// NewOperationLogAPI 创建 OperationLogAPI 实例
+// NewOperationLogAPI creates an OperationLogAPI instance.
 func NewOperationLogAPI() *OperationLogAPI {
 	return &OperationLogAPI{
 		logService: system.OperationLogService{},
 	}
 }
 
-// GetOperationLogs 获取操作日志列表
+// GetOperationLogs returns paginated operation logs.
 func (a *OperationLogAPI) GetOperationLogs(c *gin.Context) {
 	var req system.OperationLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -32,7 +33,6 @@ func (a *OperationLogAPI) GetOperationLogs(c *gin.Context) {
 		return
 	}
 
-	// 默认分页
 	if req.Page == 0 {
 		req.Page = 1
 	}
@@ -42,21 +42,23 @@ func (a *OperationLogAPI) GetOperationLogs(c *gin.Context) {
 
 	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logOperationLogError("failed to resolve operation log data scope", err)
+		response.InternalServerError(c, "failed to get operation logs")
 		return
 	}
 	req.DataScope = dataScope
 
-	logs, total, err := a.logService.GetLogList(req)
+	logs, total, err := a.logService.GetLogListContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logOperationLogError("failed to get operation logs", err)
+		response.InternalServerError(c, "failed to get operation logs")
 		return
 	}
 
 	response.PageSuccess(c, logs, total, req.Page, req.PageSize)
 }
 
-// GetOperationLogDetail 获取操作日志详情
+// GetOperationLogDetail returns an operation log by id.
 func (a *OperationLogAPI) GetOperationLogDetail(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -65,7 +67,7 @@ func (a *OperationLogAPI) GetOperationLogDetail(c *gin.Context) {
 		return
 	}
 
-	log, err := a.logService.GetLogByID(uint(id))
+	log, err := a.logService.GetLogByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
 		response.NotFound(c, "log not found")
 		return
@@ -74,7 +76,7 @@ func (a *OperationLogAPI) GetOperationLogDetail(c *gin.Context) {
 	response.Success(c, log)
 }
 
-// ClearOperationLogs 清理操作日志
+// ClearOperationLogs deletes old operation logs.
 func (a *OperationLogAPI) ClearOperationLogs(c *gin.Context) {
 	var req system.ClearLogsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -82,9 +84,10 @@ func (a *OperationLogAPI) ClearOperationLogs(c *gin.Context) {
 		return
 	}
 
-	count, err := a.logService.ClearLogs(req.Days)
+	count, err := a.logService.ClearLogsContext(c.Request.Context(), req.Days)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logOperationLogError("failed to clear operation logs", err)
+		response.InternalServerError(c, "failed to clear operation logs")
 		return
 	}
 
@@ -93,7 +96,7 @@ func (a *OperationLogAPI) ClearOperationLogs(c *gin.Context) {
 	})
 }
 
-// GetOperationLogStats 获取操作日志统计
+// GetOperationLogStats returns operation log statistics.
 func (a *OperationLogAPI) GetOperationLogStats(c *gin.Context) {
 	var startTime, endTime *time.Time
 
@@ -108,7 +111,7 @@ func (a *OperationLogAPI) GetOperationLogStats(c *gin.Context) {
 		}
 	}
 
-	// 如果没有指定时间范围，默认最近7天
+	// Default to the last 7 days when no range is specified.
 	if startTime == nil {
 		t := time.Now().AddDate(0, 0, -7)
 		startTime = &t
@@ -118,16 +121,17 @@ func (a *OperationLogAPI) GetOperationLogStats(c *gin.Context) {
 		endTime = &t
 	}
 
-	stats, err := a.logService.GetLogStats(startTime, endTime)
+	stats, err := a.logService.GetLogStatsContext(c.Request.Context(), startTime, endTime)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logOperationLogError("failed to get operation log stats", err)
+		response.InternalServerError(c, "failed to get operation log stats")
 		return
 	}
 
 	response.Success(c, stats)
 }
 
-// ExportOperationLogs 导出操作日志
+// ExportOperationLogs exports operation logs as CSV.
 func (a *OperationLogAPI) ExportOperationLogs(c *gin.Context) {
 	var req system.OperationLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -137,32 +141,33 @@ func (a *OperationLogAPI) ExportOperationLogs(c *gin.Context) {
 
 	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logOperationLogError("failed to resolve operation log export data scope", err)
+		response.InternalServerError(c, "failed to export operation logs")
 		return
 	}
 	req.DataScope = dataScope
 
-	logs, err := a.logService.ExportLogs(req)
+	logs, err := a.logService.ExportLogsContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logOperationLogError("failed to export operation logs", err)
+		response.InternalServerError(c, "failed to export operation logs")
 		return
 	}
 
-	// 设置响应头
+	// Set response headers.
 	filename := fmt.Sprintf("operation_logs_%s.csv", time.Now().Format("20060102150405"))
 	c.Header("Content-Type", "text/csv")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 
-	// 写入 CSV
+	// Write CSV content.
 	writer := csv.NewWriter(c.Writer)
 	defer writer.Flush()
 
-	// 写入表头
-	headers := []string{"ID", "用户ID", "用户名", "模块", "操作", "方法", "路径", "状态码", "IP", "耗时(ms)", "创建时间"}
-	headers = []string{"ID", "User ID", "Username", "Actor Type", "Actor ID", "Request ID", "Module", "Action", "Method", "Path", "Status", "IP", "Latency(ms)", "Created At"}
+	// Write headers.
+	headers := []string{"ID", "User ID", "Username", "Actor Type", "Actor ID", "Request ID", "Module", "Action", "Method", "Path", "Status", "IP", "Latency(ms)", "Created At"}
 	writer.Write(headers)
 
-	// 写入数据
+	// Write rows.
 	for _, log := range logs {
 		row := []string{
 			strconv.FormatUint(uint64(log.ID), 10),
@@ -182,4 +187,11 @@ func (a *OperationLogAPI) ExportOperationLogs(c *gin.Context) {
 		}
 		writer.Write(row)
 	}
+}
+
+func logOperationLogError(message string, err error) {
+	if logger.Logger == nil {
+		return
+	}
+	logger.Error(message, logger.Err(err))
 }

@@ -6,27 +6,27 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/response"
 )
 
-// CaptchaAPI 验证码API
+// CaptchaAPI handles captcha endpoints.
 type CaptchaAPI struct{}
 
-// NewCaptchaAPI 创建CaptchaAPI实例
+// NewCaptchaAPI creates a CaptchaAPI instance.
 func NewCaptchaAPI() *CaptchaAPI {
 	return &CaptchaAPI{}
 }
 
-// GetCaptcha 获取验证码
+// GetCaptcha returns a text captcha image payload.
 func (a *CaptchaAPI) GetCaptcha(c *gin.Context) {
 	key := captcha.GenerateCaptchaKey()
-	data, err := captcha.GetTextCaptcha(key)
+	data, err := captcha.GetTextCaptchaContext(c.Request.Context(), key)
 	if err != nil {
-		response.InternalServerError(c, "生成验证码失败")
+		response.InternalServerError(c, "failed to generate captcha")
 		return
 	}
 
 	response.Success(c, data)
 }
 
-// VerifyCaptcha 验证验证码
+// VerifyCaptcha validates a captcha code.
 func (a *CaptchaAPI) VerifyCaptcha(c *gin.Context) {
 	var req struct {
 		Key  string `json:"key" binding:"required"`
@@ -38,10 +38,10 @@ func (a *CaptchaAPI) VerifyCaptcha(c *gin.Context) {
 		return
 	}
 
-	if !captcha.VerifyTextCaptcha(req.Key, req.Code) {
-		response.BadRequest(c, "验证失败")
+	if !captcha.VerifyTextCaptchaContext(c.Request.Context(), req.Key, req.Code) {
+		response.BadRequest(c, "captcha verification failed")
 		return
 	}
 
-	response.SuccessWithMessage(c, "验证成功", nil)
+	response.SuccessWithMessage(c, "captcha verified", nil)
 }

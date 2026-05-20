@@ -14,8 +14,7 @@
 
       <template v-else>
         <div class="captcha-panel">
-          <strong v-if="captchaText" class="captcha-text">{{ captchaText }}</strong>
-          <img v-else-if="captchaImage" :src="captchaImage" class="captcha-image" alt="验证码" />
+          <img v-if="captchaImage" :src="captchaImage" class="captcha-image" alt="验证码" />
           <t-button variant="text" :disabled="verifying" @click="refresh">换一张</t-button>
         </div>
 
@@ -57,7 +56,6 @@ const loading = ref(false);
 const verifying = ref(false);
 const captchaKey = ref('');
 const captchaImage = ref('');
-const captchaText = ref('');
 const captchaCode = ref('');
 
 watch(
@@ -83,7 +81,6 @@ const getCaptcha = async () => {
     const res = await request.get<any>({ url: '/captcha' }, { withToken: false });
     captchaKey.value = res.key;
     captchaImage.value = toDataUrl(res.image, 'image/png');
-    captchaText.value = res.code_hint || '';
     captchaCode.value = '';
   } catch {
     MessagePlugin.error('获取验证码失败');
@@ -155,20 +152,6 @@ onMounted(() => {
   width: 120px;
   height: 42px;
   image-rendering: auto;
-}
-
-.captcha-text {
-  min-width: 120px;
-  height: 42px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  background: #f5f8ff;
-  color: #1f4596;
-  font-size: 24px;
-  font-family: Consolas, 'Courier New', monospace;
-  letter-spacing: 6px;
 }
 
 .refresh-text {

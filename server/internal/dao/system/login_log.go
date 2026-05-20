@@ -1,31 +1,50 @@
 package system
 
 import (
+	"context"
 	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// LoginLogDAO 登录日志数据访问对象
 type LoginLogDAO struct{}
 
-// Create 创建登录日志
 func (d *LoginLogDAO) Create(log *model.LoginLog) error {
-	return database.DB.Create(log).Error
+	return d.CreateContext(context.Background(), log)
 }
 
-// GetByID 根据ID获取登录日志
+func (d *LoginLogDAO) CreateContext(ctx context.Context, log *model.LoginLog) error {
+	return dbWithContext(ctx).Create(log).Error
+}
+
 func (d *LoginLogDAO) GetByID(id uint) (*model.LoginLog, error) {
+	return d.GetByIDContext(context.Background(), id)
+}
+
+func (d *LoginLogDAO) GetByIDContext(ctx context.Context, id uint) (*model.LoginLog, error) {
 	var log model.LoginLog
-	result := database.DB.First(&log, id)
+	result := dbWithContext(ctx).First(&log, id)
 	return &log, result.Error
 }
 
-// GetList 获取登录日志列表
 func (d *LoginLogDAO) GetList(
+	req pagination.PageRequest,
+	userID *uint,
+	username, ip string,
+	status *int8,
+	loginType *int8,
+	startTime, endTime *time.Time,
+	dataScope authz.UserDataScope,
+) ([]model.LoginLog, int64, error) {
+	return d.GetListContext(context.Background(), req, userID, username, ip, status, loginType, startTime, endTime, dataScope)
+}
+
+func (d *LoginLogDAO) GetListContext(
+	ctx context.Context,
 	req pagination.PageRequest,
 	userID *uint,
 	username, ip string,
@@ -37,9 +56,23 @@ func (d *LoginLogDAO) GetList(
 	var logs []model.LoginLog
 	var total int64
 
-	query := database.DB.Model(&model.LoginLog{})
+	query := dbWithContext(ctx).Model(&model.LoginLog{})
 	query = authz.ApplyOwnerScope(query, dataScope, "user_id")
+	query = applyLoginLogFilters(query, userID, username, ip, status, loginType, startTime, endTime)
 
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	result := query.
+		Scopes(pagination.Paginate(req)).
+		Order("created_at DESC").
+		Find(&logs)
+
+	return logs, total, result.Error
+}
+
+func applyLoginLogFilters(query *gorm.DB, userID *uint, username, ip string, status *int8, loginType *int8, startTime, endTime *time.Time) *gorm.DB {
 	if userID != nil {
 		query = query.Where("user_id = ?", *userID)
 	}
@@ -55,52 +88,40 @@ func (d *LoginLogDAO) GetList(
 	if loginType != nil {
 		query = query.Where("login_type = ?", *loginType)
 	}
-	if startTime != nil {
-		query = query.Where("created_at >= ?", *startTime)
-	}
-	if endTime != nil {
-		query = query.Where("created_at <= ?", *endTime)
-	}
-
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	result := query.
-		Scopes(pagination.Paginate(req)).
-		Order("created_at DESC").
-		Find(&logs)
-
-	return logs, total, result.Error
+	return applyTimeRange(query, startTime, endTime)
 }
 
-// GetUserLastLogin 获取用户最后登录记录
 func (d *LoginLogDAO) GetUserLastLogin(userID uint) (*model.LoginLog, error) {
+	return d.GetUserLastLoginContext(context.Background(), userID)
+}
+
+func (d *LoginLogDAO) GetUserLastLoginContext(ctx context.Context, userID uint) (*model.LoginLog, error) {
 	var log model.LoginLog
-	result := database.DB.Where("user_id = ? AND status = 1", userID).
+	result := dbWithContext(ctx).Where("user_id = ? AND status = 1", userID).
 		Order("created_at DESC").
 		First(&log)
 	return &log, result.Error
 }
 
-// GetUserLoginCount 获取用户登录次数
 func (d *LoginLogDAO) GetUserLoginCount(userID uint, startTime, endTime *time.Time) (int64, error) {
+	return d.GetUserLoginCountContext(context.Background(), userID, startTime, endTime)
+}
+
+func (d *LoginLogDAO) GetUserLoginCountContext(ctx context.Context, userID uint, startTime, endTime *time.Time) (int64, error) {
 	var count int64
-	query := database.DB.Model(&model.LoginLog{}).Where("user_id = ? AND status = 1", userID)
-	if startTime != nil {
-		query = query.Where("created_at >= ?", *startTime)
-	}
-	if endTime != nil {
-		query = query.Where("created_at <= ?", *endTime)
-	}
+	query := dbWithContext(ctx).Model(&model.LoginLog{}).Where("user_id = ? AND status = 1", userID)
+	query = applyTimeRange(query, startTime, endTime)
 	err := query.Count(&count).Error
 	return count, err
 }
 
-// GetFailedLoginCount 获取登录失败次数
 func (d *LoginLogDAO) GetFailedLoginCount(username, ip string, since time.Time) (int64, error) {
+	return d.GetFailedLoginCountContext(context.Background(), username, ip, since)
+}
+
+func (d *LoginLogDAO) GetFailedLoginCountContext(ctx context.Context, username, ip string, since time.Time) (int64, error) {
 	var count int64
-	query := database.DB.Model(&model.LoginLog{}).Where("status = 0 AND created_at >= ?", since)
+	query := dbWithContext(ctx).Model(&model.LoginLog{}).Where("status = 0 AND created_at >= ?", since)
 	if username != "" {
 		query = query.Where("username = ?", username)
 	}
@@ -111,69 +132,63 @@ func (d *LoginLogDAO) GetFailedLoginCount(username, ip string, since time.Time) 
 	return count, err
 }
 
-// DeleteBefore 删除指定时间之前的日志
 func (d *LoginLogDAO) DeleteBefore(before time.Time) (int64, error) {
-	result := database.DB.Where("created_at < ?", before).Delete(&model.LoginLog{})
+	return d.DeleteBeforeContext(context.Background(), before)
+}
+
+func (d *LoginLogDAO) DeleteBeforeContext(ctx context.Context, before time.Time) (int64, error) {
+	result := dbWithContext(ctx).Where("created_at < ?", before).Delete(&model.LoginLog{})
 	return result.RowsAffected, result.Error
 }
 
-// GetStats 获取登录统计
 func (d *LoginLogDAO) GetStats(startTime, endTime *time.Time) (*LoginLogStats, error) {
-	stats := &LoginLogStats{}
+	return d.GetStatsContext(context.Background(), startTime, endTime)
+}
 
-	query := database.DB.Model(&model.LoginLog{})
-	if startTime != nil {
-		query = query.Where("created_at >= ?", *startTime)
+func (d *LoginLogDAO) GetStatsContext(ctx context.Context, startTime, endTime *time.Time) (*LoginLogStats, error) {
+	stats := &LoginLogStats{ByDevice: map[string]int64{}, ByBrowser: map[string]int64{}}
+
+	if err := applyTimeRange(dbWithContext(ctx).Model(&model.LoginLog{}), startTime, endTime).Count(&stats.Total).Error; err != nil {
+		return nil, err
 	}
-	if endTime != nil {
-		query = query.Where("created_at <= ?", *endTime)
+
+	if err := applyTimeRange(dbWithContext(ctx).Model(&model.LoginLog{}).Where("status = 1"), startTime, endTime).Count(&stats.Success).Error; err != nil {
+		return nil, err
 	}
-
-	// 总登录次数
-	query.Count(&stats.Total)
-
-	// 成功次数
-	database.DB.Model(&model.LoginLog{}).
-		Where("status = 1").
-		Where("created_at >= ? AND created_at <= ?", startTime, endTime).
-		Count(&stats.Success)
-
-	// 失败次数
 	stats.Failed = stats.Total - stats.Success
 
-	// 今日登录用户数
 	today := time.Now().Truncate(24 * time.Hour)
-	database.DB.Model(&model.LoginLog{}).
+	if err := dbWithContext(ctx).Model(&model.LoginLog{}).
 		Where("status = 1 AND created_at >= ?", today).
 		Distinct("user_id").
-		Count(&stats.TodayUsers)
+		Count(&stats.TodayUsers).Error; err != nil {
+		return nil, err
+	}
 
-	// 按设备统计
 	var deviceStats []struct {
 		Device string `json:"device"`
 		Count  int64  `json:"count"`
 	}
-	database.DB.Model(&model.LoginLog{}).
+	if err := applyTimeRange(dbWithContext(ctx).Model(&model.LoginLog{}).Where("status = 1"), startTime, endTime).
 		Select("device, COUNT(*) as count").
-		Where("created_at >= ? AND created_at <= ? AND status = 1", startTime, endTime).
 		Group("device").
-		Find(&deviceStats)
-	stats.ByDevice = make(map[string]int64)
+		Find(&deviceStats).Error; err != nil {
+		return nil, err
+	}
 	for _, s := range deviceStats {
 		stats.ByDevice[s.Device] = s.Count
 	}
 
-	// 按浏览器统计
 	var browserStats []struct {
 		Browser string `json:"browser"`
 		Count   int64  `json:"count"`
 	}
-	database.DB.Model(&model.LoginLog{}).
+	if err := applyTimeRange(dbWithContext(ctx).Model(&model.LoginLog{}).Where("status = 1"), startTime, endTime).
 		Select("browser, COUNT(*) as count").
-		Where("created_at >= ? AND created_at <= ? AND status = 1", startTime, endTime).
 		Group("browser").
-		Find(&browserStats)
-	stats.ByBrowser = make(map[string]int64)
+		Find(&browserStats).Error; err != nil {
+		return nil, err
+	}
 	for _, s := range browserStats {
 		stats.ByBrowser[s.Browser] = s.Count
 	}
@@ -181,7 +196,6 @@ func (d *LoginLogDAO) GetStats(startTime, endTime *time.Time) (*LoginLogStats, e
 	return stats, nil
 }
 
-// LoginLogStats 登录统计信息
 type LoginLogStats struct {
 	Total      int64            `json:"total"`
 	Success    int64            `json:"success"`
@@ -191,7 +205,6 @@ type LoginLogStats struct {
 	ByBrowser  map[string]int64 `json:"by_browser"`
 }
 
-// LoginTrendItem 登录趋势项
 type LoginTrendItem struct {
 	Date    string `json:"date"`
 	Count   int64  `json:"count"`
@@ -199,11 +212,12 @@ type LoginTrendItem struct {
 	Failed  int64  `json:"failed"`
 }
 
-// GetLoginTrend 获取登录趋势（最近N天）
 func (d *LoginLogDAO) GetLoginTrend(days int) ([]LoginTrendItem, error) {
-	result := make([]LoginTrendItem, days)
+	return d.GetLoginTrendContext(context.Background(), days)
+}
 
-	// 从今天开始往前推N天
+func (d *LoginLogDAO) GetLoginTrendContext(ctx context.Context, days int) ([]LoginTrendItem, error) {
+	result := make([]LoginTrendItem, days)
 	now := time.Now()
 	for i := days - 1; i >= 0; i-- {
 		date := now.AddDate(0, 0, -i)
@@ -212,13 +226,17 @@ func (d *LoginLogDAO) GetLoginTrend(days int) ([]LoginTrendItem, error) {
 		endOfDay := startOfDay.Add(24 * time.Hour)
 
 		var total, success int64
-		database.DB.Model(&model.LoginLog{}).
+		if err := dbWithContext(ctx).Model(&model.LoginLog{}).
 			Where("created_at >= ? AND created_at < ?", startOfDay, endOfDay).
-			Count(&total)
+			Count(&total).Error; err != nil {
+			return nil, err
+		}
 
-		database.DB.Model(&model.LoginLog{}).
+		if err := dbWithContext(ctx).Model(&model.LoginLog{}).
 			Where("created_at >= ? AND created_at < ? AND status = 1", startOfDay, endOfDay).
-			Count(&success)
+			Count(&success).Error; err != nil {
+			return nil, err
+		}
 
 		result[days-1-i] = LoginTrendItem{
 			Date:    dateStr,

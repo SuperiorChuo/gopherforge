@@ -1,26 +1,44 @@
 package system
 
 import (
+	"context"
 	"errors"
 
-	"github.com/go-admin-kit/server/internal/dao/system"
+	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
+	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// DepartmentService 部门服务
-type DepartmentService struct {
-	deptDAO system.DepartmentDAO
+type departmentDAO interface {
+	GetByIDContext(ctx context.Context, id uint) (*model.Department, error)
+	GetByCodeContext(ctx context.Context, code string) (*model.Department, error)
+	GetListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]model.Department, int64, error)
+	GetAllContext(ctx context.Context, status *int8) ([]model.Department, error)
+	GetTreeContext(ctx context.Context, status *int8) ([]model.Department, error)
+	CreateContext(ctx context.Context, dept *model.Department) error
+	UpdateContext(ctx context.Context, dept *model.Department) error
+	DeleteContext(ctx context.Context, id uint) error
+	GetChildrenIDsContext(ctx context.Context, parentID uint) ([]uint, error)
 }
 
-// DepartmentListRequest 部门列表请求
+type DepartmentService struct {
+	deptDAO departmentDAO
+}
+
+func (s *DepartmentService) dao() departmentDAO {
+	if s.deptDAO != nil {
+		return s.deptDAO
+	}
+	return &systemdao.DepartmentDAO{}
+}
+
 type DepartmentListRequest struct {
 	pagination.PageRequest
 	Keyword string `json:"keyword" form:"keyword"`
 	Status  *int8  `json:"status" form:"status"`
 }
 
-// CreateDepartmentRequest 创建部门请求
 type CreateDepartmentRequest struct {
 	Name     string `json:"name" binding:"required"`
 	Code     string `json:"code" binding:"required"`
@@ -32,7 +50,6 @@ type CreateDepartmentRequest struct {
 	Status   int8   `json:"status"`
 }
 
-// UpdateDepartmentRequest 更新部门请求
 type UpdateDepartmentRequest struct {
 	Name     string `json:"name"`
 	ParentID *uint  `json:"parent_id"`
@@ -43,39 +60,56 @@ type UpdateDepartmentRequest struct {
 	Status   *int8  `json:"status"`
 }
 
-// GetByID 根据ID获取部门
 func (s *DepartmentService) GetByID(id uint) (*model.Department, error) {
-	return s.deptDAO.GetByID(id)
+	return s.GetByIDContext(context.Background(), id)
 }
 
-// GetList 获取部门列表
+func (s *DepartmentService) GetByIDContext(ctx context.Context, id uint) (*model.Department, error) {
+	return s.dao().GetByIDContext(ctx, id)
+}
+
 func (s *DepartmentService) GetList(req DepartmentListRequest) ([]model.Department, int64, error) {
-	return s.deptDAO.GetList(req.PageRequest, req.Keyword, req.Status)
+	return s.GetListContext(context.Background(), req)
 }
 
-// GetAll 获取所有部门
+func (s *DepartmentService) GetListContext(ctx context.Context, req DepartmentListRequest) ([]model.Department, int64, error) {
+	return s.dao().GetListContext(ctx, req.PageRequest, req.Keyword, req.Status)
+}
+
 func (s *DepartmentService) GetAll(status *int8) ([]model.Department, error) {
-	return s.deptDAO.GetAll(status)
+	return s.GetAllContext(context.Background(), status)
 }
 
-// GetTree 获取部门树
+func (s *DepartmentService) GetAllContext(ctx context.Context, status *int8) ([]model.Department, error) {
+	return s.dao().GetAllContext(ctx, status)
+}
+
 func (s *DepartmentService) GetTree(status *int8) ([]model.Department, error) {
-	return s.deptDAO.GetTree(status)
+	return s.GetTreeContext(context.Background(), status)
 }
 
-// Create 创建部门
+func (s *DepartmentService) GetTreeContext(ctx context.Context, status *int8) ([]model.Department, error) {
+	return s.dao().GetTreeContext(ctx, status)
+}
+
 func (s *DepartmentService) Create(req CreateDepartmentRequest) (*model.Department, error) {
-	// 检查编码是否已存在
-	_, err := s.deptDAO.GetByCode(req.Code)
-	if err == nil {
-		return nil, errors.New("部门编码已存在")
+	return s.CreateContext(context.Background(), req)
+}
+
+func (s *DepartmentService) CreateContext(ctx context.Context, req CreateDepartmentRequest) (*model.Department, error) {
+	dao := s.dao()
+	if _, err := dao.GetByCodeContext(ctx, req.Code); err == nil {
+		return nil, errors.New("department code already exists")
+	} else if isContextError(err) {
+		return nil, err
 	}
 
-	// 检查父部门是否存在
 	if req.ParentID > 0 {
-		_, err := s.deptDAO.GetByID(req.ParentID)
-		if err != nil {
-			return nil, errors.New("父部门不存在")
+		if _, err := dao.GetByIDContext(ctx, req.ParentID); err != nil {
+			if isContextError(err) {
+				return nil, err
+			}
+			return nil, errors.New("parent department does not exist")
 		}
 	}
 
@@ -89,35 +123,41 @@ func (s *DepartmentService) Create(req CreateDepartmentRequest) (*model.Departme
 		Sort:     req.Sort,
 		Status:   req.Status,
 	}
-
-	// 默认启用状态
 	if dept.Status == 0 {
 		dept.Status = 1
 	}
 
-	if err := s.deptDAO.Create(dept); err != nil {
+	if err := dao.CreateContext(ctx, dept); err != nil {
 		return nil, err
 	}
-
+	_ = authz.InvalidateDepartmentTreeCache()
 	return dept, nil
 }
 
-// Update 更新部门
 func (s *DepartmentService) Update(id uint, req UpdateDepartmentRequest) (*model.Department, error) {
-	dept, err := s.deptDAO.GetByID(id)
+	return s.UpdateContext(context.Background(), id, req)
+}
+
+func (s *DepartmentService) UpdateContext(ctx context.Context, id uint, req UpdateDepartmentRequest) (*model.Department, error) {
+	dao := s.dao()
+	dept, err := dao.GetByIDContext(ctx, id)
 	if err != nil {
-		return nil, errors.New("部门不存在")
+		if isContextError(err) {
+			return nil, err
+		}
+		return nil, errors.New("department does not exist")
 	}
 
-	// 检查父部门是否存在且不能是自己
 	if req.ParentID != nil {
 		if *req.ParentID == id {
-			return nil, errors.New("不能将自己设为父部门")
+			return nil, errors.New("department cannot be its own parent")
 		}
 		if *req.ParentID > 0 {
-			_, err := s.deptDAO.GetByID(*req.ParentID)
-			if err != nil {
-				return nil, errors.New("父部门不存在")
+			if _, err := dao.GetByIDContext(ctx, *req.ParentID); err != nil {
+				if isContextError(err) {
+					return nil, err
+				}
+				return nil, errors.New("parent department does not exist")
 			}
 		}
 		dept.ParentID = *req.ParentID
@@ -142,19 +182,29 @@ func (s *DepartmentService) Update(id uint, req UpdateDepartmentRequest) (*model
 		dept.Status = *req.Status
 	}
 
-	if err := s.deptDAO.Update(dept); err != nil {
+	if err := dao.UpdateContext(ctx, dept); err != nil {
 		return nil, err
 	}
-
+	_ = authz.InvalidateDepartmentTreeCache()
 	return dept, nil
 }
 
-// Delete 删除部门
 func (s *DepartmentService) Delete(id uint) error {
-	return s.deptDAO.Delete(id)
+	return s.DeleteContext(context.Background(), id)
 }
 
-// GetChildrenIDs 获取所有子部门ID
+func (s *DepartmentService) DeleteContext(ctx context.Context, id uint) error {
+	if err := s.dao().DeleteContext(ctx, id); err != nil {
+		return err
+	}
+	_ = authz.InvalidateDepartmentTreeCache()
+	return nil
+}
+
 func (s *DepartmentService) GetChildrenIDs(parentID uint) ([]uint, error) {
-	return s.deptDAO.GetChildrenIDs(parentID)
+	return s.GetChildrenIDsContext(context.Background(), parentID)
+}
+
+func (s *DepartmentService) GetChildrenIDsContext(ctx context.Context, parentID uint) ([]uint, error) {
+	return s.dao().GetChildrenIDsContext(ctx, parentID)
 }

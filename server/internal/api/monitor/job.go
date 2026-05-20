@@ -27,7 +27,7 @@ func NewJobAPI() *JobAPI {
 	}
 }
 
-// GetJobList 获取任务列表
+// GetJobList returns paginated scheduled jobs.
 func (a *JobAPI) GetJobList(c *gin.Context) {
 	var req pagination.PageRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -35,7 +35,6 @@ func (a *JobAPI) GetJobList(c *gin.Context) {
 		return
 	}
 
-	// 设置默认分页参数
 	if req.Page <= 0 {
 		req.Page = 1
 	}
@@ -55,7 +54,7 @@ func (a *JobAPI) GetJobList(c *gin.Context) {
 		status = &st8
 	}
 
-	jobs, total, err := a.service.GetJobList(req, name, status)
+	jobs, total, err := a.service.GetJobListContext(c.Request.Context(), req, name, status)
 	if err != nil {
 		a.handleError(c, err)
 		return
@@ -69,7 +68,7 @@ func (a *JobAPI) GetJobList(c *gin.Context) {
 	})
 }
 
-// CreateJob 创建任务
+// CreateJob creates a scheduled job.
 func (a *JobAPI) CreateJob(c *gin.Context) {
 	var job model.ScheduledJob
 	if err := c.ShouldBindJSON(&job); err != nil {
@@ -77,7 +76,7 @@ func (a *JobAPI) CreateJob(c *gin.Context) {
 		return
 	}
 
-	if err := a.service.CreateJob(&job); err != nil {
+	if err := a.service.CreateJobContext(c.Request.Context(), &job); err != nil {
 		a.handleError(c, err)
 		return
 	}
@@ -85,7 +84,7 @@ func (a *JobAPI) CreateJob(c *gin.Context) {
 	response.Success(c, job)
 }
 
-// UpdateJob 更新任务
+// UpdateJob updates a scheduled job.
 func (a *JobAPI) UpdateJob(c *gin.Context) {
 	id, ok := parseJobID(c)
 	if !ok {
@@ -99,7 +98,7 @@ func (a *JobAPI) UpdateJob(c *gin.Context) {
 	}
 	job.ID = id
 
-	if err := a.service.UpdateJob(&job); err != nil {
+	if err := a.service.UpdateJobContext(c.Request.Context(), &job); err != nil {
 		a.handleError(c, err)
 		return
 	}
@@ -107,14 +106,14 @@ func (a *JobAPI) UpdateJob(c *gin.Context) {
 	response.Success(c, job)
 }
 
-// DeleteJob 删除任务
+// DeleteJob deletes a scheduled job.
 func (a *JobAPI) DeleteJob(c *gin.Context) {
 	id, ok := parseJobID(c)
 	if !ok {
 		return
 	}
 
-	if err := a.service.DeleteJob(id); err != nil {
+	if err := a.service.DeleteJobContext(c.Request.Context(), id); err != nil {
 		a.handleError(c, err)
 		return
 	}
@@ -122,14 +121,14 @@ func (a *JobAPI) DeleteJob(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// StartJob 启动任务
+// StartJob starts a scheduled job.
 func (a *JobAPI) StartJob(c *gin.Context) {
 	id, ok := parseJobID(c)
 	if !ok {
 		return
 	}
 
-	if err := a.service.StartJobByID(id); err != nil {
+	if err := a.service.StartJobByIDContext(c.Request.Context(), id); err != nil {
 		a.handleError(c, err)
 		return
 	}
@@ -137,14 +136,14 @@ func (a *JobAPI) StartJob(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// StopJob 停止任务
+// StopJob stops a scheduled job.
 func (a *JobAPI) StopJob(c *gin.Context) {
 	id, ok := parseJobID(c)
 	if !ok {
 		return
 	}
 
-	if err := a.service.StopJobByID(id); err != nil {
+	if err := a.service.StopJobByIDContext(c.Request.Context(), id); err != nil {
 		a.handleError(c, err)
 		return
 	}
@@ -152,14 +151,14 @@ func (a *JobAPI) StopJob(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// RunJob 立即执行任务
+// RunJob runs a scheduled job immediately.
 func (a *JobAPI) RunJob(c *gin.Context) {
 	id, ok := parseJobID(c)
 	if !ok {
 		return
 	}
 
-	if err := a.service.RunJob(id); err != nil {
+	if err := a.service.RunJobContext(c.Request.Context(), id); err != nil {
 		a.handleError(c, err)
 		return
 	}
@@ -167,7 +166,7 @@ func (a *JobAPI) RunJob(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// GetJobHealth 获取任务健康检查结果
+// GetJobHealth returns scheduled job health.
 func (a *JobAPI) GetJobHealth(c *gin.Context) {
 	windowHours := 0
 	if v := c.Query("window_hours"); v != "" {
@@ -179,7 +178,7 @@ func (a *JobAPI) GetJobHealth(c *gin.Context) {
 		windowHours = parsed
 	}
 
-	health, err := a.service.CheckJobHealth(windowHours)
+	health, err := a.service.CheckJobHealthContext(c.Request.Context(), windowHours)
 	if err != nil {
 		a.handleError(c, err)
 		return
@@ -188,7 +187,7 @@ func (a *JobAPI) GetJobHealth(c *gin.Context) {
 	response.Success(c, health)
 }
 
-// CleanupJobLogs 按保留天数清理任务日志
+// CleanupJobLogs removes job logs older than the retention window.
 func (a *JobAPI) CleanupJobLogs(c *gin.Context) {
 	retentionDays := monitor.DefaultJobLogRetentionDays
 
@@ -212,7 +211,7 @@ func (a *JobAPI) CleanupJobLogs(c *gin.Context) {
 		retentionDays = parsed
 	}
 
-	result, err := a.service.CleanupJobLogs(retentionDays)
+	result, err := a.service.CleanupJobLogsContext(c.Request.Context(), retentionDays)
 	if err != nil {
 		a.handleError(c, err)
 		return
@@ -237,6 +236,6 @@ func (a *JobAPI) handleError(c *gin.Context, err error) {
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		response.NotFound(c, "job not found")
 	default:
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to process scheduled job request", err)
 	}
 }

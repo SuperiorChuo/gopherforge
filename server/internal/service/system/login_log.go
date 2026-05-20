@@ -1,22 +1,21 @@
 package system
 
 import (
+	"context"
 	"strings"
 	"time"
 
-	"github.com/go-admin-kit/server/internal/dao/system"
+	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/ipinfo"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// LoginLogService 登录日志服务
 type LoginLogService struct {
-	logDAO system.LoginLogDAO
+	logDAO systemdao.LoginLogDAO
 }
 
-// LoginLogListRequest 登录日志列表请求
 type LoginLogListRequest struct {
 	pagination.PageRequest
 	UserID    *uint               `form:"user_id" json:"user_id"`
@@ -29,20 +28,21 @@ type LoginLogListRequest struct {
 	DataScope authz.UserDataScope `json:"-" form:"-"`
 }
 
-// LoginInfo 登录信息（用于记录日志）
 type LoginInfo struct {
 	UserID    uint
 	Username  string
-	LoginType int8 // 1账号密码，2GitHub，3微信
-	Status    int8 // 1成功，0失败
+	LoginType int8
+	Status    int8
 	IP        string
 	UserAgent string
 	Message   string
 }
 
-// Record 记录登录日志
 func (s *LoginLogService) Record(info *LoginInfo) error {
-	// 解析 UserAgent
+	return s.RecordContext(context.Background(), info)
+}
+
+func (s *LoginLogService) RecordContext(ctx context.Context, info *LoginInfo) error {
 	device, os, browser := parseUserAgent(info.UserAgent)
 
 	log := &model.LoginLog{
@@ -51,7 +51,7 @@ func (s *LoginLogService) Record(info *LoginInfo) error {
 		LoginType: info.LoginType,
 		Status:    info.Status,
 		IP:        info.IP,
-		Location:  getIPLocation(info.IP), // 获取IP归属地
+		Location:  getIPLocation(info.IP),
 		Device:    device,
 		OS:        os,
 		Browser:   browser,
@@ -59,12 +59,16 @@ func (s *LoginLogService) Record(info *LoginInfo) error {
 		Message:   info.Message,
 	}
 
-	return s.logDAO.Create(log)
+	return s.logDAO.CreateContext(ctx, log)
 }
 
-// GetLogList 获取登录日志列表
 func (s *LoginLogService) GetLogList(req LoginLogListRequest) ([]model.LoginLog, int64, error) {
-	return s.logDAO.GetList(
+	return s.GetLogListContext(context.Background(), req)
+}
+
+func (s *LoginLogService) GetLogListContext(ctx context.Context, req LoginLogListRequest) ([]model.LoginLog, int64, error) {
+	return s.logDAO.GetListContext(
+		ctx,
 		req.PageRequest,
 		req.UserID,
 		req.Username,
@@ -77,59 +81,66 @@ func (s *LoginLogService) GetLogList(req LoginLogListRequest) ([]model.LoginLog,
 	)
 }
 
-// GetUserLastLogin 获取用户最后登录记录
 func (s *LoginLogService) GetUserLastLogin(userID uint) (*model.LoginLog, error) {
-	return s.logDAO.GetUserLastLogin(userID)
+	return s.GetUserLastLoginContext(context.Background(), userID)
 }
 
-// GetLoginStats 获取登录统计
-func (s *LoginLogService) GetLoginStats(startTime, endTime *time.Time) (*system.LoginLogStats, error) {
-	return s.logDAO.GetStats(startTime, endTime)
+func (s *LoginLogService) GetUserLastLoginContext(ctx context.Context, userID uint) (*model.LoginLog, error) {
+	return s.logDAO.GetUserLastLoginContext(ctx, userID)
 }
 
-// ClearLogs 清理旧日志
+func (s *LoginLogService) GetLoginStats(startTime, endTime *time.Time) (*systemdao.LoginLogStats, error) {
+	return s.GetLoginStatsContext(context.Background(), startTime, endTime)
+}
+
+func (s *LoginLogService) GetLoginStatsContext(ctx context.Context, startTime, endTime *time.Time) (*systemdao.LoginLogStats, error) {
+	return s.logDAO.GetStatsContext(ctx, startTime, endTime)
+}
+
 func (s *LoginLogService) ClearLogs(days int) (int64, error) {
+	return s.ClearLogsContext(context.Background(), days)
+}
+
+func (s *LoginLogService) ClearLogsContext(ctx context.Context, days int) (int64, error) {
 	before := time.Now().AddDate(0, 0, -days)
-	return s.logDAO.DeleteBefore(before)
+	return s.logDAO.DeleteBeforeContext(ctx, before)
 }
 
-// GetLoginTrend 获取登录趋势
-func (s *LoginLogService) GetLoginTrend(days int) ([]system.LoginTrendItem, error) {
-	return s.logDAO.GetLoginTrend(days)
+func (s *LoginLogService) GetLoginTrend(days int) ([]systemdao.LoginTrendItem, error) {
+	return s.GetLoginTrendContext(context.Background(), days)
 }
 
-// CheckAbnormalLogin 检查异常登录
+func (s *LoginLogService) GetLoginTrendContext(ctx context.Context, days int) ([]systemdao.LoginTrendItem, error) {
+	return s.logDAO.GetLoginTrendContext(ctx, days)
+}
+
 func (s *LoginLogService) CheckAbnormalLogin(userID uint, ip string) (bool, string) {
-	// 获取用户最后登录记录
-	lastLogin, err := s.logDAO.GetUserLastLogin(userID)
+	return s.CheckAbnormalLoginContext(context.Background(), userID, ip)
+}
+
+func (s *LoginLogService) CheckAbnormalLoginContext(ctx context.Context, userID uint, ip string) (bool, string) {
+	lastLogin, err := s.logDAO.GetUserLastLoginContext(ctx, userID)
 	if err != nil {
 		return false, ""
 	}
-
-	// 检查是否是新设备/新IP
 	if lastLogin.IP != ip {
 		return true, "new IP address detected"
 	}
-
-	// 可以添加更多检查：
-	// - 异地登录检测
-	// - 短时间内多次登录
-	// - 非常规时间登录
-
 	return false, ""
 }
 
-// GetFailedLoginCount 获取登录失败次数
 func (s *LoginLogService) GetFailedLoginCount(username, ip string, minutes int) (int64, error) {
-	since := time.Now().Add(-time.Duration(minutes) * time.Minute)
-	return s.logDAO.GetFailedLoginCount(username, ip, since)
+	return s.GetFailedLoginCountContext(context.Background(), username, ip, minutes)
 }
 
-// parseUserAgent 解析 UserAgent
+func (s *LoginLogService) GetFailedLoginCountContext(ctx context.Context, username, ip string, minutes int) (int64, error) {
+	since := time.Now().Add(-time.Duration(minutes) * time.Minute)
+	return s.logDAO.GetFailedLoginCountContext(ctx, username, ip, since)
+}
+
 func parseUserAgent(ua string) (device, os, browser string) {
 	ua = strings.ToLower(ua)
 
-	// 设备类型
 	if strings.Contains(ua, "mobile") || strings.Contains(ua, "android") || strings.Contains(ua, "iphone") {
 		device = "Mobile"
 	} else if strings.Contains(ua, "tablet") || strings.Contains(ua, "ipad") {
@@ -138,7 +149,6 @@ func parseUserAgent(ua string) (device, os, browser string) {
 		device = "Desktop"
 	}
 
-	// 操作系统
 	switch {
 	case strings.Contains(ua, "windows"):
 		os = "Windows"
@@ -154,7 +164,6 @@ func parseUserAgent(ua string) (device, os, browser string) {
 		os = "Unknown"
 	}
 
-	// 浏览器
 	switch {
 	case strings.Contains(ua, "chrome") && !strings.Contains(ua, "edg"):
 		browser = "Chrome"
@@ -175,14 +184,10 @@ func parseUserAgent(ua string) (device, os, browser string) {
 	return
 }
 
-// getIPLocation 获取IP归属地
-// 使用 ip-api.com 免费 API 查询
-// 文档：https://ip-api.com/docs/api:json
 func getIPLocation(ip string) string {
 	return ipinfo.GetLocationByIP(ip)
 }
 
-// truncateString 截断字符串
 func truncateString(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s

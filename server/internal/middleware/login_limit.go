@@ -13,16 +13,12 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/response"
 )
 
-// LoginLimitConfig 登录限制配置
+// LoginLimitConfig controls login failure throttling.
 type LoginLimitConfig struct {
-	// 时间窗口（秒）
-	Window time.Duration
-	// 最大失败次数
-	MaxFailures int
-	// 锁定时间（秒）
+	Window       time.Duration
+	MaxFailures  int
 	LockDuration time.Duration
-	// 键前缀
-	KeyPrefix string
+	KeyPrefix    string
 }
 
 func LoginLimitConfigFromApp() LoginLimitConfig {
@@ -60,12 +56,15 @@ func LoginIdentifier(username, ip string) string {
 }
 
 func IsLoginLocked(identifier string, config LoginLimitConfig) (bool, time.Duration) {
+	return IsLoginLockedContext(context.Background(), identifier, config)
+}
+
+func IsLoginLockedContext(ctx context.Context, identifier string, config LoginLimitConfig) (bool, time.Duration) {
 	if redis.Client == nil {
 		return false, 0
 	}
 	key := fmt.Sprintf("%s:%s", config.KeyPrefix, identifier)
 	lockKey := fmt.Sprintf("%s:lock", key)
-	ctx := context.Background()
 	locked, err := redis.Client.Get(ctx, lockKey).Result()
 	if err == nil && locked == "1" {
 		ttl, _ := redis.Client.TTL(ctx, lockKey).Result()
@@ -74,7 +73,7 @@ func IsLoginLocked(identifier string, config LoginLimitConfig) (bool, time.Durat
 	return false, 0
 }
 
-// DefaultLoginLimitConfig 默认登录限制配置
+// DefaultLoginLimitConfig returns fallback login throttling settings.
 func DefaultLoginLimitConfig() LoginLimitConfig {
 	return LoginLimitConfig{
 		Window:       time.Minute * 15,
@@ -84,19 +83,17 @@ func DefaultLoginLimitConfig() LoginLimitConfig {
 	}
 }
 
-// CheckLoginLimit 检查登录限制（用于登录接口）
+// CheckLoginLimit blocks login requests while an identifier is locked.
 func CheckLoginLimit(config LoginLimitConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 获取客户端IP或用户名
 		identifier := c.ClientIP()
 		if username := c.PostForm("username"); username != "" {
 			identifier = username
 		}
 
 		key := fmt.Sprintf("%s:%s", config.KeyPrefix, identifier)
-		ctx := context.Background()
+		ctx := c.Request.Context()
 
-		// 检查是否被锁定
 		locked, err := redis.Client.Get(ctx, fmt.Sprintf("%s:lock", key)).Result()
 		if err == nil && locked == "1" {
 			ttl, _ := redis.Client.TTL(ctx, fmt.Sprintf("%s:lock", key)).Result()
@@ -109,36 +106,43 @@ func CheckLoginLimit(config LoginLimitConfig) gin.HandlerFunc {
 	}
 }
 
-// RecordLoginFailure 记录登录失败
+// RecordLoginFailure records a failed login attempt.
 func RecordLoginFailure(identifier string, config LoginLimitConfig) {
+	RecordLoginFailureContext(context.Background(), identifier, config)
+}
+
+func RecordLoginFailureContext(ctx context.Context, identifier string, config LoginLimitConfig) {
 	if redis.Client == nil {
 		return
 	}
 	key := fmt.Sprintf("%s:%s", config.KeyPrefix, identifier)
-	ctx := context.Background()
 
-	// 增加失败次数
-	failures, _ := redis.Client.Incr(ctx, key).Result()
+	failures, err := redis.Client.Incr(ctx, key).Result()
+	if err != nil {
+		return
+	}
 	redis.Client.Expire(ctx, key, config.Window)
 
-	// 如果超过最大失败次数，锁定账户
 	if failures >= int64(config.MaxFailures) {
 		lockKey := fmt.Sprintf("%s:lock", key)
 		redis.Client.Set(ctx, lockKey, "1", config.LockDuration)
-		logger.Warn("账户因登录失败次数过多已被锁定",
-			logger.String("标识", identifier),
-			logger.Int64("失败次数", failures),
+		logger.Warn("account locked after repeated login failures",
+			logger.String("identifier", identifier),
+			logger.Int64("failures", failures),
 		)
 	}
 }
 
-// ClearLoginLimit 清除登录限制（登录成功后调用）
+// ClearLoginLimit clears login throttling after a successful login.
 func ClearLoginLimit(identifier string, config LoginLimitConfig) {
+	ClearLoginLimitContext(context.Background(), identifier, config)
+}
+
+func ClearLoginLimitContext(ctx context.Context, identifier string, config LoginLimitConfig) {
 	if redis.Client == nil {
 		return
 	}
 	key := fmt.Sprintf("%s:%s", config.KeyPrefix, identifier)
-	ctx := context.Background()
 
 	redis.Client.Del(ctx, key)
 	redis.Client.Del(ctx, fmt.Sprintf("%s:lock", key))

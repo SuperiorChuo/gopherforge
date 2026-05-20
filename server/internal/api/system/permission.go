@@ -8,19 +8,19 @@ import (
 	"github.com/go-admin-kit/server/internal/service/system"
 )
 
-// PermissionManagementAPI 权限管理API
+// PermissionManagementAPI handles permission management endpoints.
 type PermissionManagementAPI struct {
 	permissionService system.PermissionService
 }
 
-// NewPermissionManagementAPI 创建PermissionManagementAPI实例
+// NewPermissionManagementAPI creates a PermissionManagementAPI instance.
 func NewPermissionManagementAPI() *PermissionManagementAPI {
 	return &PermissionManagementAPI{
 		permissionService: system.PermissionService{},
 	}
 }
 
-// GetPermissionList 获取权限列表
+// GetPermissionList returns paginated permissions.
 func (a *PermissionManagementAPI) GetPermissionList(c *gin.Context) {
 	var req system.PermissionListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -28,7 +28,6 @@ func (a *PermissionManagementAPI) GetPermissionList(c *gin.Context) {
 		return
 	}
 
-	// 设置默认分页参数
 	if req.Page <= 0 {
 		req.Page = 1
 	}
@@ -36,7 +35,7 @@ func (a *PermissionManagementAPI) GetPermissionList(c *gin.Context) {
 		req.PageSize = 10
 	}
 
-	// 解析类型参数
+	// Parse type from query separately because Gin does not bind *int8 reliably.
 	if typeStr := c.Query("type"); typeStr != "" {
 		permissionType, err := strconv.ParseInt(typeStr, 10, 8)
 		if err == nil {
@@ -45,27 +44,27 @@ func (a *PermissionManagementAPI) GetPermissionList(c *gin.Context) {
 		}
 	}
 
-	permissions, total, err := a.permissionService.GetPermissionList(req)
+	permissions, total, err := a.permissionService.GetPermissionListContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get permission list", err)
 		return
 	}
 
 	response.PageSuccess(c, permissions, total, req.Page, req.PageSize)
 }
 
-// GetPermissionTree 获取权限树
+// GetPermissionTree returns permissions as a tree.
 func (a *PermissionManagementAPI) GetPermissionTree(c *gin.Context) {
-	permissions, err := a.permissionService.GetPermissionTree()
+	permissions, err := a.permissionService.GetPermissionTreeContext(c.Request.Context())
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get permission tree", err)
 		return
 	}
 
 	response.Success(c, permissions)
 }
 
-// GetPermission 获取权限详情
+// GetPermission returns a permission by id.
 func (a *PermissionManagementAPI) GetPermission(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -74,7 +73,7 @@ func (a *PermissionManagementAPI) GetPermission(c *gin.Context) {
 		return
 	}
 
-	permission, err := a.permissionService.GetPermissionByID(uint(id))
+	permission, err := a.permissionService.GetPermissionByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
 		response.NotFound(c, "permission not found")
 		return
@@ -83,7 +82,7 @@ func (a *PermissionManagementAPI) GetPermission(c *gin.Context) {
 	response.Success(c, permission)
 }
 
-// CreatePermission 创建权限
+// CreatePermission creates a permission.
 func (a *PermissionManagementAPI) CreatePermission(c *gin.Context) {
 	var req system.CreatePermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -91,7 +90,7 @@ func (a *PermissionManagementAPI) CreatePermission(c *gin.Context) {
 		return
 	}
 
-	permission, err := a.permissionService.CreatePermission(req)
+	permission, err := a.permissionService.CreatePermissionContext(c.Request.Context(), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -100,7 +99,7 @@ func (a *PermissionManagementAPI) CreatePermission(c *gin.Context) {
 	response.SuccessWithMessage(c, "permission created successfully", permission)
 }
 
-// UpdatePermission 更新权限
+// UpdatePermission updates a permission.
 func (a *PermissionManagementAPI) UpdatePermission(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -115,7 +114,7 @@ func (a *PermissionManagementAPI) UpdatePermission(c *gin.Context) {
 		return
 	}
 
-	permission, err := a.permissionService.UpdatePermission(uint(id), req)
+	permission, err := a.permissionService.UpdatePermissionContext(c.Request.Context(), uint(id), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -124,7 +123,7 @@ func (a *PermissionManagementAPI) UpdatePermission(c *gin.Context) {
 	response.SuccessWithMessage(c, "permission updated successfully", permission)
 }
 
-// DeletePermission 删除权限
+// DeletePermission deletes a permission.
 func (a *PermissionManagementAPI) DeletePermission(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -133,7 +132,7 @@ func (a *PermissionManagementAPI) DeletePermission(c *gin.Context) {
 		return
 	}
 
-	if err := a.permissionService.DeletePermission(uint(id)); err != nil {
+	if err := a.permissionService.DeletePermissionContext(c.Request.Context(), uint(id)); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}

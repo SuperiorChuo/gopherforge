@@ -1,20 +1,21 @@
+version: "2"
+
 run:
   timeout: 5m
   tests: true
 
-issues:
-  exclude-dirs:
-    - server/logs
-    - tdesign-vue-go
-
 linters:
+  default: none
   enable:
     - govet
     - ineffassign
     - misspell
     - staticcheck
     - unused
-
-linters-settings:
-  misspell:
-    locale: US
+  settings:
+    misspell:
+      locale: US
+  exclusions:
+    paths:
+      - server/logs
+      - tdesign-vue-go

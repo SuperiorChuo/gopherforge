@@ -103,12 +103,8 @@ api-contract:
 
 .PHONY: status
 status:
-	@docker ps --filter name='go-admin-kit-' --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
-	@lsof -nP -iTCP:3000 -sTCP:LISTEN || true
-	@lsof -nP -iTCP:3001 -sTCP:LISTEN || true
-	@lsof -nP -iTCP:8081 -sTCP:LISTEN || true
+	@node scripts/dev-status.mjs
 
 .PHONY: logs
 logs:
-	@tail -n 80 /tmp/go-admin-kit-backend.log 2>/dev/null || true
-	@tail -n 40 /tmp/go-admin-kit-frontend-real.log 2>/dev/null || true
+	@node scripts/dev-logs.mjs

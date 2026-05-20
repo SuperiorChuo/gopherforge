@@ -1,11 +1,12 @@
 package system
 
 import (
+	"context"
 	"errors"
 	"mime/multipart"
 	"time"
 
-	"github.com/go-admin-kit/server/internal/dao/system"
+	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
@@ -14,21 +15,18 @@ import (
 
 var ErrFileNotFoundOrPermissionDenied = errors.New("file not found or permission denied")
 
-// FileService 文件服务
 type FileService struct {
-	fileDAO  system.FileDAO
+	fileDAO  systemdao.FileDAO
 	uploader *upload.Uploader
 }
 
-// NewFileService 创建文件服务
 func NewFileService() *FileService {
 	return &FileService{
-		fileDAO:  system.FileDAO{},
+		fileDAO:  systemdao.FileDAO{},
 		uploader: upload.NewUploader(),
 	}
 }
 
-// FileListRequest 文件列表请求
 type FileListRequest struct {
 	pagination.PageRequest
 	UserID    *uint               `form:"user_id" json:"user_id"`
@@ -39,23 +37,26 @@ type FileListRequest struct {
 	DataScope authz.UserDataScope `json:"-" form:"-"`
 }
 
-// Upload 上传文件
 func (s *FileService) Upload(file *multipart.FileHeader, userID uint) (*model.File, error) {
-	// 检查是否存在相同哈希的文件（秒传）
-	// 这里需要先计算哈希，但为了简化，先上传再检查
+	return s.UploadContext(context.Background(), file, userID)
+}
 
-	// 上传文件
-	info, err := s.uploader.Upload(file)
+func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHeader, userID uint) (*model.File, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	info, err := s.uploader.UploadContext(ctx, file)
 	if err != nil {
 		return nil, err
 	}
 
-	// 检查是否已存在（秒传）
-	existingFile, err := s.fileDAO.GetByHash(info.Hash)
+	existingFile, err := s.fileDAO.GetByHashContext(ctx, info.Hash)
 	if err == nil && existingFile != nil {
-		// 文件已存在，删除刚上传的文件
-		_ = s.uploader.Delete(info.FilePath)
-		// 创建新的文件记录，指向已存在的文件
+		_ = s.uploader.DeleteContext(ctx, info.FilePath)
 		newFile := &model.File{
 			UserID:      userID,
 			FileName:    info.FileName,
@@ -68,13 +69,12 @@ func (s *FileService) Upload(file *multipart.FileHeader, userID uint) (*model.Fi
 			URL:         existingFile.URL,
 			Hash:        existingFile.Hash,
 		}
-		if err := s.fileDAO.Create(newFile); err != nil {
+		if err := s.fileDAO.CreateContext(ctx, newFile); err != nil {
 			return nil, err
 		}
 		return newFile, nil
 	}
 
-	// 创建文件记录
 	fileRecord := &model.File{
 		UserID:      userID,
 		FileName:    info.FileName,
@@ -88,22 +88,24 @@ func (s *FileService) Upload(file *multipart.FileHeader, userID uint) (*model.Fi
 		Hash:        info.Hash,
 	}
 
-	if err := s.fileDAO.Create(fileRecord); err != nil {
-		// 创建记录失败，删除已上传的文件
-		_ = s.uploader.Delete(info.FilePath)
+	if err := s.fileDAO.CreateContext(ctx, fileRecord); err != nil {
+		_ = s.uploader.DeleteContext(ctx, info.FilePath)
 		return nil, err
 	}
 
 	return fileRecord, nil
 }
 
-// UploadMultiple 批量上传文件
 func (s *FileService) UploadMultiple(files []*multipart.FileHeader, userID uint) ([]*model.File, []error) {
+	return s.UploadMultipleContext(context.Background(), files, userID)
+}
+
+func (s *FileService) UploadMultipleContext(ctx context.Context, files []*multipart.FileHeader, userID uint) ([]*model.File, []error) {
 	var results []*model.File
 	var errs []error
 
 	for _, file := range files {
-		record, err := s.Upload(file, userID)
+		record, err := s.UploadContext(ctx, file, userID)
 		if err != nil {
 			errs = append(errs, err)
 		} else {
@@ -114,61 +116,76 @@ func (s *FileService) UploadMultiple(files []*multipart.FileHeader, userID uint)
 	return results, errs
 }
 
-// GetFileByID 根据ID获取文件
 func (s *FileService) GetFileByID(id uint) (*model.File, error) {
-	return s.fileDAO.GetByID(id)
+	return s.GetFileByIDContext(context.Background(), id)
 }
 
-// GetFileByIDInScope 根据ID在当前用户数据权限范围内获取文件。
+func (s *FileService) GetFileByIDContext(ctx context.Context, id uint) (*model.File, error) {
+	return s.fileDAO.GetByIDContext(ctx, id)
+}
+
 func (s *FileService) GetFileByIDInScope(id uint, dataScope authz.UserDataScope) (*model.File, error) {
-	return s.fileDAO.GetByIDInScope(id, dataScope)
+	return s.GetFileByIDInScopeContext(context.Background(), id, dataScope)
 }
 
-// GetFileByHash 根据哈希在当前用户数据权限范围内查询文件。
+func (s *FileService) GetFileByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*model.File, error) {
+	return s.fileDAO.GetByIDInScopeContext(ctx, id, dataScope)
+}
+
 func (s *FileService) GetFileByHash(hash string, dataScope authz.UserDataScope) (*model.File, error) {
-	return s.fileDAO.GetByHashInScope(hash, dataScope)
+	return s.GetFileByHashContext(context.Background(), hash, dataScope)
 }
 
-// GetFileList 获取文件列表
+func (s *FileService) GetFileByHashContext(ctx context.Context, hash string, dataScope authz.UserDataScope) (*model.File, error) {
+	return s.fileDAO.GetByHashInScopeContext(ctx, hash, dataScope)
+}
+
 func (s *FileService) GetFileList(req FileListRequest) ([]model.File, int64, error) {
-	return s.fileDAO.GetList(req.PageRequest, req.UserID, req.FileType, req.Keyword, req.StartTime, req.EndTime, req.DataScope)
+	return s.GetFileListContext(context.Background(), req)
 }
 
-// DeleteFile 删除文件
+func (s *FileService) GetFileListContext(ctx context.Context, req FileListRequest) ([]model.File, int64, error) {
+	return s.fileDAO.GetListContext(ctx, req.PageRequest, req.UserID, req.FileType, req.Keyword, req.StartTime, req.EndTime, req.DataScope)
+}
+
 func (s *FileService) DeleteFile(id uint, userID uint, dataScope authz.UserDataScope) error {
+	return s.DeleteFileContext(context.Background(), id, userID, dataScope)
+}
+
+func (s *FileService) DeleteFileContext(ctx context.Context, id uint, userID uint, dataScope authz.UserDataScope) error {
 	if dataScope.UserID == 0 {
 		dataScope.UserID = userID
 	}
 
-	file, err := s.fileDAO.GetByIDInScope(id, dataScope)
+	file, err := s.fileDAO.GetByIDInScopeContext(ctx, id, dataScope)
 	if err != nil {
+		if isContextError(err) {
+			return err
+		}
 		return ErrFileNotFoundOrPermissionDenied
 	}
 
-	// 检查是否有其他记录引用同一物理文件
-	// 简化处理：直接删除物理文件
-	// 实际应用中可能需要引用计数
-
-	// 删除物理文件
-	if err := s.uploader.Delete(file.FilePath); err != nil {
-		// 记录日志但不中断流程
-	}
-
-	// 删除数据库记录
-	return s.fileDAO.Delete(id)
+	_ = s.uploader.DeleteContext(ctx, file.FilePath)
+	return s.fileDAO.DeleteContext(ctx, id)
 }
 
-// DeleteFiles 批量删除文件
 func (s *FileService) DeleteFiles(ids []uint, userID uint, dataScope authz.UserDataScope) error {
+	return s.DeleteFilesContext(context.Background(), ids, userID, dataScope)
+}
+
+func (s *FileService) DeleteFilesContext(ctx context.Context, ids []uint, userID uint, dataScope authz.UserDataScope) error {
 	for _, id := range ids {
-		if err := s.DeleteFile(id, userID, dataScope); err != nil {
+		if err := s.DeleteFileContext(ctx, id, userID, dataScope); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// GetFileStats 获取文件统计
-func (s *FileService) GetFileStats(userID *uint, dataScope authz.UserDataScope) (*system.FileStats, error) {
-	return s.fileDAO.GetStatsInScope(userID, dataScope)
+func (s *FileService) GetFileStats(userID *uint, dataScope authz.UserDataScope) (*systemdao.FileStats, error) {
+	return s.GetFileStatsContext(context.Background(), userID, dataScope)
+}
+
+func (s *FileService) GetFileStatsContext(ctx context.Context, userID *uint, dataScope authz.UserDataScope) (*systemdao.FileStats, error) {
+	return s.fileDAO.GetStatsInScopeContext(ctx, userID, dataScope)
 }

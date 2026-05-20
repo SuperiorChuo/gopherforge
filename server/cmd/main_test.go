@@ -1,9 +1,14 @@
 package main
 
 import (
+	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/config"
@@ -44,5 +49,112 @@ func TestSetupCORSAllowsLocalDevelopmentFrontendPorts(t *testing.T) {
 	}
 	if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != "http://127.0.0.1:5173" {
 		t.Fatalf("Access-Control-Allow-Origin = %q, want %q", got, "http://127.0.0.1:5173")
+	}
+}
+
+func TestConfigureGinWritersUsesDiscardInProduction(t *testing.T) {
+	originalMode := gin.Mode()
+	originalWriter := gin.DefaultWriter
+	originalErrorWriter := gin.DefaultErrorWriter
+	t.Cleanup(func() {
+		gin.SetMode(originalMode)
+		gin.DefaultWriter = originalWriter
+		gin.DefaultErrorWriter = originalErrorWriter
+	})
+
+	configureGinWriters("production")
+
+	if gin.DefaultWriter == nil {
+		t.Fatal("production gin DefaultWriter must not be nil")
+	}
+	if gin.DefaultErrorWriter == nil {
+		t.Fatal("production gin DefaultErrorWriter must not be nil")
+	}
+	if _, err := gin.DefaultWriter.Write([]byte("probe")); err != nil {
+		t.Fatalf("production gin DefaultWriter write failed: %v", err)
+	}
+	if _, err := gin.DefaultErrorWriter.Write([]byte("probe")); err != nil {
+		t.Fatalf("production gin DefaultErrorWriter write failed: %v", err)
+	}
+}
+
+func TestServeHTTPServerGracefullyWaitsForInFlightRequests(t *testing.T) {
+	releaseHandler := make(chan struct{})
+	handlerStarted := make(chan struct{})
+	handlerDone := make(chan struct{})
+
+	server := &http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			close(handlerStarted)
+			<-releaseHandler
+			w.WriteHeader(http.StatusNoContent)
+			close(handlerDone)
+		}),
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	shutdown := make(chan os.Signal, 1)
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- serveHTTPServer(server, listener, time.Second, shutdown)
+	}()
+
+	clientErr := make(chan error, 1)
+	go func() {
+		resp, err := http.Get("http://" + listener.Addr().String())
+		if err != nil {
+			clientErr <- err
+			return
+		}
+		defer resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		if resp.StatusCode != http.StatusNoContent {
+			clientErr <- fmt.Errorf("status = %d, want %d", resp.StatusCode, http.StatusNoContent)
+			return
+		}
+		clientErr <- nil
+	}()
+
+	select {
+	case <-handlerStarted:
+	case <-time.After(time.Second):
+		t.Fatal("handler did not start")
+	}
+
+	shutdown <- os.Interrupt
+
+	select {
+	case err := <-serverErr:
+		t.Fatalf("server returned before in-flight request completed: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(releaseHandler)
+
+	select {
+	case err := <-clientErr:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("client request did not complete")
+	}
+
+	select {
+	case <-handlerDone:
+	case <-time.After(time.Second):
+		t.Fatal("handler did not complete")
+	}
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			t.Fatalf("server returned error: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("server did not shut down")
 	}
 }

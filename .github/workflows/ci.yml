@@ -37,8 +37,13 @@ jobs:
           cache-dependency-path: server/go.sum
 
       - run: go mod download
-      - run: go test ./...
+      - run: go test -coverprofile=coverage.out -covermode=atomic ./...
       - run: go vet ./...
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12.2
+          working-directory: server
+          args: --config ../.golangci.yml ./...
 
   integration:
     name: Integration Smoke

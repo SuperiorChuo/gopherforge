@@ -4,11 +4,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/server/internal/pkg/logger"
 	"github.com/go-admin-kit/server/internal/pkg/response"
 	"github.com/go-admin-kit/server/internal/service/system"
 )
 
-// OnlineUserAPI 在线用户管理 API
+// OnlineUserAPI handles online user management endpoints.
 type OnlineUserAPI struct {
 	onlineUserService system.OnlineUserService
 }
@@ -26,23 +27,24 @@ type onlineUserListItem struct {
 	AccessTokenExpiresAt time.Time `json:"access_token_expires_at,omitempty"`
 }
 
-// NewOnlineUserAPI 创建 OnlineUserAPI 实例
+// NewOnlineUserAPI creates an OnlineUserAPI instance.
 func NewOnlineUserAPI() *OnlineUserAPI {
 	return &OnlineUserAPI{
 		onlineUserService: system.OnlineUserService{},
 	}
 }
 
-// GetOnlineUsers 获取在线用户列表
-// @Summary 获取在线用户列表
-// @Tags 在线用户管理
+// GetOnlineUsers returns online users.
+// @Summary Get online users
+// @Tags Online User Management
 // @Security BearerAuth
 // @Success 200 {object} response.Response{data=[]onlineUserListItem}
 // @Router /online-users [get]
 func (a *OnlineUserAPI) GetOnlineUsers(c *gin.Context) {
-	users, err := a.onlineUserService.GetOnlineUsers()
+	users, err := a.onlineUserService.GetOnlineUsersContext(c.Request.Context())
 	if err != nil {
-		response.InternalServerError(c, "获取在线用户列表失败: "+err.Error())
+		logOnlineUserError("failed to get online users", err)
+		response.InternalServerError(c, "failed to get online users")
 		return
 	}
 
@@ -71,16 +73,17 @@ func (a *OnlineUserAPI) GetOnlineUsers(c *gin.Context) {
 	})
 }
 
-// GetOnlineUserCount 获取在线用户数量
-// @Summary 获取在线用户数量
-// @Tags 在线用户管理
+// GetOnlineUserCount returns the online user count.
+// @Summary Get online user count
+// @Tags Online User Management
 // @Security BearerAuth
 // @Success 200 {object} response.Response{data=int64}
 // @Router /online-users/count [get]
 func (a *OnlineUserAPI) GetOnlineUserCount(c *gin.Context) {
-	count, err := a.onlineUserService.GetOnlineUserCount()
+	count, err := a.onlineUserService.GetOnlineUserCountContext(c.Request.Context())
 	if err != nil {
-		response.InternalServerError(c, "获取在线用户数量失败: "+err.Error())
+		logOnlineUserError("failed to get online user count", err)
+		response.InternalServerError(c, "failed to get online user count")
 		return
 	}
 
@@ -89,9 +92,9 @@ func (a *OnlineUserAPI) GetOnlineUserCount(c *gin.Context) {
 	})
 }
 
-// ForceLogout 强制用户下线
-// @Summary 强制用户下线
-// @Tags 在线用户管理
+// ForceLogout revokes an online user's session.
+// @Summary Force user logout
+// @Tags Online User Management
 // @Security BearerAuth
 // @Param token_id path string true "Token ID"
 // @Success 200 {object} response.Response
@@ -99,14 +102,22 @@ func (a *OnlineUserAPI) GetOnlineUserCount(c *gin.Context) {
 func (a *OnlineUserAPI) ForceLogout(c *gin.Context) {
 	tokenID := c.Param("token_id")
 	if tokenID == "" {
-		response.BadRequest(c, "token_id 不能为空")
+		response.BadRequest(c, "token_id is required")
 		return
 	}
 
-	if err := a.onlineUserService.ForceLogout(tokenID); err != nil {
-		response.InternalServerError(c, "强制下线失败: "+err.Error())
+	if err := a.onlineUserService.ForceLogoutContext(c.Request.Context(), tokenID); err != nil {
+		logOnlineUserError("failed to force logout", err)
+		response.InternalServerError(c, "failed to force logout")
 		return
 	}
 
-	response.SuccessWithMessage(c, "用户已强制下线", nil)
+	response.SuccessWithMessage(c, "user forced offline successfully", nil)
+}
+
+func logOnlineUserError(message string, err error) {
+	if logger.Logger == nil {
+		return
+	}
+	logger.Error(message, logger.Err(err))
 }

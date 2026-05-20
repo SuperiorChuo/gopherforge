@@ -1,51 +1,65 @@
 package system
 
 import (
+	"context"
+
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// DepartmentDAO 部门数据访问对象
 type DepartmentDAO struct{}
 
-// GetByID 根据ID获取部门
 func (d *DepartmentDAO) GetByID(id uint) (*model.Department, error) {
+	return d.GetByIDContext(context.Background(), id)
+}
+
+func (d *DepartmentDAO) GetByIDContext(ctx context.Context, id uint) (*model.Department, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var dept model.Department
-	result := database.DB.First(&dept, id)
+	result := database.DB.WithContext(ctx).First(&dept, id)
 	return &dept, result.Error
 }
 
-// GetByCode 根据编码获取部门
 func (d *DepartmentDAO) GetByCode(code string) (*model.Department, error) {
+	return d.GetByCodeContext(context.Background(), code)
+}
+
+func (d *DepartmentDAO) GetByCodeContext(ctx context.Context, code string) (*model.Department, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var dept model.Department
-	result := database.DB.Where("code = ?", code).First(&dept)
+	result := database.DB.WithContext(ctx).Where("code = ?", code).First(&dept)
 	return &dept, result.Error
 }
 
-// GetList 获取部门列表（分页）
 func (d *DepartmentDAO) GetList(req pagination.PageRequest, keyword string, status *int8) ([]model.Department, int64, error) {
+	return d.GetListContext(context.Background(), req, keyword, status)
+}
+
+func (d *DepartmentDAO) GetListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]model.Department, int64, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var depts []model.Department
 	var total int64
 
-	query := database.DB.Model(&model.Department{})
-
-	// 关键词搜索
+	query := database.DB.WithContext(ctx).Model(&model.Department{})
 	if keyword != "" {
 		query = query.Where("name LIKE ? OR code LIKE ? OR leader LIKE ?",
 			"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 	}
-	// 状态筛选
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
 
-	// 获取总数
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// 分页查询
 	result := query.Scopes(pagination.Paginate(req)).
 		Order("parent_id ASC, sort ASC, created_at ASC").
 		Find(&depts)
@@ -53,10 +67,16 @@ func (d *DepartmentDAO) GetList(req pagination.PageRequest, keyword string, stat
 	return depts, total, result.Error
 }
 
-// GetAll 获取所有部门
 func (d *DepartmentDAO) GetAll(status *int8) ([]model.Department, error) {
+	return d.GetAllContext(context.Background(), status)
+}
+
+func (d *DepartmentDAO) GetAllContext(ctx context.Context, status *int8) ([]model.Department, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var depts []model.Department
-	query := database.DB.Model(&model.Department{})
+	query := database.DB.WithContext(ctx).Model(&model.Department{})
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -64,16 +84,18 @@ func (d *DepartmentDAO) GetAll(status *int8) ([]model.Department, error) {
 	return depts, result.Error
 }
 
-// GetTree 获取部门树
 func (d *DepartmentDAO) GetTree(status *int8) ([]model.Department, error) {
-	depts, err := d.GetAll(status)
+	return d.GetTreeContext(context.Background(), status)
+}
+
+func (d *DepartmentDAO) GetTreeContext(ctx context.Context, status *int8) ([]model.Department, error) {
+	depts, err := d.GetAllContext(ctx, status)
 	if err != nil {
 		return nil, err
 	}
 	return buildDepartmentTree(depts, 0), nil
 }
 
-// buildDepartmentTree 构建部门树
 func buildDepartmentTree(depts []model.Department, parentID uint) []model.Department {
 	var tree []model.Department
 	for i := range depts {
@@ -90,38 +112,63 @@ func buildDepartmentTree(depts []model.Department, parentID uint) []model.Depart
 	return tree
 }
 
-// Create 创建部门
 func (d *DepartmentDAO) Create(dept *model.Department) error {
-	return database.DB.Create(dept).Error
+	return d.CreateContext(context.Background(), dept)
 }
 
-// Update 更新部门
+func (d *DepartmentDAO) CreateContext(ctx context.Context, dept *model.Department) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return database.DB.WithContext(ctx).Create(dept).Error
+}
+
 func (d *DepartmentDAO) Update(dept *model.Department) error {
-	return database.DB.Save(dept).Error
+	return d.UpdateContext(context.Background(), dept)
 }
 
-// Delete 删除部门
+func (d *DepartmentDAO) UpdateContext(ctx context.Context, dept *model.Department) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return database.DB.WithContext(ctx).Save(dept).Error
+}
+
 func (d *DepartmentDAO) Delete(id uint) error {
-	// 检查是否有子部门
+	return d.DeleteContext(context.Background(), id)
+}
+
+func (d *DepartmentDAO) DeleteContext(ctx context.Context, id uint) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	db := database.DB.WithContext(ctx)
+
 	var count int64
-	database.DB.Model(&model.Department{}).Where("parent_id = ?", id).Count(&count)
+	if err := db.Model(&model.Department{}).Where("parent_id = ?", id).Count(&count).Error; err != nil {
+		return err
+	}
 	if count > 0 {
 		return ErrDepartmentHasChildren
 	}
 
-	// 检查是否有关联用户
-	database.DB.Model(&model.User{}).Where("department_id = ?", id).Count(&count)
+	if err := db.Model(&model.User{}).Where("department_id = ?", id).Count(&count).Error; err != nil {
+		return err
+	}
 	if count > 0 {
 		return ErrDepartmentHasUsers
 	}
 
-	return database.DB.Delete(&model.Department{}, id).Error
+	return db.Delete(&model.Department{}, id).Error
 }
 
-// GetChildrenIDs 获取所有子部门ID（递归）
 func (d *DepartmentDAO) GetChildrenIDs(parentID uint) ([]uint, error) {
+	return d.GetChildrenIDsContext(context.Background(), parentID)
+}
+
+func (d *DepartmentDAO) GetChildrenIDsContext(ctx context.Context, parentID uint) ([]uint, error) {
 	var ids []uint
-	depts, err := d.GetAll(nil)
+	depts, err := d.GetAllContext(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +176,6 @@ func (d *DepartmentDAO) GetChildrenIDs(parentID uint) ([]uint, error) {
 	return ids, nil
 }
 
-// collectChildrenIDs 递归收集子部门ID
 func collectChildrenIDs(depts []model.Department, parentID uint, ids *[]uint) {
 	for _, dept := range depts {
 		if dept.ParentID == parentID {
@@ -139,12 +185,11 @@ func collectChildrenIDs(depts []model.Department, parentID uint, ids *[]uint) {
 	}
 }
 
-// 错误定义
 type departmentError string
 
 func (e departmentError) Error() string { return string(e) }
 
 const (
-	ErrDepartmentHasChildren departmentError = "部门下存在子部门，无法删除"
-	ErrDepartmentHasUsers    departmentError = "部门下存在用户，无法删除"
+	ErrDepartmentHasChildren departmentError = "department has child departments"
+	ErrDepartmentHasUsers    departmentError = "department has users"
 )

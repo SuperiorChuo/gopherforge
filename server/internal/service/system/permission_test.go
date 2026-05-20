@@ -1,6 +1,8 @@
 package system
 
 import (
+	"context"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -13,7 +15,7 @@ func TestPermissionRequestsExposeDescription(t *testing.T) {
 		fieldKind reflect.Kind
 	}{
 		{name: "create", value: CreatePermissionRequest{}, fieldKind: reflect.String},
-		{name: "update", value: UpdatePermissionRequest{}, fieldKind: reflect.Ptr},
+		{name: "update", value: UpdatePermissionRequest{}, fieldKind: reflect.Pointer},
 	}
 
 	for _, tt := range tests {
@@ -29,5 +31,21 @@ func TestPermissionRequestsExposeDescription(t *testing.T) {
 				t.Fatalf("Description json tag = %q, want description", got)
 			}
 		})
+	}
+}
+
+func TestPermissionServiceCreatePermissionContextHonorsCanceledContext(t *testing.T) {
+	setupSystemUserServiceContextTestDB(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := (&PermissionService{}).CreatePermissionContext(ctx, CreatePermissionRequest{
+		Name: "List Users",
+		Code: "system:user:list",
+		Type: 2,
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("CreatePermissionContext() error = %v, want context.Canceled", err)
 	}
 }

@@ -17,8 +17,8 @@ func NewServerService() *ServerService {
 }
 
 // GetServerInfo 获取服务器信息
-func (s *ServerService) GetServerInfo() (map[string]interface{}, error) {
-	data := make(map[string]interface{})
+func (s *ServerService) GetServerInfo() (map[string]any, error) {
+	data := make(map[string]any)
 
 	// 1. 内存信息
 	vMem, err := mem.VirtualMemory()
@@ -26,7 +26,7 @@ func (s *ServerService) GetServerInfo() (map[string]interface{}, error) {
 		vMem = &mem.VirtualMemoryStat{}
 	}
 
-	data["memory"] = map[string]interface{}{
+	data["memory"] = map[string]any{
 		"total":        vMem.Total,
 		"used":         vMem.Used,
 		"free":         vMem.Free,
@@ -48,7 +48,7 @@ func (s *ServerService) GetServerInfo() (map[string]interface{}, error) {
 		usedPercent = cpuPercent[0]
 	}
 
-	data["cpu"] = map[string]interface{}{
+	data["cpu"] = map[string]any{
 		"model_name":   modelName,
 		"cores":        cores,
 		"used_percent": usedPercent,
@@ -60,7 +60,7 @@ func (s *ServerService) GetServerInfo() (map[string]interface{}, error) {
 		hostInfo = &host.InfoStat{}
 	}
 
-	data["os"] = map[string]interface{}{
+	data["os"] = map[string]any{
 		"go_os":         runtime.GOOS,
 		"arch":          runtime.GOARCH,
 		"compiler":      runtime.Compiler,
@@ -77,7 +77,7 @@ func (s *ServerService) GetServerInfo() (map[string]interface{}, error) {
 		diskInfo = &disk.UsageStat{}
 	}
 
-	data["disk"] = map[string]interface{}{
+	data["disk"] = map[string]any{
 		"total":        diskInfo.Total,
 		"used":         diskInfo.Used,
 		"free":         diskInfo.Free,

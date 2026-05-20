@@ -77,7 +77,7 @@ func attrsByKey(attrs []attribute.KeyValue) map[string]attribute.Value {
 	return result
 }
 
-func assertAttr(t *testing.T, attrs map[string]attribute.Value, key string, want interface{}) {
+func assertAttr(t *testing.T, attrs map[string]attribute.Value, key string, want any) {
 	t.Helper()
 
 	value, ok := attrs[key]

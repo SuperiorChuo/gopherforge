@@ -1,31 +1,49 @@
 package system
 
 import (
+	"context"
 	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// OperationLogDAO 操作日志数据访问对象
 type OperationLogDAO struct{}
 
-// CreateLog 创建操作日志
 func (d *OperationLogDAO) CreateLog(log *model.OperationLog) error {
-	return database.DB.Create(log).Error
+	return d.CreateLogContext(context.Background(), log)
 }
 
-// GetLogByID 根据ID获取操作日志
+func (d *OperationLogDAO) CreateLogContext(ctx context.Context, log *model.OperationLog) error {
+	return dbWithContext(ctx).Create(log).Error
+}
+
 func (d *OperationLogDAO) GetLogByID(id uint) (*model.OperationLog, error) {
+	return d.GetLogByIDContext(context.Background(), id)
+}
+
+func (d *OperationLogDAO) GetLogByIDContext(ctx context.Context, id uint) (*model.OperationLog, error) {
 	var log model.OperationLog
-	result := database.DB.First(&log, id)
+	result := dbWithContext(ctx).First(&log, id)
 	return &log, result.Error
 }
 
-// GetLogList 获取操作日志列表（分页 + 条件过滤）
 func (d *OperationLogDAO) GetLogList(
+	req pagination.PageRequest,
+	userID *uint,
+	username, actorType, actorID, requestID, method, path, module, action string,
+	status *int,
+	startTime, endTime *time.Time,
+	dataScope authz.UserDataScope,
+) ([]model.OperationLog, int64, error) {
+	return d.GetLogListContext(context.Background(), req, userID, username, actorType, actorID, requestID, method, path, module, action, status, startTime, endTime, dataScope)
+}
+
+func (d *OperationLogDAO) GetLogListContext(
+	ctx context.Context,
 	req pagination.PageRequest,
 	userID *uint,
 	username, actorType, actorID, requestID, method, path, module, action string,
@@ -36,9 +54,29 @@ func (d *OperationLogDAO) GetLogList(
 	var logs []model.OperationLog
 	var total int64
 
-	query := database.DB.Model(&model.OperationLog{})
+	query := dbWithContext(ctx).Model(&model.OperationLog{})
 	query = authz.ApplyOwnerScope(query, dataScope, "user_id")
+	query = applyOperationLogFilters(query, userID, username, actorType, actorID, requestID, method, path, module, action, status, startTime, endTime)
 
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	result := query.
+		Scopes(pagination.Paginate(req)).
+		Order("created_at DESC").
+		Find(&logs)
+
+	return logs, total, result.Error
+}
+
+func applyOperationLogFilters(
+	query *gorm.DB,
+	userID *uint,
+	username, actorType, actorID, requestID, method, path, module, action string,
+	status *int,
+	startTime, endTime *time.Time,
+) *gorm.DB {
 	if userID != nil {
 		query = query.Where("user_id = ?", *userID)
 	}
@@ -69,89 +107,77 @@ func (d *OperationLogDAO) GetLogList(
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
-	if startTime != nil {
-		query = query.Where("created_at >= ?", *startTime)
-	}
-	if endTime != nil {
-		query = query.Where("created_at <= ?", *endTime)
-	}
-
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	result := query.
-		Scopes(pagination.Paginate(req)).
-		Order("created_at DESC").
-		Find(&logs)
-
-	return logs, total, result.Error
+	return applyTimeRange(query, startTime, endTime)
 }
 
-// DeleteLogsBefore 删除指定时间之前的日志
 func (d *OperationLogDAO) DeleteLogsBefore(before time.Time) (int64, error) {
-	result := database.DB.Where("created_at < ?", before).Delete(&model.OperationLog{})
+	return d.DeleteLogsBeforeContext(context.Background(), before)
+}
+
+func (d *OperationLogDAO) DeleteLogsBeforeContext(ctx context.Context, before time.Time) (int64, error) {
+	result := dbWithContext(ctx).Where("created_at < ?", before).Delete(&model.OperationLog{})
 	return result.RowsAffected, result.Error
 }
 
-// GetLogStats 获取日志统计信息
 func (d *OperationLogDAO) GetLogStats(startTime, endTime *time.Time) (*LogStats, error) {
-	stats := &LogStats{}
+	return d.GetLogStatsContext(context.Background(), startTime, endTime)
+}
 
-	query := database.DB.Model(&model.OperationLog{})
-	if startTime != nil {
-		query = query.Where("created_at >= ?", *startTime)
-	}
-	if endTime != nil {
-		query = query.Where("created_at <= ?", *endTime)
-	}
+func (d *OperationLogDAO) GetLogStatsContext(ctx context.Context, startTime, endTime *time.Time) (*LogStats, error) {
+	stats := &LogStats{ByModule: map[string]int64{}, ByMethod: map[string]int64{}}
 
-	// 总数
+	query := applyTimeRange(dbWithContext(ctx).Model(&model.OperationLog{}), startTime, endTime)
 	if err := query.Count(&stats.Total).Error; err != nil {
 		return nil, err
 	}
 
-	// 按模块统计
 	var moduleStats []struct {
 		Module string `json:"module"`
 		Count  int64  `json:"count"`
 	}
-	if err := database.DB.Model(&model.OperationLog{}).
+	if err := applyTimeRange(dbWithContext(ctx).Model(&model.OperationLog{}), startTime, endTime).
 		Select("module, count(*) as count").
-		Where("created_at >= ? AND created_at <= ?", startTime, endTime).
 		Group("module").
-		Find(&moduleStats).Error; err == nil {
-		stats.ByModule = make(map[string]int64)
-		for _, s := range moduleStats {
-			stats.ByModule[s.Module] = s.Count
-		}
+		Find(&moduleStats).Error; err != nil {
+		return nil, err
+	}
+	for _, s := range moduleStats {
+		stats.ByModule[s.Module] = s.Count
 	}
 
-	// 按方法统计
 	var methodStats []struct {
 		Method string `json:"method"`
 		Count  int64  `json:"count"`
 	}
-	if err := database.DB.Model(&model.OperationLog{}).
+	if err := applyTimeRange(dbWithContext(ctx).Model(&model.OperationLog{}), startTime, endTime).
 		Select("method, count(*) as count").
-		Where("created_at >= ? AND created_at <= ?", startTime, endTime).
 		Group("method").
-		Find(&methodStats).Error; err == nil {
-		stats.ByMethod = make(map[string]int64)
-		for _, s := range methodStats {
-			stats.ByMethod[s.Method] = s.Count
-		}
+		Find(&methodStats).Error; err != nil {
+		return nil, err
+	}
+	for _, s := range methodStats {
+		stats.ByMethod[s.Method] = s.Count
 	}
 
-	// 错误数量（状态码 >= 400）
-	database.DB.Model(&model.OperationLog{}).
-		Where("created_at >= ? AND created_at <= ? AND status >= 400", startTime, endTime).
-		Count(&stats.ErrorCount)
+	if err := applyTimeRange(dbWithContext(ctx).Model(&model.OperationLog{}), startTime, endTime).
+		Where("status >= 400").
+		Count(&stats.ErrorCount).Error; err != nil {
+		return nil, err
+	}
 
 	return stats, nil
 }
 
-// LogStats 日志统计信息
+func applyTimeRange(query *gorm.DB, startTime, endTime *time.Time) *gorm.DB {
+	if startTime != nil {
+		query = query.Where("created_at >= ?", *startTime)
+	}
+	if endTime != nil {
+		query = query.Where("created_at <= ?", *endTime)
+	}
+	return query
+}
+
 type LogStats struct {
 	Total      int64            `json:"total"`
 	ByModule   map[string]int64 `json:"by_module"`

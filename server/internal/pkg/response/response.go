@@ -4,27 +4,28 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/server/internal/pkg/logger"
 )
 
 // Response 统一响应结构
 type Response struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
 }
 
 // PageResponse 分页响应结构
 type PageResponse struct {
-	Code     int         `json:"code"`
-	Message  string      `json:"message"`
-	Data     interface{} `json:"data,omitempty"`
-	Total    int64       `json:"total,omitempty"`
-	Page     int         `json:"page,omitempty"`
-	PageSize int         `json:"page_size,omitempty"`
+	Code     int    `json:"code"`
+	Message  string `json:"message"`
+	Data     any    `json:"data,omitempty"`
+	Total    int64  `json:"total,omitempty"`
+	Page     int    `json:"page,omitempty"`
+	PageSize int    `json:"page_size,omitempty"`
 }
 
 // Success 成功响应
-func Success(c *gin.Context, data interface{}) {
+func Success(c *gin.Context, data any) {
 	c.JSON(http.StatusOK, Response{
 		Code:    200,
 		Message: "success",
@@ -33,7 +34,7 @@ func Success(c *gin.Context, data interface{}) {
 }
 
 // SuccessWithMessage 成功响应（自定义消息）
-func SuccessWithMessage(c *gin.Context, message string, data interface{}) {
+func SuccessWithMessage(c *gin.Context, message string, data any) {
 	c.JSON(http.StatusOK, Response{
 		Code:    200,
 		Message: message,
@@ -82,10 +83,13 @@ func NotFound(c *gin.Context, message string) {
 }
 
 // InternalServerError 500 错误
-func InternalServerError(c *gin.Context, message string) {
+func InternalServerError(c *gin.Context, detail string) {
+	if detail != "" && logger.Logger != nil {
+		logger.Error("internal server error", logger.String("detail", detail))
+	}
 	c.JSON(http.StatusInternalServerError, Response{
 		Code:    http.StatusInternalServerError,
-		Message: message,
+		Message: "internal server error",
 	})
 }
 
@@ -98,7 +102,7 @@ func httpStatusFromCode(code int) int {
 
 // PageSuccess 分页成功响应
 // PageSuccess 分页成功响应
-func PageSuccess(c *gin.Context, data interface{}, total int64, page, pageSize int) {
+func PageSuccess(c *gin.Context, data any, total int64, page, pageSize int) {
 	c.JSON(http.StatusOK, Response{
 		Code:    200,
 		Message: "success",

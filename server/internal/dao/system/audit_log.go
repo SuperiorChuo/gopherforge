@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"strings"
 
 	"github.com/go-admin-kit/server/internal/model"
@@ -59,12 +60,27 @@ type AuditLogBreakdownSummary struct {
 }
 
 func (d *AuditLogDAO) CreateLog(log *model.AuditLog) error {
-	return database.DB.Create(log).Error
+	return d.CreateLogContext(context.Background(), log)
+}
+
+func (d *AuditLogDAO) CreateLogContext(ctx context.Context, log *model.AuditLog) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return database.DB.WithContext(ctx).Create(log).Error
 }
 
 func (d *AuditLogDAO) ListLogs(req AuditLogListQuery) (AuditLogListResult, error) {
+	return d.ListLogsContext(context.Background(), req)
+}
+
+func (d *AuditLogDAO) ListLogsContext(ctx context.Context, req AuditLogListQuery) (AuditLogListResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	var result AuditLogListResult
-	baseQuery := applyAuditBaseFilters(database.DB.Model(&model.AuditLog{}), req)
+	baseQuery := applyAuditBaseFilters(database.DB.WithContext(ctx).Model(&model.AuditLog{}), req)
 	listQuery := applyAuditViewFilter(baseQuery.Session(&gorm.Session{}), req.View)
 
 	if err := listQuery.Count(&result.Pagination.Total).Error; err != nil {

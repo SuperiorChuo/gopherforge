@@ -1,54 +1,68 @@
 package system
 
 import (
+	"context"
 	"errors"
+
+	"gorm.io/gorm"
 
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// PermissionManageDAO 权限管理数据访问对象
 type PermissionManageDAO struct{}
 
-// GetPermissionByID 根据ID获取权限
 func (d *PermissionManageDAO) GetPermissionByID(id uint) (*model.Permission, error) {
+	return d.GetPermissionByIDContext(context.Background(), id)
+}
+
+func (d *PermissionManageDAO) GetPermissionByIDContext(ctx context.Context, id uint) (*model.Permission, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var permission model.Permission
-	result := database.DB.First(&permission, id)
+	result := database.DB.WithContext(ctx).First(&permission, id)
 	return &permission, result.Error
 }
 
-// GetPermissionByCode 根据代码获取权限
 func (d *PermissionManageDAO) GetPermissionByCode(code string) (*model.Permission, error) {
+	return d.GetPermissionByCodeContext(context.Background(), code)
+}
+
+func (d *PermissionManageDAO) GetPermissionByCodeContext(ctx context.Context, code string) (*model.Permission, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var permission model.Permission
-	result := database.DB.Where("code = ?", code).First(&permission)
+	result := database.DB.WithContext(ctx).Where("code = ?", code).First(&permission)
 	return &permission, result.Error
 }
 
-// GetPermissionList 获取权限列表（分页）
 func (d *PermissionManageDAO) GetPermissionList(req pagination.PageRequest, keyword string, permissionType *int8) ([]model.Permission, int64, error) {
+	return d.GetPermissionListContext(context.Background(), req, keyword, permissionType)
+}
+
+func (d *PermissionManageDAO) GetPermissionListContext(ctx context.Context, req pagination.PageRequest, keyword string, permissionType *int8) ([]model.Permission, int64, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var permissions []model.Permission
 	var total int64
 
-	query := database.DB.Model(&model.Permission{})
-
-	// 关键词搜索
+	query := database.DB.WithContext(ctx).Model(&model.Permission{})
 	if keyword != "" {
 		query = query.Where("name LIKE ? OR code LIKE ? OR description LIKE ? OR path LIKE ?",
 			"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 	}
-
-	// 类型筛选
 	if permissionType != nil {
 		query = query.Where("type = ?", *permissionType)
 	}
 
-	// 获取总数
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// 分页查询
 	result := query.Scopes(pagination.Paginate(req)).
 		Order("parent_id ASC, created_at ASC").
 		Find(&permissions)
@@ -56,52 +70,76 @@ func (d *PermissionManageDAO) GetPermissionList(req pagination.PageRequest, keyw
 	return permissions, total, result.Error
 }
 
-// GetPermissionTree 获取权限树
 func (d *PermissionManageDAO) GetPermissionTree() ([]model.Permission, error) {
+	return d.GetPermissionTreeContext(context.Background())
+}
+
+func (d *PermissionManageDAO) GetPermissionTreeContext(ctx context.Context) ([]model.Permission, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var permissions []model.Permission
-	result := database.DB.Order("parent_id ASC, created_at ASC").Find(&permissions)
+	result := database.DB.WithContext(ctx).Order("parent_id ASC, created_at ASC").Find(&permissions)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 
-	// 构建树形结构
 	return buildPermissionTree(permissions, 0), nil
 }
 
-// buildPermissionTree 构建权限树
 func buildPermissionTree(permissions []model.Permission, parentID uint) []model.Permission {
 	var tree []model.Permission
 	for i := range permissions {
 		if permissions[i].ParentID == parentID {
-			children := buildPermissionTree(permissions, permissions[i].ID)
-			permissions[i].Children = children
+			permissions[i].Children = buildPermissionTree(permissions, permissions[i].ID)
 			tree = append(tree, permissions[i])
 		}
 	}
 	return tree
 }
 
-// CreatePermission 创建权限
 func (d *PermissionManageDAO) CreatePermission(permission *model.Permission) error {
-	return database.DB.Create(permission).Error
+	return d.CreatePermissionContext(context.Background(), permission)
 }
 
-// UpdatePermission 更新权限
-func (d *PermissionManageDAO) UpdatePermission(permission *model.Permission) error {
-	return database.DB.Save(permission).Error
-}
-
-// DeletePermission 删除权限
-func (d *PermissionManageDAO) DeletePermission(id uint) error {
-	// 检查是否有子权限
-	var count int64
-	database.DB.Model(&model.Permission{}).Where("parent_id = ?", id).Count(&count)
-	if count > 0 {
-		return errors.New("cannot delete permission with children")
+func (d *PermissionManageDAO) CreatePermissionContext(ctx context.Context, permission *model.Permission) error {
+	if ctx == nil {
+		ctx = context.Background()
 	}
+	return database.DB.WithContext(ctx).Create(permission).Error
+}
 
-	// 先删除关联关系
-	database.DB.Where("permission_id = ?", id).Delete(&model.RolePermission{})
-	// 再删除权限
-	return database.DB.Delete(&model.Permission{}, id).Error
+func (d *PermissionManageDAO) UpdatePermission(permission *model.Permission) error {
+	return d.UpdatePermissionContext(context.Background(), permission)
+}
+
+func (d *PermissionManageDAO) UpdatePermissionContext(ctx context.Context, permission *model.Permission) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return database.DB.WithContext(ctx).Save(permission).Error
+}
+
+func (d *PermissionManageDAO) DeletePermission(id uint) error {
+	return d.DeletePermissionContext(context.Background(), id)
+}
+
+func (d *PermissionManageDAO) DeletePermissionContext(ctx context.Context, id uint) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Model(&model.Permission{}).Where("parent_id = ?", id).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return errors.New("cannot delete permission with children")
+		}
+
+		if err := tx.Where("permission_id = ?", id).Delete(&model.RolePermission{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&model.Permission{}, id).Error
+	})
 }

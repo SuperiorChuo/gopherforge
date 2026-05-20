@@ -1,26 +1,24 @@
 package system
 
 import (
+	"context"
 	"errors"
 
-	"github.com/go-admin-kit/server/internal/dao/system"
+	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// RoleService 角色服务
 type RoleService struct {
-	roleDAO system.RoleDAO
+	roleDAO systemdao.RoleDAO
 }
 
-// RoleListRequest 角色列表请求
 type RoleListRequest struct {
 	pagination.PageRequest
 	Keyword string `json:"keyword" form:"keyword"`
 }
 
-// CreateRoleRequest 创建角色请求
 type CreateRoleRequest struct {
 	Name                   string `json:"name" binding:"required"`
 	Code                   string `json:"code" binding:"required"`
@@ -29,7 +27,6 @@ type CreateRoleRequest struct {
 	DataScopeDepartmentIDs []uint `json:"data_scope_department_ids"`
 }
 
-// UpdateRoleRequest 更新角色请求
 type UpdateRoleRequest struct {
 	Name                   string `json:"name"`
 	Description            string `json:"description"`
@@ -37,32 +34,45 @@ type UpdateRoleRequest struct {
 	DataScopeDepartmentIDs []uint `json:"data_scope_department_ids"`
 }
 
-// AssignPermissionsRequest 分配权限请求
 type AssignPermissionsRequest struct {
 	PermissionIDs []uint `json:"permission_ids" binding:"required"`
 }
 
-// GetRoleByID 根据ID获取角色
 func (s *RoleService) GetRoleByID(id uint) (*model.Role, error) {
-	return s.roleDAO.GetRoleByID(id)
+	return s.GetRoleByIDContext(context.Background(), id)
 }
 
-// GetRoleList 获取角色列表
+func (s *RoleService) GetRoleByIDContext(ctx context.Context, id uint) (*model.Role, error) {
+	return s.roleDAO.GetRoleByIDContext(ctx, id)
+}
+
 func (s *RoleService) GetRoleList(req RoleListRequest) ([]model.Role, int64, error) {
-	return s.roleDAO.GetRoleList(req.PageRequest, req.Keyword)
+	return s.GetRoleListContext(context.Background(), req)
 }
 
-// GetAllRoles 获取所有角色
+func (s *RoleService) GetRoleListContext(ctx context.Context, req RoleListRequest) ([]model.Role, int64, error) {
+	return s.roleDAO.GetRoleListContext(ctx, req.PageRequest, req.Keyword)
+}
+
 func (s *RoleService) GetAllRoles() ([]model.Role, error) {
-	return s.roleDAO.GetAllRoles()
+	return s.GetAllRolesContext(context.Background())
 }
 
-// CreateRole 创建角色
+func (s *RoleService) GetAllRolesContext(ctx context.Context) ([]model.Role, error) {
+	return s.roleDAO.GetAllRolesContext(ctx)
+}
+
 func (s *RoleService) CreateRole(req CreateRoleRequest) (*model.Role, error) {
-	// 检查角色代码是否已存在
-	_, err := s.roleDAO.GetRoleByCode(req.Code)
+	return s.CreateRoleContext(context.Background(), req)
+}
+
+func (s *RoleService) CreateRoleContext(ctx context.Context, req CreateRoleRequest) (*model.Role, error) {
+	_, err := s.roleDAO.GetRoleByCodeContext(ctx, req.Code)
 	if err == nil {
 		return nil, errors.New("role code already exists")
+	}
+	if isContextError(err) {
+		return nil, err
 	}
 
 	dataScope := normalizeRoleDataScope(req.DataScope)
@@ -79,17 +89,23 @@ func (s *RoleService) CreateRole(req CreateRoleRequest) (*model.Role, error) {
 		DataScopeDepartmentIDs: departmentIDs,
 	}
 
-	if err := s.roleDAO.CreateRole(role); err != nil {
+	if err := s.roleDAO.CreateRoleContext(ctx, role); err != nil {
 		return nil, err
 	}
 
 	return role, nil
 }
 
-// UpdateRole 更新角色
 func (s *RoleService) UpdateRole(id uint, req UpdateRoleRequest) (*model.Role, error) {
-	role, err := s.roleDAO.GetRoleByID(id)
+	return s.UpdateRoleContext(context.Background(), id, req)
+}
+
+func (s *RoleService) UpdateRoleContext(ctx context.Context, id uint, req UpdateRoleRequest) (*model.Role, error) {
+	role, err := s.roleDAO.GetRoleByIDContext(ctx, id)
 	if err != nil {
+		if isContextError(err) {
+			return nil, err
+		}
 		return nil, errors.New("role not found")
 	}
 
@@ -115,43 +131,54 @@ func (s *RoleService) UpdateRole(id uint, req UpdateRoleRequest) (*model.Role, e
 		return nil, err
 	}
 
-	if err := s.roleDAO.UpdateRole(role); err != nil {
+	if err := s.roleDAO.UpdateRoleContext(ctx, role); err != nil {
 		return nil, err
 	}
 
-	if err := InvalidatePermissionCacheByRoles(id); err != nil {
+	if err := InvalidatePermissionCacheByRolesContext(ctx, id); err != nil {
 		return nil, err
 	}
 
 	return role, nil
 }
 
-// DeleteRole 删除角色
 func (s *RoleService) DeleteRole(id uint) error {
-	if _, err := s.roleDAO.GetRoleByID(id); err != nil {
-		return errors.New("role not found")
-	}
-
-	if err := InvalidatePermissionCacheByRoles(id); err != nil {
-		return err
-	}
-
-	return s.roleDAO.DeleteRole(id)
+	return s.DeleteRoleContext(context.Background(), id)
 }
 
-// AssignPermissions 分配权限
-func (s *RoleService) AssignPermissions(roleID uint, req AssignPermissionsRequest) error {
-	// 检查角色是否存在
-	_, err := s.roleDAO.GetRoleByID(roleID)
-	if err != nil {
+func (s *RoleService) DeleteRoleContext(ctx context.Context, id uint) error {
+	if _, err := s.roleDAO.GetRoleByIDContext(ctx, id); err != nil {
+		if isContextError(err) {
+			return err
+		}
 		return errors.New("role not found")
 	}
 
-	if err := s.roleDAO.AssignPermissions(roleID, req.PermissionIDs); err != nil {
+	if err := InvalidatePermissionCacheByRolesContext(ctx, id); err != nil {
 		return err
 	}
 
-	return InvalidatePermissionCacheByRoles(roleID)
+	return s.roleDAO.DeleteRoleContext(ctx, id)
+}
+
+func (s *RoleService) AssignPermissions(roleID uint, req AssignPermissionsRequest) error {
+	return s.AssignPermissionsContext(context.Background(), roleID, req)
+}
+
+func (s *RoleService) AssignPermissionsContext(ctx context.Context, roleID uint, req AssignPermissionsRequest) error {
+	_, err := s.roleDAO.GetRoleByIDContext(ctx, roleID)
+	if err != nil {
+		if isContextError(err) {
+			return err
+		}
+		return errors.New("role not found")
+	}
+
+	if err := s.roleDAO.AssignPermissionsContext(ctx, roleID, req.PermissionIDs); err != nil {
+		return err
+	}
+
+	return InvalidatePermissionCacheByRolesContext(ctx, roleID)
 }
 
 func normalizeRoleDataScope(dataScope string) string {
