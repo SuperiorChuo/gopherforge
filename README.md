@@ -8,9 +8,21 @@
 
 Go Admin Kit 是一套干净、可二次开发的 Go 全栈后台管理脚手架。项目保留后台系统常用能力，移除了旧业务页面、专项接口、历史迁移数据和运行产物，适合作为新管理后台、内部运营系统或 SaaS 控制台的起点。
 
-## 界面预览
+## 项目截图
 
-![Go Admin Kit 控制台预览](tdesign-vue-go/docs/starter.png)
+这些截图来自当前项目真实运行页面，覆盖登录、系统概览、系统管理和监控页面。
+
+| 登录页 | 系统概览 |
+| --- | --- |
+| ![登录页](docs/screenshots/login.png) | ![系统概览](docs/screenshots/dashboard.png) |
+
+| 用户管理 | 角色管理 |
+| --- | --- |
+| ![用户管理](docs/screenshots/users.png) | ![角色管理](docs/screenshots/roles.png) |
+
+| MySQL 监控 | Redis 监控 |
+| --- | --- |
+| ![MySQL 监控](docs/screenshots/mysql.png) | ![Redis 监控](docs/screenshots/redis.png) |
 
 ## 技术栈
 
