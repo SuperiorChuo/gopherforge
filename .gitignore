@@ -1,0 +1,41 @@
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Backend artifacts
+server/build/
+server/main
+server/logs/
+server/uploads/
+
+# Frontend artifacts
+tdesign-vue-go/node_modules/
+tdesign-vue-go/dist/
+tdesign-vue-go/_site/
+tdesign-vue-go/coverage/
+tdesign-vue-go/playwright-report/
+tdesign-vue-go/test-results/
+
+# Project-local Python tooling
+.venv/
+.uv-cache/
+
+# Project-local code graph tooling
+.codegraph/
+.codegraph-tools/
+
+# Python worker artifacts
+external-services/douyin-python-worker/.venv/
+external-services/douyin-python-worker/.worker/
+external-services/douyin-python-worker/**/__pycache__/
+external-services/douyin-python-worker/.pytest_cache/
+
+# Local env overrides
+.env
+.env.local
+*.local
+server/.env
+server/configs/config.local.yaml
+server/configs/config.production.yaml
+tdesign-vue-go/.env.local

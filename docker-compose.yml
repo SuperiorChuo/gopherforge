@@ -1,0 +1,242 @@
+name: go-admin-kit
+
+services:
+  go-admin-kit-mysql:
+    image: mysql:8.0
+    container_name: go-admin-kit-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-go_admin_kit}
+      TZ: ${TZ:-Asia/Shanghai}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - go_admin_kit_mysql_data:/var/lib/mysql
+      - ./server/docs/go_admin_kit.sql:/docker-entrypoint-initdb.d/001-go_admin_kit.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - go-admin-kit-net
+
+  go-admin-kit-redis:
+    image: redis:7-alpine
+    container_name: go-admin-kit-redis
+    restart: unless-stopped
+    command: >
+      sh -c 'if [ -n "$$REDIS_PASSWORD" ]; then
+        redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD";
+      else
+        redis-server --appendonly yes;
+      fi'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - go_admin_kit_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "if [ -n \"$${REDIS_PASSWORD}\" ]; then redis-cli -a \"$${REDIS_PASSWORD}\" ping; else redis-cli ping; fi"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - go-admin-kit-net
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: go-admin-kit-backend
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8081
+      DB_HOST: go-admin-kit-mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      DB_NAME: ${MYSQL_DATABASE:-go_admin_kit}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      JWT_REFRESH_TOKEN_ROTATION: ${JWT_REFRESH_TOKEN_ROTATION:-true}
+      UPLOAD_STORAGE_TYPE: ${UPLOAD_STORAGE_TYPE:-local}
+      UPLOAD_LOCAL_PATH: ${UPLOAD_LOCAL_PATH:-./uploads}
+      UPLOAD_PUBLIC_BASE_URL: ${UPLOAD_PUBLIC_BASE_URL:-/uploads}
+      UPLOAD_LOCAL_URL_PREFIX: ${UPLOAD_LOCAL_URL_PREFIX:-/uploads}
+      UPLOAD_S3_ENDPOINT: ${UPLOAD_S3_ENDPOINT:-}
+      UPLOAD_S3_BUCKET: ${UPLOAD_S3_BUCKET:-}
+      UPLOAD_S3_REGION: ${UPLOAD_S3_REGION:-}
+      UPLOAD_S3_ACCESS_KEY: ${UPLOAD_S3_ACCESS_KEY:-}
+      UPLOAD_S3_SECRET_KEY: ${UPLOAD_S3_SECRET_KEY:-}
+      UPLOAD_S3_USE_SSL: ${UPLOAD_S3_USE_SSL:-true}
+      UPLOAD_MINIO_ENDPOINT: ${UPLOAD_MINIO_ENDPOINT:-go-admin-kit-minio:9000}
+      UPLOAD_MINIO_BUCKET: ${UPLOAD_MINIO_BUCKET:-go-admin-kit}
+      UPLOAD_MINIO_REGION: ${UPLOAD_MINIO_REGION:-us-east-1}
+      UPLOAD_MINIO_ACCESS_KEY: ${UPLOAD_MINIO_ACCESS_KEY:-minioadmin}
+      UPLOAD_MINIO_SECRET_KEY: ${UPLOAD_MINIO_SECRET_KEY:-minioadmin}
+      UPLOAD_MINIO_USE_SSL: ${UPLOAD_MINIO_USE_SSL:-false}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      DEFAULT_ADMIN_WARN_DEFAULT_PASSWORD: ${DEFAULT_ADMIN_WARN_DEFAULT_PASSWORD:-true}
+      DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD: ${DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD:-false}
+      DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME:-admin}
+      METRICS_ENABLED: ${METRICS_ENABLED:-true}
+      TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_ENVIRONMENT: ${TRACING_ENVIRONMENT:-development}
+      TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
+      TRACING_SAMPLE_RATIO: ${TRACING_SAMPLE_RATIO:-1.0}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${BACKEND_PORT:-8081}:8081"
+    depends_on:
+      go-admin-kit-mysql:
+        condition: service_healthy
+      go-admin-kit-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  go-admin-kit-minio:
+    image: minio/minio:latest
+    container_name: go-admin-kit-minio
+    restart: unless-stopped
+    profiles:
+      - storage
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - go_admin_kit_minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - go-admin-kit-net
+
+  frontend:
+    build:
+      context: ./tdesign-vue-go
+      dockerfile: Dockerfile
+    container_name: go-admin-kit-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - go-admin-kit-net
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: go-admin-kit-prometheus
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - go_admin_kit_prometheus_data:/prometheus
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - go-admin-kit-net
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: go-admin-kit-grafana
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${GRAFANA_PORT:-3003}:3000"
+    volumes:
+      - go_admin_kit_grafana_data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      prometheus:
+        condition: service_started
+    networks:
+      - go-admin-kit-net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    container_name: go-admin-kit-otel-collector
+    restart: unless-stopped
+    profiles:
+      - tracing
+    command:
+      - --config=/etc/otelcol/config.yaml
+    ports:
+      - "${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317"
+      - "${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318"
+    volumes:
+      - ./deploy/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      jaeger:
+        condition: service_started
+    networks:
+      - go-admin-kit-net
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: go-admin-kit-jaeger
+    restart: unless-stopped
+    profiles:
+      - tracing
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"
+    networks:
+      - go-admin-kit-net
+
+networks:
+  go-admin-kit-net:
+    name: go-admin-kit-net
+
+volumes:
+  go_admin_kit_mysql_data:
+  go_admin_kit_redis_data:
+  go_admin_kit_minio_data:
+  go_admin_kit_prometheus_data:
+  go_admin_kit_grafana_data:
