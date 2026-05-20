@@ -1,0 +1,29 @@
+name: 使用问题
+description: 询问启动、配置、二次开发或部署问题
+title: "[Question] "
+labels:
+  - question
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: 你的问题
+      description: 请描述你遇到的场景和想达成的目标。
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: 已尝试的操作
+      description: 贴出已执行的命令、配置片段或排查结果。
+      render: shell
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境信息
+      placeholder: |
+        OS:
+        Go:
+        Node.js:
+        Docker:
+        Browser:
