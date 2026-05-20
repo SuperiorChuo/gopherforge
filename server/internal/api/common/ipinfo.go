@@ -6,23 +6,23 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/response"
 )
 
-// IPInfoAPI IP 信息查询 API
+// IPInfoAPI handles IP geolocation endpoints.
 type IPInfoAPI struct {
 	client *ipinfo.IPInfoClient
 }
 
-// NewIPInfoAPI 创建 IPInfoAPI 实例
+// NewIPInfoAPI creates an IPInfoAPI instance.
 func NewIPInfoAPI() *IPInfoAPI {
 	return &IPInfoAPI{
 		client: ipinfo.GetClient(),
 	}
 }
 
-// GetIPInfo 获取 IP 归属地信息
+// GetIPInfo returns IP geolocation details.
 func (a *IPInfoAPI) GetIPInfo(c *gin.Context) {
 	ip := c.Query("ip")
 	if ip == "" {
-		// 如果没有提供 IP，使用客户端 IP
+		// Fall back to the client IP when no query parameter is provided.
 		ip = c.ClientIP()
 	}
 
@@ -35,7 +35,7 @@ func (a *IPInfoAPI) GetIPInfo(c *gin.Context) {
 	response.Success(c, info)
 }
 
-// GetMyIPInfo 获取当前客户端 IP 归属地信息
+// GetMyIPInfo returns geolocation details for the current client IP.
 func (a *IPInfoAPI) GetMyIPInfo(c *gin.Context) {
 	ip := c.ClientIP()
 
@@ -52,7 +52,7 @@ func (a *IPInfoAPI) GetMyIPInfo(c *gin.Context) {
 	})
 }
 
-// GetIPLocation 获取 IP 归属地（简化版）
+// GetIPLocation returns a simplified IP location.
 func (a *IPInfoAPI) GetIPLocation(c *gin.Context) {
 	ip := c.Query("ip")
 	if ip == "" {

@@ -2,10 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"net"
+	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -99,6 +105,44 @@ func printStartupBanner(name, version, env string, port int) {
 	)
 }
 
+func configureGinWriters(env string) {
+	if env == "production" {
+		gin.SetMode(gin.ReleaseMode)
+		gin.DefaultWriter = io.Discard
+		gin.DefaultErrorWriter = io.Discard
+		return
+	}
+
+	gin.DefaultWriter = logger.NewGinWriter()
+	gin.DefaultErrorWriter = logger.NewGinErrorWriter()
+}
+
+func serveHTTPServer(server *http.Server, listener net.Listener, shutdownTimeout time.Duration, shutdown <-chan os.Signal) error {
+	serverErr := make(chan error, 1)
+	go func() {
+		err := server.Serve(listener)
+		if errors.Is(err, http.ErrServerClosed) {
+			err = nil
+		}
+		serverErr <- err
+	}()
+
+	select {
+	case err := <-serverErr:
+		return err
+	case sig := <-shutdown:
+		if logger.Logger != nil && sig != nil {
+			logger.Info("shutdown signal received", logger.String("signal", sig.String()))
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			return fmt.Errorf("server shutdown: %w", err)
+		}
+		return <-serverErr
+	}
+}
+
 func main() {
 	configPath := os.Getenv("CONFIG_FILE")
 	if configPath == "" {
@@ -119,6 +163,11 @@ func main() {
 	if err := database.InitDatabase(); err != nil {
 		logger.Fatal("database initialization failed", logger.Err(err))
 	}
+	defer func() {
+		if err := database.Close(); err != nil {
+			logger.Error("database close failed", logger.Err(err))
+		}
+	}()
 	if menuResult, err := systemSvc.BootstrapDefaultMenus(); err != nil {
 		logger.Fatal("default menu bootstrap failed", logger.Err(err))
 	} else if menuResult.Menus > 0 {
@@ -151,14 +200,7 @@ func main() {
 		}()
 	}
 
-	if config.Cfg.App.Env == "production" {
-		gin.SetMode(gin.ReleaseMode)
-		gin.DefaultWriter = nil
-		gin.DefaultErrorWriter = nil
-	} else {
-		gin.DefaultWriter = logger.NewGinWriter()
-		gin.DefaultErrorWriter = logger.NewGinErrorWriter()
-	}
+	configureGinWriters(config.Cfg.App.Env)
 
 	router := gin.New()
 	if len(config.Cfg.Security.TrustedProxies) > 0 {
@@ -199,8 +241,17 @@ func main() {
 	api.SetupRoutes(router)
 
 	port := config.Cfg.App.Port
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: router}
+	listener, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		logger.Fatal("server listen failed", logger.Err(err))
+	}
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(shutdown)
+
 	printStartupBanner(config.Cfg.App.Name, config.Cfg.App.Version, config.Cfg.App.Env, port)
-	if err := router.Run(fmt.Sprintf(":%d", port)); err != nil {
+	if err := serveHTTPServer(server, listener, 15*time.Second, shutdown); err != nil {
 		logger.Fatal("server start failed", logger.Err(err))
 	}
 }

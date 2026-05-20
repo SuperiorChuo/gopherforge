@@ -8,19 +8,19 @@ import (
 	"github.com/go-admin-kit/server/internal/service/system"
 )
 
-// RoleManagementAPI 角色管理API
+// RoleManagementAPI handles role management endpoints.
 type RoleManagementAPI struct {
 	roleService system.RoleService
 }
 
-// NewRoleManagementAPI 创建RoleManagementAPI实例
+// NewRoleManagementAPI creates a RoleManagementAPI instance.
 func NewRoleManagementAPI() *RoleManagementAPI {
 	return &RoleManagementAPI{
 		roleService: system.RoleService{},
 	}
 }
 
-// GetRoleList 获取角色列表
+// GetRoleList returns paginated roles.
 func (a *RoleManagementAPI) GetRoleList(c *gin.Context) {
 	var req system.RoleListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -28,7 +28,6 @@ func (a *RoleManagementAPI) GetRoleList(c *gin.Context) {
 		return
 	}
 
-	// 设置默认分页参数
 	if req.Page <= 0 {
 		req.Page = 1
 	}
@@ -36,27 +35,27 @@ func (a *RoleManagementAPI) GetRoleList(c *gin.Context) {
 		req.PageSize = 10
 	}
 
-	roles, total, err := a.roleService.GetRoleList(req)
+	roles, total, err := a.roleService.GetRoleListContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get role list", err)
 		return
 	}
 
 	response.PageSuccess(c, roles, total, req.Page, req.PageSize)
 }
 
-// GetAllRoles 获取所有角色
+// GetAllRoles returns all roles.
 func (a *RoleManagementAPI) GetAllRoles(c *gin.Context) {
-	roles, err := a.roleService.GetAllRoles()
+	roles, err := a.roleService.GetAllRolesContext(c.Request.Context())
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get roles", err)
 		return
 	}
 
 	response.Success(c, roles)
 }
 
-// GetRole 获取角色详情
+// GetRole returns a role by id.
 func (a *RoleManagementAPI) GetRole(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -65,7 +64,7 @@ func (a *RoleManagementAPI) GetRole(c *gin.Context) {
 		return
 	}
 
-	role, err := a.roleService.GetRoleByID(uint(id))
+	role, err := a.roleService.GetRoleByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
 		response.NotFound(c, "role not found")
 		return
@@ -74,7 +73,7 @@ func (a *RoleManagementAPI) GetRole(c *gin.Context) {
 	response.Success(c, role)
 }
 
-// CreateRole 创建角色
+// CreateRole creates a role.
 func (a *RoleManagementAPI) CreateRole(c *gin.Context) {
 	var req system.CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -82,7 +81,7 @@ func (a *RoleManagementAPI) CreateRole(c *gin.Context) {
 		return
 	}
 
-	role, err := a.roleService.CreateRole(req)
+	role, err := a.roleService.CreateRoleContext(c.Request.Context(), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -91,7 +90,7 @@ func (a *RoleManagementAPI) CreateRole(c *gin.Context) {
 	response.SuccessWithMessage(c, "role created successfully", role)
 }
 
-// UpdateRole 更新角色
+// UpdateRole updates a role.
 func (a *RoleManagementAPI) UpdateRole(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -106,7 +105,7 @@ func (a *RoleManagementAPI) UpdateRole(c *gin.Context) {
 		return
 	}
 
-	role, err := a.roleService.UpdateRole(uint(id), req)
+	role, err := a.roleService.UpdateRoleContext(c.Request.Context(), uint(id), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -115,7 +114,7 @@ func (a *RoleManagementAPI) UpdateRole(c *gin.Context) {
 	response.SuccessWithMessage(c, "role updated successfully", role)
 }
 
-// DeleteRole 删除角色
+// DeleteRole deletes a role.
 func (a *RoleManagementAPI) DeleteRole(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -124,15 +123,15 @@ func (a *RoleManagementAPI) DeleteRole(c *gin.Context) {
 		return
 	}
 
-	if err := a.roleService.DeleteRole(uint(id)); err != nil {
-		response.InternalServerError(c, err.Error())
+	if err := a.roleService.DeleteRoleContext(c.Request.Context(), uint(id)); err != nil {
+		internalServerError(c, "failed to delete role", err)
 		return
 	}
 
 	response.SuccessWithMessage(c, "role deleted successfully", nil)
 }
 
-// AssignPermissions 分配权限
+// AssignPermissions assigns permissions to a role.
 func (a *RoleManagementAPI) AssignPermissions(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -147,7 +146,7 @@ func (a *RoleManagementAPI) AssignPermissions(c *gin.Context) {
 		return
 	}
 
-	if err := a.roleService.AssignPermissions(uint(id), req); err != nil {
+	if err := a.roleService.AssignPermissionsContext(c.Request.Context(), uint(id), req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}

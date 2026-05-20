@@ -10,7 +10,7 @@
 
 ## 数据库
 
-- [ ] 新环境已导入 `server/docs/go_admin_kit.sql`。
+- [ ] 新环境已执行 `server/migrations/` 下的 goose 迁移；仅手动初始化路径需要导入 `server/docs/go_admin_kit.sql`。
 - [ ] 默认管理员密码已修改。
 - [ ] 新增业务表已有初始化或迁移策略。
 - [ ] 本地测试数据、日志数据和上传文件未进入发布包。

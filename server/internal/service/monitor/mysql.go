@@ -1,64 +1,77 @@
 package monitor
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 
 	"github.com/go-admin-kit/server/internal/config"
-	"github.com/go-admin-kit/server/internal/pkg/database"
+	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
 )
 
-type MySQLService struct{}
+type mySQLDAO interface {
+	ConnectionStatsContext(ctx context.Context) (sql.DBStats, error)
+	GetVersionContext(ctx context.Context) (string, error)
+	GetCurrentDatabaseContext(ctx context.Context) (string, error)
+	GetNameValuesContext(ctx context.Context, query string) (map[string]string, error)
+	GetTableStatsContext(ctx context.Context, dbName string) (monitordao.MySQLTableStats, error)
+}
 
-type mysqlNameValue struct {
-	VariableName string `gorm:"column:Variable_name"`
-	Value        string `gorm:"column:Value"`
+type MySQLService struct {
+	dao mySQLDAO
 }
 
 func NewMySQLService() *MySQLService {
-	return &MySQLService{}
+	return &MySQLService{dao: monitordao.NewMySQLDAO()}
 }
 
 // GetMySQLInfo 获取 MySQL 信息
-func (s *MySQLService) GetMySQLInfo() (map[string]interface{}, error) {
-	db, err := database.DB.DB()
+func (s *MySQLService) GetMySQLInfo() (map[string]any, error) {
+	return s.GetMySQLInfoContext(context.Background())
+}
+
+func (s *MySQLService) GetMySQLInfoContext(ctx context.Context) (map[string]any, error) {
+	stats, err := s.dao.ConnectionStatsContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	stats := db.Stats()
-
 	// 获取版本和运行时信息
-	var version string
-	database.DB.Raw("SELECT VERSION()").Scan(&version)
-
-	var currentDatabase string
-	database.DB.Raw("SELECT DATABASE()").Scan(&currentDatabase)
-
-	status := getMySQLNameValues("SHOW GLOBAL STATUS")
-	variables := getMySQLNameValues("SHOW GLOBAL VARIABLES")
-
-	var tableStats struct {
-		TableCount   int64 `gorm:"column:table_count"`
-		DatabaseSize int64 `gorm:"column:database_size"`
+	version, err := s.dao.GetVersionContext(ctx)
+	if err != nil {
+		return nil, err
 	}
-	database.DB.Raw(
-		`SELECT COUNT(*) AS table_count, COALESCE(SUM(data_length + index_length), 0) AS database_size
-		 FROM information_schema.tables
-		 WHERE table_schema = ?`,
-		config.Cfg.Database.DBName,
-	).Scan(&tableStats)
+
+	currentDatabase, err := s.dao.GetCurrentDatabaseContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	status, err := s.dao.GetNameValuesContext(ctx, "SHOW GLOBAL STATUS")
+	if err != nil {
+		return nil, err
+	}
+	variables, err := s.dao.GetNameValuesContext(ctx, "SHOW GLOBAL VARIABLES")
+	if err != nil {
+		return nil, err
+	}
+
+	tableStats, err := s.dao.GetTableStatsContext(ctx, config.Cfg.Database.DBName)
+	if err != nil {
+		return nil, err
+	}
 
 	uptimeSeconds := parseInt64(status["Uptime"])
 	questions := parseInt64(status["Questions"])
 
-	data := make(map[string]interface{})
+	data := make(map[string]any)
 	data["status"] = "ok"
 	data["version"] = version
 	data["uptime"] = fmt.Sprintf("%d", uptimeSeconds)
 	data["uptime_seconds"] = uptimeSeconds
 
-	data["database"] = map[string]interface{}{
+	data["database"] = map[string]any{
 		"host":        config.Cfg.Database.Host,
 		"port":        config.Cfg.Database.Port,
 		"name":        firstNonEmpty(currentDatabase, config.Cfg.Database.DBName),
@@ -69,7 +82,7 @@ func (s *MySQLService) GetMySQLInfo() (map[string]interface{}, error) {
 		"size":        formatBytes(tableStats.DatabaseSize),
 	}
 
-	data["connections"] = map[string]interface{}{
+	data["connections"] = map[string]any{
 		"max_open_conns":       stats.MaxOpenConnections,
 		"open_conns":           stats.OpenConnections,
 		"in_use":               stats.InUse,
@@ -83,7 +96,7 @@ func (s *MySQLService) GetMySQLInfo() (map[string]interface{}, error) {
 		"total_connections":    parseInt64(status["Connections"]),
 	}
 
-	data["queries"] = map[string]interface{}{
+	data["queries"] = map[string]any{
 		"questions":    questions,
 		"qps":          calculateRate(questions, uptimeSeconds),
 		"slow_queries": parseInt64(status["Slow_queries"]),
@@ -95,7 +108,7 @@ func (s *MySQLService) GetMySQLInfo() (map[string]interface{}, error) {
 
 	bytesReceived := parseInt64(status["Bytes_received"])
 	bytesSent := parseInt64(status["Bytes_sent"])
-	data["traffic"] = map[string]interface{}{
+	data["traffic"] = map[string]any{
 		"bytes_received":       bytesReceived,
 		"bytes_sent":           bytesSent,
 		"bytes_received_human": formatBytes(bytesReceived),
@@ -103,18 +116,6 @@ func (s *MySQLService) GetMySQLInfo() (map[string]interface{}, error) {
 	}
 
 	return data, nil
-}
-
-func getMySQLNameValues(query string) map[string]string {
-	var rows []mysqlNameValue
-	result := make(map[string]string)
-	if err := database.DB.Raw(query).Scan(&rows).Error; err != nil {
-		return result
-	}
-	for _, row := range rows {
-		result[row.VariableName] = row.Value
-	}
-	return result
 }
 
 func parseInt64(value string) int64 {

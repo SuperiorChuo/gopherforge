@@ -1,26 +1,24 @@
 package system
 
 import (
+	"context"
 	"errors"
 
-	"github.com/go-admin-kit/server/internal/dao/system"
+	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// MenuService 菜单服务
 type MenuService struct {
-	menuDAO system.MenuDAO
+	menuDAO systemdao.MenuDAO
 }
 
-// MenuListRequest 菜单列表请求
 type MenuListRequest struct {
 	pagination.PageRequest
 	Keyword string `json:"keyword" form:"keyword"`
 	Status  *int8  `json:"status" form:"status"`
 }
 
-// CreateMenuRequest 创建菜单请求
 type CreateMenuRequest struct {
 	Name          string `json:"name" binding:"required"`
 	Title         string `json:"title" binding:"required"`
@@ -31,11 +29,10 @@ type CreateMenuRequest struct {
 	Sort          int    `json:"sort"`
 	Status        int8   `json:"status"`
 	Hidden        int8   `json:"hidden"`
-	Permission    string `json:"permission"`     // 关联的权限代码
-	PermissionIDs []uint `json:"permission_ids"` // 关联的权限ID列表（通过 menu_permissions 表）
+	Permission    string `json:"permission"`
+	PermissionIDs []uint `json:"permission_ids"`
 }
 
-// UpdateMenuRequest 更新菜单请求
 type UpdateMenuRequest struct {
 	Name          string `json:"name"`
 	Title         string `json:"title"`
@@ -46,31 +43,45 @@ type UpdateMenuRequest struct {
 	Sort          int    `json:"sort"`
 	Status        *int8  `json:"status"`
 	Hidden        *int8  `json:"hidden"`
-	Permission    string `json:"permission"`     // 关联的权限代码
-	PermissionIDs []uint `json:"permission_ids"` // 关联的权限ID列表（通过 menu_permissions 表）
+	Permission    string `json:"permission"`
+	PermissionIDs []uint `json:"permission_ids"`
 }
 
-// GetMenuByID 根据ID获取菜单
 func (s *MenuService) GetMenuByID(id uint) (*model.Menu, error) {
-	return s.menuDAO.GetMenuByID(id)
+	return s.GetMenuByIDContext(context.Background(), id)
 }
 
-// GetMenuList 获取菜单列表
+func (s *MenuService) GetMenuByIDContext(ctx context.Context, id uint) (*model.Menu, error) {
+	return s.menuDAO.GetMenuByIDContext(ctx, id)
+}
+
 func (s *MenuService) GetMenuList(req MenuListRequest) ([]model.Menu, int64, error) {
-	return s.menuDAO.GetMenuList(req.PageRequest, req.Keyword, req.Status)
+	return s.GetMenuListContext(context.Background(), req)
 }
 
-// GetMenuTree 获取菜单树
+func (s *MenuService) GetMenuListContext(ctx context.Context, req MenuListRequest) ([]model.Menu, int64, error) {
+	return s.menuDAO.GetMenuListContext(ctx, req.PageRequest, req.Keyword, req.Status)
+}
+
 func (s *MenuService) GetMenuTree(status *int8) ([]model.Menu, error) {
-	return s.menuDAO.GetMenuTree(status)
+	return s.GetMenuTreeContext(context.Background(), status)
 }
 
-// CreateMenu 创建菜单
+func (s *MenuService) GetMenuTreeContext(ctx context.Context, status *int8) ([]model.Menu, error) {
+	return s.menuDAO.GetMenuTreeContext(ctx, status)
+}
+
 func (s *MenuService) CreateMenu(req CreateMenuRequest) (*model.Menu, error) {
-	// 如果指定了父菜单，检查父菜单是否存在
+	return s.CreateMenuContext(context.Background(), req)
+}
+
+func (s *MenuService) CreateMenuContext(ctx context.Context, req CreateMenuRequest) (*model.Menu, error) {
 	if req.ParentID > 0 {
-		_, err := s.menuDAO.GetMenuByID(req.ParentID)
+		_, err := s.menuDAO.GetMenuByIDContext(ctx, req.ParentID)
 		if err != nil {
+			if isContextError(err) {
+				return nil, err
+			}
 			return nil, errors.New("parent menu not found")
 		}
 	}
@@ -92,19 +103,18 @@ func (s *MenuService) CreateMenu(req CreateMenuRequest) (*model.Menu, error) {
 		menu.Status = 1
 	}
 
-	if err := s.menuDAO.CreateMenu(menu); err != nil {
+	if err := s.menuDAO.CreateMenuContext(ctx, menu); err != nil {
 		return nil, err
 	}
 
-	// 如果指定了权限ID列表，创建菜单权限关联
 	if len(req.PermissionIDs) > 0 {
-		if err := s.menuDAO.AssignPermissions(menu.ID, req.PermissionIDs); err != nil {
+		if err := s.menuDAO.AssignPermissionsContext(ctx, menu.ID, req.PermissionIDs); err != nil {
 			return nil, err
 		}
 	}
 
 	if req.Permission != "" || len(req.PermissionIDs) > 0 {
-		if err := InvalidatePermissionCacheAll(); err != nil {
+		if err := InvalidatePermissionCacheAllContext(ctx); err != nil {
 			return nil, err
 		}
 	}
@@ -112,17 +122,25 @@ func (s *MenuService) CreateMenu(req CreateMenuRequest) (*model.Menu, error) {
 	return menu, nil
 }
 
-// UpdateMenu 更新菜单
 func (s *MenuService) UpdateMenu(id uint, req UpdateMenuRequest) (*model.Menu, error) {
-	menu, err := s.menuDAO.GetMenuByID(id)
+	return s.UpdateMenuContext(context.Background(), id, req)
+}
+
+func (s *MenuService) UpdateMenuContext(ctx context.Context, id uint, req UpdateMenuRequest) (*model.Menu, error) {
+	menu, err := s.menuDAO.GetMenuByIDContext(ctx, id)
 	if err != nil {
+		if isContextError(err) {
+			return nil, err
+		}
 		return nil, errors.New("menu not found")
 	}
 
-	// 如果更新父菜单，检查是否会造成循环引用
 	if req.ParentID > 0 && req.ParentID != menu.ParentID {
-		// 检查新父菜单是否是当前菜单的子菜单
-		if isMenuDescendant(&s.menuDAO, id, req.ParentID) {
+		descendant, err := isMenuDescendantContext(ctx, &s.menuDAO, id, req.ParentID)
+		if err != nil {
+			return nil, err
+		}
+		if descendant {
 			return nil, errors.New("cannot set parent to descendant")
 		}
 		menu.ParentID = req.ParentID
@@ -156,48 +174,55 @@ func (s *MenuService) UpdateMenu(id uint, req UpdateMenuRequest) (*model.Menu, e
 		menu.Permission = req.Permission
 	}
 
-	if err := s.menuDAO.UpdateMenu(menu); err != nil {
+	if err := s.menuDAO.UpdateMenuContext(ctx, menu); err != nil {
 		return nil, err
 	}
 
-	// 如果指定了权限ID列表，更新菜单权限关联
 	if req.PermissionIDs != nil {
-		if err := s.menuDAO.AssignPermissions(menu.ID, req.PermissionIDs); err != nil {
+		if err := s.menuDAO.AssignPermissionsContext(ctx, menu.ID, req.PermissionIDs); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := InvalidatePermissionCacheAll(); err != nil {
+	if err := InvalidatePermissionCacheAllContext(ctx); err != nil {
 		return nil, err
 	}
 
 	return menu, nil
 }
 
-// DeleteMenu 删除菜单
 func (s *MenuService) DeleteMenu(id uint) error {
-	if _, err := s.menuDAO.GetMenuByID(id); err != nil {
+	return s.DeleteMenuContext(context.Background(), id)
+}
+
+func (s *MenuService) DeleteMenuContext(ctx context.Context, id uint) error {
+	if _, err := s.menuDAO.GetMenuByIDContext(ctx, id); err != nil {
+		if isContextError(err) {
+			return err
+		}
 		return errors.New("menu not found")
 	}
 
-	if err := s.menuDAO.DeleteMenu(id); err != nil {
+	if err := s.menuDAO.DeleteMenuContext(ctx, id); err != nil {
 		return err
 	}
 
-	return InvalidatePermissionCacheAll()
+	return InvalidatePermissionCacheAllContext(ctx)
 }
 
-// isMenuDescendant 检查target是否是ancestor的后代
-func isMenuDescendant(dao *system.MenuDAO, ancestorID, targetID uint) bool {
+func isMenuDescendantContext(ctx context.Context, dao *systemdao.MenuDAO, ancestorID, targetID uint) (bool, error) {
 	if targetID == 0 {
-		return false
+		return false, nil
 	}
-	target, err := dao.GetMenuByID(targetID)
+	target, err := dao.GetMenuByIDContext(ctx, targetID)
 	if err != nil {
-		return false
+		if isContextError(err) {
+			return false, err
+		}
+		return false, nil
 	}
 	if target.ParentID == ancestorID {
-		return true
+		return true, nil
 	}
-	return isMenuDescendant(dao, ancestorID, target.ParentID)
+	return isMenuDescendantContext(ctx, dao, ancestorID, target.ParentID)
 }

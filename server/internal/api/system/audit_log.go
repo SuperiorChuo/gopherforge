@@ -24,9 +24,9 @@ func (a *AuditLogAPI) GetAuditLogs(c *gin.Context) {
 		return
 	}
 
-	result, err := a.logService.ListLogs(req)
+	result, err := a.logService.ListLogsContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to list audit logs", err)
 		return
 	}
 

@@ -11,9 +11,8 @@ import (
 
 var Logger *zap.Logger
 
-// InitLogger 初始化日志
+// InitLogger initializes the application logger.
 func InitLogger(filePath string, level string, maxSize, maxBackups, maxAge int) {
-	// 日志级别
 	var logLevel zapcore.Level
 	switch level {
 	case "debug":
@@ -28,7 +27,6 @@ func InitLogger(filePath string, level string, maxSize, maxBackups, maxAge int) 
 		logLevel = zapcore.InfoLevel
 	}
 
-	// 编码器配置
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey:        "time",
 		LevelKey:       "level",
@@ -43,7 +41,6 @@ func InitLogger(filePath string, level string, maxSize, maxBackups, maxAge int) 
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
 
-	// 文件输出配置
 	lumberJackLogger := &lumberjack.Logger{
 		Filename:   filePath,
 		MaxSize:    maxSize,
@@ -52,47 +49,43 @@ func InitLogger(filePath string, level string, maxSize, maxBackups, maxAge int) 
 		Compress:   true,
 	}
 
-	// 控制台输出
 	consoleWriter := zapcore.AddSync(os.Stdout)
-	// 文件输出
 	fileWriter := zapcore.AddSync(lumberJackLogger)
 
-	// 创建Core
 	core := zapcore.NewTee(
 		zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), fileWriter, logLevel),
 		zapcore.NewCore(zapcore.NewConsoleEncoder(encoderConfig), consoleWriter, logLevel),
 	)
 
-	// 创建Logger
 	Logger = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 }
 
-// Debug 调试日志
+// Debug writes a debug log.
 func Debug(msg string, fields ...zap.Field) {
 	Logger.Debug(msg, fields...)
 }
 
-// Info 信息日志
+// Info writes an info log.
 func Info(msg string, fields ...zap.Field) {
 	Logger.Info(msg, fields...)
 }
 
-// Warn 警告日志
+// Warn writes a warning log.
 func Warn(msg string, fields ...zap.Field) {
 	Logger.Warn(msg, fields...)
 }
 
-// Error 错误日志
+// Error writes an error log.
 func Error(msg string, fields ...zap.Field) {
 	Logger.Error(msg, fields...)
 }
 
-// Fatal 致命日志
+// Fatal writes a fatal log and exits.
 func Fatal(msg string, fields ...zap.Field) {
 	Logger.Fatal(msg, fields...)
 }
 
-// 辅助函数
+// Field helpers.
 func String(key, value string) zap.Field {
 	return zap.String(key, value)
 }
@@ -117,7 +110,7 @@ func Duration(key string, value time.Duration) zap.Field {
 	return zap.Duration(key, value)
 }
 
-func Any(key string, value interface{}) zap.Field {
+func Any(key string, value any) zap.Field {
 	return zap.Any(key, value)
 }
 
@@ -125,49 +118,44 @@ func Int64(key string, value int64) zap.Field {
 	return zap.Int64(key, value)
 }
 
-// GinWriter Gin 日志写入器（用于路由注册日志）
-// 完全禁用路由注册日志，只保留警告和错误
+// GinWriter writes selected Gin framework logs.
 type GinWriter struct{}
 
 func (w *GinWriter) Write(p []byte) (n int, err error) {
 	msg := string(p)
-	// 过滤掉所有路由注册日志 [GIN-debug]
 	if contains(msg, []string{"[GIN-debug]"}) {
-		// 完全忽略路由注册日志
 		return len(p), nil
 	}
-	// 只记录警告和错误
 	if contains(msg, []string{"[WARNING]", "[ERROR]"}) {
-		// 清理消息格式
 		cleanMsg := msg
 		if len(cleanMsg) > 0 && cleanMsg[len(cleanMsg)-1] == '\n' {
 			cleanMsg = cleanMsg[:len(cleanMsg)-1]
 		}
-		Logger.Warn("Gin 警告", zap.String("消息", cleanMsg))
+		Logger.Warn("gin warning", zap.String("message", cleanMsg))
 	}
 	return len(p), nil
 }
 
-// GinErrorWriter Gin 错误日志写入器
+// GinErrorWriter writes Gin error logs.
 type GinErrorWriter struct{}
 
 func (w *GinErrorWriter) Write(p []byte) (n int, err error) {
 	msg := string(p)
-	Logger.Error("Gin 错误", zap.String("消息", msg[:len(msg)-1]))
+	Logger.Error("gin error", zap.String("message", msg[:len(msg)-1]))
 	return len(p), nil
 }
 
-// NewGinWriter 创建 Gin 日志写入器
+// NewGinWriter creates a Gin log writer.
 func NewGinWriter() *GinWriter {
 	return &GinWriter{}
 }
 
-// NewGinErrorWriter 创建 Gin 错误日志写入器
+// NewGinErrorWriter creates a Gin error log writer.
 func NewGinErrorWriter() *GinErrorWriter {
 	return &GinErrorWriter{}
 }
 
-// contains 检查字符串是否包含任一子串
+// contains reports whether s contains any of the provided substrings.
 func contains(s string, substrs []string) bool {
 	for _, substr := range substrs {
 		if len(s) >= len(substr) {

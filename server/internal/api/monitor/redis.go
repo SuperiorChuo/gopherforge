@@ -16,11 +16,11 @@ func NewRedisAPI() *RedisAPI {
 	}
 }
 
-// GetRedisInfo 获取 Redis 信息
+// GetRedisInfo returns Redis information.
 func (a *RedisAPI) GetRedisInfo(c *gin.Context) {
-	data, err := a.service.GetRedisInfo()
+	data, err := a.service.GetRedisInfoContext(c.Request.Context())
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get Redis info", err)
 		return
 	}
 	response.Success(c, data)

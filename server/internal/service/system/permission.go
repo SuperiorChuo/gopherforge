@@ -1,37 +1,34 @@
 package system
 
 import (
+	"context"
 	"errors"
 
-	"github.com/go-admin-kit/server/internal/dao/system"
+	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// PermissionService 权限服务
 type PermissionService struct {
-	permissionDAO system.PermissionManageDAO
+	permissionDAO systemdao.PermissionManageDAO
 }
 
-// PermissionListRequest 权限列表请求
 type PermissionListRequest struct {
 	pagination.PageRequest
 	Keyword string `json:"keyword" form:"keyword"`
-	Type    *int8  `json:"type" form:"type"` // 1菜单，2按钮
+	Type    *int8  `json:"type" form:"type"`
 }
 
-// CreatePermissionRequest 创建权限请求
 type CreatePermissionRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Code        string `json:"code" binding:"required"`
 	Description string `json:"description"`
-	Type        int8   `json:"type" binding:"required"` // 1菜单，2按钮
+	Type        int8   `json:"type" binding:"required"`
 	Path        string `json:"path"`
 	Method      string `json:"method"`
 	ParentID    uint   `json:"parent_id"`
 }
 
-// UpdatePermissionRequest 更新权限请求
 type UpdatePermissionRequest struct {
 	Name        string  `json:"name"`
 	Description *string `json:"description"`
@@ -40,33 +37,49 @@ type UpdatePermissionRequest struct {
 	ParentID    uint    `json:"parent_id"`
 }
 
-// GetPermissionByID 根据ID获取权限
 func (s *PermissionService) GetPermissionByID(id uint) (*model.Permission, error) {
-	return s.permissionDAO.GetPermissionByID(id)
+	return s.GetPermissionByIDContext(context.Background(), id)
 }
 
-// GetPermissionList 获取权限列表
+func (s *PermissionService) GetPermissionByIDContext(ctx context.Context, id uint) (*model.Permission, error) {
+	return s.permissionDAO.GetPermissionByIDContext(ctx, id)
+}
+
 func (s *PermissionService) GetPermissionList(req PermissionListRequest) ([]model.Permission, int64, error) {
-	return s.permissionDAO.GetPermissionList(req.PageRequest, req.Keyword, req.Type)
+	return s.GetPermissionListContext(context.Background(), req)
 }
 
-// GetPermissionTree 获取权限树
+func (s *PermissionService) GetPermissionListContext(ctx context.Context, req PermissionListRequest) ([]model.Permission, int64, error) {
+	return s.permissionDAO.GetPermissionListContext(ctx, req.PageRequest, req.Keyword, req.Type)
+}
+
 func (s *PermissionService) GetPermissionTree() ([]model.Permission, error) {
-	return s.permissionDAO.GetPermissionTree()
+	return s.GetPermissionTreeContext(context.Background())
 }
 
-// CreatePermission 创建权限
+func (s *PermissionService) GetPermissionTreeContext(ctx context.Context) ([]model.Permission, error) {
+	return s.permissionDAO.GetPermissionTreeContext(ctx)
+}
+
 func (s *PermissionService) CreatePermission(req CreatePermissionRequest) (*model.Permission, error) {
-	// 检查权限代码是否已存在
-	_, err := s.permissionDAO.GetPermissionByCode(req.Code)
+	return s.CreatePermissionContext(context.Background(), req)
+}
+
+func (s *PermissionService) CreatePermissionContext(ctx context.Context, req CreatePermissionRequest) (*model.Permission, error) {
+	_, err := s.permissionDAO.GetPermissionByCodeContext(ctx, req.Code)
 	if err == nil {
 		return nil, errors.New("permission code already exists")
 	}
+	if isContextError(err) {
+		return nil, err
+	}
 
-	// 如果指定了父权限，检查父权限是否存在
 	if req.ParentID > 0 {
-		_, err := s.permissionDAO.GetPermissionByID(req.ParentID)
+		_, err := s.permissionDAO.GetPermissionByIDContext(ctx, req.ParentID)
 		if err != nil {
+			if isContextError(err) {
+				return nil, err
+			}
 			return nil, errors.New("parent permission not found")
 		}
 	}
@@ -81,24 +94,32 @@ func (s *PermissionService) CreatePermission(req CreatePermissionRequest) (*mode
 		ParentID:    req.ParentID,
 	}
 
-	if err := s.permissionDAO.CreatePermission(permission); err != nil {
+	if err := s.permissionDAO.CreatePermissionContext(ctx, permission); err != nil {
 		return nil, err
 	}
 
 	return permission, nil
 }
 
-// UpdatePermission 更新权限
 func (s *PermissionService) UpdatePermission(id uint, req UpdatePermissionRequest) (*model.Permission, error) {
-	permission, err := s.permissionDAO.GetPermissionByID(id)
+	return s.UpdatePermissionContext(context.Background(), id, req)
+}
+
+func (s *PermissionService) UpdatePermissionContext(ctx context.Context, id uint, req UpdatePermissionRequest) (*model.Permission, error) {
+	permission, err := s.permissionDAO.GetPermissionByIDContext(ctx, id)
 	if err != nil {
+		if isContextError(err) {
+			return nil, err
+		}
 		return nil, errors.New("permission not found")
 	}
 
-	// 如果更新父权限，检查是否会造成循环引用
 	if req.ParentID > 0 && req.ParentID != permission.ParentID {
-		// 检查新父权限是否是当前权限的子权限
-		if isDescendant(s.permissionDAO, id, req.ParentID) {
+		descendant, err := isDescendantContext(ctx, s.permissionDAO, id, req.ParentID)
+		if err != nil {
+			return nil, err
+		}
+		if descendant {
 			return nil, errors.New("cannot set parent to descendant")
 		}
 		permission.ParentID = req.ParentID
@@ -117,41 +138,49 @@ func (s *PermissionService) UpdatePermission(id uint, req UpdatePermissionReques
 		permission.Method = req.Method
 	}
 
-	if err := s.permissionDAO.UpdatePermission(permission); err != nil {
+	if err := s.permissionDAO.UpdatePermissionContext(ctx, permission); err != nil {
 		return nil, err
 	}
 
-	if err := InvalidatePermissionCacheByPermissions(id); err != nil {
+	if err := InvalidatePermissionCacheByPermissionsContext(ctx, id); err != nil {
 		return nil, err
 	}
 
 	return permission, nil
 }
 
-// DeletePermission 删除权限
 func (s *PermissionService) DeletePermission(id uint) error {
-	if _, err := s.permissionDAO.GetPermissionByID(id); err != nil {
+	return s.DeletePermissionContext(context.Background(), id)
+}
+
+func (s *PermissionService) DeletePermissionContext(ctx context.Context, id uint) error {
+	if _, err := s.permissionDAO.GetPermissionByIDContext(ctx, id); err != nil {
+		if isContextError(err) {
+			return err
+		}
 		return errors.New("permission not found")
 	}
 
-	if err := InvalidatePermissionCacheByPermissions(id); err != nil {
+	if err := InvalidatePermissionCacheByPermissionsContext(ctx, id); err != nil {
 		return err
 	}
 
-	return s.permissionDAO.DeletePermission(id)
+	return s.permissionDAO.DeletePermissionContext(ctx, id)
 }
 
-// isDescendant 检查target是否是ancestor的后代
-func isDescendant(permissionDAO system.PermissionManageDAO, ancestorID, targetID uint) bool {
+func isDescendantContext(ctx context.Context, permissionDAO systemdao.PermissionManageDAO, ancestorID, targetID uint) (bool, error) {
 	if targetID == 0 {
-		return false
+		return false, nil
 	}
-	target, err := permissionDAO.GetPermissionByID(targetID)
+	target, err := permissionDAO.GetPermissionByIDContext(ctx, targetID)
 	if err != nil {
-		return false
+		if isContextError(err) {
+			return false, err
+		}
+		return false, nil
 	}
 	if target.ParentID == ancestorID {
-		return true
+		return true, nil
 	}
-	return isDescendant(permissionDAO, ancestorID, target.ParentID)
+	return isDescendantContext(ctx, permissionDAO, ancestorID, target.ParentID)
 }

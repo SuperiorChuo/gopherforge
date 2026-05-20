@@ -8,19 +8,19 @@ import (
 	"github.com/go-admin-kit/server/internal/service/system"
 )
 
-// MenuManagementAPI 菜单管理API
+// MenuManagementAPI handles menu management endpoints.
 type MenuManagementAPI struct {
 	menuService system.MenuService
 }
 
-// NewMenuManagementAPI 创建MenuManagementAPI实例
+// NewMenuManagementAPI creates a MenuManagementAPI instance.
 func NewMenuManagementAPI() *MenuManagementAPI {
 	return &MenuManagementAPI{
 		menuService: system.MenuService{},
 	}
 }
 
-// GetMenuList 获取菜单列表
+// GetMenuList returns paginated menus.
 func (a *MenuManagementAPI) GetMenuList(c *gin.Context) {
 	var req system.MenuListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -28,7 +28,6 @@ func (a *MenuManagementAPI) GetMenuList(c *gin.Context) {
 		return
 	}
 
-	// 设置默认分页参数
 	if req.Page <= 0 {
 		req.Page = 1
 	}
@@ -36,7 +35,6 @@ func (a *MenuManagementAPI) GetMenuList(c *gin.Context) {
 		req.PageSize = 10
 	}
 
-	// 解析状态参数
 	if statusStr := c.Query("status"); statusStr != "" {
 		status, err := strconv.ParseInt(statusStr, 10, 8)
 		if err == nil {
@@ -45,16 +43,16 @@ func (a *MenuManagementAPI) GetMenuList(c *gin.Context) {
 		}
 	}
 
-	menus, total, err := a.menuService.GetMenuList(req)
+	menus, total, err := a.menuService.GetMenuListContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get menu list", err)
 		return
 	}
 
 	response.PageSuccess(c, menus, total, req.Page, req.PageSize)
 }
 
-// GetMenuTree 获取菜单树
+// GetMenuTree returns a menu tree.
 func (a *MenuManagementAPI) GetMenuTree(c *gin.Context) {
 	var status *int8
 	if statusStr := c.Query("status"); statusStr != "" {
@@ -65,16 +63,16 @@ func (a *MenuManagementAPI) GetMenuTree(c *gin.Context) {
 		}
 	}
 
-	menus, err := a.menuService.GetMenuTree(status)
+	menus, err := a.menuService.GetMenuTreeContext(c.Request.Context(), status)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get menu tree", err)
 		return
 	}
 
 	response.Success(c, menus)
 }
 
-// GetMenu 获取菜单详情
+// GetMenu returns a menu by id.
 func (a *MenuManagementAPI) GetMenu(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -83,7 +81,7 @@ func (a *MenuManagementAPI) GetMenu(c *gin.Context) {
 		return
 	}
 
-	menu, err := a.menuService.GetMenuByID(uint(id))
+	menu, err := a.menuService.GetMenuByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
 		response.NotFound(c, "menu not found")
 		return
@@ -92,7 +90,7 @@ func (a *MenuManagementAPI) GetMenu(c *gin.Context) {
 	response.Success(c, menu)
 }
 
-// CreateMenu 创建菜单
+// CreateMenu creates a menu.
 func (a *MenuManagementAPI) CreateMenu(c *gin.Context) {
 	var req system.CreateMenuRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -100,7 +98,7 @@ func (a *MenuManagementAPI) CreateMenu(c *gin.Context) {
 		return
 	}
 
-	menu, err := a.menuService.CreateMenu(req)
+	menu, err := a.menuService.CreateMenuContext(c.Request.Context(), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -109,7 +107,7 @@ func (a *MenuManagementAPI) CreateMenu(c *gin.Context) {
 	response.SuccessWithMessage(c, "menu created successfully", menu)
 }
 
-// UpdateMenu 更新菜单
+// UpdateMenu updates a menu.
 func (a *MenuManagementAPI) UpdateMenu(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -124,7 +122,7 @@ func (a *MenuManagementAPI) UpdateMenu(c *gin.Context) {
 		return
 	}
 
-	menu, err := a.menuService.UpdateMenu(uint(id), req)
+	menu, err := a.menuService.UpdateMenuContext(c.Request.Context(), uint(id), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -133,7 +131,7 @@ func (a *MenuManagementAPI) UpdateMenu(c *gin.Context) {
 	response.SuccessWithMessage(c, "menu updated successfully", menu)
 }
 
-// DeleteMenu 删除菜单
+// DeleteMenu deletes a menu.
 func (a *MenuManagementAPI) DeleteMenu(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -142,7 +140,7 @@ func (a *MenuManagementAPI) DeleteMenu(c *gin.Context) {
 		return
 	}
 
-	if err := a.menuService.DeleteMenu(uint(id)); err != nil {
+	if err := a.menuService.DeleteMenuContext(c.Request.Context(), uint(id)); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}

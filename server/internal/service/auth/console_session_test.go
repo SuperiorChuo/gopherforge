@@ -1,6 +1,10 @@
 package auth
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"testing"
+)
 
 func TestHashSummaryMatchesConsoleSessionRules(t *testing.T) {
 	if got := hashSummary("   "); got != "" {
@@ -17,8 +21,20 @@ func TestHashSummaryMatchesConsoleSessionRules(t *testing.T) {
 }
 
 func TestTruncateRunesPreservesRuneBoundaries(t *testing.T) {
-	got := truncateRunes("abc世界", 4)
-	if got != "abc世" {
-		t.Fatalf("truncateRunes = %q, want abc世", got)
+	got := truncateRunes("abc\u4e16\u754c", 4)
+	if got != "abc\u4e16" {
+		t.Fatalf("truncateRunes = %q, want abc\\u4e16", got)
+	}
+}
+
+func TestConsoleSessionServiceValidateActiveSessionContextHonorsCanceledContext(t *testing.T) {
+	setupAuthServiceContextTestDB(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := (ConsoleSessionService{}).ValidateActiveSessionContext(ctx, "session-1", "alice")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ValidateActiveSessionContext() error = %v, want context.Canceled", err)
 	}
 }

@@ -11,9 +11,9 @@ import (
 )
 
 func (a *UserAPI) ListConsoleRoutes(c *gin.Context) {
-	routes, err := a.consoleRouteService.ListRoutes()
+	routes, err := a.consoleRouteService.ListRoutesContext(c.Request.Context())
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to list console routes", err)
 		return
 	}
 	response.Success(c, gin.H{"items": routes})
@@ -26,7 +26,7 @@ func (a *UserAPI) CreateConsoleRoute(c *gin.Context) {
 		return
 	}
 
-	route, err := a.consoleRouteService.CreateRoute(req)
+	route, err := a.consoleRouteService.CreateRouteContext(c.Request.Context(), req)
 	if err != nil {
 		respondConsoleRouteError(c, err)
 		return
@@ -36,7 +36,7 @@ func (a *UserAPI) CreateConsoleRoute(c *gin.Context) {
 }
 
 func (a *UserAPI) GetConsoleRoute(c *gin.Context) {
-	route, err := a.consoleRouteService.GetRoute(c.Param("route_key"))
+	route, err := a.consoleRouteService.GetRouteContext(c.Request.Context(), c.Param("route_key"))
 	if err != nil {
 		respondConsoleRouteError(c, err)
 		return
@@ -52,12 +52,12 @@ func (a *UserAPI) UpdateConsoleRoute(c *gin.Context) {
 	}
 
 	routeKey := c.Param("route_key")
-	before, err := a.consoleRouteService.GetRoute(routeKey)
+	before, err := a.consoleRouteService.GetRouteContext(c.Request.Context(), routeKey)
 	if err != nil {
 		respondConsoleRouteError(c, err)
 		return
 	}
-	route, err := a.consoleRouteService.UpdateRoute(routeKey, req)
+	route, err := a.consoleRouteService.UpdateRouteContext(c.Request.Context(), routeKey, req)
 	if err != nil {
 		respondConsoleRouteError(c, err)
 		return
@@ -67,7 +67,7 @@ func (a *UserAPI) UpdateConsoleRoute(c *gin.Context) {
 }
 
 func (a *UserAPI) DeleteConsoleRoute(c *gin.Context) {
-	before, err := a.consoleRouteService.DeleteRoute(c.Param("route_key"))
+	before, err := a.consoleRouteService.DeleteRouteContext(c.Request.Context(), c.Param("route_key"))
 	if err != nil {
 		respondConsoleRouteError(c, err)
 		return
@@ -84,7 +84,7 @@ func respondConsoleRouteError(c *gin.Context, err error) {
 	case errors.As(err, &validationErr):
 		response.BadRequest(c, validationErr.Error())
 	default:
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to process console route", err)
 	}
 }
 

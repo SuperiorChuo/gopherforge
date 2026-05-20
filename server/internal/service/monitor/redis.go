@@ -15,8 +15,11 @@ func NewRedisService() *RedisService {
 }
 
 // GetRedisInfo 获取 Redis 信息
-func (s *RedisService) GetRedisInfo() (map[string]interface{}, error) {
-	ctx := context.Background()
+func (s *RedisService) GetRedisInfo() (map[string]any, error) {
+	return s.GetRedisInfoContext(context.Background())
+}
+
+func (s *RedisService) GetRedisInfoContext(ctx context.Context) (map[string]any, error) {
 	infoStr, err := redis.Client.Info(ctx).Result()
 	if err != nil {
 		return nil, err
@@ -30,10 +33,10 @@ func (s *RedisService) GetRedisInfo() (map[string]interface{}, error) {
 	keyspace := parseRedisKeyspace(info)
 
 	// 获取内存使用
-	data := make(map[string]interface{})
+	data := make(map[string]any)
 	data["status"] = "ok"
 
-	data["server"] = map[string]interface{}{
+	data["server"] = map[string]any{
 		"version":        info["redis_version"],
 		"os":             info["os"],
 		"mode":           info["redis_mode"],
@@ -44,7 +47,7 @@ func (s *RedisService) GetRedisInfo() (map[string]interface{}, error) {
 		"tcp_port":       parseInt64(info["tcp_port"]),
 	}
 
-	data["memory"] = map[string]interface{}{
+	data["memory"] = map[string]any{
 		"used":          info["used_memory_human"],
 		"peak":          info["used_memory_peak_human"],
 		"lua":           info["used_memory_lua_human"],
@@ -58,7 +61,7 @@ func (s *RedisService) GetRedisInfo() (map[string]interface{}, error) {
 		"overhead":      info["used_memory_overhead"],
 	}
 
-	data["stats"] = map[string]interface{}{
+	data["stats"] = map[string]any{
 		"connections":                info["connected_clients"],
 		"ops":                        info["instantaneous_ops_per_sec"],
 		"keys":                       dbsize,
@@ -71,13 +74,13 @@ func (s *RedisService) GetRedisInfo() (map[string]interface{}, error) {
 		"evicted_keys":               parseInt64(info["evicted_keys"]),
 	}
 
-	data["clients"] = map[string]interface{}{
+	data["clients"] = map[string]any{
 		"connected": parseInt64(info["connected_clients"]),
 		"blocked":   parseInt64(info["blocked_clients"]),
 		"tracking":  parseInt64(info["tracking_clients"]),
 	}
 
-	data["pool"] = map[string]interface{}{
+	data["pool"] = map[string]any{
 		"hits":        poolStats.Hits,
 		"misses":      poolStats.Misses,
 		"timeouts":    poolStats.Timeouts,
@@ -86,7 +89,7 @@ func (s *RedisService) GetRedisInfo() (map[string]interface{}, error) {
 		"stale_conns": poolStats.StaleConns,
 	}
 
-	data["keyspace"] = map[string]interface{}{
+	data["keyspace"] = map[string]any{
 		"dbsize": dbsize,
 		"dbs":    keyspace,
 	}

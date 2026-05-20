@@ -16,11 +16,11 @@ func NewMySQLAPI() *MySQLAPI {
 	}
 }
 
-// GetMySQLInfo 获取 MySQL 信息
+// GetMySQLInfo returns MySQL information.
 func (a *MySQLAPI) GetMySQLInfo(c *gin.Context) {
-	data, err := a.service.GetMySQLInfo()
+	data, err := a.service.GetMySQLInfoContext(c.Request.Context())
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get MySQL info", err)
 		return
 	}
 	response.Success(c, data)

@@ -1,6 +1,8 @@
 package system
 
 import (
+	"context"
+
 	"gorm.io/gorm"
 
 	"github.com/go-admin-kit/server/internal/model"
@@ -8,13 +10,18 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// RoleDAO 角色数据访问对象
 type RoleDAO struct{}
 
-// GetRoleByID 根据ID获取角色
 func (d *RoleDAO) GetRoleByID(id uint) (*model.Role, error) {
+	return d.GetRoleByIDContext(context.Background(), id)
+}
+
+func (d *RoleDAO) GetRoleByIDContext(ctx context.Context, id uint) (*model.Role, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var role model.Role
-	result := database.DB.
+	result := database.DB.WithContext(ctx).
 		Preload("Permissions").
 		Preload("DataScopeDepartments").
 		First(&role, id)
@@ -25,32 +32,40 @@ func (d *RoleDAO) GetRoleByID(id uint) (*model.Role, error) {
 	return &role, nil
 }
 
-// GetRoleByCode 根据代码获取角色
 func (d *RoleDAO) GetRoleByCode(code string) (*model.Role, error) {
+	return d.GetRoleByCodeContext(context.Background(), code)
+}
+
+func (d *RoleDAO) GetRoleByCodeContext(ctx context.Context, code string) (*model.Role, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var role model.Role
-	result := database.DB.Where("code = ?", code).First(&role)
+	result := database.DB.WithContext(ctx).Where("code = ?", code).First(&role)
 	return &role, result.Error
 }
 
-// GetRoleList 获取角色列表（分页）
 func (d *RoleDAO) GetRoleList(req pagination.PageRequest, keyword string) ([]model.Role, int64, error) {
+	return d.GetRoleListContext(context.Background(), req, keyword)
+}
+
+func (d *RoleDAO) GetRoleListContext(ctx context.Context, req pagination.PageRequest, keyword string) ([]model.Role, int64, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var roles []model.Role
 	var total int64
 
-	query := database.DB.Model(&model.Role{})
-
-	// 关键词搜索
+	query := database.DB.WithContext(ctx).Model(&model.Role{})
 	if keyword != "" {
 		query = query.Where("name LIKE ? OR code LIKE ? OR description LIKE ?",
 			"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 	}
 
-	// 获取总数
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// 分页查询
 	result := query.Scopes(pagination.Paginate(req)).
 		Preload("Permissions").
 		Preload("DataScopeDepartments").
@@ -61,10 +76,16 @@ func (d *RoleDAO) GetRoleList(req pagination.PageRequest, keyword string) ([]mod
 	return roles, total, result.Error
 }
 
-// GetAllRoles 获取所有角色
 func (d *RoleDAO) GetAllRoles() ([]model.Role, error) {
+	return d.GetAllRolesContext(context.Background())
+}
+
+func (d *RoleDAO) GetAllRolesContext(ctx context.Context) ([]model.Role, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var roles []model.Role
-	result := database.DB.
+	result := database.DB.WithContext(ctx).
 		Preload("DataScopeDepartments").
 		Order("created_at ASC").
 		Find(&roles)
@@ -72,9 +93,15 @@ func (d *RoleDAO) GetAllRoles() ([]model.Role, error) {
 	return roles, result.Error
 }
 
-// CreateRole 创建角色
 func (d *RoleDAO) CreateRole(role *model.Role) error {
-	return database.DB.Transaction(func(tx *gorm.DB) error {
+	return d.CreateRoleContext(context.Background(), role)
+}
+
+func (d *RoleDAO) CreateRoleContext(ctx context.Context, role *model.Role) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(role).Error; err != nil {
 			return err
 		}
@@ -85,9 +112,15 @@ func (d *RoleDAO) CreateRole(role *model.Role) error {
 	})
 }
 
-// UpdateRole 更新角色
 func (d *RoleDAO) UpdateRole(role *model.Role) error {
-	return database.DB.Transaction(func(tx *gorm.DB) error {
+	return d.UpdateRoleContext(context.Background(), role)
+}
+
+func (d *RoleDAO) UpdateRoleContext(ctx context.Context, role *model.Role) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Save(role).Error; err != nil {
 			return err
 		}
@@ -98,10 +131,15 @@ func (d *RoleDAO) UpdateRole(role *model.Role) error {
 	})
 }
 
-// DeleteRole 删除角色
 func (d *RoleDAO) DeleteRole(id uint) error {
-	return database.DB.Transaction(func(tx *gorm.DB) error {
-		// 先删除关联关系
+	return d.DeleteRoleContext(context.Background(), id)
+}
+
+func (d *RoleDAO) DeleteRoleContext(ctx context.Context, id uint) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("role_id = ?", id).Delete(&model.RolePermission{}).Error; err != nil {
 			return err
 		}
@@ -111,7 +149,6 @@ func (d *RoleDAO) DeleteRole(id uint) error {
 		if err := tx.Where("role_id = ?", id).Delete(&model.RoleDataScopeDepartment{}).Error; err != nil {
 			return err
 		}
-		// 再删除角色
 		if err := tx.Delete(&model.Role{}, id).Error; err != nil {
 			return err
 		}
@@ -174,15 +211,19 @@ func reloadRoleDataScopeDepartmentIDs(tx *gorm.DB, role *model.Role) error {
 	return nil
 }
 
-// AssignPermissions 分配权限给角色
 func (d *RoleDAO) AssignPermissions(roleID uint, permissionIDs []uint) error {
-	return database.DB.Transaction(func(tx *gorm.DB) error {
-		// 先删除原有权限
+	return d.AssignPermissionsContext(context.Background(), roleID, permissionIDs)
+}
+
+func (d *RoleDAO) AssignPermissionsContext(ctx context.Context, roleID uint, permissionIDs []uint) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("role_id = ?", roleID).Delete(&model.RolePermission{}).Error; err != nil {
 			return err
 		}
 
-		// 添加新权限
 		for _, permissionID := range permissionIDs {
 			rolePermission := model.RolePermission{
 				RoleID:       roleID,

@@ -19,7 +19,7 @@ Copy-Item .env.example .env
 docker compose up -d --build
 ```
 
-第一次创建 MySQL 数据卷时，Docker 会自动导入 `server/docs/go_admin_kit.sql`。
+后端容器会在启动主服务前幂等执行 `server/migrations/` 下的 goose 迁移；首次创建数据卷和后续升级都走同一条迁移路径。
 
 查看服务：
 
@@ -39,6 +39,8 @@ docker compose down
 docker compose down -v
 docker compose up -d --build
 ```
+
+仅在离线或手动初始化环境中使用 `server/docs/go_admin_kit.sql`；日常 Docker 和本地开发优先使用 goose 迁移。
 
 ## 分别启动前后端
 

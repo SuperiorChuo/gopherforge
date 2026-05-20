@@ -59,6 +59,13 @@ func NewUploaderWithConfig(cfg config.UploadConfig) *Uploader {
 
 // Upload 上传文件
 func (u *Uploader) Upload(file *multipart.FileHeader) (*FileInfo, error) {
+	return u.UploadContext(context.Background(), file)
+}
+
+func (u *Uploader) UploadContext(ctx context.Context, file *multipart.FileHeader) (*FileInfo, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := u.ensureProvider(); err != nil {
 		return nil, err
 	}
@@ -113,7 +120,7 @@ func (u *Uploader) Upload(file *multipart.FileHeader) (*FileInfo, error) {
 
 	// 生成对象键并写入配置的存储后端。
 	objectKey := u.generateObjectKey(ext)
-	stored, err := u.provider.Store(context.Background(), objectKey, src)
+	stored, err := u.provider.Store(ctx, objectKey, src)
 	if err != nil {
 		return nil, err
 	}
@@ -139,11 +146,18 @@ func (u *Uploader) Upload(file *multipart.FileHeader) (*FileInfo, error) {
 
 // UploadMultiple 批量上传文件
 func (u *Uploader) UploadMultiple(files []*multipart.FileHeader) ([]*FileInfo, []error) {
+	return u.UploadMultipleContext(context.Background(), files)
+}
+
+func (u *Uploader) UploadMultipleContext(ctx context.Context, files []*multipart.FileHeader) ([]*FileInfo, []error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var results []*FileInfo
 	var errs []error
 
 	for _, file := range files {
-		info, err := u.Upload(file)
+		info, err := u.UploadContext(ctx, file)
 		if err != nil {
 			errs = append(errs, err)
 		} else {
@@ -156,10 +170,17 @@ func (u *Uploader) UploadMultiple(files []*multipart.FileHeader) ([]*FileInfo, [
 
 // Delete 删除文件
 func (u *Uploader) Delete(filePath string) error {
+	return u.DeleteContext(context.Background(), filePath)
+}
+
+func (u *Uploader) DeleteContext(ctx context.Context, filePath string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := u.ensureProvider(); err != nil {
 		return err
 	}
-	return u.provider.Delete(context.Background(), filePath)
+	return u.provider.Delete(ctx, filePath)
 }
 
 // isAllowedType 检查文件类型是否允许

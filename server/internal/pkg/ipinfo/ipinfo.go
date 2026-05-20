@@ -223,7 +223,7 @@ func GetLocationByIP(ip string) string {
 
 // ClearCache 清空缓存
 func (c *IPInfoClient) ClearCache() {
-	c.cache.Range(func(key, value interface{}) bool {
+	c.cache.Range(func(key, value any) bool {
 		c.cache.Delete(key)
 		return true
 	})

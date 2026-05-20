@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -11,17 +10,12 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/response"
 )
 
-// RateLimitConfig 限流配置
 type RateLimitConfig struct {
-	// 时间窗口（秒）
-	Window time.Duration
-	// 最大请求数
+	Window      time.Duration
 	MaxRequests int
-	// 键前缀
-	KeyPrefix string
+	KeyPrefix   string
 }
 
-// DefaultRateLimitConfig 默认限流配置
 func DefaultRateLimitConfig() RateLimitConfig {
 	return RateLimitConfig{
 		Window:      time.Minute,
@@ -30,37 +24,27 @@ func DefaultRateLimitConfig() RateLimitConfig {
 	}
 }
 
-// RateLimit 限流中间件
 func RateLimit(config RateLimitConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 获取客户端IP
 		clientIP := c.ClientIP()
 		key := fmt.Sprintf("%s:%s", config.KeyPrefix, clientIP)
+		ctx := c.Request.Context()
 
-		ctx := context.Background()
-
-		// 获取当前计数
-		count, err := redis.Client.Get(ctx, key).Int()
-		if err != nil && err.Error() != "redis: nil" {
-			logger.Error("限流检查失败", logger.Err(err))
+		count, err := redis.Client.Incr(ctx, key).Result()
+		if err != nil {
+			logger.Error("rate limit check failed", logger.Err(err))
 			c.Next()
 			return
 		}
-
-		// 如果超过限制
-		if count >= config.MaxRequests {
+		if count == 1 {
+			if err := redis.Client.Expire(ctx, key, config.Window).Err(); err != nil {
+				logger.Error("rate limit expire failed", logger.Err(err))
+			}
+		}
+		if count > int64(config.MaxRequests) {
 			response.Error(c, 429, "too many requests")
 			c.Abort()
 			return
-		}
-
-		// 增加计数
-		pipe := redis.Client.Pipeline()
-		pipe.Incr(ctx, key)
-		pipe.Expire(ctx, key, config.Window)
-		_, err = pipe.Exec(ctx)
-		if err != nil {
-			logger.Error("限流计数增加失败", logger.Err(err))
 		}
 
 		c.Next()

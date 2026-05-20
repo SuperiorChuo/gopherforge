@@ -13,7 +13,7 @@ var (
 	Client *redis.Client
 )
 
-// InitRedis 初始化Redis连接
+// InitRedis initializes the Redis connection.
 func InitRedis() error {
 	cfg := config.Cfg.Redis
 
@@ -24,16 +24,15 @@ func InitRedis() error {
 		PoolSize: cfg.PoolSize,
 	})
 
-	// 测试连接
 	ctx := context.Background()
 	_, err := Client.Ping(ctx).Result()
 	if err != nil {
 		return fmt.Errorf("failed to connect redis: %w", err)
 	}
 
-	logger.Info("✅ Redis 连接成功",
-		logger.String("地址", fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)),
-		logger.Int("数据库", cfg.DB),
+	logger.Info("redis connected",
+		logger.String("address", fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)),
+		logger.Int("database", cfg.DB),
 	)
 	return nil
 }

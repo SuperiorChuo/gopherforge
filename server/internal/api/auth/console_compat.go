@@ -1,8 +1,7 @@
 package auth
 
 import (
-	"crypto/md5"
-	"encoding/hex"
+	"context"
 	"fmt"
 	"net/http"
 	"sort"
@@ -49,22 +48,6 @@ type consoleSessionResponse struct {
 	RefreshToken  string             `json:"refresh_token,omitempty"`
 }
 
-type consoleRoute struct {
-	RouteKey     string         `json:"route_key"`
-	Path         string         `json:"path"`
-	Name         string         `json:"name"`
-	ComponentKey string         `json:"component_key"`
-	Redirect     string         `json:"redirect,omitempty"`
-	ParentKey    string         `json:"parent_key,omitempty"`
-	SortOrder    int            `json:"sort_order"`
-	Hidden       bool           `json:"hidden"`
-	Public       bool           `json:"public"`
-	Enabled      bool           `json:"enabled"`
-	Permissions  []string       `json:"permissions"`
-	Roles        []string       `json:"roles"`
-	Meta         map[string]any `json:"meta"`
-}
-
 type consoleSecurityPolicy struct {
 	SessionTTLMinutes       int
 	LoginMaxAttemptsPerHour int
@@ -82,27 +65,27 @@ func (a *UserAPI) LoginConsole(c *gin.Context) {
 	policy := defaultConsoleSecurityPolicy()
 	loginLimitCfg := consoleLoginLimitConfig(policy)
 	loginIdentifier := middleware.LoginIdentifier(req.Username, c.ClientIP())
-	if locked, ttl := middleware.IsLoginLocked(loginIdentifier, loginLimitCfg); locked {
+	if locked, ttl := middleware.IsLoginLockedContext(c.Request.Context(), loginIdentifier, loginLimitCfg); locked {
 		response.Error(c, http.StatusTooManyRequests, "login attempts exceeded; please retry later")
 		c.Header("Retry-After", fmt.Sprintf("%.0f", ttl.Seconds()))
 		return
 	}
 
-	loginResp, err := a.userService.LoginPasswordWithAccessTTL(req.Username, req.Password, time.Duration(policy.SessionTTLMinutes)*time.Minute)
+	loginResp, err := a.userService.LoginPasswordWithAccessTTLContext(c.Request.Context(), req.Username, req.Password, time.Duration(policy.SessionTTLMinutes)*time.Minute)
 	if err != nil {
-		middleware.RecordLoginFailure(loginIdentifier, loginLimitCfg)
+		middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 		a.recordConsoleAuthAudit(c, "auth.login.failed", req.Username, nil, consoleAuthAttemptSnapshot(c, req.Username, "FAILED", "invalid_credentials"))
 		response.Unauthorized(c, "Invalid console username or password")
 		return
 	}
 
-	sessionRecord, err := a.consoleSessionService.CreateFromToken(loginResp.AccessToken, c.ClientIP(), c.GetHeader("User-Agent"))
+	sessionRecord, err := a.consoleSessionService.CreateFromTokenContext(c.Request.Context(), loginResp.AccessToken, c.ClientIP(), c.GetHeader("User-Agent"))
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to create console session", err)
 		return
 	}
 
-	permissions := consolePermissionsForUser(&loginResp.User, a.userService.GetUserPermissions(&loginResp.User))
+	permissions := consolePermissionsForUser(c.Request.Context(), &loginResp.User, a.userService.GetUserPermissions(&loginResp.User))
 	session := buildConsoleSession(&loginResp.User, permissions, loginResp.AccessToken, loginResp.RefreshToken)
 	setConsoleSessionCookie(c, loginResp.AccessToken, session.TTLSec)
 	a.recordOnlineUser(c, loginResp.AccessToken)
@@ -117,14 +100,14 @@ func (a *UserAPI) GetConsoleSession(c *gin.Context) {
 		return
 	}
 
-	user, err := a.userService.GetUserWithRolesAndPermissions(userID.(uint))
+	user, err := a.userService.GetUserWithRolesAndPermissionsContext(c.Request.Context(), userID.(uint))
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get console session user", err)
 		return
 	}
 	if user.Status != 1 {
 		if token := consoleauth.TokenFromGinContext(c); token != "" {
-			_, _ = a.consoleSessionService.RevokeByToken(token)
+			_, _ = a.consoleSessionService.RevokeByTokenContext(c.Request.Context(), token)
 		}
 		clearConsoleSessionCookie(c)
 		response.Unauthorized(c, "Console login required")
@@ -132,7 +115,7 @@ func (a *UserAPI) GetConsoleSession(c *gin.Context) {
 	}
 
 	token := consoleauth.TokenFromGinContext(c)
-	permissions := consolePermissionsForUser(user, a.userService.GetUserPermissions(user))
+	permissions := consolePermissionsForUser(c.Request.Context(), user, a.userService.GetUserPermissions(user))
 	response.Success(c, buildConsoleSession(user, permissions, token, ""))
 }
 
@@ -143,17 +126,17 @@ func (a *UserAPI) GetConsoleRoutes(c *gin.Context) {
 		return
 	}
 
-	user, err := a.userService.GetUserWithRolesAndPermissions(userID.(uint))
+	user, err := a.userService.GetUserWithRolesAndPermissionsContext(c.Request.Context(), userID.(uint))
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get console route user", err)
 		return
 	}
 
-	permissions := consolePermissionsForUser(user, a.userService.GetUserPermissions(user))
+	permissions := consolePermissionsForUser(c.Request.Context(), user, a.userService.GetUserPermissions(user))
 	roles := consoleRoleCodes(user.Roles)
-	routes, err := a.consoleRouteService.ListAccessibleRoutes(permissions, roles)
+	routes, err := a.consoleRouteService.ListAccessibleRoutesContext(c.Request.Context(), permissions, roles)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get console routes", err)
 		return
 	}
 	response.Success(c, gin.H{"items": routes})
@@ -166,14 +149,12 @@ func (a *UserAPI) LogoutConsole(c *gin.Context) {
 	if token != "" {
 		if claims, err := jwt.ParseToken(token); err == nil {
 			username = claims.Username
-			if record, revokeErr := a.consoleSessionService.RevokeByToken(token); revokeErr == nil {
+			if record, revokeErr := a.consoleSessionService.RevokeByTokenContext(c.Request.Context(), token); revokeErr == nil {
 				before = authSvc.ConsoleSessionSnapshot(record)
 			}
 			_ = jwt.RevokeToken(token, claims)
+			_ = a.onlineUserService.RemoveOnlineUserContext(c.Request.Context(), claims.ID)
 		}
-		tokenHash := md5.Sum([]byte(token))
-		tokenID := hex.EncodeToString(tokenHash[:8])
-		_ = a.onlineUserService.RemoveOnlineUser(tokenID)
 	}
 	a.recordConsoleAuthAudit(c, "auth.logout", auditTarget(username, "unknown"), before, consoleAuthAttemptSnapshot(c, username, "LOGOUT", ""))
 	clearConsoleSessionCookie(c)
@@ -267,7 +248,7 @@ func buildConsoleSession(user *model.User, permissions []string, accessToken, re
 	expiresAt := time.Now().UTC().Add(time.Hour)
 	if accessToken != "" {
 		if claims, err := jwt.ParseToken(accessToken); err == nil && claims.ExpiresAt != nil {
-			expiresAt = claims.ExpiresAt.Time.UTC()
+			expiresAt = claims.ExpiresAt.UTC()
 		}
 	}
 	ttl := int(time.Until(expiresAt).Seconds())
@@ -321,11 +302,11 @@ func consoleRoleCodes(roles []model.Role) []string {
 	return uniqueSortedStrings(values)
 }
 
-func consolePermissionsForUser(user *model.User, base []string) []string {
+func consolePermissionsForUser(ctx context.Context, user *model.User, base []string) []string {
 	values := append([]string{}, base...)
 	values = append(values, consolePermissionAliases(base)...)
 	if consoleHasRole(user, "super_admin") {
-		routePermissions, err := authSvc.ConsoleRouteService{}.AllRoutePermissions()
+		routePermissions, err := authSvc.ConsoleRouteService{}.AllRoutePermissionsContext(ctx)
 		if err != nil {
 			routePermissions = authSvc.AllConsoleRoutePermissions()
 		}
@@ -374,57 +355,16 @@ func consoleHasRole(user *model.User, roleCode string) bool {
 
 func setConsoleSessionCookie(c *gin.Context, token string, ttlSec int) {
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(consoleauth.SessionCookieName, token, ttlSec, "/", "", false, true)
+	c.SetCookie(consoleauth.SessionCookieName, token, ttlSec, "/", "", secureConsoleCookie(), true)
 }
 
 func clearConsoleSessionCookie(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(consoleauth.SessionCookieName, "", -1, "/", "", false, true)
+	c.SetCookie(consoleauth.SessionCookieName, "", -1, "/", "", secureConsoleCookie(), true)
 }
 
-func accessibleConsoleRoutes(permissions []string, roles []string) []consoleRoute {
-	result := []consoleRoute{}
-	for _, route := range defaultConsoleRoutes {
-		if !route.Enabled {
-			continue
-		}
-		if !hasAllStrings(permissions, route.Permissions) {
-			continue
-		}
-		if len(route.Roles) > 0 && !hasAnyString(roles, route.Roles) {
-			continue
-		}
-		result = append(result, route)
-	}
-	return result
-}
-
-func allConsoleRoutePermissions() []string {
-	values := []string{}
-	for _, route := range defaultConsoleRoutes {
-		values = append(values, route.Permissions...)
-	}
-	return values
-}
-
-func hasAllStrings(values []string, required []string) bool {
-	set := stringSet(values)
-	for _, item := range required {
-		if !set[item] {
-			return false
-		}
-	}
-	return true
-}
-
-func hasAnyString(values []string, required []string) bool {
-	set := stringSet(values)
-	for _, item := range required {
-		if set[item] {
-			return true
-		}
-	}
-	return false
+func secureConsoleCookie() bool {
+	return strings.EqualFold(config.Cfg.App.Env, "production") || config.Cfg.Security.Headers.HSTS
 }
 
 func stringSet(values []string) map[string]bool {
@@ -445,34 +385,4 @@ func uniqueSortedStrings(values []string) []string {
 	}
 	sort.Strings(result)
 	return result
-}
-
-func route(routeKey, path, name, componentKey string, sortOrder int, permissions []string, groupID, navTitle string) consoleRoute {
-	return consoleRoute{
-		RouteKey:     routeKey,
-		Path:         path,
-		Name:         name,
-		ComponentKey: componentKey,
-		SortOrder:    sortOrder,
-		Enabled:      true,
-		Permissions:  permissions,
-		Roles:        []string{},
-		Meta: map[string]any{
-			"title":       navTitle,
-			"navTitle":    navTitle,
-			"groupId":     groupID,
-			"permissions": permissions,
-		},
-	}
-}
-
-var defaultConsoleRoutes = []consoleRoute{
-	route("dashboard", "/dashboard", "Dashboard", "DashboardPage", 100, []string{"dashboard.view"}, "monitor", "Dashboard"),
-	route("rbac-users", "/rbac/users", "RbacUsers", "RbacGovernancePage", 210, []string{"rbac.read", "logs.read"}, "rbac", "Users"),
-	route("rbac-roles", "/rbac/roles", "RbacRoles", "RbacGovernancePage", 220, []string{"rbac.read", "logs.read"}, "rbac", "Roles"),
-	route("rbac-policies", "/rbac/policies", "RbacPolicies", "RbacGovernancePage", 230, []string{"rbac.read", "logs.read"}, "rbac", "Permissions"),
-	route("rbac-departments", "/rbac/departments", "RbacDepartments", "RbacGovernancePage", 240, []string{"rbac.read", "logs.read"}, "rbac", "Departments"),
-	route("audit", "/audit", "Audit", "AuditPage", 270, []string{"logs.read"}, "security", "Audit"),
-	route("security-logins", "/security/logins", "SecurityLogins", "SecurityLoginsPage", 280, []string{"logs.read"}, "security", "Login Logs"),
-	route("settings-routes", "/settings/routes", "ConsoleRoutes", "ConsoleRoutesPage", 315, []string{"settings.write"}, "settings", "Routes"),
 }

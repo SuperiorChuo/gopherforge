@@ -1,12 +1,14 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
+	authDAO "github.com/go-admin-kit/server/internal/dao/auth"
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"gorm.io/gorm"
 )
 
@@ -76,40 +78,60 @@ type ConsoleRouteBootstrapResult struct {
 	Updated int `json:"updated"`
 }
 
+func (s ConsoleRouteService) routeDAO() authDAO.ConsoleRouteDAO {
+	return authDAO.NewConsoleRouteDAO()
+}
+
 func (s ConsoleRouteService) BootstrapDefaults() (ConsoleRouteBootstrapResult, error) {
-	return s.bootstrapDefaults(database.DB)
+	return s.BootstrapDefaultsContext(context.Background())
+}
+
+func (s ConsoleRouteService) BootstrapDefaultsContext(ctx context.Context) (ConsoleRouteBootstrapResult, error) {
+	return s.bootstrapDefaultsContext(ctx, s.routeDAO())
 }
 
 func (s ConsoleRouteService) ListRoutes() ([]ConsoleRouteView, error) {
-	if _, err := s.BootstrapDefaults(); err != nil {
+	return s.ListRoutesContext(context.Background())
+}
+
+func (s ConsoleRouteService) ListRoutesContext(ctx context.Context) ([]ConsoleRouteView, error) {
+	if _, err := s.BootstrapDefaultsContext(ctx); err != nil {
 		return nil, err
 	}
 
-	var rows []model.ConsoleRoute
-	if err := database.DB.Order("sort_order ASC").Order("route_key ASC").Find(&rows).Error; err != nil {
+	rows, err := s.routeDAO().ListAllContext(ctx)
+	if err != nil {
 		return nil, err
 	}
 	return serializeConsoleRoutes(rows), nil
 }
 
 func (s ConsoleRouteService) ListAccessibleRoutes(permissions, roles []string) ([]ConsoleRouteView, error) {
-	if _, err := s.BootstrapDefaults(); err != nil {
+	return s.ListAccessibleRoutesContext(context.Background(), permissions, roles)
+}
+
+func (s ConsoleRouteService) ListAccessibleRoutesContext(ctx context.Context, permissions, roles []string) ([]ConsoleRouteView, error) {
+	if _, err := s.BootstrapDefaultsContext(ctx); err != nil {
 		return nil, err
 	}
 
-	var rows []model.ConsoleRoute
-	if err := database.DB.Where("enabled = ?", true).Order("sort_order ASC").Order("route_key ASC").Find(&rows).Error; err != nil {
+	rows, err := s.routeDAO().ListEnabledContext(ctx)
+	if err != nil {
 		return nil, err
 	}
 	return FilterConsoleRoutes(serializeConsoleRoutes(rows), permissions, roles), nil
 }
 
 func (s ConsoleRouteService) AllRoutePermissions() ([]string, error) {
-	if _, err := s.BootstrapDefaults(); err != nil {
+	return s.AllRoutePermissionsContext(context.Background())
+}
+
+func (s ConsoleRouteService) AllRoutePermissionsContext(ctx context.Context) ([]string, error) {
+	if _, err := s.BootstrapDefaultsContext(ctx); err != nil {
 		return nil, err
 	}
-	var rows []model.ConsoleRoute
-	if err := database.DB.Select("permissions_json").Find(&rows).Error; err != nil {
+	rows, err := s.routeDAO().ListPermissionRowsContext(ctx)
+	if err != nil {
 		return nil, err
 	}
 	values := []string{}
@@ -120,7 +142,11 @@ func (s ConsoleRouteService) AllRoutePermissions() ([]string, error) {
 }
 
 func (s ConsoleRouteService) GetRoute(routeKey string) (ConsoleRouteView, error) {
-	route, err := s.getRouteModel(database.DB, routeKey)
+	return s.GetRouteContext(context.Background(), routeKey)
+}
+
+func (s ConsoleRouteService) GetRouteContext(ctx context.Context, routeKey string) (ConsoleRouteView, error) {
+	route, err := s.getRouteModelContext(ctx, s.routeDAO(), routeKey)
 	if err != nil {
 		return ConsoleRouteView{}, err
 	}
@@ -128,6 +154,10 @@ func (s ConsoleRouteService) GetRoute(routeKey string) (ConsoleRouteView, error)
 }
 
 func (s ConsoleRouteService) CreateRoute(req ConsoleRouteCreateRequest) (ConsoleRouteView, error) {
+	return s.CreateRouteContext(context.Background(), req)
+}
+
+func (s ConsoleRouteService) CreateRouteContext(ctx context.Context, req ConsoleRouteCreateRequest) (ConsoleRouteView, error) {
 	routeKey, err := normalizeConsoleRouteKey(req.RouteKey)
 	if err != nil {
 		return ConsoleRouteView{}, err
@@ -170,7 +200,8 @@ func (s ConsoleRouteService) CreateRoute(req ConsoleRouteCreateRequest) (Console
 		enabled = *req.Enabled
 	}
 
-	if err := ensureUniqueConsoleRoute(database.DB, routeKey, path, name, routeKey); err != nil {
+	routeDAO := s.routeDAO()
+	if err := ensureUniqueConsoleRouteContext(ctx, routeDAO, routeKey, path, name, routeKey); err != nil {
 		return ConsoleRouteView{}, err
 	}
 
@@ -189,19 +220,24 @@ func (s ConsoleRouteService) CreateRoute(req ConsoleRouteCreateRequest) (Console
 		RolesJSON:       normalizeConsoleList(req.Roles),
 		MetaJSON:        normalizeConsoleMeta(req.Meta),
 	}
-	if err := database.DB.Create(&route).Error; err != nil {
+	if err := routeDAO.CreateContext(ctx, &route); err != nil {
 		return ConsoleRouteView{}, err
 	}
 	return serializeConsoleRoute(route), nil
 }
 
 func (s ConsoleRouteService) UpdateRoute(routeKey string, req ConsoleRouteUpdateRequest) (ConsoleRouteView, error) {
+	return s.UpdateRouteContext(context.Background(), routeKey, req)
+}
+
+func (s ConsoleRouteService) UpdateRouteContext(ctx context.Context, routeKey string, req ConsoleRouteUpdateRequest) (ConsoleRouteView, error) {
 	normalizedKey, err := normalizeConsoleRouteKey(routeKey)
 	if err != nil {
 		return ConsoleRouteView{}, err
 	}
 
-	route, err := s.getRouteModel(database.DB, normalizedKey)
+	routeDAO := s.routeDAO()
+	route, err := s.getRouteModelContext(ctx, routeDAO, normalizedKey)
 	if err != nil {
 		return ConsoleRouteView{}, err
 	}
@@ -220,7 +256,7 @@ func (s ConsoleRouteService) UpdateRoute(routeKey string, req ConsoleRouteUpdate
 			return ConsoleRouteView{}, err
 		}
 	}
-	if err := ensureUniqueConsoleRoute(database.DB, normalizedKey, nextPath, nextName, normalizedKey); err != nil {
+	if err := ensureUniqueConsoleRouteContext(ctx, routeDAO, normalizedKey, nextPath, nextName, normalizedKey); err != nil {
 		return ConsoleRouteView{}, err
 	}
 
@@ -273,37 +309,41 @@ func (s ConsoleRouteService) UpdateRoute(routeKey string, req ConsoleRouteUpdate
 		route.MetaJSON = normalizeConsoleMeta(*req.Meta)
 	}
 
-	if err := database.DB.Save(route).Error; err != nil {
+	if err := routeDAO.SaveContext(ctx, route); err != nil {
 		return ConsoleRouteView{}, err
 	}
 	return serializeConsoleRoute(*route), nil
 }
 
 func (s ConsoleRouteService) DeleteRoute(routeKey string) (ConsoleRouteView, error) {
-	route, err := s.getRouteModel(database.DB, routeKey)
+	return s.DeleteRouteContext(context.Background(), routeKey)
+}
+
+func (s ConsoleRouteService) DeleteRouteContext(ctx context.Context, routeKey string) (ConsoleRouteView, error) {
+	routeDAO := s.routeDAO()
+	route, err := s.getRouteModelContext(ctx, routeDAO, routeKey)
 	if err != nil {
 		return ConsoleRouteView{}, err
 	}
 	before := serializeConsoleRoute(*route)
-	if err := database.DB.Delete(route).Error; err != nil {
+	if err := routeDAO.DeleteContext(ctx, route); err != nil {
 		return ConsoleRouteView{}, err
 	}
 	return before, nil
 }
 
-func (s ConsoleRouteService) bootstrapDefaults(db *gorm.DB) (ConsoleRouteBootstrapResult, error) {
+func (s ConsoleRouteService) bootstrapDefaultsContext(ctx context.Context, routeDAO authDAO.ConsoleRouteDAO) (ConsoleRouteBootstrapResult, error) {
 	var result ConsoleRouteBootstrapResult
-	if db == nil {
-		return result, errors.New("database is not initialized")
+	if !routeDAO.Ready() {
+		return result, authDAO.ErrConsoleRouteDatabaseNotInitialized
 	}
 
-	err := db.Transaction(func(tx *gorm.DB) error {
+	err := routeDAO.TransactionContext(ctx, func(tx authDAO.ConsoleRouteDAO) error {
 		for _, item := range DefaultConsoleRoutes() {
-			var route model.ConsoleRoute
-			err := tx.Where("route_key = ?", item.RouteKey).First(&route).Error
+			route, err := tx.GetByRouteKeyContext(ctx, item.RouteKey)
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				modelRoute := consoleRouteViewToModel(item)
-				if err := tx.Create(&modelRoute).Error; err != nil {
+				if err := tx.CreateContext(ctx, &modelRoute); err != nil {
 					return err
 				}
 				result.Routes++
@@ -312,8 +352,8 @@ func (s ConsoleRouteService) bootstrapDefaults(db *gorm.DB) (ConsoleRouteBootstr
 			if err != nil {
 				return err
 			}
-			if syncExistingDefaultConsoleRoute(&route, item) {
-				if err := tx.Save(&route).Error; err != nil {
+			if syncExistingDefaultConsoleRoute(route, item) {
+				if err := tx.SaveContext(ctx, route); err != nil {
 					return err
 				}
 				result.Updated++
@@ -324,26 +364,29 @@ func (s ConsoleRouteService) bootstrapDefaults(db *gorm.DB) (ConsoleRouteBootstr
 	return result, err
 }
 
-func (s ConsoleRouteService) getRouteModel(db *gorm.DB, routeKey string) (*model.ConsoleRoute, error) {
+func (s ConsoleRouteService) getRouteModelContext(ctx context.Context, routeDAO authDAO.ConsoleRouteDAO, routeKey string) (*model.ConsoleRoute, error) {
 	normalizedKey, err := normalizeConsoleRouteKey(routeKey)
 	if err != nil {
 		return nil, err
 	}
-	var route model.ConsoleRoute
-	if err := db.Where("route_key = ?", normalizedKey).First(&route).Error; err != nil {
+	if !routeDAO.Ready() {
+		return nil, authDAO.ErrConsoleRouteDatabaseNotInitialized
+	}
+	route, err := routeDAO.GetByRouteKeyContext(ctx, normalizedKey)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrConsoleRouteNotFound
 		}
 		return nil, err
 	}
-	return &route, nil
+	return route, nil
 }
 
-func ensureUniqueConsoleRoute(db *gorm.DB, routeKey, path, name, currentKey string) error {
+func ensureUniqueConsoleRouteContext(ctx context.Context, routeDAO authDAO.ConsoleRouteDAO, routeKey, path, name, currentKey string) error {
 	currentKey, _ = normalizeConsoleRouteKey(currentKey)
 	if routeKey != currentKey {
-		var count int64
-		if err := db.Model(&model.ConsoleRoute{}).Where("route_key = ?", routeKey).Count(&count).Error; err != nil {
+		count, err := routeDAO.CountByRouteKeyContext(ctx, routeKey)
+		if err != nil {
 			return err
 		}
 		if count > 0 {
@@ -351,8 +394,7 @@ func ensureUniqueConsoleRoute(db *gorm.DB, routeKey, path, name, currentKey stri
 		}
 	}
 
-	var owner string
-	err := db.Model(&model.ConsoleRoute{}).Select("route_key").Where("path = ?", path).Limit(1).Scan(&owner).Error
+	owner, err := routeDAO.FindRouteKeyByPathContext(ctx, path)
 	if err != nil {
 		return err
 	}
@@ -360,8 +402,7 @@ func ensureUniqueConsoleRoute(db *gorm.DB, routeKey, path, name, currentKey stri
 		return ConsoleRouteValidationError{Message: fmt.Sprintf("Console route path already exists: %s", path)}
 	}
 
-	owner = ""
-	err = db.Model(&model.ConsoleRoute{}).Select("route_key").Where("name = ?", name).Limit(1).Scan(&owner).Error
+	owner, err = routeDAO.FindRouteKeyByNameContext(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -630,7 +671,7 @@ func uniqueSortedConsoleStrings(values []string) []string {
 	for value := range set {
 		result = append(result, value)
 	}
-	sortStrings(result)
+	sort.Strings(result)
 	return result
 }
 
@@ -650,18 +691,6 @@ func intFromMeta(value any) int {
 		return int(typed)
 	default:
 		return 0
-	}
-}
-
-func sortStrings(values []string) {
-	for i := 1; i < len(values); i++ {
-		value := values[i]
-		j := i - 1
-		for j >= 0 && values[j] > value {
-			values[j+1] = values[j]
-			j--
-		}
-		values[j+1] = value
 	}
 }
 

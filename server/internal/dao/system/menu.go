@@ -1,47 +1,55 @@
 package system
 
 import (
+	"context"
 	"errors"
+
+	"gorm.io/gorm"
 
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// MenuDAO 菜单数据访问对象
 type MenuDAO struct{}
 
-// GetMenuByID 根据ID获取菜单
 func (d *MenuDAO) GetMenuByID(id uint) (*model.Menu, error) {
+	return d.GetMenuByIDContext(context.Background(), id)
+}
+
+func (d *MenuDAO) GetMenuByIDContext(ctx context.Context, id uint) (*model.Menu, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var menu model.Menu
-	result := database.DB.First(&menu, id)
+	result := database.DB.WithContext(ctx).First(&menu, id)
 	return &menu, result.Error
 }
 
-// GetMenuList 获取菜单列表（分页）
 func (d *MenuDAO) GetMenuList(req pagination.PageRequest, keyword string, status *int8) ([]model.Menu, int64, error) {
+	return d.GetMenuListContext(context.Background(), req, keyword, status)
+}
+
+func (d *MenuDAO) GetMenuListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]model.Menu, int64, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var menus []model.Menu
 	var total int64
 
-	query := database.DB.Model(&model.Menu{})
-
-	// 关键词搜索
+	query := database.DB.WithContext(ctx).Model(&model.Menu{})
 	if keyword != "" {
 		query = query.Where("name LIKE ? OR title LIKE ? OR path LIKE ?",
 			"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 	}
-
-	// 状态筛选
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
 
-	// 获取总数
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// 分页查询
 	result := query.Scopes(pagination.Paginate(req)).
 		Order("parent_id ASC, sort ASC, created_at ASC").
 		Find(&menus)
@@ -49,9 +57,15 @@ func (d *MenuDAO) GetMenuList(req pagination.PageRequest, keyword string, status
 	return menus, total, result.Error
 }
 
-// GetMenuTree 获取菜单树
 func (d *MenuDAO) GetMenuTree(status *int8) ([]model.Menu, error) {
-	query := database.DB.Model(&model.Menu{})
+	return d.GetMenuTreeContext(context.Background(), status)
+}
+
+func (d *MenuDAO) GetMenuTreeContext(ctx context.Context, status *int8) ([]model.Menu, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	query := database.DB.WithContext(ctx).Model(&model.Menu{})
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -62,17 +76,14 @@ func (d *MenuDAO) GetMenuTree(status *int8) ([]model.Menu, error) {
 		return nil, result.Error
 	}
 
-	// 构建树形结构
 	return buildMenuTree(menus, 0), nil
 }
 
-// buildMenuTree 构建菜单树
 func buildMenuTree(menus []model.Menu, parentID uint) []model.Menu {
 	var tree []model.Menu
 	for i := range menus {
 		if menus[i].ParentID == parentID {
 			children := buildMenuTree(menus, menus[i].ID)
-			// 确保 children 字段始终存在（即使是空数组）
 			if children == nil {
 				menus[i].Children = []model.Menu{}
 			} else {
@@ -84,47 +95,76 @@ func buildMenuTree(menus []model.Menu, parentID uint) []model.Menu {
 	return tree
 }
 
-// CreateMenu 创建菜单
 func (d *MenuDAO) CreateMenu(menu *model.Menu) error {
-	return database.DB.Create(menu).Error
+	return d.CreateMenuContext(context.Background(), menu)
 }
 
-// UpdateMenu 更新菜单
-func (d *MenuDAO) UpdateMenu(menu *model.Menu) error {
-	return database.DB.Save(menu).Error
-}
-
-// DeleteMenu 删除菜单
-func (d *MenuDAO) DeleteMenu(id uint) error {
-	// 检查是否有子菜单
-	var count int64
-	database.DB.Model(&model.Menu{}).Where("parent_id = ?", id).Count(&count)
-	if count > 0 {
-		return errors.New("cannot delete menu with children")
+func (d *MenuDAO) CreateMenuContext(ctx context.Context, menu *model.Menu) error {
+	if ctx == nil {
+		ctx = context.Background()
 	}
-
-	// 先删除菜单权限关联
-	database.DB.Where("menu_id = ?", id).Delete(&model.MenuPermission{})
-
-	// 再删除菜单
-	return database.DB.Delete(&model.Menu{}, id).Error
+	return database.DB.WithContext(ctx).Create(menu).Error
 }
 
-// AssignPermissions 为菜单分配权限
-func (d *MenuDAO) AssignPermissions(menuID uint, permissionIDs []uint) error {
-	// 先删除原有关联
-	database.DB.Where("menu_id = ?", menuID).Delete(&model.MenuPermission{})
+func (d *MenuDAO) UpdateMenu(menu *model.Menu) error {
+	return d.UpdateMenuContext(context.Background(), menu)
+}
 
-	// 添加新关联
-	for _, permissionID := range permissionIDs {
-		menuPermission := model.MenuPermission{
-			MenuID:       menuID,
-			PermissionID: permissionID,
-		}
-		if err := database.DB.Create(&menuPermission).Error; err != nil {
+func (d *MenuDAO) UpdateMenuContext(ctx context.Context, menu *model.Menu) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return database.DB.WithContext(ctx).Save(menu).Error
+}
+
+func (d *MenuDAO) DeleteMenu(id uint) error {
+	return d.DeleteMenuContext(context.Background(), id)
+}
+
+func (d *MenuDAO) DeleteMenuContext(ctx context.Context, id uint) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Model(&model.Menu{}).Where("parent_id = ?", id).Count(&count).Error; err != nil {
 			return err
 		}
-	}
+		if count > 0 {
+			return errors.New("cannot delete menu with children")
+		}
 
-	return nil
+		if err := tx.Where("menu_id = ?", id).Delete(&model.MenuPermission{}).Error; err != nil {
+			return err
+		}
+
+		return tx.Delete(&model.Menu{}, id).Error
+	})
+}
+
+func (d *MenuDAO) AssignPermissions(menuID uint, permissionIDs []uint) error {
+	return d.AssignPermissionsContext(context.Background(), menuID, permissionIDs)
+}
+
+func (d *MenuDAO) AssignPermissionsContext(ctx context.Context, menuID uint, permissionIDs []uint) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("menu_id = ?", menuID).Delete(&model.MenuPermission{}).Error; err != nil {
+			return err
+		}
+
+		for _, permissionID := range permissionIDs {
+			menuPermission := model.MenuPermission{
+				MenuID:       menuID,
+				PermissionID: permissionID,
+			}
+			if err := tx.Create(&menuPermission).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }

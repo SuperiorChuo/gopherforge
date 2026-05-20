@@ -16,11 +16,11 @@ func NewServerAPI() *ServerAPI {
 	}
 }
 
-// GetServerInfo 获取服务器信息
+// GetServerInfo returns server information.
 func (a *ServerAPI) GetServerInfo(c *gin.Context) {
 	data, err := a.service.GetServerInfo()
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get server info", err)
 		return
 	}
 	response.Success(c, data)

@@ -1,42 +1,55 @@
 package system
 
 import (
+	"context"
+	"errors"
+
+	"gorm.io/gorm"
+
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// DictDAO 字典数据访问对象
 type DictDAO struct{}
 
-// ========== 字典类型 ==========
-
-// CreateType 创建字典类型
 func (d *DictDAO) CreateType(dictType *model.DictType) error {
-	return database.DB.Create(dictType).Error
+	return d.CreateTypeContext(context.Background(), dictType)
 }
 
-// GetTypeByID 根据ID获取字典类型
+func (d *DictDAO) CreateTypeContext(ctx context.Context, dictType *model.DictType) error {
+	return dbWithContext(ctx).Create(dictType).Error
+}
+
 func (d *DictDAO) GetTypeByID(id uint) (*model.DictType, error) {
+	return d.GetTypeByIDContext(context.Background(), id)
+}
+
+func (d *DictDAO) GetTypeByIDContext(ctx context.Context, id uint) (*model.DictType, error) {
 	var dictType model.DictType
-	result := database.DB.First(&dictType, id)
+	result := dbWithContext(ctx).First(&dictType, id)
 	return &dictType, result.Error
 }
 
-// GetTypeByCode 根据编码获取字典类型
 func (d *DictDAO) GetTypeByCode(code string) (*model.DictType, error) {
+	return d.GetTypeByCodeContext(context.Background(), code)
+}
+
+func (d *DictDAO) GetTypeByCodeContext(ctx context.Context, code string) (*model.DictType, error) {
 	var dictType model.DictType
-	result := database.DB.Where("code = ?", code).First(&dictType)
+	result := dbWithContext(ctx).Where("code = ?", code).First(&dictType)
 	return &dictType, result.Error
 }
 
-// GetTypeList 获取字典类型列表
 func (d *DictDAO) GetTypeList(req pagination.PageRequest, keyword string, status *int8) ([]model.DictType, int64, error) {
+	return d.GetTypeListContext(context.Background(), req, keyword, status)
+}
+
+func (d *DictDAO) GetTypeListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]model.DictType, int64, error) {
 	var types []model.DictType
 	var total int64
 
-	query := database.DB.Model(&model.DictType{})
-
+	query := dbWithContext(ctx).Model(&model.DictType{})
 	if keyword != "" {
 		query = query.Where("name LIKE ? OR code LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	}
@@ -56,10 +69,13 @@ func (d *DictDAO) GetTypeList(req pagination.PageRequest, keyword string, status
 	return types, total, result.Error
 }
 
-// GetAllTypes 获取所有字典类型
 func (d *DictDAO) GetAllTypes(status *int8) ([]model.DictType, error) {
+	return d.GetAllTypesContext(context.Background(), status)
+}
+
+func (d *DictDAO) GetAllTypesContext(ctx context.Context, status *int8) ([]model.DictType, error) {
 	var types []model.DictType
-	query := database.DB.Model(&model.DictType{})
+	query := dbWithContext(ctx).Model(&model.DictType{})
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -67,37 +83,52 @@ func (d *DictDAO) GetAllTypes(status *int8) ([]model.DictType, error) {
 	return types, result.Error
 }
 
-// UpdateType 更新字典类型
 func (d *DictDAO) UpdateType(dictType *model.DictType) error {
-	return database.DB.Save(dictType).Error
+	return d.UpdateTypeContext(context.Background(), dictType)
 }
 
-// DeleteType 删除字典类型
+func (d *DictDAO) UpdateTypeContext(ctx context.Context, dictType *model.DictType) error {
+	return dbWithContext(ctx).Save(dictType).Error
+}
+
 func (d *DictDAO) DeleteType(id uint) error {
-	// 先删除关联的字典项
-	database.DB.Where("dict_type_id = ?", id).Delete(&model.DictItem{})
-	// 再删除字典类型
-	return database.DB.Delete(&model.DictType{}, id).Error
+	return d.DeleteTypeContext(context.Background(), id)
 }
 
-// ========== 字典项 ==========
+func (d *DictDAO) DeleteTypeContext(ctx context.Context, id uint) error {
+	return dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("dict_type_id = ?", id).Delete(&model.DictItem{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&model.DictType{}, id).Error
+	})
+}
 
-// CreateItem 创建字典项
 func (d *DictDAO) CreateItem(item *model.DictItem) error {
-	return database.DB.Create(item).Error
+	return d.CreateItemContext(context.Background(), item)
 }
 
-// GetItemByID 根据ID获取字典项
+func (d *DictDAO) CreateItemContext(ctx context.Context, item *model.DictItem) error {
+	return dbWithContext(ctx).Create(item).Error
+}
+
 func (d *DictDAO) GetItemByID(id uint) (*model.DictItem, error) {
+	return d.GetItemByIDContext(context.Background(), id)
+}
+
+func (d *DictDAO) GetItemByIDContext(ctx context.Context, id uint) (*model.DictItem, error) {
 	var item model.DictItem
-	result := database.DB.First(&item, id)
+	result := dbWithContext(ctx).First(&item, id)
 	return &item, result.Error
 }
 
-// GetItemsByTypeID 根据类型ID获取字典项列表
 func (d *DictDAO) GetItemsByTypeID(typeID uint, status *int8) ([]model.DictItem, error) {
+	return d.GetItemsByTypeIDContext(context.Background(), typeID, status)
+}
+
+func (d *DictDAO) GetItemsByTypeIDContext(ctx context.Context, typeID uint, status *int8) ([]model.DictItem, error) {
 	var items []model.DictItem
-	query := database.DB.Where("dict_type_id = ?", typeID)
+	query := dbWithContext(ctx).Where("dict_type_id = ?", typeID)
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -105,23 +136,27 @@ func (d *DictDAO) GetItemsByTypeID(typeID uint, status *int8) ([]model.DictItem,
 	return items, result.Error
 }
 
-// GetItemsByTypeCode 根据类型编码获取字典项列表
 func (d *DictDAO) GetItemsByTypeCode(code string, status *int8) ([]model.DictItem, error) {
-	// 先获取类型
-	dictType, err := d.GetTypeByCode(code)
+	return d.GetItemsByTypeCodeContext(context.Background(), code, status)
+}
+
+func (d *DictDAO) GetItemsByTypeCodeContext(ctx context.Context, code string, status *int8) ([]model.DictItem, error) {
+	dictType, err := d.GetTypeByCodeContext(ctx, code)
 	if err != nil {
 		return nil, err
 	}
-	return d.GetItemsByTypeID(dictType.ID, status)
+	return d.GetItemsByTypeIDContext(ctx, dictType.ID, status)
 }
 
-// GetItemList 获取字典项列表（分页）
 func (d *DictDAO) GetItemList(req pagination.PageRequest, typeID uint, keyword string, status *int8) ([]model.DictItem, int64, error) {
+	return d.GetItemListContext(context.Background(), req, typeID, keyword, status)
+}
+
+func (d *DictDAO) GetItemListContext(ctx context.Context, req pagination.PageRequest, typeID uint, keyword string, status *int8) ([]model.DictItem, int64, error) {
 	var items []model.DictItem
 	var total int64
 
-	query := database.DB.Model(&model.DictItem{}).Where("dict_type_id = ?", typeID)
-
+	query := dbWithContext(ctx).Model(&model.DictItem{}).Where("dict_type_id = ?", typeID)
 	if keyword != "" {
 		query = query.Where("label LIKE ? OR value LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	}
@@ -141,30 +176,42 @@ func (d *DictDAO) GetItemList(req pagination.PageRequest, typeID uint, keyword s
 	return items, total, result.Error
 }
 
-// UpdateItem 更新字典项
 func (d *DictDAO) UpdateItem(item *model.DictItem) error {
-	return database.DB.Save(item).Error
+	return d.UpdateItemContext(context.Background(), item)
 }
 
-// DeleteItem 删除字典项
+func (d *DictDAO) UpdateItemContext(ctx context.Context, item *model.DictItem) error {
+	return dbWithContext(ctx).Save(item).Error
+}
+
 func (d *DictDAO) DeleteItem(id uint) error {
-	return database.DB.Delete(&model.DictItem{}, id).Error
+	return d.DeleteItemContext(context.Background(), id)
 }
 
-// DeleteItemsByTypeID 删除类型下的所有字典项
+func (d *DictDAO) DeleteItemContext(ctx context.Context, id uint) error {
+	return dbWithContext(ctx).Delete(&model.DictItem{}, id).Error
+}
+
 func (d *DictDAO) DeleteItemsByTypeID(typeID uint) error {
-	return database.DB.Where("dict_type_id = ?", typeID).Delete(&model.DictItem{}).Error
+	return d.DeleteItemsByTypeIDContext(context.Background(), typeID)
 }
 
-// GetTypeWithItems 获取字典类型及其字典项
+func (d *DictDAO) DeleteItemsByTypeIDContext(ctx context.Context, typeID uint) error {
+	return dbWithContext(ctx).Where("dict_type_id = ?", typeID).Delete(&model.DictItem{}).Error
+}
+
 func (d *DictDAO) GetTypeWithItems(code string) (*model.DictType, error) {
-	dictType, err := d.GetTypeByCode(code)
+	return d.GetTypeWithItemsContext(context.Background(), code)
+}
+
+func (d *DictDAO) GetTypeWithItemsContext(ctx context.Context, code string) (*model.DictType, error) {
+	dictType, err := d.GetTypeByCodeContext(ctx, code)
 	if err != nil {
 		return nil, err
 	}
 
 	status := int8(1)
-	items, err := d.GetItemsByTypeID(dictType.ID, &status)
+	items, err := d.GetItemsByTypeIDContext(ctx, dictType.ID, &status)
 	if err != nil {
 		return nil, err
 	}
@@ -173,21 +220,34 @@ func (d *DictDAO) GetTypeWithItems(code string) (*model.DictType, error) {
 	return dictType, nil
 }
 
-// GetAllTypesWithItems 获取所有字典类型及其字典项
 func (d *DictDAO) GetAllTypesWithItems() ([]model.DictType, error) {
+	return d.GetAllTypesWithItemsContext(context.Background())
+}
+
+func (d *DictDAO) GetAllTypesWithItemsContext(ctx context.Context) ([]model.DictType, error) {
 	status := int8(1)
-	types, err := d.GetAllTypes(&status)
+	types, err := d.GetAllTypesContext(ctx, &status)
 	if err != nil {
 		return nil, err
 	}
 
 	for i := range types {
-		items, err := d.GetItemsByTypeID(types[i].ID, &status)
+		items, err := d.GetItemsByTypeIDContext(ctx, types[i].ID, &status)
 		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return nil, err
+			}
 			continue
 		}
 		types[i].Items = items
 	}
 
 	return types, nil
+}
+
+func dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return database.DB.WithContext(ctx)
 }

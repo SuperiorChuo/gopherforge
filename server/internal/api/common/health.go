@@ -13,15 +13,15 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/response"
 )
 
-// HealthAPI 健康检查API
+// HealthAPI handles health check endpoints.
 type HealthAPI struct{}
 
-// NewHealthAPI 创建HealthAPI实例
+// NewHealthAPI creates a HealthAPI instance.
 func NewHealthAPI() *HealthAPI {
 	return &HealthAPI{}
 }
 
-// Health 健康检查
+// Health returns a lightweight health snapshot.
 func (a *HealthAPI) Health(c *gin.Context) {
 	response.Success(c, gin.H{
 		"status":  "ok",
@@ -30,7 +30,7 @@ func (a *HealthAPI) Health(c *gin.Context) {
 	})
 }
 
-// Liveness 进程存活检查。
+// Liveness reports whether the process is alive.
 func (a *HealthAPI) Liveness(c *gin.Context) {
 	response.Success(c, gin.H{
 		"status":  "alive",
@@ -39,7 +39,7 @@ func (a *HealthAPI) Liveness(c *gin.Context) {
 	})
 }
 
-// Readiness 依赖就绪检查。
+// Readiness reports whether dependencies are ready.
 func (a *HealthAPI) Readiness(c *gin.Context) {
 	health := a.checkDependencies()
 	if health["status"] != "ok" {
@@ -53,17 +53,17 @@ func (a *HealthAPI) Readiness(c *gin.Context) {
 	response.Success(c, health)
 }
 
-// HealthCheck 详细健康检查
+// HealthCheck returns dependency health details.
 func (a *HealthAPI) HealthCheck(c *gin.Context) {
 	response.Success(c, a.checkDependencies())
 }
 
-// MetricsSnapshot 返回 JSON 格式的进程内 HTTP 指标。
+// MetricsSnapshot returns in-process HTTP metrics as JSON.
 func (a *HealthAPI) MetricsSnapshot(c *gin.Context) {
 	response.Success(c, middleware.MetricsSnapshot())
 }
 
-// PrometheusMetrics 返回 Prometheus 文本格式指标。
+// PrometheusMetrics returns metrics in Prometheus text format.
 func (a *HealthAPI) PrometheusMetrics(c *gin.Context) {
 	c.String(http.StatusOK, middleware.PrometheusMetrics())
 }

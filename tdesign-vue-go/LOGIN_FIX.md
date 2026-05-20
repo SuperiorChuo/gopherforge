@@ -38,9 +38,11 @@ const INITIAL_DATA = {
 ## 验证步骤
 
 1. **确认数据库已初始化**
-   ```bash
-   mysql -u root -p < server/docs/go_admin_kit.sql
+   ```powershell
+   make migrate-status
+   make migrate-up
    ```
+   Docker 启动时后端容器也会在主服务启动前执行同一套 goose 迁移。仅在手动初始化环境中导入 `server/docs/go_admin_kit.sql`。
 
 2. **验证用户存在**
    ```sql
@@ -112,5 +114,6 @@ curl -X POST http://localhost:8081/api/v1/register \
 - 用户 Store：`src/store/modules/user.ts`
 - 认证 API：`src/api/auth.ts`
 - 请求拦截器：`src/utils/request/index.ts`
-- 数据库初始化：`server/docs/go_admin_kit.sql`
+- 数据库迁移：`server/migrations/`
+- 手动初始化基线：`server/docs/go_admin_kit.sql`
 - 故障排查文档：`server/docs/TROUBLESHOOTING.md`

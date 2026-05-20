@@ -7,6 +7,7 @@ import type { RouteLocationNormalized, RouteRecordRaw } from 'vue-router';
 import router from '@/router';
 import { getPermissionStore, useUserStore } from '@/store';
 import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
+import { resolveProtectedRouteDecision } from '@/utils/route/guard';
 
 NProgress.configure({ showSpinner: false });
 
@@ -66,6 +67,7 @@ router.beforeEach(async (to, from, next) => {
         if (to.name === PAGE_NOT_FOUND_ROUTE.name) {
           // 动态添加路由后，此处应当重定向到fullPath，否则会加载404页面内容
           next({ path: to.path, replace: true, query: to.query });
+          return;
         } else {
           const redirectQuery = from.query.redirect;
           const redirect = decodeURIComponent(typeof redirectQuery === 'string' ? redirectQuery : to.path);
@@ -78,12 +80,15 @@ router.beforeEach(async (to, from, next) => {
           return;
         }
       }
-      if (to.name && router.hasRoute(to.name) && hasRoutePermission(to, userStore)) {
+      const routeDecision = resolveProtectedRouteDecision(
+        to,
+        (name) => router.hasRoute(name),
+        hasRoutePermission(to, userStore),
+      );
+      if (routeDecision === true) {
         next();
-      } else if (to.name && router.hasRoute(to.name)) {
-        next({ path: '/result/403', replace: true });
       } else {
-        next(`/`);
+        next(routeDecision);
       }
     } catch (error: any) {
       console.error('路由守卫错误:', error);

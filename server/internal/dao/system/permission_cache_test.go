@@ -1,0 +1,77 @@
+package system
+
+import (
+	"context"
+	"errors"
+	"reflect"
+	"regexp"
+	"testing"
+
+	"github.com/DATA-DOG/go-sqlmock"
+)
+
+func TestPermissionCacheDAOFindUserIDsByRoleIDs(t *testing.T) {
+	mock := setupSystemDAOTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT DISTINCT `user_id` FROM `user_roles` WHERE role_id IN (?,?)")).
+		WithArgs(uint(2), uint(3)).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).
+			AddRow(uint(10)).
+			AddRow(uint(11)))
+
+	userIDs, err := (&PermissionCacheDAO{}).FindUserIDsByRoleIDs([]uint{2, 3})
+	if err != nil {
+		t.Fatalf("FindUserIDsByRoleIDs() error = %v", err)
+	}
+	if !reflect.DeepEqual(userIDs, []uint{10, 11}) {
+		t.Fatalf("userIDs = %#v, want [10 11]", userIDs)
+	}
+}
+
+func TestPermissionCacheDAOFindUserIDsByRoleIDsContextHonorsCanceledContext(t *testing.T) {
+	setupSystemDAOTestDB(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := (&PermissionCacheDAO{}).FindUserIDsByRoleIDsContext(ctx, []uint{2})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("FindUserIDsByRoleIDsContext() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestPermissionCacheDAOFindRoleIDsByPermissionIDs(t *testing.T) {
+	mock := setupSystemDAOTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT DISTINCT `role_id` FROM `role_permissions` WHERE permission_id IN (?,?)")).
+		WithArgs(uint(5), uint(6)).
+		WillReturnRows(sqlmock.NewRows([]string{"role_id"}).
+			AddRow(uint(20)).
+			AddRow(uint(21)))
+
+	roleIDs, err := (&PermissionCacheDAO{}).FindRoleIDsByPermissionIDs([]uint{5, 6})
+	if err != nil {
+		t.Fatalf("FindRoleIDsByPermissionIDs() error = %v", err)
+	}
+	if !reflect.DeepEqual(roleIDs, []uint{20, 21}) {
+		t.Fatalf("roleIDs = %#v, want [20 21]", roleIDs)
+	}
+}
+
+func TestPermissionCacheDAOEmptyInputsSkipDatabase(t *testing.T) {
+	setupSystemDAOTestDB(t)
+
+	userIDs, err := (&PermissionCacheDAO{}).FindUserIDsByRoleIDs(nil)
+	if err != nil {
+		t.Fatalf("FindUserIDsByRoleIDs(nil) error = %v", err)
+	}
+	if userIDs != nil {
+		t.Fatalf("userIDs = %#v, want nil", userIDs)
+	}
+
+	roleIDs, err := (&PermissionCacheDAO{}).FindRoleIDsByPermissionIDs(nil)
+	if err != nil {
+		t.Fatalf("FindRoleIDsByPermissionIDs(nil) error = %v", err)
+	}
+	if roleIDs != nil {
+		t.Fatalf("roleIDs = %#v, want nil", roleIDs)
+	}
+}

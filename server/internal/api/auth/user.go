@@ -1,8 +1,7 @@
 package auth
 
 import (
-	"crypto/md5"
-	"encoding/hex"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -17,7 +16,7 @@ import (
 	"github.com/go-admin-kit/server/internal/service/system"
 )
 
-// UserAPI 用户认证API
+// UserAPI handles user authentication endpoints.
 type UserAPI struct {
 	userService           auth.UserService
 	consoleRouteService   auth.ConsoleRouteService
@@ -26,7 +25,7 @@ type UserAPI struct {
 	auditService          system.AuditLogService
 }
 
-// NewUserAPI 创建UserAPI实例
+// NewUserAPI creates a UserAPI instance.
 func NewUserAPI() *UserAPI {
 	return &UserAPI{
 		userService:           auth.UserService{},
@@ -37,7 +36,7 @@ func NewUserAPI() *UserAPI {
 	}
 }
 
-// Login 用户登录
+// Login authenticates a user.
 func (a *UserAPI) Login(c *gin.Context) {
 	var req auth.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -48,35 +47,35 @@ func (a *UserAPI) Login(c *gin.Context) {
 	loginLimitCfg := middleware.LoginLimitConfigFromApp()
 	loginIdentifier := middleware.LoginIdentifier(req.Username, c.ClientIP())
 	if middleware.LoginLimitEnabled() {
-		if locked, ttl := middleware.IsLoginLocked(loginIdentifier, loginLimitCfg); locked {
-			response.Error(c, 429, "登录失败次数过多，请稍后再试")
+		if locked, ttl := middleware.IsLoginLockedContext(c.Request.Context(), loginIdentifier, loginLimitCfg); locked {
+			response.Error(c, 429, "too many failed login attempts, please try again later")
 			c.Header("Retry-After", fmt.Sprintf("%.0f", ttl.Seconds()))
 			return
 		}
 	}
 
-	resp, err := a.userService.Login(req)
+	resp, err := a.userService.LoginContext(c.Request.Context(), req)
 	if err != nil {
 		if middleware.LoginLimitEnabled() {
-			middleware.RecordLoginFailure(loginIdentifier, loginLimitCfg)
+			middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 		}
 		response.Unauthorized(c, err.Error())
 		return
 	}
 	if middleware.LoginLimitEnabled() {
-		middleware.ClearLoginLimit(loginIdentifier, loginLimitCfg)
+		middleware.ClearLoginLimitContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 	}
 
-	// 提取权限代码
+	// Extract permission codes for the frontend session payload.
 	permissions := a.userService.GetUserPermissions(&resp.User)
 
-	// 记录在线用户到 Redis
-	tokenHash := md5.Sum([]byte(resp.AccessToken))
-	tokenID := hex.EncodeToString(tokenHash[:8]) // 使用 token 前 8 字节的 hash 作为 ID
+	// Record the online user in Redis.
+	tokenID := ""
 	browser, os := system.ParseUserAgent(c.GetHeader("User-Agent"))
 	tokenTTL := time.Hour
 	var accessTokenExpiresAt time.Time
 	if claims, err := jwt.ParseToken(resp.AccessToken); err == nil && claims.ExpiresAt != nil {
+		tokenID = claims.ID
 		accessTokenExpiresAt = claims.ExpiresAt.Time
 		if ttl := time.Until(accessTokenExpiresAt); ttl > 0 {
 			tokenTTL = ttl
@@ -88,18 +87,19 @@ func (a *UserAPI) Login(c *gin.Context) {
 		Username:             resp.User.Username,
 		Nickname:             resp.User.Nickname,
 		IP:                   c.ClientIP(),
-		Location:             "", // 可以通过 IP 解析获取
+		Location:             "",
 		Browser:              browser,
 		OS:                   os,
 		LoginTime:            time.Now(),
 		TokenID:              tokenID,
-		AccessToken:          resp.AccessToken,
 		AccessTokenExpiresAt: accessTokenExpiresAt,
 	}
-	// 异步记录，不阻塞登录响应
-	go a.onlineUserService.SetOnlineUser(onlineUser, tokenTTL)
+	// Write asynchronously so the login response is not blocked.
+	if tokenID != "" {
+		go a.onlineUserService.SetOnlineUserContext(context.WithoutCancel(c.Request.Context()), onlineUser, tokenTTL)
+	}
 
-	// 构建响应数据
+	// Build the response payload.
 	loginResp := gin.H{
 		"user":          ConvertUserToResponse(&resp.User, permissions),
 		"access_token":  resp.AccessToken,
@@ -109,7 +109,7 @@ func (a *UserAPI) Login(c *gin.Context) {
 	response.SuccessWithMessage(c, "login success", loginResp)
 }
 
-// Register 用户注册
+// Register creates a new user account.
 func (a *UserAPI) Register(c *gin.Context) {
 	var req auth.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -117,7 +117,7 @@ func (a *UserAPI) Register(c *gin.Context) {
 		return
 	}
 
-	user, err := a.userService.Register(req)
+	user, err := a.userService.RegisterContext(c.Request.Context(), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -126,7 +126,7 @@ func (a *UserAPI) Register(c *gin.Context) {
 	response.SuccessWithMessage(c, "register success", user)
 }
 
-// GetCurrentUser 获取当前用户信息
+// GetCurrentUser returns the authenticated user's profile.
 func (a *UserAPI) GetCurrentUser(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -134,23 +134,23 @@ func (a *UserAPI) GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	// 获取用户及其角色和权限
-	user, err := a.userService.GetUserWithRolesAndPermissions(userID.(uint))
+	// Load the user with roles and permissions.
+	user, err := a.userService.GetUserWithRolesAndPermissionsContext(c.Request.Context(), userID.(uint))
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get current user", err)
 		return
 	}
 
-	// 提取权限代码
+	// Extract permission codes.
 	permissions := a.userService.GetUserPermissions(user)
 
-	// 构建响应 DTO
+	// Build the response DTO.
 	userResp := ConvertUserToResponse(user, permissions)
 
 	response.Success(c, userResp)
 }
 
-// UpdateProfile 更新当前用户个人资料
+// UpdateProfile updates the authenticated user's profile.
 func (a *UserAPI) UpdateProfile(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -164,7 +164,7 @@ func (a *UserAPI) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	user, err := a.userService.UpdateProfile(userID.(uint), req)
+	user, err := a.userService.UpdateProfileContext(c.Request.Context(), userID.(uint), req)
 	if err != nil {
 		var validationErr auth.ProfileValidationError
 		switch {
@@ -175,7 +175,7 @@ func (a *UserAPI) UpdateProfile(c *gin.Context) {
 		case errors.Is(err, auth.ErrUserNotFound):
 			response.NotFound(c, err.Error())
 		default:
-			response.InternalServerError(c, err.Error())
+			internalServerError(c, "failed to update profile", err)
 		}
 		return
 	}
@@ -184,7 +184,7 @@ func (a *UserAPI) UpdateProfile(c *gin.Context) {
 	response.Success(c, ConvertUserToResponse(user, permissions))
 }
 
-// RefreshToken 刷新AccessToken
+// RefreshToken refreshes the access token and rotates the refresh token.
 func (a *UserAPI) RefreshToken(c *gin.Context) {
 	var req struct {
 		RefreshToken string `json:"refresh_token" binding:"required"`
@@ -195,7 +195,7 @@ func (a *UserAPI) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	// 刷新token并轮换refresh token
+	// Refresh the access token and rotate the refresh token.
 	accessToken, refreshToken, err := jwt.RefreshToken(req.RefreshToken)
 	if err != nil {
 		response.Unauthorized(c, err.Error())
@@ -209,7 +209,7 @@ func (a *UserAPI) RefreshToken(c *gin.Context) {
 	})
 }
 
-// Logout 用户退出登录
+// Logout revokes the current access token.
 func (a *UserAPI) Logout(c *gin.Context) {
 	accessToken := bearerToken(c)
 	if accessToken == "" {
@@ -223,13 +223,11 @@ func (a *UserAPI) Logout(c *gin.Context) {
 		return
 	}
 	if err := jwt.RevokeToken(accessToken, claims); err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to revoke access token", err)
 		return
 	}
 
-	tokenHash := md5.Sum([]byte(accessToken))
-	tokenID := hex.EncodeToString(tokenHash[:8])
-	_ = a.onlineUserService.RemoveOnlineUser(tokenID)
+	_ = a.onlineUserService.RemoveOnlineUserContext(c.Request.Context(), claims.ID)
 
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
@@ -246,7 +244,7 @@ func (a *UserAPI) Logout(c *gin.Context) {
 	response.SuccessWithMessage(c, "logout success", nil)
 }
 
-// ChangePassword 修改密码
+// ChangePassword changes the authenticated user's password.
 func (a *UserAPI) ChangePassword(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -260,7 +258,7 @@ func (a *UserAPI) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	if err := a.userService.ChangePassword(userID.(uint), req); err != nil {
+	if err := a.userService.ChangePasswordContext(c.Request.Context(), userID.(uint), req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
@@ -278,13 +276,11 @@ func (a *UserAPI) recordOnlineUser(c *gin.Context, accessToken string) {
 		return
 	}
 
-	user, err := a.userService.GetUserWithRolesAndPermissions(claims.UserID)
+	user, err := a.userService.GetUserWithRolesAndPermissionsContext(c.Request.Context(), claims.UserID)
 	if err != nil {
 		return
 	}
 
-	tokenHash := md5.Sum([]byte(accessToken))
-	tokenID := hex.EncodeToString(tokenHash[:8])
 	browser, os := system.ParseUserAgent(c.GetHeader("User-Agent"))
 	expiresAt := claims.ExpiresAt.Time
 	tokenTTL := time.Until(expiresAt)
@@ -301,9 +297,8 @@ func (a *UserAPI) recordOnlineUser(c *gin.Context, accessToken string) {
 		Browser:              browser,
 		OS:                   os,
 		LoginTime:            time.Now(),
-		TokenID:              tokenID,
-		AccessToken:          accessToken,
+		TokenID:              claims.ID,
 		AccessTokenExpiresAt: expiresAt,
 	}
-	go a.onlineUserService.SetOnlineUser(onlineUser, tokenTTL)
+	go a.onlineUserService.SetOnlineUserContext(context.WithoutCancel(c.Request.Context()), onlineUser, tokenTTL)
 }

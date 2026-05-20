@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -31,15 +32,17 @@ type AppCfg struct {
 }
 
 type DatabaseConfig struct {
-	Driver       string `yaml:"driver"`
-	Host         string `yaml:"host"`
-	Port         int    `yaml:"port"`
-	User         string `yaml:"user"`
-	Password     string `yaml:"password"`
-	DBName       string `yaml:"dbname"`
-	Charset      string `yaml:"charset"`
-	MaxIdleConns int    `yaml:"max_idle_conns"`
-	MaxOpenConns int    `yaml:"max_open_conns"`
+	Driver                 string `yaml:"driver"`
+	Host                   string `yaml:"host"`
+	Port                   int    `yaml:"port"`
+	User                   string `yaml:"user"`
+	Password               string `yaml:"password"`
+	DBName                 string `yaml:"dbname"`
+	Charset                string `yaml:"charset"`
+	MaxIdleConns           int    `yaml:"max_idle_conns"`
+	MaxOpenConns           int    `yaml:"max_open_conns"`
+	ConnMaxLifetimeSeconds int    `yaml:"conn_max_lifetime_seconds"`
+	ConnMaxIdleTimeSeconds int    `yaml:"conn_max_idle_time_seconds"`
 }
 
 type RedisConfig struct {
@@ -358,6 +361,8 @@ func replaceEnvVars(config *Config) {
 	config.Database.User = getEnvString("DB_USER", config.Database.User)
 	config.Database.Password = getEnvString("DB_PASSWORD", config.Database.Password)
 	config.Database.DBName = getEnvString("DB_NAME", config.Database.DBName)
+	config.Database.ConnMaxLifetimeSeconds = getEnvInt("DB_CONN_MAX_LIFETIME_SECONDS", config.Database.ConnMaxLifetimeSeconds)
+	config.Database.ConnMaxIdleTimeSeconds = getEnvInt("DB_CONN_MAX_IDLE_TIME_SECONDS", config.Database.ConnMaxIdleTimeSeconds)
 
 	config.Redis.Host = getEnvString("REDIS_HOST", config.Redis.Host)
 	config.Redis.Port = getEnvInt("REDIS_PORT", config.Redis.Port)
@@ -536,6 +541,20 @@ func (c UploadConfig) EffectiveLocalURLPrefix() string {
 func (c *DatabaseConfig) GetDSN() string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local",
 		c.User, c.Password, c.Host, c.Port, c.DBName, c.Charset)
+}
+
+func (c DatabaseConfig) EffectiveConnMaxLifetime() time.Duration {
+	if c.ConnMaxLifetimeSeconds <= 0 {
+		return 5 * time.Minute
+	}
+	return time.Duration(c.ConnMaxLifetimeSeconds) * time.Second
+}
+
+func (c DatabaseConfig) EffectiveConnMaxIdleTime() time.Duration {
+	if c.ConnMaxIdleTimeSeconds <= 0 {
+		return 3 * time.Minute
+	}
+	return time.Duration(c.ConnMaxIdleTimeSeconds) * time.Second
 }
 
 // GetRedisAddr 获取Redis地址

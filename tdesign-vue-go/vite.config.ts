@@ -152,6 +152,10 @@ export default ({ mode }: ConfigEnv): UserConfig => {
           changeOrigin: true,
           rewrite: (path) => path.replace(new RegExp(`^${VITE_API_URL_PREFIX}`), VITE_API_URL_PREFIX),
         },
+        '/uploads': {
+          target: VITE_API_URL,
+          changeOrigin: true,
+        },
       },
     },
   };

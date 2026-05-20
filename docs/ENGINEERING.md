@@ -10,7 +10,7 @@
 - `server/internal/dao/` 放数据访问封装。
 - `server/internal/model/` 放数据库模型和请求响应模型。
 - `server/internal/pkg/` 放可复用基础能力。
-- `server/docs/go_admin_kit.sql` 是唯一数据库基线。
+- `server/migrations/` 是默认数据库初始化和升级路径，`server/docs/go_admin_kit.sql` 仅保留为手动基线。
 
 当前后端只保留认证、RBAC、系统管理、文件、字典、通知、日志、监控和健康检查能力。
 
@@ -26,10 +26,10 @@
 
 ## 数据库
 
-模板不保留业务迁移链，只保留 `server/docs/go_admin_kit.sql` 作为初始化入口。新项目可以在此基础上选择：
+模板默认通过 `server/migrations/` 初始化和升级数据库，Docker 后端容器会在主服务启动前幂等执行 goose 迁移；`server/docs/go_admin_kit.sql` 仅作为手动基线保留。新项目可以在此基础上选择：
 
-- 继续维护单文件基线 SQL。
-- 引入迁移工具，并从新的业务版本开始记录迁移。
+- 继续维护 goose 迁移链，并在必要时同步单文件基线 SQL。
+- 如迁移链过长，可在发布大版本时重建基线迁移。
 
 不要把运行时数据、上传文件、日志或本地数据库文件提交到模板目录。
 
@@ -47,6 +47,7 @@ npm run build:type
 
 - `server/internal/api/routes.go`
 - `server/internal/service/system/menu_seed.go`
+- `server/migrations/`
 - `server/docs/go_admin_kit.sql`
 - `tdesign-vue-go/src/router/`
 - `tdesign-vue-go/src/api/`

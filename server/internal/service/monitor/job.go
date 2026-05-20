@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/go-admin-kit/server/internal/dao/monitor"
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
@@ -31,19 +31,19 @@ var jobCronParser = cron.NewParser(
 )
 
 type jobDAO interface {
-	GetJobByID(id uint) (*model.ScheduledJob, error)
-	GetJobList(req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error)
-	CreateJob(job *model.ScheduledJob) error
-	UpdateJob(job *model.ScheduledJob) error
-	DeleteJob(id uint) error
-	CreateJobLog(log *model.ScheduledJobLog) error
-	GetAllActiveJobs() ([]model.ScheduledJob, error)
-	GetAllJobs() ([]model.ScheduledJob, error)
-	CleanupJobLogsBefore(before time.Time) (int64, error)
-	CountJobsByStatus(status *int8) (int64, error)
-	CountFailedJobLogsSince(since time.Time) (int64, error)
-	GetLatestJobRunTime() (*time.Time, error)
-	GetLatestJobLog(jobID uint) (*model.ScheduledJobLog, error)
+	GetJobByIDContext(ctx context.Context, id uint) (*model.ScheduledJob, error)
+	GetJobListContext(ctx context.Context, req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error)
+	CreateJobContext(ctx context.Context, job *model.ScheduledJob) error
+	UpdateJobContext(ctx context.Context, job *model.ScheduledJob) error
+	DeleteJobContext(ctx context.Context, id uint) error
+	CreateJobLogContext(ctx context.Context, log *model.ScheduledJobLog) error
+	GetAllActiveJobsContext(ctx context.Context) ([]model.ScheduledJob, error)
+	GetAllJobsContext(ctx context.Context) ([]model.ScheduledJob, error)
+	CleanupJobLogsBeforeContext(ctx context.Context, before time.Time) (int64, error)
+	CountJobsByStatusContext(ctx context.Context, status *int8) (int64, error)
+	CountFailedJobLogsSinceContext(ctx context.Context, since time.Time) (int64, error)
+	GetLatestJobRunTimeContext(ctx context.Context) (*time.Time, error)
+	GetLatestJobLogContext(ctx context.Context, jobID uint) (*model.ScheduledJobLog, error)
 }
 
 type JobService struct {
@@ -86,7 +86,8 @@ var once sync.Once
 // GetJobService 单例模式获取服务实例
 func GetJobService() *JobService {
 	once.Do(func() {
-		jobService = newJobService(monitor.NewJobDAO(), database.DB != nil)
+		jobDAO := monitor.NewJobDAO()
+		jobService = newJobService(jobDAO, jobDAO.Ready())
 	})
 	return jobService
 }
@@ -105,7 +106,7 @@ func newJobService(dao jobDAO, bootstrapJobs bool) *JobService {
 
 // 初始化任务
 func (s *JobService) initJobs() {
-	jobs, err := s.dao.GetAllActiveJobs()
+	jobs, err := s.dao.GetAllActiveJobsContext(context.Background())
 	if err != nil {
 		log.Printf("Failed to load jobs: %v", err)
 		return
@@ -151,12 +152,16 @@ func (s *JobService) StopJob(jobID uint) {
 
 // runTask 执行任务并记录日志 (供Cron和手动调用复用)
 func (s *JobService) runTask(job model.ScheduledJob) {
+	s.runTaskContext(context.Background(), job)
+}
+
+func (s *JobService) runTaskContext(ctx context.Context, job model.ScheduledJob) {
 	startTime := time.Now()
 	var status int8 = 1
-	var message string = "Success"
+	message := "Success"
 
 	// 执行任务
-	executeMessage, err := s.executeTask(job.InvokeTarget)
+	executeMessage, err := s.executeTaskContext(ctx, job.InvokeTarget)
 	if err != nil {
 		status = 0
 		message = err.Error()
@@ -174,29 +179,29 @@ func (s *JobService) runTask(job model.ScheduledJob) {
 		Message:  message,
 		Duration: duration,
 	}
-	if err := s.dao.CreateJobLog(&logEntry); err != nil {
+	if err := s.dao.CreateJobLogContext(ctx, &logEntry); err != nil {
 		log.Printf("Failed to create job log for %s: %v", job.Name, err)
 	}
 
 	// 更新任务最后运行时间
 	job.LastRunTime = &startTime
-	if err := s.dao.UpdateJob(&job); err != nil {
+	if err := s.dao.UpdateJobContext(ctx, &job); err != nil {
 		log.Printf("Failed to update last run time for %s: %v", job.Name, err)
 	}
 }
 
 // executeTask 执行具体任务逻辑 (利用反射或switch case)
-func (s *JobService) executeTask(target string) (string, error) {
+func (s *JobService) executeTaskContext(ctx context.Context, target string) (string, error) {
 	// 这里简单演示，实际可以用反射调用注册的函数
 	switch target {
 	case "CleanExpiredLogs":
-		result, err := s.CleanupJobLogs(DefaultJobLogRetentionDays)
+		result, err := s.CleanupJobLogsContext(ctx, DefaultJobLogRetentionDays)
 		if err != nil {
 			return "", err
 		}
 		return fmt.Sprintf("deleted %d job logs before %s", result.DeletedRows, result.CutoffTime.Format(time.RFC3339)), nil
 	case "HealthCheck":
-		health, err := s.CheckJobHealth(DefaultJobHealthWindowHours)
+		health, err := s.CheckJobHealthContext(ctx, DefaultJobHealthWindowHours)
 		if err != nil {
 			return "", err
 		}
@@ -209,12 +214,16 @@ func (s *JobService) executeTask(target string) (string, error) {
 
 // CleanupJobLogs 按保留天数清理定时任务执行日志。
 func (s *JobService) CleanupJobLogs(retentionDays int) (*JobLogCleanupResult, error) {
+	return s.CleanupJobLogsContext(context.Background(), retentionDays)
+}
+
+func (s *JobService) CleanupJobLogsContext(ctx context.Context, retentionDays int) (*JobLogCleanupResult, error) {
 	if retentionDays <= 0 {
 		return nil, ErrInvalidRetentionDays
 	}
 
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)
-	deletedRows, err := s.dao.CleanupJobLogsBefore(cutoff)
+	deletedRows, err := s.dao.CleanupJobLogsBeforeContext(ctx, cutoff)
 	if err != nil {
 		return nil, err
 	}
@@ -228,6 +237,10 @@ func (s *JobService) CleanupJobLogs(retentionDays int) (*JobLogCleanupResult, er
 
 // CheckJobHealth 汇总任务治理健康状态。
 func (s *JobService) CheckJobHealth(windowHours int) (*JobHealthCheck, error) {
+	return s.CheckJobHealthContext(context.Background(), windowHours)
+}
+
+func (s *JobService) CheckJobHealthContext(ctx context.Context, windowHours int) (*JobHealthCheck, error) {
 	if windowHours <= 0 {
 		windowHours = DefaultJobHealthWindowHours
 	}
@@ -236,33 +249,33 @@ func (s *JobService) CheckJobHealth(windowHours int) (*JobHealthCheck, error) {
 	pausedStatus := int8(0)
 	since := time.Now().Add(-time.Duration(windowHours) * time.Hour)
 
-	total, err := s.dao.CountJobsByStatus(nil)
+	total, err := s.dao.CountJobsByStatusContext(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	enabled, err := s.dao.CountJobsByStatus(&enabledStatus)
+	enabled, err := s.dao.CountJobsByStatusContext(ctx, &enabledStatus)
 	if err != nil {
 		return nil, err
 	}
-	paused, err := s.dao.CountJobsByStatus(&pausedStatus)
+	paused, err := s.dao.CountJobsByStatusContext(ctx, &pausedStatus)
 	if err != nil {
 		return nil, err
 	}
-	recentFailed, err := s.dao.CountFailedJobLogsSince(since)
+	recentFailed, err := s.dao.CountFailedJobLogsSinceContext(ctx, since)
 	if err != nil {
 		return nil, err
 	}
-	lastRunTime, err := s.dao.GetLatestJobRunTime()
-	if err != nil {
-		return nil, err
-	}
-
-	jobs, err := s.dao.GetAllJobs()
+	lastRunTime, err := s.dao.GetLatestJobRunTimeContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	abnormalJobs, err := s.buildAbnormalJobs(jobs, since)
+	jobs, err := s.dao.GetAllJobsContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	abnormalJobs, err := s.buildAbnormalJobsContext(ctx, jobs, since)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +292,7 @@ func (s *JobService) CheckJobHealth(windowHours int) (*JobHealthCheck, error) {
 	}, nil
 }
 
-func (s *JobService) buildAbnormalJobs(jobs []model.ScheduledJob, since time.Time) ([]JobAbnormalStatus, error) {
+func (s *JobService) buildAbnormalJobsContext(ctx context.Context, jobs []model.ScheduledJob, since time.Time) ([]JobAbnormalStatus, error) {
 	abnormalJobs := make([]JobAbnormalStatus, 0)
 
 	for _, job := range jobs {
@@ -297,7 +310,7 @@ func (s *JobService) buildAbnormalJobs(jobs []model.ScheduledJob, since time.Tim
 			}
 		}
 
-		latestLog, err := s.dao.GetLatestJobLog(job.ID)
+		latestLog, err := s.dao.GetLatestJobLogContext(ctx, job.ID)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, err
 		}
@@ -328,17 +341,25 @@ func (s *JobService) buildAbnormalJobs(jobs []model.ScheduledJob, since time.Tim
 
 // GetJobList 获取任务列表 (保持不变)
 func (s *JobService) GetJobList(req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error) {
-	return s.dao.GetJobList(req, name, status)
+	return s.GetJobListContext(context.Background(), req, name, status)
+}
+
+func (s *JobService) GetJobListContext(ctx context.Context, req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error) {
+	return s.dao.GetJobListContext(ctx, req, name, status)
 }
 
 // CreateJob 创建任务
 func (s *JobService) CreateJob(job *model.ScheduledJob) error {
+	return s.CreateJobContext(context.Background(), job)
+}
+
+func (s *JobService) CreateJobContext(ctx context.Context, job *model.ScheduledJob) error {
 	// 验证Cron表达式
 	if err := validateCronExpression(job.CronExpression); err != nil {
 		return err
 	}
 
-	if err := s.dao.CreateJob(job); err != nil {
+	if err := s.dao.CreateJobContext(ctx, job); err != nil {
 		return err
 	}
 	if job.Status == 1 {
@@ -353,7 +374,11 @@ func (s *JobService) CreateJob(job *model.ScheduledJob) error {
 
 // UpdateJob 更新任务
 func (s *JobService) UpdateJob(job *model.ScheduledJob) error {
-	existingJob, err := s.dao.GetJobByID(job.ID)
+	return s.UpdateJobContext(context.Background(), job)
+}
+
+func (s *JobService) UpdateJobContext(ctx context.Context, job *model.ScheduledJob) error {
+	existingJob, err := s.dao.GetJobByIDContext(ctx, job.ID)
 	if err != nil {
 		return err
 	}
@@ -376,7 +401,7 @@ func (s *JobService) UpdateJob(job *model.ScheduledJob) error {
 	// 先停止旧任务
 	s.StopJob(job.ID)
 
-	if err := s.dao.UpdateJob(job); err != nil {
+	if err := s.dao.UpdateJobContext(ctx, job); err != nil {
 		return err
 	}
 
@@ -389,7 +414,11 @@ func (s *JobService) UpdateJob(job *model.ScheduledJob) error {
 
 // StartJobByID 根据ID启动任务
 func (s *JobService) StartJobByID(id uint) error {
-	job, err := s.dao.GetJobByID(id)
+	return s.StartJobByIDContext(context.Background(), id)
+}
+
+func (s *JobService) StartJobByIDContext(ctx context.Context, id uint) error {
+	job, err := s.dao.GetJobByIDContext(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -405,39 +434,51 @@ func (s *JobService) StartJobByID(id uint) error {
 
 	// 只有启动成功才更新数据库状态
 	job.Status = 1
-	return s.dao.UpdateJob(job)
+	return s.dao.UpdateJobContext(ctx, job)
 }
 
 // StopJobByID 根据ID停止任务
 func (s *JobService) StopJobByID(id uint) error {
-	job, err := s.dao.GetJobByID(id)
+	return s.StopJobByIDContext(context.Background(), id)
+}
+
+func (s *JobService) StopJobByIDContext(ctx context.Context, id uint) error {
+	job, err := s.dao.GetJobByIDContext(ctx, id)
 	if err != nil {
 		return err
 	}
 	s.StopJob(id)
 
 	job.Status = 0
-	return s.dao.UpdateJob(job)
+	return s.dao.UpdateJobContext(ctx, job)
 }
 
 // DeleteJob 删除任务
 func (s *JobService) DeleteJob(id uint) error {
-	if _, err := s.dao.GetJobByID(id); err != nil {
+	return s.DeleteJobContext(context.Background(), id)
+}
+
+func (s *JobService) DeleteJobContext(ctx context.Context, id uint) error {
+	if _, err := s.dao.GetJobByIDContext(ctx, id); err != nil {
 		return err
 	}
 	s.StopJob(id)
-	return s.dao.DeleteJob(id)
+	return s.dao.DeleteJobContext(ctx, id)
 }
 
 // RunJob 立即执行一次
 func (s *JobService) RunJob(id uint) error {
-	job, err := s.dao.GetJobByID(id)
+	return s.RunJobContext(context.Background(), id)
+}
+
+func (s *JobService) RunJobContext(ctx context.Context, id uint) error {
+	job, err := s.dao.GetJobByIDContext(ctx, id)
 	if err != nil {
 		return err
 	}
 
 	// 异步执行并记录日志
-	go s.runTask(*job)
+	go s.runTaskContext(context.WithoutCancel(ctx), *job)
 	return nil
 }
 

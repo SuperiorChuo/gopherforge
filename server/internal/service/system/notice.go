@@ -1,28 +1,26 @@
 package system
 
 import (
+	"context"
 	"errors"
 	"time"
 
-	"github.com/go-admin-kit/server/internal/dao/system"
+	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-// NoticeService 通知公告服务
 type NoticeService struct {
-	noticeDAO system.NoticeDAO
+	noticeDAO systemdao.NoticeDAO
 }
 
-// NoticeListRequest 公告列表请求
 type NoticeListRequest struct {
 	pagination.PageRequest
-	Type    *int8  `json:"type" form:"type"`       // 类型 1:通知 2:公告
-	Status  *int8  `json:"status" form:"status"`   // 状态 1:正常 0:关闭
-	Keyword string `json:"keyword" form:"keyword"` // 关键词
+	Type    *int8  `json:"type" form:"type"`
+	Status  *int8  `json:"status" form:"status"`
+	Keyword string `json:"keyword" form:"keyword"`
 }
 
-// CreateNoticeRequest 创建公告请求
 type CreateNoticeRequest struct {
 	Title     string     `json:"title" binding:"required"`
 	Content   string     `json:"content" binding:"required"`
@@ -32,7 +30,6 @@ type CreateNoticeRequest struct {
 	EndTime   *time.Time `json:"end_time"`
 }
 
-// UpdateNoticeRequest 更新公告请求
 type UpdateNoticeRequest struct {
 	Title     string     `json:"title"`
 	Content   string     `json:"content"`
@@ -42,28 +39,38 @@ type UpdateNoticeRequest struct {
 	EndTime   *time.Time `json:"end_time"`
 }
 
-// GetByID 根据ID获取公告
 func (s *NoticeService) GetByID(id uint) (*model.Notice, error) {
-	return s.noticeDAO.GetByID(id)
+	return s.GetByIDContext(context.Background(), id)
 }
 
-// GetList 获取公告列表
+func (s *NoticeService) GetByIDContext(ctx context.Context, id uint) (*model.Notice, error) {
+	return s.noticeDAO.GetByIDContext(ctx, id)
+}
+
 func (s *NoticeService) GetList(req NoticeListRequest) ([]model.Notice, int64, error) {
-	return s.noticeDAO.GetList(req.PageRequest, req.Type, req.Status, req.Keyword)
+	return s.GetListContext(context.Background(), req)
 }
 
-// GetActiveList 获取有效的公告列表
+func (s *NoticeService) GetListContext(ctx context.Context, req NoticeListRequest) ([]model.Notice, int64, error) {
+	return s.noticeDAO.GetListContext(ctx, req.PageRequest, req.Type, req.Status, req.Keyword)
+}
+
 func (s *NoticeService) GetActiveList(noticeType *int8) ([]model.Notice, error) {
-	return s.noticeDAO.GetActiveList(noticeType)
+	return s.GetActiveListContext(context.Background(), noticeType)
 }
 
-// Create 创建公告
+func (s *NoticeService) GetActiveListContext(ctx context.Context, noticeType *int8) ([]model.Notice, error) {
+	return s.noticeDAO.GetActiveListContext(ctx, noticeType)
+}
+
 func (s *NoticeService) Create(req CreateNoticeRequest, creatorID uint, creatorName string) (*model.Notice, error) {
-	// 默认状态为正常
+	return s.CreateContext(context.Background(), req, creatorID, creatorName)
+}
+
+func (s *NoticeService) CreateContext(ctx context.Context, req CreateNoticeRequest, creatorID uint, creatorName string) (*model.Notice, error) {
 	if req.Status == 0 {
 		req.Status = 1
 	}
-	// 默认类型为通知
 	if req.Type == 0 {
 		req.Type = 1
 	}
@@ -79,18 +86,24 @@ func (s *NoticeService) Create(req CreateNoticeRequest, creatorID uint, creatorN
 		EndTime:   req.EndTime,
 	}
 
-	if err := s.noticeDAO.Create(notice); err != nil {
+	if err := s.noticeDAO.CreateContext(ctx, notice); err != nil {
 		return nil, err
 	}
 
 	return notice, nil
 }
 
-// Update 更新公告
 func (s *NoticeService) Update(id uint, req UpdateNoticeRequest) (*model.Notice, error) {
-	notice, err := s.noticeDAO.GetByID(id)
+	return s.UpdateContext(context.Background(), id, req)
+}
+
+func (s *NoticeService) UpdateContext(ctx context.Context, id uint, req UpdateNoticeRequest) (*model.Notice, error) {
+	notice, err := s.noticeDAO.GetByIDContext(ctx, id)
 	if err != nil {
-		return nil, errors.New("公告不存在")
+		if isContextError(err) {
+			return nil, err
+		}
+		return nil, errors.New("notice not found")
 	}
 
 	if req.Title != "" {
@@ -106,19 +119,25 @@ func (s *NoticeService) Update(id uint, req UpdateNoticeRequest) (*model.Notice,
 	notice.StartTime = req.StartTime
 	notice.EndTime = req.EndTime
 
-	if err := s.noticeDAO.Update(notice); err != nil {
+	if err := s.noticeDAO.UpdateContext(ctx, notice); err != nil {
 		return nil, err
 	}
 
 	return notice, nil
 }
 
-// Delete 删除公告
 func (s *NoticeService) Delete(id uint) error {
-	return s.noticeDAO.Delete(id)
+	return s.DeleteContext(context.Background(), id)
 }
 
-// UpdateStatus 更新公告状态
+func (s *NoticeService) DeleteContext(ctx context.Context, id uint) error {
+	return s.noticeDAO.DeleteContext(ctx, id)
+}
+
 func (s *NoticeService) UpdateStatus(id uint, status int8) error {
-	return s.noticeDAO.UpdateStatus(id, status)
+	return s.UpdateStatusContext(context.Background(), id, status)
+}
+
+func (s *NoticeService) UpdateStatusContext(ctx context.Context, id uint, status int8) error {
+	return s.noticeDAO.UpdateStatusContext(ctx, id, status)
 }

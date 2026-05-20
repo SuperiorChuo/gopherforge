@@ -58,4 +58,4 @@ ALTER TABLE `wm_audit_log` DROP INDEX `idx_wm_audit_log_action`;
 
 ## 与旧 SQL 基线的关系
 
-`server/docs/go_admin_kit.sql` 仍保留为一键初始化基线，方便 Docker 首次启动或手动导入。后续结构变更应优先写入 `server/migrations/`，并在必要时同步更新基线 SQL，避免新环境和迁移环境出现差异。
+`server/docs/go_admin_kit.sql` 仍保留为手动初始化基线；Docker 后端容器会在主服务启动前幂等执行 `server/migrations/` 下的 goose 迁移，首次创建数据卷和后续升级都走同一条路径。后续结构变更应优先写入 `server/migrations/`，并在必要时同步更新基线 SQL，避免手动导入路径和迁移路径出现差异。

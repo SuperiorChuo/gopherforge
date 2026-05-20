@@ -9,21 +9,21 @@ import (
 	"github.com/go-admin-kit/server/internal/service/system"
 )
 
-// DictAPI 字典管理 API
+// DictAPI handles dictionary management endpoints.
 type DictAPI struct {
 	dictService system.DictService
 }
 
-// NewDictAPI 创建 DictAPI 实例
+// NewDictAPI creates a DictAPI instance.
 func NewDictAPI() *DictAPI {
 	return &DictAPI{
 		dictService: system.DictService{},
 	}
 }
 
-// ========== 字典类型 ==========
+// ========== Dict types ==========
 
-// GetTypeList 获取字典类型列表
+// GetTypeList returns paginated dictionary types.
 func (a *DictAPI) GetTypeList(c *gin.Context) {
 	var req system.DictTypeListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -38,27 +38,27 @@ func (a *DictAPI) GetTypeList(c *gin.Context) {
 		req.PageSize = 10
 	}
 
-	types, total, err := a.dictService.GetTypeList(req)
+	types, total, err := a.dictService.GetTypeListContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get dictionary type list", err)
 		return
 	}
 
 	response.PageSuccess(c, types, total, req.Page, req.PageSize)
 }
 
-// GetAllTypes 获取所有字典类型
+// GetAllTypes returns all dictionary types.
 func (a *DictAPI) GetAllTypes(c *gin.Context) {
-	types, err := a.dictService.GetAllTypes()
+	types, err := a.dictService.GetAllTypesContext(c.Request.Context())
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get dictionary types", err)
 		return
 	}
 
 	response.Success(c, types)
 }
 
-// GetType 获取字典类型详情
+// GetType returns a dictionary type by id.
 func (a *DictAPI) GetType(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -67,7 +67,7 @@ func (a *DictAPI) GetType(c *gin.Context) {
 		return
 	}
 
-	dictType, err := a.dictService.GetTypeByID(uint(id))
+	dictType, err := a.dictService.GetTypeByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
 		response.NotFound(c, "dict type not found")
 		return
@@ -76,7 +76,7 @@ func (a *DictAPI) GetType(c *gin.Context) {
 	response.Success(c, dictType)
 }
 
-// CreateType 创建字典类型
+// CreateType creates a dictionary type.
 func (a *DictAPI) CreateType(c *gin.Context) {
 	var req system.CreateDictTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -84,7 +84,7 @@ func (a *DictAPI) CreateType(c *gin.Context) {
 		return
 	}
 
-	dictType, err := a.dictService.CreateType(req)
+	dictType, err := a.dictService.CreateTypeContext(c.Request.Context(), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -93,7 +93,7 @@ func (a *DictAPI) CreateType(c *gin.Context) {
 	response.SuccessWithMessage(c, "dict type created successfully", dictType)
 }
 
-// UpdateType 更新字典类型
+// UpdateType updates a dictionary type.
 func (a *DictAPI) UpdateType(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -108,7 +108,7 @@ func (a *DictAPI) UpdateType(c *gin.Context) {
 		return
 	}
 
-	dictType, err := a.dictService.UpdateType(uint(id), req)
+	dictType, err := a.dictService.UpdateTypeContext(c.Request.Context(), uint(id), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -117,7 +117,7 @@ func (a *DictAPI) UpdateType(c *gin.Context) {
 	response.SuccessWithMessage(c, "dict type updated successfully", dictType)
 }
 
-// DeleteType 删除字典类型
+// DeleteType deletes a dictionary type.
 func (a *DictAPI) DeleteType(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -126,7 +126,7 @@ func (a *DictAPI) DeleteType(c *gin.Context) {
 		return
 	}
 
-	if err := a.dictService.DeleteType(uint(id)); err != nil {
+	if err := a.dictService.DeleteTypeContext(c.Request.Context(), uint(id)); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
@@ -134,9 +134,9 @@ func (a *DictAPI) DeleteType(c *gin.Context) {
 	response.SuccessWithMessage(c, "dict type deleted successfully", nil)
 }
 
-// ========== 字典项 ==========
+// ========== Dict items ==========
 
-// GetItemList 获取字典项列表
+// GetItemList returns paginated dictionary items.
 func (a *DictAPI) GetItemList(c *gin.Context) {
 	var req system.DictItemListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -151,16 +151,16 @@ func (a *DictAPI) GetItemList(c *gin.Context) {
 		req.PageSize = 10
 	}
 
-	items, total, err := a.dictService.GetItemList(req)
+	items, total, err := a.dictService.GetItemListContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get dictionary item list", err)
 		return
 	}
 
 	response.PageSuccess(c, items, total, req.Page, req.PageSize)
 }
 
-// GetItemsByTypeID 根据类型ID获取字典项
+// GetItemsByTypeID returns dictionary items by type id.
 func (a *DictAPI) GetItemsByTypeID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -169,16 +169,16 @@ func (a *DictAPI) GetItemsByTypeID(c *gin.Context) {
 		return
 	}
 
-	items, err := a.dictService.GetItemsByTypeID(uint(id))
+	items, err := a.dictService.GetItemsByTypeIDContext(c.Request.Context(), uint(id))
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get dictionary items by type", err)
 		return
 	}
 
 	response.Success(c, items)
 }
 
-// GetItem 获取字典项详情
+// GetItem returns a dictionary item by id.
 func (a *DictAPI) GetItem(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -187,7 +187,7 @@ func (a *DictAPI) GetItem(c *gin.Context) {
 		return
 	}
 
-	item, err := a.dictService.GetItemByID(uint(id))
+	item, err := a.dictService.GetItemByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
 		response.NotFound(c, "dict item not found")
 		return
@@ -196,7 +196,7 @@ func (a *DictAPI) GetItem(c *gin.Context) {
 	response.Success(c, item)
 }
 
-// CreateItem 创建字典项
+// CreateItem creates a dictionary item.
 func (a *DictAPI) CreateItem(c *gin.Context) {
 	var req system.CreateDictItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -204,7 +204,7 @@ func (a *DictAPI) CreateItem(c *gin.Context) {
 		return
 	}
 
-	item, err := a.dictService.CreateItem(req)
+	item, err := a.dictService.CreateItemContext(c.Request.Context(), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -213,7 +213,7 @@ func (a *DictAPI) CreateItem(c *gin.Context) {
 	response.SuccessWithMessage(c, "dict item created successfully", item)
 }
 
-// UpdateItem 更新字典项
+// UpdateItem updates a dictionary item.
 func (a *DictAPI) UpdateItem(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -228,7 +228,7 @@ func (a *DictAPI) UpdateItem(c *gin.Context) {
 		return
 	}
 
-	item, err := a.dictService.UpdateItem(uint(id), req)
+	item, err := a.dictService.UpdateItemContext(c.Request.Context(), uint(id), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -237,7 +237,7 @@ func (a *DictAPI) UpdateItem(c *gin.Context) {
 	response.SuccessWithMessage(c, "dict item updated successfully", item)
 }
 
-// DeleteItem 删除字典项
+// DeleteItem deletes a dictionary item.
 func (a *DictAPI) DeleteItem(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -246,7 +246,7 @@ func (a *DictAPI) DeleteItem(c *gin.Context) {
 		return
 	}
 
-	if err := a.dictService.DeleteItem(uint(id)); err != nil {
+	if err := a.dictService.DeleteItemContext(c.Request.Context(), uint(id)); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
@@ -254,9 +254,9 @@ func (a *DictAPI) DeleteItem(c *gin.Context) {
 	response.SuccessWithMessage(c, "dict item deleted successfully", nil)
 }
 
-// ========== 前端使用 ==========
+// ========== Frontend dictionary data ==========
 
-// GetDictData 获取字典数据（根据编码）
+// GetDictData returns dictionary data by code.
 func (a *DictAPI) GetDictData(c *gin.Context) {
 	code := c.Param("code")
 	if code == "" {
@@ -264,7 +264,7 @@ func (a *DictAPI) GetDictData(c *gin.Context) {
 		return
 	}
 
-	items, err := a.dictService.GetDictData(code)
+	items, err := a.dictService.GetDictDataContext(c.Request.Context(), code)
 	if err != nil {
 		response.NotFound(c, "dict not found")
 		return
@@ -273,7 +273,7 @@ func (a *DictAPI) GetDictData(c *gin.Context) {
 	response.Success(c, items)
 }
 
-// GetMultipleDictData 批量获取字典数据
+// GetMultipleDictData returns dictionary data for multiple codes.
 func (a *DictAPI) GetMultipleDictData(c *gin.Context) {
 	codesStr := c.Query("codes")
 	if codesStr == "" {
@@ -282,20 +282,20 @@ func (a *DictAPI) GetMultipleDictData(c *gin.Context) {
 	}
 
 	codes := strings.Split(codesStr, ",")
-	data, err := a.dictService.GetMultipleDictData(codes)
+	data, err := a.dictService.GetMultipleDictDataContext(c.Request.Context(), codes)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get dictionary data", err)
 		return
 	}
 
 	response.Success(c, data)
 }
 
-// GetAllDictData 获取所有字典数据
+// GetAllDictData returns all dictionary data.
 func (a *DictAPI) GetAllDictData(c *gin.Context) {
-	data, err := a.dictService.GetAllDictData()
+	data, err := a.dictService.GetAllDictDataContext(c.Request.Context())
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get all dictionary data", err)
 		return
 	}
 

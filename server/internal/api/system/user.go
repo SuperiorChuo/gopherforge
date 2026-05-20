@@ -9,19 +9,19 @@ import (
 	"github.com/go-admin-kit/server/internal/service/system"
 )
 
-// UserManagementAPI 用户管理API
+// UserManagementAPI handles user management endpoints.
 type UserManagementAPI struct {
 	userService system.UserService
 }
 
-// NewUserManagementAPI 创建UserManagementAPI实例
+// NewUserManagementAPI creates a UserManagementAPI instance.
 func NewUserManagementAPI() *UserManagementAPI {
 	return &UserManagementAPI{
 		userService: system.UserService{},
 	}
 }
 
-// CreateUser 创建用户
+// CreateUser creates a user.
 func (a *UserManagementAPI) CreateUser(c *gin.Context) {
 	var req system.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -29,16 +29,16 @@ func (a *UserManagementAPI) CreateUser(c *gin.Context) {
 		return
 	}
 
-	user, err := a.userService.CreateUser(req)
+	user, err := a.userService.CreateUserContext(c.Request.Context(), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	response.SuccessWithMessage(c, "用户创建成功", user)
+	response.SuccessWithMessage(c, "user created successfully", user)
 }
 
-// GetUserList 获取用户列表
+// GetUserList returns paginated users.
 func (a *UserManagementAPI) GetUserList(c *gin.Context) {
 	var req system.UserListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -46,7 +46,6 @@ func (a *UserManagementAPI) GetUserList(c *gin.Context) {
 		return
 	}
 
-	// 设置默认分页参数
 	if req.Page <= 0 {
 		req.Page = 1
 	}
@@ -54,7 +53,7 @@ func (a *UserManagementAPI) GetUserList(c *gin.Context) {
 		req.PageSize = 10
 	}
 
-	// 解析状态参数
+	// Parse status from query separately because Gin does not bind *int8 reliably.
 	if statusStr := c.Query("status"); statusStr != "" {
 		status, err := strconv.ParseInt(statusStr, 10, 8)
 		if err == nil {
@@ -65,18 +64,18 @@ func (a *UserManagementAPI) GetUserList(c *gin.Context) {
 
 	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to resolve user data scope", err)
 		return
 	}
 	req.DataScope = dataScope
 
-	users, total, err := a.userService.GetUserList(req)
+	users, total, err := a.userService.GetUserListContext(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		internalServerError(c, "failed to get user list", err)
 		return
 	}
 
-	// 前端期望字段：list、total、page、page_size
+	// Keep the response shape expected by the frontend table.
 	response.Success(c, gin.H{
 		"list":      users,
 		"total":     total,
@@ -85,7 +84,7 @@ func (a *UserManagementAPI) GetUserList(c *gin.Context) {
 	})
 }
 
-// GetUser 获取用户详情
+// GetUser returns a user by id.
 func (a *UserManagementAPI) GetUser(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -94,7 +93,7 @@ func (a *UserManagementAPI) GetUser(c *gin.Context) {
 		return
 	}
 
-	user, err := a.userService.GetUserWithRoles(uint(id))
+	user, err := a.userService.GetUserWithRolesContext(c.Request.Context(), uint(id))
 	if err != nil {
 		response.NotFound(c, "user not found")
 		return
@@ -103,7 +102,7 @@ func (a *UserManagementAPI) GetUser(c *gin.Context) {
 	response.Success(c, user)
 }
 
-// UpdateUser 更新用户信息
+// UpdateUser updates a user.
 func (a *UserManagementAPI) UpdateUser(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -118,7 +117,7 @@ func (a *UserManagementAPI) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	user, err := a.userService.UpdateUser(uint(id), req)
+	user, err := a.userService.UpdateUserContext(c.Request.Context(), uint(id), req)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -127,7 +126,7 @@ func (a *UserManagementAPI) UpdateUser(c *gin.Context) {
 	response.Success(c, user)
 }
 
-// DeleteUser 删除用户
+// DeleteUser deletes a user.
 func (a *UserManagementAPI) DeleteUser(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -136,15 +135,15 @@ func (a *UserManagementAPI) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	if err := a.userService.DeleteUser(uint(id)); err != nil {
-		response.InternalServerError(c, err.Error())
+	if err := a.userService.DeleteUserContext(c.Request.Context(), uint(id)); err != nil {
+		internalServerError(c, "failed to delete user", err)
 		return
 	}
 
 	response.SuccessWithMessage(c, "user deleted successfully", nil)
 }
 
-// UpdateUserStatus 更新用户状态
+// UpdateUserStatus updates a user's status.
 func (a *UserManagementAPI) UpdateUserStatus(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -161,15 +160,15 @@ func (a *UserManagementAPI) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 
-	if err := a.userService.UpdateUserStatus(uint(id), req.Status); err != nil {
-		response.InternalServerError(c, err.Error())
+	if err := a.userService.UpdateUserStatusContext(c.Request.Context(), uint(id), req.Status); err != nil {
+		internalServerError(c, "failed to update user status", err)
 		return
 	}
 
 	response.SuccessWithMessage(c, "user status updated successfully", nil)
 }
 
-// AssignRoles 分配角色
+// AssignRoles assigns roles to a user.
 func (a *UserManagementAPI) AssignRoles(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -184,7 +183,7 @@ func (a *UserManagementAPI) AssignRoles(c *gin.Context) {
 		return
 	}
 
-	if err := a.userService.AssignRoles(uint(id), req); err != nil {
+	if err := a.userService.AssignRolesContext(c.Request.Context(), uint(id), req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}

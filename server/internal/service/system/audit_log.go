@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"errors"
 	"strings"
 
@@ -46,6 +47,14 @@ type AuditRecordRequest struct {
 }
 
 func (s *AuditLogService) Record(c *gin.Context, req AuditRecordRequest) error {
+	ctx := context.Background()
+	if c != nil && c.Request != nil {
+		ctx = c.Request.Context()
+	}
+	return s.RecordContext(ctx, c, req)
+}
+
+func (s *AuditLogService) RecordContext(ctx context.Context, c *gin.Context, req AuditRecordRequest) error {
 	log := buildAuditLog(c, req)
 	if log.Action == "" {
 		return errors.New("action is required")
@@ -56,12 +65,16 @@ func (s *AuditLogService) Record(c *gin.Context, req AuditRecordRequest) error {
 	if log.TargetID == "" {
 		return errors.New("target_id is required")
 	}
-	return s.logDAO.CreateLog(log)
+	return s.logDAO.CreateLogContext(ctx, log)
 }
 
 func (s *AuditLogService) ListLogs(req AuditLogListRequest) (dao.AuditLogListResult, error) {
+	return s.ListLogsContext(context.Background(), req)
+}
+
+func (s *AuditLogService) ListLogsContext(ctx context.Context, req AuditLogListRequest) (dao.AuditLogListResult, error) {
 	normalized := NormalizeAuditLogListRequest(req)
-	return s.logDAO.ListLogs(dao.AuditLogListQuery{
+	return s.logDAO.ListLogsContext(ctx, dao.AuditLogListQuery{
 		Page:       normalized.Page,
 		PageSize:   normalized.PageSize,
 		Action:     normalized.Action,
@@ -106,6 +119,8 @@ func NormalizeAuditLogListRequest(req AuditLogListRequest) AuditLogListRequest {
 
 func NormalizeAuditView(value string) string {
 	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "ALL":
+		return "ALL"
 	default:
 		return "ALL"
 	}

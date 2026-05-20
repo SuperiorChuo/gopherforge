@@ -1,6 +1,10 @@
 package system
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,30 +20,27 @@ func TestForceLogoutRevokesAndRemovesAllSessionsForUser(t *testing.T) {
 	setOnlineUserJWTTestConfig(t)
 
 	service := &OnlineUserService{}
-	userAccessTokenA, userAccessTokenExpiresAtA := mustAccessToken(t, 7, "alice")
-	userAccessTokenB, userAccessTokenExpiresAtB := mustAccessToken(t, 7, "alice")
-	otherAccessToken, otherAccessTokenExpiresAt := mustAccessToken(t, 8, "bob")
+	userAccessTokenA, userAccessTokenIDA, userAccessTokenExpiresAtA := mustAccessToken(t, 7, "alice")
+	userAccessTokenB, userAccessTokenIDB, userAccessTokenExpiresAtB := mustAccessToken(t, 7, "alice")
+	otherAccessToken, otherAccessTokenID, otherAccessTokenExpiresAt := mustAccessToken(t, 8, "bob")
 
 	onlineUsers := []OnlineUser{
 		{
 			UserID:               7,
 			Username:             "alice",
-			TokenID:              "session-a",
-			AccessToken:          userAccessTokenA,
+			TokenID:              userAccessTokenIDA,
 			AccessTokenExpiresAt: userAccessTokenExpiresAtA,
 		},
 		{
 			UserID:               7,
 			Username:             "alice",
-			TokenID:              "session-b",
-			AccessToken:          userAccessTokenB,
+			TokenID:              userAccessTokenIDB,
 			AccessTokenExpiresAt: userAccessTokenExpiresAtB,
 		},
 		{
 			UserID:               8,
 			Username:             "bob",
-			TokenID:              "session-other",
-			AccessToken:          otherAccessToken,
+			TokenID:              otherAccessTokenID,
 			AccessTokenExpiresAt: otherAccessTokenExpiresAt,
 		},
 	}
@@ -50,17 +51,17 @@ func TestForceLogoutRevokesAndRemovesAllSessionsForUser(t *testing.T) {
 		}
 	}
 
-	if err := service.ForceLogout("session-a"); err != nil {
+	if err := service.ForceLogout(userAccessTokenIDA); err != nil {
 		t.Fatalf("force logout: %v", err)
 	}
 
-	if service.IsUserOnline("session-a") {
+	if service.IsUserOnline(userAccessTokenIDA) {
 		t.Fatal("target session should be removed")
 	}
-	if service.IsUserOnline("session-b") {
+	if service.IsUserOnline(userAccessTokenIDB) {
 		t.Fatal("same user's other session should be removed")
 	}
-	if !service.IsUserOnline("session-other") {
+	if !service.IsUserOnline(otherAccessTokenID) {
 		t.Fatal("other user's session should remain online")
 	}
 	if !jwtpkg.IsTokenBlacklisted(userAccessTokenA) {
@@ -74,7 +75,153 @@ func TestForceLogoutRevokesAndRemovesAllSessionsForUser(t *testing.T) {
 	}
 }
 
-func mustAccessToken(t *testing.T, userID uint, username string) (string, time.Time) {
+func TestSetOnlineUserDoesNotStorePlainAccessToken(t *testing.T) {
+	setupOnlineUserTestRedis(t)
+	setOnlineUserJWTTestConfig(t)
+
+	service := &OnlineUserService{}
+	accessToken, tokenID, expiresAt := mustAccessToken(t, 7, "alice")
+	user := OnlineUser{
+		UserID:               7,
+		Username:             "alice",
+		TokenID:              tokenID,
+		AccessToken:          accessToken,
+		AccessTokenExpiresAt: expiresAt,
+	}
+
+	if err := service.SetOnlineUser(user, time.Hour); err != nil {
+		t.Fatalf("set online user: %v", err)
+	}
+
+	raw, err := redisstore.Client.Get(context.Background(), onlineUserPrefix+tokenID).Result()
+	if err != nil {
+		t.Fatalf("get online user: %v", err)
+	}
+	if json.Valid([]byte(raw)) == false {
+		t.Fatalf("stored online user should be valid json: %q", raw)
+	}
+	if strings.Contains(raw, accessToken) {
+		t.Fatal("stored online user should not contain the access token")
+	}
+	var stored map[string]any
+	if err := json.Unmarshal([]byte(raw), &stored); err != nil {
+		t.Fatalf("decode online user: %v", err)
+	}
+	if _, ok := stored["access_token"]; ok {
+		t.Fatal("stored online user should not include access_token")
+	}
+}
+
+func TestOnlineUsersAreIndexedForListAndCount(t *testing.T) {
+	setupOnlineUserTestRedis(t)
+
+	service := &OnlineUserService{}
+	users := []OnlineUser{
+		{UserID: 7, Username: "alice", TokenID: "token-a"},
+		{UserID: 8, Username: "bob", TokenID: "token-b"},
+	}
+	for _, user := range users {
+		if err := service.SetOnlineUser(user, time.Hour); err != nil {
+			t.Fatalf("set online user %s: %v", user.TokenID, err)
+		}
+	}
+
+	ctx := context.Background()
+	if _, err := redisstore.Client.ZScore(ctx, onlineUserIndexKey, "token-a").Result(); err != nil {
+		t.Fatalf("online user index missing token-a: %v", err)
+	}
+
+	list, err := service.GetOnlineUsers()
+	if err != nil {
+		t.Fatalf("get online users: %v", err)
+	}
+	if len(list) != 2 {
+		t.Fatalf("online users len = %d, want 2", len(list))
+	}
+
+	count, err := service.GetOnlineUserCount()
+	if err != nil {
+		t.Fatalf("get online user count: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("online user count = %d, want 2", count)
+	}
+}
+
+func TestOnlineUserIndexPrunesExpiredSessions(t *testing.T) {
+	store := setupOnlineUserTestRedis(t)
+
+	service := &OnlineUserService{}
+	if err := service.SetOnlineUser(OnlineUser{UserID: 7, Username: "alice", TokenID: "token-a"}, time.Second); err != nil {
+		t.Fatalf("set online user: %v", err)
+	}
+
+	store.FastForward(2 * time.Second)
+
+	count, err := service.GetOnlineUserCount()
+	if err != nil {
+		t.Fatalf("get online user count: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("online user count = %d, want 0 after expiration", count)
+	}
+
+	zcard, err := redisstore.Client.ZCard(context.Background(), onlineUserIndexKey).Result()
+	if err != nil {
+		t.Fatalf("zcard online user index: %v", err)
+	}
+	if zcard != 0 {
+		t.Fatalf("online user index size = %d, want 0 after pruning", zcard)
+	}
+}
+
+func TestOnlineUserContextMethodsHonorCanceledContext(t *testing.T) {
+	setupOnlineUserTestRedis(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	service := &OnlineUserService{}
+	tests := []struct {
+		name string
+		run  func() error
+	}{
+		{
+			name: "set online user",
+			run: func() error {
+				return service.SetOnlineUserContext(ctx, OnlineUser{UserID: 7, Username: "alice", TokenID: "token-a"}, time.Hour)
+			},
+		},
+		{
+			name: "remove online user",
+			run: func() error {
+				return service.RemoveOnlineUserContext(ctx, "token-a")
+			},
+		},
+		{
+			name: "get online users",
+			run: func() error {
+				_, err := service.GetOnlineUsersContext(ctx)
+				return err
+			},
+		},
+		{
+			name: "force logout",
+			run: func() error {
+				return service.ForceLogoutContext(ctx, "token-a")
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.run(); !errors.Is(err, context.Canceled) {
+				t.Fatalf("error = %v, want context.Canceled", err)
+			}
+		})
+	}
+}
+
+func mustAccessToken(t *testing.T, userID uint, username string) (string, string, time.Time) {
 	t.Helper()
 
 	accessToken, _, err := jwtpkg.GenerateToken(userID, username)
@@ -87,7 +234,7 @@ func mustAccessToken(t *testing.T, userID uint, username string) (string, time.T
 		t.Fatalf("parse token: %v", err)
 	}
 
-	return accessToken, claims.ExpiresAt.Time
+	return accessToken, claims.ID, claims.ExpiresAt.Time
 }
 
 func setupOnlineUserTestRedis(t *testing.T) *miniredis.Miniredis {

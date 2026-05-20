@@ -2,6 +2,7 @@ package upload
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"mime/multipart"
@@ -57,6 +58,28 @@ func TestUploaderLocalUploadAndDelete(t *testing.T) {
 	}
 }
 
+func TestUploaderContextMethodsPassCanceledContextToProvider(t *testing.T) {
+	uploader := &Uploader{
+		config: config.UploadConfig{
+			MaxSize:      1,
+			AllowedTypes: []string{".png"},
+		},
+		provider: contextAwareStorageProvider{},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := uploader.UploadContext(ctx, newMultipartFileHeader(t, "avatar.png", tinyPNG()))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("UploadContext error = %v, want context.Canceled", err)
+	}
+
+	if err := uploader.DeleteContext(ctx, "avatar.png"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("DeleteContext error = %v, want context.Canceled", err)
+	}
+}
+
 func TestUploaderKeepsLegacyLocalConfig(t *testing.T) {
 	dir := t.TempDir()
 	uploader := NewUploaderWithConfig(config.UploadConfig{
@@ -78,6 +101,38 @@ func TestUploaderKeepsLegacyLocalConfig(t *testing.T) {
 	}
 }
 
+type contextAwareStorageProvider struct{}
+
+func (contextAwareStorageProvider) Type() string {
+	return "test"
+}
+
+func (contextAwareStorageProvider) Store(ctx context.Context, _ string, _ io.Reader) (*StoredObject, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return &StoredObject{
+		FilePath:    "avatar.png",
+		URL:         "/uploads/avatar.png",
+		StorageType: "test",
+	}, nil
+}
+
+func (contextAwareStorageProvider) Open(ctx context.Context, _ string) (*StoredObjectReader, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return nil, ErrStorageReadNotImplemented
+}
+
+func (contextAwareStorageProvider) Delete(ctx context.Context, _ string) error {
+	return ctx.Err()
+}
+
+func (contextAwareStorageProvider) PublicURL(filePath string) (string, error) {
+	return filePath, nil
+}
+
 func TestLocalStorageProviderOpenStreamsFile(t *testing.T) {
 	dir := t.TempDir()
 	provider := NewLocalStorageProvider(config.UploadConfig{
@@ -93,7 +148,7 @@ func TestLocalStorageProviderOpenStreamsFile(t *testing.T) {
 		t.Fatalf("write artifact: %v", err)
 	}
 
-	opened, err := provider.Open(nil, key)
+	opened, err := provider.Open(context.TODO(), key)
 	if err != nil {
 		t.Fatalf("open failed: %v", err)
 	}
@@ -129,7 +184,7 @@ func TestLocalStorageProviderOpenRejectsSymlinkEscape(t *testing.T) {
 		t.Skipf("symlink is not available in this environment: %v", err)
 	}
 
-	_, err := provider.Open(nil, "linked-secret.txt")
+	_, err := provider.Open(context.TODO(), "linked-secret.txt")
 	if !errors.Is(err, ErrStorageProviderUnavailable) {
 		t.Fatalf("err = %v, want ErrStorageProviderUnavailable", err)
 	}
@@ -191,7 +246,7 @@ func TestS3StorageProviderOpenStreamsObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new provider failed: %v", err)
 	}
-	opened, err := provider.Open(nil, key)
+	opened, err := provider.Open(context.TODO(), key)
 	if err != nil {
 		t.Fatalf("open failed: %v", err)
 	}
@@ -239,7 +294,7 @@ func TestMinIOStorageProviderOpenWrapsSDKError(t *testing.T) {
 		t.Fatalf("new provider failed: %v", err)
 	}
 
-	_, err = provider.Open(nil, "artifacts/task-1/missing.txt")
+	_, err = provider.Open(context.TODO(), "artifacts/task-1/missing.txt")
 	if !errors.Is(err, ErrStorageProviderUnavailable) {
 		t.Fatalf("err = %v, want ErrStorageProviderUnavailable", err)
 	}
@@ -264,7 +319,7 @@ func TestObjectStorageProviderOpenRejectsRawURL(t *testing.T) {
 		t.Fatalf("new provider failed: %v", err)
 	}
 
-	_, err = provider.Open(nil, "https://evil.example.test/artifacts/task-1/report.txt")
+	_, err = provider.Open(context.TODO(), "https://evil.example.test/artifacts/task-1/report.txt")
 	if !errors.Is(err, ErrStorageProviderNotConfigured) {
 		t.Fatalf("err = %v, want ErrStorageProviderNotConfigured", err)
 	}

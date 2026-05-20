@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"strings"
@@ -12,6 +13,22 @@ import (
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
 )
+
+type jobContextTestKey struct{}
+
+func TestJobServiceGetJobListContextPropagatesContext(t *testing.T) {
+	dao := &fakeJobDAO{}
+	service := &JobService{dao: dao}
+	ctx := context.WithValue(context.Background(), jobContextTestKey{}, "request-context")
+
+	_, _, err := service.GetJobListContext(ctx, pagination.PageRequest{}, "", nil)
+	if err != nil {
+		t.Fatalf("GetJobListContext() error = %v", err)
+	}
+	if dao.contextMarker != "request-context" {
+		t.Fatalf("context marker = %#v, want request-context", dao.contextMarker)
+	}
+}
 
 func TestCleanupJobLogsDeletesOlderThanRetention(t *testing.T) {
 	dao := &fakeJobDAO{cleanupRows: 3}
@@ -160,6 +177,7 @@ type fakeJobDAO struct {
 	cleanupBefore     time.Time
 	cleanupRows       int64
 	panicOnActiveJobs bool
+	contextMarker     any
 }
 
 func (d *fakeJobDAO) GetJobByID(id uint) (*model.ScheduledJob, error) {
@@ -171,13 +189,28 @@ func (d *fakeJobDAO) GetJobByID(id uint) (*model.ScheduledJob, error) {
 	return nil, gorm.ErrRecordNotFound
 }
 
+func (d *fakeJobDAO) GetJobByIDContext(ctx context.Context, id uint) (*model.ScheduledJob, error) {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	return d.GetJobByID(id)
+}
+
 func (d *fakeJobDAO) GetJobList(pagination.PageRequest, string, *int8) ([]model.ScheduledJob, int64, error) {
 	return d.jobs, int64(len(d.jobs)), nil
+}
+
+func (d *fakeJobDAO) GetJobListContext(ctx context.Context, req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error) {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	return d.GetJobList(req, name, status)
 }
 
 func (d *fakeJobDAO) CreateJob(job *model.ScheduledJob) error {
 	d.jobs = append(d.jobs, *job)
 	return nil
+}
+
+func (d *fakeJobDAO) CreateJobContext(ctx context.Context, job *model.ScheduledJob) error {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	return d.CreateJob(job)
 }
 
 func (d *fakeJobDAO) UpdateJob(job *model.ScheduledJob) error {
@@ -190,6 +223,11 @@ func (d *fakeJobDAO) UpdateJob(job *model.ScheduledJob) error {
 	return nil
 }
 
+func (d *fakeJobDAO) UpdateJobContext(ctx context.Context, job *model.ScheduledJob) error {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	return d.UpdateJob(job)
+}
+
 func (d *fakeJobDAO) DeleteJob(id uint) error {
 	for i := range d.jobs {
 		if d.jobs[i].ID == id {
@@ -200,12 +238,22 @@ func (d *fakeJobDAO) DeleteJob(id uint) error {
 	return nil
 }
 
+func (d *fakeJobDAO) DeleteJobContext(ctx context.Context, id uint) error {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	return d.DeleteJob(id)
+}
+
 func (d *fakeJobDAO) CreateJobLog(log *model.ScheduledJobLog) error {
 	if d.logs == nil {
 		d.logs = map[uint][]model.ScheduledJobLog{}
 	}
 	d.logs[log.JobID] = append(d.logs[log.JobID], *log)
 	return nil
+}
+
+func (d *fakeJobDAO) CreateJobLogContext(ctx context.Context, log *model.ScheduledJobLog) error {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	return d.CreateJobLog(log)
 }
 
 func (d *fakeJobDAO) GetAllActiveJobs() ([]model.ScheduledJob, error) {
@@ -221,13 +269,28 @@ func (d *fakeJobDAO) GetAllActiveJobs() ([]model.ScheduledJob, error) {
 	return activeJobs, nil
 }
 
+func (d *fakeJobDAO) GetAllActiveJobsContext(ctx context.Context) ([]model.ScheduledJob, error) {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	return d.GetAllActiveJobs()
+}
+
 func (d *fakeJobDAO) GetAllJobs() ([]model.ScheduledJob, error) {
 	return d.jobs, nil
+}
+
+func (d *fakeJobDAO) GetAllJobsContext(ctx context.Context) ([]model.ScheduledJob, error) {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	return d.GetAllJobs()
 }
 
 func (d *fakeJobDAO) CleanupJobLogsBefore(before time.Time) (int64, error) {
 	d.cleanupBefore = before
 	return d.cleanupRows, nil
+}
+
+func (d *fakeJobDAO) CleanupJobLogsBeforeContext(ctx context.Context, before time.Time) (int64, error) {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	return d.CleanupJobLogsBefore(before)
 }
 
 func (d *fakeJobDAO) CountJobsByStatus(status *int8) (int64, error) {
@@ -244,6 +307,11 @@ func (d *fakeJobDAO) CountJobsByStatus(status *int8) (int64, error) {
 	return count, nil
 }
 
+func (d *fakeJobDAO) CountJobsByStatusContext(ctx context.Context, status *int8) (int64, error) {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	return d.CountJobsByStatus(status)
+}
+
 func (d *fakeJobDAO) CountFailedJobLogsSince(since time.Time) (int64, error) {
 	var count int64
 	for _, logs := range d.logs {
@@ -254,6 +322,11 @@ func (d *fakeJobDAO) CountFailedJobLogsSince(since time.Time) (int64, error) {
 		}
 	}
 	return count, nil
+}
+
+func (d *fakeJobDAO) CountFailedJobLogsSinceContext(ctx context.Context, since time.Time) (int64, error) {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	return d.CountFailedJobLogsSince(since)
 }
 
 func (d *fakeJobDAO) GetLatestJobRunTime() (*time.Time, error) {
@@ -270,6 +343,11 @@ func (d *fakeJobDAO) GetLatestJobRunTime() (*time.Time, error) {
 	return latest, nil
 }
 
+func (d *fakeJobDAO) GetLatestJobRunTimeContext(ctx context.Context) (*time.Time, error) {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	return d.GetLatestJobRunTime()
+}
+
 func (d *fakeJobDAO) GetLatestJobLog(jobID uint) (*model.ScheduledJobLog, error) {
 	logs := d.logs[jobID]
 	if len(logs) == 0 {
@@ -283,4 +361,9 @@ func (d *fakeJobDAO) GetLatestJobLog(jobID uint) (*model.ScheduledJobLog, error)
 		}
 	}
 	return &latest, nil
+}
+
+func (d *fakeJobDAO) GetLatestJobLogContext(ctx context.Context, jobID uint) (*model.ScheduledJobLog, error) {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	return d.GetLatestJobLog(jobID)
 }

@@ -1,12 +1,10 @@
 package system
 
 import (
-	"errors"
 	"time"
 
+	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
-	"gorm.io/gorm"
 )
 
 type MenuBootstrapResult struct {
@@ -14,42 +12,16 @@ type MenuBootstrapResult struct {
 }
 
 func BootstrapDefaultMenus() (MenuBootstrapResult, error) {
-	return bootstrapDefaultMenus(database.DB)
+	var result MenuBootstrapResult
+	created, err := (&systemdao.MenuSeedDAO{}).BootstrapDefaultMenus(DefaultMenus(), time.Now())
+	result.Menus = created
+	return result, err
 }
 
 func DefaultMenus() []model.Menu {
 	menus := make([]model.Menu, len(defaultMenuSeed))
 	copy(menus, defaultMenuSeed)
 	return menus
-}
-
-func bootstrapDefaultMenus(db *gorm.DB) (MenuBootstrapResult, error) {
-	var result MenuBootstrapResult
-	if db == nil {
-		return result, errors.New("database is not initialized")
-	}
-
-	err := db.Transaction(func(tx *gorm.DB) error {
-		var count int64
-		if err := tx.Model(&model.Menu{}).Count(&count).Error; err != nil {
-			return err
-		}
-		if count > 0 {
-			return nil
-		}
-
-		now := time.Now()
-		for _, item := range DefaultMenus() {
-			item.CreatedAt = now
-			item.UpdatedAt = now
-			if err := tx.Create(&item).Error; err != nil {
-				return err
-			}
-			result.Menus++
-		}
-		return nil
-	})
-	return result, err
 }
 
 var defaultMenuSeed = []model.Menu{

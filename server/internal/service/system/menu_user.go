@@ -1,6 +1,8 @@
 package system
 
 import (
+	"context"
+
 	"github.com/go-admin-kit/server/internal/dao/auth"
 	"github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
@@ -14,17 +16,21 @@ type MenuUserService struct {
 
 // GetUserMenuTree 获取当前用户的菜单树
 func (s *MenuUserService) GetUserMenuTree(userID uint) ([]model.Menu, error) {
+	return s.GetUserMenuTreeContext(context.Background(), userID)
+}
+
+func (s *MenuUserService) GetUserMenuTreeContext(ctx context.Context, userID uint) ([]model.Menu, error) {
 	// 1. 获取所有通过开启状态的菜单树 (status=1)
 	// 使用 nil 表示获取所有状态为 1 的菜单（因为 GetMenuTree 内部逻辑是 status != nil 才筛选，
 	// 但我们需要明确只获取启用的菜单，MenuDAO.GetMenuTree 接受 *int8）
 	status := int8(1)
-	allMenus, err := s.menuDAO.GetMenuTree(&status)
+	allMenus, err := s.menuDAO.GetMenuTreeContext(ctx, &status)
 	if err != nil {
 		return nil, err
 	}
 
 	// 2. 获取用户的所有权限代码
-	permissionCodes, err := s.permissionDAO.GetUserPermissions(userID)
+	permissionCodes, err := s.permissionDAO.GetUserPermissionsContext(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

@@ -131,13 +131,13 @@ npm run dev
 
 ## 数据库
 
-首次创建 MySQL 数据卷时，Docker 会自动导入：
+后端容器会在启动主服务前幂等执行 goose 迁移；首次创建数据卷和后续升级都走同一条迁移路径：
 
 ```text
-server/docs/go_admin_kit.sql
+server/migrations/
 ```
 
-也可以手动导入基线 SQL：
+如需离线或手动初始化环境，也可以导入基线 SQL：
 
 ```powershell
 make db-import
@@ -200,7 +200,7 @@ npm run test:contract
 - 后端默认配置：`server/configs/config.yaml`
 - 后端示例配置：`server/configs/config.example.yaml`
 - Docker 环境变量：`.env.example`
-- 数据库基线：`server/docs/go_admin_kit.sql`
+- 数据库基线 SQL（手动初始化参考）：`server/docs/go_admin_kit.sql`
 - 数据库迁移：`server/migrations/`
 - OpenAPI 契约：`server/docs/openapi.json`
 - 本地代码图谱：`CODE_GRAPH.md`
