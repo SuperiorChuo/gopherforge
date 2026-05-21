@@ -64,9 +64,11 @@
 
 ### 发布前建议复核
 
-- 代码层面的优化项已收口；发布前建议继续执行以下环境、迁移、构建和健康检查验证。
+- 代码层面的优化项已收口。
+- 2026-05-21 已完成本机自动化复核：后端测试、`go vet`、`golangci-lint`、OpenAPI 契约、API smoke 单元测试、前端测试/类型检查/lint/stylelint/build/E2E，以及 Docker compose 本机烟测均通过。
+- 上线前仅剩目标环境人工确认项：生产密钥、默认密码、CORS 域名、上传存储、目标库迁移、默认管理员密码、正式域名下的鉴权/审计/页面访问和前后端网关访问。
 
-- 运行后端全量验证：
+- 需要复跑时可使用后端全量验证命令：
 
 ```powershell
 cd server
@@ -75,7 +77,7 @@ go vet ./...
 go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --config ../.golangci.yml ./...
 ```
 
-- 运行前端和契约验证：
+- 需要复跑时可使用前端和契约验证命令：
 
 ```powershell
 npm run api:contract
@@ -87,6 +89,7 @@ npm run build:type
 npm run lint
 npm run stylelint
 npm run build
+npm run e2e:frontend
 ```
 
-- 发布前继续使用 `docs/development/READINESS_CHECKLIST.md` 做环境、密钥、迁移、健康检查和 Docker 验证。
+- 发布前继续使用 `docs/development/READINESS_CHECKLIST.md` 跟踪目标环境确认项。
