@@ -38,7 +38,7 @@ func (a *FileAPI) Upload(c *gin.Context) {
 
 	fileRecord, err := a.fileService.UploadContext(c.Request.Context(), file, userID.(uint))
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemFileServiceError(c, "failed to upload file", err)
 		return
 	}
 
@@ -66,7 +66,7 @@ func (a *FileAPI) UploadMultiple(c *gin.Context) {
 	// Preserve per-file errors in a compact response.
 	var errMsgs []string
 	for _, err := range errs {
-		errMsgs = append(errMsgs, err.Error())
+		errMsgs = append(errMsgs, systemFileServiceErrorMessage(err))
 	}
 
 	response.Success(c, gin.H{
@@ -125,7 +125,7 @@ func (a *FileAPI) GetFile(c *gin.Context) {
 
 	file, err := a.fileService.GetFileByIDInScopeContext(c.Request.Context(), uint(id), dataScope)
 	if err != nil {
-		response.NotFound(c, "file not found")
+		writeSystemFileServiceError(c, "failed to get file", err)
 		return
 	}
 
@@ -149,7 +149,7 @@ func (a *FileAPI) Download(c *gin.Context) {
 
 	file, err := a.fileService.GetFileByIDInScopeContext(c.Request.Context(), uint(id), dataScope)
 	if err != nil {
-		response.NotFound(c, "file not found")
+		writeSystemFileServiceError(c, "failed to download file", err)
 		return
 	}
 
@@ -182,7 +182,7 @@ func (a *FileAPI) DeleteFile(c *gin.Context) {
 	}
 
 	if err := a.fileService.DeleteFileContext(c.Request.Context(), uint(id), userID.(uint), dataScope); err != nil {
-		a.handleFileError(c, err)
+		writeSystemFileServiceError(c, "failed to delete file", err)
 		return
 	}
 
@@ -207,7 +207,7 @@ func (a *FileAPI) DeleteFiles(c *gin.Context) {
 	}
 
 	if err := a.fileService.DeleteFilesContext(c.Request.Context(), req.IDs, userID.(uint), dataScope); err != nil {
-		a.handleFileError(c, err)
+		writeSystemFileServiceError(c, "failed to delete files", err)
 		return
 	}
 
@@ -272,7 +272,7 @@ func (a *FileAPI) Preview(c *gin.Context) {
 
 	file, err := a.fileService.GetFileByIDInScopeContext(c.Request.Context(), uint(id), dataScope)
 	if err != nil {
-		response.NotFound(c, "file not found")
+		writeSystemFileServiceError(c, "failed to preview file", err)
 		return
 	}
 
@@ -322,7 +322,11 @@ func (a *FileAPI) CheckHash(c *gin.Context) {
 
 	file, err := a.fileService.GetFileByHashContext(c.Request.Context(), hash, dataScope)
 	if err != nil {
-		response.Success(c, gin.H{"exists": false})
+		if errors.Is(err, system.ErrFileNotFoundOrPermissionDenied) {
+			response.Success(c, gin.H{"exists": false})
+			return
+		}
+		writeSystemFileServiceError(c, "failed to check file hash", err)
 		return
 	}
 
@@ -367,13 +371,4 @@ func (a *FileAPI) GetMyFiles(c *gin.Context) {
 // ImageResize is reserved for future image resizing.
 func (a *FileAPI) ImageResize(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, gin.H{"message": "not implemented"})
-}
-
-func (a *FileAPI) handleFileError(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, system.ErrFileNotFoundOrPermissionDenied):
-		response.NotFound(c, err.Error())
-	default:
-		response.BadRequest(c, err.Error())
-	}
 }

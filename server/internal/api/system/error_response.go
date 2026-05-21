@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/pkg/logger"
 	"github.com/go-admin-kit/server/internal/pkg/response"
+	"github.com/go-admin-kit/server/internal/pkg/upload"
 	systemsvc "github.com/go-admin-kit/server/internal/service/system"
 )
 
@@ -127,5 +128,33 @@ func writeSystemNoticeServiceError(c *gin.Context, operation string, err error) 
 		internalServerError(c, operation, err)
 	default:
 		internalServerError(c, operation, err)
+	}
+}
+
+func writeSystemFileServiceError(c *gin.Context, operation string, err error) {
+	switch {
+	case errors.Is(err, systemsvc.ErrFileNotFoundOrPermissionDenied):
+		response.NotFound(c, systemsvc.ErrFileNotFoundOrPermissionDenied.Error())
+	case errors.Is(err, upload.ErrFileEmpty),
+		errors.Is(err, upload.ErrFileTooLarge),
+		errors.Is(err, upload.ErrFileTypeNotAllowed):
+		response.BadRequest(c, err.Error())
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		internalServerError(c, operation, err)
+	default:
+		internalServerError(c, operation, err)
+	}
+}
+
+func systemFileServiceErrorMessage(err error) string {
+	switch {
+	case errors.Is(err, systemsvc.ErrFileNotFoundOrPermissionDenied):
+		return systemsvc.ErrFileNotFoundOrPermissionDenied.Error()
+	case errors.Is(err, upload.ErrFileEmpty),
+		errors.Is(err, upload.ErrFileTooLarge),
+		errors.Is(err, upload.ErrFileTypeNotAllowed):
+		return err.Error()
+	default:
+		return "internal server error"
 	}
 }
