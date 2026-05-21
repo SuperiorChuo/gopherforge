@@ -25,7 +25,7 @@
 - 主要 API/Service/DAO 链路已补充 `context.Context` 版本，GORM 查询使用 `WithContext(ctx)`。
 - 共享 `dao.UserDAO` 已抽出，`dao/auth` 与 `dao/system` 只保留各自领域方法。
 - `OAuthService` 已支持注入 user/binding store，默认行为保持兼容。
-- `authz.DataScopeResolver` 已支持注入 `DataScopeStore`，部门树和自定义角色部门加载不再硬绑主流程。
+- `authz.DataScopeResolver` 已支持注入 `DataScopeStore` 与部门树缓存，部门树和自定义角色部门加载不再硬绑主流程。
 - `RedisService` 已支持注入 Redis monitor client，默认仍使用全局 Redis client。
 - `pkg/jwt` 的 token blacklist 已支持注入 `TokenBlacklistStore`，默认 Redis 行为保持兼容。
 - `pkg/cache` 的 `CacheService` 已支持注入 Redis client，验证码、用户信息和权限缓存调用可脱离全局 Redis 进行测试。
@@ -38,7 +38,7 @@
 
 - Metrics 中间件的核心计数改为原子/更低锁竞争实现，数据库连接池统计已支持注入 provider。
 - 操作日志中间件读取 request body 时使用 `io.LimitReader`。
-- 部门树数据权限解析已增加 Redis 缓存与失效逻辑。
+- 部门树数据权限解析已增加 Redis 缓存、失效逻辑与可注入缓存接口。
 - 在线用户查询已从 Redis `SCAN` 改为 zset 索引和批量 `MGET`。
 
 ### CI、部署与前端

@@ -43,9 +43,17 @@ type DataScopeStore interface {
 	ListRoleDataScopeDepartmentIDs(ctx context.Context, roleIDs []uint) ([]uint, error)
 }
 
+// DepartmentTreeCache caches department tree rows for data-scope resolution.
+type DepartmentTreeCache interface {
+	GetDepartmentTree(ctx context.Context) ([]model.Department, bool)
+	SetDepartmentTree(ctx context.Context, depts []model.Department) error
+	InvalidateDepartmentTree(ctx context.Context) error
+}
+
 // DataScopeResolver resolves user data permissions with injectable persistence.
 type DataScopeResolver struct {
 	store DataScopeStore
+	cache DepartmentTreeCache
 }
 
 // NewDataScopeResolver creates a resolver. A nil store uses the default database-backed store.
@@ -53,7 +61,14 @@ func NewDataScopeResolver(store DataScopeStore) *DataScopeResolver {
 	return &DataScopeResolver{store: store}
 }
 
+// NewDataScopeResolverWithCache creates a resolver with injectable persistence and department tree cache.
+func NewDataScopeResolverWithCache(store DataScopeStore, cache DepartmentTreeCache) *DataScopeResolver {
+	return &DataScopeResolver{store: store, cache: cache}
+}
+
 type databaseDataScopeStore struct{}
+
+type redisDepartmentTreeCache struct{}
 
 // UserDataScope is a reusable data permission result for business queries.
 type UserDataScope struct {
@@ -291,7 +306,8 @@ func (r *DataScopeResolver) loadDepartmentTreeContext(ctx context.Context) ([]mo
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if depts, ok := getCachedDepartmentTreeContext(ctx); ok {
+	cache := r.departmentTreeCache()
+	if depts, ok := cache.GetDepartmentTree(ctx); ok {
 		return depts, nil
 	}
 
@@ -300,11 +316,11 @@ func (r *DataScopeResolver) loadDepartmentTreeContext(ctx context.Context) ([]mo
 		return nil, err
 	}
 
-	_ = setCachedDepartmentTreeContext(ctx, depts)
+	_ = cache.SetDepartmentTree(ctx, depts)
 	return depts, nil
 }
 
-func getCachedDepartmentTreeContext(ctx context.Context) ([]model.Department, bool) {
+func (redisDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]model.Department, bool) {
 	if redisstore.Client == nil {
 		return nil, false
 	}
@@ -319,14 +335,14 @@ func getCachedDepartmentTreeContext(ctx context.Context) ([]model.Department, bo
 
 	var rows []departmentTreeCacheRow
 	if err := json.Unmarshal(data, &rows); err != nil {
-		_ = InvalidateDepartmentTreeCache()
+		_ = redisDepartmentTreeCache{}.InvalidateDepartmentTree(ctx)
 		return nil, false
 	}
 
 	return departmentRowsToModels(rows), true
 }
 
-func setCachedDepartmentTreeContext(ctx context.Context, depts []model.Department) error {
+func (redisDepartmentTreeCache) SetDepartmentTree(ctx context.Context, depts []model.Department) error {
 	if redisstore.Client == nil {
 		return nil
 	}
@@ -361,10 +377,17 @@ func departmentRowsToModels(rows []departmentTreeCacheRow) []model.Department {
 }
 
 func InvalidateDepartmentTreeCache() error {
+	return redisDepartmentTreeCache{}.InvalidateDepartmentTree(context.Background())
+}
+
+func (redisDepartmentTreeCache) InvalidateDepartmentTree(ctx context.Context) error {
 	if redisstore.Client == nil {
 		return nil
 	}
-	return redisstore.Client.Del(context.Background(), departmentTreeCacheKey).Err()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return redisstore.Client.Del(ctx, departmentTreeCacheKey).Err()
 }
 
 func resolveRoleDataScope(role model.Role) DataScope {
@@ -446,6 +469,13 @@ func (r *DataScopeResolver) dataScopeStore() DataScopeStore {
 		return r.store
 	}
 	return databaseDataScopeStore{}
+}
+
+func (r *DataScopeResolver) departmentTreeCache() DepartmentTreeCache {
+	if r != nil && r.cache != nil {
+		return r.cache
+	}
+	return redisDepartmentTreeCache{}
 }
 
 func (databaseDataScopeStore) ListDepartments(ctx context.Context) ([]model.Department, error) {

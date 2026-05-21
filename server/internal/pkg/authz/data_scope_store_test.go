@@ -78,6 +78,52 @@ func TestDataScopeResolverUsesInjectedStoreForCustomDepartmentFallback(t *testin
 	}
 }
 
+func TestDataScopeResolverUsesInjectedDepartmentTreeCache(t *testing.T) {
+	withoutAuthzGlobals(t)
+
+	store := &stubDataScopeStore{
+		departments: []model.Department{
+			{ID: 11, ParentID: 10},
+			{ID: 12, ParentID: 11},
+		},
+	}
+	cache := &stubDepartmentTreeCache{}
+	resolver := NewDataScopeResolverWithCache(store, cache)
+	user := &model.User{
+		ID:           7,
+		DepartmentID: 10,
+		Roles: []model.Role{{
+			ID:        3,
+			Code:      "dept_admin",
+			DataScope: string(DataScopeDepartmentTree),
+		}},
+	}
+
+	first, err := resolver.ResolveUserDataScopeContext(context.Background(), user)
+	if err != nil {
+		t.Fatalf("first ResolveUserDataScopeContext() error = %v", err)
+	}
+	second, err := resolver.ResolveUserDataScopeContext(context.Background(), user)
+	if err != nil {
+		t.Fatalf("second ResolveUserDataScopeContext() error = %v", err)
+	}
+	if !slices.Equal(first.DepartmentIDs, []uint{10, 11, 12}) {
+		t.Fatalf("first department ids = %#v, want [10 11 12]", first.DepartmentIDs)
+	}
+	if !slices.Equal(second.DepartmentIDs, []uint{10, 11, 12}) {
+		t.Fatalf("second department ids = %#v, want [10 11 12]", second.DepartmentIDs)
+	}
+	if store.departmentCalls != 1 {
+		t.Fatalf("department store calls = %d, want 1", store.departmentCalls)
+	}
+	if cache.getCalls != 2 {
+		t.Fatalf("cache get calls = %d, want 2", cache.getCalls)
+	}
+	if cache.setCalls != 1 {
+		t.Fatalf("cache set calls = %d, want 1", cache.setCalls)
+	}
+}
+
 type stubDataScopeStore struct {
 	departments         []model.Department
 	departmentErr       error
@@ -103,6 +149,33 @@ func (s *stubDataScopeStore) ListRoleDataScopeDepartmentIDs(ctx context.Context,
 		return nil, s.roleDepartmentErr
 	}
 	return append([]uint(nil), s.roleDepartmentIDs...), nil
+}
+
+type stubDepartmentTreeCache struct {
+	departments []model.Department
+	getCalls    int
+	setCalls    int
+	invalidate  int
+}
+
+func (s *stubDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]model.Department, bool) {
+	s.getCalls++
+	if s.departments == nil {
+		return nil, false
+	}
+	return append([]model.Department(nil), s.departments...), true
+}
+
+func (s *stubDepartmentTreeCache) SetDepartmentTree(ctx context.Context, depts []model.Department) error {
+	s.setCalls++
+	s.departments = append([]model.Department(nil), depts...)
+	return nil
+}
+
+func (s *stubDepartmentTreeCache) InvalidateDepartmentTree(ctx context.Context) error {
+	s.invalidate++
+	s.departments = nil
+	return nil
 }
 
 func withoutAuthzGlobals(t *testing.T) {
