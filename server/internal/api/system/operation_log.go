@@ -69,7 +69,7 @@ func (a *OperationLogAPI) GetOperationLogDetail(c *gin.Context) {
 
 	log, err := a.logService.GetLogByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
-		response.NotFound(c, "log not found")
+		writeSystemOperationLogServiceError(c, "failed to get operation log", err)
 		return
 	}
 
