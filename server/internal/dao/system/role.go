@@ -10,18 +10,31 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-type RoleDAO struct{}
+type RoleDAO struct {
+	db *gorm.DB
+}
+
+func NewRoleDAO(db *gorm.DB) *RoleDAO {
+	return &RoleDAO{db: db}
+}
+
+func (d *RoleDAO) dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if d != nil && d.db != nil {
+		return d.db.WithContext(ctx)
+	}
+	return database.DB.WithContext(ctx)
+}
 
 func (d *RoleDAO) GetRoleByID(id uint) (*model.Role, error) {
 	return d.GetRoleByIDContext(context.Background(), id)
 }
 
 func (d *RoleDAO) GetRoleByIDContext(ctx context.Context, id uint) (*model.Role, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var role model.Role
-	result := database.DB.WithContext(ctx).
+	result := d.dbWithContext(ctx).
 		Preload("Permissions").
 		Preload("DataScopeDepartments").
 		First(&role, id)
@@ -37,11 +50,8 @@ func (d *RoleDAO) GetRoleByCode(code string) (*model.Role, error) {
 }
 
 func (d *RoleDAO) GetRoleByCodeContext(ctx context.Context, code string) (*model.Role, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var role model.Role
-	result := database.DB.WithContext(ctx).Where("code = ?", code).First(&role)
+	result := d.dbWithContext(ctx).Where("code = ?", code).First(&role)
 	return &role, result.Error
 }
 
@@ -50,13 +60,10 @@ func (d *RoleDAO) GetRoleList(req pagination.PageRequest, keyword string) ([]mod
 }
 
 func (d *RoleDAO) GetRoleListContext(ctx context.Context, req pagination.PageRequest, keyword string) ([]model.Role, int64, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var roles []model.Role
 	var total int64
 
-	query := database.DB.WithContext(ctx).Model(&model.Role{})
+	query := d.dbWithContext(ctx).Model(&model.Role{})
 	if keyword != "" {
 		query = query.Where("name LIKE ? OR code LIKE ? OR description LIKE ?",
 			"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
@@ -81,11 +88,8 @@ func (d *RoleDAO) GetAllRoles() ([]model.Role, error) {
 }
 
 func (d *RoleDAO) GetAllRolesContext(ctx context.Context) ([]model.Role, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var roles []model.Role
-	result := database.DB.WithContext(ctx).
+	result := d.dbWithContext(ctx).
 		Preload("DataScopeDepartments").
 		Order("created_at ASC").
 		Find(&roles)
@@ -98,10 +102,7 @@ func (d *RoleDAO) CreateRole(role *model.Role) error {
 }
 
 func (d *RoleDAO) CreateRoleContext(ctx context.Context, role *model.Role) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(role).Error; err != nil {
 			return err
 		}
@@ -117,10 +118,7 @@ func (d *RoleDAO) UpdateRole(role *model.Role) error {
 }
 
 func (d *RoleDAO) UpdateRoleContext(ctx context.Context, role *model.Role) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Save(role).Error; err != nil {
 			return err
 		}
@@ -136,10 +134,7 @@ func (d *RoleDAO) DeleteRole(id uint) error {
 }
 
 func (d *RoleDAO) DeleteRoleContext(ctx context.Context, id uint) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("role_id = ?", id).Delete(&model.RolePermission{}).Error; err != nil {
 			return err
 		}
@@ -216,10 +211,7 @@ func (d *RoleDAO) AssignPermissions(roleID uint, permissionIDs []uint) error {
 }
 
 func (d *RoleDAO) AssignPermissionsContext(ctx context.Context, roleID uint, permissionIDs []uint) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("role_id = ?", roleID).Delete(&model.RolePermission{}).Error; err != nil {
 			return err
 		}

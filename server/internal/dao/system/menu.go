@@ -11,7 +11,23 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-type MenuDAO struct{}
+type MenuDAO struct {
+	db *gorm.DB
+}
+
+func NewMenuDAO(db *gorm.DB) *MenuDAO {
+	return &MenuDAO{db: db}
+}
+
+func (d *MenuDAO) dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if d != nil && d.db != nil {
+		return d.db.WithContext(ctx)
+	}
+	return database.DB.WithContext(ctx)
+}
 
 var ErrMenuHasChildren = errors.New("cannot delete menu with children")
 
@@ -20,11 +36,8 @@ func (d *MenuDAO) GetMenuByID(id uint) (*model.Menu, error) {
 }
 
 func (d *MenuDAO) GetMenuByIDContext(ctx context.Context, id uint) (*model.Menu, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var menu model.Menu
-	result := database.DB.WithContext(ctx).First(&menu, id)
+	result := d.dbWithContext(ctx).First(&menu, id)
 	return &menu, result.Error
 }
 
@@ -33,13 +46,10 @@ func (d *MenuDAO) GetMenuList(req pagination.PageRequest, keyword string, status
 }
 
 func (d *MenuDAO) GetMenuListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]model.Menu, int64, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var menus []model.Menu
 	var total int64
 
-	query := database.DB.WithContext(ctx).Model(&model.Menu{})
+	query := d.dbWithContext(ctx).Model(&model.Menu{})
 	if keyword != "" {
 		query = query.Where("name LIKE ? OR title LIKE ? OR path LIKE ?",
 			"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
@@ -64,10 +74,7 @@ func (d *MenuDAO) GetMenuTree(status *int8) ([]model.Menu, error) {
 }
 
 func (d *MenuDAO) GetMenuTreeContext(ctx context.Context, status *int8) ([]model.Menu, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	query := database.DB.WithContext(ctx).Model(&model.Menu{})
+	query := d.dbWithContext(ctx).Model(&model.Menu{})
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -102,10 +109,7 @@ func (d *MenuDAO) CreateMenu(menu *model.Menu) error {
 }
 
 func (d *MenuDAO) CreateMenuContext(ctx context.Context, menu *model.Menu) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Create(menu).Error
+	return d.dbWithContext(ctx).Create(menu).Error
 }
 
 func (d *MenuDAO) UpdateMenu(menu *model.Menu) error {
@@ -113,10 +117,7 @@ func (d *MenuDAO) UpdateMenu(menu *model.Menu) error {
 }
 
 func (d *MenuDAO) UpdateMenuContext(ctx context.Context, menu *model.Menu) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Save(menu).Error
+	return d.dbWithContext(ctx).Save(menu).Error
 }
 
 func (d *MenuDAO) DeleteMenu(id uint) error {
@@ -124,10 +125,7 @@ func (d *MenuDAO) DeleteMenu(id uint) error {
 }
 
 func (d *MenuDAO) DeleteMenuContext(ctx context.Context, id uint) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var count int64
 		if err := tx.Model(&model.Menu{}).Where("parent_id = ?", id).Count(&count).Error; err != nil {
 			return err
@@ -149,10 +147,7 @@ func (d *MenuDAO) AssignPermissions(menuID uint, permissionIDs []uint) error {
 }
 
 func (d *MenuDAO) AssignPermissionsContext(ctx context.Context, menuID uint, permissionIDs []uint) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("menu_id = ?", menuID).Delete(&model.MenuPermission{}).Error; err != nil {
 			return err
 		}

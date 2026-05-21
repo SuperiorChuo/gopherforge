@@ -11,19 +11,26 @@ import (
 )
 
 // MenuSeedDAO owns default menu bootstrap persistence.
-type MenuSeedDAO struct{}
+type MenuSeedDAO struct {
+	db *gorm.DB
+}
+
+func NewMenuSeedDAO(db *gorm.DB) *MenuSeedDAO {
+	return &MenuSeedDAO{db: db}
+}
 
 func (d *MenuSeedDAO) BootstrapDefaultMenus(seed []model.Menu, now time.Time) (int, error) {
 	return d.BootstrapDefaultMenusContext(context.Background(), seed, now)
 }
 
 func (d *MenuSeedDAO) BootstrapDefaultMenusContext(ctx context.Context, seed []model.Menu, now time.Time) (int, error) {
-	if database.DB == nil {
+	db := d.baseDB()
+	if db == nil {
 		return 0, errors.New("database is not initialized")
 	}
 
 	created := 0
-	err := database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var count int64
 		if err := tx.Model(&model.Menu{}).Count(&count).Error; err != nil {
 			return err
@@ -43,4 +50,11 @@ func (d *MenuSeedDAO) BootstrapDefaultMenusContext(ctx context.Context, seed []m
 		return nil
 	})
 	return created, err
+}
+
+func (d *MenuSeedDAO) baseDB() *gorm.DB {
+	if d != nil && d.db != nil {
+		return d.db
+	}
+	return database.DB
 }

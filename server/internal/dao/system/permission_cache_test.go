@@ -8,7 +8,29 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-admin-kit/server/internal/pkg/database"
 )
+
+func TestPermissionCacheDAOFindUserIDsByRoleIDsUsesInjectedDB(t *testing.T) {
+	oldDB := database.DB
+	database.DB = nil
+	t.Cleanup(func() {
+		database.DB = oldDB
+	})
+
+	db, mock := newInjectedRBACDAOTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT DISTINCT `user_id` FROM `user_roles` WHERE role_id IN (?)")).
+		WithArgs(uint(9)).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(uint(42)))
+
+	userIDs, err := NewPermissionCacheDAO(db).FindUserIDsByRoleIDs([]uint{9})
+	if err != nil {
+		t.Fatalf("FindUserIDsByRoleIDs() error = %v", err)
+	}
+	if !reflect.DeepEqual(userIDs, []uint{42}) {
+		t.Fatalf("userIDs = %#v, want [42]", userIDs)
+	}
+}
 
 func TestPermissionCacheDAOFindUserIDsByRoleIDs(t *testing.T) {
 	mock := setupSystemDAOTestDB(t)

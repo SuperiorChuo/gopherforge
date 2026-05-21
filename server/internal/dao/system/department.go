@@ -6,20 +6,34 @@ import (
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
+	"gorm.io/gorm"
 )
 
-type DepartmentDAO struct{}
+type DepartmentDAO struct {
+	db *gorm.DB
+}
+
+func NewDepartmentDAO(db *gorm.DB) *DepartmentDAO {
+	return &DepartmentDAO{db: db}
+}
+
+func (d *DepartmentDAO) dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if d != nil && d.db != nil {
+		return d.db.WithContext(ctx)
+	}
+	return database.DB.WithContext(ctx)
+}
 
 func (d *DepartmentDAO) GetByID(id uint) (*model.Department, error) {
 	return d.GetByIDContext(context.Background(), id)
 }
 
 func (d *DepartmentDAO) GetByIDContext(ctx context.Context, id uint) (*model.Department, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var dept model.Department
-	result := database.DB.WithContext(ctx).First(&dept, id)
+	result := d.dbWithContext(ctx).First(&dept, id)
 	return &dept, result.Error
 }
 
@@ -28,11 +42,8 @@ func (d *DepartmentDAO) GetByCode(code string) (*model.Department, error) {
 }
 
 func (d *DepartmentDAO) GetByCodeContext(ctx context.Context, code string) (*model.Department, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var dept model.Department
-	result := database.DB.WithContext(ctx).Where("code = ?", code).First(&dept)
+	result := d.dbWithContext(ctx).Where("code = ?", code).First(&dept)
 	return &dept, result.Error
 }
 
@@ -41,13 +52,10 @@ func (d *DepartmentDAO) GetList(req pagination.PageRequest, keyword string, stat
 }
 
 func (d *DepartmentDAO) GetListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]model.Department, int64, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var depts []model.Department
 	var total int64
 
-	query := database.DB.WithContext(ctx).Model(&model.Department{})
+	query := d.dbWithContext(ctx).Model(&model.Department{})
 	if keyword != "" {
 		query = query.Where("name LIKE ? OR code LIKE ? OR leader LIKE ?",
 			"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
@@ -72,11 +80,8 @@ func (d *DepartmentDAO) GetAll(status *int8) ([]model.Department, error) {
 }
 
 func (d *DepartmentDAO) GetAllContext(ctx context.Context, status *int8) ([]model.Department, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var depts []model.Department
-	query := database.DB.WithContext(ctx).Model(&model.Department{})
+	query := d.dbWithContext(ctx).Model(&model.Department{})
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -117,10 +122,7 @@ func (d *DepartmentDAO) Create(dept *model.Department) error {
 }
 
 func (d *DepartmentDAO) CreateContext(ctx context.Context, dept *model.Department) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Create(dept).Error
+	return d.dbWithContext(ctx).Create(dept).Error
 }
 
 func (d *DepartmentDAO) Update(dept *model.Department) error {
@@ -128,10 +130,7 @@ func (d *DepartmentDAO) Update(dept *model.Department) error {
 }
 
 func (d *DepartmentDAO) UpdateContext(ctx context.Context, dept *model.Department) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Save(dept).Error
+	return d.dbWithContext(ctx).Save(dept).Error
 }
 
 func (d *DepartmentDAO) Delete(id uint) error {
@@ -139,10 +138,7 @@ func (d *DepartmentDAO) Delete(id uint) error {
 }
 
 func (d *DepartmentDAO) DeleteContext(ctx context.Context, id uint) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	db := database.DB.WithContext(ctx)
+	db := d.dbWithContext(ctx)
 
 	var count int64
 	if err := db.Model(&model.Department{}).Where("parent_id = ?", id).Count(&count).Error; err != nil {

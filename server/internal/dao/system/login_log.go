@@ -8,17 +8,34 @@ import (
 
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
+	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-type LoginLogDAO struct{}
+type LoginLogDAO struct {
+	db *gorm.DB
+}
+
+func NewLoginLogDAO(db *gorm.DB) *LoginLogDAO {
+	return &LoginLogDAO{db: db}
+}
+
+func (d *LoginLogDAO) dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if d != nil && d.db != nil {
+		return d.db.WithContext(ctx)
+	}
+	return database.DB.WithContext(ctx)
+}
 
 func (d *LoginLogDAO) Create(log *model.LoginLog) error {
 	return d.CreateContext(context.Background(), log)
 }
 
 func (d *LoginLogDAO) CreateContext(ctx context.Context, log *model.LoginLog) error {
-	return dbWithContext(ctx).Create(log).Error
+	return d.dbWithContext(ctx).Create(log).Error
 }
 
 func (d *LoginLogDAO) GetByID(id uint) (*model.LoginLog, error) {
@@ -27,7 +44,7 @@ func (d *LoginLogDAO) GetByID(id uint) (*model.LoginLog, error) {
 
 func (d *LoginLogDAO) GetByIDContext(ctx context.Context, id uint) (*model.LoginLog, error) {
 	var log model.LoginLog
-	result := dbWithContext(ctx).First(&log, id)
+	result := d.dbWithContext(ctx).First(&log, id)
 	return &log, result.Error
 }
 
@@ -56,7 +73,7 @@ func (d *LoginLogDAO) GetListContext(
 	var logs []model.LoginLog
 	var total int64
 
-	query := dbWithContext(ctx).Model(&model.LoginLog{})
+	query := d.dbWithContext(ctx).Model(&model.LoginLog{})
 	query = authz.ApplyOwnerScope(query, dataScope, "user_id")
 	query = applyLoginLogFilters(query, userID, username, ip, status, loginType, startTime, endTime)
 
@@ -97,7 +114,7 @@ func (d *LoginLogDAO) GetUserLastLogin(userID uint) (*model.LoginLog, error) {
 
 func (d *LoginLogDAO) GetUserLastLoginContext(ctx context.Context, userID uint) (*model.LoginLog, error) {
 	var log model.LoginLog
-	result := dbWithContext(ctx).Where("user_id = ? AND status = 1", userID).
+	result := d.dbWithContext(ctx).Where("user_id = ? AND status = 1", userID).
 		Order("created_at DESC").
 		First(&log)
 	return &log, result.Error
@@ -109,7 +126,7 @@ func (d *LoginLogDAO) GetUserLoginCount(userID uint, startTime, endTime *time.Ti
 
 func (d *LoginLogDAO) GetUserLoginCountContext(ctx context.Context, userID uint, startTime, endTime *time.Time) (int64, error) {
 	var count int64
-	query := dbWithContext(ctx).Model(&model.LoginLog{}).Where("user_id = ? AND status = 1", userID)
+	query := d.dbWithContext(ctx).Model(&model.LoginLog{}).Where("user_id = ? AND status = 1", userID)
 	query = applyTimeRange(query, startTime, endTime)
 	err := query.Count(&count).Error
 	return count, err
@@ -121,7 +138,7 @@ func (d *LoginLogDAO) GetFailedLoginCount(username, ip string, since time.Time) 
 
 func (d *LoginLogDAO) GetFailedLoginCountContext(ctx context.Context, username, ip string, since time.Time) (int64, error) {
 	var count int64
-	query := dbWithContext(ctx).Model(&model.LoginLog{}).Where("status = 0 AND created_at >= ?", since)
+	query := d.dbWithContext(ctx).Model(&model.LoginLog{}).Where("status = 0 AND created_at >= ?", since)
 	if username != "" {
 		query = query.Where("username = ?", username)
 	}
@@ -137,7 +154,7 @@ func (d *LoginLogDAO) DeleteBefore(before time.Time) (int64, error) {
 }
 
 func (d *LoginLogDAO) DeleteBeforeContext(ctx context.Context, before time.Time) (int64, error) {
-	result := dbWithContext(ctx).Where("created_at < ?", before).Delete(&model.LoginLog{})
+	result := d.dbWithContext(ctx).Where("created_at < ?", before).Delete(&model.LoginLog{})
 	return result.RowsAffected, result.Error
 }
 
@@ -148,17 +165,17 @@ func (d *LoginLogDAO) GetStats(startTime, endTime *time.Time) (*LoginLogStats, e
 func (d *LoginLogDAO) GetStatsContext(ctx context.Context, startTime, endTime *time.Time) (*LoginLogStats, error) {
 	stats := &LoginLogStats{ByDevice: map[string]int64{}, ByBrowser: map[string]int64{}}
 
-	if err := applyTimeRange(dbWithContext(ctx).Model(&model.LoginLog{}), startTime, endTime).Count(&stats.Total).Error; err != nil {
+	if err := applyTimeRange(d.dbWithContext(ctx).Model(&model.LoginLog{}), startTime, endTime).Count(&stats.Total).Error; err != nil {
 		return nil, err
 	}
 
-	if err := applyTimeRange(dbWithContext(ctx).Model(&model.LoginLog{}).Where("status = 1"), startTime, endTime).Count(&stats.Success).Error; err != nil {
+	if err := applyTimeRange(d.dbWithContext(ctx).Model(&model.LoginLog{}).Where("status = 1"), startTime, endTime).Count(&stats.Success).Error; err != nil {
 		return nil, err
 	}
 	stats.Failed = stats.Total - stats.Success
 
 	today := time.Now().Truncate(24 * time.Hour)
-	if err := dbWithContext(ctx).Model(&model.LoginLog{}).
+	if err := d.dbWithContext(ctx).Model(&model.LoginLog{}).
 		Where("status = 1 AND created_at >= ?", today).
 		Distinct("user_id").
 		Count(&stats.TodayUsers).Error; err != nil {
@@ -169,7 +186,7 @@ func (d *LoginLogDAO) GetStatsContext(ctx context.Context, startTime, endTime *t
 		Device string `json:"device"`
 		Count  int64  `json:"count"`
 	}
-	if err := applyTimeRange(dbWithContext(ctx).Model(&model.LoginLog{}).Where("status = 1"), startTime, endTime).
+	if err := applyTimeRange(d.dbWithContext(ctx).Model(&model.LoginLog{}).Where("status = 1"), startTime, endTime).
 		Select("device, COUNT(*) as count").
 		Group("device").
 		Find(&deviceStats).Error; err != nil {
@@ -183,7 +200,7 @@ func (d *LoginLogDAO) GetStatsContext(ctx context.Context, startTime, endTime *t
 		Browser string `json:"browser"`
 		Count   int64  `json:"count"`
 	}
-	if err := applyTimeRange(dbWithContext(ctx).Model(&model.LoginLog{}).Where("status = 1"), startTime, endTime).
+	if err := applyTimeRange(d.dbWithContext(ctx).Model(&model.LoginLog{}).Where("status = 1"), startTime, endTime).
 		Select("browser, COUNT(*) as count").
 		Group("browser").
 		Find(&browserStats).Error; err != nil {
@@ -226,13 +243,13 @@ func (d *LoginLogDAO) GetLoginTrendContext(ctx context.Context, days int) ([]Log
 		endOfDay := startOfDay.Add(24 * time.Hour)
 
 		var total, success int64
-		if err := dbWithContext(ctx).Model(&model.LoginLog{}).
+		if err := d.dbWithContext(ctx).Model(&model.LoginLog{}).
 			Where("created_at >= ? AND created_at < ?", startOfDay, endOfDay).
 			Count(&total).Error; err != nil {
 			return nil, err
 		}
 
-		if err := dbWithContext(ctx).Model(&model.LoginLog{}).
+		if err := d.dbWithContext(ctx).Model(&model.LoginLog{}).
 			Where("created_at >= ? AND created_at < ? AND status = 1", startOfDay, endOfDay).
 			Count(&success).Error; err != nil {
 			return nil, err
