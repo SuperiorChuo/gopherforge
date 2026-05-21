@@ -26,7 +26,7 @@
 - 共享 `dao.UserDAO` 已抽出，`dao/auth` 与 `dao/system` 只保留各自领域方法。
 - `OAuthService` 已支持注入 user/binding store，默认行为保持兼容。
 - `authz.DataScopeResolver` 已支持注入 `DataScopeStore` 与部门树缓存，部门树和自定义角色部门加载不再硬绑主流程。
-- `RedisService` 已支持注入 Redis monitor client，默认仍使用全局 Redis client。
+- `RedisService` 已提供公开注入构造函数，默认仍使用全局 Redis client。
 - `pkg/jwt` 的 token blacklist 已支持注入 `TokenBlacklistStore`，默认 Redis 行为保持兼容。
 - `pkg/cache` 的 `CacheService` 已支持注入 Redis client，验证码、用户信息和权限缓存调用可脱离全局 Redis 进行测试。
 - 登录失败限制已抽出 `LoginLimiter`，支持注入 Redis client，包级函数继续保持兼容。

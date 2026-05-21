@@ -57,7 +57,7 @@ func TestRedisServiceGetRedisInfoContextUsesInjectedClient(t *testing.T) {
 		},
 	}
 
-	got, err := (&RedisService{client: client}).GetRedisInfoContext(context.Background())
+	got, err := NewRedisServiceWithClient(client).GetRedisInfoContext(context.Background())
 	if err != nil {
 		t.Fatalf("GetRedisInfoContext() error = %v", err)
 	}

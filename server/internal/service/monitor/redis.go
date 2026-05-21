@@ -10,18 +10,24 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 )
 
-type redisInfoClient interface {
+// RedisInfoClient is the Redis command subset used by RedisService.
+type RedisInfoClient interface {
 	Info(ctx context.Context, section ...string) *goredis.StringCmd
 	DBSize(ctx context.Context) *goredis.IntCmd
 	PoolStats() *goredis.PoolStats
 }
 
 type RedisService struct {
-	client redisInfoClient
+	client RedisInfoClient
 }
 
 func NewRedisService() *RedisService {
 	return &RedisService{}
+}
+
+// NewRedisServiceWithClient creates a RedisService backed by the provided Redis client.
+func NewRedisServiceWithClient(client RedisInfoClient) *RedisService {
+	return &RedisService{client: client}
 }
 
 // GetRedisInfo returns Redis information.
@@ -112,7 +118,7 @@ func (s *RedisService) GetRedisInfoContext(ctx context.Context) (map[string]any,
 	return data, nil
 }
 
-func (s *RedisService) redisClient() redisInfoClient {
+func (s *RedisService) redisClient() RedisInfoClient {
 	if s != nil && s.client != nil {
 		return s.client
 	}
