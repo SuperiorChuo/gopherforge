@@ -493,6 +493,26 @@ func AllConsoleRoutePermissions() []string {
 	return UniqueSortedConsoleStrings(values)
 }
 
+func ConsoleAuditTarget(value, fallback string) string {
+	if trimmed := strings.TrimSpace(value); trimmed != "" {
+		return trimmed
+	}
+	return fallback
+}
+
+func ConsoleAuthAuditSummary(action, targetID string) string {
+	switch action {
+	case "auth.login.success":
+		return fmt.Sprintf("Console login succeeded for %s", ConsoleAuditTarget(targetID, "unknown"))
+	case "auth.login.failed":
+		return fmt.Sprintf("Console login failed for %s", ConsoleAuditTarget(targetID, "unknown"))
+	case "auth.logout":
+		return fmt.Sprintf("Console logout for %s", ConsoleAuditTarget(targetID, "unknown"))
+	default:
+		return fmt.Sprintf("Console auth event for %s", ConsoleAuditTarget(targetID, "unknown"))
+	}
+}
+
 func ConsoleRoleCodes(roles []model.Role) []string {
 	values := make([]string, 0, len(roles))
 	for _, role := range roles {

@@ -154,7 +154,7 @@ func (a *UserAPI) LogoutConsole(c *gin.Context) {
 			_ = a.onlineUserService.RemoveOnlineUserContext(c.Request.Context(), claims.ID)
 		}
 	}
-	a.recordConsoleAuthAudit(c, "auth.logout", auditTarget(username, "unknown"), before, consoleAuthAttemptSnapshot(c, username, "LOGOUT", ""))
+	a.recordConsoleAuthAudit(c, "auth.logout", authSvc.ConsoleAuditTarget(username, "unknown"), before, consoleAuthAttemptSnapshot(c, username, "LOGOUT", ""))
 	clearConsoleSessionCookie(c)
 	response.Success(c, gin.H{"authenticated": false})
 }
@@ -192,10 +192,10 @@ func (a *UserAPI) recordConsoleAuthAudit(c *gin.Context, action, targetID string
 	_ = a.auditService.Record(c, systemSvc.AuditRecordRequest{
 		Action:     action,
 		TargetType: "console_session",
-		TargetID:   auditTarget(targetID, "unknown"),
+		TargetID:   authSvc.ConsoleAuditTarget(targetID, "unknown"),
 		Before:     before,
 		After:      after,
-		Summary:    consoleAuthAuditSummary(action, targetID),
+		Summary:    authSvc.ConsoleAuthAuditSummary(action, targetID),
 	})
 }
 
@@ -220,26 +220,6 @@ func consoleLoginSuccessSnapshot(c *gin.Context, record *model.ConsoleSession, t
 	snapshot["expires_at"] = record.ExpiresAt
 	snapshot["ttl_sec"] = ttlSec
 	return snapshot
-}
-
-func consoleAuthAuditSummary(action, targetID string) string {
-	switch action {
-	case "auth.login.success":
-		return fmt.Sprintf("Console login succeeded for %s", auditTarget(targetID, "unknown"))
-	case "auth.login.failed":
-		return fmt.Sprintf("Console login failed for %s", auditTarget(targetID, "unknown"))
-	case "auth.logout":
-		return fmt.Sprintf("Console logout for %s", auditTarget(targetID, "unknown"))
-	default:
-		return fmt.Sprintf("Console auth event for %s", auditTarget(targetID, "unknown"))
-	}
-}
-
-func auditTarget(value, fallback string) string {
-	if trimmed := strings.TrimSpace(value); trimmed != "" {
-		return trimmed
-	}
-	return fallback
 }
 
 func buildConsoleSession(user *model.User, permissions []string, accessToken, refreshToken string) consoleSessionResponse {
