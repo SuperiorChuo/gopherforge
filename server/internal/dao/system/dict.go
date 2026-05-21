@@ -11,14 +11,20 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-type DictDAO struct{}
+type DictDAO struct {
+	db *gorm.DB
+}
+
+func NewDictDAO(db *gorm.DB) *DictDAO {
+	return &DictDAO{db: db}
+}
 
 func (d *DictDAO) CreateType(dictType *model.DictType) error {
 	return d.CreateTypeContext(context.Background(), dictType)
 }
 
 func (d *DictDAO) CreateTypeContext(ctx context.Context, dictType *model.DictType) error {
-	return dbWithContext(ctx).Create(dictType).Error
+	return d.dbWithContext(ctx).Create(dictType).Error
 }
 
 func (d *DictDAO) GetTypeByID(id uint) (*model.DictType, error) {
@@ -27,7 +33,7 @@ func (d *DictDAO) GetTypeByID(id uint) (*model.DictType, error) {
 
 func (d *DictDAO) GetTypeByIDContext(ctx context.Context, id uint) (*model.DictType, error) {
 	var dictType model.DictType
-	result := dbWithContext(ctx).First(&dictType, id)
+	result := d.dbWithContext(ctx).First(&dictType, id)
 	return &dictType, result.Error
 }
 
@@ -37,7 +43,7 @@ func (d *DictDAO) GetTypeByCode(code string) (*model.DictType, error) {
 
 func (d *DictDAO) GetTypeByCodeContext(ctx context.Context, code string) (*model.DictType, error) {
 	var dictType model.DictType
-	result := dbWithContext(ctx).Where("code = ?", code).First(&dictType)
+	result := d.dbWithContext(ctx).Where("code = ?", code).First(&dictType)
 	return &dictType, result.Error
 }
 
@@ -49,7 +55,7 @@ func (d *DictDAO) GetTypeListContext(ctx context.Context, req pagination.PageReq
 	var types []model.DictType
 	var total int64
 
-	query := dbWithContext(ctx).Model(&model.DictType{})
+	query := d.dbWithContext(ctx).Model(&model.DictType{})
 	if keyword != "" {
 		query = query.Where("name LIKE ? OR code LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	}
@@ -75,7 +81,7 @@ func (d *DictDAO) GetAllTypes(status *int8) ([]model.DictType, error) {
 
 func (d *DictDAO) GetAllTypesContext(ctx context.Context, status *int8) ([]model.DictType, error) {
 	var types []model.DictType
-	query := dbWithContext(ctx).Model(&model.DictType{})
+	query := d.dbWithContext(ctx).Model(&model.DictType{})
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -88,7 +94,7 @@ func (d *DictDAO) UpdateType(dictType *model.DictType) error {
 }
 
 func (d *DictDAO) UpdateTypeContext(ctx context.Context, dictType *model.DictType) error {
-	return dbWithContext(ctx).Save(dictType).Error
+	return d.dbWithContext(ctx).Save(dictType).Error
 }
 
 func (d *DictDAO) DeleteType(id uint) error {
@@ -96,7 +102,7 @@ func (d *DictDAO) DeleteType(id uint) error {
 }
 
 func (d *DictDAO) DeleteTypeContext(ctx context.Context, id uint) error {
-	return dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("dict_type_id = ?", id).Delete(&model.DictItem{}).Error; err != nil {
 			return err
 		}
@@ -109,7 +115,7 @@ func (d *DictDAO) CreateItem(item *model.DictItem) error {
 }
 
 func (d *DictDAO) CreateItemContext(ctx context.Context, item *model.DictItem) error {
-	return dbWithContext(ctx).Create(item).Error
+	return d.dbWithContext(ctx).Create(item).Error
 }
 
 func (d *DictDAO) GetItemByID(id uint) (*model.DictItem, error) {
@@ -118,7 +124,7 @@ func (d *DictDAO) GetItemByID(id uint) (*model.DictItem, error) {
 
 func (d *DictDAO) GetItemByIDContext(ctx context.Context, id uint) (*model.DictItem, error) {
 	var item model.DictItem
-	result := dbWithContext(ctx).First(&item, id)
+	result := d.dbWithContext(ctx).First(&item, id)
 	return &item, result.Error
 }
 
@@ -128,7 +134,7 @@ func (d *DictDAO) GetItemsByTypeID(typeID uint, status *int8) ([]model.DictItem,
 
 func (d *DictDAO) GetItemsByTypeIDContext(ctx context.Context, typeID uint, status *int8) ([]model.DictItem, error) {
 	var items []model.DictItem
-	query := dbWithContext(ctx).Where("dict_type_id = ?", typeID)
+	query := d.dbWithContext(ctx).Where("dict_type_id = ?", typeID)
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -156,7 +162,7 @@ func (d *DictDAO) GetItemListContext(ctx context.Context, req pagination.PageReq
 	var items []model.DictItem
 	var total int64
 
-	query := dbWithContext(ctx).Model(&model.DictItem{}).Where("dict_type_id = ?", typeID)
+	query := d.dbWithContext(ctx).Model(&model.DictItem{}).Where("dict_type_id = ?", typeID)
 	if keyword != "" {
 		query = query.Where("label LIKE ? OR value LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	}
@@ -181,7 +187,7 @@ func (d *DictDAO) UpdateItem(item *model.DictItem) error {
 }
 
 func (d *DictDAO) UpdateItemContext(ctx context.Context, item *model.DictItem) error {
-	return dbWithContext(ctx).Save(item).Error
+	return d.dbWithContext(ctx).Save(item).Error
 }
 
 func (d *DictDAO) DeleteItem(id uint) error {
@@ -189,7 +195,7 @@ func (d *DictDAO) DeleteItem(id uint) error {
 }
 
 func (d *DictDAO) DeleteItemContext(ctx context.Context, id uint) error {
-	return dbWithContext(ctx).Delete(&model.DictItem{}, id).Error
+	return d.dbWithContext(ctx).Delete(&model.DictItem{}, id).Error
 }
 
 func (d *DictDAO) DeleteItemsByTypeID(typeID uint) error {
@@ -197,7 +203,7 @@ func (d *DictDAO) DeleteItemsByTypeID(typeID uint) error {
 }
 
 func (d *DictDAO) DeleteItemsByTypeIDContext(ctx context.Context, typeID uint) error {
-	return dbWithContext(ctx).Where("dict_type_id = ?", typeID).Delete(&model.DictItem{}).Error
+	return d.dbWithContext(ctx).Where("dict_type_id = ?", typeID).Delete(&model.DictItem{}).Error
 }
 
 func (d *DictDAO) GetTypeWithItems(code string) (*model.DictType, error) {
@@ -245,9 +251,12 @@ func (d *DictDAO) GetAllTypesWithItemsContext(ctx context.Context) ([]model.Dict
 	return types, nil
 }
 
-func dbWithContext(ctx context.Context) *gorm.DB {
+func (d *DictDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if d != nil && d.db != nil {
+		return d.db.WithContext(ctx)
 	}
 	return database.DB.WithContext(ctx)
 }

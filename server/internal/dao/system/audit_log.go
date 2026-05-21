@@ -10,7 +10,23 @@ import (
 )
 
 // AuditLogDAO is the data access layer for independent business audit logs.
-type AuditLogDAO struct{}
+type AuditLogDAO struct {
+	db *gorm.DB
+}
+
+func NewAuditLogDAO(db *gorm.DB) *AuditLogDAO {
+	return &AuditLogDAO{db: db}
+}
+
+func (d *AuditLogDAO) dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if d != nil && d.db != nil {
+		return d.db.WithContext(ctx)
+	}
+	return database.DB.WithContext(ctx)
+}
 
 type AuditLogListQuery struct {
 	Page       int
@@ -64,10 +80,7 @@ func (d *AuditLogDAO) CreateLog(log *model.AuditLog) error {
 }
 
 func (d *AuditLogDAO) CreateLogContext(ctx context.Context, log *model.AuditLog) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Create(log).Error
+	return d.dbWithContext(ctx).Create(log).Error
 }
 
 func (d *AuditLogDAO) ListLogs(req AuditLogListQuery) (AuditLogListResult, error) {
@@ -80,7 +93,7 @@ func (d *AuditLogDAO) ListLogsContext(ctx context.Context, req AuditLogListQuery
 	}
 
 	var result AuditLogListResult
-	baseQuery := applyAuditBaseFilters(database.DB.WithContext(ctx).Model(&model.AuditLog{}), req)
+	baseQuery := applyAuditBaseFilters(d.dbWithContext(ctx).Model(&model.AuditLog{}), req)
 	listQuery := applyAuditViewFilter(baseQuery.Session(&gorm.Session{}), req.View)
 
 	if err := listQuery.Count(&result.Pagination.Total).Error; err != nil {

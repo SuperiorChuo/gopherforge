@@ -8,6 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/model"
+	"github.com/go-admin-kit/server/internal/pkg/database"
 )
 
 func TestMenuSeedDAOInsertDefaultMenusWhenTableIsEmpty(t *testing.T) {
@@ -63,5 +64,31 @@ func TestMenuSeedDAOSkipsWhenMenusExist(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("count = %d, want 0", count)
+	}
+}
+
+func TestMenuSeedDAOUsesInjectedDB(t *testing.T) {
+	db, mock := newInjectedDictNoticeSeedDAOTestDB(t)
+	oldDB := database.DB
+	database.DB = nil
+	t.Cleanup(func() {
+		database.DB = oldDB
+	})
+
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT count\\(\\*\\) FROM `menus`").
+		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
+	mock.ExpectExec("INSERT INTO `menus`").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	count, err := NewMenuSeedDAO(db).BootstrapDefaultMenusContext(context.Background(), []model.Menu{
+		{ID: 1, Name: "dashboard", Title: "Dashboard"},
+	}, time.Now())
+	if err != nil {
+		t.Fatalf("BootstrapDefaultMenusContext() error = %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("count = %d, want 1", count)
 	}
 }

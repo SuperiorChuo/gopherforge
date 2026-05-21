@@ -11,18 +11,31 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
-type PermissionManageDAO struct{}
+type PermissionManageDAO struct {
+	db *gorm.DB
+}
+
+func NewPermissionManageDAO(db *gorm.DB) *PermissionManageDAO {
+	return &PermissionManageDAO{db: db}
+}
+
+func (d *PermissionManageDAO) dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if d != nil && d.db != nil {
+		return d.db.WithContext(ctx)
+	}
+	return database.DB.WithContext(ctx)
+}
 
 func (d *PermissionManageDAO) GetPermissionByID(id uint) (*model.Permission, error) {
 	return d.GetPermissionByIDContext(context.Background(), id)
 }
 
 func (d *PermissionManageDAO) GetPermissionByIDContext(ctx context.Context, id uint) (*model.Permission, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var permission model.Permission
-	result := database.DB.WithContext(ctx).First(&permission, id)
+	result := d.dbWithContext(ctx).First(&permission, id)
 	return &permission, result.Error
 }
 
@@ -31,11 +44,8 @@ func (d *PermissionManageDAO) GetPermissionByCode(code string) (*model.Permissio
 }
 
 func (d *PermissionManageDAO) GetPermissionByCodeContext(ctx context.Context, code string) (*model.Permission, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var permission model.Permission
-	result := database.DB.WithContext(ctx).Where("code = ?", code).First(&permission)
+	result := d.dbWithContext(ctx).Where("code = ?", code).First(&permission)
 	return &permission, result.Error
 }
 
@@ -44,13 +54,10 @@ func (d *PermissionManageDAO) GetPermissionList(req pagination.PageRequest, keyw
 }
 
 func (d *PermissionManageDAO) GetPermissionListContext(ctx context.Context, req pagination.PageRequest, keyword string, permissionType *int8) ([]model.Permission, int64, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var permissions []model.Permission
 	var total int64
 
-	query := database.DB.WithContext(ctx).Model(&model.Permission{})
+	query := d.dbWithContext(ctx).Model(&model.Permission{})
 	if keyword != "" {
 		query = query.Where("name LIKE ? OR code LIKE ? OR description LIKE ? OR path LIKE ?",
 			"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
@@ -75,11 +82,8 @@ func (d *PermissionManageDAO) GetPermissionTree() ([]model.Permission, error) {
 }
 
 func (d *PermissionManageDAO) GetPermissionTreeContext(ctx context.Context) ([]model.Permission, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var permissions []model.Permission
-	result := database.DB.WithContext(ctx).Order("parent_id ASC, created_at ASC").Find(&permissions)
+	result := d.dbWithContext(ctx).Order("parent_id ASC, created_at ASC").Find(&permissions)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -103,10 +107,7 @@ func (d *PermissionManageDAO) CreatePermission(permission *model.Permission) err
 }
 
 func (d *PermissionManageDAO) CreatePermissionContext(ctx context.Context, permission *model.Permission) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Create(permission).Error
+	return d.dbWithContext(ctx).Create(permission).Error
 }
 
 func (d *PermissionManageDAO) UpdatePermission(permission *model.Permission) error {
@@ -114,10 +115,7 @@ func (d *PermissionManageDAO) UpdatePermission(permission *model.Permission) err
 }
 
 func (d *PermissionManageDAO) UpdatePermissionContext(ctx context.Context, permission *model.Permission) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Save(permission).Error
+	return d.dbWithContext(ctx).Save(permission).Error
 }
 
 func (d *PermissionManageDAO) DeletePermission(id uint) error {
@@ -125,10 +123,7 @@ func (d *PermissionManageDAO) DeletePermission(id uint) error {
 }
 
 func (d *PermissionManageDAO) DeletePermissionContext(ctx context.Context, id uint) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var count int64
 		if err := tx.Model(&model.Permission{}).Where("parent_id = ?", id).Count(&count).Error; err != nil {
 			return err
