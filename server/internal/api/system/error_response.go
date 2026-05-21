@@ -65,3 +65,20 @@ func writeSystemPermissionServiceError(c *gin.Context, operation string, err err
 		internalServerError(c, operation, err)
 	}
 }
+
+func writeSystemMenuServiceError(c *gin.Context, operation string, err error) {
+	switch {
+	case errors.Is(err, systemsvc.ErrParentMenuNotFound):
+		response.BadRequest(c, systemsvc.ErrParentMenuNotFound.Error())
+	case errors.Is(err, systemsvc.ErrMenuParentIsDescendant):
+		response.BadRequest(c, systemsvc.ErrMenuParentIsDescendant.Error())
+	case errors.Is(err, systemsvc.ErrMenuHasChildren):
+		response.BadRequest(c, systemsvc.ErrMenuHasChildren.Error())
+	case errors.Is(err, systemsvc.ErrMenuNotFound):
+		response.NotFound(c, systemsvc.ErrMenuNotFound.Error())
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		internalServerError(c, operation, err)
+	default:
+		internalServerError(c, operation, err)
+	}
+}
