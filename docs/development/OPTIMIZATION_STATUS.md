@@ -49,6 +49,7 @@
 - Docker 后端容器已统一走 goose migration。
 - Makefile `status`/`logs` 已改为 Windows 友好的 Node 脚本。
 - Vite dev server 已代理 `/uploads`。
+- 前端 `dev-server` 端口守卫默认值已与 Vite `server.port` 保持一致。
 - 前端路由守卫已将不存在路由导向 404。
 
 ## 当前剩余

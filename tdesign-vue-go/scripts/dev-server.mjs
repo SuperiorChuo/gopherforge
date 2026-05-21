@@ -8,6 +8,7 @@ const scriptDir = path.dirname(scriptPath);
 const appRoot = path.resolve(scriptDir, '..');
 const viteBin = path.join(appRoot, 'node_modules', 'vite', 'bin', 'vite.js');
 const normalizedAppRoot = normalizePath(appRoot);
+const DEFAULT_DEV_SERVER_PORT = 3002;
 const args = process.argv.slice(2);
 const guardOnly = args.includes('--guard-only');
 const rawViteArgs = args.filter((arg) => arg !== '--guard-only');
@@ -45,7 +46,7 @@ function resolvePort(commandArgs) {
   }
 
   const envPort = process.env.PORT || process.env.VITE_PORT;
-  return envPort ? Number(envPort) : 5173;
+  return envPort ? Number(envPort) : DEFAULT_DEV_SERVER_PORT;
 }
 
 function withStrictPort(commandArgs, targetPort) {
