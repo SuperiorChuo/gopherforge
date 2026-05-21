@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { buildConfig, getJsonPath, jsonObject, statusMatches } from './api-smoke-lib.mjs';
+import { buildConfig, decodeTextCaptchaCode, getJsonPath, jsonObject, statusMatches } from './api-smoke-lib.mjs';
 
 class SmokeError extends Error {
   constructor(message, context = {}) {
@@ -142,14 +142,15 @@ async function main() {
       captcha?.type === 'text' &&
       typeof captcha.key === 'string' &&
       typeof captcha.image === 'string' &&
-      typeof captcha.code_hint === 'string' &&
+      captcha.code_hint === undefined &&
       Number.isFinite(captcha.width) &&
       Number.isFinite(captcha.height),
     'captcha response is missing expected text captcha fields',
   );
+  const captchaCode = decodeTextCaptchaCode(captcha.image);
 
   step('captcha verify');
-  response = await request('POST', '/captcha/verify', 200, jsonObject({ key: captcha.key, code: captcha.code_hint }));
+  response = await request('POST', '/captcha/verify', 200, jsonObject({ key: captcha.key, code: captchaCode }));
   assertResponse(response.data?.code === 200, 'captcha verification did not succeed');
 
   step('login');
@@ -161,7 +162,7 @@ async function main() {
       username: config.username,
       password: config.password,
       captcha_id: captcha.key,
-      captcha_code: captcha.code_hint,
+      captcha_code: captchaCode,
     }),
   );
   assertResponse(

@@ -327,6 +327,7 @@ export interface paths {
     put: operations["putApiV1UsersIdStatus"];
   };
 }
+
 export interface operations {
   "postApiV1AuthLogin": {
     requestBody: {

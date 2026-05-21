@@ -159,7 +159,6 @@ lines.push('      bearerFormat: "JWT";');
 lines.push('    };');
 lines.push('  };');
 lines.push('}');
-lines.push('');
 
 await mkdir(path.dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${lines.join('\n')}\n`, 'utf8');
