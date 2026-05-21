@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -47,5 +48,22 @@ func TestPermissionServiceCreatePermissionContextHonorsCanceledContext(t *testin
 	})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("CreatePermissionContext() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestPermissionServiceCreatePermissionContextReturnsCodeLookupError(t *testing.T) {
+	mock := setupSystemUserServiceContextTestDB(t)
+	lookupErr := errors.New("database lookup failed")
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `permissions` WHERE code = ? ORDER BY `permissions`.`id` LIMIT ?")).
+		WithArgs("system:user:list", 1).
+		WillReturnError(lookupErr)
+
+	_, err := (&PermissionService{}).CreatePermissionContext(context.Background(), CreatePermissionRequest{
+		Name: "List Users",
+		Code: "system:user:list",
+		Type: 2,
+	})
+	if !errors.Is(err, lookupErr) {
+		t.Fatalf("CreatePermissionContext() error = %v, want code lookup error", err)
 	}
 }
