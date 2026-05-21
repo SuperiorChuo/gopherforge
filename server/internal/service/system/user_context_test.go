@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"errors"
+	"regexp"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -23,6 +24,22 @@ func TestUserServiceCreateUserContextHonorsCanceledContext(t *testing.T) {
 	})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("CreateUserContext() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestUserServiceCreateUserContextReturnsUsernameLookupError(t *testing.T) {
+	mock := setupSystemUserServiceContextTestDB(t)
+	lookupErr := errors.New("database lookup failed")
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? ORDER BY `users`.`id` LIMIT ?")).
+		WithArgs("alice", 1).
+		WillReturnError(lookupErr)
+
+	_, err := (&UserService{}).CreateUserContext(context.Background(), CreateUserRequest{
+		Username: "alice",
+		Password: "Secret123",
+	})
+	if !errors.Is(err, lookupErr) {
+		t.Fatalf("CreateUserContext() error = %v, want username lookup error", err)
 	}
 }
 
