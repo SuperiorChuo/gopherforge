@@ -1,14 +1,10 @@
-# Optional Playwright E2E
+# Playwright E2E 入口已迁移
 
-This directory is intentionally not wired into `make test` or CI. It is a place for browser-level smoke tests once the local frontend and backend are already running.
-
-Suggested local setup when browser E2E is needed:
+浏览器级 E2E 统一维护在前端应用目录：
 
 ```bash
 cd tdesign-vue-go
-npm install --save-dev @playwright/test
-npx playwright install chromium
-npx playwright test ../tests/e2e --config ../tests/e2e/playwright.config.mjs
+npm run e2e:frontend
 ```
 
-Keep API coverage in `tests/api-smoke.sh`; keep this directory for browser behavior that cannot be covered through API calls.
+根目录 `tests/e2e` 仅保留这份迁移说明，避免继续维护第二套 Playwright 配置。API smoke 仍由 `tests/api-smoke.sh` 覆盖。

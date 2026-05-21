@@ -52,6 +52,7 @@
 - Vite dev server 已代理 `/uploads`。
 - 前端 `dev-server` 端口守卫默认值已与 Vite `server.port` 保持一致。
 - 前端路由守卫已将不存在路由导向 404。
+- 旧的根目录 Playwright E2E 入口已收敛为迁移说明，正式浏览器 E2E 统一从 `tdesign-vue-go/e2e` 运行。
 
 ## 当前剩余
 
