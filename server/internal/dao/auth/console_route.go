@@ -15,8 +15,12 @@ type ConsoleRouteDAO struct {
 	db *gorm.DB
 }
 
-func NewConsoleRouteDAO() ConsoleRouteDAO {
-	return ConsoleRouteDAO{db: database.DB}
+func NewConsoleRouteDAO(dbs ...*gorm.DB) ConsoleRouteDAO {
+	db := database.DB
+	if len(dbs) > 0 {
+		db = dbs[0]
+	}
+	return ConsoleRouteDAO{db: db}
 }
 
 func (d ConsoleRouteDAO) Ready() bool {

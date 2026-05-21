@@ -17,7 +17,7 @@ func TestUserDAOGetUserByPhoneUsesInjectedDB(t *testing.T) {
 		database.DB = oldDB
 	})
 
-	db, mock := newInjectedAuthUserTestDB(t)
+	db, mock := newInjectedAuthDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE phone = ? ORDER BY `users`.`id` LIMIT ?")).
 		WithArgs("13800000000", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "phone"}).AddRow(42, "alice", "13800000000"))
@@ -31,7 +31,7 @@ func TestUserDAOGetUserByPhoneUsesInjectedDB(t *testing.T) {
 	}
 }
 
-func newInjectedAuthUserTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
+func newInjectedAuthDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	t.Helper()
 
 	sqlDB, mock, err := sqlmock.New()

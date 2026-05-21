@@ -4,22 +4,34 @@ import (
 	"context"
 
 	"github.com/go-admin-kit/server/internal/pkg/database"
+	"gorm.io/gorm"
 )
 
-type PermissionDAO struct{}
+type PermissionDAO struct {
+	db *gorm.DB
+}
+
+func NewPermissionDAO(db *gorm.DB) *PermissionDAO {
+	return &PermissionDAO{db: db}
+}
+
+func (d *PermissionDAO) dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if d != nil && d.db != nil {
+		return d.db.WithContext(ctx)
+	}
+	return database.DB.WithContext(ctx)
+}
 
 func (d *PermissionDAO) GetUserPermissions(userID uint) ([]string, error) {
 	return d.GetUserPermissionsContext(context.Background(), userID)
 }
 
 func (d *PermissionDAO) GetUserPermissionsContext(ctx context.Context, userID uint) ([]string, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	var codes []string
-	result := database.DB.
-		WithContext(ctx).
+	result := d.dbWithContext(ctx).
 		Table("users").
 		Select("permissions.code").
 		Joins("JOIN user_roles ON users.id = user_roles.user_id").

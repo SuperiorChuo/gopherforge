@@ -6,12 +6,29 @@ import (
 
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/database"
+	"gorm.io/gorm"
 )
 
-type ConsoleSessionDAO struct{}
+type ConsoleSessionDAO struct {
+	db *gorm.DB
+}
+
+func NewConsoleSessionDAO(db *gorm.DB) ConsoleSessionDAO {
+	return ConsoleSessionDAO{db: db}
+}
+
+func (d ConsoleSessionDAO) dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if d.db != nil {
+		return d.db.WithContext(ctx)
+	}
+	return database.DB.WithContext(ctx)
+}
 
 func (d ConsoleSessionDAO) Ready() bool {
-	return database.DB != nil
+	return d.db != nil || database.DB != nil
 }
 
 func (d ConsoleSessionDAO) Create(record *model.ConsoleSession) error {
@@ -19,10 +36,7 @@ func (d ConsoleSessionDAO) Create(record *model.ConsoleSession) error {
 }
 
 func (d ConsoleSessionDAO) CreateContext(ctx context.Context, record *model.ConsoleSession) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Create(record).Error
+	return d.dbWithContext(ctx).Create(record).Error
 }
 
 func (d ConsoleSessionDAO) GetBySessionID(sessionID string) (*model.ConsoleSession, error) {
@@ -30,11 +44,8 @@ func (d ConsoleSessionDAO) GetBySessionID(sessionID string) (*model.ConsoleSessi
 }
 
 func (d ConsoleSessionDAO) GetBySessionIDContext(ctx context.Context, sessionID string) (*model.ConsoleSession, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var record model.ConsoleSession
-	err := database.DB.WithContext(ctx).First(&record, "session_id = ?", sessionID).Error
+	err := d.dbWithContext(ctx).First(&record, "session_id = ?", sessionID).Error
 	return &record, err
 }
 
@@ -43,10 +54,7 @@ func (d ConsoleSessionDAO) Touch(sessionID string, seenAt time.Time) error {
 }
 
 func (d ConsoleSessionDAO) TouchContext(ctx context.Context, sessionID string, seenAt time.Time) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Model(&model.ConsoleSession{}).
+	return d.dbWithContext(ctx).Model(&model.ConsoleSession{}).
 		Where("session_id = ?", sessionID).
 		Update("last_seen_at", seenAt).
 		Error
@@ -57,8 +65,5 @@ func (d ConsoleSessionDAO) Revoke(record *model.ConsoleSession, revokedAt time.T
 }
 
 func (d ConsoleSessionDAO) RevokeContext(ctx context.Context, record *model.ConsoleSession, revokedAt time.Time) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Model(record).Update("revoked_at", revokedAt).Error
+	return d.dbWithContext(ctx).Model(record).Update("revoked_at", revokedAt).Error
 }

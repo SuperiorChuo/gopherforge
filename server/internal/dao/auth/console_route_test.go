@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-admin-kit/server/internal/pkg/database"
 )
 
 func TestConsoleRouteDAOListAllOrdersBySortAndKey(t *testing.T) {
@@ -47,5 +48,26 @@ func TestConsoleRouteDAOFindRouteKeyByPath(t *testing.T) {
 	}
 	if owner != "dashboard" {
 		t.Fatalf("owner = %q, want dashboard", owner)
+	}
+}
+
+func TestConsoleRouteDAOUsesInjectedDB(t *testing.T) {
+	oldDB := database.DB
+	database.DB = nil
+	t.Cleanup(func() {
+		database.DB = oldDB
+	})
+
+	db, mock := newInjectedAuthDAOTestDB(t)
+	mock.ExpectQuery("SELECT \\* FROM `wm_console_route` ORDER BY sort_order ASC,route_key ASC").
+		WillReturnRows(sqlmock.NewRows([]string{"route_key", "path", "name", "component_key"}).
+			AddRow("dashboard", "/dashboard", "Dashboard", "DashboardPage"))
+
+	routes, err := NewConsoleRouteDAO(db).ListAll()
+	if err != nil {
+		t.Fatalf("ListAll() error = %v", err)
+	}
+	if len(routes) != 1 || routes[0].RouteKey != "dashboard" {
+		t.Fatalf("routes = %#v, want dashboard route", routes)
 	}
 }
