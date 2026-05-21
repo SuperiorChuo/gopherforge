@@ -151,7 +151,7 @@ make migrate-up
 make migrate-create NAME=add_example_table
 ```
 
-迁移说明见 `docs/development/MIGRATIONS.md`。
+迁移说明见 `docs/development/MIGRATIONS.md`，最近一轮脚手架优化状态见 `docs/development/OPTIMIZATION_STATUS.md`。
 
 ## 验证
 
@@ -217,7 +217,7 @@ npm run test:contract
 - 默认管理员密码策略
 - `CORS_ALLOW_ORIGINS`
 
-安全能力说明见 `docs/SECURITY.md`，发布前检查见 `docs/development/READINESS_CHECKLIST.md`。
+安全能力说明见 `docs/SECURITY.md`，发布前检查见 `docs/development/READINESS_CHECKLIST.md`，优化完成项和剩余收尾见 `docs/development/OPTIMIZATION_STATUS.md`。
 
 ## 开源协作
 
