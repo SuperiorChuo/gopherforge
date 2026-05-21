@@ -69,7 +69,7 @@ func (a *DictAPI) GetType(c *gin.Context) {
 
 	dictType, err := a.dictService.GetTypeByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
-		response.NotFound(c, "dict type not found")
+		writeSystemDictServiceError(c, "failed to get dictionary type", err)
 		return
 	}
 
@@ -86,7 +86,7 @@ func (a *DictAPI) CreateType(c *gin.Context) {
 
 	dictType, err := a.dictService.CreateTypeContext(c.Request.Context(), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemDictServiceError(c, "failed to create dictionary type", err)
 		return
 	}
 
@@ -110,7 +110,7 @@ func (a *DictAPI) UpdateType(c *gin.Context) {
 
 	dictType, err := a.dictService.UpdateTypeContext(c.Request.Context(), uint(id), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemDictServiceError(c, "failed to update dictionary type", err)
 		return
 	}
 
@@ -127,7 +127,7 @@ func (a *DictAPI) DeleteType(c *gin.Context) {
 	}
 
 	if err := a.dictService.DeleteTypeContext(c.Request.Context(), uint(id)); err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemDictServiceError(c, "failed to delete dictionary type", err)
 		return
 	}
 
@@ -189,7 +189,7 @@ func (a *DictAPI) GetItem(c *gin.Context) {
 
 	item, err := a.dictService.GetItemByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
-		response.NotFound(c, "dict item not found")
+		writeSystemDictServiceError(c, "failed to get dictionary item", err)
 		return
 	}
 
@@ -206,7 +206,7 @@ func (a *DictAPI) CreateItem(c *gin.Context) {
 
 	item, err := a.dictService.CreateItemContext(c.Request.Context(), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemDictServiceError(c, "failed to create dictionary item", err)
 		return
 	}
 
@@ -230,7 +230,7 @@ func (a *DictAPI) UpdateItem(c *gin.Context) {
 
 	item, err := a.dictService.UpdateItemContext(c.Request.Context(), uint(id), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemDictServiceError(c, "failed to update dictionary item", err)
 		return
 	}
 
@@ -247,7 +247,7 @@ func (a *DictAPI) DeleteItem(c *gin.Context) {
 	}
 
 	if err := a.dictService.DeleteItemContext(c.Request.Context(), uint(id)); err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemDictServiceError(c, "failed to delete dictionary item", err)
 		return
 	}
 
@@ -266,7 +266,7 @@ func (a *DictAPI) GetDictData(c *gin.Context) {
 
 	items, err := a.dictService.GetDictDataContext(c.Request.Context(), code)
 	if err != nil {
-		response.NotFound(c, "dict not found")
+		writeSystemDictServiceError(c, "failed to get dictionary data", err)
 		return
 	}
 

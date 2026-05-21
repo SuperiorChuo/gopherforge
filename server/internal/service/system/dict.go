@@ -7,6 +7,7 @@ import (
 	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
+	"gorm.io/gorm"
 )
 
 type DictService struct {
@@ -56,6 +57,12 @@ type UpdateDictItemRequest struct {
 	Remark string `json:"remark"`
 }
 
+var (
+	ErrDictTypeCodeAlreadyExists = errors.New("dict type code already exists")
+	ErrDictTypeNotFound          = errors.New("dict type not found")
+	ErrDictItemNotFound          = errors.New("dict item not found")
+)
+
 func (s *DictService) CreateType(req CreateDictTypeRequest) (*model.DictType, error) {
 	return s.CreateTypeContext(context.Background(), req)
 }
@@ -63,9 +70,9 @@ func (s *DictService) CreateType(req CreateDictTypeRequest) (*model.DictType, er
 func (s *DictService) CreateTypeContext(ctx context.Context, req CreateDictTypeRequest) (*model.DictType, error) {
 	_, err := s.dictDAO.GetTypeByCodeContext(ctx, req.Code)
 	if err == nil {
-		return nil, errors.New("dict type code already exists")
+		return nil, ErrDictTypeCodeAlreadyExists
 	}
-	if isContextError(err) {
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 
@@ -91,7 +98,14 @@ func (s *DictService) GetTypeByID(id uint) (*model.DictType, error) {
 }
 
 func (s *DictService) GetTypeByIDContext(ctx context.Context, id uint) (*model.DictType, error) {
-	return s.dictDAO.GetTypeByIDContext(ctx, id)
+	dictType, err := s.dictDAO.GetTypeByIDContext(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrDictTypeNotFound
+		}
+		return nil, err
+	}
+	return dictType, nil
 }
 
 func (s *DictService) GetTypeByCode(code string) (*model.DictType, error) {
@@ -99,7 +113,14 @@ func (s *DictService) GetTypeByCode(code string) (*model.DictType, error) {
 }
 
 func (s *DictService) GetTypeByCodeContext(ctx context.Context, code string) (*model.DictType, error) {
-	return s.dictDAO.GetTypeByCodeContext(ctx, code)
+	dictType, err := s.dictDAO.GetTypeByCodeContext(ctx, code)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrDictTypeNotFound
+		}
+		return nil, err
+	}
+	return dictType, nil
 }
 
 func (s *DictService) GetTypeList(req DictTypeListRequest) ([]model.DictType, int64, error) {
@@ -126,10 +147,10 @@ func (s *DictService) UpdateType(id uint, req UpdateDictTypeRequest) (*model.Dic
 func (s *DictService) UpdateTypeContext(ctx context.Context, id uint, req UpdateDictTypeRequest) (*model.DictType, error) {
 	dictType, err := s.dictDAO.GetTypeByIDContext(ctx, id)
 	if err != nil {
-		if isContextError(err) {
-			return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrDictTypeNotFound
 		}
-		return nil, errors.New("dict type not found")
+		return nil, err
 	}
 
 	if req.Name != "" {
@@ -164,10 +185,10 @@ func (s *DictService) CreateItem(req CreateDictItemRequest) (*model.DictItem, er
 func (s *DictService) CreateItemContext(ctx context.Context, req CreateDictItemRequest) (*model.DictItem, error) {
 	_, err := s.dictDAO.GetTypeByIDContext(ctx, req.DictTypeID)
 	if err != nil {
-		if isContextError(err) {
-			return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrDictTypeNotFound
 		}
-		return nil, errors.New("dict type not found")
+		return nil, err
 	}
 
 	item := &model.DictItem{
@@ -194,7 +215,14 @@ func (s *DictService) GetItemByID(id uint) (*model.DictItem, error) {
 }
 
 func (s *DictService) GetItemByIDContext(ctx context.Context, id uint) (*model.DictItem, error) {
-	return s.dictDAO.GetItemByIDContext(ctx, id)
+	item, err := s.dictDAO.GetItemByIDContext(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrDictItemNotFound
+		}
+		return nil, err
+	}
+	return item, nil
 }
 
 func (s *DictService) GetItemsByTypeID(typeID uint) ([]model.DictItem, error) {
@@ -211,8 +239,12 @@ func (s *DictService) GetItemsByTypeCode(code string) ([]model.DictItem, error) 
 }
 
 func (s *DictService) GetItemsByTypeCodeContext(ctx context.Context, code string) ([]model.DictItem, error) {
+	dictType, err := s.GetTypeByCodeContext(ctx, code)
+	if err != nil {
+		return nil, err
+	}
 	status := int8(1)
-	return s.dictDAO.GetItemsByTypeCodeContext(ctx, code, &status)
+	return s.dictDAO.GetItemsByTypeIDContext(ctx, dictType.ID, &status)
 }
 
 func (s *DictService) GetItemList(req DictItemListRequest) ([]model.DictItem, int64, error) {
@@ -230,10 +262,10 @@ func (s *DictService) UpdateItem(id uint, req UpdateDictItemRequest) (*model.Dic
 func (s *DictService) UpdateItemContext(ctx context.Context, id uint, req UpdateDictItemRequest) (*model.DictItem, error) {
 	item, err := s.dictDAO.GetItemByIDContext(ctx, id)
 	if err != nil {
-		if isContextError(err) {
-			return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrDictItemNotFound
 		}
-		return nil, errors.New("dict item not found")
+		return nil, err
 	}
 
 	if req.Label != "" {
@@ -285,6 +317,9 @@ func (s *DictService) GetMultipleDictDataContext(ctx context.Context, codes []st
 		items, err := s.GetItemsByTypeCodeContext(ctx, code)
 		if err != nil {
 			if isContextError(err) {
+				return nil, err
+			}
+			if !errors.Is(err, ErrDictTypeNotFound) {
 				return nil, err
 			}
 			continue

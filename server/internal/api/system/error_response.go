@@ -103,3 +103,18 @@ func writeSystemDepartmentServiceError(c *gin.Context, operation string, err err
 		internalServerError(c, operation, err)
 	}
 }
+
+func writeSystemDictServiceError(c *gin.Context, operation string, err error) {
+	switch {
+	case errors.Is(err, systemsvc.ErrDictTypeCodeAlreadyExists):
+		response.BadRequest(c, systemsvc.ErrDictTypeCodeAlreadyExists.Error())
+	case errors.Is(err, systemsvc.ErrDictTypeNotFound):
+		response.NotFound(c, systemsvc.ErrDictTypeNotFound.Error())
+	case errors.Is(err, systemsvc.ErrDictItemNotFound):
+		response.NotFound(c, systemsvc.ErrDictItemNotFound.Error())
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		internalServerError(c, operation, err)
+	default:
+		internalServerError(c, operation, err)
+	}
+}
