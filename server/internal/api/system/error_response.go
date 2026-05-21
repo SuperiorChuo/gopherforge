@@ -31,3 +31,20 @@ func writeSystemUserServiceError(c *gin.Context, operation string, err error) {
 		internalServerError(c, operation, err)
 	}
 }
+
+func writeSystemRoleServiceError(c *gin.Context, operation string, err error) {
+	switch {
+	case errors.Is(err, systemsvc.ErrRoleCodeAlreadyExists):
+		response.BadRequest(c, systemsvc.ErrRoleCodeAlreadyExists.Error())
+	case errors.Is(err, systemsvc.ErrInvalidRoleDataScope):
+		response.BadRequest(c, systemsvc.ErrInvalidRoleDataScope.Error())
+	case errors.Is(err, systemsvc.ErrCustomDataScopeRequiresDepartments):
+		response.BadRequest(c, systemsvc.ErrCustomDataScopeRequiresDepartments.Error())
+	case errors.Is(err, systemsvc.ErrRoleNotFound):
+		response.NotFound(c, systemsvc.ErrRoleNotFound.Error())
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		internalServerError(c, operation, err)
+	default:
+		internalServerError(c, operation, err)
+	}
+}

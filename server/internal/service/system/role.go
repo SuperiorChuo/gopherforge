@@ -8,6 +8,7 @@ import (
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
+	"gorm.io/gorm"
 )
 
 type RoleService struct {
@@ -38,12 +39,26 @@ type AssignPermissionsRequest struct {
 	PermissionIDs []uint `json:"permission_ids" binding:"required"`
 }
 
+var (
+	ErrRoleCodeAlreadyExists              = errors.New("role code already exists")
+	ErrRoleNotFound                       = errors.New("role not found")
+	ErrInvalidRoleDataScope               = errors.New("invalid data scope")
+	ErrCustomDataScopeRequiresDepartments = errors.New("custom data scope requires department ids")
+)
+
 func (s *RoleService) GetRoleByID(id uint) (*model.Role, error) {
 	return s.GetRoleByIDContext(context.Background(), id)
 }
 
 func (s *RoleService) GetRoleByIDContext(ctx context.Context, id uint) (*model.Role, error) {
-	return s.roleDAO.GetRoleByIDContext(ctx, id)
+	role, err := s.roleDAO.GetRoleByIDContext(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRoleNotFound
+		}
+		return nil, err
+	}
+	return role, nil
 }
 
 func (s *RoleService) GetRoleList(req RoleListRequest) ([]model.Role, int64, error) {
@@ -69,9 +84,9 @@ func (s *RoleService) CreateRole(req CreateRoleRequest) (*model.Role, error) {
 func (s *RoleService) CreateRoleContext(ctx context.Context, req CreateRoleRequest) (*model.Role, error) {
 	_, err := s.roleDAO.GetRoleByCodeContext(ctx, req.Code)
 	if err == nil {
-		return nil, errors.New("role code already exists")
+		return nil, ErrRoleCodeAlreadyExists
 	}
-	if isContextError(err) {
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 
@@ -103,10 +118,10 @@ func (s *RoleService) UpdateRole(id uint, req UpdateRoleRequest) (*model.Role, e
 func (s *RoleService) UpdateRoleContext(ctx context.Context, id uint, req UpdateRoleRequest) (*model.Role, error) {
 	role, err := s.roleDAO.GetRoleByIDContext(ctx, id)
 	if err != nil {
-		if isContextError(err) {
-			return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRoleNotFound
 		}
-		return nil, errors.New("role not found")
+		return nil, err
 	}
 
 	if req.Name != "" {
@@ -148,10 +163,10 @@ func (s *RoleService) DeleteRole(id uint) error {
 
 func (s *RoleService) DeleteRoleContext(ctx context.Context, id uint) error {
 	if _, err := s.roleDAO.GetRoleByIDContext(ctx, id); err != nil {
-		if isContextError(err) {
-			return err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrRoleNotFound
 		}
-		return errors.New("role not found")
+		return err
 	}
 
 	if err := InvalidatePermissionCacheByRolesContext(ctx, id); err != nil {
@@ -168,10 +183,10 @@ func (s *RoleService) AssignPermissions(roleID uint, req AssignPermissionsReques
 func (s *RoleService) AssignPermissionsContext(ctx context.Context, roleID uint, req AssignPermissionsRequest) error {
 	_, err := s.roleDAO.GetRoleByIDContext(ctx, roleID)
 	if err != nil {
-		if isContextError(err) {
-			return err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrRoleNotFound
 		}
-		return errors.New("role not found")
+		return err
 	}
 
 	if err := s.roleDAO.AssignPermissionsContext(ctx, roleID, req.PermissionIDs); err != nil {
@@ -197,11 +212,11 @@ func validateRoleDataScope(dataScope string, departmentIDs []uint) error {
 		authz.DataScopeCustom,
 		authz.DataScopeNone:
 	default:
-		return errors.New("invalid data scope")
+		return ErrInvalidRoleDataScope
 	}
 
 	if dataScope == string(authz.DataScopeCustom) && len(departmentIDs) == 0 {
-		return errors.New("custom data scope requires department ids")
+		return ErrCustomDataScopeRequiresDepartments
 	}
 	return nil
 }

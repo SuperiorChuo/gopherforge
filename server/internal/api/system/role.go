@@ -66,7 +66,7 @@ func (a *RoleManagementAPI) GetRole(c *gin.Context) {
 
 	role, err := a.roleService.GetRoleByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
-		response.NotFound(c, "role not found")
+		writeSystemRoleServiceError(c, "failed to get role", err)
 		return
 	}
 
@@ -83,7 +83,7 @@ func (a *RoleManagementAPI) CreateRole(c *gin.Context) {
 
 	role, err := a.roleService.CreateRoleContext(c.Request.Context(), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemRoleServiceError(c, "failed to create role", err)
 		return
 	}
 
@@ -107,7 +107,7 @@ func (a *RoleManagementAPI) UpdateRole(c *gin.Context) {
 
 	role, err := a.roleService.UpdateRoleContext(c.Request.Context(), uint(id), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemRoleServiceError(c, "failed to update role", err)
 		return
 	}
 
@@ -124,7 +124,7 @@ func (a *RoleManagementAPI) DeleteRole(c *gin.Context) {
 	}
 
 	if err := a.roleService.DeleteRoleContext(c.Request.Context(), uint(id)); err != nil {
-		internalServerError(c, "failed to delete role", err)
+		writeSystemRoleServiceError(c, "failed to delete role", err)
 		return
 	}
 
@@ -147,7 +147,7 @@ func (a *RoleManagementAPI) AssignPermissions(c *gin.Context) {
 	}
 
 	if err := a.roleService.AssignPermissionsContext(c.Request.Context(), uint(id), req); err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemRoleServiceError(c, "failed to assign role permissions", err)
 		return
 	}
 
