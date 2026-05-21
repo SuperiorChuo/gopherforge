@@ -13,6 +13,8 @@ import (
 
 type MenuDAO struct{}
 
+var ErrMenuHasChildren = errors.New("cannot delete menu with children")
+
 func (d *MenuDAO) GetMenuByID(id uint) (*model.Menu, error) {
 	return d.GetMenuByIDContext(context.Background(), id)
 }
@@ -131,7 +133,7 @@ func (d *MenuDAO) DeleteMenuContext(ctx context.Context, id uint) error {
 			return err
 		}
 		if count > 0 {
-			return errors.New("cannot delete menu with children")
+			return ErrMenuHasChildren
 		}
 
 		if err := tx.Where("menu_id = ?", id).Delete(&model.MenuPermission{}).Error; err != nil {

@@ -83,7 +83,7 @@ func (a *MenuManagementAPI) GetMenu(c *gin.Context) {
 
 	menu, err := a.menuService.GetMenuByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
-		response.NotFound(c, "menu not found")
+		writeSystemMenuServiceError(c, "failed to get menu", err)
 		return
 	}
 
@@ -100,7 +100,7 @@ func (a *MenuManagementAPI) CreateMenu(c *gin.Context) {
 
 	menu, err := a.menuService.CreateMenuContext(c.Request.Context(), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemMenuServiceError(c, "failed to create menu", err)
 		return
 	}
 
@@ -124,7 +124,7 @@ func (a *MenuManagementAPI) UpdateMenu(c *gin.Context) {
 
 	menu, err := a.menuService.UpdateMenuContext(c.Request.Context(), uint(id), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemMenuServiceError(c, "failed to update menu", err)
 		return
 	}
 
@@ -141,7 +141,7 @@ func (a *MenuManagementAPI) DeleteMenu(c *gin.Context) {
 	}
 
 	if err := a.menuService.DeleteMenuContext(c.Request.Context(), uint(id)); err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemMenuServiceError(c, "failed to delete menu", err)
 		return
 	}
 

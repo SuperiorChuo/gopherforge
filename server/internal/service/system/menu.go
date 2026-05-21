@@ -7,6 +7,7 @@ import (
 	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
+	"gorm.io/gorm"
 )
 
 type MenuService struct {
@@ -47,12 +48,26 @@ type UpdateMenuRequest struct {
 	PermissionIDs []uint `json:"permission_ids"`
 }
 
+var (
+	ErrMenuNotFound           = errors.New("menu not found")
+	ErrParentMenuNotFound     = errors.New("parent menu not found")
+	ErrMenuParentIsDescendant = errors.New("cannot set parent to descendant")
+	ErrMenuHasChildren        = errors.New("cannot delete menu with children")
+)
+
 func (s *MenuService) GetMenuByID(id uint) (*model.Menu, error) {
 	return s.GetMenuByIDContext(context.Background(), id)
 }
 
 func (s *MenuService) GetMenuByIDContext(ctx context.Context, id uint) (*model.Menu, error) {
-	return s.menuDAO.GetMenuByIDContext(ctx, id)
+	menu, err := s.menuDAO.GetMenuByIDContext(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrMenuNotFound
+		}
+		return nil, err
+	}
+	return menu, nil
 }
 
 func (s *MenuService) GetMenuList(req MenuListRequest) ([]model.Menu, int64, error) {
@@ -79,10 +94,10 @@ func (s *MenuService) CreateMenuContext(ctx context.Context, req CreateMenuReque
 	if req.ParentID > 0 {
 		_, err := s.menuDAO.GetMenuByIDContext(ctx, req.ParentID)
 		if err != nil {
-			if isContextError(err) {
-				return nil, err
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrParentMenuNotFound
 			}
-			return nil, errors.New("parent menu not found")
+			return nil, err
 		}
 	}
 
@@ -129,10 +144,10 @@ func (s *MenuService) UpdateMenu(id uint, req UpdateMenuRequest) (*model.Menu, e
 func (s *MenuService) UpdateMenuContext(ctx context.Context, id uint, req UpdateMenuRequest) (*model.Menu, error) {
 	menu, err := s.menuDAO.GetMenuByIDContext(ctx, id)
 	if err != nil {
-		if isContextError(err) {
-			return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrMenuNotFound
 		}
-		return nil, errors.New("menu not found")
+		return nil, err
 	}
 
 	if req.ParentID > 0 && req.ParentID != menu.ParentID {
@@ -141,7 +156,7 @@ func (s *MenuService) UpdateMenuContext(ctx context.Context, id uint, req Update
 			return nil, err
 		}
 		if descendant {
-			return nil, errors.New("cannot set parent to descendant")
+			return nil, ErrMenuParentIsDescendant
 		}
 		menu.ParentID = req.ParentID
 	}
@@ -197,13 +212,16 @@ func (s *MenuService) DeleteMenu(id uint) error {
 
 func (s *MenuService) DeleteMenuContext(ctx context.Context, id uint) error {
 	if _, err := s.menuDAO.GetMenuByIDContext(ctx, id); err != nil {
-		if isContextError(err) {
-			return err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrMenuNotFound
 		}
-		return errors.New("menu not found")
+		return err
 	}
 
 	if err := s.menuDAO.DeleteMenuContext(ctx, id); err != nil {
+		if errors.Is(err, systemdao.ErrMenuHasChildren) {
+			return ErrMenuHasChildren
+		}
 		return err
 	}
 
@@ -216,10 +234,10 @@ func isMenuDescendantContext(ctx context.Context, dao *systemdao.MenuDAO, ancest
 	}
 	target, err := dao.GetMenuByIDContext(ctx, targetID)
 	if err != nil {
-		if isContextError(err) {
-			return false, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
 		}
-		return false, nil
+		return false, err
 	}
 	if target.ParentID == ancestorID {
 		return true, nil
