@@ -70,6 +70,76 @@ func TestFileDAOGetByIDInScopeAppliesOwnerDepartmentScope(t *testing.T) {
 	}
 }
 
+func TestFileDAOGetByHashInScopeAppliesSelfScope(t *testing.T) {
+	mock := setupSystemDAOTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `files` WHERE user_id = ? AND hash = ? ORDER BY `files`.`id` LIMIT ?")).
+		WithArgs(uint(7), "abc123", 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	_, err := (&FileDAO{}).GetByHashInScope(
+		"abc123",
+		authz.UserDataScope{Scope: authz.DataScopeSelf, UserID: 7},
+	)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("GetByHashInScope() error = %v, want record not found", err)
+	}
+}
+
+func TestFileDAOGetListAppliesNoScope(t *testing.T) {
+	mock := setupSystemDAOTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `files` WHERE 1 = 0")).
+		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `files` WHERE 1 = 0 ORDER BY created_at DESC LIMIT ?")).
+		WithArgs(10).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	files, total, err := (&FileDAO{}).GetList(
+		pagination.PageRequest{Page: 1, PageSize: 10},
+		nil,
+		"",
+		"",
+		nil,
+		nil,
+		authz.UserDataScope{Scope: authz.DataScopeNone},
+	)
+	if err != nil {
+		t.Fatalf("GetList() error = %v", err)
+	}
+	if total != 0 || len(files) != 0 {
+		t.Fatalf("GetList() total=%d files=%d, want empty result", total, len(files))
+	}
+}
+
+func TestLoginLogDAOGetListAppliesDepartmentScopeAndFilters(t *testing.T) {
+	mock := setupSystemDAOTestDB(t)
+	status := int8(1)
+	loginType := int8(2)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `login_logs` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?)) AND username LIKE ? AND ip LIKE ? AND status = ? AND login_type = ?")).
+		WithArgs(uint(20), uint(21), "%alice%", "%10.%", status, loginType).
+		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `login_logs` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?)) AND username LIKE ? AND ip LIKE ? AND status = ? AND login_type = ? ORDER BY created_at DESC LIMIT ?")).
+		WithArgs(uint(20), uint(21), "%alice%", "%10.%", status, loginType, 10).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	logs, total, err := (&LoginLogDAO{}).GetList(
+		pagination.PageRequest{Page: 1, PageSize: 10},
+		nil,
+		"alice",
+		"10.",
+		&status,
+		&loginType,
+		nil,
+		nil,
+		authz.UserDataScope{Scope: authz.DataScopeDepartment, DepartmentIDs: []uint{20, 21}},
+	)
+	if err != nil {
+		t.Fatalf("GetList() error = %v", err)
+	}
+	if total != 0 || len(logs) != 0 {
+		t.Fatalf("GetList() total=%d logs=%d, want empty result", total, len(logs))
+	}
+}
+
 func TestOperationLogDAOGetLogListAppliesSelfScope(t *testing.T) {
 	mock := setupSystemDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `operation_logs` WHERE user_id = ?")).

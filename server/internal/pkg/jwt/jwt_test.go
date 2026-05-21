@@ -32,6 +32,18 @@ func TestRevokeTokenRejectsInvalidClaimsAndIgnoresExpiredTokens(t *testing.T) {
 	}
 }
 
+func TestIsTokenIDBlacklistedWithoutRedisClient(t *testing.T) {
+	oldClient := redisstore.Client
+	redisstore.Client = nil
+	t.Cleanup(func() {
+		redisstore.Client = oldClient
+	})
+
+	if IsTokenIDBlacklisted("token-id") {
+		t.Fatal("token should not be blacklisted when redis client is unavailable")
+	}
+}
+
 func TestRevokeTokenBlacklistsUnexpiredToken(t *testing.T) {
 	store := setupJWTTestRedis(t)
 	setJWTTestConfig(t)

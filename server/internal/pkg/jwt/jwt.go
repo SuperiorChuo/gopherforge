@@ -232,7 +232,7 @@ func IsTokenBlacklisted(tokenString string) bool {
 }
 
 func IsTokenIDBlacklisted(tokenID string) bool {
-	if tokenID == "" {
+	if tokenID == "" || redis.Client == nil {
 		return false
 	}
 	ctx := context.Background()
