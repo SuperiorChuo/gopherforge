@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
+	"reflect"
 	"testing"
 	"time"
 
@@ -14,6 +14,12 @@ import (
 	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )
+
+func TestOnlineUserStructDoesNotExposeAccessTokenField(t *testing.T) {
+	if _, ok := reflect.TypeOf(OnlineUser{}).FieldByName("AccessToken"); ok {
+		t.Fatal("OnlineUser should not expose a legacy plain access token field")
+	}
+}
 
 func TestForceLogoutRevokesAndRemovesAllSessionsForUser(t *testing.T) {
 	setupOnlineUserTestRedis(t)
@@ -80,12 +86,11 @@ func TestSetOnlineUserDoesNotStorePlainAccessToken(t *testing.T) {
 	setOnlineUserJWTTestConfig(t)
 
 	service := &OnlineUserService{}
-	accessToken, tokenID, expiresAt := mustAccessToken(t, 7, "alice")
+	_, tokenID, expiresAt := mustAccessToken(t, 7, "alice")
 	user := OnlineUser{
 		UserID:               7,
 		Username:             "alice",
 		TokenID:              tokenID,
-		AccessToken:          accessToken,
 		AccessTokenExpiresAt: expiresAt,
 	}
 
@@ -99,9 +104,6 @@ func TestSetOnlineUserDoesNotStorePlainAccessToken(t *testing.T) {
 	}
 	if json.Valid([]byte(raw)) == false {
 		t.Fatalf("stored online user should be valid json: %q", raw)
-	}
-	if strings.Contains(raw, accessToken) {
-		t.Fatal("stored online user should not contain the access token")
 	}
 	var stored map[string]any
 	if err := json.Unmarshal([]byte(raw), &stored); err != nil {

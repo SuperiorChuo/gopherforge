@@ -62,6 +62,111 @@ func TestDelUserPermissionsBatchContextHonorsCanceledContext(t *testing.T) {
 	}
 }
 
+func TestDelAllUserPermissionsContextDeletesIndexedKeysWithoutPatternScan(t *testing.T) {
+	setupCacheTestRedis(t)
+
+	indexKey := KeyUserPermissionsIndex
+	indexedKey := fmt.Sprintf(KeyUserPermissions, 101)
+	unindexedKey := fmt.Sprintf(KeyUserPermissions, 202)
+
+	if err := redisstore.Client.SAdd(context.Background(), indexedKey, "system:user:list").Err(); err != nil {
+		t.Fatalf("seed indexed permission key: %v", err)
+	}
+	if err := redisstore.Client.SAdd(context.Background(), unindexedKey, "system:role:list").Err(); err != nil {
+		t.Fatalf("seed unindexed permission key: %v", err)
+	}
+	if err := redisstore.Client.SAdd(context.Background(), indexKey, indexedKey).Err(); err != nil {
+		t.Fatalf("seed permissions index: %v", err)
+	}
+
+	if err := NewCacheService().DelAllUserPermissionsContext(context.Background()); err != nil {
+		t.Fatalf("DelAllUserPermissionsContext(): %v", err)
+	}
+
+	if redisstore.Client.Exists(context.Background(), indexedKey).Val() != 0 {
+		t.Fatalf("indexed permission key %q was not deleted", indexedKey)
+	}
+	if redisstore.Client.Exists(context.Background(), indexKey).Val() != 0 {
+		t.Fatalf("permission index key %q was not deleted", indexKey)
+	}
+	if redisstore.Client.Exists(context.Background(), unindexedKey).Val() == 0 {
+		t.Fatalf("unindexed permission key %q was deleted; DelAllUserPermissionsContext should use the index, not a pattern scan", unindexedKey)
+	}
+}
+
+func TestSetUserPermissionsContextMaintainsPermissionIndex(t *testing.T) {
+	setupCacheTestRedis(t)
+
+	service := NewCacheService()
+	key := fmt.Sprintf(KeyUserPermissions, 42)
+	indexKey := KeyUserPermissionsIndex
+
+	if err := service.SetUserPermissionsContext(context.Background(), 42, []string{"system:user:list"}); err != nil {
+		t.Fatalf("SetUserPermissionsContext(non-empty): %v", err)
+	}
+	if ok := redisstore.Client.SIsMember(context.Background(), key, "system:user:list").Val(); !ok {
+		t.Fatalf("permission key %q does not contain expected permission after non-empty set", key)
+	}
+	if ok := redisstore.Client.SIsMember(context.Background(), indexKey, key).Val(); !ok {
+		t.Fatalf("permission index %q does not contain %q after non-empty set", indexKey, key)
+	}
+
+	if err := service.SetUserPermissionsContext(context.Background(), 42, nil); err != nil {
+		t.Fatalf("SetUserPermissionsContext(empty): %v", err)
+	}
+	if redisstore.Client.Exists(context.Background(), key).Val() != 0 {
+		t.Fatalf("permission key %q still exists after empty set", key)
+	}
+	if ok := redisstore.Client.SIsMember(context.Background(), indexKey, key).Val(); ok {
+		t.Fatalf("permission index %q still contains %q after empty set", indexKey, key)
+	}
+}
+
+func TestDelUserPermissionsContextRemovesPermissionIndexMember(t *testing.T) {
+	setupCacheTestRedis(t)
+
+	service := NewCacheService()
+	key := fmt.Sprintf(KeyUserPermissions, 42)
+	indexKey := KeyUserPermissionsIndex
+
+	if err := service.SetUserPermissionsContext(context.Background(), 42, []string{"system:user:list"}); err != nil {
+		t.Fatalf("SetUserPermissionsContext(): %v", err)
+	}
+	if err := service.DelUserPermissionsContext(context.Background(), 42); err != nil {
+		t.Fatalf("DelUserPermissionsContext(): %v", err)
+	}
+
+	if ok := redisstore.Client.SIsMember(context.Background(), indexKey, key).Val(); ok {
+		t.Fatalf("permission index %q still contains %q after delete", indexKey, key)
+	}
+}
+
+func TestDelUserPermissionsBatchContextRemovesPermissionIndexMembers(t *testing.T) {
+	setupCacheTestRedis(t)
+
+	service := NewCacheService()
+	indexKey := KeyUserPermissionsIndex
+	deletedKey := fmt.Sprintf(KeyUserPermissions, 42)
+	keptKey := fmt.Sprintf(KeyUserPermissions, 99)
+
+	if err := service.SetUserPermissionsContext(context.Background(), 42, []string{"system:user:list"}); err != nil {
+		t.Fatalf("SetUserPermissionsContext(42): %v", err)
+	}
+	if err := service.SetUserPermissionsContext(context.Background(), 99, []string{"system:role:list"}); err != nil {
+		t.Fatalf("SetUserPermissionsContext(99): %v", err)
+	}
+	if err := service.DelUserPermissionsBatchContext(context.Background(), []uint{42}); err != nil {
+		t.Fatalf("DelUserPermissionsBatchContext(): %v", err)
+	}
+
+	if ok := redisstore.Client.SIsMember(context.Background(), indexKey, deletedKey).Val(); ok {
+		t.Fatalf("permission index %q still contains deleted key %q", indexKey, deletedKey)
+	}
+	if ok := redisstore.Client.SIsMember(context.Background(), indexKey, keptKey).Val(); !ok {
+		t.Fatalf("permission index %q lost untouched key %q", indexKey, keptKey)
+	}
+}
+
 func TestCacheContextMethodsHonorCanceledContext(t *testing.T) {
 	setupCacheTestRedis(t)
 	setCacheJWTTestConfig(t)

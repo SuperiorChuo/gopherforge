@@ -23,7 +23,6 @@ type OnlineUser struct {
 	OS                   string    `json:"os"`
 	LoginTime            time.Time `json:"login_time"`
 	TokenID              string    `json:"token_id"`
-	AccessToken          string    `json:"access_token,omitempty"`
 	AccessTokenExpiresAt time.Time `json:"access_token_expires_at,omitempty"`
 }
 
@@ -39,8 +38,6 @@ func (s *OnlineUserService) SetOnlineUser(user OnlineUser, expiration time.Durat
 }
 
 func (s *OnlineUserService) SetOnlineUserContext(ctx context.Context, user OnlineUser, expiration time.Duration) error {
-	user.AccessToken = ""
-
 	data, err := json.Marshal(user)
 	if err != nil {
 		return err
@@ -128,17 +125,6 @@ func (s *OnlineUserService) revokeOnlineUserToken(user OnlineUser) {
 	if user.TokenID != "" && !user.AccessTokenExpiresAt.IsZero() {
 		if ttl := time.Until(user.AccessTokenExpiresAt); ttl > 0 {
 			_ = jwt.BlacklistTokenID(user.TokenID, ttl)
-			return
-		}
-	}
-	if user.AccessToken == "" {
-		return
-	}
-	if claims, err := jwt.ParseToken(user.AccessToken); err == nil {
-		_ = jwt.RevokeToken(user.AccessToken, claims)
-	} else if !user.AccessTokenExpiresAt.IsZero() {
-		if ttl := time.Until(user.AccessTokenExpiresAt); ttl > 0 {
-			_ = jwt.BlacklistToken(user.AccessToken, ttl)
 		}
 	}
 }
