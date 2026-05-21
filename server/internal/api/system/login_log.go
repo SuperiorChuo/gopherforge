@@ -1,6 +1,7 @@
 package system
 
 import (
+	"errors"
 	"strconv"
 	"time"
 
@@ -95,7 +96,11 @@ func (a *LoginLogAPI) GetLastLogin(c *gin.Context) {
 
 	log, err := a.logService.GetUserLastLoginContext(c.Request.Context(), userID.(uint))
 	if err != nil {
-		response.Success(c, nil) // Return empty data when no record exists.
+		if errors.Is(err, system.ErrLoginLogNotFound) {
+			response.Success(c, nil) // Return empty data when no record exists.
+			return
+		}
+		internalServerError(c, "failed to get last login", err)
 		return
 	}
 

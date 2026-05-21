@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/ipinfo"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
+	"gorm.io/gorm"
 )
 
 type LoginLogService struct {
@@ -37,6 +39,8 @@ type LoginInfo struct {
 	UserAgent string
 	Message   string
 }
+
+var ErrLoginLogNotFound = errors.New("login log not found")
 
 func (s *LoginLogService) Record(info *LoginInfo) error {
 	return s.RecordContext(context.Background(), info)
@@ -86,7 +90,14 @@ func (s *LoginLogService) GetUserLastLogin(userID uint) (*model.LoginLog, error)
 }
 
 func (s *LoginLogService) GetUserLastLoginContext(ctx context.Context, userID uint) (*model.LoginLog, error) {
-	return s.logDAO.GetUserLastLoginContext(ctx, userID)
+	log, err := s.logDAO.GetUserLastLoginContext(ctx, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrLoginLogNotFound
+		}
+		return nil, err
+	}
+	return log, nil
 }
 
 func (s *LoginLogService) GetLoginStats(startTime, endTime *time.Time) (*systemdao.LoginLogStats, error) {

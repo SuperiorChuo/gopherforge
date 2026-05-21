@@ -2,12 +2,14 @@ package system
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
+	"gorm.io/gorm"
 )
 
 type OperationLogService struct {
@@ -35,6 +37,8 @@ type ClearLogsRequest struct {
 	Days int `json:"days" binding:"required,min=1"`
 }
 
+var ErrOperationLogNotFound = errors.New("operation log not found")
+
 func (s *OperationLogService) Record(log *model.OperationLog) error {
 	return s.RecordContext(context.Background(), log)
 }
@@ -48,7 +52,14 @@ func (s *OperationLogService) GetLogByID(id uint) (*model.OperationLog, error) {
 }
 
 func (s *OperationLogService) GetLogByIDContext(ctx context.Context, id uint) (*model.OperationLog, error) {
-	return s.logDAO.GetLogByIDContext(ctx, id)
+	log, err := s.logDAO.GetLogByIDContext(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrOperationLogNotFound
+		}
+		return nil, err
+	}
+	return log, nil
 }
 
 func (s *OperationLogService) GetLogList(req OperationLogListRequest) ([]model.OperationLog, int64, error) {

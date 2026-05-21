@@ -158,3 +158,14 @@ func systemFileServiceErrorMessage(err error) string {
 		return "internal server error"
 	}
 }
+
+func writeSystemOperationLogServiceError(c *gin.Context, operation string, err error) {
+	switch {
+	case errors.Is(err, systemsvc.ErrOperationLogNotFound):
+		response.NotFound(c, systemsvc.ErrOperationLogNotFound.Error())
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		internalServerError(c, operation, err)
+	default:
+		internalServerError(c, operation, err)
+	}
+}
