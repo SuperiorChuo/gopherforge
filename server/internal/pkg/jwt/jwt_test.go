@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -82,6 +83,47 @@ func TestRevokeTokenBlacklistsUnexpiredToken(t *testing.T) {
 	}
 }
 
+func TestRevokeTokenUsesInjectedBlacklistStore(t *testing.T) {
+	setJWTTestConfig(t)
+
+	oldRedis := redisstore.Client
+	redisstore.Client = nil
+	t.Cleanup(func() {
+		redisstore.Client = oldRedis
+	})
+
+	store := &stubTokenBlacklistStore{
+		values: make(map[string]time.Duration),
+	}
+	restore := SetTokenBlacklistStore(store)
+	t.Cleanup(restore)
+
+	accessToken, _, err := GenerateToken(42, "alice")
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+
+	claims, err := ParseToken(accessToken)
+	if err != nil {
+		t.Fatalf("parse token before revoke: %v", err)
+	}
+
+	if err := RevokeToken(accessToken, claims); err != nil {
+		t.Fatalf("revoke token: %v", err)
+	}
+	if store.setTokenID != claims.ID {
+		t.Fatalf("blacklist token id = %q, want %q", store.setTokenID, claims.ID)
+	}
+	if store.values[claims.ID] <= 0 {
+		t.Fatalf("blacklist ttl = %s, want positive", store.values[claims.ID])
+	}
+
+	_, err = ParseToken(accessToken)
+	if !errors.Is(err, ErrRevokedToken) {
+		t.Fatalf("parse revoked token error = %v, want %v", err, ErrRevokedToken)
+	}
+}
+
 func TestGenerateTokenWithAccessTTLUsesCustomTTL(t *testing.T) {
 	setupJWTTestRedis(t)
 	setJWTTestConfig(t)
@@ -149,4 +191,20 @@ func setJWTTestConfig(t *testing.T) {
 	t.Cleanup(func() {
 		config.Cfg.JWT = oldConfig
 	})
+}
+
+type stubTokenBlacklistStore struct {
+	values     map[string]time.Duration
+	setTokenID string
+}
+
+func (s *stubTokenBlacklistStore) SetTokenID(ctx context.Context, tokenID string, expireTime time.Duration) error {
+	s.setTokenID = tokenID
+	s.values[tokenID] = expireTime
+	return nil
+}
+
+func (s *stubTokenBlacklistStore) HasTokenID(ctx context.Context, tokenID string) (bool, error) {
+	_, ok := s.values[tokenID]
+	return ok, nil
 }
