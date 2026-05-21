@@ -164,6 +164,52 @@ func TestSetOnlineUserDoesNotStorePlainAccessToken(t *testing.T) {
 	}
 }
 
+func TestOnlineUserServiceWithClientUsesInjectedClient(t *testing.T) {
+	globalStore := setupOnlineUserTestRedis(t)
+
+	injectedStore, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("start injected miniredis: %v", err)
+	}
+	injectedClient := goredis.NewClient(&goredis.Options{Addr: injectedStore.Addr()})
+	t.Cleanup(func() {
+		_ = injectedClient.Close()
+		injectedStore.Close()
+	})
+
+	service := NewOnlineUserServiceWithClient(injectedClient)
+	user := OnlineUser{UserID: 7, Username: "alice", TokenID: "injected-token"}
+	if err := service.SetOnlineUserContext(context.Background(), user, time.Hour); err != nil {
+		t.Fatalf("SetOnlineUserContext(): %v", err)
+	}
+
+	key := onlineUserKey(user.TokenID)
+	if !injectedStore.Exists(key) {
+		t.Fatalf("injected online user key %q was not written", key)
+	}
+	if globalStore.Exists(key) {
+		t.Fatalf("global online user key %q was written; expected injected client only", key)
+	}
+
+	count, err := service.GetOnlineUserCountContext(context.Background())
+	if err != nil {
+		t.Fatalf("GetOnlineUserCountContext(): %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("online user count = %d, want 1", count)
+	}
+	if !service.IsUserOnlineContext(context.Background(), user.TokenID) {
+		t.Fatal("injected user should be online")
+	}
+
+	if err := service.RemoveOnlineUserContext(context.Background(), user.TokenID); err != nil {
+		t.Fatalf("RemoveOnlineUserContext(): %v", err)
+	}
+	if injectedStore.Exists(key) {
+		t.Fatal("injected online user key still exists after remove")
+	}
+}
+
 func TestOnlineUsersAreIndexedForListAndCount(t *testing.T) {
 	setupOnlineUserTestRedis(t)
 
