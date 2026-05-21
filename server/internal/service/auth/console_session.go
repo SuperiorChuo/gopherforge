@@ -24,6 +24,30 @@ var (
 // ConsoleSessionService persists and validates web-console cookie sessions.
 type ConsoleSessionService struct{}
 
+type ConsoleSessionUser struct {
+	ID                 uint     `json:"id"`
+	Username           string   `json:"username"`
+	DisplayName        string   `json:"display_name"`
+	Role               string   `json:"role"`
+	Roles              []string `json:"roles"`
+	Permissions        []string `json:"permissions"`
+	ActorType          string   `json:"actor_type"`
+	ActorID            string   `json:"actor_id"`
+	Nickname           string   `json:"nickname"`
+	Avatar             string   `json:"avatar"`
+	MustChangePassword bool     `json:"must_change_password"`
+}
+
+type ConsoleSessionResponse struct {
+	Authenticated bool               `json:"authenticated"`
+	AuthEnabled   bool               `json:"auth_enabled"`
+	User          ConsoleSessionUser `json:"user"`
+	ExpiresAt     string             `json:"expires_at"`
+	TTLSec        int                `json:"ttl_sec"`
+	AccessToken   string             `json:"access_token,omitempty"`
+	RefreshToken  string             `json:"refresh_token,omitempty"`
+}
+
 func (s ConsoleSessionService) sessionDAO() authDAO.ConsoleSessionDAO {
 	return authDAO.ConsoleSessionDAO{}
 }
@@ -149,6 +173,53 @@ func ConsoleSessionSnapshot(record *model.ConsoleSession) map[string]any {
 		"issued_at":  record.IssuedAt,
 		"expires_at": record.ExpiresAt,
 		"revoked_at": record.RevokedAt,
+	}
+}
+
+func BuildConsoleSession(user *model.User, permissions []string, accessToken, refreshToken string) ConsoleSessionResponse {
+	expiresAt := time.Now().UTC().Add(time.Hour)
+	if accessToken != "" {
+		if claims, err := jwtpkg.ParseToken(accessToken); err == nil && claims.ExpiresAt != nil {
+			expiresAt = claims.ExpiresAt.UTC()
+		}
+	}
+	ttl := int(time.Until(expiresAt).Seconds())
+	if ttl < 0 {
+		ttl = 0
+	}
+	return ConsoleSessionResponse{
+		Authenticated: true,
+		AuthEnabled:   true,
+		User:          buildConsoleSessionUser(user, permissions),
+		ExpiresAt:     expiresAt.Format(time.RFC3339),
+		TTLSec:        ttl,
+		AccessToken:   accessToken,
+		RefreshToken:  refreshToken,
+	}
+}
+
+func buildConsoleSessionUser(user *model.User, permissions []string) ConsoleSessionUser {
+	roles := ConsoleRoleCodes(user.Roles)
+	role := "operator"
+	if len(roles) > 0 {
+		role = roles[0]
+	}
+	displayName := strings.TrimSpace(user.Nickname)
+	if displayName == "" {
+		displayName = user.Username
+	}
+	return ConsoleSessionUser{
+		ID:                 user.ID,
+		Username:           user.Username,
+		DisplayName:        displayName,
+		Role:               role,
+		Roles:              roles,
+		Permissions:        permissions,
+		ActorType:          "operator",
+		ActorID:            user.Username,
+		Nickname:           user.Nickname,
+		Avatar:             user.Avatar,
+		MustChangePassword: user.MustChangePassword,
 	}
 }
 
