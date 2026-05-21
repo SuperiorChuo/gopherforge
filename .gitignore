@@ -6,6 +6,8 @@
 # Backend artifacts
 server/build/
 server/main
+server/coverage.out
+server/coverage.txt
 server/logs/
 server/uploads/
 
