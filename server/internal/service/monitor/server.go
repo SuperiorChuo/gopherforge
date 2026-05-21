@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"context"
 	"runtime"
 	"time"
 
@@ -18,10 +19,21 @@ func NewServerService() *ServerService {
 
 // GetServerInfo returns server information.
 func (s *ServerService) GetServerInfo() (map[string]any, error) {
+	return s.GetServerInfoContext(context.Background())
+}
+
+func (s *ServerService) GetServerInfoContext(ctx context.Context) (map[string]any, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	data := make(map[string]any)
 
 	// Memory information.
-	vMem, err := mem.VirtualMemory()
+	vMem, err := mem.VirtualMemoryWithContext(ctx)
 	if err != nil {
 		vMem = &mem.VirtualMemoryStat{}
 	}
@@ -34,7 +46,7 @@ func (s *ServerService) GetServerInfo() (map[string]any, error) {
 	}
 
 	// CPU information.
-	cpuInfo, err := cpu.Info()
+	cpuInfo, err := cpu.InfoWithContext(ctx)
 	var modelName string
 	var cores int
 	if err == nil && len(cpuInfo) > 0 {
@@ -42,7 +54,7 @@ func (s *ServerService) GetServerInfo() (map[string]any, error) {
 		cores = len(cpuInfo)
 	}
 
-	cpuPercent, err := cpu.Percent(0, false)
+	cpuPercent, err := cpu.PercentWithContext(ctx, 0, false)
 	var usedPercent float64
 	if err == nil && len(cpuPercent) > 0 {
 		usedPercent = cpuPercent[0]
@@ -55,7 +67,7 @@ func (s *ServerService) GetServerInfo() (map[string]any, error) {
 	}
 
 	// Host information.
-	hostInfo, err := host.Info()
+	hostInfo, err := host.InfoWithContext(ctx)
 	if err != nil {
 		hostInfo = &host.InfoStat{}
 	}
@@ -72,7 +84,7 @@ func (s *ServerService) GetServerInfo() (map[string]any, error) {
 	}
 
 	// Disk information for the root filesystem.
-	diskInfo, err := disk.Usage("/")
+	diskInfo, err := disk.UsageWithContext(ctx, "/")
 	if err != nil {
 		diskInfo = &disk.UsageStat{}
 	}

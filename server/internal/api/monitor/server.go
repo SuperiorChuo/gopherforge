@@ -18,7 +18,7 @@ func NewServerAPI() *ServerAPI {
 
 // GetServerInfo returns server information.
 func (a *ServerAPI) GetServerInfo(c *gin.Context) {
-	data, err := a.service.GetServerInfo()
+	data, err := a.service.GetServerInfoContext(c.Request.Context())
 	if err != nil {
 		internalServerError(c, "failed to get server info", err)
 		return

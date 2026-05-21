@@ -20,11 +20,11 @@ func NewCacheService() *CacheService {
 
 // Cache key templates.
 const (
-	KeyJWTBlacklist           = "jwt:blacklist:%s"
-	KeyLoginCaptcha           = "login:captcha:%s"
-	KeyUserInfo               = "user:info:%d"
-	KeyUserPermissions        = "user:permissions:%d"
-	KeyUserPermissionsPattern = "user:permissions:*"
+	KeyJWTBlacklist         = "jwt:blacklist:%s"
+	KeyLoginCaptcha         = "login:captcha:%s"
+	KeyUserInfo             = "user:info:%d"
+	KeyUserPermissions      = "user:permissions:%d"
+	KeyUserPermissionsIndex = "user:permissions:index"
 )
 
 // Cache expiration durations.
@@ -171,8 +171,11 @@ func (s *CacheService) SetUserPermissionsContext(ctx context.Context, userID uin
 	pipe := redis.Client.TxPipeline()
 	pipe.Del(ctx, key)
 	if len(permissions) > 0 {
-		pipe.SAdd(ctx, key, permissions)
+		pipe.SAdd(ctx, key, stringsToAny(permissions)...)
 		pipe.Expire(ctx, key, UserPermissionsExpire)
+		pipe.SAdd(ctx, KeyUserPermissionsIndex, key)
+	} else {
+		pipe.SRem(ctx, KeyUserPermissionsIndex, key)
 	}
 	_, err := pipe.Exec(ctx)
 	return err
@@ -195,7 +198,11 @@ func (s *CacheService) DelUserPermissions(userID uint) error {
 
 func (s *CacheService) DelUserPermissionsContext(ctx context.Context, userID uint) error {
 	key := fmt.Sprintf(KeyUserPermissions, userID)
-	return redis.Client.Del(ctx, key).Err()
+	pipe := redis.Client.TxPipeline()
+	pipe.Del(ctx, key)
+	pipe.SRem(ctx, KeyUserPermissionsIndex, key)
+	_, err := pipe.Exec(ctx)
+	return err
 }
 
 // DelUserPermissionsBatch deletes user permission caches in bulk.
@@ -212,7 +219,11 @@ func (s *CacheService) DelUserPermissionsBatchContext(ctx context.Context, userI
 	for _, userID := range userIDs {
 		keys = append(keys, fmt.Sprintf(KeyUserPermissions, userID))
 	}
-	return redis.Client.Del(ctx, keys...).Err()
+	pipe := redis.Client.TxPipeline()
+	pipe.Del(ctx, keys...)
+	pipe.SRem(ctx, KeyUserPermissionsIndex, stringsToAny(keys)...)
+	_, err := pipe.Exec(ctx)
+	return err
 }
 
 // DelAllUserPermissions deletes all cached user permissions.
@@ -221,21 +232,24 @@ func (s *CacheService) DelAllUserPermissions() error {
 }
 
 func (s *CacheService) DelAllUserPermissionsContext(ctx context.Context) error {
-	var cursor uint64
-
-	for {
-		keys, nextCursor, err := redis.Client.Scan(ctx, cursor, KeyUserPermissionsPattern, 100).Result()
-		if err != nil {
-			return err
-		}
-		if len(keys) > 0 {
-			if err := redis.Client.Del(ctx, keys...).Err(); err != nil {
-				return err
-			}
-		}
-		if nextCursor == 0 {
-			return nil
-		}
-		cursor = nextCursor
+	keys, err := redis.Client.SMembers(ctx, KeyUserPermissionsIndex).Result()
+	if err != nil {
+		return err
 	}
+
+	pipe := redis.Client.TxPipeline()
+	if len(keys) > 0 {
+		pipe.Del(ctx, keys...)
+	}
+	pipe.Del(ctx, KeyUserPermissionsIndex)
+	_, err = pipe.Exec(ctx)
+	return err
+}
+
+func stringsToAny(values []string) []any {
+	items := make([]any, 0, len(values))
+	for _, value := range values {
+		items = append(items, value)
+	}
+	return items
 }
