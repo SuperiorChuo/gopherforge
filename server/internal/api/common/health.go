@@ -3,24 +3,38 @@ package common
 import (
 	"context"
 	"net/http"
+	"reflect"
 	"runtime"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/middleware"
 	"github.com/go-admin-kit/server/internal/pkg/database"
-	"github.com/go-admin-kit/server/internal/pkg/redis"
+	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
 	"github.com/go-admin-kit/server/internal/pkg/response"
+	goredis "github.com/redis/go-redis/v9"
 )
 
+// RedisPingClient is the Redis command subset used by HealthAPI.
+type RedisPingClient interface {
+	Ping(ctx context.Context) *goredis.StatusCmd
+}
+
 // HealthAPI handles health check endpoints.
-type HealthAPI struct{}
+type HealthAPI struct {
+	redisClient RedisPingClient
+}
 
 const dependencyUnavailableMessage = "unavailable"
 
 // NewHealthAPI creates a HealthAPI instance.
 func NewHealthAPI() *HealthAPI {
 	return &HealthAPI{}
+}
+
+// NewHealthAPIWithRedisClient creates a HealthAPI with an injected Redis client.
+func NewHealthAPIWithRedisClient(client RedisPingClient) *HealthAPI {
+	return &HealthAPI{redisClient: client}
 }
 
 // Health returns a lightweight health snapshot.
@@ -121,14 +135,15 @@ func (a *HealthAPI) checkDependencies() gin.H {
 		"status": "ok",
 	}
 	redisStart := time.Now()
-	if redis.Client == nil {
+	redisClient := a.redisPingClient()
+	if redisClient == nil {
 		redisCheck["status"] = "error"
 		redisCheck["error"] = "redis not initialized"
 		health["status"] = "degraded"
 	} else {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := redis.Client.Ping(ctx).Err(); err != nil {
+		if err := redisClient.Ping(ctx).Err(); err != nil {
 			redisCheck["status"] = "error"
 			redisCheck["error"] = dependencyUnavailableMessage
 			health["status"] = "degraded"
@@ -138,6 +153,29 @@ func (a *HealthAPI) checkDependencies() gin.H {
 	services["redis"] = redisCheck
 
 	return health
+}
+
+func (a *HealthAPI) redisPingClient() RedisPingClient {
+	if a != nil && !isNilRedisPingClient(a.redisClient) {
+		return a.redisClient
+	}
+	if redisstore.Client == nil {
+		return nil
+	}
+	return redisstore.Client
+}
+
+func isNilRedisPingClient(client RedisPingClient) bool {
+	if client == nil {
+		return true
+	}
+	value := reflect.ValueOf(client)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
 }
 
 func runtimeSnapshot() gin.H {
