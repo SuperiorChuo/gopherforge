@@ -148,6 +148,29 @@ func TestOnlineUsersAreIndexedForListAndCount(t *testing.T) {
 	}
 }
 
+func TestOnlineUserCountUsesIndexWithoutDecodingPayloads(t *testing.T) {
+	setupOnlineUserTestRedis(t)
+
+	ctx := context.Background()
+	if err := redisstore.Client.Set(ctx, onlineUserKey("token-a"), "{not-json", time.Hour).Err(); err != nil {
+		t.Fatalf("set corrupt online user payload: %v", err)
+	}
+	if err := redisstore.Client.ZAdd(ctx, onlineUserIndexKey, goredis.Z{
+		Score:  float64(time.Now().Add(time.Hour).Unix()),
+		Member: "token-a",
+	}).Err(); err != nil {
+		t.Fatalf("index online user: %v", err)
+	}
+
+	count, err := (&OnlineUserService{}).GetOnlineUserCount()
+	if err != nil {
+		t.Fatalf("get online user count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("online user count = %d, want indexed count 1", count)
+	}
+}
+
 func TestOnlineUserIndexPrunesExpiredSessions(t *testing.T) {
 	store := setupOnlineUserTestRedis(t)
 

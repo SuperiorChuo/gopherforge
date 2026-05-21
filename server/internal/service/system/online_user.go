@@ -82,11 +82,10 @@ func (s *OnlineUserService) GetOnlineUserCount() (int64, error) {
 }
 
 func (s *OnlineUserService) GetOnlineUserCountContext(ctx context.Context) (int64, error) {
-	users, err := getIndexedOnlineUsers(ctx)
-	if err != nil {
+	if err := pruneExpiredOnlineUsers(ctx); err != nil {
 		return 0, err
 	}
-	return int64(len(users)), nil
+	return countIndexedOnlineUsersContext(ctx)
 }
 
 func (s *OnlineUserService) ForceLogout(tokenID string) error {
@@ -209,6 +208,39 @@ func getIndexedOnlineUsers(ctx context.Context) ([]OnlineUser, error) {
 		_ = redis.Client.ZRem(ctx, onlineUserIndexKey, staleTokenIDs...).Err()
 	}
 	return users, nil
+}
+
+func countIndexedOnlineUsersContext(ctx context.Context) (int64, error) {
+	tokenIDs, err := redis.Client.ZRange(ctx, onlineUserIndexKey, 0, -1).Result()
+	if err != nil {
+		return 0, err
+	}
+	if len(tokenIDs) == 0 {
+		return 0, nil
+	}
+
+	pipe := redis.Client.Pipeline()
+	existsCmds := make([]*goredis.IntCmd, 0, len(tokenIDs))
+	for _, tokenID := range tokenIDs {
+		existsCmds = append(existsCmds, pipe.Exists(ctx, onlineUserKey(tokenID)))
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		return 0, err
+	}
+
+	var count int64
+	staleTokenIDs := make([]any, 0)
+	for i, cmd := range existsCmds {
+		if cmd.Val() > 0 {
+			count++
+			continue
+		}
+		staleTokenIDs = append(staleTokenIDs, tokenIDs[i])
+	}
+	if len(staleTokenIDs) > 0 {
+		_ = redis.Client.ZRem(ctx, onlineUserIndexKey, staleTokenIDs...).Err()
+	}
+	return count, nil
 }
 
 func onlineUserKey(tokenID string) string {
