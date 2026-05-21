@@ -29,8 +29,9 @@ type OnlineUser struct {
 type OnlineUserService struct{}
 
 const (
-	onlineUserPrefix   = "online_user:"
-	onlineUserIndexKey = "online_users"
+	onlineUserPrefix          = "online_user:"
+	onlineUserIndexKey        = "online_users"
+	onlineUserUserIndexPrefix = "online_users:user:"
 )
 
 func (s *OnlineUserService) SetOnlineUser(user OnlineUser, expiration time.Duration) error {
@@ -50,6 +51,10 @@ func (s *OnlineUserService) SetOnlineUserContext(ctx context.Context, user Onlin
 		Score:  score,
 		Member: user.TokenID,
 	})
+	pipe.ZAdd(ctx, onlineUserUserIndexKey(user.UserID), goredis.Z{
+		Score:  score,
+		Member: user.TokenID,
+	})
 	_, err = pipe.Exec(ctx)
 	return err
 }
@@ -59,9 +64,22 @@ func (s *OnlineUserService) RemoveOnlineUser(tokenID string) error {
 }
 
 func (s *OnlineUserService) RemoveOnlineUserContext(ctx context.Context, tokenID string) error {
+	var userIndexKey string
+	if data, err := redis.Client.Get(ctx, onlineUserKey(tokenID)).Result(); err == nil {
+		var user OnlineUser
+		if json.Unmarshal([]byte(data), &user) == nil {
+			userIndexKey = onlineUserUserIndexKey(user.UserID)
+		}
+	} else if err != goredis.Nil {
+		return err
+	}
+
 	pipe := redis.Client.TxPipeline()
 	pipe.Del(ctx, onlineUserKey(tokenID))
 	pipe.ZRem(ctx, onlineUserIndexKey, tokenID)
+	if userIndexKey != "" {
+		pipe.ZRem(ctx, userIndexKey, tokenID)
+	}
 	_, err := pipe.Exec(ctx)
 	return err
 }
@@ -106,19 +124,63 @@ func (s *OnlineUserService) ForceLogoutContext(ctx context.Context, tokenID stri
 }
 
 func (s *OnlineUserService) revokeUserOnlineTokensContext(ctx context.Context, userID uint) error {
-	users, err := s.GetOnlineUsersContext(ctx)
+	userIndexKey := onlineUserUserIndexKey(userID)
+	if err := pruneExpiredUserOnlineUsers(ctx, userID); err != nil {
+		return err
+	}
+
+	tokenIDs, err := redis.Client.ZRange(ctx, userIndexKey, 0, -1).Result()
+	if err != nil {
+		return err
+	}
+	if len(tokenIDs) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(tokenIDs))
+	for _, tokenID := range tokenIDs {
+		keys = append(keys, onlineUserKey(tokenID))
+	}
+	values, err := redis.Client.MGet(ctx, keys...).Result()
 	if err != nil {
 		return err
 	}
 
-	for _, user := range users {
-		if user.UserID != userID {
+	pipe := redis.Client.TxPipeline()
+	for i, value := range values {
+		tokenID := tokenIDs[i]
+		if value == nil {
+			pipe.ZRem(ctx, onlineUserIndexKey, tokenID)
+			pipe.ZRem(ctx, userIndexKey, tokenID)
 			continue
 		}
+
+		data, ok := value.(string)
+		if !ok {
+			data = fmt.Sprint(value)
+		}
+
+		var user OnlineUser
+		if err := json.Unmarshal([]byte(data), &user); err != nil {
+			pipe.ZRem(ctx, onlineUserIndexKey, tokenID)
+			pipe.ZRem(ctx, userIndexKey, tokenID)
+			continue
+		}
+		if user.TokenID == "" {
+			user.TokenID = tokenID
+		}
+		if user.UserID != userID {
+			pipe.ZRem(ctx, userIndexKey, tokenID)
+			continue
+		}
+
 		s.revokeOnlineUserToken(user)
-		_ = s.RemoveOnlineUserContext(ctx, user.TokenID)
+		pipe.Del(ctx, onlineUserKey(tokenID))
+		pipe.ZRem(ctx, onlineUserIndexKey, tokenID)
+		pipe.ZRem(ctx, userIndexKey, tokenID)
 	}
-	return nil
+	_, err = pipe.Exec(ctx)
+	return err
 }
 
 func (s *OnlineUserService) revokeOnlineUserToken(user OnlineUser) {
@@ -197,40 +259,15 @@ func getIndexedOnlineUsers(ctx context.Context) ([]OnlineUser, error) {
 }
 
 func countIndexedOnlineUsersContext(ctx context.Context) (int64, error) {
-	tokenIDs, err := redis.Client.ZRange(ctx, onlineUserIndexKey, 0, -1).Result()
-	if err != nil {
-		return 0, err
-	}
-	if len(tokenIDs) == 0 {
-		return 0, nil
-	}
-
-	pipe := redis.Client.Pipeline()
-	existsCmds := make([]*goredis.IntCmd, 0, len(tokenIDs))
-	for _, tokenID := range tokenIDs {
-		existsCmds = append(existsCmds, pipe.Exists(ctx, onlineUserKey(tokenID)))
-	}
-	if _, err := pipe.Exec(ctx); err != nil {
-		return 0, err
-	}
-
-	var count int64
-	staleTokenIDs := make([]any, 0)
-	for i, cmd := range existsCmds {
-		if cmd.Val() > 0 {
-			count++
-			continue
-		}
-		staleTokenIDs = append(staleTokenIDs, tokenIDs[i])
-	}
-	if len(staleTokenIDs) > 0 {
-		_ = redis.Client.ZRem(ctx, onlineUserIndexKey, staleTokenIDs...).Err()
-	}
-	return count, nil
+	return redis.Client.ZCard(ctx, onlineUserIndexKey).Result()
 }
 
 func onlineUserKey(tokenID string) string {
 	return onlineUserPrefix + tokenID
+}
+
+func onlineUserUserIndexKey(userID uint) string {
+	return onlineUserUserIndexPrefix + strconv.FormatUint(uint64(userID), 10)
 }
 
 func onlineUserExpiryScore(expiration time.Duration, expiresAt time.Time) float64 {
@@ -246,6 +283,11 @@ func onlineUserExpiryScore(expiration time.Duration, expiresAt time.Time) float6
 func pruneExpiredOnlineUsers(ctx context.Context) error {
 	now := strconv.FormatInt(time.Now().Unix(), 10)
 	return redis.Client.ZRemRangeByScore(ctx, onlineUserIndexKey, "-inf", now).Err()
+}
+
+func pruneExpiredUserOnlineUsers(ctx context.Context, userID uint) error {
+	now := strconv.FormatInt(time.Now().Unix(), 10)
+	return redis.Client.ZRemRangeByScore(ctx, onlineUserUserIndexKey(userID), "-inf", now).Err()
 }
 
 func ParseUserAgent(userAgent string) (browser, os string) {

@@ -16,6 +16,8 @@ import (
 // HealthAPI handles health check endpoints.
 type HealthAPI struct{}
 
+const dependencyUnavailableMessage = "unavailable"
+
 // NewHealthAPI creates a HealthAPI instance.
 func NewHealthAPI() *HealthAPI {
 	return &HealthAPI{}
@@ -92,7 +94,7 @@ func (a *HealthAPI) checkDependencies() gin.H {
 		defer cancel()
 		if err := sqlDB.PingContext(ctx); err != nil {
 			dbCheck["status"] = "error"
-			dbCheck["error"] = err.Error()
+			dbCheck["error"] = dependencyUnavailableMessage
 			health["status"] = "degraded"
 		}
 		stats := sqlDB.Stats()
@@ -109,7 +111,7 @@ func (a *HealthAPI) checkDependencies() gin.H {
 		}
 	} else {
 		dbCheck["status"] = "error"
-		dbCheck["error"] = err.Error()
+		dbCheck["error"] = dependencyUnavailableMessage
 		health["status"] = "degraded"
 		services["database"] = dbCheck
 	}
@@ -128,7 +130,7 @@ func (a *HealthAPI) checkDependencies() gin.H {
 		defer cancel()
 		if err := redis.Client.Ping(ctx).Err(); err != nil {
 			redisCheck["status"] = "error"
-			redisCheck["error"] = err.Error()
+			redisCheck["error"] = dependencyUnavailableMessage
 			health["status"] = "degraded"
 		}
 	}

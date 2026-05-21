@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -81,6 +82,55 @@ func TestForceLogoutRevokesAndRemovesAllSessionsForUser(t *testing.T) {
 	}
 }
 
+func TestForceLogoutUsesUserIndexWithoutWalkingMainIndex(t *testing.T) {
+	setupOnlineUserTestRedis(t)
+	setOnlineUserJWTTestConfig(t)
+
+	service := &OnlineUserService{}
+	targetAccessToken, targetTokenID, targetExpiresAt := mustAccessToken(t, 7, "alice")
+	sameUserAccessToken, sameUserTokenID, sameUserExpiresAt := mustAccessToken(t, 7, "alice")
+
+	for _, user := range []OnlineUser{
+		{UserID: 7, Username: "alice", TokenID: targetTokenID, AccessTokenExpiresAt: targetExpiresAt},
+		{UserID: 7, Username: "alice", TokenID: sameUserTokenID, AccessTokenExpiresAt: sameUserExpiresAt},
+	} {
+		if err := service.SetOnlineUser(user, time.Hour); err != nil {
+			t.Fatalf("set online user %s: %v", user.TokenID, err)
+		}
+	}
+
+	ctx := context.Background()
+	if err := redisstore.Client.ZRem(ctx, onlineUserIndexKey, sameUserTokenID).Err(); err != nil {
+		t.Fatalf("remove same-user token from main index: %v", err)
+	}
+	if err := redisstore.Client.Set(ctx, onlineUserKey("corrupt-other-user-token"), "{not-json", time.Hour).Err(); err != nil {
+		t.Fatalf("set unrelated corrupt payload: %v", err)
+	}
+	if err := redisstore.Client.ZAdd(ctx, onlineUserIndexKey, goredis.Z{
+		Score:  float64(time.Now().Add(time.Hour).Unix()),
+		Member: "corrupt-other-user-token",
+	}).Err(); err != nil {
+		t.Fatalf("index unrelated corrupt payload: %v", err)
+	}
+
+	if err := service.ForceLogout(targetTokenID); err != nil {
+		t.Fatalf("force logout: %v", err)
+	}
+
+	if service.IsUserOnline(sameUserTokenID) {
+		t.Fatal("same user's other session should be removed through the user index")
+	}
+	if !jwtpkg.IsTokenBlacklisted(targetAccessToken) {
+		t.Fatal("target access token should be blacklisted")
+	}
+	if !jwtpkg.IsTokenBlacklisted(sameUserAccessToken) {
+		t.Fatal("same user's access token should be blacklisted")
+	}
+	if _, err := redisstore.Client.ZScore(ctx, onlineUserIndexKey, "corrupt-other-user-token").Result(); err != nil {
+		t.Fatalf("unrelated corrupt main-index entry should not be traversed or pruned by force logout: %v", err)
+	}
+}
+
 func TestSetOnlineUserDoesNotStorePlainAccessToken(t *testing.T) {
 	setupOnlineUserTestRedis(t)
 	setOnlineUserJWTTestConfig(t)
@@ -150,38 +200,70 @@ func TestOnlineUsersAreIndexedForListAndCount(t *testing.T) {
 	}
 }
 
-func TestOnlineUserCountUsesIndexWithoutDecodingPayloads(t *testing.T) {
+func TestSetAndRemoveOnlineUserMaintainsUserIndex(t *testing.T) {
 	setupOnlineUserTestRedis(t)
 
-	ctx := context.Background()
-	if err := redisstore.Client.Set(ctx, onlineUserKey("token-a"), "{not-json", time.Hour).Err(); err != nil {
-		t.Fatalf("set corrupt online user payload: %v", err)
-	}
-	if err := redisstore.Client.ZAdd(ctx, onlineUserIndexKey, goredis.Z{
-		Score:  float64(time.Now().Add(time.Hour).Unix()),
-		Member: "token-a",
-	}).Err(); err != nil {
-		t.Fatalf("index online user: %v", err)
+	service := &OnlineUserService{}
+	user := OnlineUser{UserID: 7, Username: "alice", TokenID: "token-a"}
+	if err := service.SetOnlineUser(user, time.Hour); err != nil {
+		t.Fatalf("set online user: %v", err)
 	}
 
+	ctx := context.Background()
+	if _, err := redisstore.Client.ZScore(ctx, testOnlineUserUserIndexKey(user.UserID), user.TokenID).Result(); err != nil {
+		t.Fatalf("user online index missing token: %v", err)
+	}
+
+	if err := service.RemoveOnlineUser(user.TokenID); err != nil {
+		t.Fatalf("remove online user: %v", err)
+	}
+	if _, err := redisstore.Client.ZScore(ctx, testOnlineUserUserIndexKey(user.UserID), user.TokenID).Result(); !errors.Is(err, goredis.Nil) {
+		t.Fatalf("user online index token error = %v, want redis nil after remove", err)
+	}
+}
+
+func TestOnlineUserCountUsesIndexCardinalityWithoutPayloadChecks(t *testing.T) {
+	store := setupOnlineUserTestRedis(t)
+
+	ctx := context.Background()
+	const indexedUsers = 25
+	score := float64(time.Now().Add(time.Hour).Unix())
+	indexedTokens := make([]goredis.Z, 0, indexedUsers)
+	for i := range indexedUsers {
+		indexedTokens = append(indexedTokens, goredis.Z{
+			Score:  score,
+			Member: "indexed-token-" + strconv.Itoa(i),
+		})
+	}
+	if err := redisstore.Client.ZAdd(ctx, onlineUserIndexKey, indexedTokens...).Err(); err != nil {
+		t.Fatalf("index online users: %v", err)
+	}
+
+	commandsBefore := store.CommandCount()
 	count, err := (&OnlineUserService{}).GetOnlineUserCount()
 	if err != nil {
 		t.Fatalf("get online user count: %v", err)
 	}
-	if count != 1 {
-		t.Fatalf("online user count = %d, want indexed count 1", count)
+	if count != indexedUsers {
+		t.Fatalf("online user count = %d, want indexed count %d", count, indexedUsers)
+	}
+	if commands := store.CommandCount() - commandsBefore; commands > 3 {
+		t.Fatalf("online user count used %d redis commands, want constant-time index count", commands)
 	}
 }
 
 func TestOnlineUserIndexPrunesExpiredSessions(t *testing.T) {
-	store := setupOnlineUserTestRedis(t)
+	setupOnlineUserTestRedis(t)
 
 	service := &OnlineUserService{}
-	if err := service.SetOnlineUser(OnlineUser{UserID: 7, Username: "alice", TokenID: "token-a"}, time.Second); err != nil {
+	if err := service.SetOnlineUser(OnlineUser{
+		UserID:               7,
+		Username:             "alice",
+		TokenID:              "token-a",
+		AccessTokenExpiresAt: time.Now().Add(-time.Second),
+	}, time.Hour); err != nil {
 		t.Fatalf("set online user: %v", err)
 	}
-
-	store.FastForward(2 * time.Second)
 
 	count, err := service.GetOnlineUserCount()
 	if err != nil {
@@ -197,6 +279,41 @@ func TestOnlineUserIndexPrunesExpiredSessions(t *testing.T) {
 	}
 	if zcard != 0 {
 		t.Fatalf("online user index size = %d, want 0 after pruning", zcard)
+	}
+}
+
+func TestForceLogoutPrunesExpiredUserIndexEntries(t *testing.T) {
+	setupOnlineUserTestRedis(t)
+	setOnlineUserJWTTestConfig(t)
+
+	service := &OnlineUserService{}
+	activeAccessToken, activeTokenID, activeExpiresAt := mustAccessToken(t, 7, "alice")
+	expiredTokenID := "expired-token"
+
+	if err := service.SetOnlineUser(OnlineUser{
+		UserID:               7,
+		Username:             "alice",
+		TokenID:              activeTokenID,
+		AccessTokenExpiresAt: activeExpiresAt,
+	}, time.Hour); err != nil {
+		t.Fatalf("set active online user: %v", err)
+	}
+	if err := redisstore.Client.ZAdd(context.Background(), testOnlineUserUserIndexKey(7), goredis.Z{
+		Score:  float64(time.Now().Add(-time.Minute).Unix()),
+		Member: expiredTokenID,
+	}).Err(); err != nil {
+		t.Fatalf("seed expired user index entry: %v", err)
+	}
+
+	if err := service.ForceLogout(activeTokenID); err != nil {
+		t.Fatalf("force logout: %v", err)
+	}
+
+	if !jwtpkg.IsTokenBlacklisted(activeAccessToken) {
+		t.Fatal("active access token should be blacklisted")
+	}
+	if _, err := redisstore.Client.ZScore(context.Background(), testOnlineUserUserIndexKey(7), expiredTokenID).Result(); !errors.Is(err, goredis.Nil) {
+		t.Fatalf("expired user index token error = %v, want redis nil after force logout", err)
 	}
 }
 
@@ -298,4 +415,8 @@ func setOnlineUserJWTTestConfig(t *testing.T) {
 	t.Cleanup(func() {
 		config.Cfg.JWT = oldConfig
 	})
+}
+
+func testOnlineUserUserIndexKey(userID uint) string {
+	return "online_users:user:" + strconv.FormatUint(uint64(userID), 10)
 }

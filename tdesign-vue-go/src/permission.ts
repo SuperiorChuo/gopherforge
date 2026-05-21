@@ -46,7 +46,7 @@ router.beforeEach(async (to, from, next) => {
       return;
     }
     try {
-      // 如果用户信息为空，先获取用户信息
+      // Fetch user info before resolving protected routes.
       if (!userStore.userInfo.name) {
         await userStore.getUserInfo();
       }
@@ -65,13 +65,13 @@ router.beforeEach(async (to, from, next) => {
         });
 
         if (to.name === PAGE_NOT_FOUND_ROUTE.name) {
-          // 动态添加路由后，此处应当重定向到fullPath，否则会加载404页面内容
+          // Retry the original route after dynamic routes are registered.
           next({ path: to.path, replace: true, query: to.query });
           return;
         } else {
           const redirectQuery = from.query.redirect;
           const redirect = decodeURIComponent(typeof redirectQuery === 'string' ? redirectQuery : to.path);
-          // 修复：只传递必要的属性，避免循环引用
+          // Pass only serializable route fields to avoid circular references.
           if (to.path === redirect) {
             next({ path: to.path, query: to.query, replace: true });
           } else {
@@ -91,8 +91,8 @@ router.beforeEach(async (to, from, next) => {
         next(routeDecision);
       }
     } catch (error: any) {
-      console.error('路由守卫错误:', error);
-      MessagePlugin.error(error?.message || '获取用户信息失败');
+      console.error('Route guard error:', error);
+      MessagePlugin.error(error?.message || 'Failed to fetch user information');
       userStore.logout();
       next({
         path: '/login',
