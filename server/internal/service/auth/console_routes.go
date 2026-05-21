@@ -513,6 +513,36 @@ func ConsoleAuthAuditSummary(action, targetID string) string {
 	}
 }
 
+type ConsoleAuthRequestMetadata struct {
+	IP        string
+	UserAgent string
+	Origin    string
+	Referer   string
+}
+
+func ConsoleAuthAttemptSnapshot(meta ConsoleAuthRequestMetadata, username, result, reason string) map[string]any {
+	snapshot := map[string]any{
+		"username":   strings.TrimSpace(username),
+		"ip":         meta.IP,
+		"user_agent": meta.UserAgent,
+		"origin":     meta.Origin,
+		"referer":    meta.Referer,
+		"result":     result,
+	}
+	if reason != "" {
+		snapshot["reason"] = reason
+	}
+	return snapshot
+}
+
+func ConsoleLoginSuccessSnapshot(meta ConsoleAuthRequestMetadata, record *model.ConsoleSession, ttlSec int) map[string]any {
+	snapshot := ConsoleAuthAttemptSnapshot(meta, record.Username, "SUCCESS", "")
+	snapshot["session_id"] = record.SessionID
+	snapshot["expires_at"] = record.ExpiresAt
+	snapshot["ttl_sec"] = ttlSec
+	return snapshot
+}
+
 func ConsoleRoleCodes(roles []model.Role) []string {
 	values := make([]string, 0, len(roles))
 	for _, role := range roles {

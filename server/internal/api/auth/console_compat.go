@@ -7,9 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/config"
 	"github.com/go-admin-kit/server/internal/middleware"
-	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/consoleauth"
 	"github.com/go-admin-kit/server/internal/pkg/jwt"
 	"github.com/go-admin-kit/server/internal/pkg/response"
@@ -22,12 +20,6 @@ type consoleLoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-type consoleSecurityPolicy struct {
-	SessionTTLMinutes       int
-	LoginMaxAttemptsPerHour int
-	LockoutMinutes          int
-}
-
 func (a *UserAPI) LoginConsole(c *gin.Context) {
 	var req consoleLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -36,7 +28,7 @@ func (a *UserAPI) LoginConsole(c *gin.Context) {
 	}
 
 	req.Username = strings.TrimSpace(req.Username)
-	policy := defaultConsoleSecurityPolicy()
+	policy := authSvc.DefaultConsoleSecurityPolicy()
 	loginLimitCfg := consoleLoginLimitConfig(policy)
 	loginIdentifier := middleware.LoginIdentifier(req.Username, c.ClientIP())
 	if locked, ttl := middleware.IsLoginLockedContext(c.Request.Context(), loginIdentifier, loginLimitCfg); locked {
@@ -48,7 +40,7 @@ func (a *UserAPI) LoginConsole(c *gin.Context) {
 	loginResp, err := a.userService.LoginPasswordWithAccessTTLContext(c.Request.Context(), req.Username, req.Password, time.Duration(policy.SessionTTLMinutes)*time.Minute)
 	if err != nil {
 		middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
-		a.recordConsoleAuthAudit(c, "auth.login.failed", req.Username, nil, consoleAuthAttemptSnapshot(c, req.Username, "FAILED", "invalid_credentials"))
+		a.recordConsoleAuthAudit(c, "auth.login.failed", req.Username, nil, authSvc.ConsoleAuthAttemptSnapshot(consoleAuthRequestMetadata(c), req.Username, "FAILED", "invalid_credentials"))
 		response.Unauthorized(c, "Invalid console username or password")
 		return
 	}
@@ -63,7 +55,7 @@ func (a *UserAPI) LoginConsole(c *gin.Context) {
 	session := authSvc.BuildConsoleSession(&loginResp.User, permissions, loginResp.AccessToken, loginResp.RefreshToken)
 	setConsoleSessionCookie(c, loginResp.AccessToken, session.TTLSec)
 	a.recordOnlineUser(c, loginResp.AccessToken)
-	a.recordConsoleAuthAudit(c, "auth.login.success", loginResp.User.Username, nil, consoleLoginSuccessSnapshot(c, sessionRecord, session.TTLSec))
+	a.recordConsoleAuthAudit(c, "auth.login.success", loginResp.User.Username, nil, authSvc.ConsoleLoginSuccessSnapshot(consoleAuthRequestMetadata(c), sessionRecord, session.TTLSec))
 	response.Success(c, session)
 }
 
@@ -130,32 +122,12 @@ func (a *UserAPI) LogoutConsole(c *gin.Context) {
 			_ = a.onlineUserService.RemoveOnlineUserContext(c.Request.Context(), claims.ID)
 		}
 	}
-	a.recordConsoleAuthAudit(c, "auth.logout", authSvc.ConsoleAuditTarget(username, "unknown"), before, consoleAuthAttemptSnapshot(c, username, "LOGOUT", ""))
+	a.recordConsoleAuthAudit(c, "auth.logout", authSvc.ConsoleAuditTarget(username, "unknown"), before, authSvc.ConsoleAuthAttemptSnapshot(consoleAuthRequestMetadata(c), username, "LOGOUT", ""))
 	clearConsoleSessionCookie(c)
 	response.Success(c, gin.H{"authenticated": false})
 }
 
-func defaultConsoleSecurityPolicy() consoleSecurityPolicy {
-	sessionTTL := config.Cfg.JWT.AccessTokenExpire
-	if sessionTTL <= 0 {
-		sessionTTL = 480
-	}
-	maxAttempts := config.Cfg.Security.LoginLimit.MaxFailures
-	if maxAttempts <= 0 {
-		maxAttempts = 5
-	}
-	lockoutMinutes := config.Cfg.Security.LoginLimit.LockMinutes
-	if lockoutMinutes <= 0 {
-		lockoutMinutes = 15
-	}
-	return consoleSecurityPolicy{
-		SessionTTLMinutes:       sessionTTL,
-		LoginMaxAttemptsPerHour: maxAttempts,
-		LockoutMinutes:          lockoutMinutes,
-	}
-}
-
-func consoleLoginLimitConfig(policy consoleSecurityPolicy) middleware.LoginLimitConfig {
+func consoleLoginLimitConfig(policy authSvc.ConsoleSecurityPolicy) middleware.LoginLimitConfig {
 	return middleware.LoginLimitConfig{
 		Window:       time.Hour,
 		MaxFailures:  policy.LoginMaxAttemptsPerHour,
@@ -175,39 +147,24 @@ func (a *UserAPI) recordConsoleAuthAudit(c *gin.Context, action, targetID string
 	})
 }
 
-func consoleAuthAttemptSnapshot(c *gin.Context, username, result, reason string) map[string]any {
-	snapshot := map[string]any{
-		"username":   strings.TrimSpace(username),
-		"ip":         c.ClientIP(),
-		"user_agent": c.GetHeader("User-Agent"),
-		"origin":     c.GetHeader("Origin"),
-		"referer":    c.GetHeader("Referer"),
-		"result":     result,
+func consoleAuthRequestMetadata(c *gin.Context) authSvc.ConsoleAuthRequestMetadata {
+	if c == nil {
+		return authSvc.ConsoleAuthRequestMetadata{}
 	}
-	if reason != "" {
-		snapshot["reason"] = reason
+	return authSvc.ConsoleAuthRequestMetadata{
+		IP:        c.ClientIP(),
+		UserAgent: c.GetHeader("User-Agent"),
+		Origin:    c.GetHeader("Origin"),
+		Referer:   c.GetHeader("Referer"),
 	}
-	return snapshot
-}
-
-func consoleLoginSuccessSnapshot(c *gin.Context, record *model.ConsoleSession, ttlSec int) map[string]any {
-	snapshot := consoleAuthAttemptSnapshot(c, record.Username, "SUCCESS", "")
-	snapshot["session_id"] = record.SessionID
-	snapshot["expires_at"] = record.ExpiresAt
-	snapshot["ttl_sec"] = ttlSec
-	return snapshot
 }
 
 func setConsoleSessionCookie(c *gin.Context, token string, ttlSec int) {
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(consoleauth.SessionCookieName, token, ttlSec, "/", "", secureConsoleCookie(), true)
+	c.SetCookie(consoleauth.SessionCookieName, token, ttlSec, "/", "", authSvc.SecureConsoleCookie(), true)
 }
 
 func clearConsoleSessionCookie(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(consoleauth.SessionCookieName, "", -1, "/", "", secureConsoleCookie(), true)
-}
-
-func secureConsoleCookie() bool {
-	return strings.EqualFold(config.Cfg.App.Env, "production") || config.Cfg.Security.Headers.HSTS
+	c.SetCookie(consoleauth.SessionCookieName, "", -1, "/", "", authSvc.SecureConsoleCookie(), true)
 }
