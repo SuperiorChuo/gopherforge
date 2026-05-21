@@ -5,20 +5,34 @@ import (
 
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/database"
+	"gorm.io/gorm"
 )
 
-type UserDAO struct{}
+type UserDAO struct {
+	db *gorm.DB
+}
+
+func NewUserDAO(db *gorm.DB) *UserDAO {
+	return &UserDAO{db: db}
+}
+
+func (d *UserDAO) dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if d != nil && d.db != nil {
+		return d.db.WithContext(ctx)
+	}
+	return database.DB.WithContext(ctx)
+}
 
 func (d *UserDAO) GetUserByUsername(username string) (*model.User, error) {
 	return d.GetUserByUsernameContext(context.Background(), username)
 }
 
 func (d *UserDAO) GetUserByUsernameContext(ctx context.Context, username string) (*model.User, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var user model.User
-	result := database.DB.WithContext(ctx).Where("username = ?", username).First(&user)
+	result := d.dbWithContext(ctx).Where("username = ?", username).First(&user)
 	return &user, result.Error
 }
 
@@ -27,11 +41,8 @@ func (d *UserDAO) GetUserByID(id uint) (*model.User, error) {
 }
 
 func (d *UserDAO) GetUserByIDContext(ctx context.Context, id uint) (*model.User, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var user model.User
-	result := database.DB.WithContext(ctx).First(&user, id)
+	result := d.dbWithContext(ctx).First(&user, id)
 	return &user, result.Error
 }
 
@@ -40,11 +51,8 @@ func (d *UserDAO) GetUserWithRoles(id uint) (*model.User, error) {
 }
 
 func (d *UserDAO) GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var user model.User
-	result := database.DB.WithContext(ctx).Preload("Roles").First(&user, id)
+	result := d.dbWithContext(ctx).Preload("Roles").First(&user, id)
 	return &user, result.Error
 }
 
@@ -53,11 +61,8 @@ func (d *UserDAO) GetUserByEmail(email string) (*model.User, error) {
 }
 
 func (d *UserDAO) GetUserByEmailContext(ctx context.Context, email string) (*model.User, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var user model.User
-	result := database.DB.WithContext(ctx).Where("email = ?", email).First(&user)
+	result := d.dbWithContext(ctx).Where("email = ?", email).First(&user)
 	return &user, result.Error
 }
 
@@ -66,10 +71,7 @@ func (d *UserDAO) CreateUser(user *model.User) error {
 }
 
 func (d *UserDAO) CreateUserContext(ctx context.Context, user *model.User) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Create(user).Error
+	return d.dbWithContext(ctx).Create(user).Error
 }
 
 func (d *UserDAO) UpdateUser(user *model.User) error {
@@ -77,8 +79,5 @@ func (d *UserDAO) UpdateUser(user *model.User) error {
 }
 
 func (d *UserDAO) UpdateUserContext(ctx context.Context, user *model.User) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Save(user).Error
+	return d.dbWithContext(ctx).Save(user).Error
 }

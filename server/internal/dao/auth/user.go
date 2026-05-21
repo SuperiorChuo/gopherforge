@@ -6,11 +6,31 @@ import (
 	sharedDAO "github.com/go-admin-kit/server/internal/dao"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/database"
+	"gorm.io/gorm"
 )
 
 // UserDAO keeps auth-specific user queries while reusing shared user persistence methods.
 type UserDAO struct {
 	sharedDAO.UserDAO
+	db *gorm.DB
+}
+
+func NewUserDAO(db *gorm.DB) *UserDAO {
+	shared := sharedDAO.NewUserDAO(db)
+	return &UserDAO{
+		UserDAO: *shared,
+		db:      db,
+	}
+}
+
+func (d *UserDAO) dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if d != nil && d.db != nil {
+		return d.db.WithContext(ctx)
+	}
+	return database.DB.WithContext(ctx)
 }
 
 func (d *UserDAO) UpdateUserProfile(id uint, updates map[string]any) error {
@@ -18,10 +38,7 @@ func (d *UserDAO) UpdateUserProfile(id uint, updates map[string]any) error {
 }
 
 func (d *UserDAO) UpdateUserProfileContext(ctx context.Context, id uint, updates map[string]any) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Updates(updates).Error
+	return d.dbWithContext(ctx).Model(&model.User{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (d *UserDAO) GetUserByPhone(phone string) (*model.User, error) {
@@ -29,11 +46,8 @@ func (d *UserDAO) GetUserByPhone(phone string) (*model.User, error) {
 }
 
 func (d *UserDAO) GetUserByPhoneContext(ctx context.Context, phone string) (*model.User, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var user model.User
-	result := database.DB.WithContext(ctx).Where("phone = ?", phone).First(&user)
+	result := d.dbWithContext(ctx).Where("phone = ?", phone).First(&user)
 	return &user, result.Error
 }
 
@@ -42,11 +56,8 @@ func (d *UserDAO) GetUserWithRolesAndPermissions(id uint) (*model.User, error) {
 }
 
 func (d *UserDAO) GetUserWithRolesAndPermissionsContext(ctx context.Context, id uint) (*model.User, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var user model.User
-	result := database.DB.WithContext(ctx).
+	result := d.dbWithContext(ctx).
 		Preload("Roles.Permissions").
 		First(&user, id)
 	return &user, result.Error
