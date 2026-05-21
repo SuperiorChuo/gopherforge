@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/go-admin-kit/server/internal/config"
@@ -25,11 +26,42 @@ const (
 	RefreshTokenType = "refresh"
 )
 
+// TokenBlacklistStore stores revoked JWT token IDs.
+type TokenBlacklistStore interface {
+	SetTokenID(ctx context.Context, tokenID string, expireTime time.Duration) error
+	HasTokenID(ctx context.Context, tokenID string) (bool, error)
+}
+
+var (
+	tokenBlacklistStoreMu sync.RWMutex
+	tokenBlacklistStore   TokenBlacklistStore = redisTokenBlacklistStore{}
+)
+
+type redisTokenBlacklistStore struct{}
+
 type Claims struct {
 	UserID    uint   `json:"user_id"`
 	Username  string `json:"username"`
 	TokenType string `json:"token_type"`
 	jwtlib.RegisteredClaims
+}
+
+// SetTokenBlacklistStore replaces the package-level blacklist store and returns a restore function.
+func SetTokenBlacklistStore(store TokenBlacklistStore) func() {
+	tokenBlacklistStoreMu.Lock()
+	previous := tokenBlacklistStore
+	if store == nil {
+		tokenBlacklistStore = redisTokenBlacklistStore{}
+	} else {
+		tokenBlacklistStore = store
+	}
+	tokenBlacklistStoreMu.Unlock()
+
+	return func() {
+		tokenBlacklistStoreMu.Lock()
+		tokenBlacklistStore = previous
+		tokenBlacklistStoreMu.Unlock()
+	}
 }
 
 func GenerateToken(userID uint, username string) (accessToken, refreshToken string, err error) {
@@ -201,7 +233,7 @@ func BlacklistTokenID(tokenID string, expireTime time.Duration) error {
 		return nil
 	}
 	ctx := context.Background()
-	return redis.Client.Set(ctx, blacklistKey(tokenID), "1", expireTime).Err()
+	return currentTokenBlacklistStore().SetTokenID(ctx, tokenID, expireTime)
 }
 
 func RevokeToken(tokenString string, claims *Claims) error {
@@ -232,14 +264,39 @@ func IsTokenBlacklisted(tokenString string) bool {
 }
 
 func IsTokenIDBlacklisted(tokenID string) bool {
-	if tokenID == "" || redis.Client == nil {
+	if tokenID == "" {
 		return false
 	}
 	ctx := context.Background()
-	result, err := redis.Client.Get(ctx, blacklistKey(tokenID)).Result()
-	return err == nil && result == "1"
+	ok, err := currentTokenBlacklistStore().HasTokenID(ctx, tokenID)
+	return err == nil && ok
 }
 
 func blacklistKey(tokenID string) string {
 	return fmt.Sprintf("jwt:blacklist:%s", tokenID)
+}
+
+func currentTokenBlacklistStore() TokenBlacklistStore {
+	tokenBlacklistStoreMu.RLock()
+	store := tokenBlacklistStore
+	tokenBlacklistStoreMu.RUnlock()
+	if store == nil {
+		return redisTokenBlacklistStore{}
+	}
+	return store
+}
+
+func (redisTokenBlacklistStore) SetTokenID(ctx context.Context, tokenID string, expireTime time.Duration) error {
+	if redis.Client == nil {
+		return errors.New("redis client is not configured")
+	}
+	return redis.Client.Set(ctx, blacklistKey(tokenID), "1", expireTime).Err()
+}
+
+func (redisTokenBlacklistStore) HasTokenID(ctx context.Context, tokenID string) (bool, error) {
+	if redis.Client == nil {
+		return false, nil
+	}
+	result, err := redis.Client.Get(ctx, blacklistKey(tokenID)).Result()
+	return err == nil && result == "1", nil
 }
