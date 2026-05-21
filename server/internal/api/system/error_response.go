@@ -82,3 +82,24 @@ func writeSystemMenuServiceError(c *gin.Context, operation string, err error) {
 		internalServerError(c, operation, err)
 	}
 }
+
+func writeSystemDepartmentServiceError(c *gin.Context, operation string, err error) {
+	switch {
+	case errors.Is(err, systemsvc.ErrDepartmentCodeAlreadyExists):
+		response.BadRequest(c, systemsvc.ErrDepartmentCodeAlreadyExists.Error())
+	case errors.Is(err, systemsvc.ErrParentDepartmentNotFound):
+		response.BadRequest(c, systemsvc.ErrParentDepartmentNotFound.Error())
+	case errors.Is(err, systemsvc.ErrDepartmentSelfParent):
+		response.BadRequest(c, systemsvc.ErrDepartmentSelfParent.Error())
+	case errors.Is(err, systemsvc.ErrDepartmentHasChildren):
+		response.BadRequest(c, systemsvc.ErrDepartmentHasChildren.Error())
+	case errors.Is(err, systemsvc.ErrDepartmentHasUsers):
+		response.BadRequest(c, systemsvc.ErrDepartmentHasUsers.Error())
+	case errors.Is(err, systemsvc.ErrDepartmentNotFound):
+		response.NotFound(c, systemsvc.ErrDepartmentNotFound.Error())
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		internalServerError(c, operation, err)
+	default:
+		internalServerError(c, operation, err)
+	}
+}

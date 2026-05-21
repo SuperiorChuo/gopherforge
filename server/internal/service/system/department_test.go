@@ -11,6 +11,7 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
 )
 
 const departmentTreeCacheTestKey = "authz:department_tree"
@@ -19,7 +20,7 @@ func TestDepartmentServiceCreateInvalidatesDepartmentTreeCache(t *testing.T) {
 	setupDepartmentServiceTestRedis(t)
 	seedDepartmentTreeCache(t)
 
-	dao := &fakeDepartmentDAO{getByCodeErr: errors.New("not found")}
+	dao := &fakeDepartmentDAO{getByCodeErr: gorm.ErrRecordNotFound}
 	service := DepartmentService{deptDAO: dao}
 
 	_, err := service.Create(CreateDepartmentRequest{
@@ -45,6 +46,19 @@ func TestDepartmentServiceCreateContextHonorsCanceledContext(t *testing.T) {
 	})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("CreateContext() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestDepartmentServiceCreateContextReturnsCodeLookupError(t *testing.T) {
+	lookupErr := errors.New("database lookup failed")
+	service := DepartmentService{deptDAO: &fakeDepartmentDAO{getByCodeErr: lookupErr}}
+
+	_, err := service.CreateContext(context.Background(), CreateDepartmentRequest{
+		Name: "Engineering",
+		Code: "eng",
+	})
+	if !errors.Is(err, lookupErr) {
+		t.Fatalf("CreateContext() error = %v, want code lookup error", err)
 	}
 }
 

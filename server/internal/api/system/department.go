@@ -95,7 +95,7 @@ func (a *DepartmentAPI) GetDepartment(c *gin.Context) {
 
 	dept, err := a.deptService.GetByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
-		response.NotFound(c, "department not found")
+		writeSystemDepartmentServiceError(c, "failed to get department", err)
 		return
 	}
 
@@ -112,7 +112,7 @@ func (a *DepartmentAPI) CreateDepartment(c *gin.Context) {
 
 	dept, err := a.deptService.CreateContext(c.Request.Context(), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemDepartmentServiceError(c, "failed to create department", err)
 		return
 	}
 
@@ -136,7 +136,7 @@ func (a *DepartmentAPI) UpdateDepartment(c *gin.Context) {
 
 	dept, err := a.deptService.UpdateContext(c.Request.Context(), uint(id), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemDepartmentServiceError(c, "failed to update department", err)
 		return
 	}
 
@@ -153,7 +153,7 @@ func (a *DepartmentAPI) DeleteDepartment(c *gin.Context) {
 	}
 
 	if err := a.deptService.DeleteContext(c.Request.Context(), uint(id)); err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemDepartmentServiceError(c, "failed to delete department", err)
 		return
 	}
 

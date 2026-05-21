@@ -8,6 +8,7 @@ import (
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
+	"gorm.io/gorm"
 )
 
 type departmentDAO interface {
@@ -60,12 +61,28 @@ type UpdateDepartmentRequest struct {
 	Status   *int8  `json:"status"`
 }
 
+var (
+	ErrDepartmentCodeAlreadyExists = errors.New("department code already exists")
+	ErrDepartmentNotFound          = errors.New("department does not exist")
+	ErrParentDepartmentNotFound    = errors.New("parent department does not exist")
+	ErrDepartmentSelfParent        = errors.New("department cannot be its own parent")
+	ErrDepartmentHasChildren       = systemdao.ErrDepartmentHasChildren
+	ErrDepartmentHasUsers          = systemdao.ErrDepartmentHasUsers
+)
+
 func (s *DepartmentService) GetByID(id uint) (*model.Department, error) {
 	return s.GetByIDContext(context.Background(), id)
 }
 
 func (s *DepartmentService) GetByIDContext(ctx context.Context, id uint) (*model.Department, error) {
-	return s.dao().GetByIDContext(ctx, id)
+	dept, err := s.dao().GetByIDContext(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrDepartmentNotFound
+		}
+		return nil, err
+	}
+	return dept, nil
 }
 
 func (s *DepartmentService) GetList(req DepartmentListRequest) ([]model.Department, int64, error) {
@@ -99,17 +116,17 @@ func (s *DepartmentService) Create(req CreateDepartmentRequest) (*model.Departme
 func (s *DepartmentService) CreateContext(ctx context.Context, req CreateDepartmentRequest) (*model.Department, error) {
 	dao := s.dao()
 	if _, err := dao.GetByCodeContext(ctx, req.Code); err == nil {
-		return nil, errors.New("department code already exists")
-	} else if isContextError(err) {
+		return nil, ErrDepartmentCodeAlreadyExists
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 
 	if req.ParentID > 0 {
 		if _, err := dao.GetByIDContext(ctx, req.ParentID); err != nil {
-			if isContextError(err) {
-				return nil, err
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrParentDepartmentNotFound
 			}
-			return nil, errors.New("parent department does not exist")
+			return nil, err
 		}
 	}
 
@@ -142,22 +159,22 @@ func (s *DepartmentService) UpdateContext(ctx context.Context, id uint, req Upda
 	dao := s.dao()
 	dept, err := dao.GetByIDContext(ctx, id)
 	if err != nil {
-		if isContextError(err) {
-			return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrDepartmentNotFound
 		}
-		return nil, errors.New("department does not exist")
+		return nil, err
 	}
 
 	if req.ParentID != nil {
 		if *req.ParentID == id {
-			return nil, errors.New("department cannot be its own parent")
+			return nil, ErrDepartmentSelfParent
 		}
 		if *req.ParentID > 0 {
 			if _, err := dao.GetByIDContext(ctx, *req.ParentID); err != nil {
-				if isContextError(err) {
-					return nil, err
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, ErrParentDepartmentNotFound
 				}
-				return nil, errors.New("parent department does not exist")
+				return nil, err
 			}
 		}
 		dept.ParentID = *req.ParentID
