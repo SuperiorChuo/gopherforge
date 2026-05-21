@@ -50,6 +50,44 @@ func TestUserDAOGetUserWithRolesContextHonorsCanceledContext(t *testing.T) {
 	}
 }
 
+func TestUserDAOUsesInjectedDB(t *testing.T) {
+	oldDB := database.DB
+	database.DB = nil
+	t.Cleanup(func() {
+		database.DB = oldDB
+	})
+
+	sqlDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("open injected sqlmock db: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatalf("unmet injected database expectations: %v", err)
+		}
+		_ = sqlDB.Close()
+	})
+	db, err := gorm.Open(mysql.New(mysql.Config{
+		Conn:                      sqlDB,
+		SkipInitializeWithVersion: true,
+	}), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open injected gorm db: %v", err)
+	}
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? ORDER BY `users`.`id` LIMIT ?")).
+		WithArgs("alice", 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "username"}).AddRow(42, "alice"))
+
+	user, err := NewUserDAO(db).GetUserByUsername("alice")
+	if err != nil {
+		t.Fatalf("GetUserByUsername() error = %v", err)
+	}
+	if user.ID != 42 || user.Username != "alice" {
+		t.Fatalf("user = %#v, want id=42 username=alice", user)
+	}
+}
+
 func setupDAOTestDB(t *testing.T) sqlmock.Sqlmock {
 	t.Helper()
 

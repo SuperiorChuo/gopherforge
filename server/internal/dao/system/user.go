@@ -15,6 +15,25 @@ import (
 // UserDAO keeps system-management user queries while reusing shared user persistence methods.
 type UserDAO struct {
 	sharedDAO.UserDAO
+	db *gorm.DB
+}
+
+func NewUserDAO(db *gorm.DB) *UserDAO {
+	shared := sharedDAO.NewUserDAO(db)
+	return &UserDAO{
+		UserDAO: *shared,
+		db:      db,
+	}
+}
+
+func (d *UserDAO) dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if d != nil && d.db != nil {
+		return d.db.WithContext(ctx)
+	}
+	return database.DB.WithContext(ctx)
 }
 
 func (d *UserDAO) GetUserList(req pagination.PageRequest, keyword string, status *int8, dataScope authz.UserDataScope) ([]model.User, int64, error) {
@@ -22,14 +41,10 @@ func (d *UserDAO) GetUserList(req pagination.PageRequest, keyword string, status
 }
 
 func (d *UserDAO) GetUserListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8, dataScope authz.UserDataScope) ([]model.User, int64, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	var users []model.User
 	var total int64
 
-	query := database.DB.WithContext(ctx).Model(&model.User{})
+	query := d.dbWithContext(ctx).Model(&model.User{})
 	query = authz.ApplyUserEntityScope(query, dataScope, "id", "department_id")
 
 	if keyword != "" {
@@ -58,10 +73,7 @@ func (d *UserDAO) DeleteUser(id uint) error {
 }
 
 func (d *UserDAO) DeleteUserContext(ctx context.Context, id uint) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("user_id = ?", id).Delete(&model.UserRole{}).Error; err != nil {
 			return err
 		}
@@ -77,10 +89,7 @@ func (d *UserDAO) UpdateUserStatus(id uint, status int8) error {
 }
 
 func (d *UserDAO) UpdateUserStatusContext(ctx context.Context, id uint, status int8) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("status", status).Error
+	return d.dbWithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("status", status).Error
 }
 
 func (d *UserDAO) AssignRoles(userID uint, roleIDs []uint) error {
@@ -88,10 +97,7 @@ func (d *UserDAO) AssignRoles(userID uint, roleIDs []uint) error {
 }
 
 func (d *UserDAO) AssignRolesContext(ctx context.Context, userID uint, roleIDs []uint) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("user_id = ?", userID).Delete(&model.UserRole{}).Error; err != nil {
 			return err
 		}
