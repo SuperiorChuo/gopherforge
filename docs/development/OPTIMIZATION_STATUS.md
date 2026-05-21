@@ -45,6 +45,7 @@
 
 - GitHub Actions 已运行 Go coverage、`go vet`、`golangci-lint`、前端测试、构建和 integration smoke。
 - CI 已使用 Node 24 兼容路径，不再依赖 Node 20 action runtime。
+- `typedApi` 已补充运行时单测，覆盖 path 编码、缺参报错、`/api/v1` 前缀裁剪以及 query/body/options 透传。
 - Dockerfile 已固定 Alpine 版本并使用非 root 用户运行。
 - Docker 后端容器已统一走 goose migration。
 - Makefile `status`/`logs` 已改为 Windows 友好的 Node 脚本。
