@@ -75,7 +75,7 @@ func (l *RateLimiter) Middleware(config RateLimitConfig) gin.HandlerFunc {
 			}
 		}
 		if count > int64(config.MaxRequests) {
-			response.Error(c, 429, "too many requests")
+			response.ErrorWithCode(c, 429, response.ErrorCodeRateLimited, "too many requests")
 			c.Abort()
 			return
 		}
