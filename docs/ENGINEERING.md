@@ -38,9 +38,15 @@
 ```powershell
 cd server
 go test ./...
+go vet ./...
+go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --config ../.golangci.yml ./...
 
 cd ..\tdesign-vue-go
+npm run test
 npm run build:type
+npm run lint
+npm run stylelint
+npm run build
 ```
 
 在修改路由、权限、菜单或数据库结构后，需要同步检查：
@@ -51,3 +57,5 @@ npm run build:type
 - `server/docs/go_admin_kit.sql`
 - `tdesign-vue-go/src/router/`
 - `tdesign-vue-go/src/api/`
+
+最近一轮稳定性、安全性和分层优化的完成情况见 `docs/development/OPTIMIZATION_STATUS.md`。

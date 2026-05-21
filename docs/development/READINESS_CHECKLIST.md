@@ -19,6 +19,7 @@
 
 - [ ] `go test ./...` 通过。
 - [ ] `go vet ./...` 通过或已确认剩余提示。
+- [ ] `go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --config ../.golangci.yml ./...` 通过。
 - [ ] 健康检查 `/api/v1/health/ready` 可访问。
 - [ ] 关键接口已验证鉴权和权限码。
 - [ ] 日志、审计和请求 ID 能正常记录。
