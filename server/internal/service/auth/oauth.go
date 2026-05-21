@@ -15,7 +15,20 @@ import (
 	"gorm.io/gorm"
 )
 
-type OAuthService struct{}
+type oauthBindingStore interface {
+	GetByProviderUserContext(ctx context.Context, provider, providerUserID string) (*model.OAuthBinding, error)
+	CreateContext(ctx context.Context, binding *model.OAuthBinding) error
+}
+
+type oauthUserStore interface {
+	GetUserByIDContext(ctx context.Context, id uint) (*model.User, error)
+	CreateUserContext(ctx context.Context, user *model.User) error
+}
+
+type OAuthService struct {
+	bindingDAO oauthBindingStore
+	userDAO    oauthUserStore
+}
 
 type OAuthResponse struct {
 	User         model.User `json:"user"`
@@ -130,10 +143,10 @@ func (s *OAuthService) WechatCallbackContext(ctx context.Context, code, state st
 }
 
 func (s *OAuthService) findOrCreateUserContext(ctx context.Context, provider, providerUserID, username, email, avatar string) (*model.User, error) {
-	bindingDAO := authDAO.OAuthBindingDAO{}
+	bindingDAO := s.bindingStore()
 	binding, err := bindingDAO.GetByProviderUserContext(ctx, provider, providerUserID)
 	if err == nil {
-		userDAO := authDAO.UserDAO{}
+		userDAO := s.userStore()
 		user, err := userDAO.GetUserByIDContext(ctx, binding.UserID)
 		if err != nil {
 			return nil, err
@@ -152,7 +165,7 @@ func (s *OAuthService) findOrCreateUserContext(ctx context.Context, provider, pr
 		Status:   1,
 	}
 
-	userDAO := authDAO.UserDAO{}
+	userDAO := s.userStore()
 	if err := userDAO.CreateUserContext(ctx, &user); err != nil {
 		return nil, err
 	}
@@ -167,6 +180,20 @@ func (s *OAuthService) findOrCreateUserContext(ctx context.Context, provider, pr
 	}
 
 	return &user, nil
+}
+
+func (s *OAuthService) bindingStore() oauthBindingStore {
+	if s != nil && s.bindingDAO != nil {
+		return s.bindingDAO
+	}
+	return authDAO.OAuthBindingDAO{}
+}
+
+func (s *OAuthService) userStore() oauthUserStore {
+	if s != nil && s.userDAO != nil {
+		return s.userDAO
+	}
+	return authDAO.NewUserDAO(nil)
 }
 
 func generateRandomPassword() string {
