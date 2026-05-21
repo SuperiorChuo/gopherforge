@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/pkg/database"
 	internalredis "github.com/go-admin-kit/server/internal/pkg/redis"
@@ -66,6 +67,31 @@ func TestCheckDependenciesDoesNotExposeRedisPingError(t *testing.T) {
 	}
 	if _, ok := redisCheck["ping_latency_ms"]; !ok {
 		t.Fatal("redis ping latency is missing")
+	}
+}
+
+func TestHealthAPIWithRedisClientUsesInjectedClient(t *testing.T) {
+	setupHealthTestDBNil(t)
+	setupHealthTestRedisNil(t)
+
+	store, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("start injected miniredis: %v", err)
+	}
+	client := goredis.NewClient(&goredis.Options{Addr: store.Addr()})
+	t.Cleanup(func() {
+		_ = client.Close()
+		store.Close()
+	})
+
+	health := NewHealthAPIWithRedisClient(client).checkDependencies()
+
+	redisCheck := healthService(t, health, "redis")
+	if redisCheck["status"] != "ok" {
+		t.Fatalf("redis status = %v, want ok", redisCheck["status"])
+	}
+	if _, ok := redisCheck["error"]; ok {
+		t.Fatalf("redis error should be absent when injected client is healthy: %v", redisCheck["error"])
 	}
 }
 
