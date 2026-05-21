@@ -95,6 +95,44 @@ func TestHealthAPIWithRedisClientUsesInjectedClient(t *testing.T) {
 	}
 }
 
+func TestHealthAPIWithDatabaseClientUsesInjectedDatabase(t *testing.T) {
+	setupHealthTestDBNil(t)
+	setupHealthTestRedisNil(t)
+
+	sqlDB, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+	if err != nil {
+		t.Fatalf("open sqlmock db: %v", err)
+	}
+	mock.ExpectPing()
+
+	db, err := gorm.Open(mysql.New(mysql.Config{
+		Conn:                      sqlDB,
+		SkipInitializeWithVersion: true,
+	}), &gorm.Config{DisableAutomaticPing: true})
+	if err != nil {
+		t.Fatalf("open gorm sqlmock db: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatalf("unmet database expectations: %v", err)
+		}
+		_ = sqlDB.Close()
+	})
+
+	health := NewHealthAPIWithDatabaseClient(db).checkDependencies()
+
+	databaseCheck := healthService(t, health, "database")
+	if databaseCheck["status"] != "ok" {
+		t.Fatalf("database status = %v, want ok", databaseCheck["status"])
+	}
+	if _, ok := databaseCheck["error"]; ok {
+		t.Fatalf("database error should be absent when injected database is healthy: %v", databaseCheck["error"])
+	}
+	if _, ok := databaseCheck["pool"]; !ok {
+		t.Fatal("database pool stats are missing")
+	}
+}
+
 func setupHealthTestDBPingError(t *testing.T, pingErr error) {
 	t.Helper()
 

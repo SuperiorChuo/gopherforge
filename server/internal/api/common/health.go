@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"reflect"
 	"runtime"
@@ -20,9 +21,15 @@ type RedisPingClient interface {
 	Ping(ctx context.Context) *goredis.StatusCmd
 }
 
+// DatabaseClient is the database command subset used by HealthAPI.
+type DatabaseClient interface {
+	DB() (*sql.DB, error)
+}
+
 // HealthAPI handles health check endpoints.
 type HealthAPI struct {
-	redisClient RedisPingClient
+	databaseClient DatabaseClient
+	redisClient    RedisPingClient
 }
 
 const dependencyUnavailableMessage = "unavailable"
@@ -35,6 +42,11 @@ func NewHealthAPI() *HealthAPI {
 // NewHealthAPIWithRedisClient creates a HealthAPI with an injected Redis client.
 func NewHealthAPIWithRedisClient(client RedisPingClient) *HealthAPI {
 	return &HealthAPI{redisClient: client}
+}
+
+// NewHealthAPIWithDatabaseClient creates a HealthAPI with an injected database client.
+func NewHealthAPIWithDatabaseClient(client DatabaseClient) *HealthAPI {
+	return &HealthAPI{databaseClient: client}
 }
 
 // Health returns a lightweight health snapshot.
@@ -98,12 +110,13 @@ func (a *HealthAPI) checkDependencies() gin.H {
 		"status": "ok",
 	}
 	dbStart := time.Now()
-	if database.DB == nil {
+	databaseClient := a.databaseStatusClient()
+	if databaseClient == nil {
 		dbCheck["status"] = "error"
 		dbCheck["error"] = "database not initialized"
 		health["status"] = "degraded"
 		services["database"] = dbCheck
-	} else if sqlDB, err := database.DB.DB(); err == nil {
+	} else if sqlDB, err := databaseClient.DB(); err == nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := sqlDB.PingContext(ctx); err != nil {
@@ -155,8 +168,18 @@ func (a *HealthAPI) checkDependencies() gin.H {
 	return health
 }
 
+func (a *HealthAPI) databaseStatusClient() DatabaseClient {
+	if a != nil && !isNilClient(a.databaseClient) {
+		return a.databaseClient
+	}
+	if database.DB == nil {
+		return nil
+	}
+	return database.DB
+}
+
 func (a *HealthAPI) redisPingClient() RedisPingClient {
-	if a != nil && !isNilRedisPingClient(a.redisClient) {
+	if a != nil && !isNilClient(a.redisClient) {
 		return a.redisClient
 	}
 	if redisstore.Client == nil {
@@ -165,7 +188,7 @@ func (a *HealthAPI) redisPingClient() RedisPingClient {
 	return redisstore.Client
 }
 
-func isNilRedisPingClient(client RedisPingClient) bool {
+func isNilClient(client any) bool {
 	if client == nil {
 		return true
 	}
