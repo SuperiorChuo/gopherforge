@@ -37,6 +37,24 @@ type departmentTreeCacheRow struct {
 	ParentID uint `json:"parent_id"`
 }
 
+// DataScopeStore loads data permission dependencies.
+type DataScopeStore interface {
+	ListDepartments(ctx context.Context) ([]model.Department, error)
+	ListRoleDataScopeDepartmentIDs(ctx context.Context, roleIDs []uint) ([]uint, error)
+}
+
+// DataScopeResolver resolves user data permissions with injectable persistence.
+type DataScopeResolver struct {
+	store DataScopeStore
+}
+
+// NewDataScopeResolver creates a resolver. A nil store uses the default database-backed store.
+func NewDataScopeResolver(store DataScopeStore) *DataScopeResolver {
+	return &DataScopeResolver{store: store}
+}
+
+type databaseDataScopeStore struct{}
+
 // UserDataScope is a reusable data permission result for business queries.
 type UserDataScope struct {
 	Scope         DataScope
@@ -68,6 +86,10 @@ func ResolveUserDataScope(user *model.User) UserDataScope {
 }
 
 func ResolveUserDataScopeContext(ctx context.Context, user *model.User) (UserDataScope, error) {
+	return NewDataScopeResolver(nil).ResolveUserDataScopeContext(ctx, user)
+}
+
+func (r *DataScopeResolver) ResolveUserDataScopeContext(ctx context.Context, user *model.User) (UserDataScope, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -103,7 +125,7 @@ func ResolveUserDataScopeContext(ctx context.Context, user *model.User) (UserDat
 			return scope, nil
 		case DataScopeDepartmentTree:
 			scope.Scope = maxDataScope(scope.Scope, roleScope)
-			ids, err := resolveDepartmentTreeIDsContext(ctx, user.DepartmentID)
+			ids, err := r.resolveDepartmentTreeIDsContext(ctx, user.DepartmentID)
 			if err != nil {
 				return scope, err
 			}
@@ -127,7 +149,7 @@ func ResolveUserDataScopeContext(ctx context.Context, user *model.User) (UserDat
 	}
 
 	if len(customRoleIDs) > 0 {
-		ids, err := loadRoleDataScopeDepartmentIDsContext(ctx, customRoleIDs)
+		ids, err := r.loadRoleDataScopeDepartmentIDsContext(ctx, customRoleIDs)
 		if err != nil {
 			return scope, err
 		}
@@ -247,12 +269,16 @@ func resolveDepartmentTreeIDs(departmentID uint) []uint {
 }
 
 func resolveDepartmentTreeIDsContext(ctx context.Context, departmentID uint) ([]uint, error) {
+	return NewDataScopeResolver(nil).resolveDepartmentTreeIDsContext(ctx, departmentID)
+}
+
+func (r *DataScopeResolver) resolveDepartmentTreeIDsContext(ctx context.Context, departmentID uint) ([]uint, error) {
 	ids := departmentIDs(departmentID)
 	if departmentID == 0 {
 		return ids, nil
 	}
 
-	depts, err := loadDepartmentTreeContext(ctx)
+	depts, err := r.loadDepartmentTreeContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +287,7 @@ func resolveDepartmentTreeIDsContext(ctx context.Context, departmentID uint) ([]
 	return ids, nil
 }
 
-func loadDepartmentTreeContext(ctx context.Context) ([]model.Department, error) {
+func (r *DataScopeResolver) loadDepartmentTreeContext(ctx context.Context) ([]model.Department, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -269,8 +295,8 @@ func loadDepartmentTreeContext(ctx context.Context) ([]model.Department, error) 
 		return depts, nil
 	}
 
-	var depts []model.Department
-	if err := database.DB.WithContext(ctx).Model(&model.Department{}).Select("id", "parent_id").Find(&depts).Error; err != nil {
+	depts, err := r.dataScopeStore().ListDepartments(ctx)
+	if err != nil {
 		return nil, err
 	}
 
@@ -399,13 +425,44 @@ func roleDataScopeDepartmentIDs(role model.Role) []uint {
 	return uniqueUintIDs(ids)
 }
 
-func loadRoleDataScopeDepartmentIDsContext(ctx context.Context, roleIDs []uint) ([]uint, error) {
+func (r *DataScopeResolver) loadRoleDataScopeDepartmentIDsContext(ctx context.Context, roleIDs []uint) ([]uint, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	roleIDs = uniqueUintIDs(roleIDs)
 	if len(roleIDs) == 0 {
 		return nil, nil
+	}
+
+	ids, err := r.dataScopeStore().ListRoleDataScopeDepartmentIDs(ctx, roleIDs)
+	if err != nil {
+		return nil, err
+	}
+	return uniqueUintIDs(ids), nil
+}
+
+func (r *DataScopeResolver) dataScopeStore() DataScopeStore {
+	if r != nil && r.store != nil {
+		return r.store
+	}
+	return databaseDataScopeStore{}
+}
+
+func (databaseDataScopeStore) ListDepartments(ctx context.Context) ([]model.Department, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	var depts []model.Department
+	if err := database.DB.WithContext(ctx).Model(&model.Department{}).Select("id", "parent_id").Find(&depts).Error; err != nil {
+		return nil, err
+	}
+	return depts, nil
+}
+
+func (databaseDataScopeStore) ListRoleDataScopeDepartmentIDs(ctx context.Context, roleIDs []uint) ([]uint, error) {
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
 	var relations []model.RoleDataScopeDepartment
