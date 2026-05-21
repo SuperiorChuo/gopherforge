@@ -11,14 +11,30 @@ import (
 	"gorm.io/gorm"
 )
 
-type JobDAO struct{}
+type JobDAO struct {
+	db *gorm.DB
+}
 
-func NewJobDAO() *JobDAO {
-	return &JobDAO{}
+func NewJobDAO(dbs ...*gorm.DB) *JobDAO {
+	db := database.DB
+	if len(dbs) > 0 {
+		db = dbs[0]
+	}
+	return &JobDAO{db: db}
+}
+
+func (d *JobDAO) dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if d != nil && d.db != nil {
+		return d.db.WithContext(ctx)
+	}
+	return database.DB.WithContext(ctx)
 }
 
 func (d *JobDAO) Ready() bool {
-	return database.DB != nil
+	return (d != nil && d.db != nil) || database.DB != nil
 }
 
 // GetJobByID returns a job by ID.
@@ -28,7 +44,7 @@ func (d *JobDAO) GetJobByID(id uint) (*model.ScheduledJob, error) {
 
 func (d *JobDAO) GetJobByIDContext(ctx context.Context, id uint) (*model.ScheduledJob, error) {
 	var job model.ScheduledJob
-	result := database.DB.WithContext(ctx).First(&job, id)
+	result := d.dbWithContext(ctx).First(&job, id)
 	return &job, result.Error
 }
 
@@ -41,7 +57,7 @@ func (d *JobDAO) GetJobListContext(ctx context.Context, req pagination.PageReque
 	var jobs []model.ScheduledJob
 	var total int64
 
-	query := database.DB.WithContext(ctx).Model(&model.ScheduledJob{})
+	query := d.dbWithContext(ctx).Model(&model.ScheduledJob{})
 
 	if name != "" {
 		query = query.Where("name LIKE ?", "%"+name+"%")
@@ -68,7 +84,7 @@ func (d *JobDAO) CreateJob(job *model.ScheduledJob) error {
 }
 
 func (d *JobDAO) CreateJobContext(ctx context.Context, job *model.ScheduledJob) error {
-	return database.DB.WithContext(ctx).Create(job).Error
+	return d.dbWithContext(ctx).Create(job).Error
 }
 
 // UpdateJob updates a job.
@@ -77,7 +93,7 @@ func (d *JobDAO) UpdateJob(job *model.ScheduledJob) error {
 }
 
 func (d *JobDAO) UpdateJobContext(ctx context.Context, job *model.ScheduledJob) error {
-	return database.DB.WithContext(ctx).Save(job).Error
+	return d.dbWithContext(ctx).Save(job).Error
 }
 
 // DeleteJob deletes a job.
@@ -86,7 +102,7 @@ func (d *JobDAO) DeleteJob(id uint) error {
 }
 
 func (d *JobDAO) DeleteJobContext(ctx context.Context, id uint) error {
-	return database.DB.WithContext(ctx).Delete(&model.ScheduledJob{}, id).Error
+	return d.dbWithContext(ctx).Delete(&model.ScheduledJob{}, id).Error
 }
 
 // CreateJobLog creates a job log.
@@ -95,7 +111,7 @@ func (d *JobDAO) CreateJobLog(log *model.ScheduledJobLog) error {
 }
 
 func (d *JobDAO) CreateJobLogContext(ctx context.Context, log *model.ScheduledJobLog) error {
-	return database.DB.WithContext(ctx).Create(log).Error
+	return d.dbWithContext(ctx).Create(log).Error
 }
 
 // CleanupJobLogsBefore deletes job logs before the given time.
@@ -104,7 +120,7 @@ func (d *JobDAO) CleanupJobLogsBefore(before time.Time) (int64, error) {
 }
 
 func (d *JobDAO) CleanupJobLogsBeforeContext(ctx context.Context, before time.Time) (int64, error) {
-	result := database.DB.WithContext(ctx).Where("created_at < ?", before).Delete(&model.ScheduledJobLog{})
+	result := d.dbWithContext(ctx).Where("created_at < ?", before).Delete(&model.ScheduledJobLog{})
 	return result.RowsAffected, result.Error
 }
 
@@ -117,7 +133,7 @@ func (d *JobDAO) GetJobLogListContext(ctx context.Context, req pagination.PageRe
 	var logs []model.ScheduledJobLog
 	var total int64
 
-	query := database.DB.WithContext(ctx).Model(&model.ScheduledJobLog{})
+	query := d.dbWithContext(ctx).Model(&model.ScheduledJobLog{})
 
 	if jobID > 0 {
 		query = query.Where("job_id = ?", jobID)
@@ -145,7 +161,7 @@ func (d *JobDAO) GetAllActiveJobs() ([]model.ScheduledJob, error) {
 
 func (d *JobDAO) GetAllActiveJobsContext(ctx context.Context) ([]model.ScheduledJob, error) {
 	var jobs []model.ScheduledJob
-	result := database.DB.WithContext(ctx).Where("status = ?", 1).Find(&jobs)
+	result := d.dbWithContext(ctx).Where("status = ?", 1).Find(&jobs)
 	return jobs, result.Error
 }
 
@@ -156,7 +172,7 @@ func (d *JobDAO) GetAllJobs() ([]model.ScheduledJob, error) {
 
 func (d *JobDAO) GetAllJobsContext(ctx context.Context) ([]model.ScheduledJob, error) {
 	var jobs []model.ScheduledJob
-	result := database.DB.WithContext(ctx).Order("created_at DESC").Find(&jobs)
+	result := d.dbWithContext(ctx).Order("created_at DESC").Find(&jobs)
 	return jobs, result.Error
 }
 
@@ -167,7 +183,7 @@ func (d *JobDAO) CountJobsByStatus(status *int8) (int64, error) {
 
 func (d *JobDAO) CountJobsByStatusContext(ctx context.Context, status *int8) (int64, error) {
 	var count int64
-	query := database.DB.WithContext(ctx).Model(&model.ScheduledJob{})
+	query := d.dbWithContext(ctx).Model(&model.ScheduledJob{})
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -182,7 +198,7 @@ func (d *JobDAO) CountFailedJobLogsSince(since time.Time) (int64, error) {
 
 func (d *JobDAO) CountFailedJobLogsSinceContext(ctx context.Context, since time.Time) (int64, error) {
 	var count int64
-	err := database.DB.WithContext(ctx).Model(&model.ScheduledJobLog{}).
+	err := d.dbWithContext(ctx).Model(&model.ScheduledJobLog{}).
 		Where("status = ? AND created_at >= ?", 0, since).
 		Count(&count).Error
 	return count, err
@@ -195,7 +211,7 @@ func (d *JobDAO) GetLatestJobRunTime() (*time.Time, error) {
 
 func (d *JobDAO) GetLatestJobRunTimeContext(ctx context.Context) (*time.Time, error) {
 	var job model.ScheduledJob
-	err := database.DB.WithContext(ctx).
+	err := d.dbWithContext(ctx).
 		Where("last_run_time IS NOT NULL").
 		Order("last_run_time DESC").
 		First(&job).Error
@@ -215,7 +231,7 @@ func (d *JobDAO) GetLatestJobLog(jobID uint) (*model.ScheduledJobLog, error) {
 
 func (d *JobDAO) GetLatestJobLogContext(ctx context.Context, jobID uint) (*model.ScheduledJobLog, error) {
 	var log model.ScheduledJobLog
-	err := database.DB.WithContext(ctx).
+	err := d.dbWithContext(ctx).
 		Where("job_id = ?", jobID).
 		Order("created_at DESC").
 		First(&log).Error

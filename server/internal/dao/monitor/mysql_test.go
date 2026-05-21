@@ -74,6 +74,26 @@ func TestMySQLDAOGetVersion(t *testing.T) {
 	}
 }
 
+func TestMySQLDAOUsesInjectedDB(t *testing.T) {
+	oldDB := database.DB
+	database.DB = nil
+	t.Cleanup(func() {
+		database.DB = oldDB
+	})
+
+	db, mock := newInjectedMonitorDAOTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT VERSION()")).
+		WillReturnRows(sqlmock.NewRows([]string{"VERSION()"}).AddRow("8.0.36"))
+
+	version, err := NewMySQLDAO(db).GetVersion()
+	if err != nil {
+		t.Fatalf("GetVersion() error = %v", err)
+	}
+	if version != "8.0.36" {
+		t.Fatalf("version = %q, want 8.0.36", version)
+	}
+}
+
 func setupMonitorDAOTestDB(t *testing.T) sqlmock.Sqlmock {
 	t.Helper()
 
@@ -100,4 +120,27 @@ func setupMonitorDAOTestDB(t *testing.T) sqlmock.Sqlmock {
 	})
 
 	return mock
+}
+
+func newInjectedMonitorDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
+	t.Helper()
+
+	sqlDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("open injected sqlmock db: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatalf("unmet injected database expectations: %v", err)
+		}
+		_ = sqlDB.Close()
+	})
+	db, err := gorm.Open(mysql.New(mysql.Config{
+		Conn:                      sqlDB,
+		SkipInitializeWithVersion: true,
+	}), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open injected gorm sqlmock db: %v", err)
+	}
+	return db, mock
 }
