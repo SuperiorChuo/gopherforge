@@ -162,11 +162,6 @@ func PermissionMiddleware(requiredPermissions ...string) gin.HandlerFunc {
 	}
 }
 
-// PermissionMiddlewareMultiple is kept for existing callers; PermissionMiddleware now handles one or many permissions.
-func PermissionMiddlewareMultiple(requiredPermissions ...string) gin.HandlerFunc {
-	return PermissionMiddleware(requiredPermissions...)
-}
-
 func hasAnyRequiredPermission(grantedPermissions []string, requiredPermissions []string) bool {
 	for _, granted := range grantedPermissions {
 		if granted == "*" || granted == "*:*:*" {
