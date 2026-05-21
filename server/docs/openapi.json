@@ -29,7 +29,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -39,7 +39,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -49,7 +49,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -59,7 +59,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -96,7 +96,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -106,7 +106,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -116,7 +116,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -126,7 +126,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -152,7 +152,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -162,7 +162,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -172,7 +172,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -182,7 +182,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -208,7 +208,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -218,7 +218,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -228,7 +228,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -238,7 +238,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -259,7 +259,7 @@
         "operationId": "getApiV1Captcha",
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -269,7 +269,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -279,7 +279,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -289,7 +289,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -321,7 +321,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -331,7 +331,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -341,7 +341,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -351,7 +351,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -377,7 +377,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -387,7 +387,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -397,7 +397,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -407,7 +407,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -442,7 +442,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -452,7 +452,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -462,7 +462,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -472,7 +472,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -508,7 +508,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -518,7 +518,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -528,7 +528,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -538,7 +538,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -572,7 +572,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -582,7 +582,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -592,7 +592,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -602,7 +602,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -647,7 +647,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -657,7 +657,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -667,7 +667,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -677,7 +677,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -740,7 +740,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -750,7 +750,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -760,7 +760,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -770,7 +770,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -804,7 +804,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -814,7 +814,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -824,7 +824,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -834,7 +834,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -871,7 +871,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -881,7 +881,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -891,7 +891,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -901,7 +901,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -938,7 +938,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -948,7 +948,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -958,7 +958,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -968,7 +968,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1005,7 +1005,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1015,7 +1015,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1025,7 +1025,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1035,7 +1035,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1070,7 +1070,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1080,7 +1080,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1090,7 +1090,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1100,7 +1100,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1145,7 +1145,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1155,7 +1155,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1165,7 +1165,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1175,7 +1175,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1247,7 +1247,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1257,7 +1257,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1267,7 +1267,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1277,7 +1277,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1311,7 +1311,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1321,7 +1321,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1331,7 +1331,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1341,7 +1341,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1378,7 +1378,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1388,7 +1388,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1398,7 +1398,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1408,7 +1408,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1443,7 +1443,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1453,7 +1453,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1463,7 +1463,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1473,7 +1473,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1518,7 +1518,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1528,7 +1528,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1538,7 +1538,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1548,7 +1548,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1611,7 +1611,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1621,7 +1621,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1631,7 +1631,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1641,7 +1641,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1675,7 +1675,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1685,7 +1685,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1695,7 +1695,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1705,7 +1705,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1731,7 +1731,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1741,7 +1741,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1751,7 +1751,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1761,7 +1761,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1798,7 +1798,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1808,7 +1808,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1818,7 +1818,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1828,7 +1828,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1863,7 +1863,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1873,7 +1873,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1883,7 +1883,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1893,7 +1893,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1938,7 +1938,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1948,7 +1948,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -1958,7 +1958,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -1968,7 +1968,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2005,7 +2005,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2015,7 +2015,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2025,7 +2025,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2035,7 +2035,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2071,7 +2071,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2081,7 +2081,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2091,7 +2091,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2101,7 +2101,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2127,7 +2127,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2137,7 +2137,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2147,7 +2147,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2157,7 +2157,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2193,7 +2193,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2203,7 +2203,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2213,7 +2213,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2223,7 +2223,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2293,7 +2293,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2303,7 +2303,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2313,7 +2313,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2323,7 +2323,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2359,7 +2359,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2369,7 +2369,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2379,7 +2379,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2389,7 +2389,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2415,7 +2415,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2425,7 +2425,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2435,7 +2435,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2445,7 +2445,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2515,7 +2515,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2525,7 +2525,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2535,7 +2535,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2545,7 +2545,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2582,7 +2582,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2592,7 +2592,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2602,7 +2602,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2612,7 +2612,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2661,7 +2661,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2671,7 +2671,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2681,7 +2681,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2691,7 +2691,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2740,7 +2740,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2750,7 +2750,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2760,7 +2760,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2770,7 +2770,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2807,7 +2807,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2817,7 +2817,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2827,7 +2827,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2837,7 +2837,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2872,7 +2872,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2882,7 +2882,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2892,7 +2892,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2902,7 +2902,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -2939,7 +2939,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -2949,7 +2949,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -2959,7 +2959,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2969,7 +2969,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3006,7 +3006,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3016,7 +3016,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3026,7 +3026,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3036,7 +3036,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3057,7 +3057,7 @@
         "operationId": "getApiV1Health",
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3067,7 +3067,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3077,7 +3077,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3087,7 +3087,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3108,7 +3108,7 @@
         "operationId": "getApiV1HealthCheck",
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3118,7 +3118,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3128,7 +3128,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3138,7 +3138,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3159,7 +3159,7 @@
         "operationId": "getApiV1HealthLive",
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3169,7 +3169,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3179,7 +3179,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3189,7 +3189,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3210,7 +3210,7 @@
         "operationId": "getApiV1HealthReady",
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3220,7 +3220,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3230,7 +3230,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3240,7 +3240,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3261,7 +3261,7 @@
         "operationId": "getApiV1IpInfo",
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3271,7 +3271,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3281,7 +3281,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3291,7 +3291,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3312,7 +3312,7 @@
         "operationId": "getApiV1IpLocation",
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3322,7 +3322,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3332,7 +3332,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3342,7 +3342,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3363,7 +3363,7 @@
         "operationId": "getApiV1IpMe",
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3373,7 +3373,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3383,7 +3383,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3393,7 +3393,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3424,7 +3424,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3434,7 +3434,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3444,7 +3444,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3454,7 +3454,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3559,7 +3559,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3569,7 +3569,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3579,7 +3579,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3589,7 +3589,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3625,7 +3625,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3635,7 +3635,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3645,7 +3645,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3655,7 +3655,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3681,7 +3681,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3691,7 +3691,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3701,7 +3701,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3711,7 +3711,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3807,7 +3807,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3817,7 +3817,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3827,7 +3827,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3837,7 +3837,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3881,7 +3881,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3891,7 +3891,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3901,7 +3901,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3911,7 +3911,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3948,7 +3948,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -3958,7 +3958,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -3968,7 +3968,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3978,7 +3978,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4083,7 +4083,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -4093,7 +4093,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4103,7 +4103,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4113,7 +4113,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4149,7 +4149,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -4159,7 +4159,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4169,7 +4169,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4179,7 +4179,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4205,7 +4205,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -4215,7 +4215,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4225,7 +4225,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4235,7 +4235,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4298,7 +4298,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -4308,7 +4308,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4318,7 +4318,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4328,7 +4328,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4362,7 +4362,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -4372,7 +4372,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4382,7 +4382,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4392,7 +4392,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4429,7 +4429,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -4439,7 +4439,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4449,7 +4449,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4459,7 +4459,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4496,7 +4496,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -4506,7 +4506,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4516,7 +4516,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4526,7 +4526,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4561,7 +4561,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -4571,7 +4571,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4581,7 +4581,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4591,7 +4591,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4636,7 +4636,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -4646,7 +4646,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4656,7 +4656,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4666,7 +4666,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4687,7 +4687,7 @@
         "operationId": "getApiV1Metrics",
         "responses": {
           "200": {
-            "description": "Prometheus 指标文本",
+            "description": "Prometheus metrics text",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4697,7 +4697,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4707,7 +4707,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4717,7 +4717,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4738,7 +4738,7 @@
         "operationId": "getApiV1MetricsJson",
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -4748,7 +4748,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4758,7 +4758,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4768,7 +4768,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4804,7 +4804,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -4814,7 +4814,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4824,7 +4824,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4834,7 +4834,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4897,7 +4897,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -4907,7 +4907,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4917,7 +4917,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4927,7 +4927,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -4961,7 +4961,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -4971,7 +4971,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -4981,7 +4981,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -4991,7 +4991,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5028,7 +5028,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5038,7 +5038,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5048,7 +5048,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5058,7 +5058,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5095,7 +5095,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5105,7 +5105,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5115,7 +5115,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5125,7 +5125,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5170,7 +5170,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5180,7 +5180,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5190,7 +5190,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5200,7 +5200,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5237,7 +5237,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5247,7 +5247,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5257,7 +5257,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5267,7 +5267,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5304,7 +5304,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5314,7 +5314,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5324,7 +5324,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5334,7 +5334,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5371,7 +5371,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5381,7 +5381,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5391,7 +5391,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5401,7 +5401,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5427,7 +5427,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5437,7 +5437,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5447,7 +5447,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5457,7 +5457,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5483,7 +5483,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5493,7 +5493,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5503,7 +5503,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5513,7 +5513,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5539,7 +5539,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5549,7 +5549,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5559,7 +5559,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5569,7 +5569,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5641,7 +5641,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5651,7 +5651,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5661,7 +5661,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5671,7 +5671,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5705,7 +5705,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5715,7 +5715,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5725,7 +5725,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5735,7 +5735,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5772,7 +5772,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5782,7 +5782,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5792,7 +5792,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5802,7 +5802,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5839,7 +5839,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5849,7 +5849,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5859,7 +5859,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5869,7 +5869,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5904,7 +5904,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5914,7 +5914,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5924,7 +5924,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -5934,7 +5934,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5979,7 +5979,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -5989,7 +5989,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -5999,7 +5999,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -6009,7 +6009,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -6056,7 +6056,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -6066,7 +6066,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -6076,7 +6076,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -6086,7 +6086,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -6118,7 +6118,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -6128,7 +6128,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -6138,7 +6138,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -6148,7 +6148,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -6169,7 +6169,7 @@
         "operationId": "getApiV1OauthGithubCallback",
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -6179,7 +6179,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -6189,7 +6189,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -6199,7 +6199,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -6220,7 +6220,7 @@
         "operationId": "getApiV1OauthGithubLogin",
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -6230,7 +6230,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -6240,7 +6240,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -6250,7 +6250,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -6282,7 +6282,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -6292,7 +6292,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -6302,7 +6302,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -6312,7 +6312,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -6333,7 +6333,7 @@
         "operationId": "getApiV1OauthWechatCallback",
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -6343,7 +6343,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -6353,7 +6353,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -6363,7 +6363,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -6384,7 +6384,7 @@
         "operationId": "getApiV1OauthWechatLogin",
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -6394,7 +6394,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -6404,7 +6404,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -6414,7 +6414,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -6440,7 +6440,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -6450,7 +6450,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -6460,7 +6460,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -6470,7 +6470,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -6496,7 +6496,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -6506,7 +6506,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -6516,7 +6516,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -6526,7 +6526,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -6562,7 +6562,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -6572,7 +6572,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -6582,7 +6582,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -6592,7 +6592,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -6736,7 +6736,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -6746,7 +6746,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -6756,7 +6756,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -6766,7 +6766,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -6802,7 +6802,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -6812,7 +6812,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -6822,7 +6822,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -6832,7 +6832,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -6976,7 +6976,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -6986,7 +6986,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -6996,7 +6996,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7006,7 +7006,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7050,7 +7050,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7060,7 +7060,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7070,7 +7070,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7080,7 +7080,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7117,7 +7117,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7127,7 +7127,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7137,7 +7137,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7147,7 +7147,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7210,7 +7210,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7220,7 +7220,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7230,7 +7230,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7240,7 +7240,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7274,7 +7274,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7284,7 +7284,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7294,7 +7294,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7304,7 +7304,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7330,7 +7330,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7340,7 +7340,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7350,7 +7350,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7360,7 +7360,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7397,7 +7397,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7407,7 +7407,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7417,7 +7417,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7427,7 +7427,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7462,7 +7462,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7472,7 +7472,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7482,7 +7482,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7492,7 +7492,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7537,7 +7537,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7547,7 +7547,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7557,7 +7557,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7567,7 +7567,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7598,7 +7598,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7608,7 +7608,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7618,7 +7618,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7628,7 +7628,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7659,7 +7659,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7669,7 +7669,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7679,7 +7679,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7689,7 +7689,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7743,7 +7743,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7753,7 +7753,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7763,7 +7763,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7773,7 +7773,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7807,7 +7807,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7817,7 +7817,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7827,7 +7827,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7837,7 +7837,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7863,7 +7863,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7873,7 +7873,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7883,7 +7883,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7893,7 +7893,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7930,7 +7930,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -7940,7 +7940,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -7950,7 +7950,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -7960,7 +7960,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -7995,7 +7995,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8005,7 +8005,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8015,7 +8015,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8025,7 +8025,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8070,7 +8070,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8080,7 +8080,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8090,7 +8090,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8100,7 +8100,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8147,7 +8147,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8157,7 +8157,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8167,7 +8167,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8177,7 +8177,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8203,7 +8203,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8213,7 +8213,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8223,7 +8223,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8233,7 +8233,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8259,7 +8259,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8269,7 +8269,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8279,7 +8279,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8289,7 +8289,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8325,7 +8325,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8335,7 +8335,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8345,7 +8345,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8355,7 +8355,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8391,7 +8391,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8401,7 +8401,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8411,7 +8411,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8421,7 +8421,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8484,7 +8484,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8494,7 +8494,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8504,7 +8504,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8514,7 +8514,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8548,7 +8548,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8558,7 +8558,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8568,7 +8568,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8578,7 +8578,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8615,7 +8615,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8625,7 +8625,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8635,7 +8635,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8645,7 +8645,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8680,7 +8680,7 @@
         ],
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8690,7 +8690,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8700,7 +8700,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8710,7 +8710,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8755,7 +8755,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8765,7 +8765,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8775,7 +8775,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8785,7 +8785,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8832,7 +8832,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8842,7 +8842,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8852,7 +8852,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8862,7 +8862,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8909,7 +8909,7 @@
         },
         "responses": {
           "200": {
-            "description": "请求成功",
+            "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -8919,7 +8919,7 @@
             }
           },
           "400": {
-            "description": "请求参数错误",
+            "description": "Invalid request parameters",
             "content": {
               "application/json": {
                 "schema": {
@@ -8929,7 +8929,7 @@
             }
           },
           "401": {
-            "description": "未认证或登录已过期",
+            "description": "Unauthenticated or session expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -8939,7 +8939,7 @@
             }
           },
           "500": {
-            "description": "服务器内部错误",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -8961,7 +8961,7 @@
             "type": "integer"
           },
           "data": {
-            "description": "业务响应数据",
+            "description": "Business response data",
             "additionalProperties": true
           },
           "message": {
