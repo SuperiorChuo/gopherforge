@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -84,7 +83,7 @@ func (a *UserAPI) LoginConsole(c *gin.Context) {
 		return
 	}
 
-	permissions := consolePermissionsForUser(c.Request.Context(), &loginResp.User, a.userService.GetUserPermissions(&loginResp.User))
+	permissions := authSvc.ConsolePermissionsForUser(c.Request.Context(), &loginResp.User, a.userService.GetUserPermissions(&loginResp.User))
 	session := buildConsoleSession(&loginResp.User, permissions, loginResp.AccessToken, loginResp.RefreshToken)
 	setConsoleSessionCookie(c, loginResp.AccessToken, session.TTLSec)
 	a.recordOnlineUser(c, loginResp.AccessToken)
@@ -114,7 +113,7 @@ func (a *UserAPI) GetConsoleSession(c *gin.Context) {
 	}
 
 	token := consoleauth.TokenFromGinContext(c)
-	permissions := consolePermissionsForUser(c.Request.Context(), user, a.userService.GetUserPermissions(user))
+	permissions := authSvc.ConsolePermissionsForUser(c.Request.Context(), user, a.userService.GetUserPermissions(user))
 	response.Success(c, buildConsoleSession(user, permissions, token, ""))
 }
 
@@ -131,8 +130,8 @@ func (a *UserAPI) GetConsoleRoutes(c *gin.Context) {
 		return
 	}
 
-	permissions := consolePermissionsForUser(c.Request.Context(), user, a.userService.GetUserPermissions(user))
-	roles := consoleRoleCodes(user.Roles)
+	permissions := authSvc.ConsolePermissionsForUser(c.Request.Context(), user, a.userService.GetUserPermissions(user))
+	roles := authSvc.ConsoleRoleCodes(user.Roles)
 	routes, err := a.consoleRouteService.ListAccessibleRoutesContext(c.Request.Context(), permissions, roles)
 	if err != nil {
 		internalServerError(c, "failed to get console routes", err)
@@ -266,7 +265,7 @@ func buildConsoleSession(user *model.User, permissions []string, accessToken, re
 }
 
 func buildConsoleSessionUser(user *model.User, permissions []string) consoleSessionUser {
-	roles := consoleRoleCodes(user.Roles)
+	roles := authSvc.ConsoleRoleCodes(user.Roles)
 	role := "operator"
 	if len(roles) > 0 {
 		role = roles[0]
@@ -288,68 +287,6 @@ func buildConsoleSessionUser(user *model.User, permissions []string) consoleSess
 		Avatar:             user.Avatar,
 		MustChangePassword: user.MustChangePassword,
 	}
-}
-
-func consoleRoleCodes(roles []model.Role) []string {
-	values := make([]string, 0, len(roles))
-	for _, role := range roles {
-		code := strings.TrimSpace(role.Code)
-		if code != "" {
-			values = append(values, code)
-		}
-	}
-	return authSvc.UniqueSortedConsoleStrings(values)
-}
-
-func consolePermissionsForUser(ctx context.Context, user *model.User, base []string) []string {
-	values := append([]string{}, base...)
-	values = append(values, consolePermissionAliases(base)...)
-	if consoleHasRole(user, "super_admin") {
-		routePermissions, err := authSvc.ConsoleRouteService{}.AllRoutePermissionsContext(ctx)
-		if err != nil {
-			routePermissions = authSvc.AllConsoleRoutePermissions()
-		}
-		values = append(values, routePermissions...)
-		values = append(values,
-			"dashboard.view",
-			"logs.read",
-			"settings.read",
-			"settings.write",
-			"rbac.read",
-			"rbac.write",
-		)
-	}
-	return authSvc.UniqueSortedConsoleStrings(values)
-}
-
-func consolePermissionAliases(base []string) []string {
-	aliasMap := map[string][]string{
-		"system:log:audit":         {"logs.read"},
-		"system:log:operation":     {"logs.read"},
-		"system:user:list":         {"rbac.read"},
-		"system:role:list":         {"rbac.read"},
-		"system:permission:list":   {"rbac.read"},
-		"system:department:list":   {"rbac.read"},
-		"system:user:update":       {"rbac.write"},
-		"system:role:update":       {"rbac.write"},
-		"system:permission:update": {"rbac.write"},
-		"system:department:update": {"rbac.write"},
-		"system:monitor":           {"dashboard.view"},
-	}
-	values := []string{}
-	for _, permission := range base {
-		values = append(values, aliasMap[permission]...)
-	}
-	return values
-}
-
-func consoleHasRole(user *model.User, roleCode string) bool {
-	for _, role := range user.Roles {
-		if strings.TrimSpace(role.Code) == roleCode {
-			return true
-		}
-	}
-	return false
 }
 
 func setConsoleSessionCookie(c *gin.Context, token string, ttlSec int) {

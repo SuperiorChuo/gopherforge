@@ -493,6 +493,74 @@ func AllConsoleRoutePermissions() []string {
 	return UniqueSortedConsoleStrings(values)
 }
 
+func ConsoleRoleCodes(roles []model.Role) []string {
+	values := make([]string, 0, len(roles))
+	for _, role := range roles {
+		code := strings.TrimSpace(role.Code)
+		if code != "" {
+			values = append(values, code)
+		}
+	}
+	return UniqueSortedConsoleStrings(values)
+}
+
+func ConsolePermissionsForUser(ctx context.Context, user *model.User, base []string) []string {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	values := append([]string{}, base...)
+	values = append(values, consolePermissionAliases(base)...)
+	if ConsoleHasRole(user, "super_admin") {
+		routePermissions, err := ConsoleRouteService{}.AllRoutePermissionsContext(ctx)
+		if err != nil {
+			routePermissions = AllConsoleRoutePermissions()
+		}
+		values = append(values, routePermissions...)
+		values = append(values,
+			"dashboard.view",
+			"logs.read",
+			"settings.read",
+			"settings.write",
+			"rbac.read",
+			"rbac.write",
+		)
+	}
+	return UniqueSortedConsoleStrings(values)
+}
+
+func ConsoleHasRole(user *model.User, roleCode string) bool {
+	if user == nil {
+		return false
+	}
+	for _, role := range user.Roles {
+		if strings.TrimSpace(role.Code) == roleCode {
+			return true
+		}
+	}
+	return false
+}
+
+func consolePermissionAliases(base []string) []string {
+	aliasMap := map[string][]string{
+		"system:log:audit":         {"logs.read"},
+		"system:log:operation":     {"logs.read"},
+		"system:user:list":         {"rbac.read"},
+		"system:role:list":         {"rbac.read"},
+		"system:permission:list":   {"rbac.read"},
+		"system:department:list":   {"rbac.read"},
+		"system:user:update":       {"rbac.write"},
+		"system:role:update":       {"rbac.write"},
+		"system:permission:update": {"rbac.write"},
+		"system:department:update": {"rbac.write"},
+		"system:monitor":           {"dashboard.view"},
+	}
+	values := []string{}
+	for _, permission := range base {
+		values = append(values, aliasMap[permission]...)
+	}
+	return values
+}
+
 func DefaultConsoleRoutes() []ConsoleRouteView {
 	result := make([]ConsoleRouteView, 0, len(defaultConsoleRouteSeed))
 	for _, route := range defaultConsoleRouteSeed {
