@@ -138,7 +138,7 @@ func (s ConsoleRouteService) AllRoutePermissionsContext(ctx context.Context) ([]
 	for _, route := range rows {
 		values = append(values, route.PermissionsJSON...)
 	}
-	return uniqueSortedConsoleStrings(values), nil
+	return UniqueSortedConsoleStrings(values), nil
 }
 
 func (s ConsoleRouteService) GetRoute(routeKey string) (ConsoleRouteView, error) {
@@ -490,7 +490,7 @@ func AllConsoleRoutePermissions() []string {
 	for _, route := range defaultConsoleRouteSeed {
 		values = append(values, route.Permissions...)
 	}
-	return uniqueSortedConsoleStrings(values)
+	return UniqueSortedConsoleStrings(values)
 }
 
 func DefaultConsoleRoutes() []ConsoleRouteView {
@@ -665,7 +665,7 @@ func consoleSetHasAny(set map[string]bool, required []string) bool {
 	return false
 }
 
-func uniqueSortedConsoleStrings(values []string) []string {
+func UniqueSortedConsoleStrings(values []string) []string {
 	set := consoleStringSet(values)
 	result := make([]string, 0, len(set))
 	for value := range set {

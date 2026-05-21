@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
@@ -299,7 +298,7 @@ func consoleRoleCodes(roles []model.Role) []string {
 			values = append(values, code)
 		}
 	}
-	return uniqueSortedStrings(values)
+	return authSvc.UniqueSortedConsoleStrings(values)
 }
 
 func consolePermissionsForUser(ctx context.Context, user *model.User, base []string) []string {
@@ -320,7 +319,7 @@ func consolePermissionsForUser(ctx context.Context, user *model.User, base []str
 			"rbac.write",
 		)
 	}
-	return uniqueSortedStrings(values)
+	return authSvc.UniqueSortedConsoleStrings(values)
 }
 
 func consolePermissionAliases(base []string) []string {
@@ -365,24 +364,4 @@ func clearConsoleSessionCookie(c *gin.Context) {
 
 func secureConsoleCookie() bool {
 	return strings.EqualFold(config.Cfg.App.Env, "production") || config.Cfg.Security.Headers.HSTS
-}
-
-func stringSet(values []string) map[string]bool {
-	set := map[string]bool{}
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			set[trimmed] = true
-		}
-	}
-	return set
-}
-
-func uniqueSortedStrings(values []string) []string {
-	set := stringSet(values)
-	result := make([]string, 0, len(set))
-	for value := range set {
-		result = append(result, value)
-	}
-	sort.Strings(result)
-	return result
 }
