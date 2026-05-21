@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/config"
+	"github.com/go-admin-kit/server/internal/pkg/consoleauth"
 	jwtpkg "github.com/go-admin-kit/server/internal/pkg/jwt"
 	"github.com/go-admin-kit/server/internal/pkg/response"
 	jwtlib "github.com/golang-jwt/jwt/v5"
@@ -65,6 +66,58 @@ func TestAuthMiddlewareUsesStableErrorCodeForInvalidToken(t *testing.T) {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
 	}
 	assertAuthErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeAuthTokenInvalid)
+}
+
+func TestAuthMiddlewareUsesStableErrorCodeForMissingAuthorizationHeader(t *testing.T) {
+	recorder := requestThroughAuthMiddlewareWithoutCredentials(t)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+	assertAuthErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeAuthHeaderMissing)
+}
+
+func TestAuthMiddlewareUsesStableErrorCodeForInvalidAuthorizationHeader(t *testing.T) {
+	recorder := requestThroughAuthMiddlewareWithAuthorizationHeader(t, "Basic token")
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+	assertAuthErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeAuthHeaderInvalid)
+}
+
+func TestAuthMiddlewareUsesStableErrorCodeForConsoleLoginRequired(t *testing.T) {
+	setAuthMiddlewareJWTConfig(t)
+
+	accessToken, _, err := jwtpkg.GenerateToken(42, "alice")
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+
+	recorder := requestThroughAuthMiddlewareWithCookie(t, accessToken)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+	assertAuthErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeConsoleLoginRequired)
+}
+
+func TestRoleMiddlewareUsesStableErrorCodeForMissingUserContext(t *testing.T) {
+	recorder := requestThroughMiddleware(t, RoleMiddleware("admin"))
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+	assertAuthErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeAuthContextMissing)
+}
+
+func TestPermissionMiddlewareUsesStableErrorCodeForMissingUserContext(t *testing.T) {
+	recorder := requestThroughMiddleware(t, PermissionMiddleware("system:user:list"))
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+	assertAuthErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeAuthContextMissing)
 }
 
 func TestAuthMiddlewareUsesStableErrorCodeForExpiredToken(t *testing.T) {
@@ -134,6 +187,11 @@ func TestAuthMiddlewareUsesStableErrorCodeForWrongTokenType(t *testing.T) {
 
 func requestThroughAuthMiddleware(t *testing.T, token string) *httptest.ResponseRecorder {
 	t.Helper()
+	return requestThroughAuthMiddlewareWithAuthorizationHeader(t, "Bearer "+token)
+}
+
+func requestThroughAuthMiddlewareWithAuthorizationHeader(t *testing.T, authHeader string) *httptest.ResponseRecorder {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 
 	router := gin.New()
@@ -143,7 +201,56 @@ func requestThroughAuthMiddleware(t *testing.T, token string) *httptest.Response
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", authHeader)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	return recorder
+}
+
+func requestThroughAuthMiddlewareWithoutCredentials(t *testing.T) *httptest.ResponseRecorder {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(AuthMiddleware())
+	router.GET("/", func(c *gin.Context) {
+		response.Success(c, nil)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	return recorder
+}
+
+func requestThroughAuthMiddlewareWithCookie(t *testing.T, token string) *httptest.ResponseRecorder {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(AuthMiddleware())
+	router.GET("/", func(c *gin.Context) {
+		response.Success(c, nil)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{Name: consoleauth.SessionCookieName, Value: token})
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	return recorder
+}
+
+func requestThroughMiddleware(t *testing.T, middleware gin.HandlerFunc) *httptest.ResponseRecorder {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(middleware)
+	router.GET("/", func(c *gin.Context) {
+		response.Success(c, nil)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
 	return recorder

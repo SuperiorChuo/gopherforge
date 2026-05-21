@@ -20,6 +20,7 @@
 - API 500 错误统一走日志记录 + 稳定用户可见消息，避免泄露内部错误。
 - API 错误响应已补充稳定 `error_code` 字段，认证和系统模块的已知业务错误已接入领域错误码。
 - 认证中间件的 JWT 过期、无效、撤销和 token 类型错误已返回稳定认证错误码。
+- 认证/权限/限流中间件的缺少鉴权头、鉴权头格式错误、用户上下文缺失、Console 登录缺失、请求限流和登录锁定场景已返回细分稳定错误码。
 - API handler 已增加源码级测试，禁止把 `err.Error()` 直接写入用户响应。
 
 ### 上下文传播与分层
@@ -35,6 +36,7 @@
 - 限流中间件已抽出 `RateLimiter`，支持注入 Redis client，默认 `RateLimit(config)` 调用保持兼容。
 - `OnlineUserService` 已支持注入 Redis client，在线用户记录、索引、计数和强制下线逻辑可脱离全局 Redis 测试。
 - `HealthAPI` 已支持注入 database client 与 Redis ping client，健康检查可脱离全局依赖测试，同时保持依赖错误脱敏。
+- API 层已增加架构守护测试，阻止 handler 新增对全局 `database.DB` 或 Redis `Client` 的直接依赖；健康检查兼容 fallback 已精确列入 allowlist。
 
 ### 性能与资源安全
 
@@ -61,7 +63,7 @@
 ### 可逐步推进
 
 - 旧的非 `Context` convenience 方法仍保留，用于兼容历史调用；后续可在大版本中逐步收敛。
-- 部分 service/pkg/DAO 仍允许零值结构体回退到全局依赖，这是兼容策略；新代码优先使用构造函数或注入接口。
+- 部分 service/pkg/DAO 仍允许零值结构体回退到全局依赖，这是兼容策略；新代码优先使用构造函数或注入接口，API 层已由架构测试防止新增直连。
 
 ### 发布前建议复核
 

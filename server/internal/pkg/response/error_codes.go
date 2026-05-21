@@ -27,6 +27,12 @@ const (
 	ErrorCodeAuthTokenExpired             ErrorCode = "AUTH_TOKEN_EXPIRED"
 	ErrorCodeAuthTokenInvalid             ErrorCode = "AUTH_TOKEN_INVALID"
 	ErrorCodeAuthTokenRevoked             ErrorCode = "AUTH_TOKEN_REVOKED"
+	ErrorCodeAuthHeaderMissing            ErrorCode = "AUTH_HEADER_MISSING"
+	ErrorCodeAuthHeaderInvalid            ErrorCode = "AUTH_HEADER_INVALID"
+	ErrorCodeAuthContextMissing           ErrorCode = "AUTH_CONTEXT_MISSING"
+	ErrorCodeConsoleLoginRequired         ErrorCode = "CONSOLE_LOGIN_REQUIRED"
+	ErrorCodeRateLimited                  ErrorCode = "RATE_LIMITED"
+	ErrorCodeLoginLocked                  ErrorCode = "LOGIN_LOCKED"
 
 	ErrorCodeUsernameAlreadyExists ErrorCode = "USER_USERNAME_ALREADY_EXISTS"
 	ErrorCodeEmailAlreadyExists    ErrorCode = "USER_EMAIL_ALREADY_EXISTS"

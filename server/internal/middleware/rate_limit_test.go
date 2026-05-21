@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
+	"github.com/go-admin-kit/server/internal/pkg/response"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -40,6 +42,7 @@ func TestRateLimitIncrementsBeforeRejectingOverLimitRequest(t *testing.T) {
 	if recorder.Code != http.StatusTooManyRequests {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusTooManyRequests)
 	}
+	assertMiddlewareErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeRateLimited)
 	got, err := store.Get(key)
 	if err != nil {
 		t.Fatalf("get rate limit count: %v", err)
@@ -112,4 +115,16 @@ func setupRateLimitTestRedis(t *testing.T) *miniredis.Miniredis {
 	})
 
 	return store
+}
+
+func assertMiddlewareErrorCode(t *testing.T, body []byte, want response.ErrorCode) {
+	t.Helper()
+
+	var payload response.Response
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.ErrorCode != want {
+		t.Fatalf("error_code = %q, want %q; body=%s", payload.ErrorCode, want, string(body))
+	}
 }

@@ -19,14 +19,14 @@ func AuthMiddleware() gin.HandlerFunc {
 		authHeader := c.GetHeader("Authorization")
 		tokenString, tokenSource := consoleauth.TokenFromGinContextWithSource(c)
 		if authHeader == "" && tokenString == "" {
-			response.Unauthorized(c, "Authorization header is required")
+			response.UnauthorizedWithCode(c, response.ErrorCodeAuthHeaderMissing, "Authorization header is required")
 			c.Abort()
 			return
 		}
 
 		parts := strings.SplitN(authHeader, " ", 2)
 		if authHeader != "" && (len(parts) != 2 || parts[0] != "Bearer") {
-			response.Unauthorized(c, "Authorization header format must be Bearer {token}")
+			response.UnauthorizedWithCode(c, response.ErrorCodeAuthHeaderInvalid, "Authorization header format must be Bearer {token}")
 			c.Abort()
 			return
 		}
@@ -64,14 +64,14 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 		if tokenSource == consoleauth.TokenSourceCookie {
 			if _, err := (authSvc.ConsoleSessionService{}).ValidateActiveSessionContext(c.Request.Context(), claims.ID, claims.Username); err != nil {
-				response.Unauthorized(c, "Console login required")
+				response.UnauthorizedWithCode(c, response.ErrorCodeConsoleLoginRequired, "Console login required")
 				c.Abort()
 				return
 			}
 			userDAO := authDAO.UserDAO{}
 			user, err := userDAO.GetUserWithRolesContext(c.Request.Context(), claims.UserID)
 			if err != nil || user.Status != 1 {
-				response.Unauthorized(c, "Console login required")
+				response.UnauthorizedWithCode(c, response.ErrorCodeConsoleLoginRequired, "Console login required")
 				c.Abort()
 				return
 			}
@@ -90,7 +90,7 @@ func RoleMiddleware(requiredRoles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
 		if !exists {
-			response.Unauthorized(c, "user not found in context")
+			response.UnauthorizedWithCode(c, response.ErrorCodeAuthContextMissing, "user not found in context")
 			c.Abort()
 			return
 		}
@@ -131,7 +131,7 @@ func PermissionMiddleware(requiredPermissions ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
 		if !exists {
-			response.Unauthorized(c, "user not found in context")
+			response.UnauthorizedWithCode(c, response.ErrorCodeAuthContextMissing, "user not found in context")
 			c.Abort()
 			return
 		}

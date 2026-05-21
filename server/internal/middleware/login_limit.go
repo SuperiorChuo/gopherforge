@@ -139,7 +139,7 @@ func (l *LoginLimiter) Check(config LoginLimitConfig) gin.HandlerFunc {
 		locked, err := client.Get(ctx, fmt.Sprintf("%s:lock", key)).Result()
 		if err == nil && locked == "1" {
 			ttl, _ := client.TTL(ctx, fmt.Sprintf("%s:lock", key)).Result()
-			response.Error(c, 429, fmt.Sprintf("account is locked, please try again after %d seconds", int(ttl.Seconds())))
+			response.ErrorWithCode(c, 429, response.ErrorCodeLoginLocked, fmt.Sprintf("account is locked, please try again after %d seconds", int(ttl.Seconds())))
 			c.Abort()
 			return
 		}

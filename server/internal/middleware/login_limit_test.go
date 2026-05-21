@@ -3,10 +3,15 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	miniredis "github.com/alicebob/miniredis/v2"
+	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/server/internal/pkg/response"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -82,4 +87,36 @@ func TestLoginLimiterWithClientUsesInjectedClient(t *testing.T) {
 	if injectedStore.Exists(key) || injectedStore.Exists(lockKey) {
 		t.Fatal("ClearContext did not remove injected login limit keys")
 	}
+}
+
+func TestCheckLoginLimitUsesStableErrorCodeForLockedLogin(t *testing.T) {
+	store := setupRateLimitTestRedis(t)
+	gin.SetMode(gin.TestMode)
+
+	cfg := LoginLimitConfig{
+		Window:       time.Minute,
+		MaxFailures:  1,
+		LockDuration: time.Minute,
+		KeyPrefix:    "unit_login_limit_check",
+	}
+	lockKey := fmt.Sprintf("%s:%s:lock", cfg.KeyPrefix, "admin")
+	store.Set(lockKey, "1")
+	store.SetTTL(lockKey, time.Minute)
+
+	router := gin.New()
+	router.Use(CheckLoginLimit(cfg))
+	router.POST("/login", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader("username=admin"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusTooManyRequests)
+	}
+	assertMiddlewareErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeLoginLocked)
 }
