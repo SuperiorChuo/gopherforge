@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,8 +29,11 @@ const (
 )
 
 const (
-	departmentTreeCacheKey = "authz:department_tree"
-	departmentTreeCacheTTL = 5 * time.Minute
+	departmentTreeCacheKey               = "authz:department_tree"
+	departmentTreeCacheTTL               = 5 * time.Minute
+	departmentTreeLocalCacheTTL          = 30 * time.Second
+	departmentTreeInvalidateChannel      = "authz:department_tree:invalidate"
+	departmentTreeInvalidatePayloadClear = "clear"
 )
 
 type departmentTreeCacheRow struct {
@@ -68,7 +72,16 @@ func NewDataScopeResolverWithCache(store DataScopeStore, cache DepartmentTreeCac
 
 type databaseDataScopeStore struct{}
 
-type redisDepartmentTreeCache struct{}
+type layeredDepartmentTreeCache struct {
+	mu        sync.RWMutex
+	rows      []departmentTreeCacheRow
+	expiresAt time.Time
+	localTTL  time.Duration
+}
+
+var defaultDepartmentTreeCache = &layeredDepartmentTreeCache{
+	localTTL: departmentTreeLocalCacheTTL,
+}
 
 // UserDataScope is a reusable data permission result for business queries.
 type UserDataScope struct {
@@ -244,12 +257,7 @@ func ApplyOwnerScope(query *gorm.DB, scope UserDataScope, userColumn string) *go
 		if len(scope.DepartmentIDs) == 0 {
 			return query.Where("1 = 0")
 		}
-		return query.Where(userColumn+" IN (?)",
-			query.Session(&gorm.Session{NewDB: true}).
-				Model(&model.User{}).
-				Select("id").
-				Where("department_id IN ?", scope.DepartmentIDs),
-		)
+		return query.Where(userColumn+" IN (SELECT `id` FROM `users` WHERE department_id IN ?)", scope.DepartmentIDs)
 	case DataScopeSelf:
 		if scope.UserID == 0 {
 			return query.Where("1 = 0")
@@ -321,7 +329,45 @@ func (r *DataScopeResolver) loadDepartmentTreeContext(ctx context.Context) ([]mo
 	return depts, nil
 }
 
-func (redisDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]model.Department, bool) {
+func departmentRowsToModels(rows []departmentTreeCacheRow) []model.Department {
+	depts := make([]model.Department, 0, len(rows))
+	for _, row := range rows {
+		depts = append(depts, model.Department{
+			ID:       row.ID,
+			ParentID: row.ParentID,
+		})
+	}
+	return depts
+}
+
+func departmentModelsToRows(depts []model.Department) []departmentTreeCacheRow {
+	rows := make([]departmentTreeCacheRow, 0, len(depts))
+	for _, dept := range depts {
+		rows = append(rows, departmentTreeCacheRow{
+			ID:       dept.ID,
+			ParentID: dept.ParentID,
+		})
+	}
+	return rows
+}
+
+func cloneDepartmentTreeRows(rows []departmentTreeCacheRow) []departmentTreeCacheRow {
+	if len(rows) == 0 {
+		if rows == nil {
+			return nil
+		}
+		return []departmentTreeCacheRow{}
+	}
+	cloned := make([]departmentTreeCacheRow, len(rows))
+	copy(cloned, rows)
+	return cloned
+}
+
+func (c *layeredDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]model.Department, bool) {
+	if rows, ok := c.getLocalRows(); ok {
+		return departmentRowsToModels(rows), true
+	}
+
 	if redisstore.Client == nil {
 		return nil, false
 	}
@@ -336,27 +382,23 @@ func (redisDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]model.
 
 	var rows []departmentTreeCacheRow
 	if err := json.Unmarshal(data, &rows); err != nil {
-		_ = redisDepartmentTreeCache{}.InvalidateDepartmentTree(ctx)
+		_ = c.deleteRemote(ctx)
 		return nil, false
 	}
 
+	c.setLocalRows(rows)
 	return departmentRowsToModels(rows), true
 }
 
-func (redisDepartmentTreeCache) SetDepartmentTree(ctx context.Context, depts []model.Department) error {
+func (c *layeredDepartmentTreeCache) SetDepartmentTree(ctx context.Context, depts []model.Department) error {
+	rows := departmentModelsToRows(depts)
+	c.setLocalRows(rows)
+
 	if redisstore.Client == nil {
 		return nil
 	}
 	if ctx == nil {
 		ctx = context.Background()
-	}
-
-	rows := make([]departmentTreeCacheRow, 0, len(depts))
-	for _, dept := range depts {
-		rows = append(rows, departmentTreeCacheRow{
-			ID:       dept.ID,
-			ParentID: dept.ParentID,
-		})
 	}
 
 	data, err := json.Marshal(rows)
@@ -366,22 +408,85 @@ func (redisDepartmentTreeCache) SetDepartmentTree(ctx context.Context, depts []m
 	return redisstore.Client.Set(ctx, departmentTreeCacheKey, data, departmentTreeCacheTTL).Err()
 }
 
-func departmentRowsToModels(rows []departmentTreeCacheRow) []model.Department {
-	depts := make([]model.Department, 0, len(rows))
-	for _, row := range rows {
-		depts = append(depts, model.Department{
-			ID:       row.ID,
-			ParentID: row.ParentID,
-		})
-	}
-	return depts
-}
-
+// Deprecated: use InvalidateDepartmentTreeCacheContext instead.
 func InvalidateDepartmentTreeCache() error {
-	return redisDepartmentTreeCache{}.InvalidateDepartmentTree(context.Background())
+	return InvalidateDepartmentTreeCacheContext(context.Background())
 }
 
-func (redisDepartmentTreeCache) InvalidateDepartmentTree(ctx context.Context) error {
+func InvalidateDepartmentTreeCacheContext(ctx context.Context) error {
+	return defaultDepartmentTreeCache.InvalidateDepartmentTree(ctx)
+}
+
+func StartDepartmentTreeInvalidationListener(ctx context.Context) (*redisstore.StringSubscriber, error) {
+	return redisstore.StartSubscriber(ctx, departmentTreeInvalidateChannel, func(_ context.Context, payload string) {
+		if payload == departmentTreeInvalidatePayloadClear {
+			defaultDepartmentTreeCache.clearLocal()
+		}
+	})
+}
+
+func (c *layeredDepartmentTreeCache) InvalidateDepartmentTree(ctx context.Context) error {
+	c.clearLocal()
+
+	if redisstore.Client == nil {
+		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if err := c.deleteRemote(ctx); err != nil {
+		return err
+	}
+	return redisstore.PublishString(ctx, departmentTreeInvalidateChannel, departmentTreeInvalidatePayloadClear)
+}
+
+func (c *layeredDepartmentTreeCache) getLocalRows() ([]departmentTreeCacheRow, bool) {
+	if c == nil {
+		return nil, false
+	}
+
+	now := time.Now()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if len(c.rows) == 0 && c.expiresAt.IsZero() {
+		return nil, false
+	}
+	if !c.expiresAt.IsZero() && !now.Before(c.expiresAt) {
+		return nil, false
+	}
+	return cloneDepartmentTreeRows(c.rows), true
+}
+
+func (c *layeredDepartmentTreeCache) setLocalRows(rows []departmentTreeCacheRow) {
+	if c == nil {
+		return
+	}
+
+	ttl := c.localTTL
+	if ttl <= 0 {
+		ttl = departmentTreeLocalCacheTTL
+	}
+
+	c.mu.Lock()
+	c.rows = cloneDepartmentTreeRows(rows)
+	c.expiresAt = time.Now().Add(ttl)
+	c.mu.Unlock()
+}
+
+func (c *layeredDepartmentTreeCache) clearLocal() {
+	if c == nil {
+		return
+	}
+
+	c.mu.Lock()
+	c.rows = nil
+	c.expiresAt = time.Time{}
+	c.mu.Unlock()
+}
+
+func (c *layeredDepartmentTreeCache) deleteRemote(ctx context.Context) error {
 	if redisstore.Client == nil {
 		return nil
 	}
@@ -476,7 +581,7 @@ func (r *DataScopeResolver) departmentTreeCache() DepartmentTreeCache {
 	if r != nil && r.cache != nil {
 		return r.cache
 	}
-	return redisDepartmentTreeCache{}
+	return defaultDepartmentTreeCache
 }
 
 func (databaseDataScopeStore) ListDepartments(ctx context.Context) ([]model.Department, error) {

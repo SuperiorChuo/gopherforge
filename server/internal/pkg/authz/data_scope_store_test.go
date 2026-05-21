@@ -181,11 +181,13 @@ func (s *stubDepartmentTreeCache) InvalidateDepartmentTree(ctx context.Context) 
 func withoutAuthzGlobals(t *testing.T) {
 	t.Helper()
 
+	resetDefaultDepartmentTreeCache()
 	oldDB := database.DB
 	oldRedis := redisstore.Client
 	database.DB = nil
 	redisstore.Client = nil
 	t.Cleanup(func() {
+		resetDefaultDepartmentTreeCache()
 		database.DB = oldDB
 		redisstore.Client = oldRedis
 	})

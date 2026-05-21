@@ -46,7 +46,7 @@ func (d *LoginLogDAO) GetByID(id uint) (*model.LoginLog, error) {
 
 func (d *LoginLogDAO) GetByIDContext(ctx context.Context, id uint) (*model.LoginLog, error) {
 	var log model.LoginLog
-	result := d.dbWithContext(ctx).First(&log, id)
+	result := d.dbWithContext(authz.DisableDataScope(ctx)).First(&log, id)
 	return &log, result.Error
 }
 
@@ -76,8 +76,7 @@ func (d *LoginLogDAO) GetListContext(
 	var logs []model.LoginLog
 	var total int64
 
-	query := d.dbWithContext(ctx).Model(&model.LoginLog{})
-	query = authz.ApplyOwnerScope(query, dataScope, "user_id")
+	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.LoginLog{})
 	query = applyLoginLogFilters(query, userID, username, ip, status, loginType, startTime, endTime)
 
 	if err := query.Count(&total).Error; err != nil {
@@ -118,7 +117,7 @@ func (d *LoginLogDAO) GetUserLastLogin(userID uint) (*model.LoginLog, error) {
 
 func (d *LoginLogDAO) GetUserLastLoginContext(ctx context.Context, userID uint) (*model.LoginLog, error) {
 	var log model.LoginLog
-	result := d.dbWithContext(ctx).Where("user_id = ? AND status = 1", userID).
+	result := d.dbWithContext(authz.DisableDataScope(ctx)).Where("user_id = ? AND status = 1", userID).
 		Order("created_at DESC").
 		First(&log)
 	return &log, result.Error
@@ -131,7 +130,7 @@ func (d *LoginLogDAO) GetUserLoginCount(userID uint, startTime, endTime *time.Ti
 
 func (d *LoginLogDAO) GetUserLoginCountContext(ctx context.Context, userID uint, startTime, endTime *time.Time) (int64, error) {
 	var count int64
-	query := d.dbWithContext(ctx).Model(&model.LoginLog{}).Where("user_id = ? AND status = 1", userID)
+	query := d.dbWithContext(authz.DisableDataScope(ctx)).Model(&model.LoginLog{}).Where("user_id = ? AND status = 1", userID)
 	query = applyTimeRange(query, startTime, endTime)
 	err := query.Count(&count).Error
 	return count, err
@@ -144,7 +143,7 @@ func (d *LoginLogDAO) GetFailedLoginCount(username, ip string, since time.Time) 
 
 func (d *LoginLogDAO) GetFailedLoginCountContext(ctx context.Context, username, ip string, since time.Time) (int64, error) {
 	var count int64
-	query := d.dbWithContext(ctx).Model(&model.LoginLog{}).Where("status = 0 AND created_at >= ?", since)
+	query := d.dbWithContext(authz.DisableDataScope(ctx)).Model(&model.LoginLog{}).Where("status = 0 AND created_at >= ?", since)
 	if username != "" {
 		query = query.Where("username = ?", username)
 	}
@@ -171,6 +170,19 @@ func (d *LoginLogDAO) GetStats(startTime, endTime *time.Time) (*LoginLogStats, e
 }
 
 func (d *LoginLogDAO) GetStatsContext(ctx context.Context, startTime, endTime *time.Time) (*LoginLogStats, error) {
+	return d.getStatsContext(authz.DisableDataScope(ctx), startTime, endTime)
+}
+
+// Deprecated: use GetStatsInScopeContext instead.
+func (d *LoginLogDAO) GetStatsInScope(startTime, endTime *time.Time, dataScope authz.UserDataScope) (*LoginLogStats, error) {
+	return d.GetStatsInScopeContext(context.Background(), startTime, endTime, dataScope)
+}
+
+func (d *LoginLogDAO) GetStatsInScopeContext(ctx context.Context, startTime, endTime *time.Time, dataScope authz.UserDataScope) (*LoginLogStats, error) {
+	return d.getStatsContext(authz.EnableDataScope(ctx, dataScope), startTime, endTime)
+}
+
+func (d *LoginLogDAO) getStatsContext(ctx context.Context, startTime, endTime *time.Time) (*LoginLogStats, error) {
 	stats := &LoginLogStats{ByDevice: map[string]int64{}, ByBrowser: map[string]int64{}}
 
 	if err := applyTimeRange(d.dbWithContext(ctx).Model(&model.LoginLog{}), startTime, endTime).Count(&stats.Total).Error; err != nil {
@@ -243,6 +255,19 @@ func (d *LoginLogDAO) GetLoginTrend(days int) ([]LoginTrendItem, error) {
 }
 
 func (d *LoginLogDAO) GetLoginTrendContext(ctx context.Context, days int) ([]LoginTrendItem, error) {
+	return d.getLoginTrendContext(authz.DisableDataScope(ctx), days)
+}
+
+// Deprecated: use GetLoginTrendInScopeContext instead.
+func (d *LoginLogDAO) GetLoginTrendInScope(days int, dataScope authz.UserDataScope) ([]LoginTrendItem, error) {
+	return d.GetLoginTrendInScopeContext(context.Background(), days, dataScope)
+}
+
+func (d *LoginLogDAO) GetLoginTrendInScopeContext(ctx context.Context, days int, dataScope authz.UserDataScope) ([]LoginTrendItem, error) {
+	return d.getLoginTrendContext(authz.EnableDataScope(ctx, dataScope), days)
+}
+
+func (d *LoginLogDAO) getLoginTrendContext(ctx context.Context, days int) ([]LoginTrendItem, error) {
 	result := make([]LoginTrendItem, days)
 	now := time.Now()
 	for i := days - 1; i >= 0; i-- {

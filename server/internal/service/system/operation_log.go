@@ -64,6 +64,17 @@ func (s *OperationLogService) GetLogByIDContext(ctx context.Context, id uint) (*
 	return log, nil
 }
 
+func (s *OperationLogService) GetLogByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*model.OperationLog, error) {
+	log, err := s.logDAO.GetLogByIDInScopeContext(ctx, id, dataScope)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrOperationLogNotFound
+		}
+		return nil, err
+	}
+	return log, nil
+}
+
 // Deprecated: use GetLogListContext instead.
 func (s *OperationLogService) GetLogList(req OperationLogListRequest) ([]model.OperationLog, int64, error) {
 	return s.GetLogListContext(context.Background(), req)
@@ -106,6 +117,10 @@ func (s *OperationLogService) GetLogStats(startTime, endTime *time.Time) (*syste
 
 func (s *OperationLogService) GetLogStatsContext(ctx context.Context, startTime, endTime *time.Time) (*systemdao.LogStats, error) {
 	return s.logDAO.GetLogStatsContext(ctx, startTime, endTime)
+}
+
+func (s *OperationLogService) GetLogStatsInScopeContext(ctx context.Context, startTime, endTime *time.Time, dataScope authz.UserDataScope) (*systemdao.LogStats, error) {
+	return s.logDAO.GetLogStatsInScopeContext(ctx, startTime, endTime, dataScope)
 }
 
 // Deprecated: use ExportLogsContext instead.

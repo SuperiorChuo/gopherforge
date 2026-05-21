@@ -3,10 +3,12 @@ package system
 import (
 	"context"
 	"errors"
+	"time"
 
 	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
+	"github.com/go-admin-kit/server/internal/pkg/logger"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 	"gorm.io/gorm"
 )
@@ -25,6 +27,23 @@ type departmentDAO interface {
 
 type DepartmentService struct {
 	deptDAO departmentDAO
+}
+
+const departmentTreeInvalidationTimeout = 2 * time.Second
+
+func warnDepartmentTreeInvalidation(err error) {
+	if err == nil || logger.Logger == nil {
+		return
+	}
+	logger.Warn("department tree cache invalidation failed", logger.Err(err))
+}
+
+func departmentTreeInvalidationContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	base := context.Background()
+	if ctx != nil {
+		base = context.WithoutCancel(ctx)
+	}
+	return context.WithTimeout(base, departmentTreeInvalidationTimeout)
 }
 
 func (s *DepartmentService) dao() departmentDAO {
@@ -152,7 +171,9 @@ func (s *DepartmentService) CreateContext(ctx context.Context, req CreateDepartm
 	if err := dao.CreateContext(ctx, dept); err != nil {
 		return nil, err
 	}
-	_ = authz.InvalidateDepartmentTreeCache()
+	invalidateCtx, cancel := departmentTreeInvalidationContext(ctx)
+	defer cancel()
+	warnDepartmentTreeInvalidation(authz.InvalidateDepartmentTreeCacheContext(invalidateCtx))
 	return dept, nil
 }
 
@@ -208,7 +229,9 @@ func (s *DepartmentService) UpdateContext(ctx context.Context, id uint, req Upda
 	if err := dao.UpdateContext(ctx, dept); err != nil {
 		return nil, err
 	}
-	_ = authz.InvalidateDepartmentTreeCache()
+	invalidateCtx, cancel := departmentTreeInvalidationContext(ctx)
+	defer cancel()
+	warnDepartmentTreeInvalidation(authz.InvalidateDepartmentTreeCacheContext(invalidateCtx))
 	return dept, nil
 }
 
@@ -221,7 +244,9 @@ func (s *DepartmentService) DeleteContext(ctx context.Context, id uint) error {
 	if err := s.dao().DeleteContext(ctx, id); err != nil {
 		return err
 	}
-	_ = authz.InvalidateDepartmentTreeCache()
+	invalidateCtx, cancel := departmentTreeInvalidationContext(ctx)
+	defer cancel()
+	warnDepartmentTreeInvalidation(authz.InvalidateDepartmentTreeCacheContext(invalidateCtx))
 	return nil
 }
 

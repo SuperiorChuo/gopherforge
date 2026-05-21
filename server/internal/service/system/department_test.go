@@ -62,6 +62,40 @@ func TestDepartmentServiceCreateContextReturnsCodeLookupError(t *testing.T) {
 	}
 }
 
+func TestDepartmentServiceCreateContextStillInvalidatesRemoteCacheAfterRequestCancellation(t *testing.T) {
+	setupDepartmentServiceTestRedis(t)
+	seedDepartmentTreeCache(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	dao := &fakeDepartmentDAO{
+		getByCodeErr: gorm.ErrRecordNotFound,
+		createHook: func(context.Context) {
+			cancel()
+		},
+	}
+	service := DepartmentService{deptDAO: dao}
+
+	dept, err := service.CreateContext(ctx, CreateDepartmentRequest{
+		Name:   "Engineering",
+		Code:   "rd",
+		Status: 1,
+	})
+	if err != nil {
+		t.Fatalf("CreateContext() error = %v", err)
+	}
+	if dept == nil || dept.ID == 0 {
+		t.Fatalf("CreateContext() department = %#v, want persisted department", dept)
+	}
+
+	exists, err := redisstore.Client.Exists(context.Background(), departmentTreeCacheTestKey).Result()
+	if err != nil {
+		t.Fatalf("check department tree cache: %v", err)
+	}
+	if exists != 0 {
+		t.Fatalf("department tree cache existence = %d, want 0 after best-effort invalidation", exists)
+	}
+}
+
 func TestDepartmentServiceUpdateInvalidatesDepartmentTreeCache(t *testing.T) {
 	setupDepartmentServiceTestRedis(t)
 	seedDepartmentTreeCache(t)
@@ -137,6 +171,7 @@ type fakeDepartmentDAO struct {
 	createErr    error
 	updateErr    error
 	deleteErr    error
+	createHook   func(context.Context)
 }
 
 func (d *fakeDepartmentDAO) GetByID(id uint) (*model.Department, error) {
@@ -190,11 +225,14 @@ func (d *fakeDepartmentDAO) Create(dept *model.Department) error {
 	return d.CreateContext(context.Background(), dept)
 }
 
-func (d *fakeDepartmentDAO) CreateContext(_ context.Context, dept *model.Department) error {
+func (d *fakeDepartmentDAO) CreateContext(ctx context.Context, dept *model.Department) error {
 	if d.createErr != nil {
 		return d.createErr
 	}
 	dept.ID = 1
+	if d.createHook != nil {
+		d.createHook(ctx)
+	}
 	return nil
 }
 

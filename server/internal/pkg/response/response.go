@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/pkg/logger"
+	"github.com/go-admin-kit/server/internal/pkg/mask"
 )
 
 // Response is the standard API response shape.
@@ -34,6 +35,13 @@ func Success(c *gin.Context, data any) {
 	})
 }
 
+// SuccessMasked writes a successful response with optional data masking.
+// In phase 1, only typed struct/pointer/slice DTOs with `mask` tags are transformed.
+// Map-backed payloads such as gin.H are returned unchanged.
+func SuccessMasked(c *gin.Context, data any, shouldMask bool) {
+	Success(c, mask.CloneAndMaskAny(data, shouldMask))
+}
+
 // SuccessWithMessage writes a successful response with a custom message.
 func SuccessWithMessage(c *gin.Context, message string, data any) {
 	c.JSON(http.StatusOK, Response{
@@ -41,6 +49,12 @@ func SuccessWithMessage(c *gin.Context, message string, data any) {
 		Message: message,
 		Data:    data,
 	})
+}
+
+// SuccessWithMessageMasked writes a successful response with a custom message and optional data masking.
+// In phase 1, map-backed payloads are returned unchanged.
+func SuccessWithMessageMasked(c *gin.Context, message string, data any, shouldMask bool) {
+	SuccessWithMessage(c, message, mask.CloneAndMaskAny(data, shouldMask))
 }
 
 // Error writes an error response with a custom code.
@@ -153,4 +167,10 @@ func PageSuccess(c *gin.Context, data any, total int64, page, pageSize int) {
 			"page_size": pageSize,
 		},
 	})
+}
+
+// PageSuccessMasked writes a successful paginated response with optional item masking.
+// In phase 1, map-backed payloads are returned unchanged.
+func PageSuccessMasked(c *gin.Context, data any, total int64, page, pageSize int, shouldMask bool) {
+	PageSuccess(c, mask.CloneAndMaskAny(data, shouldMask), total, page, pageSize)
 }

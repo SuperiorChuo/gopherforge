@@ -45,8 +45,7 @@ func (d *UserDAO) GetUserListContext(ctx context.Context, req pagination.PageReq
 	var users []model.User
 	var total int64
 
-	query := d.dbWithContext(ctx).Model(&model.User{})
-	query = authz.ApplyUserEntityScope(query, dataScope, "id", "department_id")
+	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.User{})
 
 	if keyword != "" {
 		query = query.Where("username LIKE ? OR nickname LIKE ? OR email LIKE ? OR phone LIKE ?",

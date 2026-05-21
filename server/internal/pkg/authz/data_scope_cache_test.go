@@ -5,7 +5,9 @@ import (
 	"errors"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	miniredis "github.com/alicebob/miniredis/v2"
@@ -37,6 +39,32 @@ func TestResolveDepartmentTreeIDsUsesCachedDepartmentTree(t *testing.T) {
 	}
 }
 
+func TestResolveDepartmentTreeIDsUsesLocalCacheWhenRedisBecomesUnavailable(t *testing.T) {
+	setupAuthzCacheTestRedis(t)
+	mock := setupAuthzCacheTestDB(t)
+	mock.ExpectQuery("SELECT .* FROM `departments`").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
+			AddRow(11, 10).
+			AddRow(12, 11))
+
+	first := resolveDepartmentTreeIDs(10)
+
+	oldClient := redisstore.Client
+	redisstore.Client = nil
+	t.Cleanup(func() {
+		redisstore.Client = oldClient
+	})
+
+	second := resolveDepartmentTreeIDs(10)
+
+	if !slices.Equal(first, []uint{10, 11, 12}) {
+		t.Fatalf("first department ids = %#v, want [10 11 12]", first)
+	}
+	if !slices.Equal(second, []uint{10, 11, 12}) {
+		t.Fatalf("second department ids = %#v, want [10 11 12]", second)
+	}
+}
+
 func TestInvalidateDepartmentTreeCacheRemovesCachedTree(t *testing.T) {
 	setupAuthzCacheTestRedis(t)
 
@@ -51,6 +79,155 @@ func TestInvalidateDepartmentTreeCacheRemovesCachedTree(t *testing.T) {
 
 	if redisstore.Client.Exists(ctx, departmentTreeCacheKey).Val() != 0 {
 		t.Fatal("department tree cache should be removed")
+	}
+}
+
+func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenContextCanceled(t *testing.T) {
+	setupAuthzCacheTestRedis(t)
+	mock := setupAuthzCacheTestDB(t)
+	mock.ExpectQuery("SELECT .* FROM `departments`").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
+			AddRow(11, 10))
+
+	got := resolveDepartmentTreeIDs(10)
+	if !slices.Equal(got, []uint{10, 11}) {
+		t.Fatalf("department ids = %#v, want [10 11]", got)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if err := InvalidateDepartmentTreeCacheContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("InvalidateDepartmentTreeCacheContext() error = %v, want context.Canceled", err)
+	}
+
+	oldClient := redisstore.Client
+	redisstore.Client = nil
+	t.Cleanup(func() {
+		redisstore.Client = oldClient
+	})
+
+	mock.ExpectQuery("SELECT .* FROM `departments`").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
+			AddRow(11, 10))
+
+	refreshed := resolveDepartmentTreeIDs(10)
+	if !slices.Equal(refreshed, []uint{10, 11}) {
+		t.Fatalf("refreshed department ids = %#v, want [10 11]", refreshed)
+	}
+}
+
+func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenDeleteFails(t *testing.T) {
+	setupAuthzCacheTestRedis(t)
+
+	cache, ok := NewDataScopeResolver(nil).departmentTreeCache().(*layeredDepartmentTreeCache)
+	if !ok {
+		t.Fatal("expected layeredDepartmentTreeCache")
+	}
+	cache.setLocalRows([]departmentTreeCacheRow{{ID: 10}, {ID: 11, ParentID: 10}})
+
+	ctx := context.Background()
+	if err := redisstore.Client.Set(ctx, departmentTreeCacheKey, "[]", time.Hour).Err(); err != nil {
+		t.Fatalf("seed department tree cache: %v", err)
+	}
+
+	injectedErr := errors.New("delete failed")
+	redisstore.Client.AddHook(redisCommandErrorHook{command: "del", err: injectedErr})
+
+	err := InvalidateDepartmentTreeCacheContext(ctx)
+	if !errors.Is(err, injectedErr) {
+		t.Fatalf("InvalidateDepartmentTreeCacheContext() error = %v, want injected error", err)
+	}
+	if _, cached := cache.getLocalRows(); cached {
+		t.Fatal("local department tree cache should be cleared on delete failure")
+	}
+	if redisstore.Client.Exists(ctx, departmentTreeCacheKey).Val() != 1 {
+		t.Fatal("remote department tree cache should remain when delete fails")
+	}
+}
+
+func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenPublishFails(t *testing.T) {
+	setupAuthzCacheTestRedis(t)
+
+	cache, ok := NewDataScopeResolver(nil).departmentTreeCache().(*layeredDepartmentTreeCache)
+	if !ok {
+		t.Fatal("expected layeredDepartmentTreeCache")
+	}
+	cache.setLocalRows([]departmentTreeCacheRow{{ID: 10}, {ID: 11, ParentID: 10}})
+
+	ctx := context.Background()
+	if err := redisstore.Client.Set(ctx, departmentTreeCacheKey, "[]", time.Hour).Err(); err != nil {
+		t.Fatalf("seed department tree cache: %v", err)
+	}
+
+	injectedErr := errors.New("publish failed")
+	redisstore.Client.AddHook(redisCommandErrorHook{command: "publish", err: injectedErr})
+
+	err := InvalidateDepartmentTreeCacheContext(ctx)
+	if !errors.Is(err, injectedErr) {
+		t.Fatalf("InvalidateDepartmentTreeCacheContext() error = %v, want injected error", err)
+	}
+	if _, cached := cache.getLocalRows(); cached {
+		t.Fatal("local department tree cache should be cleared on publish failure")
+	}
+	if redisstore.Client.Exists(ctx, departmentTreeCacheKey).Val() != 0 {
+		t.Fatal("remote department tree cache should be removed before publish failure")
+	}
+}
+
+func TestDepartmentTreeInvalidationListenerClearsLocalCache(t *testing.T) {
+	setupAuthzCacheTestRedis(t)
+	mock := setupAuthzCacheTestDB(t)
+	mock.ExpectQuery("SELECT .* FROM `departments`").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
+			AddRow(11, 10))
+
+	initial := resolveDepartmentTreeIDs(10)
+	if !slices.Equal(initial, []uint{10, 11}) {
+		t.Fatalf("initial department ids = %#v, want [10 11]", initial)
+	}
+
+	listenerCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	listener, err := StartDepartmentTreeInvalidationListener(listenerCtx)
+	if err != nil {
+		t.Fatalf("StartDepartmentTreeInvalidationListener() error = %v", err)
+	}
+	defer func() {
+		if err := listener.Close(); err != nil {
+			t.Fatalf("listener.Close() error = %v", err)
+		}
+	}()
+
+	if err := redisstore.Client.Publish(context.Background(), departmentTreeInvalidateChannel, departmentTreeInvalidatePayloadClear).Err(); err != nil {
+		t.Fatalf("publish invalidation message: %v", err)
+	}
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		cache, ok := NewDataScopeResolver(nil).departmentTreeCache().(*layeredDepartmentTreeCache)
+		if ok {
+			if _, cached := cache.getLocalRows(); !cached {
+				break
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	oldClient := redisstore.Client
+	redisstore.Client = nil
+	t.Cleanup(func() {
+		redisstore.Client = oldClient
+	})
+
+	mock.ExpectQuery("SELECT .* FROM `departments`").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
+			AddRow(11, 10))
+
+	refreshed := resolveDepartmentTreeIDs(10)
+	if !slices.Equal(refreshed, []uint{10, 11}) {
+		t.Fatalf("refreshed department ids = %#v, want [10 11]", refreshed)
 	}
 }
 
@@ -173,6 +350,8 @@ func TestUserHasPermissionFromContextPropagatesRequestCancellation(t *testing.T)
 func setupAuthzCacheTestRedis(t *testing.T) *miniredis.Miniredis {
 	t.Helper()
 
+	resetDefaultDepartmentTreeCache()
+
 	store, err := miniredis.Run()
 	if err != nil {
 		t.Fatalf("start miniredis: %v", err)
@@ -183,6 +362,7 @@ func setupAuthzCacheTestRedis(t *testing.T) *miniredis.Miniredis {
 	redisstore.Client = client
 
 	t.Cleanup(func() {
+		resetDefaultDepartmentTreeCache()
 		_ = client.Close()
 		redisstore.Client = oldClient
 		store.Close()
@@ -193,6 +373,8 @@ func setupAuthzCacheTestRedis(t *testing.T) *miniredis.Miniredis {
 
 func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 	t.Helper()
+
+	resetDefaultDepartmentTreeCache()
 
 	oldDB := database.DB
 	sqlDB, mock, err := sqlmock.New()
@@ -210,6 +392,7 @@ func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 
 	database.DB = db
 	t.Cleanup(func() {
+		resetDefaultDepartmentTreeCache()
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatalf("unmet database expectations: %v", err)
 		}
@@ -218,4 +401,39 @@ func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 	})
 
 	return mock
+}
+
+func resetDefaultDepartmentTreeCache() {
+	if cache, ok := NewDataScopeResolver(nil).departmentTreeCache().(*layeredDepartmentTreeCache); ok {
+		cache.clearLocal()
+	}
+}
+
+type redisCommandErrorHook struct {
+	command string
+	err     error
+}
+
+func (h redisCommandErrorHook) DialHook(next goredis.DialHook) goredis.DialHook {
+	return next
+}
+
+func (h redisCommandErrorHook) ProcessHook(next goredis.ProcessHook) goredis.ProcessHook {
+	return func(ctx context.Context, cmd goredis.Cmder) error {
+		if strings.EqualFold(cmd.Name(), h.command) {
+			return h.err
+		}
+		return next(ctx, cmd)
+	}
+}
+
+func (h redisCommandErrorHook) ProcessPipelineHook(next goredis.ProcessPipelineHook) goredis.ProcessPipelineHook {
+	return func(ctx context.Context, cmds []goredis.Cmder) error {
+		for _, cmd := range cmds {
+			if strings.EqualFold(cmd.Name(), h.command) {
+				return h.err
+			}
+		}
+		return next(ctx, cmds)
+	}
 }

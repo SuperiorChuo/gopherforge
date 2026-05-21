@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -10,8 +11,11 @@ import (
 	"testing"
 	"time"
 
+	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/config"
+	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 func TestSetupCORSAllowsLocalDevelopmentFrontendPorts(t *testing.T) {
@@ -156,5 +160,47 @@ func TestServeHTTPServerGracefullyWaitsForInFlightRequests(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("server did not shut down")
+	}
+}
+
+func TestStartDepartmentTreeInvalidationListenerReturnsErrorWithoutRedis(t *testing.T) {
+	oldClient := redisstore.Client
+	redisstore.Client = nil
+	t.Cleanup(func() {
+		redisstore.Client = oldClient
+	})
+
+	listener, err := startDepartmentTreeInvalidationListener(context.Background())
+	if err == nil {
+		t.Fatal("expected error when redis client is nil")
+	}
+	if listener != nil {
+		t.Fatal("expected nil listener when redis client is nil")
+	}
+}
+
+func TestStartDepartmentTreeInvalidationListenerStartsAndCloses(t *testing.T) {
+	store, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("start miniredis: %v", err)
+	}
+
+	oldClient := redisstore.Client
+	redisstore.Client = goredis.NewClient(&goredis.Options{Addr: store.Addr()})
+	t.Cleanup(func() {
+		_ = redisstore.Client.Close()
+		redisstore.Client = oldClient
+		store.Close()
+	})
+
+	listener, err := startDepartmentTreeInvalidationListener(context.Background())
+	if err != nil {
+		t.Fatalf("startDepartmentTreeInvalidationListener() error = %v", err)
+	}
+	if listener == nil {
+		t.Fatal("expected listener")
+	}
+	if err := listener.Close(); err != nil {
+		t.Fatalf("listener.Close() error = %v", err)
 	}
 }

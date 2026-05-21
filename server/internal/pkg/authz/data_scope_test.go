@@ -172,6 +172,7 @@ func TestResolveUserDataScopeFallbacks(t *testing.T) {
 func setupAuthzTestDB(t *testing.T) {
 	t.Helper()
 
+	resetDefaultDepartmentTreeCache()
 	oldDB := database.DB
 	sqlDB, mock, err := sqlmock.New()
 	if err != nil {
@@ -194,6 +195,7 @@ func setupAuthzTestDB(t *testing.T) {
 
 	database.DB = db
 	t.Cleanup(func() {
+		resetDefaultDepartmentTreeCache()
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatalf("unmet database expectations: %v", err)
 		}

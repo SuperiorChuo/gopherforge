@@ -46,7 +46,19 @@ func (d *OperationLogDAO) GetLogByID(id uint) (*model.OperationLog, error) {
 
 func (d *OperationLogDAO) GetLogByIDContext(ctx context.Context, id uint) (*model.OperationLog, error) {
 	var log model.OperationLog
-	result := d.dbWithContext(ctx).First(&log, id)
+	result := d.dbWithContext(authz.DisableDataScope(ctx)).First(&log, id)
+	return &log, result.Error
+}
+
+// Deprecated: use GetLogByIDInScopeContext instead.
+func (d *OperationLogDAO) GetLogByIDInScope(id uint, dataScope authz.UserDataScope) (*model.OperationLog, error) {
+	return d.GetLogByIDInScopeContext(context.Background(), id, dataScope)
+}
+
+func (d *OperationLogDAO) GetLogByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*model.OperationLog, error) {
+	var log model.OperationLog
+	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.OperationLog{})
+	result := query.Where("id = ?", id).First(&log)
 	return &log, result.Error
 }
 
@@ -74,8 +86,7 @@ func (d *OperationLogDAO) GetLogListContext(
 	var logs []model.OperationLog
 	var total int64
 
-	query := d.dbWithContext(ctx).Model(&model.OperationLog{})
-	query = authz.ApplyOwnerScope(query, dataScope, "user_id")
+	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.OperationLog{})
 	query = applyOperationLogFilters(query, userID, username, actorType, actorID, requestID, method, path, module, action, status, startTime, endTime)
 
 	if err := query.Count(&total).Error; err != nil {
@@ -146,6 +157,19 @@ func (d *OperationLogDAO) GetLogStats(startTime, endTime *time.Time) (*LogStats,
 }
 
 func (d *OperationLogDAO) GetLogStatsContext(ctx context.Context, startTime, endTime *time.Time) (*LogStats, error) {
+	return d.getLogStatsContext(authz.DisableDataScope(ctx), startTime, endTime)
+}
+
+// Deprecated: use GetLogStatsInScopeContext instead.
+func (d *OperationLogDAO) GetLogStatsInScope(startTime, endTime *time.Time, dataScope authz.UserDataScope) (*LogStats, error) {
+	return d.GetLogStatsInScopeContext(context.Background(), startTime, endTime, dataScope)
+}
+
+func (d *OperationLogDAO) GetLogStatsInScopeContext(ctx context.Context, startTime, endTime *time.Time, dataScope authz.UserDataScope) (*LogStats, error) {
+	return d.getLogStatsContext(authz.EnableDataScope(ctx, dataScope), startTime, endTime)
+}
+
+func (d *OperationLogDAO) getLogStatsContext(ctx context.Context, startTime, endTime *time.Time) (*LogStats, error) {
 	stats := &LogStats{ByModule: map[string]int64{}, ByMethod: map[string]int64{}}
 
 	query := applyTimeRange(d.dbWithContext(ctx).Model(&model.OperationLog{}), startTime, endTime)

@@ -67,7 +67,14 @@ func (a *OperationLogAPI) GetOperationLogDetail(c *gin.Context) {
 		return
 	}
 
-	log, err := a.logService.GetLogByIDContext(c.Request.Context(), uint(id))
+	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
+	if err != nil {
+		logOperationLogError("failed to resolve operation log detail data scope", err)
+		response.InternalServerError(c, "failed to get operation log")
+		return
+	}
+
+	log, err := a.logService.GetLogByIDInScopeContext(c.Request.Context(), uint(id), dataScope)
 	if err != nil {
 		writeSystemOperationLogServiceError(c, "failed to get operation log", err)
 		return
@@ -121,7 +128,14 @@ func (a *OperationLogAPI) GetOperationLogStats(c *gin.Context) {
 		endTime = &t
 	}
 
-	stats, err := a.logService.GetLogStatsContext(c.Request.Context(), startTime, endTime)
+	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
+	if err != nil {
+		logOperationLogError("failed to resolve operation log stats data scope", err)
+		response.InternalServerError(c, "failed to get operation log stats")
+		return
+	}
+
+	stats, err := a.logService.GetLogStatsInScopeContext(c.Request.Context(), startTime, endTime, dataScope)
 	if err != nil {
 		logOperationLogError("failed to get operation log stats", err)
 		response.InternalServerError(c, "failed to get operation log stats")

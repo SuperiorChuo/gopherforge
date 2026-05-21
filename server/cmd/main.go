@@ -19,6 +19,7 @@ import (
 	"github.com/go-admin-kit/server/internal/api"
 	"github.com/go-admin-kit/server/internal/config"
 	"github.com/go-admin-kit/server/internal/middleware"
+	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/logger"
 	"github.com/go-admin-kit/server/internal/pkg/observability"
@@ -143,6 +144,10 @@ func serveHTTPServer(server *http.Server, listener net.Listener, shutdownTimeout
 	}
 }
 
+func startDepartmentTreeInvalidationListener(ctx context.Context) (*redis.StringSubscriber, error) {
+	return authz.StartDepartmentTreeInvalidationListener(ctx)
+}
+
 func main() {
 	configPath := os.Getenv("CONFIG_FILE")
 	if configPath == "" {
@@ -163,6 +168,9 @@ func main() {
 	if err := database.InitDatabase(); err != nil {
 		logger.Fatal("database initialization failed", logger.Err(err))
 	}
+	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {
+		logger.Fatal("data scope plugin registration failed", logger.Err(err))
+	}
 	defer func() {
 		if err := database.Close(); err != nil {
 			logger.Error("database close failed", logger.Err(err))
@@ -177,6 +185,24 @@ func main() {
 	logger.Info("initializing redis")
 	if err := redis.InitRedis(); err != nil {
 		logger.Fatal("redis initialization failed", logger.Err(err))
+	}
+	defer func() {
+		if err := redis.Close(); err != nil {
+			logger.Error("redis close failed", logger.Err(err))
+		}
+	}()
+
+	listenerCtx, cancelDepartmentTreeListener := context.WithCancel(context.Background())
+	defer cancelDepartmentTreeListener()
+	departmentTreeListener, err := startDepartmentTreeInvalidationListener(listenerCtx)
+	if err != nil {
+		logger.Warn("department tree invalidation listener start failed", logger.Err(err))
+	} else {
+		defer func() {
+			if err := departmentTreeListener.Close(); err != nil {
+				logger.Warn("department tree invalidation listener close failed", logger.Err(err))
+			}
+		}()
 	}
 
 	tracingCfg := config.Cfg.Observability.Tracing

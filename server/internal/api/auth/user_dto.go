@@ -10,8 +10,8 @@ import (
 type UserInfoResponse struct {
 	ID                 uint      `json:"id"`
 	Username           string    `json:"username"`
-	Email              string    `json:"email"`
-	Phone              string    `json:"phone"`
+	Email              string    `json:"email" mask:"email"`
+	Phone              string    `json:"phone" mask:"phone"`
 	Nickname           string    `json:"nickname"`
 	Avatar             string    `json:"avatar"`
 	Status             int8      `json:"status"`
@@ -20,6 +20,13 @@ type UserInfoResponse struct {
 	UpdatedAt          time.Time `json:"updated_at"`
 	Roles              []RoleDTO `json:"roles,omitempty"`
 	Permissions        []string  `json:"permissions"`
+}
+
+// LoginResponseData is the login response payload DTO.
+type LoginResponseData struct {
+	User         *UserInfoResponse `json:"user"`
+	AccessToken  string            `json:"access_token"`
+	RefreshToken string            `json:"refresh_token"`
 }
 
 // RoleDTO is the role response DTO.

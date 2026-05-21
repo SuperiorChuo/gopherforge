@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
 	"github.com/go-admin-kit/server/internal/middleware"
 	"github.com/go-admin-kit/server/internal/pkg/consoleauth"
 	"github.com/go-admin-kit/server/internal/pkg/jwt"
@@ -102,13 +103,14 @@ func (a *UserAPI) Login(c *gin.Context) {
 	}
 
 	// Build the response payload.
-	loginResp := gin.H{
-		"user":          ConvertUserToResponse(&resp.User, permissions),
-		"access_token":  resp.AccessToken,
-		"refresh_token": resp.RefreshToken,
+	loginResp := LoginResponseData{
+		User:         ConvertUserToResponse(&resp.User, permissions),
+		AccessToken:  resp.AccessToken,
+		RefreshToken: resp.RefreshToken,
 	}
 
-	response.SuccessWithMessage(c, "login success", loginResp)
+	targetUserID := resp.User.ID
+	response.SuccessWithMessageMasked(c, "login success", loginResp, sharedapi.ShouldMask(resp.User.ID, &targetUserID, nil))
 }
 
 // Register creates a new user account.
@@ -149,7 +151,8 @@ func (a *UserAPI) GetCurrentUser(c *gin.Context) {
 	// Build the response DTO.
 	userResp := ConvertUserToResponse(user, permissions)
 
-	response.Success(c, userResp)
+	targetUserID := user.ID
+	response.SuccessMasked(c, userResp, sharedapi.ShouldMask(userID.(uint), &targetUserID, nil))
 }
 
 // UpdateProfile updates the authenticated user's profile.
@@ -185,7 +188,8 @@ func (a *UserAPI) UpdateProfile(c *gin.Context) {
 	}
 
 	permissions := a.userService.GetUserPermissions(user)
-	response.Success(c, ConvertUserToResponse(user, permissions))
+	targetUserID := user.ID
+	response.SuccessMasked(c, ConvertUserToResponse(user, permissions), sharedapi.ShouldMask(userID.(uint), &targetUserID, nil))
 }
 
 // RefreshToken refreshes the access token and rotates the refresh token.

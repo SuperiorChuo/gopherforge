@@ -112,6 +112,10 @@ func (s *LoginLogService) GetLoginStatsContext(ctx context.Context, startTime, e
 	return s.logDAO.GetStatsContext(ctx, startTime, endTime)
 }
 
+func (s *LoginLogService) GetLoginStatsInScopeContext(ctx context.Context, startTime, endTime *time.Time, dataScope authz.UserDataScope) (*systemdao.LoginLogStats, error) {
+	return s.logDAO.GetStatsInScopeContext(ctx, startTime, endTime, dataScope)
+}
+
 // Deprecated: use ClearLogsContext instead.
 func (s *LoginLogService) ClearLogs(days int) (int64, error) {
 	return s.ClearLogsContext(context.Background(), days)
@@ -129,6 +133,10 @@ func (s *LoginLogService) GetLoginTrend(days int) ([]systemdao.LoginTrendItem, e
 
 func (s *LoginLogService) GetLoginTrendContext(ctx context.Context, days int) ([]systemdao.LoginTrendItem, error) {
 	return s.logDAO.GetLoginTrendContext(ctx, days)
+}
+
+func (s *LoginLogService) GetLoginTrendInScopeContext(ctx context.Context, days int, dataScope authz.UserDataScope) ([]systemdao.LoginTrendItem, error) {
+	return s.logDAO.GetLoginTrendInScopeContext(ctx, days, dataScope)
 }
 
 // Deprecated: use CheckAbnormalLoginContext instead.

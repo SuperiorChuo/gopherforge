@@ -165,6 +165,104 @@ func TestInternalServerErrorMasksResponseAndLogsDetail(t *testing.T) {
 	}
 }
 
+func TestSuccessMaskedMasksResponseDataWithoutMutatingOriginal(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	input := responseMaskSample{Email: "alice@example.com"}
+	_, body := recordResponse(t, func(c *gin.Context) {
+		SuccessMasked(c, &input, true)
+	})
+
+	data, ok := body.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("response data type = %T, want object", body.Data)
+	}
+	if data["email"] != "a***e@example.com" {
+		t.Fatalf("masked email = %#v, want masked value", data["email"])
+	}
+	if input.Email != "alice@example.com" {
+		t.Fatalf("original input mutated = %q", input.Email)
+	}
+}
+
+func TestSuccessMaskedLeavesDataUntouchedWhenShouldMaskIsFalse(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	input := responseMaskSample{Email: "alice@example.com"}
+	_, body := recordResponse(t, func(c *gin.Context) {
+		SuccessMasked(c, &input, false)
+	})
+
+	data, ok := body.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("response data type = %T, want object", body.Data)
+	}
+	if data["email"] != "alice@example.com" {
+		t.Fatalf("email = %#v, want original value", data["email"])
+	}
+}
+
+func TestSuccessWithMessageMaskedPreservesMessageAndMasksPayload(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	input := responseMaskSample{Email: "alice@example.com"}
+	_, body := recordResponse(t, func(c *gin.Context) {
+		SuccessWithMessageMasked(c, "ok", &input, true)
+	})
+
+	if body.Message != "ok" {
+		t.Fatalf("message = %q, want %q", body.Message, "ok")
+	}
+	data, ok := body.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("response data type = %T, want object", body.Data)
+	}
+	if data["email"] != "a***e@example.com" {
+		t.Fatalf("masked email = %#v, want masked value", data["email"])
+	}
+}
+
+func TestPageSuccessMaskedPreservesPageEnvelope(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	input := []responseMaskSample{{Email: "alice@example.com"}}
+	_, body := recordResponse(t, func(c *gin.Context) {
+		PageSuccessMasked(c, input, 1, 2, 20, true)
+	})
+
+	data, ok := body.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("response data type = %T, want object", body.Data)
+	}
+	if data["total"] != float64(1) || data["page"] != float64(2) || data["page_size"] != float64(20) {
+		t.Fatalf("page envelope = %#v, want total/page/page_size preserved", data)
+	}
+	list := data["list"].([]any)
+	item := list[0].(map[string]any)
+	if item["email"] != "a***e@example.com" {
+		t.Fatalf("masked email = %#v, want masked value", item["email"])
+	}
+}
+
+func TestSuccessMaskedLeavesMapPayloadUntouched(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	input := map[string]any{
+		"email": "alice@example.com",
+	}
+	_, body := recordResponse(t, func(c *gin.Context) {
+		SuccessMasked(c, input, true)
+	})
+
+	data, ok := body.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("response data type = %T, want object", body.Data)
+	}
+	if data["email"] != "alice@example.com" {
+		t.Fatalf("map payload email = %#v, want original value", data["email"])
+	}
+}
+
 func recordResponse(t *testing.T, respond func(*gin.Context)) (*httptest.ResponseRecorder, Response) {
 	t.Helper()
 
@@ -180,4 +278,8 @@ func recordResponse(t *testing.T, respond func(*gin.Context)) (*httptest.Respons
 		t.Fatalf("decode response body: %v", err)
 	}
 	return w, body
+}
+
+type responseMaskSample struct {
+	Email string `json:"email" mask:"email"`
 }

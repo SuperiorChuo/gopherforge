@@ -132,7 +132,14 @@ func (a *LoginLogAPI) GetLoginStats(c *gin.Context) {
 		endTime = &t
 	}
 
-	stats, err := a.logService.GetLoginStatsContext(c.Request.Context(), startTime, endTime)
+	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
+	if err != nil {
+		logLoginLogError("failed to resolve login stats data scope", err)
+		response.InternalServerError(c, "failed to get login stats")
+		return
+	}
+
+	stats, err := a.logService.GetLoginStatsInScopeContext(c.Request.Context(), startTime, endTime, dataScope)
 	if err != nil {
 		logLoginLogError("failed to get login stats", err)
 		response.InternalServerError(c, "failed to get login stats")
@@ -151,7 +158,14 @@ func (a *LoginLogAPI) GetLoginTrend(c *gin.Context) {
 		}
 	}
 
-	trend, err := a.logService.GetLoginTrendContext(c.Request.Context(), days)
+	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
+	if err != nil {
+		logLoginLogError("failed to resolve login trend data scope", err)
+		response.InternalServerError(c, "failed to get login trend")
+		return
+	}
+
+	trend, err := a.logService.GetLoginTrendInScopeContext(c.Request.Context(), days, dataScope)
 	if err != nil {
 		logLoginLogError("failed to get login trend", err)
 		response.InternalServerError(c, "failed to get login trend")

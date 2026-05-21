@@ -45,7 +45,7 @@ func (d *FileDAO) GetByID(id uint) (*model.File, error) {
 
 func (d *FileDAO) GetByIDContext(ctx context.Context, id uint) (*model.File, error) {
 	var file model.File
-	result := d.dbWithContext(ctx).First(&file, id)
+	result := d.dbWithContext(authz.DisableDataScope(ctx)).First(&file, id)
 	return &file, result.Error
 }
 
@@ -56,8 +56,7 @@ func (d *FileDAO) GetByIDInScope(id uint, dataScope authz.UserDataScope) (*model
 
 func (d *FileDAO) GetByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*model.File, error) {
 	var file model.File
-	query := d.dbWithContext(ctx).Model(&model.File{})
-	query = authz.ApplyOwnerScope(query, dataScope, "user_id")
+	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.File{})
 	result := query.Where("id = ?", id).First(&file)
 	return &file, result.Error
 }
@@ -69,7 +68,7 @@ func (d *FileDAO) GetByHash(hash string) (*model.File, error) {
 
 func (d *FileDAO) GetByHashContext(ctx context.Context, hash string) (*model.File, error) {
 	var file model.File
-	result := d.dbWithContext(ctx).Where("hash = ?", hash).First(&file)
+	result := d.dbWithContext(authz.DisableDataScope(ctx)).Where("hash = ?", hash).First(&file)
 	return &file, result.Error
 }
 
@@ -80,8 +79,7 @@ func (d *FileDAO) GetByHashInScope(hash string, dataScope authz.UserDataScope) (
 
 func (d *FileDAO) GetByHashInScopeContext(ctx context.Context, hash string, dataScope authz.UserDataScope) (*model.File, error) {
 	var file model.File
-	query := d.dbWithContext(ctx).Model(&model.File{})
-	query = authz.ApplyOwnerScope(query, dataScope, "user_id")
+	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.File{})
 	result := query.Where("hash = ?", hash).First(&file)
 	return &file, result.Error
 }
@@ -108,8 +106,7 @@ func (d *FileDAO) GetListContext(
 	var files []model.File
 	var total int64
 
-	query := d.dbWithContext(ctx).Model(&model.File{})
-	query = authz.ApplyOwnerScope(query, dataScope, "user_id")
+	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.File{})
 
 	if userID != nil {
 		query = query.Where("user_id = ?", *userID)
@@ -163,7 +160,7 @@ func (d *FileDAO) GetStats(userID *uint) (*FileStats, error) {
 }
 
 func (d *FileDAO) GetStatsContext(ctx context.Context, userID *uint) (*FileStats, error) {
-	return d.getStatsContext(ctx, userID, authz.UserDataScope{Scope: authz.DataScopeAll})
+	return d.getStatsContext(authz.DisableDataScope(ctx), userID)
 }
 
 // Deprecated: use GetStatsInScopeContext instead.
@@ -172,14 +169,13 @@ func (d *FileDAO) GetStatsInScope(userID *uint, dataScope authz.UserDataScope) (
 }
 
 func (d *FileDAO) GetStatsInScopeContext(ctx context.Context, userID *uint, dataScope authz.UserDataScope) (*FileStats, error) {
-	return d.getStatsContext(ctx, userID, dataScope)
+	return d.getStatsContext(authz.EnableDataScope(ctx, dataScope), userID)
 }
 
-func (d *FileDAO) getStatsContext(ctx context.Context, userID *uint, dataScope authz.UserDataScope) (*FileStats, error) {
+func (d *FileDAO) getStatsContext(ctx context.Context, userID *uint) (*FileStats, error) {
 	stats := &FileStats{}
 
 	query := d.dbWithContext(ctx).Model(&model.File{})
-	query = authz.ApplyOwnerScope(query, dataScope, "user_id")
 	if userID != nil {
 		query = query.Where("user_id = ?", *userID)
 	}
@@ -200,7 +196,6 @@ func (d *FileDAO) getStatsContext(ctx context.Context, userID *uint, dataScope a
 		Size     int64  `json:"size"`
 	}
 	query2 := d.dbWithContext(ctx).Model(&model.File{})
-	query2 = authz.ApplyOwnerScope(query2, dataScope, "user_id")
 	if userID != nil {
 		query2 = query2.Where("user_id = ?", *userID)
 	}
