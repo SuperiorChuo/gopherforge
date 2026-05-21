@@ -8964,6 +8964,10 @@
             "description": "Business response data",
             "additionalProperties": true
           },
+          "error_code": {
+            "type": "string",
+            "description": "Stable machine-readable error code, present on error responses"
+          },
           "message": {
             "type": "string"
           }

@@ -72,9 +72,10 @@ func (a *HealthAPI) Readiness(c *gin.Context) {
 	health := a.checkDependencies()
 	if health["status"] != "ok" {
 		c.JSON(http.StatusServiceUnavailable, response.Response{
-			Code:    503,
-			Message: "service unavailable",
-			Data:    health,
+			Code:      http.StatusServiceUnavailable,
+			Message:   "service unavailable",
+			ErrorCode: response.ErrorCodeServiceUnavailable,
+			Data:      health,
 		})
 		return
 	}

@@ -20,6 +20,7 @@ func TestErrorResponsesUseRealHTTPStatusCodes(t *testing.T) {
 		respond    func(*gin.Context)
 		wantStatus int
 		wantCode   int
+		wantErr    ErrorCode
 		wantMsg    string
 	}{
 		{
@@ -29,6 +30,7 @@ func TestErrorResponsesUseRealHTTPStatusCodes(t *testing.T) {
 			},
 			wantStatus: http.StatusBadRequest,
 			wantCode:   http.StatusBadRequest,
+			wantErr:    ErrorCodeBadRequest,
 			wantMsg:    "bad input",
 		},
 		{
@@ -38,6 +40,7 @@ func TestErrorResponsesUseRealHTTPStatusCodes(t *testing.T) {
 			},
 			wantStatus: http.StatusUnauthorized,
 			wantCode:   http.StatusUnauthorized,
+			wantErr:    ErrorCodeUnauthorized,
 			wantMsg:    "login required",
 		},
 		{
@@ -47,6 +50,7 @@ func TestErrorResponsesUseRealHTTPStatusCodes(t *testing.T) {
 			},
 			wantStatus: http.StatusForbidden,
 			wantCode:   http.StatusForbidden,
+			wantErr:    ErrorCodeForbidden,
 			wantMsg:    "permission denied",
 		},
 		{
@@ -56,6 +60,7 @@ func TestErrorResponsesUseRealHTTPStatusCodes(t *testing.T) {
 			},
 			wantStatus: http.StatusNotFound,
 			wantCode:   http.StatusNotFound,
+			wantErr:    ErrorCodeNotFound,
 			wantMsg:    "missing",
 		},
 		{
@@ -65,6 +70,7 @@ func TestErrorResponsesUseRealHTTPStatusCodes(t *testing.T) {
 			},
 			wantStatus: http.StatusInternalServerError,
 			wantCode:   http.StatusInternalServerError,
+			wantErr:    ErrorCodeInternalServerError,
 			wantMsg:    "internal server error",
 		},
 		{
@@ -74,7 +80,18 @@ func TestErrorResponsesUseRealHTTPStatusCodes(t *testing.T) {
 			},
 			wantStatus: http.StatusTooManyRequests,
 			wantCode:   http.StatusTooManyRequests,
+			wantErr:    ErrorCodeTooManyRequests,
 			wantMsg:    "limited",
+		},
+		{
+			name: "service unavailable",
+			respond: func(c *gin.Context) {
+				Error(c, http.StatusServiceUnavailable, "unavailable")
+			},
+			wantStatus: http.StatusServiceUnavailable,
+			wantCode:   http.StatusServiceUnavailable,
+			wantErr:    ErrorCodeServiceUnavailable,
+			wantMsg:    "unavailable",
 		},
 		{
 			name: "legacy application code falls back to 500 transport status",
@@ -83,7 +100,18 @@ func TestErrorResponsesUseRealHTTPStatusCodes(t *testing.T) {
 			},
 			wantStatus: http.StatusInternalServerError,
 			wantCode:   10001,
+			wantErr:    ErrorCodeInternalServerError,
 			wantMsg:    "legacy error",
+		},
+		{
+			name: "domain error code",
+			respond: func(c *gin.Context) {
+				BadRequestWithCode(c, ErrorCodeUsernameAlreadyExists, "username already exists")
+			},
+			wantStatus: http.StatusBadRequest,
+			wantCode:   http.StatusBadRequest,
+			wantErr:    ErrorCodeUsernameAlreadyExists,
+			wantMsg:    "username already exists",
 		},
 	}
 
@@ -99,6 +127,9 @@ func TestErrorResponsesUseRealHTTPStatusCodes(t *testing.T) {
 			}
 			if body.Message != tt.wantMsg {
 				t.Fatalf("message = %q, want %q", body.Message, tt.wantMsg)
+			}
+			if body.ErrorCode != tt.wantErr {
+				t.Fatalf("error_code = %q, want %q", body.ErrorCode, tt.wantErr)
 			}
 		})
 	}
@@ -120,6 +151,9 @@ func TestInternalServerErrorMasksResponseAndLogsDetail(t *testing.T) {
 
 	if body.Message != "internal server error" {
 		t.Fatalf("message = %q, want internal server error", body.Message)
+	}
+	if body.ErrorCode != ErrorCodeInternalServerError {
+		t.Fatalf("error_code = %q, want %q", body.ErrorCode, ErrorCodeInternalServerError)
 	}
 	entries := logs.FilterMessage("internal server error").All()
 	if len(entries) != 1 {

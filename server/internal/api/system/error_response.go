@@ -21,11 +21,11 @@ func internalServerError(c *gin.Context, message string, err error) {
 func writeSystemUserServiceError(c *gin.Context, operation string, err error) {
 	switch {
 	case errors.Is(err, systemsvc.ErrUsernameAlreadyExists):
-		response.BadRequest(c, systemsvc.ErrUsernameAlreadyExists.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeUsernameAlreadyExists, systemsvc.ErrUsernameAlreadyExists.Error())
 	case errors.Is(err, systemsvc.ErrEmailAlreadyExists):
-		response.BadRequest(c, systemsvc.ErrEmailAlreadyExists.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeEmailAlreadyExists, systemsvc.ErrEmailAlreadyExists.Error())
 	case errors.Is(err, systemsvc.ErrUserNotFound):
-		response.NotFound(c, systemsvc.ErrUserNotFound.Error())
+		response.NotFoundWithCode(c, response.ErrorCodeUserNotFound, systemsvc.ErrUserNotFound.Error())
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		internalServerError(c, operation, err)
 	default:
@@ -36,13 +36,13 @@ func writeSystemUserServiceError(c *gin.Context, operation string, err error) {
 func writeSystemRoleServiceError(c *gin.Context, operation string, err error) {
 	switch {
 	case errors.Is(err, systemsvc.ErrRoleCodeAlreadyExists):
-		response.BadRequest(c, systemsvc.ErrRoleCodeAlreadyExists.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeRoleCodeAlreadyExists, systemsvc.ErrRoleCodeAlreadyExists.Error())
 	case errors.Is(err, systemsvc.ErrInvalidRoleDataScope):
-		response.BadRequest(c, systemsvc.ErrInvalidRoleDataScope.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeRoleInvalidDataScope, systemsvc.ErrInvalidRoleDataScope.Error())
 	case errors.Is(err, systemsvc.ErrCustomDataScopeRequiresDepartments):
-		response.BadRequest(c, systemsvc.ErrCustomDataScopeRequiresDepartments.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeRoleCustomDataScopeRequiresDepartments, systemsvc.ErrCustomDataScopeRequiresDepartments.Error())
 	case errors.Is(err, systemsvc.ErrRoleNotFound):
-		response.NotFound(c, systemsvc.ErrRoleNotFound.Error())
+		response.NotFoundWithCode(c, response.ErrorCodeRoleNotFound, systemsvc.ErrRoleNotFound.Error())
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		internalServerError(c, operation, err)
 	default:
@@ -53,13 +53,13 @@ func writeSystemRoleServiceError(c *gin.Context, operation string, err error) {
 func writeSystemPermissionServiceError(c *gin.Context, operation string, err error) {
 	switch {
 	case errors.Is(err, systemsvc.ErrPermissionCodeAlreadyExists):
-		response.BadRequest(c, systemsvc.ErrPermissionCodeAlreadyExists.Error())
+		response.BadRequestWithCode(c, response.ErrorCodePermissionCodeAlreadyExists, systemsvc.ErrPermissionCodeAlreadyExists.Error())
 	case errors.Is(err, systemsvc.ErrParentPermissionNotFound):
-		response.BadRequest(c, systemsvc.ErrParentPermissionNotFound.Error())
+		response.BadRequestWithCode(c, response.ErrorCodePermissionParentNotFound, systemsvc.ErrParentPermissionNotFound.Error())
 	case errors.Is(err, systemsvc.ErrPermissionParentIsDescendant):
-		response.BadRequest(c, systemsvc.ErrPermissionParentIsDescendant.Error())
+		response.BadRequestWithCode(c, response.ErrorCodePermissionParentIsDescendant, systemsvc.ErrPermissionParentIsDescendant.Error())
 	case errors.Is(err, systemsvc.ErrPermissionNotFound):
-		response.NotFound(c, systemsvc.ErrPermissionNotFound.Error())
+		response.NotFoundWithCode(c, response.ErrorCodePermissionNotFound, systemsvc.ErrPermissionNotFound.Error())
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		internalServerError(c, operation, err)
 	default:
@@ -70,13 +70,13 @@ func writeSystemPermissionServiceError(c *gin.Context, operation string, err err
 func writeSystemMenuServiceError(c *gin.Context, operation string, err error) {
 	switch {
 	case errors.Is(err, systemsvc.ErrParentMenuNotFound):
-		response.BadRequest(c, systemsvc.ErrParentMenuNotFound.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeMenuParentNotFound, systemsvc.ErrParentMenuNotFound.Error())
 	case errors.Is(err, systemsvc.ErrMenuParentIsDescendant):
-		response.BadRequest(c, systemsvc.ErrMenuParentIsDescendant.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeMenuParentIsDescendant, systemsvc.ErrMenuParentIsDescendant.Error())
 	case errors.Is(err, systemsvc.ErrMenuHasChildren):
-		response.BadRequest(c, systemsvc.ErrMenuHasChildren.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeMenuHasChildren, systemsvc.ErrMenuHasChildren.Error())
 	case errors.Is(err, systemsvc.ErrMenuNotFound):
-		response.NotFound(c, systemsvc.ErrMenuNotFound.Error())
+		response.NotFoundWithCode(c, response.ErrorCodeMenuNotFound, systemsvc.ErrMenuNotFound.Error())
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		internalServerError(c, operation, err)
 	default:
@@ -87,17 +87,17 @@ func writeSystemMenuServiceError(c *gin.Context, operation string, err error) {
 func writeSystemDepartmentServiceError(c *gin.Context, operation string, err error) {
 	switch {
 	case errors.Is(err, systemsvc.ErrDepartmentCodeAlreadyExists):
-		response.BadRequest(c, systemsvc.ErrDepartmentCodeAlreadyExists.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeDepartmentCodeAlreadyExists, systemsvc.ErrDepartmentCodeAlreadyExists.Error())
 	case errors.Is(err, systemsvc.ErrParentDepartmentNotFound):
-		response.BadRequest(c, systemsvc.ErrParentDepartmentNotFound.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeDepartmentParentNotFound, systemsvc.ErrParentDepartmentNotFound.Error())
 	case errors.Is(err, systemsvc.ErrDepartmentSelfParent):
-		response.BadRequest(c, systemsvc.ErrDepartmentSelfParent.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeDepartmentSelfParent, systemsvc.ErrDepartmentSelfParent.Error())
 	case errors.Is(err, systemsvc.ErrDepartmentHasChildren):
-		response.BadRequest(c, systemsvc.ErrDepartmentHasChildren.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeDepartmentHasChildren, systemsvc.ErrDepartmentHasChildren.Error())
 	case errors.Is(err, systemsvc.ErrDepartmentHasUsers):
-		response.BadRequest(c, systemsvc.ErrDepartmentHasUsers.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeDepartmentHasUsers, systemsvc.ErrDepartmentHasUsers.Error())
 	case errors.Is(err, systemsvc.ErrDepartmentNotFound):
-		response.NotFound(c, systemsvc.ErrDepartmentNotFound.Error())
+		response.NotFoundWithCode(c, response.ErrorCodeDepartmentNotFound, systemsvc.ErrDepartmentNotFound.Error())
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		internalServerError(c, operation, err)
 	default:
@@ -108,11 +108,11 @@ func writeSystemDepartmentServiceError(c *gin.Context, operation string, err err
 func writeSystemDictServiceError(c *gin.Context, operation string, err error) {
 	switch {
 	case errors.Is(err, systemsvc.ErrDictTypeCodeAlreadyExists):
-		response.BadRequest(c, systemsvc.ErrDictTypeCodeAlreadyExists.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeDictTypeCodeAlreadyExists, systemsvc.ErrDictTypeCodeAlreadyExists.Error())
 	case errors.Is(err, systemsvc.ErrDictTypeNotFound):
-		response.NotFound(c, systemsvc.ErrDictTypeNotFound.Error())
+		response.NotFoundWithCode(c, response.ErrorCodeDictTypeNotFound, systemsvc.ErrDictTypeNotFound.Error())
 	case errors.Is(err, systemsvc.ErrDictItemNotFound):
-		response.NotFound(c, systemsvc.ErrDictItemNotFound.Error())
+		response.NotFoundWithCode(c, response.ErrorCodeDictItemNotFound, systemsvc.ErrDictItemNotFound.Error())
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		internalServerError(c, operation, err)
 	default:
@@ -123,7 +123,7 @@ func writeSystemDictServiceError(c *gin.Context, operation string, err error) {
 func writeSystemNoticeServiceError(c *gin.Context, operation string, err error) {
 	switch {
 	case errors.Is(err, systemsvc.ErrNoticeNotFound):
-		response.NotFound(c, systemsvc.ErrNoticeNotFound.Error())
+		response.NotFoundWithCode(c, response.ErrorCodeNoticeNotFound, systemsvc.ErrNoticeNotFound.Error())
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		internalServerError(c, operation, err)
 	default:
@@ -134,13 +134,13 @@ func writeSystemNoticeServiceError(c *gin.Context, operation string, err error) 
 func writeSystemFileServiceError(c *gin.Context, operation string, err error) {
 	switch {
 	case errors.Is(err, systemsvc.ErrFileNotFoundOrPermissionDenied):
-		response.NotFound(c, systemsvc.ErrFileNotFoundOrPermissionDenied.Error())
+		response.NotFoundWithCode(c, response.ErrorCodeFileNotFoundOrPermissionDenied, systemsvc.ErrFileNotFoundOrPermissionDenied.Error())
 	case errors.Is(err, upload.ErrFileEmpty):
-		response.BadRequest(c, upload.ErrFileEmpty.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeFileEmpty, upload.ErrFileEmpty.Error())
 	case errors.Is(err, upload.ErrFileTooLarge):
-		response.BadRequest(c, upload.ErrFileTooLarge.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeFileTooLarge, upload.ErrFileTooLarge.Error())
 	case errors.Is(err, upload.ErrFileTypeNotAllowed):
-		response.BadRequest(c, upload.ErrFileTypeNotAllowed.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeFileTypeNotAllowed, upload.ErrFileTypeNotAllowed.Error())
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		internalServerError(c, operation, err)
 	default:
@@ -166,7 +166,7 @@ func systemFileServiceErrorMessage(err error) string {
 func writeSystemOperationLogServiceError(c *gin.Context, operation string, err error) {
 	switch {
 	case errors.Is(err, systemsvc.ErrOperationLogNotFound):
-		response.NotFound(c, systemsvc.ErrOperationLogNotFound.Error())
+		response.NotFoundWithCode(c, response.ErrorCodeOperationLogNotFound, systemsvc.ErrOperationLogNotFound.Error())
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		internalServerError(c, operation, err)
 	default:

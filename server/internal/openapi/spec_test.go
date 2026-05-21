@@ -68,6 +68,19 @@ func TestBuildSpecIncludesPublicAndProtectedRoutes(t *testing.T) {
 	}
 }
 
+func TestBuildSpecDocumentsErrorCodeField(t *testing.T) {
+	spec := BuildSpec(nil, Options{})
+
+	apiResponse := spec.Components.Schemas["ApiResponse"]
+	errorCode, ok := apiResponse.Properties["error_code"]
+	if !ok {
+		t.Fatal("ApiResponse schema missing error_code")
+	}
+	if errorCode.Type != "string" {
+		t.Fatalf("error_code type = %q, want string", errorCode.Type)
+	}
+}
+
 func TestBuildSpecAddsTypedCoreSchemas(t *testing.T) {
 	spec := BuildSpec([]gin.RouteInfo{
 		{Method: "POST", Path: "/api/v1/login"},

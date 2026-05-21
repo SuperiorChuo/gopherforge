@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/pkg/jwt"
+	"github.com/go-admin-kit/server/internal/pkg/response"
 	authsvc "github.com/go-admin-kit/server/internal/service/auth"
 )
 
@@ -51,6 +52,7 @@ func TestAuthServiceErrorAllowsKnownLoginFailures(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "invalid username or password") {
 		t.Fatalf("response did not include safe auth failure message: %s", recorder.Body.String())
 	}
+	assertErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeAuthInvalidCredentials)
 }
 
 func TestJWTUnauthorizedErrorUsesStableMessages(t *testing.T) {
@@ -65,5 +67,20 @@ func TestJWTUnauthorizedErrorUsesStableMessages(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), "Token has expired") {
 		t.Fatalf("response did not include stable expired-token message: %s", recorder.Body.String())
+	}
+	assertErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeAuthTokenExpired)
+}
+
+func assertErrorCode(t *testing.T, body []byte, want response.ErrorCode) {
+	t.Helper()
+
+	var payload struct {
+		ErrorCode response.ErrorCode `json:"error_code"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.ErrorCode != want {
+		t.Fatalf("error_code = %q, want %q; body=%s", payload.ErrorCode, want, string(body))
 	}
 }

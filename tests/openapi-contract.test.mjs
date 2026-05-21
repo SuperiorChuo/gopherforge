@@ -33,6 +33,7 @@ test('generated OpenAPI contract includes typed core schemas', async () => {
   );
   assert.equal(spec.components.schemas.LoginRequest.properties.username.type, 'string');
   assert.deepEqual(spec.components.schemas.LoginRequest.required, ['username', 'password', 'captcha_id', 'captcha_code']);
+  assert.equal(spec.components.schemas.ApiResponse.properties.error_code.type, 'string');
   assert.ok(spec.components.schemas.UserInfo.properties.roles.items.$ref.endsWith('/RoleInfo'));
   assert.ok(spec.components.schemas.MenuItem.properties.children.items.$ref.endsWith('/MenuItem'));
 });
@@ -46,6 +47,7 @@ test('generated frontend OpenAPI types include key paths', async () => {
   assert.ok(types.includes('BearerAuth'));
   assert.ok(types.includes('LoginRequest: {'));
   assert.ok(types.includes('LoginResponseEnvelope:'));
+  assert.ok(types.includes('error_code?: string;'));
   assert.ok(types.includes('username: string;'));
   assert.ok(types.includes('data: components["schemas"]["LoginResponse"];'));
 });

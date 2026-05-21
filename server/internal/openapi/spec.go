@@ -110,6 +110,10 @@ func BuildSpec(routes []gin.RouteInfo, opts Options) Spec {
 					Properties: map[string]Schema{
 						"code":    {Type: "integer"},
 						"message": {Type: "string"},
+						"error_code": {
+							Type:        "string",
+							Description: "Stable machine-readable error code, present on error responses",
+						},
 						"data": {
 							Description:          "Business response data",
 							AdditionalProperties: true,

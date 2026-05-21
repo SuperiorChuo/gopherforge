@@ -25,25 +25,25 @@ func writeAuthServiceError(c *gin.Context, operation string, err error) {
 
 	switch {
 	case errors.As(err, &profileValidationErr):
-		response.BadRequest(c, profileValidationErr.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeAuthProfileValidationFailed, profileValidationErr.Error())
 	case errors.As(err, &passwordValidationErr):
-		response.BadRequest(c, passwordValidationErr.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeAuthPasswordValidationFailed, passwordValidationErr.Error())
 	case errors.Is(err, authsvc.ErrInvalidCaptcha):
-		response.BadRequest(c, authsvc.ErrInvalidCaptcha.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeAuthInvalidCaptcha, authsvc.ErrInvalidCaptcha.Error())
 	case errors.Is(err, authsvc.ErrInvalidCredentials):
-		response.Unauthorized(c, authsvc.ErrInvalidCredentials.Error())
+		response.UnauthorizedWithCode(c, response.ErrorCodeAuthInvalidCredentials, authsvc.ErrInvalidCredentials.Error())
 	case errors.Is(err, authsvc.ErrUserDisabled):
-		response.Unauthorized(c, authsvc.ErrUserDisabled.Error())
+		response.UnauthorizedWithCode(c, response.ErrorCodeAuthUserDisabled, authsvc.ErrUserDisabled.Error())
 	case errors.Is(err, authsvc.ErrOldPasswordIncorrect):
-		response.BadRequest(c, authsvc.ErrOldPasswordIncorrect.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeAuthOldPasswordIncorrect, authsvc.ErrOldPasswordIncorrect.Error())
 	case errors.Is(err, authsvc.ErrUsernameAlreadyExists):
-		response.BadRequest(c, authsvc.ErrUsernameAlreadyExists.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeAuthUsernameAlreadyExists, authsvc.ErrUsernameAlreadyExists.Error())
 	case errors.Is(err, authsvc.ErrEmailAlreadyExists):
-		response.BadRequest(c, authsvc.ErrEmailAlreadyExists.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeAuthEmailAlreadyExists, authsvc.ErrEmailAlreadyExists.Error())
 	case errors.Is(err, authsvc.ErrPhoneAlreadyExists):
-		response.BadRequest(c, authsvc.ErrPhoneAlreadyExists.Error())
+		response.BadRequestWithCode(c, response.ErrorCodeAuthPhoneAlreadyExists, authsvc.ErrPhoneAlreadyExists.Error())
 	case errors.Is(err, authsvc.ErrUserNotFound):
-		response.NotFound(c, authsvc.ErrUserNotFound.Error())
+		response.NotFoundWithCode(c, response.ErrorCodeAuthUserNotFound, authsvc.ErrUserNotFound.Error())
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		internalServerError(c, operation, err)
 	default:
@@ -54,11 +54,11 @@ func writeAuthServiceError(c *gin.Context, operation string, err error) {
 func writeJWTUnauthorizedError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, jwt.ErrExpiredToken):
-		response.Unauthorized(c, "Token has expired")
+		response.UnauthorizedWithCode(c, response.ErrorCodeAuthTokenExpired, "Token has expired")
 	case errors.Is(err, jwt.ErrInvalidToken), errors.Is(err, jwt.ErrWrongTokenType):
-		response.Unauthorized(c, "Invalid token")
+		response.UnauthorizedWithCode(c, response.ErrorCodeAuthTokenInvalid, "Invalid token")
 	case errors.Is(err, jwt.ErrRevokedToken):
-		response.Unauthorized(c, "Token has been revoked")
+		response.UnauthorizedWithCode(c, response.ErrorCodeAuthTokenRevoked, "Token has been revoked")
 	default:
 		response.Error(c, http.StatusUnauthorized, "Unauthorized")
 	}

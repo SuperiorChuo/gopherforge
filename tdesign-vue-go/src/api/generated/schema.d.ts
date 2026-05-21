@@ -4159,6 +4159,7 @@ export interface components {
     ApiResponse: {
       code?: number;
       data?: Record<string, unknown>;
+      error_code?: string;
       message?: string;
     };
     AssignPermissionsRequest: {

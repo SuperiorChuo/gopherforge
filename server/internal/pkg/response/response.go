@@ -9,9 +9,10 @@ import (
 
 // Response is the standard API response shape.
 type Response struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-	Data    any    `json:"data,omitempty"`
+	Code      int       `json:"code"`
+	Message   string    `json:"message"`
+	ErrorCode ErrorCode `json:"error_code,omitempty"`
+	Data      any       `json:"data,omitempty"`
 }
 
 // PageResponse is the paginated API response shape.
@@ -44,52 +45,92 @@ func SuccessWithMessage(c *gin.Context, message string, data any) {
 
 // Error writes an error response with a custom code.
 func Error(c *gin.Context, code int, message string) {
-	c.JSON(httpStatusFromCode(code), Response{
-		Code:    code,
-		Message: message,
+	ErrorWithCode(c, code, "", message)
+}
+
+// ErrorWithCode writes an error response with a stable machine-readable code.
+func ErrorWithCode(c *gin.Context, code int, errorCode ErrorCode, message string) {
+	status := httpStatusFromCode(code)
+	if errorCode == "" {
+		errorCode = defaultErrorCodeForHTTPStatus(status)
+	}
+	c.JSON(status, Response{
+		Code:      code,
+		Message:   message,
+		ErrorCode: errorCode,
 	})
 }
 
 // BadRequest writes a 400 response.
 func BadRequest(c *gin.Context, message string) {
+	BadRequestWithCode(c, ErrorCodeBadRequest, message)
+}
+
+// BadRequestWithCode writes a 400 response with a stable machine-readable code.
+func BadRequestWithCode(c *gin.Context, errorCode ErrorCode, message string) {
 	c.JSON(http.StatusBadRequest, Response{
-		Code:    http.StatusBadRequest,
-		Message: message,
+		Code:      http.StatusBadRequest,
+		Message:   message,
+		ErrorCode: errorCode,
 	})
 }
 
 // Unauthorized writes a 401 response.
 func Unauthorized(c *gin.Context, message string) {
+	UnauthorizedWithCode(c, ErrorCodeUnauthorized, message)
+}
+
+// UnauthorizedWithCode writes a 401 response with a stable machine-readable code.
+func UnauthorizedWithCode(c *gin.Context, errorCode ErrorCode, message string) {
 	c.JSON(http.StatusUnauthorized, Response{
-		Code:    http.StatusUnauthorized,
-		Message: message,
+		Code:      http.StatusUnauthorized,
+		Message:   message,
+		ErrorCode: errorCode,
 	})
 }
 
 // Forbidden writes a 403 response.
 func Forbidden(c *gin.Context, message string) {
+	ForbiddenWithCode(c, ErrorCodeForbidden, message)
+}
+
+// ForbiddenWithCode writes a 403 response with a stable machine-readable code.
+func ForbiddenWithCode(c *gin.Context, errorCode ErrorCode, message string) {
 	c.JSON(http.StatusForbidden, Response{
-		Code:    http.StatusForbidden,
-		Message: message,
+		Code:      http.StatusForbidden,
+		Message:   message,
+		ErrorCode: errorCode,
 	})
 }
 
 // NotFound writes a 404 response.
 func NotFound(c *gin.Context, message string) {
+	NotFoundWithCode(c, ErrorCodeNotFound, message)
+}
+
+// NotFoundWithCode writes a 404 response with a stable machine-readable code.
+func NotFoundWithCode(c *gin.Context, errorCode ErrorCode, message string) {
 	c.JSON(http.StatusNotFound, Response{
-		Code:    http.StatusNotFound,
-		Message: message,
+		Code:      http.StatusNotFound,
+		Message:   message,
+		ErrorCode: errorCode,
 	})
 }
 
 // InternalServerError writes a generic 500 response and logs details.
 func InternalServerError(c *gin.Context, detail string) {
+	InternalServerErrorWithCode(c, ErrorCodeInternalServerError, detail)
+}
+
+// InternalServerErrorWithCode writes a generic 500 response and logs details.
+func InternalServerErrorWithCode(c *gin.Context, errorCode ErrorCode, detail string) {
 	if detail != "" && logger.Logger != nil {
 		logger.Error("internal server error", logger.String("detail", detail))
 	}
 	c.JSON(http.StatusInternalServerError, Response{
-		Code:    http.StatusInternalServerError,
-		Message: "internal server error",
+		Code:      http.StatusInternalServerError,
+		Message:   "internal server error",
+		ErrorCode: errorCode,
 	})
 }
 

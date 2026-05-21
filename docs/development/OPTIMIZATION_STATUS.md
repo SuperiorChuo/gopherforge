@@ -18,6 +18,7 @@
 - Console session cookie 已按安全配置设置 `Secure`。
 - 在线用户记录不再存储明文 access token，改用 token ID。
 - API 500 错误统一走日志记录 + 稳定用户可见消息，避免泄露内部错误。
+- API 错误响应已补充稳定 `error_code` 字段，认证和系统模块的已知业务错误已接入领域错误码。
 - API handler 已增加源码级测试，禁止把 `err.Error()` 直接写入用户响应。
 
 ### 上下文传播与分层
@@ -59,7 +60,6 @@
 ### 可逐步推进
 
 - 旧的非 `Context` convenience 方法仍保留，用于兼容历史调用；后续可在大版本中逐步收敛。
-- 业务错误响应目前是稳定 message 映射；如果要多语言或更强契约，可升级为统一 error code catalog。
 - 部分 service/pkg/DAO 仍允许零值结构体回退到全局依赖，这是兼容策略；新代码优先使用构造函数或注入接口。
 
 ### 发布前建议复核

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/server/internal/pkg/response"
 	systemsvc "github.com/go-admin-kit/server/internal/service/system"
 )
 
@@ -50,6 +51,7 @@ func TestSystemServiceErrorAllowsKnownUserErrors(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "username already exists") {
 		t.Fatalf("response did not include safe user error message: %s", recorder.Body.String())
 	}
+	assertErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeUsernameAlreadyExists)
 }
 
 func TestSystemRoleServiceErrorHidesUnexpectedDetails(t *testing.T) {
@@ -90,6 +92,7 @@ func TestSystemRoleServiceErrorAllowsKnownRoleErrors(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "role code already exists") {
 		t.Fatalf("response did not include safe role error message: %s", recorder.Body.String())
 	}
+	assertErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeRoleCodeAlreadyExists)
 }
 
 func TestSystemPermissionServiceErrorHidesUnexpectedDetails(t *testing.T) {
@@ -130,6 +133,7 @@ func TestSystemPermissionServiceErrorAllowsKnownPermissionErrors(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "permission code already exists") {
 		t.Fatalf("response did not include safe permission error message: %s", recorder.Body.String())
 	}
+	assertErrorCode(t, recorder.Body.Bytes(), response.ErrorCodePermissionCodeAlreadyExists)
 }
 
 func TestSystemMenuServiceErrorHidesUnexpectedDetails(t *testing.T) {
@@ -170,6 +174,7 @@ func TestSystemMenuServiceErrorAllowsKnownMenuErrors(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "parent menu not found") {
 		t.Fatalf("response did not include safe menu error message: %s", recorder.Body.String())
 	}
+	assertErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeMenuParentNotFound)
 }
 
 func TestSystemDepartmentServiceErrorHidesUnexpectedDetails(t *testing.T) {
@@ -210,6 +215,7 @@ func TestSystemDepartmentServiceErrorAllowsKnownDepartmentErrors(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "department code already exists") {
 		t.Fatalf("response did not include safe department error message: %s", recorder.Body.String())
 	}
+	assertErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeDepartmentCodeAlreadyExists)
 }
 
 func TestSystemDictServiceErrorHidesUnexpectedDetails(t *testing.T) {
@@ -250,6 +256,7 @@ func TestSystemDictServiceErrorAllowsKnownDictErrors(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "dict type code already exists") {
 		t.Fatalf("response did not include safe dict error message: %s", recorder.Body.String())
 	}
+	assertErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeDictTypeCodeAlreadyExists)
 }
 
 func TestSystemNoticeServiceErrorHidesUnexpectedDetails(t *testing.T) {
@@ -290,6 +297,7 @@ func TestSystemNoticeServiceErrorAllowsKnownNoticeErrors(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "notice not found") {
 		t.Fatalf("response did not include safe notice error message: %s", recorder.Body.String())
 	}
+	assertErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeNoticeNotFound)
 }
 
 func TestSystemFileServiceErrorHidesUnexpectedDetails(t *testing.T) {
@@ -330,6 +338,7 @@ func TestSystemFileServiceErrorAllowsKnownFileErrors(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "file not found or permission denied") {
 		t.Fatalf("response did not include safe file error message: %s", recorder.Body.String())
 	}
+	assertErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeFileNotFoundOrPermissionDenied)
 }
 
 func TestSystemOperationLogServiceErrorHidesUnexpectedDetails(t *testing.T) {
@@ -369,5 +378,20 @@ func TestSystemOperationLogServiceErrorAllowsKnownLogErrors(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), "operation log not found") {
 		t.Fatalf("response did not include safe operation log error message: %s", recorder.Body.String())
+	}
+	assertErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeOperationLogNotFound)
+}
+
+func assertErrorCode(t *testing.T, body []byte, want response.ErrorCode) {
+	t.Helper()
+
+	var payload struct {
+		ErrorCode response.ErrorCode `json:"error_code"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.ErrorCode != want {
+		t.Fatalf("error_code = %q, want %q; body=%s", payload.ErrorCode, want, string(body))
 	}
 }
