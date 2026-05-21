@@ -8,6 +8,7 @@ import (
 	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
+	"gorm.io/gorm"
 )
 
 type NoticeService struct {
@@ -39,12 +40,21 @@ type UpdateNoticeRequest struct {
 	EndTime   *time.Time `json:"end_time"`
 }
 
+var ErrNoticeNotFound = errors.New("notice not found")
+
 func (s *NoticeService) GetByID(id uint) (*model.Notice, error) {
 	return s.GetByIDContext(context.Background(), id)
 }
 
 func (s *NoticeService) GetByIDContext(ctx context.Context, id uint) (*model.Notice, error) {
-	return s.noticeDAO.GetByIDContext(ctx, id)
+	notice, err := s.noticeDAO.GetByIDContext(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNoticeNotFound
+		}
+		return nil, err
+	}
+	return notice, nil
 }
 
 func (s *NoticeService) GetList(req NoticeListRequest) ([]model.Notice, int64, error) {
@@ -100,10 +110,10 @@ func (s *NoticeService) Update(id uint, req UpdateNoticeRequest) (*model.Notice,
 func (s *NoticeService) UpdateContext(ctx context.Context, id uint, req UpdateNoticeRequest) (*model.Notice, error) {
 	notice, err := s.noticeDAO.GetByIDContext(ctx, id)
 	if err != nil {
-		if isContextError(err) {
-			return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNoticeNotFound
 		}
-		return nil, errors.New("notice not found")
+		return nil, err
 	}
 
 	if req.Title != "" {

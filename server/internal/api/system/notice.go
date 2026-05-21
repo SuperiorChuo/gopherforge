@@ -96,7 +96,7 @@ func (a *NoticeAPI) GetNotice(c *gin.Context) {
 
 	notice, err := a.noticeService.GetByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
-		response.NotFound(c, "notice not found")
+		writeSystemNoticeServiceError(c, "failed to get notice", err)
 		return
 	}
 
@@ -115,7 +115,7 @@ func (a *NoticeAPI) CreateNotice(c *gin.Context) {
 
 	notice, err := a.noticeService.CreateContext(c.Request.Context(), req, creatorID, creatorName)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemNoticeServiceError(c, "failed to create notice", err)
 		return
 	}
 
@@ -139,7 +139,7 @@ func (a *NoticeAPI) UpdateNotice(c *gin.Context) {
 
 	notice, err := a.noticeService.UpdateContext(c.Request.Context(), uint(id), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemNoticeServiceError(c, "failed to update notice", err)
 		return
 	}
 
@@ -156,7 +156,7 @@ func (a *NoticeAPI) DeleteNotice(c *gin.Context) {
 	}
 
 	if err := a.noticeService.DeleteContext(c.Request.Context(), uint(id)); err != nil {
-		internalServerError(c, "failed to delete notice", err)
+		writeSystemNoticeServiceError(c, "failed to delete notice", err)
 		return
 	}
 
@@ -181,7 +181,7 @@ func (a *NoticeAPI) UpdateNoticeStatus(c *gin.Context) {
 	}
 
 	if err := a.noticeService.UpdateStatusContext(c.Request.Context(), uint(id), req.Status); err != nil {
-		internalServerError(c, "failed to update notice status", err)
+		writeSystemNoticeServiceError(c, "failed to update notice status", err)
 		return
 	}
 
