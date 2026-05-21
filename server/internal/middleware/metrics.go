@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"runtime"
@@ -49,10 +51,39 @@ var latencyBucketSeconds = []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1
 
 var globalMetrics = newMetricsStore()
 
+// DatabasePoolStatsProvider provides database connection pool stats for metrics output.
+type DatabasePoolStatsProvider interface {
+	DatabaseStats() (sql.DBStats, error)
+}
+
+var (
+	errDatabasePoolNotInitialized = errors.New("database not initialized")
+	databasePoolStatsProviderMu   sync.RWMutex
+	databasePoolStatsProvider     DatabasePoolStatsProvider = defaultDatabasePoolStatsProvider{}
+)
+
 func newMetricsStore() *metricsStore {
 	return &metricsStore{
 		startedAt:      time.Now(),
 		latencyBuckets: make([]atomic.Uint64, len(latencyBucketSeconds)),
+	}
+}
+
+// SetMetricsDatabasePoolStatsProvider replaces the database stats provider and returns a restore function.
+func SetMetricsDatabasePoolStatsProvider(provider DatabasePoolStatsProvider) func() {
+	databasePoolStatsProviderMu.Lock()
+	previous := databasePoolStatsProvider
+	if provider == nil {
+		databasePoolStatsProvider = defaultDatabasePoolStatsProvider{}
+	} else {
+		databasePoolStatsProvider = provider
+	}
+	databasePoolStatsProviderMu.Unlock()
+
+	return func() {
+		databasePoolStatsProviderMu.Lock()
+		databasePoolStatsProvider = previous
+		databasePoolStatsProviderMu.Unlock()
 	}
 }
 
@@ -434,14 +465,13 @@ func runtimeSnapshot() gin.H {
 }
 
 func databasePoolSnapshot() gin.H {
-	if database.DB == nil {
+	stats, err := currentDatabasePoolStatsProvider().DatabaseStats()
+	if errors.Is(err, errDatabasePoolNotInitialized) {
 		return gin.H{"status": "not_initialized"}
 	}
-	sqlDB, err := database.DB.DB()
 	if err != nil {
 		return gin.H{"status": "error", "error": err.Error()}
 	}
-	stats := sqlDB.Stats()
 	return gin.H{
 		"status":               "ok",
 		"open_connections":     stats.OpenConnections,
@@ -472,14 +502,10 @@ func writeRuntimePrometheusMetrics(b *strings.Builder) {
 }
 
 func writeDatabasePoolPrometheusMetrics(b *strings.Builder) {
-	if database.DB == nil {
-		return
-	}
-	sqlDB, err := database.DB.DB()
+	stats, err := currentDatabasePoolStatsProvider().DatabaseStats()
 	if err != nil {
 		return
 	}
-	stats := sqlDB.Stats()
 	b.WriteString("# HELP go_admin_kit_db_open_connections Open database connections.\n")
 	b.WriteString("# TYPE go_admin_kit_db_open_connections gauge\n")
 	fmt.Fprintf(b, "go_admin_kit_db_open_connections %d\n", stats.OpenConnections)
@@ -495,6 +521,29 @@ func writeDatabasePoolPrometheusMetrics(b *strings.Builder) {
 	b.WriteString("# HELP go_admin_kit_db_wait_duration_seconds Total time blocked waiting for a database connection.\n")
 	b.WriteString("# TYPE go_admin_kit_db_wait_duration_seconds counter\n")
 	fmt.Fprintf(b, "go_admin_kit_db_wait_duration_seconds %.6f\n", stats.WaitDuration.Seconds())
+}
+
+func currentDatabasePoolStatsProvider() DatabasePoolStatsProvider {
+	databasePoolStatsProviderMu.RLock()
+	provider := databasePoolStatsProvider
+	databasePoolStatsProviderMu.RUnlock()
+	if provider == nil {
+		return defaultDatabasePoolStatsProvider{}
+	}
+	return provider
+}
+
+type defaultDatabasePoolStatsProvider struct{}
+
+func (defaultDatabasePoolStatsProvider) DatabaseStats() (sql.DBStats, error) {
+	if database.DB == nil {
+		return sql.DBStats{}, errDatabasePoolNotInitialized
+	}
+	sqlDB, err := database.DB.DB()
+	if err != nil {
+		return sql.DBStats{}, err
+	}
+	return sqlDB.Stats(), nil
 }
 
 func formatBucket(bucket float64) string {

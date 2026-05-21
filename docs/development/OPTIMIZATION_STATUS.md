@@ -36,7 +36,7 @@
 
 ### 性能与资源安全
 
-- Metrics 中间件的核心计数改为原子/更低锁竞争实现。
+- Metrics 中间件的核心计数改为原子/更低锁竞争实现，数据库连接池统计已支持注入 provider。
 - 操作日志中间件读取 request body 时使用 `io.LimitReader`。
 - 部门树数据权限解析已增加 Redis 缓存与失效逻辑。
 - 在线用户查询已从 Redis `SCAN` 改为 zset 索引和批量 `MGET`。
