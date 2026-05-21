@@ -51,6 +51,7 @@ var (
 	ErrUserNotFound          = errors.New("user not found")
 )
 
+// Deprecated: use GetUserByIDContext instead.
 func (s *UserService) GetUserByID(id uint) (*model.User, error) {
 	return s.GetUserByIDContext(context.Background(), id)
 }
@@ -59,6 +60,7 @@ func (s *UserService) GetUserByIDContext(ctx context.Context, id uint) (*model.U
 	return s.userDAO.GetUserByIDContext(ctx, id)
 }
 
+// Deprecated: use GetUserWithRolesContext instead.
 func (s *UserService) GetUserWithRoles(id uint) (*model.User, error) {
 	return s.GetUserWithRolesContext(context.Background(), id)
 }
@@ -67,6 +69,7 @@ func (s *UserService) GetUserWithRolesContext(ctx context.Context, id uint) (*mo
 	return s.userDAO.GetUserWithRolesContext(ctx, id)
 }
 
+// Deprecated: use GetUserListContext instead.
 func (s *UserService) GetUserList(req UserListRequest) ([]model.User, int64, error) {
 	return s.GetUserListContext(context.Background(), req)
 }
@@ -75,6 +78,7 @@ func (s *UserService) GetUserListContext(ctx context.Context, req UserListReques
 	return s.userDAO.GetUserListContext(ctx, req.PageRequest, req.Keyword, req.Status, req.DataScope)
 }
 
+// Deprecated: use CreateUserContext instead.
 func (s *UserService) CreateUser(req CreateUserRequest) (*model.User, error) {
 	return s.CreateUserContext(context.Background(), req)
 }
@@ -124,6 +128,7 @@ func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserReque
 	return user, nil
 }
 
+// Deprecated: use UpdateUserContext instead.
 func (s *UserService) UpdateUser(id uint, req UpdateUserRequest) (*model.User, error) {
 	return s.UpdateUserContext(context.Background(), id, req)
 }
@@ -165,6 +170,7 @@ func (s *UserService) UpdateUserContext(ctx context.Context, id uint, req Update
 	return user, nil
 }
 
+// Deprecated: use DeleteUserContext instead.
 func (s *UserService) DeleteUser(id uint) error {
 	return s.DeleteUserContext(context.Background(), id)
 }
@@ -173,6 +179,7 @@ func (s *UserService) DeleteUserContext(ctx context.Context, id uint) error {
 	return s.userDAO.DeleteUserContext(ctx, id)
 }
 
+// Deprecated: use UpdateUserStatusContext instead.
 func (s *UserService) UpdateUserStatus(id uint, status int8) error {
 	return s.UpdateUserStatusContext(context.Background(), id, status)
 }
@@ -181,6 +188,7 @@ func (s *UserService) UpdateUserStatusContext(ctx context.Context, id uint, stat
 	return s.userDAO.UpdateUserStatusContext(ctx, id, status)
 }
 
+// Deprecated: use AssignRolesContext instead.
 func (s *UserService) AssignRoles(userID uint, req AssignRolesRequest) error {
 	return s.AssignRolesContext(context.Background(), userID, req)
 }

@@ -168,7 +168,7 @@ func main() {
 			logger.Error("database close failed", logger.Err(err))
 		}
 	}()
-	if menuResult, err := systemSvc.BootstrapDefaultMenus(); err != nil {
+	if menuResult, err := systemSvc.BootstrapDefaultMenusContext(context.Background()); err != nil {
 		logger.Fatal("default menu bootstrap failed", logger.Err(err))
 	} else if menuResult.Menus > 0 {
 		logger.Info("default menus bootstrapped", logger.Int("menus", menuResult.Menus))

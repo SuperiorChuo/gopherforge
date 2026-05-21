@@ -75,6 +75,7 @@ type AuditLogBreakdownSummary struct {
 	Count  int64  `json:"count"`
 }
 
+// Deprecated: use CreateLogContext instead.
 func (d *AuditLogDAO) CreateLog(log *model.AuditLog) error {
 	return d.CreateLogContext(context.Background(), log)
 }
@@ -83,6 +84,7 @@ func (d *AuditLogDAO) CreateLogContext(ctx context.Context, log *model.AuditLog)
 	return d.dbWithContext(ctx).Create(log).Error
 }
 
+// Deprecated: use ListLogsContext instead.
 func (d *AuditLogDAO) ListLogs(req AuditLogListQuery) (AuditLogListResult, error) {
 	return d.ListLogsContext(context.Background(), req)
 }

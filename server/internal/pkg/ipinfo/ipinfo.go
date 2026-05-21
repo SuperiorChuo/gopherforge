@@ -69,6 +69,7 @@ func NewIPInfoClient(timeout, cacheTTL time.Duration) *IPInfoClient {
 
 // GetIPInfo returns IP geolocation details.
 // It uses the free ip-api.com JSON API: https://ip-api.com/docs/api:json
+// Deprecated: use GetIPInfoContext instead.
 func (c *IPInfoClient) GetIPInfo(ip string) (*IPInfo, error) {
 	return c.GetIPInfoContext(context.Background(), ip)
 }
@@ -139,6 +140,7 @@ func (c *IPInfoClient) GetIPInfoContext(ctx context.Context, ip string) (*IPInfo
 }
 
 // GetLocation returns a simplified location string.
+// Deprecated: use GetLocationContext instead.
 func (c *IPInfoClient) GetLocation(ip string) string {
 	return c.GetLocationContext(context.Background(), ip)
 }

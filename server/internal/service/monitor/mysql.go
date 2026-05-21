@@ -27,6 +27,7 @@ func NewMySQLService() *MySQLService {
 }
 
 // GetMySQLInfo returns MySQL information.
+// Deprecated: use GetMySQLInfoContext instead.
 func (s *MySQLService) GetMySQLInfo() (map[string]any, error) {
 	return s.GetMySQLInfoContext(context.Background())
 }

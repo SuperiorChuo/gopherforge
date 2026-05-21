@@ -30,6 +30,7 @@ func (d *LoginLogDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
+// Deprecated: use CreateContext instead.
 func (d *LoginLogDAO) Create(log *model.LoginLog) error {
 	return d.CreateContext(context.Background(), log)
 }
@@ -38,6 +39,7 @@ func (d *LoginLogDAO) CreateContext(ctx context.Context, log *model.LoginLog) er
 	return d.dbWithContext(ctx).Create(log).Error
 }
 
+// Deprecated: use GetByIDContext instead.
 func (d *LoginLogDAO) GetByID(id uint) (*model.LoginLog, error) {
 	return d.GetByIDContext(context.Background(), id)
 }
@@ -48,6 +50,7 @@ func (d *LoginLogDAO) GetByIDContext(ctx context.Context, id uint) (*model.Login
 	return &log, result.Error
 }
 
+// Deprecated: use GetListContext instead.
 func (d *LoginLogDAO) GetList(
 	req pagination.PageRequest,
 	userID *uint,
@@ -108,6 +111,7 @@ func applyLoginLogFilters(query *gorm.DB, userID *uint, username, ip string, sta
 	return applyTimeRange(query, startTime, endTime)
 }
 
+// Deprecated: use GetUserLastLoginContext instead.
 func (d *LoginLogDAO) GetUserLastLogin(userID uint) (*model.LoginLog, error) {
 	return d.GetUserLastLoginContext(context.Background(), userID)
 }
@@ -120,6 +124,7 @@ func (d *LoginLogDAO) GetUserLastLoginContext(ctx context.Context, userID uint) 
 	return &log, result.Error
 }
 
+// Deprecated: use GetUserLoginCountContext instead.
 func (d *LoginLogDAO) GetUserLoginCount(userID uint, startTime, endTime *time.Time) (int64, error) {
 	return d.GetUserLoginCountContext(context.Background(), userID, startTime, endTime)
 }
@@ -132,6 +137,7 @@ func (d *LoginLogDAO) GetUserLoginCountContext(ctx context.Context, userID uint,
 	return count, err
 }
 
+// Deprecated: use GetFailedLoginCountContext instead.
 func (d *LoginLogDAO) GetFailedLoginCount(username, ip string, since time.Time) (int64, error) {
 	return d.GetFailedLoginCountContext(context.Background(), username, ip, since)
 }
@@ -149,6 +155,7 @@ func (d *LoginLogDAO) GetFailedLoginCountContext(ctx context.Context, username, 
 	return count, err
 }
 
+// Deprecated: use DeleteBeforeContext instead.
 func (d *LoginLogDAO) DeleteBefore(before time.Time) (int64, error) {
 	return d.DeleteBeforeContext(context.Background(), before)
 }
@@ -158,6 +165,7 @@ func (d *LoginLogDAO) DeleteBeforeContext(ctx context.Context, before time.Time)
 	return result.RowsAffected, result.Error
 }
 
+// Deprecated: use GetStatsContext instead.
 func (d *LoginLogDAO) GetStats(startTime, endTime *time.Time) (*LoginLogStats, error) {
 	return d.GetStatsContext(context.Background(), startTime, endTime)
 }
@@ -229,6 +237,7 @@ type LoginTrendItem struct {
 	Failed  int64  `json:"failed"`
 }
 
+// Deprecated: use GetLoginTrendContext instead.
 func (d *LoginLogDAO) GetLoginTrend(days int) ([]LoginTrendItem, error) {
 	return d.GetLoginTrendContext(context.Background(), days)
 }

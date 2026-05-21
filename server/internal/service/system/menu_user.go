@@ -15,6 +15,7 @@ type MenuUserService struct {
 }
 
 // GetUserMenuTree returns the current user's menu tree.
+// Deprecated: use GetUserMenuTreeContext instead.
 func (s *MenuUserService) GetUserMenuTree(userID uint) ([]model.Menu, error) {
 	return s.GetUserMenuTreeContext(context.Background(), userID)
 }

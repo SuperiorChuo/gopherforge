@@ -31,6 +31,7 @@ func (d *MenuDAO) dbWithContext(ctx context.Context) *gorm.DB {
 
 var ErrMenuHasChildren = errors.New("cannot delete menu with children")
 
+// Deprecated: use GetMenuByIDContext instead.
 func (d *MenuDAO) GetMenuByID(id uint) (*model.Menu, error) {
 	return d.GetMenuByIDContext(context.Background(), id)
 }
@@ -41,6 +42,7 @@ func (d *MenuDAO) GetMenuByIDContext(ctx context.Context, id uint) (*model.Menu,
 	return &menu, result.Error
 }
 
+// Deprecated: use GetMenuListContext instead.
 func (d *MenuDAO) GetMenuList(req pagination.PageRequest, keyword string, status *int8) ([]model.Menu, int64, error) {
 	return d.GetMenuListContext(context.Background(), req, keyword, status)
 }
@@ -69,6 +71,7 @@ func (d *MenuDAO) GetMenuListContext(ctx context.Context, req pagination.PageReq
 	return menus, total, result.Error
 }
 
+// Deprecated: use GetMenuTreeContext instead.
 func (d *MenuDAO) GetMenuTree(status *int8) ([]model.Menu, error) {
 	return d.GetMenuTreeContext(context.Background(), status)
 }
@@ -104,6 +107,7 @@ func buildMenuTree(menus []model.Menu, parentID uint) []model.Menu {
 	return tree
 }
 
+// Deprecated: use CreateMenuContext instead.
 func (d *MenuDAO) CreateMenu(menu *model.Menu) error {
 	return d.CreateMenuContext(context.Background(), menu)
 }
@@ -112,6 +116,7 @@ func (d *MenuDAO) CreateMenuContext(ctx context.Context, menu *model.Menu) error
 	return d.dbWithContext(ctx).Create(menu).Error
 }
 
+// Deprecated: use UpdateMenuContext instead.
 func (d *MenuDAO) UpdateMenu(menu *model.Menu) error {
 	return d.UpdateMenuContext(context.Background(), menu)
 }
@@ -120,6 +125,7 @@ func (d *MenuDAO) UpdateMenuContext(ctx context.Context, menu *model.Menu) error
 	return d.dbWithContext(ctx).Save(menu).Error
 }
 
+// Deprecated: use DeleteMenuContext instead.
 func (d *MenuDAO) DeleteMenu(id uint) error {
 	return d.DeleteMenuContext(context.Background(), id)
 }
@@ -142,6 +148,7 @@ func (d *MenuDAO) DeleteMenuContext(ctx context.Context, id uint) error {
 	})
 }
 
+// Deprecated: use AssignPermissionsContext instead.
 func (d *MenuDAO) AssignPermissions(menuID uint, permissionIDs []uint) error {
 	return d.AssignPermissionsContext(context.Background(), menuID, permissionIDs)
 }

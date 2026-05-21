@@ -84,6 +84,7 @@ type UserDataScope struct {
 //
 // Role data_scope is the primary configuration; legacy role codes are compatibility fallbacks:
 // super_admin/admin always get all data, and dept_admin gets department-tree data when data_scope is unset.
+// Deprecated: use ResolveUserDataScopeContext instead.
 func ResolveUserDataScope(user *model.User) UserDataScope {
 	scope, err := ResolveUserDataScopeContext(context.Background(), user)
 	if err != nil {

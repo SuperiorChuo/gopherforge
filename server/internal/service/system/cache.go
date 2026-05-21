@@ -8,6 +8,7 @@ import (
 )
 
 // InvalidatePermissionCacheForUsers clears permission caches for specific users.
+// Deprecated: use InvalidatePermissionCacheForUsersContext instead.
 func InvalidatePermissionCacheForUsers(userIDs ...uint) error {
 	return InvalidatePermissionCacheForUsersContext(context.Background(), userIDs...)
 }
@@ -18,6 +19,7 @@ func InvalidatePermissionCacheForUsersContext(ctx context.Context, userIDs ...ui
 }
 
 // InvalidatePermissionCacheByRoles clears permission caches for users with specific roles.
+// Deprecated: use InvalidatePermissionCacheByRolesContext instead.
 func InvalidatePermissionCacheByRoles(roleIDs ...uint) error {
 	return InvalidatePermissionCacheByRolesContext(context.Background(), roleIDs...)
 }
@@ -37,6 +39,7 @@ func InvalidatePermissionCacheByRolesContext(ctx context.Context, roleIDs ...uin
 }
 
 // InvalidatePermissionCacheByPermissions clears permission caches for users with specific permissions.
+// Deprecated: use InvalidatePermissionCacheByPermissionsContext instead.
 func InvalidatePermissionCacheByPermissions(permissionIDs ...uint) error {
 	return InvalidatePermissionCacheByPermissionsContext(context.Background(), permissionIDs...)
 }
@@ -56,6 +59,7 @@ func InvalidatePermissionCacheByPermissionsContext(ctx context.Context, permissi
 }
 
 // InvalidatePermissionCacheAll clears all user permission caches for broad permission resource changes.
+// Deprecated: use InvalidatePermissionCacheAllContext instead.
 func InvalidatePermissionCacheAll() error {
 	return InvalidatePermissionCacheAllContext(context.Background())
 }

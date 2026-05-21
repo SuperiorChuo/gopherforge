@@ -56,6 +56,7 @@ func (s *OAuthService) GetGithubAuthURL() (string, error) {
 	return authURL.String(), nil
 }
 
+// Deprecated: use GithubCallbackContext instead.
 func (s *OAuthService) GithubCallback(code, state string) (*OAuthResponse, error) {
 	return s.GithubCallbackContext(context.Background(), code, state)
 }
@@ -110,6 +111,7 @@ func (s *OAuthService) GetWechatAuthURL() (string, error) {
 	return authURL.String() + "#wechat_redirect", nil
 }
 
+// Deprecated: use WechatCallbackContext instead.
 func (s *OAuthService) WechatCallback(code, state string) (*OAuthResponse, error) {
 	return s.WechatCallbackContext(context.Background(), code, state)
 }

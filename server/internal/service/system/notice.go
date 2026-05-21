@@ -42,6 +42,7 @@ type UpdateNoticeRequest struct {
 
 var ErrNoticeNotFound = errors.New("notice not found")
 
+// Deprecated: use GetByIDContext instead.
 func (s *NoticeService) GetByID(id uint) (*model.Notice, error) {
 	return s.GetByIDContext(context.Background(), id)
 }
@@ -57,6 +58,7 @@ func (s *NoticeService) GetByIDContext(ctx context.Context, id uint) (*model.Not
 	return notice, nil
 }
 
+// Deprecated: use GetListContext instead.
 func (s *NoticeService) GetList(req NoticeListRequest) ([]model.Notice, int64, error) {
 	return s.GetListContext(context.Background(), req)
 }
@@ -65,6 +67,7 @@ func (s *NoticeService) GetListContext(ctx context.Context, req NoticeListReques
 	return s.noticeDAO.GetListContext(ctx, req.PageRequest, req.Type, req.Status, req.Keyword)
 }
 
+// Deprecated: use GetActiveListContext instead.
 func (s *NoticeService) GetActiveList(noticeType *int8) ([]model.Notice, error) {
 	return s.GetActiveListContext(context.Background(), noticeType)
 }
@@ -73,6 +76,7 @@ func (s *NoticeService) GetActiveListContext(ctx context.Context, noticeType *in
 	return s.noticeDAO.GetActiveListContext(ctx, noticeType)
 }
 
+// Deprecated: use CreateContext instead.
 func (s *NoticeService) Create(req CreateNoticeRequest, creatorID uint, creatorName string) (*model.Notice, error) {
 	return s.CreateContext(context.Background(), req, creatorID, creatorName)
 }
@@ -103,6 +107,7 @@ func (s *NoticeService) CreateContext(ctx context.Context, req CreateNoticeReque
 	return notice, nil
 }
 
+// Deprecated: use UpdateContext instead.
 func (s *NoticeService) Update(id uint, req UpdateNoticeRequest) (*model.Notice, error) {
 	return s.UpdateContext(context.Background(), id, req)
 }
@@ -136,6 +141,7 @@ func (s *NoticeService) UpdateContext(ctx context.Context, id uint, req UpdateNo
 	return notice, nil
 }
 
+// Deprecated: use DeleteContext instead.
 func (s *NoticeService) Delete(id uint) error {
 	return s.DeleteContext(context.Background(), id)
 }
@@ -144,6 +150,7 @@ func (s *NoticeService) DeleteContext(ctx context.Context, id uint) error {
 	return s.noticeDAO.DeleteContext(ctx, id)
 }
 
+// Deprecated: use UpdateStatusContext instead.
 func (s *NoticeService) UpdateStatus(id uint, status int8) error {
 	return s.UpdateStatusContext(context.Background(), id, status)
 }

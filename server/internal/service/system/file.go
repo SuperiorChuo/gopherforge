@@ -38,6 +38,7 @@ type FileListRequest struct {
 	DataScope authz.UserDataScope `json:"-" form:"-"`
 }
 
+// Deprecated: use UploadContext instead.
 func (s *FileService) Upload(file *multipart.FileHeader, userID uint) (*model.File, error) {
 	return s.UploadContext(context.Background(), file, userID)
 }
@@ -101,6 +102,7 @@ func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHea
 	return fileRecord, nil
 }
 
+// Deprecated: use UploadMultipleContext instead.
 func (s *FileService) UploadMultiple(files []*multipart.FileHeader, userID uint) ([]*model.File, []error) {
 	return s.UploadMultipleContext(context.Background(), files, userID)
 }
@@ -121,6 +123,7 @@ func (s *FileService) UploadMultipleContext(ctx context.Context, files []*multip
 	return results, errs
 }
 
+// Deprecated: use GetFileByIDContext instead.
 func (s *FileService) GetFileByID(id uint) (*model.File, error) {
 	return s.GetFileByIDContext(context.Background(), id)
 }
@@ -136,6 +139,7 @@ func (s *FileService) GetFileByIDContext(ctx context.Context, id uint) (*model.F
 	return file, nil
 }
 
+// Deprecated: use GetFileByIDInScopeContext instead.
 func (s *FileService) GetFileByIDInScope(id uint, dataScope authz.UserDataScope) (*model.File, error) {
 	return s.GetFileByIDInScopeContext(context.Background(), id, dataScope)
 }
@@ -151,6 +155,7 @@ func (s *FileService) GetFileByIDInScopeContext(ctx context.Context, id uint, da
 	return file, nil
 }
 
+// Deprecated: use GetFileByHashContext instead.
 func (s *FileService) GetFileByHash(hash string, dataScope authz.UserDataScope) (*model.File, error) {
 	return s.GetFileByHashContext(context.Background(), hash, dataScope)
 }
@@ -166,6 +171,7 @@ func (s *FileService) GetFileByHashContext(ctx context.Context, hash string, dat
 	return file, nil
 }
 
+// Deprecated: use GetFileListContext instead.
 func (s *FileService) GetFileList(req FileListRequest) ([]model.File, int64, error) {
 	return s.GetFileListContext(context.Background(), req)
 }
@@ -174,6 +180,7 @@ func (s *FileService) GetFileListContext(ctx context.Context, req FileListReques
 	return s.fileDAO.GetListContext(ctx, req.PageRequest, req.UserID, req.FileType, req.Keyword, req.StartTime, req.EndTime, req.DataScope)
 }
 
+// Deprecated: use DeleteFileContext instead.
 func (s *FileService) DeleteFile(id uint, userID uint, dataScope authz.UserDataScope) error {
 	return s.DeleteFileContext(context.Background(), id, userID, dataScope)
 }
@@ -195,6 +202,7 @@ func (s *FileService) DeleteFileContext(ctx context.Context, id uint, userID uin
 	return s.fileDAO.DeleteContext(ctx, id)
 }
 
+// Deprecated: use DeleteFilesContext instead.
 func (s *FileService) DeleteFiles(ids []uint, userID uint, dataScope authz.UserDataScope) error {
 	return s.DeleteFilesContext(context.Background(), ids, userID, dataScope)
 }
@@ -208,6 +216,7 @@ func (s *FileService) DeleteFilesContext(ctx context.Context, ids []uint, userID
 	return nil
 }
 
+// Deprecated: use GetFileStatsContext instead.
 func (s *FileService) GetFileStats(userID *uint, dataScope authz.UserDataScope) (*systemdao.FileStats, error) {
 	return s.GetFileStatsContext(context.Background(), userID, dataScope)
 }

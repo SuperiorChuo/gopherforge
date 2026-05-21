@@ -31,6 +31,7 @@ func NewRedisServiceWithClient(client RedisInfoClient) *RedisService {
 }
 
 // GetRedisInfo returns Redis information.
+// Deprecated: use GetRedisInfoContext instead.
 func (s *RedisService) GetRedisInfo() (map[string]any, error) {
 	return s.GetRedisInfoContext(context.Background())
 }

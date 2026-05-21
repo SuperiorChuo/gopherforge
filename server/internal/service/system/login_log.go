@@ -42,6 +42,7 @@ type LoginInfo struct {
 
 var ErrLoginLogNotFound = errors.New("login log not found")
 
+// Deprecated: use RecordContext instead.
 func (s *LoginLogService) Record(info *LoginInfo) error {
 	return s.RecordContext(context.Background(), info)
 }
@@ -66,6 +67,7 @@ func (s *LoginLogService) RecordContext(ctx context.Context, info *LoginInfo) er
 	return s.logDAO.CreateContext(ctx, log)
 }
 
+// Deprecated: use GetLogListContext instead.
 func (s *LoginLogService) GetLogList(req LoginLogListRequest) ([]model.LoginLog, int64, error) {
 	return s.GetLogListContext(context.Background(), req)
 }
@@ -85,6 +87,7 @@ func (s *LoginLogService) GetLogListContext(ctx context.Context, req LoginLogLis
 	)
 }
 
+// Deprecated: use GetUserLastLoginContext instead.
 func (s *LoginLogService) GetUserLastLogin(userID uint) (*model.LoginLog, error) {
 	return s.GetUserLastLoginContext(context.Background(), userID)
 }
@@ -100,6 +103,7 @@ func (s *LoginLogService) GetUserLastLoginContext(ctx context.Context, userID ui
 	return log, nil
 }
 
+// Deprecated: use GetLoginStatsContext instead.
 func (s *LoginLogService) GetLoginStats(startTime, endTime *time.Time) (*systemdao.LoginLogStats, error) {
 	return s.GetLoginStatsContext(context.Background(), startTime, endTime)
 }
@@ -108,6 +112,7 @@ func (s *LoginLogService) GetLoginStatsContext(ctx context.Context, startTime, e
 	return s.logDAO.GetStatsContext(ctx, startTime, endTime)
 }
 
+// Deprecated: use ClearLogsContext instead.
 func (s *LoginLogService) ClearLogs(days int) (int64, error) {
 	return s.ClearLogsContext(context.Background(), days)
 }
@@ -117,6 +122,7 @@ func (s *LoginLogService) ClearLogsContext(ctx context.Context, days int) (int64
 	return s.logDAO.DeleteBeforeContext(ctx, before)
 }
 
+// Deprecated: use GetLoginTrendContext instead.
 func (s *LoginLogService) GetLoginTrend(days int) ([]systemdao.LoginTrendItem, error) {
 	return s.GetLoginTrendContext(context.Background(), days)
 }
@@ -125,6 +131,7 @@ func (s *LoginLogService) GetLoginTrendContext(ctx context.Context, days int) ([
 	return s.logDAO.GetLoginTrendContext(ctx, days)
 }
 
+// Deprecated: use CheckAbnormalLoginContext instead.
 func (s *LoginLogService) CheckAbnormalLogin(userID uint, ip string) (bool, string) {
 	return s.CheckAbnormalLoginContext(context.Background(), userID, ip)
 }
@@ -140,6 +147,7 @@ func (s *LoginLogService) CheckAbnormalLoginContext(ctx context.Context, userID 
 	return false, ""
 }
 
+// Deprecated: use GetFailedLoginCountContext instead.
 func (s *LoginLogService) GetFailedLoginCount(username, ip string, minutes int) (int64, error) {
 	return s.GetFailedLoginCountContext(context.Background(), username, ip, minutes)
 }

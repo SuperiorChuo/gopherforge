@@ -70,6 +70,7 @@ var (
 	ErrDepartmentHasUsers          = systemdao.ErrDepartmentHasUsers
 )
 
+// Deprecated: use GetByIDContext instead.
 func (s *DepartmentService) GetByID(id uint) (*model.Department, error) {
 	return s.GetByIDContext(context.Background(), id)
 }
@@ -85,6 +86,7 @@ func (s *DepartmentService) GetByIDContext(ctx context.Context, id uint) (*model
 	return dept, nil
 }
 
+// Deprecated: use GetListContext instead.
 func (s *DepartmentService) GetList(req DepartmentListRequest) ([]model.Department, int64, error) {
 	return s.GetListContext(context.Background(), req)
 }
@@ -93,6 +95,7 @@ func (s *DepartmentService) GetListContext(ctx context.Context, req DepartmentLi
 	return s.dao().GetListContext(ctx, req.PageRequest, req.Keyword, req.Status)
 }
 
+// Deprecated: use GetAllContext instead.
 func (s *DepartmentService) GetAll(status *int8) ([]model.Department, error) {
 	return s.GetAllContext(context.Background(), status)
 }
@@ -101,6 +104,7 @@ func (s *DepartmentService) GetAllContext(ctx context.Context, status *int8) ([]
 	return s.dao().GetAllContext(ctx, status)
 }
 
+// Deprecated: use GetTreeContext instead.
 func (s *DepartmentService) GetTree(status *int8) ([]model.Department, error) {
 	return s.GetTreeContext(context.Background(), status)
 }
@@ -109,6 +113,7 @@ func (s *DepartmentService) GetTreeContext(ctx context.Context, status *int8) ([
 	return s.dao().GetTreeContext(ctx, status)
 }
 
+// Deprecated: use CreateContext instead.
 func (s *DepartmentService) Create(req CreateDepartmentRequest) (*model.Department, error) {
 	return s.CreateContext(context.Background(), req)
 }
@@ -151,6 +156,7 @@ func (s *DepartmentService) CreateContext(ctx context.Context, req CreateDepartm
 	return dept, nil
 }
 
+// Deprecated: use UpdateContext instead.
 func (s *DepartmentService) Update(id uint, req UpdateDepartmentRequest) (*model.Department, error) {
 	return s.UpdateContext(context.Background(), id, req)
 }
@@ -206,6 +212,7 @@ func (s *DepartmentService) UpdateContext(ctx context.Context, id uint, req Upda
 	return dept, nil
 }
 
+// Deprecated: use DeleteContext instead.
 func (s *DepartmentService) Delete(id uint) error {
 	return s.DeleteContext(context.Background(), id)
 }
@@ -218,6 +225,7 @@ func (s *DepartmentService) DeleteContext(ctx context.Context, id uint) error {
 	return nil
 }
 
+// Deprecated: use GetChildrenIDsContext instead.
 func (s *DepartmentService) GetChildrenIDs(parentID uint) ([]uint, error) {
 	return s.GetChildrenIDsContext(context.Background(), parentID)
 }

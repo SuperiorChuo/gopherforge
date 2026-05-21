@@ -58,6 +58,7 @@ const (
 	onlineUserUserIndexPrefix = "online_users:user:"
 )
 
+// Deprecated: use SetOnlineUserContext instead.
 func (s *OnlineUserService) SetOnlineUser(user OnlineUser, expiration time.Duration) error {
 	return s.SetOnlineUserContext(context.Background(), user, expiration)
 }
@@ -83,6 +84,7 @@ func (s *OnlineUserService) SetOnlineUserContext(ctx context.Context, user Onlin
 	return err
 }
 
+// Deprecated: use RemoveOnlineUserContext instead.
 func (s *OnlineUserService) RemoveOnlineUser(tokenID string) error {
 	return s.RemoveOnlineUserContext(context.Background(), tokenID)
 }
@@ -109,6 +111,7 @@ func (s *OnlineUserService) RemoveOnlineUserContext(ctx context.Context, tokenID
 	return err
 }
 
+// Deprecated: use GetOnlineUsersContext instead.
 func (s *OnlineUserService) GetOnlineUsers() ([]OnlineUser, error) {
 	return s.GetOnlineUsersContext(context.Background())
 }
@@ -117,6 +120,7 @@ func (s *OnlineUserService) GetOnlineUsersContext(ctx context.Context) ([]Online
 	return s.getIndexedOnlineUsers(ctx)
 }
 
+// Deprecated: use GetOnlineUserCountContext instead.
 func (s *OnlineUserService) GetOnlineUserCount() (int64, error) {
 	return s.GetOnlineUserCountContext(context.Background())
 }
@@ -128,6 +132,7 @@ func (s *OnlineUserService) GetOnlineUserCountContext(ctx context.Context) (int6
 	return s.countIndexedOnlineUsersContext(ctx)
 }
 
+// Deprecated: use ForceLogoutContext instead.
 func (s *OnlineUserService) ForceLogout(tokenID string) error {
 	return s.ForceLogoutContext(context.Background(), tokenID)
 }
@@ -217,6 +222,7 @@ func (s *OnlineUserService) revokeOnlineUserToken(user OnlineUser) {
 	}
 }
 
+// Deprecated: use IsUserOnlineContext instead.
 func (s *OnlineUserService) IsUserOnline(tokenID string) bool {
 	return s.IsUserOnlineContext(context.Background(), tokenID)
 }

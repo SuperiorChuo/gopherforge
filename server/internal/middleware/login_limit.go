@@ -81,6 +81,7 @@ func LoginIdentifier(username, ip string) string {
 	return fmt.Sprintf("%s:%s", username, ip)
 }
 
+// Deprecated: use IsLoginLockedContext instead.
 func IsLoginLocked(identifier string, config LoginLimitConfig) (bool, time.Duration) {
 	return IsLoginLockedContext(context.Background(), identifier, config)
 }
@@ -149,6 +150,7 @@ func (l *LoginLimiter) Check(config LoginLimitConfig) gin.HandlerFunc {
 }
 
 // RecordLoginFailure records a failed login attempt.
+// Deprecated: use RecordLoginFailureContext instead.
 func RecordLoginFailure(identifier string, config LoginLimitConfig) {
 	RecordLoginFailureContext(context.Background(), identifier, config)
 }
@@ -182,6 +184,7 @@ func (l *LoginLimiter) RecordFailureContext(ctx context.Context, identifier stri
 }
 
 // ClearLoginLimit clears login throttling after a successful login.
+// Deprecated: use ClearLoginLimitContext instead.
 func ClearLoginLimit(identifier string, config LoginLimitConfig) {
 	ClearLoginLimitContext(context.Background(), identifier, config)
 }

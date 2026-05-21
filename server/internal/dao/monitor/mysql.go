@@ -41,6 +41,7 @@ func (d *MySQLDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
+// Deprecated: use ConnectionStatsContext instead.
 func (d *MySQLDAO) ConnectionStats() (sql.DBStats, error) {
 	return d.ConnectionStatsContext(context.Background())
 }
@@ -63,6 +64,7 @@ func (d *MySQLDAO) ConnectionStatsContext(ctx context.Context) (sql.DBStats, err
 	return sqlDB.Stats(), nil
 }
 
+// Deprecated: use GetVersionContext instead.
 func (d *MySQLDAO) GetVersion() (string, error) {
 	return d.GetVersionContext(context.Background())
 }
@@ -73,6 +75,7 @@ func (d *MySQLDAO) GetVersionContext(ctx context.Context) (string, error) {
 	return version, err
 }
 
+// Deprecated: use GetCurrentDatabaseContext instead.
 func (d *MySQLDAO) GetCurrentDatabase() (string, error) {
 	return d.GetCurrentDatabaseContext(context.Background())
 }
@@ -83,6 +86,7 @@ func (d *MySQLDAO) GetCurrentDatabaseContext(ctx context.Context) (string, error
 	return currentDatabase, err
 }
 
+// Deprecated: use GetNameValuesContext instead.
 func (d *MySQLDAO) GetNameValues(query string) (map[string]string, error) {
 	return d.GetNameValuesContext(context.Background(), query)
 }
@@ -100,6 +104,7 @@ func (d *MySQLDAO) GetNameValuesContext(ctx context.Context, query string) (map[
 	return result, nil
 }
 
+// Deprecated: use GetTableStatsContext instead.
 func (d *MySQLDAO) GetTableStats(dbName string) (MySQLTableStats, error) {
 	return d.GetTableStatsContext(context.Background(), dbName)
 }

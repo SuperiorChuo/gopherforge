@@ -23,12 +23,12 @@ func TestMenuSeedDAOInsertDefaultMenusWhenTableIsEmpty(t *testing.T) {
 	mock.ExpectCommit()
 
 	now := time.Date(2026, 5, 20, 12, 0, 0, 0, time.UTC)
-	count, err := (&MenuSeedDAO{}).BootstrapDefaultMenus([]model.Menu{
+	count, err := (&MenuSeedDAO{}).BootstrapDefaultMenusContext(context.Background(), []model.Menu{
 		{ID: 1, Name: "dashboard", Title: "Dashboard"},
 		{ID: 2, Name: "system", Title: "System"},
 	}, now)
 	if err != nil {
-		t.Fatalf("BootstrapDefaultMenus() error = %v", err)
+		t.Fatalf("BootstrapDefaultMenusContext() error = %v", err)
 	}
 	if count != 2 {
 		t.Fatalf("count = %d, want 2", count)
@@ -56,11 +56,11 @@ func TestMenuSeedDAOSkipsWhenMenusExist(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(3))
 	mock.ExpectCommit()
 
-	count, err := (&MenuSeedDAO{}).BootstrapDefaultMenus([]model.Menu{
+	count, err := (&MenuSeedDAO{}).BootstrapDefaultMenusContext(context.Background(), []model.Menu{
 		{ID: 1, Name: "dashboard", Title: "Dashboard"},
 	}, time.Now())
 	if err != nil {
-		t.Fatalf("BootstrapDefaultMenus() error = %v", err)
+		t.Fatalf("BootstrapDefaultMenusContext() error = %v", err)
 	}
 	if count != 0 {
 		t.Fatalf("count = %d, want 0", count)

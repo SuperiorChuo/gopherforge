@@ -19,6 +19,7 @@ func NewMenuSeedDAO(db *gorm.DB) *MenuSeedDAO {
 	return &MenuSeedDAO{db: db}
 }
 
+// Deprecated: use BootstrapDefaultMenusContext instead.
 func (d *MenuSeedDAO) BootstrapDefaultMenus(seed []model.Menu, now time.Time) (int, error) {
 	return d.BootstrapDefaultMenusContext(context.Background(), seed, now)
 }

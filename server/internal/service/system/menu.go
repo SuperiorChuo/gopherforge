@@ -55,6 +55,7 @@ var (
 	ErrMenuHasChildren        = errors.New("cannot delete menu with children")
 )
 
+// Deprecated: use GetMenuByIDContext instead.
 func (s *MenuService) GetMenuByID(id uint) (*model.Menu, error) {
 	return s.GetMenuByIDContext(context.Background(), id)
 }
@@ -70,6 +71,7 @@ func (s *MenuService) GetMenuByIDContext(ctx context.Context, id uint) (*model.M
 	return menu, nil
 }
 
+// Deprecated: use GetMenuListContext instead.
 func (s *MenuService) GetMenuList(req MenuListRequest) ([]model.Menu, int64, error) {
 	return s.GetMenuListContext(context.Background(), req)
 }
@@ -78,6 +80,7 @@ func (s *MenuService) GetMenuListContext(ctx context.Context, req MenuListReques
 	return s.menuDAO.GetMenuListContext(ctx, req.PageRequest, req.Keyword, req.Status)
 }
 
+// Deprecated: use GetMenuTreeContext instead.
 func (s *MenuService) GetMenuTree(status *int8) ([]model.Menu, error) {
 	return s.GetMenuTreeContext(context.Background(), status)
 }
@@ -86,6 +89,7 @@ func (s *MenuService) GetMenuTreeContext(ctx context.Context, status *int8) ([]m
 	return s.menuDAO.GetMenuTreeContext(ctx, status)
 }
 
+// Deprecated: use CreateMenuContext instead.
 func (s *MenuService) CreateMenu(req CreateMenuRequest) (*model.Menu, error) {
 	return s.CreateMenuContext(context.Background(), req)
 }
@@ -137,6 +141,7 @@ func (s *MenuService) CreateMenuContext(ctx context.Context, req CreateMenuReque
 	return menu, nil
 }
 
+// Deprecated: use UpdateMenuContext instead.
 func (s *MenuService) UpdateMenu(id uint, req UpdateMenuRequest) (*model.Menu, error) {
 	return s.UpdateMenuContext(context.Background(), id, req)
 }
@@ -206,6 +211,7 @@ func (s *MenuService) UpdateMenuContext(ctx context.Context, id uint, req Update
 	return menu, nil
 }
 
+// Deprecated: use DeleteMenuContext instead.
 func (s *MenuService) DeleteMenu(id uint) error {
 	return s.DeleteMenuContext(context.Background(), id)
 }

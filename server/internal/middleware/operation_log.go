@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -211,7 +212,7 @@ func init() {
 func processLogs() {
 	service := &system.OperationLogService{}
 	for log := range logChan {
-		_ = service.Record(log)
+		_ = service.RecordContext(context.Background(), log)
 	}
 }
 

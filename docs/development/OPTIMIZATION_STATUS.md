@@ -37,6 +37,8 @@
 - `OnlineUserService` 已支持注入 Redis client，在线用户记录、索引、计数和强制下线逻辑可脱离全局 Redis 测试。
 - `HealthAPI` 已支持注入 database client 与 Redis ping client，健康检查可脱离全局依赖测试，同时保持依赖错误脱敏。
 - API 层已增加架构守护测试，阻止 handler 新增对全局 `database.DB` 或 Redis `Client` 的直接依赖；健康检查兼容 fallback 已精确列入 allowlist。
+- 旧的非 `Context` compatibility wrapper 已补充 `Deprecated:` 标记，并增加架构测试，要求后续新增 wrapper 必须显式指向对应 `*Context` 方法。
+- service/pkg/DAO/middleware 中保留的全局 DB/Redis fallback 已纳入精确 allowlist 架构测试，防止兼容兜底继续扩散。
 
 ### 性能与资源安全
 
@@ -60,12 +62,9 @@
 
 ## 当前剩余
 
-### 可逐步推进
-
-- 旧的非 `Context` convenience 方法仍保留，用于兼容历史调用；后续可在大版本中逐步收敛。
-- 部分 service/pkg/DAO 仍允许零值结构体回退到全局依赖，这是兼容策略；新代码优先使用构造函数或注入接口，API 层已由架构测试防止新增直连。
-
 ### 发布前建议复核
+
+- 代码层面的优化项已收口；发布前建议继续执行以下环境、迁移、构建和健康检查验证。
 
 - 运行后端全量验证：
 

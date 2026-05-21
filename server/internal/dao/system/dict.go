@@ -19,6 +19,7 @@ func NewDictDAO(db *gorm.DB) *DictDAO {
 	return &DictDAO{db: db}
 }
 
+// Deprecated: use CreateTypeContext instead.
 func (d *DictDAO) CreateType(dictType *model.DictType) error {
 	return d.CreateTypeContext(context.Background(), dictType)
 }
@@ -27,6 +28,7 @@ func (d *DictDAO) CreateTypeContext(ctx context.Context, dictType *model.DictTyp
 	return d.dbWithContext(ctx).Create(dictType).Error
 }
 
+// Deprecated: use GetTypeByIDContext instead.
 func (d *DictDAO) GetTypeByID(id uint) (*model.DictType, error) {
 	return d.GetTypeByIDContext(context.Background(), id)
 }
@@ -37,6 +39,7 @@ func (d *DictDAO) GetTypeByIDContext(ctx context.Context, id uint) (*model.DictT
 	return &dictType, result.Error
 }
 
+// Deprecated: use GetTypeByCodeContext instead.
 func (d *DictDAO) GetTypeByCode(code string) (*model.DictType, error) {
 	return d.GetTypeByCodeContext(context.Background(), code)
 }
@@ -47,6 +50,7 @@ func (d *DictDAO) GetTypeByCodeContext(ctx context.Context, code string) (*model
 	return &dictType, result.Error
 }
 
+// Deprecated: use GetTypeListContext instead.
 func (d *DictDAO) GetTypeList(req pagination.PageRequest, keyword string, status *int8) ([]model.DictType, int64, error) {
 	return d.GetTypeListContext(context.Background(), req, keyword, status)
 }
@@ -75,6 +79,7 @@ func (d *DictDAO) GetTypeListContext(ctx context.Context, req pagination.PageReq
 	return types, total, result.Error
 }
 
+// Deprecated: use GetAllTypesContext instead.
 func (d *DictDAO) GetAllTypes(status *int8) ([]model.DictType, error) {
 	return d.GetAllTypesContext(context.Background(), status)
 }
@@ -89,6 +94,7 @@ func (d *DictDAO) GetAllTypesContext(ctx context.Context, status *int8) ([]model
 	return types, result.Error
 }
 
+// Deprecated: use UpdateTypeContext instead.
 func (d *DictDAO) UpdateType(dictType *model.DictType) error {
 	return d.UpdateTypeContext(context.Background(), dictType)
 }
@@ -97,6 +103,7 @@ func (d *DictDAO) UpdateTypeContext(ctx context.Context, dictType *model.DictTyp
 	return d.dbWithContext(ctx).Save(dictType).Error
 }
 
+// Deprecated: use DeleteTypeContext instead.
 func (d *DictDAO) DeleteType(id uint) error {
 	return d.DeleteTypeContext(context.Background(), id)
 }
@@ -110,6 +117,7 @@ func (d *DictDAO) DeleteTypeContext(ctx context.Context, id uint) error {
 	})
 }
 
+// Deprecated: use CreateItemContext instead.
 func (d *DictDAO) CreateItem(item *model.DictItem) error {
 	return d.CreateItemContext(context.Background(), item)
 }
@@ -118,6 +126,7 @@ func (d *DictDAO) CreateItemContext(ctx context.Context, item *model.DictItem) e
 	return d.dbWithContext(ctx).Create(item).Error
 }
 
+// Deprecated: use GetItemByIDContext instead.
 func (d *DictDAO) GetItemByID(id uint) (*model.DictItem, error) {
 	return d.GetItemByIDContext(context.Background(), id)
 }
@@ -128,6 +137,7 @@ func (d *DictDAO) GetItemByIDContext(ctx context.Context, id uint) (*model.DictI
 	return &item, result.Error
 }
 
+// Deprecated: use GetItemsByTypeIDContext instead.
 func (d *DictDAO) GetItemsByTypeID(typeID uint, status *int8) ([]model.DictItem, error) {
 	return d.GetItemsByTypeIDContext(context.Background(), typeID, status)
 }
@@ -142,6 +152,7 @@ func (d *DictDAO) GetItemsByTypeIDContext(ctx context.Context, typeID uint, stat
 	return items, result.Error
 }
 
+// Deprecated: use GetItemsByTypeCodeContext instead.
 func (d *DictDAO) GetItemsByTypeCode(code string, status *int8) ([]model.DictItem, error) {
 	return d.GetItemsByTypeCodeContext(context.Background(), code, status)
 }
@@ -154,6 +165,7 @@ func (d *DictDAO) GetItemsByTypeCodeContext(ctx context.Context, code string, st
 	return d.GetItemsByTypeIDContext(ctx, dictType.ID, status)
 }
 
+// Deprecated: use GetItemListContext instead.
 func (d *DictDAO) GetItemList(req pagination.PageRequest, typeID uint, keyword string, status *int8) ([]model.DictItem, int64, error) {
 	return d.GetItemListContext(context.Background(), req, typeID, keyword, status)
 }
@@ -182,6 +194,7 @@ func (d *DictDAO) GetItemListContext(ctx context.Context, req pagination.PageReq
 	return items, total, result.Error
 }
 
+// Deprecated: use UpdateItemContext instead.
 func (d *DictDAO) UpdateItem(item *model.DictItem) error {
 	return d.UpdateItemContext(context.Background(), item)
 }
@@ -190,6 +203,7 @@ func (d *DictDAO) UpdateItemContext(ctx context.Context, item *model.DictItem) e
 	return d.dbWithContext(ctx).Save(item).Error
 }
 
+// Deprecated: use DeleteItemContext instead.
 func (d *DictDAO) DeleteItem(id uint) error {
 	return d.DeleteItemContext(context.Background(), id)
 }
@@ -198,6 +212,7 @@ func (d *DictDAO) DeleteItemContext(ctx context.Context, id uint) error {
 	return d.dbWithContext(ctx).Delete(&model.DictItem{}, id).Error
 }
 
+// Deprecated: use DeleteItemsByTypeIDContext instead.
 func (d *DictDAO) DeleteItemsByTypeID(typeID uint) error {
 	return d.DeleteItemsByTypeIDContext(context.Background(), typeID)
 }
@@ -206,6 +221,7 @@ func (d *DictDAO) DeleteItemsByTypeIDContext(ctx context.Context, typeID uint) e
 	return d.dbWithContext(ctx).Where("dict_type_id = ?", typeID).Delete(&model.DictItem{}).Error
 }
 
+// Deprecated: use GetTypeWithItemsContext instead.
 func (d *DictDAO) GetTypeWithItems(code string) (*model.DictType, error) {
 	return d.GetTypeWithItemsContext(context.Background(), code)
 }
@@ -226,6 +242,7 @@ func (d *DictDAO) GetTypeWithItemsContext(ctx context.Context, code string) (*mo
 	return dictType, nil
 }
 
+// Deprecated: use GetAllTypesWithItemsContext instead.
 func (d *DictDAO) GetAllTypesWithItems() ([]model.DictType, error) {
 	return d.GetAllTypesWithItemsContext(context.Background())
 }

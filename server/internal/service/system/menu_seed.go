@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"time"
 
 	systemdao "github.com/go-admin-kit/server/internal/dao/system"
@@ -11,9 +12,14 @@ type MenuBootstrapResult struct {
 	Menus int `json:"menus"`
 }
 
+// Deprecated: use BootstrapDefaultMenusContext instead.
 func BootstrapDefaultMenus() (MenuBootstrapResult, error) {
+	return BootstrapDefaultMenusContext(context.Background())
+}
+
+func BootstrapDefaultMenusContext(ctx context.Context) (MenuBootstrapResult, error) {
 	var result MenuBootstrapResult
-	created, err := (&systemdao.MenuSeedDAO{}).BootstrapDefaultMenus(DefaultMenus(), time.Now())
+	created, err := (&systemdao.MenuSeedDAO{}).BootstrapDefaultMenusContext(ctx, DefaultMenus(), time.Now())
 	result.Menus = created
 	return result, err
 }

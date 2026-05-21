@@ -39,6 +39,7 @@ type ClearLogsRequest struct {
 
 var ErrOperationLogNotFound = errors.New("operation log not found")
 
+// Deprecated: use RecordContext instead.
 func (s *OperationLogService) Record(log *model.OperationLog) error {
 	return s.RecordContext(context.Background(), log)
 }
@@ -47,6 +48,7 @@ func (s *OperationLogService) RecordContext(ctx context.Context, log *model.Oper
 	return s.logDAO.CreateLogContext(ctx, log)
 }
 
+// Deprecated: use GetLogByIDContext instead.
 func (s *OperationLogService) GetLogByID(id uint) (*model.OperationLog, error) {
 	return s.GetLogByIDContext(context.Background(), id)
 }
@@ -62,6 +64,7 @@ func (s *OperationLogService) GetLogByIDContext(ctx context.Context, id uint) (*
 	return log, nil
 }
 
+// Deprecated: use GetLogListContext instead.
 func (s *OperationLogService) GetLogList(req OperationLogListRequest) ([]model.OperationLog, int64, error) {
 	return s.GetLogListContext(context.Background(), req)
 }
@@ -86,6 +89,7 @@ func (s *OperationLogService) GetLogListContext(ctx context.Context, req Operati
 	)
 }
 
+// Deprecated: use ClearLogsContext instead.
 func (s *OperationLogService) ClearLogs(days int) (int64, error) {
 	return s.ClearLogsContext(context.Background(), days)
 }
@@ -95,6 +99,7 @@ func (s *OperationLogService) ClearLogsContext(ctx context.Context, days int) (i
 	return s.logDAO.DeleteLogsBeforeContext(ctx, before)
 }
 
+// Deprecated: use GetLogStatsContext instead.
 func (s *OperationLogService) GetLogStats(startTime, endTime *time.Time) (*systemdao.LogStats, error) {
 	return s.GetLogStatsContext(context.Background(), startTime, endTime)
 }
@@ -103,6 +108,7 @@ func (s *OperationLogService) GetLogStatsContext(ctx context.Context, startTime,
 	return s.logDAO.GetLogStatsContext(ctx, startTime, endTime)
 }
 
+// Deprecated: use ExportLogsContext instead.
 func (s *OperationLogService) ExportLogs(req OperationLogListRequest) ([]model.OperationLog, error) {
 	return s.ExportLogsContext(context.Background(), req)
 }

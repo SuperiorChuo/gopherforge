@@ -82,6 +82,7 @@ func (s ConsoleRouteService) routeDAO() authDAO.ConsoleRouteDAO {
 	return authDAO.NewConsoleRouteDAO()
 }
 
+// Deprecated: use BootstrapDefaultsContext instead.
 func (s ConsoleRouteService) BootstrapDefaults() (ConsoleRouteBootstrapResult, error) {
 	return s.BootstrapDefaultsContext(context.Background())
 }
@@ -90,6 +91,7 @@ func (s ConsoleRouteService) BootstrapDefaultsContext(ctx context.Context) (Cons
 	return s.bootstrapDefaultsContext(ctx, s.routeDAO())
 }
 
+// Deprecated: use ListRoutesContext instead.
 func (s ConsoleRouteService) ListRoutes() ([]ConsoleRouteView, error) {
 	return s.ListRoutesContext(context.Background())
 }
@@ -106,6 +108,7 @@ func (s ConsoleRouteService) ListRoutesContext(ctx context.Context) ([]ConsoleRo
 	return serializeConsoleRoutes(rows), nil
 }
 
+// Deprecated: use ListAccessibleRoutesContext instead.
 func (s ConsoleRouteService) ListAccessibleRoutes(permissions, roles []string) ([]ConsoleRouteView, error) {
 	return s.ListAccessibleRoutesContext(context.Background(), permissions, roles)
 }
@@ -122,6 +125,7 @@ func (s ConsoleRouteService) ListAccessibleRoutesContext(ctx context.Context, pe
 	return FilterConsoleRoutes(serializeConsoleRoutes(rows), permissions, roles), nil
 }
 
+// Deprecated: use AllRoutePermissionsContext instead.
 func (s ConsoleRouteService) AllRoutePermissions() ([]string, error) {
 	return s.AllRoutePermissionsContext(context.Background())
 }
@@ -141,6 +145,7 @@ func (s ConsoleRouteService) AllRoutePermissionsContext(ctx context.Context) ([]
 	return UniqueSortedConsoleStrings(values), nil
 }
 
+// Deprecated: use GetRouteContext instead.
 func (s ConsoleRouteService) GetRoute(routeKey string) (ConsoleRouteView, error) {
 	return s.GetRouteContext(context.Background(), routeKey)
 }
@@ -153,6 +158,7 @@ func (s ConsoleRouteService) GetRouteContext(ctx context.Context, routeKey strin
 	return serializeConsoleRoute(*route), nil
 }
 
+// Deprecated: use CreateRouteContext instead.
 func (s ConsoleRouteService) CreateRoute(req ConsoleRouteCreateRequest) (ConsoleRouteView, error) {
 	return s.CreateRouteContext(context.Background(), req)
 }
@@ -226,6 +232,7 @@ func (s ConsoleRouteService) CreateRouteContext(ctx context.Context, req Console
 	return serializeConsoleRoute(route), nil
 }
 
+// Deprecated: use UpdateRouteContext instead.
 func (s ConsoleRouteService) UpdateRoute(routeKey string, req ConsoleRouteUpdateRequest) (ConsoleRouteView, error) {
 	return s.UpdateRouteContext(context.Background(), routeKey, req)
 }
@@ -315,6 +322,7 @@ func (s ConsoleRouteService) UpdateRouteContext(ctx context.Context, routeKey st
 	return serializeConsoleRoute(*route), nil
 }
 
+// Deprecated: use DeleteRouteContext instead.
 func (s ConsoleRouteService) DeleteRoute(routeKey string) (ConsoleRouteView, error) {
 	return s.DeleteRouteContext(context.Background(), routeKey)
 }

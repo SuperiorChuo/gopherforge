@@ -26,6 +26,7 @@ func (d *UserDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
+// Deprecated: use GetUserByUsernameContext instead.
 func (d *UserDAO) GetUserByUsername(username string) (*model.User, error) {
 	return d.GetUserByUsernameContext(context.Background(), username)
 }
@@ -36,6 +37,7 @@ func (d *UserDAO) GetUserByUsernameContext(ctx context.Context, username string)
 	return &user, result.Error
 }
 
+// Deprecated: use GetUserByIDContext instead.
 func (d *UserDAO) GetUserByID(id uint) (*model.User, error) {
 	return d.GetUserByIDContext(context.Background(), id)
 }
@@ -46,6 +48,7 @@ func (d *UserDAO) GetUserByIDContext(ctx context.Context, id uint) (*model.User,
 	return &user, result.Error
 }
 
+// Deprecated: use GetUserWithRolesContext instead.
 func (d *UserDAO) GetUserWithRoles(id uint) (*model.User, error) {
 	return d.GetUserWithRolesContext(context.Background(), id)
 }
@@ -56,6 +59,7 @@ func (d *UserDAO) GetUserWithRolesContext(ctx context.Context, id uint) (*model.
 	return &user, result.Error
 }
 
+// Deprecated: use GetUserByEmailContext instead.
 func (d *UserDAO) GetUserByEmail(email string) (*model.User, error) {
 	return d.GetUserByEmailContext(context.Background(), email)
 }
@@ -66,6 +70,7 @@ func (d *UserDAO) GetUserByEmailContext(ctx context.Context, email string) (*mod
 	return &user, result.Error
 }
 
+// Deprecated: use CreateUserContext instead.
 func (d *UserDAO) CreateUser(user *model.User) error {
 	return d.CreateUserContext(context.Background(), user)
 }
@@ -74,6 +79,7 @@ func (d *UserDAO) CreateUserContext(ctx context.Context, user *model.User) error
 	return d.dbWithContext(ctx).Create(user).Error
 }
 
+// Deprecated: use UpdateUserContext instead.
 func (d *UserDAO) UpdateUser(user *model.User) error {
 	return d.UpdateUserContext(context.Background(), user)
 }

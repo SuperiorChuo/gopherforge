@@ -58,6 +58,7 @@ func NewUploaderWithConfig(cfg config.UploadConfig) *Uploader {
 }
 
 // Upload uploads one file.
+// Deprecated: use UploadContext instead.
 func (u *Uploader) Upload(file *multipart.FileHeader) (*FileInfo, error) {
 	return u.UploadContext(context.Background(), file)
 }
@@ -145,6 +146,7 @@ func (u *Uploader) UploadContext(ctx context.Context, file *multipart.FileHeader
 }
 
 // UploadMultiple uploads multiple files.
+// Deprecated: use UploadMultipleContext instead.
 func (u *Uploader) UploadMultiple(files []*multipart.FileHeader) ([]*FileInfo, []error) {
 	return u.UploadMultipleContext(context.Background(), files)
 }
@@ -169,6 +171,7 @@ func (u *Uploader) UploadMultipleContext(ctx context.Context, files []*multipart
 }
 
 // Delete deletes a file from storage.
+// Deprecated: use DeleteContext instead.
 func (u *Uploader) Delete(filePath string) error {
 	return u.DeleteContext(context.Background(), filePath)
 }

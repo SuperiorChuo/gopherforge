@@ -30,6 +30,7 @@ func (d *OperationLogDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
+// Deprecated: use CreateLogContext instead.
 func (d *OperationLogDAO) CreateLog(log *model.OperationLog) error {
 	return d.CreateLogContext(context.Background(), log)
 }
@@ -38,6 +39,7 @@ func (d *OperationLogDAO) CreateLogContext(ctx context.Context, log *model.Opera
 	return d.dbWithContext(ctx).Create(log).Error
 }
 
+// Deprecated: use GetLogByIDContext instead.
 func (d *OperationLogDAO) GetLogByID(id uint) (*model.OperationLog, error) {
 	return d.GetLogByIDContext(context.Background(), id)
 }
@@ -48,6 +50,7 @@ func (d *OperationLogDAO) GetLogByIDContext(ctx context.Context, id uint) (*mode
 	return &log, result.Error
 }
 
+// Deprecated: use GetLogListContext instead.
 func (d *OperationLogDAO) GetLogList(
 	req pagination.PageRequest,
 	userID *uint,
@@ -127,6 +130,7 @@ func applyOperationLogFilters(
 	return applyTimeRange(query, startTime, endTime)
 }
 
+// Deprecated: use DeleteLogsBeforeContext instead.
 func (d *OperationLogDAO) DeleteLogsBefore(before time.Time) (int64, error) {
 	return d.DeleteLogsBeforeContext(context.Background(), before)
 }
@@ -136,6 +140,7 @@ func (d *OperationLogDAO) DeleteLogsBeforeContext(ctx context.Context, before ti
 	return result.RowsAffected, result.Error
 }
 
+// Deprecated: use GetLogStatsContext instead.
 func (d *OperationLogDAO) GetLogStats(startTime, endTime *time.Time) (*LogStats, error) {
 	return d.GetLogStatsContext(context.Background(), startTime, endTime)
 }

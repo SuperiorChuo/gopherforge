@@ -18,6 +18,7 @@ func NewServerService() *ServerService {
 }
 
 // GetServerInfo returns server information.
+// Deprecated: use GetServerInfoContext instead.
 func (s *ServerService) GetServerInfo() (map[string]any, error) {
 	return s.GetServerInfoContext(context.Background())
 }

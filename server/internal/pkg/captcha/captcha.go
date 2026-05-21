@@ -24,6 +24,7 @@ const (
 	textCaptchaChars  = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 )
 
+// Deprecated: use GetTextCaptchaContext instead.
 func GetTextCaptcha(key string) (any, error) {
 	return GetTextCaptchaContext(context.Background(), key)
 }
@@ -49,6 +50,7 @@ func GetTextCaptchaContext(ctx context.Context, key string) (any, error) {
 	}, nil
 }
 
+// Deprecated: use CheckTextCaptchaContext instead.
 func CheckTextCaptcha(key, code string) bool {
 	return CheckTextCaptchaContext(context.Background(), key, code)
 }
@@ -57,6 +59,7 @@ func CheckTextCaptchaContext(ctx context.Context, key, code string) bool {
 	return checkTextCaptchaContext(ctx, key, code, true)
 }
 
+// Deprecated: use VerifyTextCaptchaContext instead.
 func VerifyTextCaptcha(key, code string) bool {
 	return VerifyTextCaptchaContext(context.Background(), key, code)
 }

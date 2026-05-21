@@ -95,6 +95,7 @@ func (e PasswordValidationError) Error() string {
 }
 
 // Login authenticates a user.
+// Deprecated: use LoginContext instead.
 func (s *UserService) Login(req LoginRequest) (*LoginResponse, error) {
 	return s.LoginContext(context.Background(), req)
 }
@@ -107,6 +108,7 @@ func (s *UserService) LoginContext(ctx context.Context, req LoginRequest) (*Logi
 	return s.LoginPasswordContext(ctx, req.Username, req.Password)
 }
 
+// Deprecated: use LoginPasswordContext instead.
 func (s *UserService) LoginPassword(username, password string) (*LoginResponse, error) {
 	return s.LoginPasswordContext(context.Background(), username, password)
 }
@@ -115,6 +117,7 @@ func (s *UserService) LoginPasswordContext(ctx context.Context, username, passwo
 	return s.LoginPasswordWithAccessTTLContext(ctx, username, password, 0)
 }
 
+// Deprecated: use LoginPasswordWithAccessTTLContext instead.
 func (s *UserService) LoginPasswordWithAccessTTL(username, password string, accessTTL time.Duration) (*LoginResponse, error) {
 	return s.LoginPasswordWithAccessTTLContext(context.Background(), username, password, accessTTL)
 }
@@ -159,6 +162,7 @@ func (s *UserService) LoginPasswordWithAccessTTLContext(ctx context.Context, use
 }
 
 // Register creates a user account.
+// Deprecated: use RegisterContext instead.
 func (s *UserService) Register(req RegisterRequest) (*model.User, error) {
 	return s.RegisterContext(context.Background(), req)
 }
@@ -204,6 +208,7 @@ func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) 
 }
 
 // GetUserWithRoles returns a user with roles.
+// Deprecated: use GetUserWithRolesContext instead.
 func (s *UserService) GetUserWithRoles(id uint) (*model.User, error) {
 	return s.GetUserWithRolesContext(context.Background(), id)
 }
@@ -213,6 +218,7 @@ func (s *UserService) GetUserWithRolesContext(ctx context.Context, id uint) (*mo
 }
 
 // ChangePassword changes a user's password.
+// Deprecated: use ChangePasswordContext instead.
 func (s *UserService) ChangePassword(userID uint, req ChangePasswordRequest) error {
 	return s.ChangePasswordContext(context.Background(), userID, req)
 }
@@ -242,6 +248,7 @@ func (s *UserService) ChangePasswordContext(ctx context.Context, userID uint, re
 }
 
 // UpdateProfile updates the current user's profile.
+// Deprecated: use UpdateProfileContext instead.
 func (s *UserService) UpdateProfile(userID uint, req UpdateProfileRequest) (*model.User, error) {
 	return s.UpdateProfileContext(context.Background(), userID, req)
 }
@@ -340,6 +347,7 @@ func shouldMarkDefaultAdminPassword(user *model.User, plainPassword string) bool
 }
 
 // GetUserWithRolesAndPermissions returns a user with roles and permissions.
+// Deprecated: use GetUserWithRolesAndPermissionsContext instead.
 func (s *UserService) GetUserWithRolesAndPermissions(id uint) (*model.User, error) {
 	return s.GetUserWithRolesAndPermissionsContext(context.Background(), id)
 }

@@ -29,6 +29,7 @@ func (d *PermissionManageDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
+// Deprecated: use GetPermissionByIDContext instead.
 func (d *PermissionManageDAO) GetPermissionByID(id uint) (*model.Permission, error) {
 	return d.GetPermissionByIDContext(context.Background(), id)
 }
@@ -39,6 +40,7 @@ func (d *PermissionManageDAO) GetPermissionByIDContext(ctx context.Context, id u
 	return &permission, result.Error
 }
 
+// Deprecated: use GetPermissionByCodeContext instead.
 func (d *PermissionManageDAO) GetPermissionByCode(code string) (*model.Permission, error) {
 	return d.GetPermissionByCodeContext(context.Background(), code)
 }
@@ -49,6 +51,7 @@ func (d *PermissionManageDAO) GetPermissionByCodeContext(ctx context.Context, co
 	return &permission, result.Error
 }
 
+// Deprecated: use GetPermissionListContext instead.
 func (d *PermissionManageDAO) GetPermissionList(req pagination.PageRequest, keyword string, permissionType *int8) ([]model.Permission, int64, error) {
 	return d.GetPermissionListContext(context.Background(), req, keyword, permissionType)
 }
@@ -77,6 +80,7 @@ func (d *PermissionManageDAO) GetPermissionListContext(ctx context.Context, req 
 	return permissions, total, result.Error
 }
 
+// Deprecated: use GetPermissionTreeContext instead.
 func (d *PermissionManageDAO) GetPermissionTree() ([]model.Permission, error) {
 	return d.GetPermissionTreeContext(context.Background())
 }
@@ -102,6 +106,7 @@ func buildPermissionTree(permissions []model.Permission, parentID uint) []model.
 	return tree
 }
 
+// Deprecated: use CreatePermissionContext instead.
 func (d *PermissionManageDAO) CreatePermission(permission *model.Permission) error {
 	return d.CreatePermissionContext(context.Background(), permission)
 }
@@ -110,6 +115,7 @@ func (d *PermissionManageDAO) CreatePermissionContext(ctx context.Context, permi
 	return d.dbWithContext(ctx).Create(permission).Error
 }
 
+// Deprecated: use UpdatePermissionContext instead.
 func (d *PermissionManageDAO) UpdatePermission(permission *model.Permission) error {
 	return d.UpdatePermissionContext(context.Background(), permission)
 }
@@ -118,6 +124,7 @@ func (d *PermissionManageDAO) UpdatePermissionContext(ctx context.Context, permi
 	return d.dbWithContext(ctx).Save(permission).Error
 }
 
+// Deprecated: use DeletePermissionContext instead.
 func (d *PermissionManageDAO) DeletePermission(id uint) error {
 	return d.DeletePermissionContext(context.Background(), id)
 }

@@ -25,6 +25,7 @@ func (d *PermissionDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
+// Deprecated: use GetUserPermissionsContext instead.
 func (d *PermissionDAO) GetUserPermissions(userID uint) ([]string, error) {
 	return d.GetUserPermissionsContext(context.Background(), userID)
 }
@@ -46,6 +47,7 @@ func (d *PermissionDAO) GetUserPermissionsContext(ctx context.Context, userID ui
 	return codes, nil
 }
 
+// Deprecated: use GetUserPermissionsByCodeContext instead.
 func (d *PermissionDAO) GetUserPermissionsByCode(userID uint) (map[string]bool, error) {
 	return d.GetUserPermissionsByCodeContext(context.Background(), userID)
 }
@@ -63,6 +65,7 @@ func (d *PermissionDAO) GetUserPermissionsByCodeContext(ctx context.Context, use
 	return permissionMap, nil
 }
 
+// Deprecated: use HasPermissionContext instead.
 func (d *PermissionDAO) HasPermission(userID uint, permissionCode string) (bool, error) {
 	return d.HasPermissionContext(context.Background(), userID, permissionCode)
 }

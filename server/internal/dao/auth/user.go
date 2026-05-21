@@ -33,6 +33,7 @@ func (d *UserDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
+// Deprecated: use UpdateUserProfileContext instead.
 func (d *UserDAO) UpdateUserProfile(id uint, updates map[string]any) error {
 	return d.UpdateUserProfileContext(context.Background(), id, updates)
 }
@@ -41,6 +42,7 @@ func (d *UserDAO) UpdateUserProfileContext(ctx context.Context, id uint, updates
 	return d.dbWithContext(ctx).Model(&model.User{}).Where("id = ?", id).Updates(updates).Error
 }
 
+// Deprecated: use GetUserByPhoneContext instead.
 func (d *UserDAO) GetUserByPhone(phone string) (*model.User, error) {
 	return d.GetUserByPhoneContext(context.Background(), phone)
 }
@@ -51,6 +53,7 @@ func (d *UserDAO) GetUserByPhoneContext(ctx context.Context, phone string) (*mod
 	return &user, result.Error
 }
 
+// Deprecated: use GetUserWithRolesAndPermissionsContext instead.
 func (d *UserDAO) GetUserWithRolesAndPermissions(id uint) (*model.User, error) {
 	return d.GetUserWithRolesAndPermissionsContext(context.Background(), id)
 }

@@ -26,6 +26,7 @@ func (d OAuthBindingDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
+// Deprecated: use GetByProviderUserContext instead.
 func (d OAuthBindingDAO) GetByProviderUser(provider, providerUserID string) (*model.OAuthBinding, error) {
 	return d.GetByProviderUserContext(context.Background(), provider, providerUserID)
 }
@@ -39,6 +40,7 @@ func (d OAuthBindingDAO) GetByProviderUserContext(ctx context.Context, provider,
 	return &binding, err
 }
 
+// Deprecated: use CreateContext instead.
 func (d OAuthBindingDAO) Create(binding *model.OAuthBinding) error {
 	return d.CreateContext(context.Background(), binding)
 }

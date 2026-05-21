@@ -52,6 +52,7 @@ func (s ConsoleSessionService) sessionDAO() authDAO.ConsoleSessionDAO {
 	return authDAO.ConsoleSessionDAO{}
 }
 
+// Deprecated: use CreateFromTokenContext instead.
 func (s ConsoleSessionService) CreateFromToken(token, clientIP, userAgent string) (*model.ConsoleSession, error) {
 	return s.CreateFromTokenContext(context.Background(), token, clientIP, userAgent)
 }
@@ -87,6 +88,7 @@ func (s ConsoleSessionService) CreateFromTokenContext(ctx context.Context, token
 	return record, nil
 }
 
+// Deprecated: use ValidateActiveSessionContext instead.
 func (s ConsoleSessionService) ValidateActiveSession(sessionID, username string) (*model.ConsoleSession, error) {
 	return s.ValidateActiveSessionContext(context.Background(), sessionID, username)
 }
@@ -123,6 +125,7 @@ func (s ConsoleSessionService) ValidateActiveSessionContext(ctx context.Context,
 	return record, nil
 }
 
+// Deprecated: use RevokeByTokenContext instead.
 func (s ConsoleSessionService) RevokeByToken(token string) (*model.ConsoleSession, error) {
 	return s.RevokeByTokenContext(context.Background(), token)
 }
@@ -135,6 +138,7 @@ func (s ConsoleSessionService) RevokeByTokenContext(ctx context.Context, token s
 	return s.RevokeBySessionIDContext(ctx, claims.ID)
 }
 
+// Deprecated: use RevokeBySessionIDContext instead.
 func (s ConsoleSessionService) RevokeBySessionID(sessionID string) (*model.ConsoleSession, error) {
 	return s.RevokeBySessionIDContext(context.Background(), sessionID)
 }
