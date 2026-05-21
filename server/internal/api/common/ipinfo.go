@@ -29,9 +29,9 @@ func (a *IPInfoAPI) GetIPInfo(c *gin.Context) {
 		ip = c.ClientIP()
 	}
 
-	info, err := a.client.GetIPInfo(ip)
+	info, err := a.client.GetIPInfoContext(c.Request.Context(), ip)
 	if err != nil {
-		logger.Warn("ip info lookup failed", logger.String("ip", ip), logger.Err(err))
+		logIPInfoLookupFailure(ip, err)
 		response.BadRequest(c, ipInfoLookupFailedMessage)
 		return
 	}
@@ -43,16 +43,16 @@ func (a *IPInfoAPI) GetIPInfo(c *gin.Context) {
 func (a *IPInfoAPI) GetMyIPInfo(c *gin.Context) {
 	ip := c.ClientIP()
 
-	info, err := a.client.GetIPInfo(ip)
+	info, err := a.client.GetIPInfoContext(c.Request.Context(), ip)
 	if err != nil {
-		logger.Warn("ip info lookup failed", logger.String("ip", ip), logger.Err(err))
+		logIPInfoLookupFailure(ip, err)
 		response.BadRequest(c, ipInfoLookupFailedMessage)
 		return
 	}
 
 	response.Success(c, gin.H{
 		"ip":       ip,
-		"location": ipinfo.GetLocationByIP(ip),
+		"location": a.client.GetLocationContext(c.Request.Context(), ip),
 		"detail":   info,
 	})
 }
@@ -64,9 +64,15 @@ func (a *IPInfoAPI) GetIPLocation(c *gin.Context) {
 		ip = c.ClientIP()
 	}
 
-	location := a.client.GetLocation(ip)
+	location := a.client.GetLocationContext(c.Request.Context(), ip)
 	response.Success(c, gin.H{
 		"ip":       ip,
 		"location": location,
 	})
+}
+
+func logIPInfoLookupFailure(ip string, err error) {
+	if logger.Logger != nil {
+		logger.Warn("ip info lookup failed", logger.String("ip", ip), logger.Err(err))
+	}
 }
