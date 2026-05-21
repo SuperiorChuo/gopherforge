@@ -139,7 +139,7 @@ func parseToken(tokenString string, checkRevocation bool) (*Claims, error) {
 		return []byte(cfg.Secret), nil
 	})
 	if err != nil {
-		if err.Error() == "token is expired" {
+		if errors.Is(err, jwtlib.ErrTokenExpired) || err.Error() == "token is expired" {
 			return nil, ErrExpiredToken
 		}
 		return nil, ErrInvalidToken

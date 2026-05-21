@@ -32,7 +32,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		if jwt.IsTokenBlacklisted(tokenString) {
-			response.Unauthorized(c, "Token has been revoked")
+			response.UnauthorizedWithCode(c, response.ErrorCodeAuthTokenRevoked, "Token has been revoked")
 			c.Abort()
 			return
 		}
@@ -40,22 +40,25 @@ func AuthMiddleware() gin.HandlerFunc {
 		claims, err := jwt.ParseToken(tokenString)
 		if err != nil {
 			var message string
+			errorCode := response.ErrorCodeAuthTokenInvalid
 			switch err {
 			case jwt.ErrExpiredToken:
 				message = "Token has expired"
+				errorCode = response.ErrorCodeAuthTokenExpired
 			case jwt.ErrInvalidToken:
 				message = "Invalid token"
 			case jwt.ErrRevokedToken:
 				message = "Token has been revoked"
+				errorCode = response.ErrorCodeAuthTokenRevoked
 			default:
 				message = "Unauthorized"
 			}
-			response.Unauthorized(c, message)
+			response.UnauthorizedWithCode(c, errorCode, message)
 			c.Abort()
 			return
 		}
 		if claims.TokenType != jwt.AccessTokenType {
-			response.Unauthorized(c, "Invalid token type")
+			response.UnauthorizedWithCode(c, response.ErrorCodeAuthTokenInvalid, "Invalid token type")
 			c.Abort()
 			return
 		}
