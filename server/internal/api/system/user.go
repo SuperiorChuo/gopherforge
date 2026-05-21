@@ -31,7 +31,7 @@ func (a *UserManagementAPI) CreateUser(c *gin.Context) {
 
 	user, err := a.userService.CreateUserContext(c.Request.Context(), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemUserServiceError(c, "failed to create user", err)
 		return
 	}
 
@@ -119,7 +119,7 @@ func (a *UserManagementAPI) UpdateUser(c *gin.Context) {
 
 	user, err := a.userService.UpdateUserContext(c.Request.Context(), uint(id), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemUserServiceError(c, "failed to update user", err)
 		return
 	}
 
@@ -184,7 +184,7 @@ func (a *UserManagementAPI) AssignRoles(c *gin.Context) {
 	}
 
 	if err := a.userService.AssignRolesContext(c.Request.Context(), uint(id), req); err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemUserServiceError(c, "failed to assign user roles", err)
 		return
 	}
 

@@ -9,6 +9,7 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 // UserService manages users for the system module.
@@ -44,6 +45,12 @@ type CreateUserRequest struct {
 	Status       int8   `json:"status"`
 }
 
+var (
+	ErrUsernameAlreadyExists = errors.New("username already exists")
+	ErrEmailAlreadyExists    = errors.New("email already exists")
+	ErrUserNotFound          = errors.New("user not found")
+)
+
 func (s *UserService) GetUserByID(id uint) (*model.User, error) {
 	return s.GetUserByIDContext(context.Background(), id)
 }
@@ -75,18 +82,18 @@ func (s *UserService) CreateUser(req CreateUserRequest) (*model.User, error) {
 func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserRequest) (*model.User, error) {
 	_, err := s.userDAO.GetUserByUsernameContext(ctx, req.Username)
 	if err == nil {
-		return nil, errors.New("username already exists")
+		return nil, ErrUsernameAlreadyExists
 	}
-	if isContextError(err) {
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 
 	if req.Email != "" {
 		_, err := s.userDAO.GetUserByEmailContext(ctx, req.Email)
 		if err == nil {
-			return nil, errors.New("email already exists")
+			return nil, ErrEmailAlreadyExists
 		}
-		if isContextError(err) {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, err
 		}
 	}
@@ -127,15 +134,15 @@ func (s *UserService) UpdateUserContext(ctx context.Context, id uint, req Update
 		if isContextError(err) {
 			return nil, err
 		}
-		return nil, errors.New("user not found")
+		return nil, ErrUserNotFound
 	}
 
 	if req.Email != "" && req.Email != user.Email {
 		_, err := s.userDAO.GetUserByEmailContext(ctx, req.Email)
 		if err == nil {
-			return nil, errors.New("email already exists")
+			return nil, ErrEmailAlreadyExists
 		}
-		if isContextError(err) {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, err
 		}
 		user.Email = req.Email
@@ -184,7 +191,7 @@ func (s *UserService) AssignRolesContext(ctx context.Context, userID uint, req A
 		if isContextError(err) {
 			return err
 		}
-		return errors.New("user not found")
+		return ErrUserNotFound
 	}
 
 	if err := s.userDAO.AssignRolesContext(ctx, userID, req.RoleIDs); err != nil {
