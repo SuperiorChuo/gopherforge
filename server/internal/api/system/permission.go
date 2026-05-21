@@ -75,7 +75,7 @@ func (a *PermissionManagementAPI) GetPermission(c *gin.Context) {
 
 	permission, err := a.permissionService.GetPermissionByIDContext(c.Request.Context(), uint(id))
 	if err != nil {
-		response.NotFound(c, "permission not found")
+		writeSystemPermissionServiceError(c, "failed to get permission", err)
 		return
 	}
 
@@ -92,7 +92,7 @@ func (a *PermissionManagementAPI) CreatePermission(c *gin.Context) {
 
 	permission, err := a.permissionService.CreatePermissionContext(c.Request.Context(), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemPermissionServiceError(c, "failed to create permission", err)
 		return
 	}
 
@@ -116,7 +116,7 @@ func (a *PermissionManagementAPI) UpdatePermission(c *gin.Context) {
 
 	permission, err := a.permissionService.UpdatePermissionContext(c.Request.Context(), uint(id), req)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemPermissionServiceError(c, "failed to update permission", err)
 		return
 	}
 
@@ -133,7 +133,7 @@ func (a *PermissionManagementAPI) DeletePermission(c *gin.Context) {
 	}
 
 	if err := a.permissionService.DeletePermissionContext(c.Request.Context(), uint(id)); err != nil {
-		response.BadRequest(c, err.Error())
+		writeSystemPermissionServiceError(c, "failed to delete permission", err)
 		return
 	}
 

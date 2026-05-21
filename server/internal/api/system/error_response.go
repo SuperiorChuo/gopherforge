@@ -48,3 +48,20 @@ func writeSystemRoleServiceError(c *gin.Context, operation string, err error) {
 		internalServerError(c, operation, err)
 	}
 }
+
+func writeSystemPermissionServiceError(c *gin.Context, operation string, err error) {
+	switch {
+	case errors.Is(err, systemsvc.ErrPermissionCodeAlreadyExists):
+		response.BadRequest(c, systemsvc.ErrPermissionCodeAlreadyExists.Error())
+	case errors.Is(err, systemsvc.ErrParentPermissionNotFound):
+		response.BadRequest(c, systemsvc.ErrParentPermissionNotFound.Error())
+	case errors.Is(err, systemsvc.ErrPermissionParentIsDescendant):
+		response.BadRequest(c, systemsvc.ErrPermissionParentIsDescendant.Error())
+	case errors.Is(err, systemsvc.ErrPermissionNotFound):
+		response.NotFound(c, systemsvc.ErrPermissionNotFound.Error())
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		internalServerError(c, operation, err)
+	default:
+		internalServerError(c, operation, err)
+	}
+}
