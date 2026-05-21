@@ -2,13 +2,23 @@ package monitor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/go-admin-kit/server/internal/pkg/redis"
+	internalredis "github.com/go-admin-kit/server/internal/pkg/redis"
+	goredis "github.com/redis/go-redis/v9"
 )
 
-type RedisService struct{}
+type redisInfoClient interface {
+	Info(ctx context.Context, section ...string) *goredis.StringCmd
+	DBSize(ctx context.Context) *goredis.IntCmd
+	PoolStats() *goredis.PoolStats
+}
+
+type RedisService struct {
+	client redisInfoClient
+}
 
 func NewRedisService() *RedisService {
 	return &RedisService{}
@@ -20,7 +30,12 @@ func (s *RedisService) GetRedisInfo() (map[string]any, error) {
 }
 
 func (s *RedisService) GetRedisInfoContext(ctx context.Context) (map[string]any, error) {
-	infoStr, err := redis.Client.Info(ctx).Result()
+	client := s.redisClient()
+	if client == nil {
+		return nil, errors.New("redis client is not configured")
+	}
+
+	infoStr, err := client.Info(ctx).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -28,8 +43,8 @@ func (s *RedisService) GetRedisInfoContext(ctx context.Context) (map[string]any,
 	info := parseRedisInfo(infoStr)
 
 	// Load key counts.
-	dbsize, _ := redis.Client.DBSize(ctx).Result()
-	poolStats := redis.Client.PoolStats()
+	dbsize, _ := client.DBSize(ctx).Result()
+	poolStats := client.PoolStats()
 	keyspace := parseRedisKeyspace(info)
 
 	// Build memory and runtime usage details.
@@ -95,6 +110,13 @@ func (s *RedisService) GetRedisInfoContext(ctx context.Context) (map[string]any,
 	}
 
 	return data, nil
+}
+
+func (s *RedisService) redisClient() redisInfoClient {
+	if s != nil && s.client != nil {
+		return s.client
+	}
+	return internalredis.Client
 }
 
 func parseRedisInfo(info string) map[string]string {
