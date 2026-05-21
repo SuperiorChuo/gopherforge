@@ -23,7 +23,7 @@ type consoleLoginRequest struct {
 func (a *UserAPI) LoginConsole(c *gin.Context) {
 	var req consoleLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, invalidRequestBodyMessage)
 		return
 	}
 

@@ -81,7 +81,7 @@ func (a *FileAPI) UploadMultiple(c *gin.Context) {
 func (a *FileAPI) GetFileList(c *gin.Context) {
 	var req system.FileListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 
@@ -195,7 +195,7 @@ func (a *FileAPI) DeleteFiles(c *gin.Context) {
 		IDs []uint `json:"ids" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -340,7 +340,7 @@ func (a *FileAPI) CheckHash(c *gin.Context) {
 func (a *FileAPI) GetMyFiles(c *gin.Context) {
 	var req system.FileListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 

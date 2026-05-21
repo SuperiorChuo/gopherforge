@@ -3,8 +3,11 @@ package common
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/pkg/ipinfo"
+	"github.com/go-admin-kit/server/internal/pkg/logger"
 	"github.com/go-admin-kit/server/internal/pkg/response"
 )
+
+const ipInfoLookupFailedMessage = "failed to lookup IP information"
 
 // IPInfoAPI handles IP geolocation endpoints.
 type IPInfoAPI struct {
@@ -28,7 +31,8 @@ func (a *IPInfoAPI) GetIPInfo(c *gin.Context) {
 
 	info, err := a.client.GetIPInfo(ip)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		logger.Warn("ip info lookup failed", logger.String("ip", ip), logger.Err(err))
+		response.BadRequest(c, ipInfoLookupFailedMessage)
 		return
 	}
 
@@ -41,7 +45,8 @@ func (a *IPInfoAPI) GetMyIPInfo(c *gin.Context) {
 
 	info, err := a.client.GetIPInfo(ip)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		logger.Warn("ip info lookup failed", logger.String("ip", ip), logger.Err(err))
+		response.BadRequest(c, ipInfoLookupFailedMessage)
 		return
 	}
 

@@ -21,6 +21,11 @@ type cleanupJobLogsRequest struct {
 	RetentionDays *int `json:"retention_days"`
 }
 
+const (
+	invalidRequestBodyMessage     = "invalid request body"
+	invalidQueryParametersMessage = "invalid query parameters"
+)
+
 func NewJobAPI() *JobAPI {
 	return &JobAPI{
 		service: monitor.GetJobService(),
@@ -31,7 +36,7 @@ func NewJobAPI() *JobAPI {
 func (a *JobAPI) GetJobList(c *gin.Context) {
 	var req pagination.PageRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, invalidQueryParametersMessage)
 		return
 	}
 
@@ -72,7 +77,7 @@ func (a *JobAPI) GetJobList(c *gin.Context) {
 func (a *JobAPI) CreateJob(c *gin.Context) {
 	var job model.ScheduledJob
 	if err := c.ShouldBindJSON(&job); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, invalidRequestBodyMessage)
 		return
 	}
 
@@ -93,7 +98,7 @@ func (a *JobAPI) UpdateJob(c *gin.Context) {
 
 	var job model.ScheduledJob
 	if err := c.ShouldBindJSON(&job); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, invalidRequestBodyMessage)
 		return
 	}
 	job.ID = id
@@ -194,7 +199,7 @@ func (a *JobAPI) CleanupJobLogs(c *gin.Context) {
 	var req cleanupJobLogsRequest
 	if c.Request.Body != nil && c.Request.ContentLength > 0 {
 		if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
-			response.BadRequest(c, err.Error())
+			response.BadRequest(c, invalidRequestBodyMessage)
 			return
 		}
 		if req.RetentionDays != nil {

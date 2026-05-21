@@ -20,7 +20,7 @@ func NewAuditLogAPI() *AuditLogAPI {
 func (a *AuditLogAPI) GetAuditLogs(c *gin.Context) {
 	var req service.AuditLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 

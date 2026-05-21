@@ -25,6 +25,8 @@ type UserAPI struct {
 	auditService          system.AuditLogService
 }
 
+const invalidRequestBodyMessage = "invalid request body"
+
 // NewUserAPI creates a UserAPI instance.
 func NewUserAPI() *UserAPI {
 	return &UserAPI{
@@ -40,7 +42,7 @@ func NewUserAPI() *UserAPI {
 func (a *UserAPI) Login(c *gin.Context) {
 	var req auth.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, invalidRequestBodyMessage)
 		return
 	}
 
@@ -113,7 +115,7 @@ func (a *UserAPI) Login(c *gin.Context) {
 func (a *UserAPI) Register(c *gin.Context) {
 	var req auth.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, invalidRequestBodyMessage)
 		return
 	}
 
@@ -160,7 +162,7 @@ func (a *UserAPI) UpdateProfile(c *gin.Context) {
 
 	var req auth.UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, invalidRequestBodyMessage)
 		return
 	}
 
@@ -191,7 +193,7 @@ func (a *UserAPI) RefreshToken(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, invalidRequestBodyMessage)
 		return
 	}
 
@@ -254,7 +256,7 @@ func (a *UserAPI) ChangePassword(c *gin.Context) {
 
 	var req auth.ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, invalidRequestBodyMessage)
 		return
 	}
 

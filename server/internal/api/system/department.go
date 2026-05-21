@@ -24,7 +24,7 @@ func NewDepartmentAPI() *DepartmentAPI {
 func (a *DepartmentAPI) GetDepartmentList(c *gin.Context) {
 	var req system.DepartmentListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 
@@ -106,7 +106,7 @@ func (a *DepartmentAPI) GetDepartment(c *gin.Context) {
 func (a *DepartmentAPI) CreateDepartment(c *gin.Context) {
 	var req system.CreateDepartmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -130,7 +130,7 @@ func (a *DepartmentAPI) UpdateDepartment(c *gin.Context) {
 
 	var req system.UpdateDepartmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 

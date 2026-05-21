@@ -22,7 +22,7 @@ func (a *UserAPI) ListConsoleRoutes(c *gin.Context) {
 func (a *UserAPI) CreateConsoleRoute(c *gin.Context) {
 	var req authSvc.ConsoleRouteCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, invalidRequestBodyMessage)
 		return
 	}
 
@@ -47,7 +47,7 @@ func (a *UserAPI) GetConsoleRoute(c *gin.Context) {
 func (a *UserAPI) UpdateConsoleRoute(c *gin.Context) {
 	var req authSvc.ConsoleRouteUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, invalidRequestBodyMessage)
 		return
 	}
 

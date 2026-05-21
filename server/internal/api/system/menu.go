@@ -24,7 +24,7 @@ func NewMenuManagementAPI() *MenuManagementAPI {
 func (a *MenuManagementAPI) GetMenuList(c *gin.Context) {
 	var req system.MenuListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 
@@ -94,7 +94,7 @@ func (a *MenuManagementAPI) GetMenu(c *gin.Context) {
 func (a *MenuManagementAPI) CreateMenu(c *gin.Context) {
 	var req system.CreateMenuRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -118,7 +118,7 @@ func (a *MenuManagementAPI) UpdateMenu(c *gin.Context) {
 
 	var req system.UpdateMenuRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 

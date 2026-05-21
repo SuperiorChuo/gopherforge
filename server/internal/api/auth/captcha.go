@@ -34,7 +34,7 @@ func (a *CaptchaAPI) VerifyCaptcha(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, invalidRequestBodyMessage)
 		return
 	}
 

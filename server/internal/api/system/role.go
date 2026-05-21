@@ -24,7 +24,7 @@ func NewRoleManagementAPI() *RoleManagementAPI {
 func (a *RoleManagementAPI) GetRoleList(c *gin.Context) {
 	var req system.RoleListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 
@@ -77,7 +77,7 @@ func (a *RoleManagementAPI) GetRole(c *gin.Context) {
 func (a *RoleManagementAPI) CreateRole(c *gin.Context) {
 	var req system.CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -101,7 +101,7 @@ func (a *RoleManagementAPI) UpdateRole(c *gin.Context) {
 
 	var req system.UpdateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -142,7 +142,7 @@ func (a *RoleManagementAPI) AssignPermissions(c *gin.Context) {
 
 	var req system.AssignPermissionsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 

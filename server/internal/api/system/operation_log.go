@@ -29,7 +29,7 @@ func NewOperationLogAPI() *OperationLogAPI {
 func (a *OperationLogAPI) GetOperationLogs(c *gin.Context) {
 	var req system.OperationLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 
@@ -80,7 +80,7 @@ func (a *OperationLogAPI) GetOperationLogDetail(c *gin.Context) {
 func (a *OperationLogAPI) ClearOperationLogs(c *gin.Context) {
 	var req system.ClearLogsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -135,7 +135,7 @@ func (a *OperationLogAPI) GetOperationLogStats(c *gin.Context) {
 func (a *OperationLogAPI) ExportOperationLogs(c *gin.Context) {
 	var req system.OperationLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 

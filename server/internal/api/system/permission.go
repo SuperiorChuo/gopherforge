@@ -24,7 +24,7 @@ func NewPermissionManagementAPI() *PermissionManagementAPI {
 func (a *PermissionManagementAPI) GetPermissionList(c *gin.Context) {
 	var req system.PermissionListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 
@@ -86,7 +86,7 @@ func (a *PermissionManagementAPI) GetPermission(c *gin.Context) {
 func (a *PermissionManagementAPI) CreatePermission(c *gin.Context) {
 	var req system.CreatePermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -110,7 +110,7 @@ func (a *PermissionManagementAPI) UpdatePermission(c *gin.Context) {
 
 	var req system.UpdatePermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 

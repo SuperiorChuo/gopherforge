@@ -27,7 +27,7 @@ func NewDictAPI() *DictAPI {
 func (a *DictAPI) GetTypeList(c *gin.Context) {
 	var req system.DictTypeListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 
@@ -80,7 +80,7 @@ func (a *DictAPI) GetType(c *gin.Context) {
 func (a *DictAPI) CreateType(c *gin.Context) {
 	var req system.CreateDictTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -104,7 +104,7 @@ func (a *DictAPI) UpdateType(c *gin.Context) {
 
 	var req system.UpdateDictTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -140,7 +140,7 @@ func (a *DictAPI) DeleteType(c *gin.Context) {
 func (a *DictAPI) GetItemList(c *gin.Context) {
 	var req system.DictItemListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 
@@ -200,7 +200,7 @@ func (a *DictAPI) GetItem(c *gin.Context) {
 func (a *DictAPI) CreateItem(c *gin.Context) {
 	var req system.CreateDictItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -224,7 +224,7 @@ func (a *DictAPI) UpdateItem(c *gin.Context) {
 
 	var req system.UpdateDictItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 

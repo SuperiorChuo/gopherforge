@@ -24,7 +24,7 @@ func NewNoticeAPI() *NoticeAPI {
 func (a *NoticeAPI) GetNoticeList(c *gin.Context) {
 	var req system.NoticeListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 
@@ -107,7 +107,7 @@ func (a *NoticeAPI) GetNotice(c *gin.Context) {
 func (a *NoticeAPI) CreateNotice(c *gin.Context) {
 	var req system.CreateNoticeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -133,7 +133,7 @@ func (a *NoticeAPI) UpdateNotice(c *gin.Context) {
 
 	var req system.UpdateNoticeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -176,7 +176,7 @@ func (a *NoticeAPI) UpdateNoticeStatus(c *gin.Context) {
 		Status int8 `json:"status"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 

@@ -25,7 +25,7 @@ func NewUserManagementAPI() *UserManagementAPI {
 func (a *UserManagementAPI) CreateUser(c *gin.Context) {
 	var req system.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -42,7 +42,7 @@ func (a *UserManagementAPI) CreateUser(c *gin.Context) {
 func (a *UserManagementAPI) GetUserList(c *gin.Context) {
 	var req system.UserListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 
@@ -113,7 +113,7 @@ func (a *UserManagementAPI) UpdateUser(c *gin.Context) {
 
 	var req system.UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -156,7 +156,7 @@ func (a *UserManagementAPI) UpdateUserStatus(c *gin.Context) {
 		Status int8 `json:"status" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -179,7 +179,7 @@ func (a *UserManagementAPI) AssignRoles(c *gin.Context) {
 
 	var req system.AssignRolesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 

@@ -28,7 +28,7 @@ func NewLoginLogAPI() *LoginLogAPI {
 func (a *LoginLogAPI) GetLoginLogs(c *gin.Context) {
 	var req system.LoginLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 
@@ -61,7 +61,7 @@ func (a *LoginLogAPI) GetLoginLogs(c *gin.Context) {
 func (a *LoginLogAPI) GetMyLoginLogs(c *gin.Context) {
 	var req system.LoginLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 
@@ -167,7 +167,7 @@ func (a *LoginLogAPI) ClearLoginLogs(c *gin.Context) {
 		Days int `json:"days" binding:"required,min=1"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body")
 		return
 	}
 
@@ -194,7 +194,7 @@ func (a *LoginLogAPI) GetUserLoginHistory(c *gin.Context) {
 
 	var req system.LoginLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid query parameters")
 		return
 	}
 
