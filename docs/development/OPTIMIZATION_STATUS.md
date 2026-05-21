@@ -30,6 +30,7 @@
 - `pkg/jwt` 的 token blacklist 已支持注入 `TokenBlacklistStore`，默认 Redis 行为保持兼容。
 - `pkg/cache` 的 `CacheService` 已支持注入 Redis client，验证码、用户信息和权限缓存调用可脱离全局 Redis 进行测试。
 - 登录失败限制已抽出 `LoginLimiter`，支持注入 Redis client，包级函数继续保持兼容。
+- 限流中间件已抽出 `RateLimiter`，支持注入 Redis client，默认 `RateLimit(config)` 调用保持兼容。
 - `OnlineUserService` 已支持注入 Redis client，在线用户记录、索引、计数和强制下线逻辑可脱离全局 Redis 测试。
 
 ### 性能与资源安全

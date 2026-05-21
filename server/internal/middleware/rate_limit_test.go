@@ -49,6 +49,50 @@ func TestRateLimitIncrementsBeforeRejectingOverLimitRequest(t *testing.T) {
 	}
 }
 
+func TestRateLimiterWithClientUsesInjectedClient(t *testing.T) {
+	globalStore := setupRateLimitTestRedis(t)
+	gin.SetMode(gin.TestMode)
+
+	injectedStore, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("start injected miniredis: %v", err)
+	}
+	injectedClient := goredis.NewClient(&goredis.Options{Addr: injectedStore.Addr()})
+	t.Cleanup(func() {
+		_ = injectedClient.Close()
+		injectedStore.Close()
+	})
+
+	cfg := RateLimitConfig{
+		Window:      time.Minute,
+		MaxRequests: 10,
+		KeyPrefix:   "unit_rate_limit_injected",
+	}
+	key := fmt.Sprintf("%s:%s", cfg.KeyPrefix, "192.0.2.2")
+
+	router := gin.New()
+	router.Use(NewRateLimiterWithClient(injectedClient).Middleware(cfg))
+	router.GET("/", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "192.0.2.2:12345"
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNoContent)
+	}
+	if !injectedStore.Exists(key) {
+		t.Fatalf("injected rate limit key %q was not written", key)
+	}
+	if globalStore.Exists(key) {
+		t.Fatalf("global rate limit key %q was written; expected injected client only", key)
+	}
+}
+
 func setupRateLimitTestRedis(t *testing.T) *miniredis.Miniredis {
 	t.Helper()
 
