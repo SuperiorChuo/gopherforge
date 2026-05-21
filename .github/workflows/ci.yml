@@ -38,6 +38,15 @@ jobs:
 
       - run: go mod download
       - run: go test -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Summarize Go coverage
+        run: |
+          go tool cover -func=coverage.out | tee coverage.txt
+          {
+            echo "### Go coverage"
+            echo '```'
+            cat coverage.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - run: go vet ./...
       - run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --config ../.golangci.yml ./...
 
