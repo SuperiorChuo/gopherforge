@@ -80,7 +80,7 @@ func respondConsoleRouteError(c *gin.Context, err error) {
 	var validationErr authSvc.ConsoleRouteValidationError
 	switch {
 	case errors.Is(err, authSvc.ErrConsoleRouteNotFound):
-		response.NotFound(c, err.Error())
+		response.NotFound(c, authSvc.ErrConsoleRouteNotFound.Error())
 	case errors.As(err, &validationErr):
 		response.BadRequest(c, validationErr.Error())
 	default:
