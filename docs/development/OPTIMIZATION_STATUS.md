@@ -27,6 +27,8 @@
 - `OAuthService` 已支持注入 user/binding store，默认行为保持兼容。
 - `authz.DataScopeResolver` 已支持注入 `DataScopeStore`，部门树和自定义角色部门加载不再硬绑主流程。
 - `RedisService` 已支持注入 Redis monitor client，默认仍使用全局 Redis client。
+- `pkg/jwt` 的 token blacklist 已支持注入 `TokenBlacklistStore`，默认 Redis 行为保持兼容。
+- `pkg/cache` 的 `CacheService` 已支持注入 Redis client，验证码、用户信息和权限缓存调用可脱离全局 Redis 进行测试。
 
 ### 性能与资源安全
 
@@ -51,7 +53,7 @@
 
 - 旧的非 `Context` convenience 方法仍保留，用于兼容历史调用；后续可在大版本中逐步收敛。
 - 业务错误响应目前是稳定 message 映射；如果要多语言或更强契约，可升级为统一 error code catalog。
-- 部分 service/DAO 仍允许零值结构体回退到全局依赖，这是兼容策略；新代码优先使用构造函数或注入接口。
+- 部分 service/pkg/DAO 仍允许零值结构体回退到全局依赖，这是兼容策略；新代码优先使用构造函数或注入接口。
 
 ### 发布前建议复核
 

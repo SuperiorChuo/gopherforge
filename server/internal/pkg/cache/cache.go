@@ -7,15 +7,32 @@ import (
 
 	"github.com/go-admin-kit/server/internal/model"
 	jwtpkg "github.com/go-admin-kit/server/internal/pkg/jwt"
-	"github.com/go-admin-kit/server/internal/pkg/redis"
+	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
+	goredis "github.com/redis/go-redis/v9"
 )
 
+// RedisClient is the Redis command subset used by CacheService.
+type RedisClient interface {
+	Set(ctx context.Context, key string, value any, expiration time.Duration) *goredis.StatusCmd
+	Get(ctx context.Context, key string) *goredis.StringCmd
+	Del(ctx context.Context, keys ...string) *goredis.IntCmd
+	SMembers(ctx context.Context, key string) *goredis.StringSliceCmd
+	TxPipeline() goredis.Pipeliner
+}
+
 // CacheService provides Redis-backed cache operations.
-type CacheService struct{}
+type CacheService struct {
+	client RedisClient
+}
 
 // NewCacheService creates a CacheService instance.
 func NewCacheService() *CacheService {
 	return &CacheService{}
+}
+
+// NewCacheServiceWithClient creates a CacheService backed by the provided Redis client.
+func NewCacheServiceWithClient(client RedisClient) *CacheService {
+	return &CacheService{client: client}
 }
 
 // Cache key templates.
@@ -46,7 +63,7 @@ func (s *CacheService) AddJWTToBlacklistContext(ctx context.Context, token strin
 		return err
 	}
 	key := fmt.Sprintf(KeyJWTBlacklist, tokenID)
-	return redis.Client.Set(ctx, key, "1", expire).Err()
+	return s.redisClient().Set(ctx, key, "1", expire).Err()
 }
 
 // IsJWTInBlacklist reports whether a JWT is blacklisted.
@@ -60,7 +77,7 @@ func (s *CacheService) IsJWTInBlacklistContext(ctx context.Context, token string
 		return false
 	}
 	key := fmt.Sprintf(KeyJWTBlacklist, tokenID)
-	result, err := redis.Client.Get(ctx, key).Result()
+	result, err := s.redisClient().Get(ctx, key).Result()
 	return err == nil && result == "1"
 }
 
@@ -75,7 +92,7 @@ func (s *CacheService) RemoveJWTFromBlacklistContext(ctx context.Context, token 
 		return err
 	}
 	key := fmt.Sprintf(KeyJWTBlacklist, tokenID)
-	return redis.Client.Del(ctx, key).Err()
+	return s.redisClient().Del(ctx, key).Err()
 }
 
 // AddTokenToBlacklistUntilExpiry blacklists a token until its expiry time.
@@ -106,7 +123,7 @@ func (s *CacheService) SetLoginCaptcha(key string, captcha string) error {
 
 func (s *CacheService) SetLoginCaptchaContext(ctx context.Context, key string, captcha string) error {
 	cacheKey := fmt.Sprintf(KeyLoginCaptcha, key)
-	return redis.Client.Set(ctx, cacheKey, captcha, LoginCaptchaExpire).Err()
+	return s.redisClient().Set(ctx, cacheKey, captcha, LoginCaptchaExpire).Err()
 }
 
 // GetLoginCaptcha returns a login captcha.
@@ -116,7 +133,7 @@ func (s *CacheService) GetLoginCaptcha(key string) (string, error) {
 
 func (s *CacheService) GetLoginCaptchaContext(ctx context.Context, key string) (string, error) {
 	cacheKey := fmt.Sprintf(KeyLoginCaptcha, key)
-	return redis.Client.Get(ctx, cacheKey).Result()
+	return s.redisClient().Get(ctx, cacheKey).Result()
 }
 
 // DelLoginCaptcha deletes a login captcha.
@@ -126,7 +143,7 @@ func (s *CacheService) DelLoginCaptcha(key string) error {
 
 func (s *CacheService) DelLoginCaptchaContext(ctx context.Context, key string) error {
 	cacheKey := fmt.Sprintf(KeyLoginCaptcha, key)
-	return redis.Client.Del(ctx, cacheKey).Err()
+	return s.redisClient().Del(ctx, cacheKey).Err()
 }
 
 // SetUserInfo caches user information.
@@ -136,7 +153,7 @@ func (s *CacheService) SetUserInfo(user *model.User) error {
 
 func (s *CacheService) SetUserInfoContext(ctx context.Context, user *model.User) error {
 	key := fmt.Sprintf(KeyUserInfo, user.ID)
-	return redis.Client.Set(ctx, key, user, UserInfoExpire).Err()
+	return s.redisClient().Set(ctx, key, user, UserInfoExpire).Err()
 }
 
 // GetUserInfo returns cached user information.
@@ -147,7 +164,7 @@ func (s *CacheService) GetUserInfo(userID uint) (*model.User, error) {
 func (s *CacheService) GetUserInfoContext(ctx context.Context, userID uint) (*model.User, error) {
 	key := fmt.Sprintf(KeyUserInfo, userID)
 	var user model.User
-	err := redis.Client.Get(ctx, key).Scan(&user)
+	err := s.redisClient().Get(ctx, key).Scan(&user)
 	return &user, err
 }
 
@@ -158,7 +175,7 @@ func (s *CacheService) DelUserInfo(userID uint) error {
 
 func (s *CacheService) DelUserInfoContext(ctx context.Context, userID uint) error {
 	key := fmt.Sprintf(KeyUserInfo, userID)
-	return redis.Client.Del(ctx, key).Err()
+	return s.redisClient().Del(ctx, key).Err()
 }
 
 // SetUserPermissions caches user permissions.
@@ -168,7 +185,7 @@ func (s *CacheService) SetUserPermissions(userID uint, permissions []string) err
 
 func (s *CacheService) SetUserPermissionsContext(ctx context.Context, userID uint, permissions []string) error {
 	key := fmt.Sprintf(KeyUserPermissions, userID)
-	pipe := redis.Client.TxPipeline()
+	pipe := s.redisClient().TxPipeline()
 	pipe.Del(ctx, key)
 	if len(permissions) > 0 {
 		pipe.SAdd(ctx, key, stringsToAny(permissions)...)
@@ -188,7 +205,7 @@ func (s *CacheService) GetUserPermissions(userID uint) ([]string, error) {
 
 func (s *CacheService) GetUserPermissionsContext(ctx context.Context, userID uint) ([]string, error) {
 	key := fmt.Sprintf(KeyUserPermissions, userID)
-	return redis.Client.SMembers(ctx, key).Result()
+	return s.redisClient().SMembers(ctx, key).Result()
 }
 
 // DelUserPermissions deletes cached user permissions.
@@ -198,7 +215,7 @@ func (s *CacheService) DelUserPermissions(userID uint) error {
 
 func (s *CacheService) DelUserPermissionsContext(ctx context.Context, userID uint) error {
 	key := fmt.Sprintf(KeyUserPermissions, userID)
-	pipe := redis.Client.TxPipeline()
+	pipe := s.redisClient().TxPipeline()
 	pipe.Del(ctx, key)
 	pipe.SRem(ctx, KeyUserPermissionsIndex, key)
 	_, err := pipe.Exec(ctx)
@@ -219,7 +236,7 @@ func (s *CacheService) DelUserPermissionsBatchContext(ctx context.Context, userI
 	for _, userID := range userIDs {
 		keys = append(keys, fmt.Sprintf(KeyUserPermissions, userID))
 	}
-	pipe := redis.Client.TxPipeline()
+	pipe := s.redisClient().TxPipeline()
 	pipe.Del(ctx, keys...)
 	pipe.SRem(ctx, KeyUserPermissionsIndex, stringsToAny(keys)...)
 	_, err := pipe.Exec(ctx)
@@ -232,18 +249,25 @@ func (s *CacheService) DelAllUserPermissions() error {
 }
 
 func (s *CacheService) DelAllUserPermissionsContext(ctx context.Context) error {
-	keys, err := redis.Client.SMembers(ctx, KeyUserPermissionsIndex).Result()
+	keys, err := s.redisClient().SMembers(ctx, KeyUserPermissionsIndex).Result()
 	if err != nil {
 		return err
 	}
 
-	pipe := redis.Client.TxPipeline()
+	pipe := s.redisClient().TxPipeline()
 	if len(keys) > 0 {
 		pipe.Del(ctx, keys...)
 	}
 	pipe.Del(ctx, KeyUserPermissionsIndex)
 	_, err = pipe.Exec(ctx)
 	return err
+}
+
+func (s *CacheService) redisClient() RedisClient {
+	if s != nil && s.client != nil {
+		return s.client
+	}
+	return redisstore.Client
 }
 
 func stringsToAny(values []string) []any {

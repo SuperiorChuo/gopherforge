@@ -50,6 +50,33 @@ func TestJWTBlacklistUsesTokenIDKey(t *testing.T) {
 	}
 }
 
+func TestNewCacheServiceWithClientUsesInjectedClient(t *testing.T) {
+	globalStore := setupCacheTestRedis(t)
+
+	injectedStore, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("start injected miniredis: %v", err)
+	}
+	injectedClient := goredis.NewClient(&goredis.Options{Addr: injectedStore.Addr()})
+	t.Cleanup(func() {
+		_ = injectedClient.Close()
+		injectedStore.Close()
+	})
+
+	service := NewCacheServiceWithClient(injectedClient)
+	if err := service.SetLoginCaptchaContext(context.Background(), "captcha-key", "2468"); err != nil {
+		t.Fatalf("SetLoginCaptchaContext(): %v", err)
+	}
+
+	key := fmt.Sprintf(KeyLoginCaptcha, "captcha-key")
+	if !injectedStore.Exists(key) {
+		t.Fatalf("injected cache key %q was not written", key)
+	}
+	if globalStore.Exists(key) {
+		t.Fatalf("global cache key %q was written; expected injected client only", key)
+	}
+}
+
 func TestDelUserPermissionsBatchContextHonorsCanceledContext(t *testing.T) {
 	setupCacheTestRedis(t)
 
