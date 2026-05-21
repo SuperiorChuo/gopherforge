@@ -11,6 +11,7 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 	"github.com/go-admin-kit/server/internal/pkg/upload"
+	"gorm.io/gorm"
 )
 
 var ErrFileNotFoundOrPermissionDenied = errors.New("file not found or permission denied")
@@ -74,6 +75,10 @@ func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHea
 		}
 		return newFile, nil
 	}
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		_ = s.uploader.DeleteContext(ctx, info.FilePath)
+		return nil, err
+	}
 
 	fileRecord := &model.File{
 		UserID:      userID,
@@ -121,7 +126,14 @@ func (s *FileService) GetFileByID(id uint) (*model.File, error) {
 }
 
 func (s *FileService) GetFileByIDContext(ctx context.Context, id uint) (*model.File, error) {
-	return s.fileDAO.GetByIDContext(ctx, id)
+	file, err := s.fileDAO.GetByIDContext(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrFileNotFoundOrPermissionDenied
+		}
+		return nil, err
+	}
+	return file, nil
 }
 
 func (s *FileService) GetFileByIDInScope(id uint, dataScope authz.UserDataScope) (*model.File, error) {
@@ -129,7 +141,14 @@ func (s *FileService) GetFileByIDInScope(id uint, dataScope authz.UserDataScope)
 }
 
 func (s *FileService) GetFileByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*model.File, error) {
-	return s.fileDAO.GetByIDInScopeContext(ctx, id, dataScope)
+	file, err := s.fileDAO.GetByIDInScopeContext(ctx, id, dataScope)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrFileNotFoundOrPermissionDenied
+		}
+		return nil, err
+	}
+	return file, nil
 }
 
 func (s *FileService) GetFileByHash(hash string, dataScope authz.UserDataScope) (*model.File, error) {
@@ -137,7 +156,14 @@ func (s *FileService) GetFileByHash(hash string, dataScope authz.UserDataScope) 
 }
 
 func (s *FileService) GetFileByHashContext(ctx context.Context, hash string, dataScope authz.UserDataScope) (*model.File, error) {
-	return s.fileDAO.GetByHashInScopeContext(ctx, hash, dataScope)
+	file, err := s.fileDAO.GetByHashInScopeContext(ctx, hash, dataScope)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrFileNotFoundOrPermissionDenied
+		}
+		return nil, err
+	}
+	return file, nil
 }
 
 func (s *FileService) GetFileList(req FileListRequest) ([]model.File, int64, error) {
@@ -159,10 +185,10 @@ func (s *FileService) DeleteFileContext(ctx context.Context, id uint, userID uin
 
 	file, err := s.fileDAO.GetByIDInScopeContext(ctx, id, dataScope)
 	if err != nil {
-		if isContextError(err) {
-			return err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrFileNotFoundOrPermissionDenied
 		}
-		return ErrFileNotFoundOrPermissionDenied
+		return err
 	}
 
 	_ = s.uploader.DeleteContext(ctx, file.FilePath)
