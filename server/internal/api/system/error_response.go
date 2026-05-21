@@ -135,10 +135,12 @@ func writeSystemFileServiceError(c *gin.Context, operation string, err error) {
 	switch {
 	case errors.Is(err, systemsvc.ErrFileNotFoundOrPermissionDenied):
 		response.NotFound(c, systemsvc.ErrFileNotFoundOrPermissionDenied.Error())
-	case errors.Is(err, upload.ErrFileEmpty),
-		errors.Is(err, upload.ErrFileTooLarge),
-		errors.Is(err, upload.ErrFileTypeNotAllowed):
-		response.BadRequest(c, err.Error())
+	case errors.Is(err, upload.ErrFileEmpty):
+		response.BadRequest(c, upload.ErrFileEmpty.Error())
+	case errors.Is(err, upload.ErrFileTooLarge):
+		response.BadRequest(c, upload.ErrFileTooLarge.Error())
+	case errors.Is(err, upload.ErrFileTypeNotAllowed):
+		response.BadRequest(c, upload.ErrFileTypeNotAllowed.Error())
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		internalServerError(c, operation, err)
 	default:
@@ -150,10 +152,12 @@ func systemFileServiceErrorMessage(err error) string {
 	switch {
 	case errors.Is(err, systemsvc.ErrFileNotFoundOrPermissionDenied):
 		return systemsvc.ErrFileNotFoundOrPermissionDenied.Error()
-	case errors.Is(err, upload.ErrFileEmpty),
-		errors.Is(err, upload.ErrFileTooLarge),
-		errors.Is(err, upload.ErrFileTypeNotAllowed):
-		return err.Error()
+	case errors.Is(err, upload.ErrFileEmpty):
+		return upload.ErrFileEmpty.Error()
+	case errors.Is(err, upload.ErrFileTooLarge):
+		return upload.ErrFileTooLarge.Error()
+	case errors.Is(err, upload.ErrFileTypeNotAllowed):
+		return upload.ErrFileTypeNotAllowed.Error()
 	default:
 		return "internal server error"
 	}

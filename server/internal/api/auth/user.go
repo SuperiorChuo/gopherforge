@@ -172,10 +172,12 @@ func (a *UserAPI) UpdateProfile(c *gin.Context) {
 		switch {
 		case errors.As(err, &validationErr):
 			response.BadRequest(c, validationErr.Error())
-		case errors.Is(err, auth.ErrEmailAlreadyExists), errors.Is(err, auth.ErrPhoneAlreadyExists):
-			response.Error(c, http.StatusConflict, err.Error())
+		case errors.Is(err, auth.ErrEmailAlreadyExists):
+			response.Error(c, http.StatusConflict, auth.ErrEmailAlreadyExists.Error())
+		case errors.Is(err, auth.ErrPhoneAlreadyExists):
+			response.Error(c, http.StatusConflict, auth.ErrPhoneAlreadyExists.Error())
 		case errors.Is(err, auth.ErrUserNotFound):
-			response.NotFound(c, err.Error())
+			response.NotFound(c, auth.ErrUserNotFound.Error())
 		default:
 			internalServerError(c, "failed to update profile", err)
 		}

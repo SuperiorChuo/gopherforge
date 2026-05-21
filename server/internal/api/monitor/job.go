@@ -236,8 +236,10 @@ func parseJobID(c *gin.Context) (uint, bool) {
 
 func (a *JobAPI) handleError(c *gin.Context, err error) {
 	switch {
-	case errors.Is(err, monitor.ErrInvalidCronExpression), errors.Is(err, monitor.ErrInvalidRetentionDays):
-		response.BadRequest(c, err.Error())
+	case errors.Is(err, monitor.ErrInvalidCronExpression):
+		response.BadRequest(c, monitor.ErrInvalidCronExpression.Error())
+	case errors.Is(err, monitor.ErrInvalidRetentionDays):
+		response.BadRequest(c, monitor.ErrInvalidRetentionDays.Error())
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		response.NotFound(c, "job not found")
 	default:
