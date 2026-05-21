@@ -118,3 +118,14 @@ func writeSystemDictServiceError(c *gin.Context, operation string, err error) {
 		internalServerError(c, operation, err)
 	}
 }
+
+func writeSystemNoticeServiceError(c *gin.Context, operation string, err error) {
+	switch {
+	case errors.Is(err, systemsvc.ErrNoticeNotFound):
+		response.NotFound(c, systemsvc.ErrNoticeNotFound.Error())
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		internalServerError(c, operation, err)
+	default:
+		internalServerError(c, operation, err)
+	}
+}
