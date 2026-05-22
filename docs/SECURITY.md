@@ -29,7 +29,7 @@ DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD=true
 
 ## 文件上传
 
-当前项目已有文件大小、后缀限制和 MIME sniffing，并通过 `upload.storage_type` 抽象存储后端。本地模式会把文件写入 `upload.local_path`，用 `upload.public_base_url` 生成下载 URL；`s3`/`minio` 配置已预留，未接入 SDK 前会返回明确错误而不是静默降级。
+当前项目已有文件大小、后缀限制和 MIME sniffing，并通过 `upload.storage_type` 抽象存储后端。本地模式会把文件写入 `upload.local_path`，用 `upload.public_base_url` 生成下载 URL；`s3`/`minio` 模式已通过 MinIO SDK 接入 `Store()`、`Open()` 和 `Delete()`，上传响应仍只返回受控 object key 与公共 URL。
 
 生产落地时建议继续补：
 

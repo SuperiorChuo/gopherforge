@@ -209,6 +209,64 @@ func TestUploaderS3MissingConfigIsExplicit(t *testing.T) {
 	}
 }
 
+func TestS3StorageProviderStoreUploadsObject(t *testing.T) {
+	const key = "uploads/2026/05/22/avatar.png"
+	content := tinyPNG()
+	var received []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Fatalf("method = %q, want PUT", r.Method)
+		}
+		if r.URL.Path != "/go-admin-kit/"+key {
+			t.Fatalf("path = %q, want /go-admin-kit/%s", r.URL.Path, key)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		received = body
+		w.Header().Set("ETag", `"uploaded-etag"`)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	provider, err := NewStorageProvider(config.UploadConfig{
+		StorageType:   "s3",
+		PublicBaseURL: "https://cdn.example.test/uploads",
+		S3: config.ObjectStorageConfig{
+			Endpoint:  server.URL,
+			Bucket:    "go-admin-kit",
+			Region:    "us-east-1",
+			AccessKey: "access",
+			SecretKey: "secret",
+		},
+	})
+	if err != nil {
+		t.Fatalf("new provider failed: %v", err)
+	}
+
+	stored, err := provider.Store(context.Background(), key, bytes.NewReader(content))
+	if err != nil {
+		t.Fatalf("store failed: %v", err)
+	}
+	if !bytes.Contains(received, content) {
+		t.Fatalf("uploaded body does not contain object content, length = %d, want content length %d", len(received), len(content))
+	}
+	if stored.Key != key {
+		t.Fatalf("key = %q, want %q", stored.Key, key)
+	}
+	if stored.FilePath != key {
+		t.Fatalf("file path = %q, want object key", stored.FilePath)
+	}
+	if stored.StorageType != "s3" {
+		t.Fatalf("storage type = %q, want s3", stored.StorageType)
+	}
+	if stored.URL != "https://cdn.example.test/uploads/"+key {
+		t.Fatalf("url = %q, want CDN URL", stored.URL)
+	}
+}
+
 func TestS3StorageProviderOpenStreamsObject(t *testing.T) {
 	const key = "artifacts/task-1/report.txt"
 	const content = "streamed s3 artifact"
@@ -303,6 +361,46 @@ func TestMinIOStorageProviderOpenWrapsSDKError(t *testing.T) {
 	}
 }
 
+func TestMinIOStorageProviderDeleteRemovesObject(t *testing.T) {
+	const key = "uploads/2026/05/22/avatar.png"
+	deleted := false
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Fatalf("method = %q, want DELETE", r.Method)
+		}
+		if r.URL.Path != "/go-admin-kit/"+key {
+			t.Fatalf("path = %q, want /go-admin-kit/%s", r.URL.Path, key)
+		}
+		deleted = true
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	provider, err := NewStorageProvider(config.UploadConfig{
+		StorageType:   "minio",
+		PublicBaseURL: "http://127.0.0.1:9000/go-admin-kit",
+		MinIO: config.ObjectStorageConfig{
+			Endpoint:  server.URL,
+			Bucket:    "go-admin-kit",
+			Region:    "us-east-1",
+			AccessKey: "minio-access",
+			SecretKey: "minio-secret",
+			UseSSL:    false,
+		},
+	})
+	if err != nil {
+		t.Fatalf("new provider failed: %v", err)
+	}
+
+	if err := provider.Delete(context.Background(), key); err != nil {
+		t.Fatalf("delete failed: %v", err)
+	}
+	if !deleted {
+		t.Fatal("delete request was not sent")
+	}
+}
+
 func TestObjectStorageProviderOpenRejectsRawURL(t *testing.T) {
 	provider, err := NewStorageProvider(config.UploadConfig{
 		StorageType:   "s3",
@@ -328,28 +426,61 @@ func TestObjectStorageProviderOpenRejectsRawURL(t *testing.T) {
 	}
 }
 
-func TestUploaderMinIOConfiguredButReservedIsExplicit(t *testing.T) {
+func TestUploaderMinIOConfiguredUploadsObject(t *testing.T) {
+	var received []byte
+	var objectPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Fatalf("method = %q, want PUT", r.Method)
+		}
+		if !strings.HasPrefix(r.URL.Path, "/go-admin-kit/") {
+			t.Fatalf("path = %q, want /go-admin-kit/ prefix", r.URL.Path)
+		}
+		objectPath = strings.TrimPrefix(r.URL.Path, "/go-admin-kit/")
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		received = body
+		w.Header().Set("ETag", `"uploaded-etag"`)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
 	uploader := NewUploaderWithConfig(config.UploadConfig{
 		StorageType:   "minio",
-		PublicBaseURL: "http://127.0.0.1:9000/go-admin-kit",
+		PublicBaseURL: "http://cdn.example.test/go-admin-kit",
 		MinIO: config.ObjectStorageConfig{
-			Endpoint:  "127.0.0.1:9000",
+			Endpoint:  server.URL,
 			Bucket:    "go-admin-kit",
 			Region:    "us-east-1",
-			AccessKey: "minioadmin",
-			SecretKey: "minioadmin",
+			AccessKey: "minio-access",
+			SecretKey: "minio-secret",
 			UseSSL:    false,
 		},
 		MaxSize:      1,
 		AllowedTypes: []string{".png"},
 	})
 
-	_, err := uploader.Upload(newMultipartFileHeader(t, "avatar.png", tinyPNG()))
-	if !errors.Is(err, ErrStorageProviderUnavailable) {
-		t.Fatalf("err = %v, want ErrStorageProviderUnavailable", err)
+	info, err := uploader.Upload(newMultipartFileHeader(t, "avatar.png", tinyPNG()))
+	if err != nil {
+		t.Fatalf("upload failed: %v", err)
 	}
-	if !strings.Contains(err.Error(), "minio upload is reserved") {
-		t.Fatalf("err = %q, want reserved minio upload detail", err.Error())
+	if len(received) == 0 {
+		t.Fatal("upload request body was empty")
+	}
+	if info.StorageType != "minio" {
+		t.Fatalf("storage type = %q, want minio", info.StorageType)
+	}
+	if info.FilePath == "" || strings.HasPrefix(info.FilePath, "http") {
+		t.Fatalf("file path = %q, want object key", info.FilePath)
+	}
+	if info.FilePath != objectPath {
+		t.Fatalf("file path = %q, want uploaded path %q", info.FilePath, objectPath)
+	}
+	if info.URL != "http://cdn.example.test/go-admin-kit/"+objectPath {
+		t.Fatalf("url = %q, want CDN object URL", info.URL)
 	}
 }
 

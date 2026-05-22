@@ -258,11 +258,34 @@ func (p *reservedObjectStorageProvider) Type() string {
 	return p.storageType
 }
 
-func (p *reservedObjectStorageProvider) Store(_ context.Context, _ string, _ io.Reader) (*StoredObject, error) {
+func (p *reservedObjectStorageProvider) Store(ctx context.Context, objectKey string, body io.Reader) (*StoredObject, error) {
 	if p.configErr != nil {
 		return nil, p.configErr
 	}
-	return nil, fmt.Errorf("%w: %s upload is reserved but no SDK-backed implementation is registered", ErrStorageProviderUnavailable, p.storageType)
+	key, err := cleanObjectKey(objectKey)
+	if err != nil {
+		return nil, err
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	client, err := newObjectStorageClient(p.storageType, p.cfg)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := client.PutObject(ctx, p.cfg.Bucket, key, body, objectSize(body), minio.PutObjectOptions{}); err != nil {
+		return nil, fmt.Errorf("%w: %s put %q failed: %v", ErrStorageProviderUnavailable, p.storageType, key, err)
+	}
+	publicURL, err := p.PublicURL(key)
+	if err != nil {
+		return nil, err
+	}
+	return &StoredObject{
+		Key:         key,
+		FilePath:    key,
+		URL:         publicURL,
+		StorageType: p.Type(),
+	}, nil
 }
 
 func (p *reservedObjectStorageProvider) Open(ctx context.Context, filePath string) (*StoredObjectReader, error) {
@@ -298,14 +321,25 @@ func (p *reservedObjectStorageProvider) Open(ctx context.Context, filePath strin
 	}, nil
 }
 
-func (p *reservedObjectStorageProvider) Delete(_ context.Context, filePath string) error {
+func (p *reservedObjectStorageProvider) Delete(ctx context.Context, filePath string) error {
 	if p.configErr != nil {
 		return p.configErr
 	}
-	if strings.TrimSpace(filePath) == "" {
-		return fmt.Errorf("%w: file path is empty", ErrStorageProviderNotConfigured)
+	key, err := cleanObjectKey(filePath)
+	if err != nil {
+		return err
 	}
-	return fmt.Errorf("%w: %s delete is reserved but no SDK-backed implementation is registered", ErrStorageProviderUnavailable, p.storageType)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	client, err := newObjectStorageClient(p.storageType, p.cfg)
+	if err != nil {
+		return err
+	}
+	if err := client.RemoveObject(ctx, p.cfg.Bucket, key, minio.RemoveObjectOptions{}); err != nil {
+		return fmt.Errorf("%w: %s delete %q failed: %v", ErrStorageProviderUnavailable, p.storageType, key, err)
+	}
+	return nil
 }
 
 func (p *reservedObjectStorageProvider) PublicURL(filePath string) (string, error) {
@@ -359,6 +393,27 @@ func newObjectStorageClient(storageType string, cfg config.ObjectStorageConfig) 
 		return nil, fmt.Errorf("%w: %s client init failed: %v", ErrStorageProviderUnavailable, storageType, err)
 	}
 	return client, nil
+}
+
+func objectSize(reader io.Reader) int64 {
+	switch r := reader.(type) {
+	case interface{ Len() int }:
+		return int64(r.Len())
+	case io.Seeker:
+		current, err := r.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return -1
+		}
+		end, err := r.Seek(0, io.SeekEnd)
+		if err != nil {
+			_, _ = r.Seek(current, io.SeekStart)
+			return -1
+		}
+		_, _ = r.Seek(current, io.SeekStart)
+		return end - current
+	default:
+		return -1
+	}
 }
 
 func objectStorageEndpoint(cfg config.ObjectStorageConfig) (string, bool, error) {

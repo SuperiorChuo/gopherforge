@@ -36,7 +36,7 @@
 
 - 入参 `objectKey` 必须经过 `cleanObjectKey()` 清洗，拒绝空值、绝对路径、路径穿越和 URL。
 - `ctx == nil` 时与现有 `Open()` 一致回退为 `context.Background()`。
-- 调用 MinIO SDK 的 `PutObject(ctx, bucket, key, body, -1, minio.PutObjectOptions{})`。
+- 调用 MinIO SDK 的 `PutObject(ctx, bucket, key, body, size, minio.PutObjectOptions{})`；当 `body` 可通过 `Len()` 或 `io.Seeker` 推导剩余大小时传入明确 size，无法推导时回退为 `-1` 流式上传。
 - 返回：
   - `Key`: 清洗后的 object key
   - `FilePath`: 清洗后的 object key
@@ -72,7 +72,7 @@
 ## 风险与控制
 
 - MinIO SDK 默认会根据 endpoint 和 bucket 选择请求样式；单元测试只验证兼容路径，不绑定生产网络环境。
-- `PutObject` 使用 unknown size 流式上传，避免在上传层额外缓存整文件；文件大小仍由 `Uploader` 的 `MaxSize` 负责限制。
+- `PutObject` 优先使用可推导的剩余大小，便于 SDK 选择单次 PUT；无法推导时使用 unknown size 流式上传，避免在上传层额外缓存整文件。文件大小仍由 `Uploader` 的 `MaxSize` 负责限制。
 - `Delete()` 对不存在对象的具体行为由后端实现决定，当前只保证 SDK 错误被可识别地包装。
 - 不自动创建 bucket，避免应用进程在生产环境拥有过宽的存储管理权限。
 
