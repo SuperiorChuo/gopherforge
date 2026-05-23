@@ -23,13 +23,13 @@ func TestDepartmentServiceCreateInvalidatesDepartmentTreeCache(t *testing.T) {
 	dao := &fakeDepartmentDAO{getByCodeErr: gorm.ErrRecordNotFound}
 	service := DepartmentService{deptDAO: dao}
 
-	_, err := service.Create(CreateDepartmentRequest{
+	_, err := service.CreateContext(context.Background(), CreateDepartmentRequest{
 		Name:   "Engineering",
 		Code:   "rd",
 		Status: 1,
 	})
 	if err != nil {
-		t.Fatalf("Create() error = %v", err)
+		t.Fatalf("CreateContext() error = %v", err)
 	}
 	assertDepartmentTreeCacheRemoved(t)
 }
@@ -104,9 +104,9 @@ func TestDepartmentServiceUpdateInvalidatesDepartmentTreeCache(t *testing.T) {
 	dao := &fakeDepartmentDAO{byID: map[uint]*model.Department{10: dept}}
 	service := DepartmentService{deptDAO: dao}
 
-	_, err := service.Update(10, UpdateDepartmentRequest{Name: "Product Engineering"})
+	_, err := service.UpdateContext(context.Background(), 10, UpdateDepartmentRequest{Name: "Product Engineering"})
 	if err != nil {
-		t.Fatalf("Update() error = %v", err)
+		t.Fatalf("UpdateContext() error = %v", err)
 	}
 	assertDepartmentTreeCacheRemoved(t)
 }
@@ -118,8 +118,8 @@ func TestDepartmentServiceDeleteInvalidatesDepartmentTreeCache(t *testing.T) {
 	dao := &fakeDepartmentDAO{}
 	service := DepartmentService{deptDAO: dao}
 
-	if err := service.Delete(10); err != nil {
-		t.Fatalf("Delete() error = %v", err)
+	if err := service.DeleteContext(context.Background(), 10); err != nil {
+		t.Fatalf("DeleteContext() error = %v", err)
 	}
 	assertDepartmentTreeCacheRemoved(t)
 }
@@ -174,20 +174,12 @@ type fakeDepartmentDAO struct {
 	createHook   func(context.Context)
 }
 
-func (d *fakeDepartmentDAO) GetByID(id uint) (*model.Department, error) {
-	return d.GetByIDContext(context.Background(), id)
-}
-
 func (d *fakeDepartmentDAO) GetByIDContext(_ context.Context, id uint) (*model.Department, error) {
 	if dept, ok := d.byID[id]; ok {
 		cp := *dept
 		return &cp, nil
 	}
 	return nil, errors.New("not found")
-}
-
-func (d *fakeDepartmentDAO) GetByCode(string) (*model.Department, error) {
-	return d.GetByCodeContext(context.Background(), "")
 }
 
 func (d *fakeDepartmentDAO) GetByCodeContext(_ context.Context, _ string) (*model.Department, error) {
@@ -197,32 +189,16 @@ func (d *fakeDepartmentDAO) GetByCodeContext(_ context.Context, _ string) (*mode
 	return &model.Department{}, nil
 }
 
-func (d *fakeDepartmentDAO) GetList(pagination.PageRequest, string, *int8) ([]model.Department, int64, error) {
-	return d.GetListContext(context.Background(), pagination.PageRequest{}, "", nil)
-}
-
 func (d *fakeDepartmentDAO) GetListContext(context.Context, pagination.PageRequest, string, *int8) ([]model.Department, int64, error) {
 	return nil, 0, nil
-}
-
-func (d *fakeDepartmentDAO) GetAll(*int8) ([]model.Department, error) {
-	return d.GetAllContext(context.Background(), nil)
 }
 
 func (d *fakeDepartmentDAO) GetAllContext(context.Context, *int8) ([]model.Department, error) {
 	return nil, nil
 }
 
-func (d *fakeDepartmentDAO) GetTree(*int8) ([]model.Department, error) {
-	return d.GetTreeContext(context.Background(), nil)
-}
-
 func (d *fakeDepartmentDAO) GetTreeContext(context.Context, *int8) ([]model.Department, error) {
 	return nil, nil
-}
-
-func (d *fakeDepartmentDAO) Create(dept *model.Department) error {
-	return d.CreateContext(context.Background(), dept)
 }
 
 func (d *fakeDepartmentDAO) CreateContext(ctx context.Context, dept *model.Department) error {
@@ -236,24 +212,12 @@ func (d *fakeDepartmentDAO) CreateContext(ctx context.Context, dept *model.Depar
 	return nil
 }
 
-func (d *fakeDepartmentDAO) Update(*model.Department) error {
-	return d.UpdateContext(context.Background(), nil)
-}
-
 func (d *fakeDepartmentDAO) UpdateContext(context.Context, *model.Department) error {
 	return d.updateErr
 }
 
-func (d *fakeDepartmentDAO) Delete(uint) error {
-	return d.DeleteContext(context.Background(), 0)
-}
-
 func (d *fakeDepartmentDAO) DeleteContext(context.Context, uint) error {
 	return d.deleteErr
-}
-
-func (d *fakeDepartmentDAO) GetChildrenIDs(uint) ([]uint, error) {
-	return d.GetChildrenIDsContext(context.Background(), 0)
 }
 
 func (d *fakeDepartmentDAO) GetChildrenIDsContext(context.Context, uint) ([]uint, error) {

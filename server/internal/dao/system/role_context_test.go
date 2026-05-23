@@ -25,9 +25,9 @@ func TestRoleDAOGetRoleByCodeUsesInjectedDB(t *testing.T) {
 		WithArgs("admin", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "code"}).AddRow(uint(7), "Admin", "admin"))
 
-	role, err := NewRoleDAO(db).GetRoleByCode("admin")
+	role, err := NewRoleDAO(db).GetRoleByCodeContext(context.Background(), "admin")
 	if err != nil {
-		t.Fatalf("GetRoleByCode() error = %v", err)
+		t.Fatalf("GetRoleByCodeContext() error = %v", err)
 	}
 	if role.ID != 7 || role.Code != "admin" {
 		t.Fatalf("role = %#v, want injected admin role", role)

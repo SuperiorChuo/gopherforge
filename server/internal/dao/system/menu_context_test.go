@@ -33,9 +33,9 @@ func TestMenuDAOGetMenuTreeUsesInjectedDB(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `menus` ORDER BY parent_id ASC, sort ASC, created_at ASC")).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "title", "parent_id"}).AddRow(9, "dashboard", "Dashboard", 0))
 
-	menus, err := NewMenuDAO(db).GetMenuTree(nil)
+	menus, err := NewMenuDAO(db).GetMenuTreeContext(context.Background(), nil)
 	if err != nil {
-		t.Fatalf("GetMenuTree() error = %v", err)
+		t.Fatalf("GetMenuTreeContext() error = %v", err)
 	}
 	if len(menus) != 1 || menus[0].Name != "dashboard" {
 		t.Fatalf("GetMenuTree() menus = %#v, want one injected row", menus)

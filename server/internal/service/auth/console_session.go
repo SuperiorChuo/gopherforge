@@ -52,13 +52,8 @@ func (s ConsoleSessionService) sessionDAO() authDAO.ConsoleSessionDAO {
 	return authDAO.ConsoleSessionDAO{}
 }
 
-// Deprecated: use CreateFromTokenContext instead.
-func (s ConsoleSessionService) CreateFromToken(token, clientIP, userAgent string) (*model.ConsoleSession, error) {
-	return s.CreateFromTokenContext(context.Background(), token, clientIP, userAgent)
-}
-
 func (s ConsoleSessionService) CreateFromTokenContext(ctx context.Context, token, clientIP, userAgent string) (*model.ConsoleSession, error) {
-	claims, err := jwtpkg.ParseToken(strings.TrimSpace(token))
+	claims, err := jwtpkg.ParseTokenContext(ctx, strings.TrimSpace(token))
 	if err != nil {
 		return nil, err
 	}
@@ -86,11 +81,6 @@ func (s ConsoleSessionService) CreateFromTokenContext(ctx context.Context, token
 		return nil, err
 	}
 	return record, nil
-}
-
-// Deprecated: use ValidateActiveSessionContext instead.
-func (s ConsoleSessionService) ValidateActiveSession(sessionID, username string) (*model.ConsoleSession, error) {
-	return s.ValidateActiveSessionContext(context.Background(), sessionID, username)
 }
 
 func (s ConsoleSessionService) ValidateActiveSessionContext(ctx context.Context, sessionID, username string) (*model.ConsoleSession, error) {
@@ -125,22 +115,12 @@ func (s ConsoleSessionService) ValidateActiveSessionContext(ctx context.Context,
 	return record, nil
 }
 
-// Deprecated: use RevokeByTokenContext instead.
-func (s ConsoleSessionService) RevokeByToken(token string) (*model.ConsoleSession, error) {
-	return s.RevokeByTokenContext(context.Background(), token)
-}
-
 func (s ConsoleSessionService) RevokeByTokenContext(ctx context.Context, token string) (*model.ConsoleSession, error) {
-	claims, err := jwtpkg.ParseToken(strings.TrimSpace(token))
+	claims, err := jwtpkg.ParseTokenContext(ctx, strings.TrimSpace(token))
 	if err != nil {
 		return nil, err
 	}
 	return s.RevokeBySessionIDContext(ctx, claims.ID)
-}
-
-// Deprecated: use RevokeBySessionIDContext instead.
-func (s ConsoleSessionService) RevokeBySessionID(sessionID string) (*model.ConsoleSession, error) {
-	return s.RevokeBySessionIDContext(context.Background(), sessionID)
 }
 
 func (s ConsoleSessionService) RevokeBySessionIDContext(ctx context.Context, sessionID string) (*model.ConsoleSession, error) {
@@ -180,10 +160,10 @@ func ConsoleSessionSnapshot(record *model.ConsoleSession) map[string]any {
 	}
 }
 
-func BuildConsoleSession(user *model.User, permissions []string, accessToken, refreshToken string) ConsoleSessionResponse {
+func BuildConsoleSession(ctx context.Context, user *model.User, permissions []string, accessToken, refreshToken string) ConsoleSessionResponse {
 	expiresAt := time.Now().UTC().Add(time.Hour)
 	if accessToken != "" {
-		if claims, err := jwtpkg.ParseToken(accessToken); err == nil && claims.ExpiresAt != nil {
+		if claims, err := jwtpkg.ParseTokenContext(ctx, accessToken); err == nil && claims.ExpiresAt != nil {
 			expiresAt = claims.ExpiresAt.UTC()
 		}
 	}

@@ -27,7 +27,7 @@ func TestAuditLogDAOListLogsContextHonorsCanceledContext(t *testing.T) {
 func TestAuditLogDAOCreateLogContextUsesInjectedDB(t *testing.T) {
 	setupSystemDAOTestDB(t)
 	db, mock := newInjectedLogFileDAOTestDB(t)
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `wm_audit_log`")).
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `audit_logs`")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	err := NewAuditLogDAO(db).CreateLogContext(context.Background(), &model.AuditLog{

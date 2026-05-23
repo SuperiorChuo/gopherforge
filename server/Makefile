@@ -6,11 +6,22 @@ DB_PORT ?= 3306
 DB_USER ?= root
 DB_PASSWORD ?= 123456
 DB_NAME ?= go_admin_kit
+MIGRATION_REHEARSAL_DB ?= go_admin_kit_migration_rehearsal
 MYSQL_CONTAINER ?= go-admin-kit-mysql
 SQL_FILE ?= ./docs/go_admin_kit.sql
 CONFIG_FILE ?= ./configs/config.yaml
 MIGRATION_DIR ?= ./migrations
 MIGRATION_NAME ?= change_name
+OBJECT_STORAGE_SMOKE_CONTAINER ?= scaffold-minio
+OBJECT_STORAGE_SMOKE_CREATE_BUCKET ?= 1
+OBJECT_STORAGE_SMOKE_PROVIDER ?= s3
+OBJECT_STORAGE_SMOKE_ENDPOINT ?= 127.0.0.1:9000
+OBJECT_STORAGE_SMOKE_BUCKET ?= go-admin-kit
+OBJECT_STORAGE_SMOKE_REGION ?= us-east-1
+OBJECT_STORAGE_SMOKE_ACCESS_KEY ?= minioadmin
+OBJECT_STORAGE_SMOKE_SECRET_KEY ?= minioadmin
+OBJECT_STORAGE_SMOKE_USE_SSL ?= false
+OBJECT_STORAGE_SMOKE_PREFIX ?= black8-smoke
 
 ifeq ($(strip $(MYSQL_CONTAINER)),)
 MYSQL_CLI := MYSQL_PWD='$(DB_PASSWORD)' mysql --default-character-set=utf8mb4 -h$(DB_HOST) -P$(DB_PORT) -u$(DB_USER)
@@ -75,6 +86,10 @@ migrate-reset:
 migrate-create:
 	@$(GO) run ./cmd/migrate -dir $(MIGRATION_DIR) create $(MIGRATION_NAME) sql
 
+.PHONY: migrate-rehearse
+migrate-rehearse:
+	@$(GO) run ./cmd/migration-rehearsal -config $(CONFIG_FILE) -dir $(MIGRATION_DIR) -database $(MIGRATION_REHEARSAL_DB)
+
 .PHONY: build build-server
 build: build-server
 
@@ -93,6 +108,24 @@ run:
 test:
 	@echo "Running tests..."
 	@$(GO) test ./... -v
+
+.PHONY: smoke-storage-minio
+smoke-storage-minio:
+ifeq ($(OBJECT_STORAGE_SMOKE_CREATE_BUCKET),1)
+	@echo "Ensuring MinIO bucket $(OBJECT_STORAGE_SMOKE_BUCKET) exists in $(OBJECT_STORAGE_SMOKE_CONTAINER)..."
+	@docker exec $(OBJECT_STORAGE_SMOKE_CONTAINER) sh -c 'mc alias set smoke http://127.0.0.1:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null && mc mb -p smoke/$(OBJECT_STORAGE_SMOKE_BUCKET) >/dev/null'
+endif
+	@echo "Running object storage smoke against $(OBJECT_STORAGE_SMOKE_PROVIDER) endpoint $(OBJECT_STORAGE_SMOKE_ENDPOINT)..."
+	@BLACK8_OBJECT_STORAGE_SMOKE=1 \
+	BLACK8_OBJECT_STORAGE_PROVIDER='$(OBJECT_STORAGE_SMOKE_PROVIDER)' \
+	BLACK8_OBJECT_STORAGE_ENDPOINT='$(OBJECT_STORAGE_SMOKE_ENDPOINT)' \
+	BLACK8_OBJECT_STORAGE_BUCKET='$(OBJECT_STORAGE_SMOKE_BUCKET)' \
+	BLACK8_OBJECT_STORAGE_REGION='$(OBJECT_STORAGE_SMOKE_REGION)' \
+	BLACK8_OBJECT_STORAGE_ACCESS_KEY='$(OBJECT_STORAGE_SMOKE_ACCESS_KEY)' \
+	BLACK8_OBJECT_STORAGE_SECRET_KEY='$(OBJECT_STORAGE_SMOKE_SECRET_KEY)' \
+	BLACK8_OBJECT_STORAGE_USE_SSL='$(OBJECT_STORAGE_SMOKE_USE_SSL)' \
+	BLACK8_OBJECT_STORAGE_OBJECT_PREFIX='$(OBJECT_STORAGE_SMOKE_PREFIX)' \
+	$(GO) test ./internal/pkg/upload -run TestObjectStorageSmokeOpenReadsRealEndpoint -count=1 -v
 
 .PHONY: clean
 clean:

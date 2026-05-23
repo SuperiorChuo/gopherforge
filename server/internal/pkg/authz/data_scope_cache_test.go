@@ -73,7 +73,7 @@ func TestInvalidateDepartmentTreeCacheRemovesCachedTree(t *testing.T) {
 		t.Fatalf("seed department tree cache: %v", err)
 	}
 
-	if err := InvalidateDepartmentTreeCache(); err != nil {
+	if err := InvalidateDepartmentTreeCacheContext(context.Background()); err != nil {
 		t.Fatalf("invalidate department tree cache: %v", err)
 	}
 

@@ -1,9 +1,9 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
-DROP TABLE IF EXISTS `wm_system_setting`;
-DROP TABLE IF EXISTS `wm_console_session`;
-DROP TABLE IF EXISTS `wm_console_route`;
+DROP TABLE IF EXISTS `system_settings`;
+DROP TABLE IF EXISTS `console_sessions`;
+DROP TABLE IF EXISTS `console_routes`;
 DROP TABLE IF EXISTS `scheduled_job_logs`;
 DROP TABLE IF EXISTS `scheduled_jobs`;
 DROP TABLE IF EXISTS `oauth_bindings`;
@@ -12,12 +12,14 @@ DROP TABLE IF EXISTS `dict_types`;
 DROP TABLE IF EXISTS `notices`;
 DROP TABLE IF EXISTS `login_logs`;
 DROP TABLE IF EXISTS `files`;
-DROP TABLE IF EXISTS `wm_audit_log`;
+DROP TABLE IF EXISTS `audit_logs`;
 DROP TABLE IF EXISTS `operation_logs`;
 DROP TABLE IF EXISTS `menu_permissions`;
 DROP TABLE IF EXISTS `role_data_scope_departments`;
 DROP TABLE IF EXISTS `role_permissions`;
 DROP TABLE IF EXISTS `user_roles`;
+DROP TABLE IF EXISTS `totp_recovery_codes`;
+DROP TABLE IF EXISTS `password_history`;
 DROP TABLE IF EXISTS `menus`;
 DROP TABLE IF EXISTS `permissions`;
 DROP TABLE IF EXISTS `roles`;
@@ -54,6 +56,9 @@ CREATE TABLE `users` (
   `avatar` varchar(255) DEFAULT '',
   `department_id` bigint unsigned NOT NULL DEFAULT 0,
   `must_change_password` tinyint(1) NOT NULL DEFAULT 0,
+  `password_changed_at` datetime(3) DEFAULT NULL,
+  `totp_secret` varchar(255) NOT NULL DEFAULT '',
+  `totp_enabled` tinyint(1) NOT NULL DEFAULT 0,
   `status` tinyint NOT NULL DEFAULT 1,
   `created_at` datetime(3) DEFAULT NULL,
   `updated_at` datetime(3) DEFAULT NULL,
@@ -62,6 +67,30 @@ CREATE TABLE `users` (
   UNIQUE KEY `idx_users_email` (`email`),
   UNIQUE KEY `idx_users_phone` (`phone`),
   KEY `idx_users_department_id` (`department_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `password_history` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned NOT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `changed_at` datetime(3) NOT NULL,
+  `created_at` datetime(3) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_password_history_user_id` (`user_id`),
+  KEY `idx_password_history_user_changed` (`user_id`,`changed_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `totp_recovery_codes` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned NOT NULL,
+  `code_hash` varchar(255) NOT NULL,
+  `used_at` datetime(3) DEFAULT NULL,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_totp_recovery_codes_user_id` (`user_id`),
+  KEY `idx_totp_recovery_codes_user_unused` (`user_id`,`used_at`),
+  CONSTRAINT `fk_totp_recovery_codes_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `roles` (
@@ -175,7 +204,7 @@ CREATE TABLE `operation_logs` (
   KEY `idx_operation_logs_request_id` (`request_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `wm_audit_log` (
+CREATE TABLE `audit_logs` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `actor_type` varchar(64) DEFAULT 'operator',
   `actor_id` varchar(128) DEFAULT 'web-console',
@@ -187,12 +216,12 @@ CREATE TABLE `wm_audit_log` (
   `summary` text,
   `created_at` datetime(3) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_wm_audit_log_created_at` (`created_at`),
-  KEY `idx_wm_audit_log_actor_type` (`actor_type`),
-  KEY `idx_wm_audit_log_actor_id` (`actor_id`),
-  KEY `idx_wm_audit_log_action` (`action`),
-  KEY `idx_wm_audit_log_target_type` (`target_type`),
-  KEY `idx_wm_audit_log_target_id` (`target_id`)
+  KEY `idx_audit_logs_created_at` (`created_at`),
+  KEY `idx_audit_logs_actor_type` (`actor_type`),
+  KEY `idx_audit_logs_actor_id` (`actor_id`),
+  KEY `idx_audit_logs_action` (`action`),
+  KEY `idx_audit_logs_target_type` (`target_type`),
+  KEY `idx_audit_logs_target_id` (`target_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `files` (
@@ -201,6 +230,12 @@ CREATE TABLE `files` (
   `file_name` varchar(255) NOT NULL,
   `file_path` varchar(500) NOT NULL,
   `file_size` bigint NOT NULL DEFAULT 0,
+  `image_width` int NOT NULL DEFAULT 0,
+  `image_height` int NOT NULL DEFAULT 0,
+  `thumbnail_path` varchar(500) DEFAULT '',
+  `thumbnail_url` varchar(500) DEFAULT '',
+  `thumbnail_width` int NOT NULL DEFAULT 0,
+  `thumbnail_height` int NOT NULL DEFAULT 0,
   `file_type` varchar(50) DEFAULT '',
   `mime_type` varchar(100) DEFAULT '',
   `extension` varchar(20) DEFAULT '',
@@ -271,6 +306,7 @@ CREATE TABLE `oauth_bindings` (
   `updated_at` datetime(3) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_oauth_bindings_user_id` (`user_id`),
+  UNIQUE KEY `uk_oauth_bindings_user_provider` (`user_id`,`provider`),
   UNIQUE KEY `uk_oauth_bindings_provider_user` (`provider`,`provider_user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -320,7 +356,7 @@ CREATE TABLE `notices` (
   KEY `idx_notices_creator_id` (`creator_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `wm_console_route` (
+CREATE TABLE `console_routes` (
   `route_key` varchar(64) NOT NULL,
   `path` varchar(255) NOT NULL,
   `name` varchar(128) NOT NULL,
@@ -337,14 +373,14 @@ CREATE TABLE `wm_console_route` (
   `created_at` datetime(3) DEFAULT NULL,
   `updated_at` datetime(3) DEFAULT NULL,
   PRIMARY KEY (`route_key`),
-  UNIQUE KEY `idx_wm_console_route_path` (`path`),
-  UNIQUE KEY `idx_wm_console_route_name` (`name`),
-  KEY `idx_wm_console_route_sort_order` (`sort_order`),
-  KEY `idx_wm_console_route_parent_key` (`parent_key`),
-  KEY `idx_wm_console_route_enabled` (`enabled`)
+  UNIQUE KEY `idx_console_routes_path` (`path`),
+  UNIQUE KEY `idx_console_routes_name` (`name`),
+  KEY `idx_console_routes_sort_order` (`sort_order`),
+  KEY `idx_console_routes_parent_key` (`parent_key`),
+  KEY `idx_console_routes_enabled` (`enabled`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `wm_console_session` (
+CREATE TABLE `console_sessions` (
   `session_id` varchar(64) NOT NULL,
   `username` varchar(128) NOT NULL,
   `issued_at` datetime(3) NOT NULL,
@@ -356,18 +392,18 @@ CREATE TABLE `wm_console_session` (
   `user_agent_preview` varchar(255) DEFAULT '',
   `created_at` datetime(3) NOT NULL,
   PRIMARY KEY (`session_id`),
-  KEY `idx_wm_console_session_username` (`username`),
-  KEY `idx_wm_console_session_issued_at` (`issued_at`),
-  KEY `idx_wm_console_session_expires_at` (`expires_at`),
-  KEY `idx_wm_console_session_revoked_at` (`revoked_at`)
+  KEY `idx_console_sessions_username` (`username`),
+  KEY `idx_console_sessions_issued_at` (`issued_at`),
+  KEY `idx_console_sessions_expires_at` (`expires_at`),
+  KEY `idx_console_sessions_revoked_at` (`revoked_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `wm_system_setting` (
+CREATE TABLE `system_settings` (
   `setting_key` varchar(128) NOT NULL,
   `value_json` json DEFAULT NULL,
   `updated_at` datetime(3) DEFAULT NULL,
   PRIMARY KEY (`setting_key`),
-  KEY `idx_wm_system_setting_updated_at` (`updated_at`)
+  KEY `idx_system_settings_updated_at` (`updated_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `schema_migrations` (
@@ -380,8 +416,8 @@ CREATE TABLE `schema_migrations` (
 INSERT INTO `departments` (`id`,`name`,`code`,`parent_id`,`leader`,`sort`,`status`,`created_at`,`updated_at`) VALUES
 (1,'Headquarters','HQ',0,'admin',1,1,NOW(3),NOW(3));
 
-INSERT INTO `users` (`id`,`username`,`password`,`nickname`,`email`,`phone`,`avatar`,`department_id`,`must_change_password`,`status`,`created_at`,`updated_at`) VALUES
-(1,'admin','$2a$10$x.kr72XCSvMcgkM0etydcOLlVPxYcjR8bK4sRYdf0VQmMxz8LskBe','管理员','admin@example.com',NULL,'',1,0,1,NOW(3),NOW(3));
+INSERT INTO `users` (`id`,`username`,`password`,`nickname`,`email`,`phone`,`avatar`,`department_id`,`must_change_password`,`password_changed_at`,`status`,`created_at`,`updated_at`) VALUES
+(1,'admin','$2a$10$x.kr72XCSvMcgkM0etydcOLlVPxYcjR8bK4sRYdf0VQmMxz8LskBe','管理员','admin@example.com',NULL,'',1,0,NOW(3),1,NOW(3),NOW(3));
 
 INSERT INTO `roles` (`id`,`name`,`code`,`description`,`data_scope`,`created_at`,`updated_at`) VALUES
 (1,'超级管理员','super_admin','全部系统权限','all',NOW(3),NOW(3)),
@@ -440,7 +476,11 @@ INSERT INTO `permissions` (`id`,`name`,`code`,`type`,`path`,`method`,`parent_id`
 (49,'控制台设置写入','settings.write',2,'/api/v1/console-routes','POST',2,NOW(3),NOW(3)),
 (50,'权限治理读取','rbac.read',2,'/api/v1/users','GET',2,NOW(3),NOW(3)),
 (51,'权限治理写入','rbac.write',2,'/api/v1/users','POST',2,NOW(3),NOW(3)),
-(52,'日志读取','logs.read',2,'/api/v1/operation-logs','GET',2,NOW(3),NOW(3));
+(52,'日志读取','logs.read',2,'/api/v1/operation-logs','GET',2,NOW(3),NOW(3)),
+(53,'系统设置读取','system:setting:list',2,'/api/v1/system-settings','GET',2,NOW(3),NOW(3)),
+(54,'系统设置写入','system:setting:update',2,'/api/v1/system-settings/:key','PUT',2,NOW(3),NOW(3)),
+(55,'系统设置删除','system:setting:delete',2,'/api/v1/system-settings/:key','DELETE',2,NOW(3),NOW(3)),
+(56,'操作日志清理','system:log:operation:clear',2,'/api/v1/operation-logs/clear','DELETE',24,NOW(3),NOW(3));
 
 INSERT INTO `menus` (`id`,`name`,`title`,`icon`,`path`,`component`,`parent_id`,`sort`,`status`,`hidden`,`permission`,`created_at`,`updated_at`) VALUES
 (1,'dashboard','仪表盘','dashboard','/dashboard','Layout',0,0,1,0,'',NOW(3),NOW(3)),
@@ -457,6 +497,7 @@ INSERT INTO `menus` (`id`,`name`,`title`,`icon`,`path`,`component`,`parent_id`,`
 (19,'online-user','在线用户','user-list','/system/online-user','system/online-user/index',10,9,1,0,'system:online-user:list',NOW(3),NOW(3)),
 (20,'operation-log','操作日志','time','/system/operation-log','system/operation-log/index',10,10,1,0,'system:log:operation',NOW(3),NOW(3)),
 (21,'login-log','登录日志','time','/system/login-log','system/login-log/index',10,11,1,0,'system:log:login',NOW(3),NOW(3)),
+(22,'setting','系统设置','setting','/system/setting','system/setting/index',10,12,1,0,'system:setting:list',NOW(3),NOW(3)),
 (30,'monitor','系统监控','chart-analytics','/monitor','Layout',0,2,1,0,'',NOW(3),NOW(3)),
 (31,'monitor-job','定时任务','time','/monitor/job','monitor/job/index',30,1,1,0,'system:job:list',NOW(3),NOW(3)),
 (32,'monitor-server','服务器监控','server','/monitor/server','monitor/server/index',30,2,1,0,'system:monitor:server',NOW(3),NOW(3)),
@@ -467,7 +508,7 @@ INSERT INTO `menus` (`id`,`name`,`title`,`icon`,`path`,`component`,`parent_id`,`
 
 INSERT INTO `user_roles` (`user_id`,`role_id`) VALUES (1,1);
 INSERT INTO `role_permissions` (`role_id`,`permission_id`) SELECT 1, `id` FROM `permissions`;
-INSERT INTO `role_permissions` (`role_id`,`permission_id`) SELECT 2, `id` FROM `permissions` WHERE `code` IN ('dashboard.view','system:user:list','system:role:list','system:permission:list','system:menu:list','system:department:list','system:log:operation','system:log:login','system:file:list','system:dict:list','system:notice:list','system:online-user:list','system:monitor:server','system:monitor:mysql','system:monitor:redis','system:job:list','settings.read','rbac.read','logs.read');
+INSERT INTO `role_permissions` (`role_id`,`permission_id`) SELECT 2, `id` FROM `permissions` WHERE `code` IN ('dashboard.view','system:user:list','system:role:list','system:permission:list','system:menu:list','system:department:list','system:log:operation','system:log:login','system:file:list','system:dict:list','system:notice:list','system:online-user:list','system:monitor:server','system:monitor:mysql','system:monitor:redis','system:job:list','system:setting:list','settings.read','rbac.read','logs.read');
 
 INSERT INTO `menu_permissions` (`menu_id`,`permission_id`)
 SELECT m.`id`, p.`id`
@@ -488,7 +529,7 @@ INSERT INTO `dict_items` (`dict_type_id`,`label`,`value`,`sort`,`status`,`remark
 INSERT INTO `notices` (`id`,`title`,`content`,`type`,`status`,`creator_id`,`creator`,`created_at`,`updated_at`) VALUES
 (1,'欢迎使用','后台管理系统数据库已准备就绪。',1,1,1,'admin',NOW(3),NOW(3));
 
-INSERT INTO `wm_console_route` (`route_key`,`path`,`name`,`component_key`,`sort_order`,`enabled`,`permissions_json`,`roles_json`,`meta_json`,`created_at`,`updated_at`) VALUES
+INSERT INTO `console_routes` (`route_key`,`path`,`name`,`component_key`,`sort_order`,`enabled`,`permissions_json`,`roles_json`,`meta_json`,`created_at`,`updated_at`) VALUES
 ('dashboard','/dashboard','Dashboard','DashboardPage',100,1,'["dashboard.view"]','[]','{"title":"仪表盘","navTitle":"仪表盘","groupId":"monitor","icon":"SettingIcon","permissions":["dashboard.view"],"seedVersion":6}',NOW(3),NOW(3)),
 ('rbac-users','/rbac/users','RbacUsers','RbacGovernancePage',210,1,'["rbac.read","logs.read"]','[]','{"title":"用户管理","navTitle":"用户管理","groupId":"rbac","icon":"SettingIcon","permissions":["rbac.read","logs.read"],"seedVersion":6}',NOW(3),NOW(3)),
 ('rbac-roles','/rbac/roles','RbacRoles','RbacGovernancePage',220,1,'["rbac.read","logs.read"]','[]','{"title":"角色管理","navTitle":"角色管理","groupId":"rbac","icon":"SettingIcon","permissions":["rbac.read","logs.read"],"seedVersion":6}',NOW(3),NOW(3)),

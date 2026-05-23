@@ -35,9 +35,9 @@ func TestPermissionDAOUsesInjectedDB(t *testing.T) {
 		WithArgs(uint(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"code"}).AddRow("dashboard.view"))
 
-	codes, err := NewPermissionDAO(db).GetUserPermissions(7)
+	codes, err := NewPermissionDAO(db).GetUserPermissionsContext(context.Background(), 7)
 	if err != nil {
-		t.Fatalf("GetUserPermissions() error = %v", err)
+		t.Fatalf("GetUserPermissionsContext() error = %v", err)
 	}
 	if len(codes) != 1 || codes[0] != "dashboard.view" {
 		t.Fatalf("codes = %v, want dashboard.view", codes)

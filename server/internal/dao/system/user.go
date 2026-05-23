@@ -36,11 +36,6 @@ func (d *UserDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
-// Deprecated: use GetUserListContext instead.
-func (d *UserDAO) GetUserList(req pagination.PageRequest, keyword string, status *int8, dataScope authz.UserDataScope) ([]model.User, int64, error) {
-	return d.GetUserListContext(context.Background(), req, keyword, status, dataScope)
-}
-
 func (d *UserDAO) GetUserListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8, dataScope authz.UserDataScope) ([]model.User, int64, error) {
 	var users []model.User
 	var total int64
@@ -68,11 +63,6 @@ func (d *UserDAO) GetUserListContext(ctx context.Context, req pagination.PageReq
 	return users, total, result.Error
 }
 
-// Deprecated: use DeleteUserContext instead.
-func (d *UserDAO) DeleteUser(id uint) error {
-	return d.DeleteUserContext(context.Background(), id)
-}
-
 func (d *UserDAO) DeleteUserContext(ctx context.Context, id uint) error {
 	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("user_id = ?", id).Delete(&model.UserRole{}).Error; err != nil {
@@ -85,18 +75,8 @@ func (d *UserDAO) DeleteUserContext(ctx context.Context, id uint) error {
 	})
 }
 
-// Deprecated: use UpdateUserStatusContext instead.
-func (d *UserDAO) UpdateUserStatus(id uint, status int8) error {
-	return d.UpdateUserStatusContext(context.Background(), id, status)
-}
-
 func (d *UserDAO) UpdateUserStatusContext(ctx context.Context, id uint, status int8) error {
 	return d.dbWithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("status", status).Error
-}
-
-// Deprecated: use AssignRolesContext instead.
-func (d *UserDAO) AssignRoles(userID uint, roleIDs []uint) error {
-	return d.AssignRolesContext(context.Background(), userID, roleIDs)
 }
 
 func (d *UserDAO) AssignRolesContext(ctx context.Context, userID uint, roleIDs []uint) error {

@@ -4,19 +4,49 @@ import "time"
 
 // User stores account identity and profile fields.
 type User struct {
-	ID                 uint      `gorm:"primaryKey" json:"id"`
-	Username           string    `gorm:"size:50;not null;uniqueIndex" json:"username"`
-	Password           string    `gorm:"size:255;not null" json:"-"`
-	Nickname           string    `gorm:"size:50" json:"nickname"`
-	Email              string    `gorm:"size:100;uniqueIndex" json:"email"`
-	Phone              string    `gorm:"size:20;uniqueIndex" json:"phone"`
-	Avatar             string    `gorm:"size:255" json:"avatar"`
-	DepartmentID       uint      `gorm:"default:0;index" json:"department_id"`
-	MustChangePassword bool      `gorm:"default:false" json:"must_change_password"`
-	Status             int8      `gorm:"default:1" json:"status"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
-	Roles              []Role    `gorm:"many2many:user_roles;" json:"roles,omitempty"`
+	ID                 uint       `gorm:"primaryKey" json:"id"`
+	Username           string     `gorm:"size:50;not null;uniqueIndex" json:"username"`
+	Password           string     `gorm:"size:255;not null" json:"-"`
+	Nickname           string     `gorm:"size:50" json:"nickname"`
+	Email              string     `gorm:"size:100;uniqueIndex" json:"email"`
+	Phone              string     `gorm:"size:20;uniqueIndex" json:"phone"`
+	Avatar             string     `gorm:"size:255" json:"avatar"`
+	DepartmentID       uint       `gorm:"default:0;index" json:"department_id"`
+	MustChangePassword bool       `gorm:"default:false" json:"must_change_password"`
+	PasswordChangedAt  *time.Time `json:"password_changed_at,omitempty"`
+	TOTPSecret         string     `gorm:"size:255" json:"-"`
+	TOTPEnabled        bool       `gorm:"default:false" json:"totp_enabled"`
+	Status             int8       `gorm:"default:1" json:"status"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	Roles              []Role     `gorm:"many2many:user_roles;" json:"roles,omitempty"`
+}
+
+// PasswordHistory stores previous password hashes for reuse checks.
+type PasswordHistory struct {
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	UserID       uint      `gorm:"not null;index;index:idx_password_history_user_changed" json:"user_id"`
+	PasswordHash string    `gorm:"size:255;not null" json:"-"`
+	ChangedAt    time.Time `gorm:"not null;index:idx_password_history_user_changed" json:"changed_at"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+func (PasswordHistory) TableName() string {
+	return "password_history"
+}
+
+// TOTPRecoveryCode stores hashed one-time recovery codes for two-factor login.
+type TOTPRecoveryCode struct {
+	ID        uint       `gorm:"primaryKey" json:"id"`
+	UserID    uint       `gorm:"not null;index;index:idx_totp_recovery_codes_user_unused" json:"user_id"`
+	CodeHash  string     `gorm:"size:255;not null" json:"-"`
+	UsedAt    *time.Time `gorm:"index:idx_totp_recovery_codes_user_unused" json:"used_at,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+
+func (TOTPRecoveryCode) TableName() string {
+	return "totp_recovery_codes"
 }
 
 // UserRole links users to roles.

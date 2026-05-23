@@ -22,5 +22,5 @@ type ConsoleRoute struct {
 }
 
 func (ConsoleRoute) TableName() string {
-	return "wm_console_route"
+	return "console_routes"
 }

@@ -109,7 +109,8 @@ for (const methods of Object.values(spec.paths || {})) {
       if (queryParams.length) {
         lines.push('      query: {');
         for (const param of queryParams) {
-          lines.push(`        ${propertyKey(param.name)}?: ${schemaToTs(param.schema)};`);
+          const optional = param.required ? '' : '?';
+          lines.push(`        ${propertyKey(param.name)}${optional}: ${schemaToTs(param.schema)};`);
         }
         lines.push('      };');
       }

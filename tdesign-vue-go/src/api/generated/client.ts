@@ -29,10 +29,30 @@ type UnwrapResponseData<Response> = Response extends { data: infer Data }
 export type ResponseData<Op> = UnwrapResponseData<JsonResponse<Op>>;
 
 type PathInput<Op> = [PathParams<Op>] extends [never] ? { path?: never } : { path: PathParams<Op> };
-type QueryInput<Op> = [QueryParams<Op>] extends [never] ? { query?: never } : { query?: QueryParams<Op> };
+type RequiredKeys<T> = keyof {
+  [K in keyof T as Record<string, never> extends Pick<T, K> ? never : K]: T[K];
+};
+type HasRequiredKeys<T> = RequiredKeys<T> extends never ? false : true;
+type QueryInput<Op> = [QueryParams<Op>] extends [never]
+  ? { query?: never }
+  : HasRequiredKeys<QueryParams<Op>> extends true
+    ? { query: QueryParams<Op> }
+    : { query?: QueryParams<Op> };
 type BodyInput<Op> = [JsonBody<Op>] extends [never] ? { body?: never } : { body: JsonBody<Op> };
 
 export type TypedRequestOptions<Op> = PathInput<Op> & QueryInput<Op> & BodyInput<Op> & RequestOptions;
+
+type HasPathInput<Op> = [PathParams<Op>] extends [never] ? false : true;
+type HasBodyInput<Op> = [JsonBody<Op>] extends [never] ? false : true;
+type HasRequiredQueryInput<Op> = [QueryParams<Op>] extends [never] ? false : HasRequiredKeys<QueryParams<Op>>;
+type NeedsRequestOptions<Op> = HasPathInput<Op> extends true
+  ? true
+  : HasBodyInput<Op> extends true
+    ? true
+    : HasRequiredQueryInput<Op>;
+type TypedRequestArgs<Op> = NeedsRequestOptions<Op> extends true
+  ? [options: TypedRequestOptions<Op>]
+  : [options?: TypedRequestOptions<Op>];
 
 type RuntimeRequestOptions = RequestOptions & {
   path?: Record<string, string | number>;
@@ -57,8 +77,9 @@ function toRequestUrl(path: string) {
 function typedRequest<M extends HttpMethod, P extends PathByMethod<M>>(
   method: M,
   path: P,
-  options?: TypedRequestOptions<OperationFor<P, M>>,
+  ...args: TypedRequestArgs<OperationFor<P, M>>
 ): Promise<ResponseData<OperationFor<P, M>>> {
+  const [options] = args;
   const { path: pathParams, query, body, ...requestOptions } = (options || {}) as RuntimeRequestOptions;
   const url = toRequestUrl(buildApiPath(path, pathParams));
   const config = {
@@ -84,19 +105,19 @@ function typedRequest<M extends HttpMethod, P extends PathByMethod<M>>(
 }
 
 export const typedApi = {
-  get<P extends PathByMethod<'get'>>(path: P, options?: TypedRequestOptions<OperationFor<P, 'get'>>) {
-    return typedRequest('get', path, options);
+  get<P extends PathByMethod<'get'>>(path: P, ...args: TypedRequestArgs<OperationFor<P, 'get'>>) {
+    return typedRequest('get', path, ...args);
   },
-  post<P extends PathByMethod<'post'>>(path: P, options?: TypedRequestOptions<OperationFor<P, 'post'>>) {
-    return typedRequest('post', path, options);
+  post<P extends PathByMethod<'post'>>(path: P, ...args: TypedRequestArgs<OperationFor<P, 'post'>>) {
+    return typedRequest('post', path, ...args);
   },
-  put<P extends PathByMethod<'put'>>(path: P, options?: TypedRequestOptions<OperationFor<P, 'put'>>) {
-    return typedRequest('put', path, options);
+  put<P extends PathByMethod<'put'>>(path: P, ...args: TypedRequestArgs<OperationFor<P, 'put'>>) {
+    return typedRequest('put', path, ...args);
   },
-  delete<P extends PathByMethod<'delete'>>(path: P, options?: TypedRequestOptions<OperationFor<P, 'delete'>>) {
-    return typedRequest('delete', path, options);
+  delete<P extends PathByMethod<'delete'>>(path: P, ...args: TypedRequestArgs<OperationFor<P, 'delete'>>) {
+    return typedRequest('delete', path, ...args);
   },
-  patch<P extends PathByMethod<'patch'>>(path: P, options?: TypedRequestOptions<OperationFor<P, 'patch'>>) {
-    return typedRequest('patch', path, options);
+  patch<P extends PathByMethod<'patch'>>(path: P, ...args: TypedRequestArgs<OperationFor<P, 'patch'>>) {
+    return typedRequest('patch', path, ...args);
   },
 };

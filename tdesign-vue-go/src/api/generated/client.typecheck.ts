@@ -57,6 +57,20 @@ void typedApi.get('/api/v1/login-logs/trend', {
   },
 });
 
+// @ts-expect-error required query parameters must be provided
+void typedApi.get('/api/v1/files/hash/check');
+
+void typedApi.get('/api/v1/files/hash/check', {
+  // @ts-expect-error required query fields must be provided
+  query: {},
+});
+
+void typedApi.get('/api/v1/files/hash/check', {
+  query: {
+    hash: 'sha256',
+  },
+});
+
 void typedApi.delete('/api/v1/online-users/{token_id}', {
   path: {
     token_id: 'token-id',

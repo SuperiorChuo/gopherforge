@@ -9,12 +9,6 @@ import (
 	"github.com/go-admin-kit/server/internal/dao/auth"
 )
 
-// UserHasPermission checks role bypasses and explicit permission codes for a user.
-// Deprecated: use UserHasPermissionContext instead.
-func UserHasPermission(userID uint, requiredPermission string) (bool, error) {
-	return UserHasPermissionContext(context.Background(), userID, requiredPermission)
-}
-
 func UserHasPermissionContext(ctx context.Context, userID uint, requiredPermission string) (bool, error) {
 	requiredPermission = strings.TrimSpace(requiredPermission)
 	if requiredPermission == "" {

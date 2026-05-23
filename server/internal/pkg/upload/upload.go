@@ -1,11 +1,16 @@
 package upload
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	"image/png"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -15,6 +20,8 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/server/internal/config"
+	"github.com/go-admin-kit/server/internal/pkg/logger"
+	xdraw "golang.org/x/image/draw"
 )
 
 var (
@@ -25,15 +32,21 @@ var (
 
 // FileInfo describes an uploaded file.
 type FileInfo struct {
-	FileName    string `json:"file_name"`
-	FilePath    string `json:"file_path"`
-	FileSize    int64  `json:"file_size"`
-	FileType    string `json:"file_type"`
-	MimeType    string `json:"mime_type"`
-	Extension   string `json:"extension"`
-	StorageType string `json:"storage_type"`
-	URL         string `json:"url"`
-	Hash        string `json:"hash"`
+	FileName        string `json:"file_name"`
+	FilePath        string `json:"file_path"`
+	FileSize        int64  `json:"file_size"`
+	FileType        string `json:"file_type"`
+	MimeType        string `json:"mime_type"`
+	Extension       string `json:"extension"`
+	StorageType     string `json:"storage_type"`
+	URL             string `json:"url"`
+	Hash            string `json:"hash"`
+	ImageWidth      int    `json:"image_width"`
+	ImageHeight     int    `json:"image_height"`
+	ThumbnailPath   string `json:"thumbnail_path"`
+	ThumbnailURL    string `json:"thumbnail_url"`
+	ThumbnailWidth  int    `json:"thumbnail_width"`
+	ThumbnailHeight int    `json:"thumbnail_height"`
 }
 
 // Uploader uploads files through the configured storage provider.
@@ -55,12 +68,6 @@ func NewUploaderWithConfig(cfg config.UploadConfig) *Uploader {
 		provider:    provider,
 		providerErr: err,
 	}
-}
-
-// Upload uploads one file.
-// Deprecated: use UploadContext instead.
-func (u *Uploader) Upload(file *multipart.FileHeader) (*FileInfo, error) {
-	return u.UploadContext(context.Background(), file)
 }
 
 func (u *Uploader) UploadContext(ctx context.Context, file *multipart.FileHeader) (*FileInfo, error) {
@@ -108,6 +115,15 @@ func (u *Uploader) UploadContext(ctx context.Context, file *multipart.FileHeader
 		return nil, fmt.Errorf("failed to reset file pointer: %w", err)
 	}
 
+	imageWidth, imageHeight, err := imageDimensions(src, ext)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := src.Seek(0, 0); err != nil {
+		return nil, fmt.Errorf("failed to reset file pointer: %w", err)
+	}
+
 	// Calculate the file hash.
 	hash, err := u.calculateHash(src)
 	if err != nil {
@@ -126,29 +142,49 @@ func (u *Uploader) UploadContext(ctx context.Context, file *multipart.FileHeader
 		return nil, err
 	}
 
+	var thumbnailPath string
+	var thumbnailURL string
+	var thumbnailWidth int
+	var thumbnailHeight int
+	if _, err := src.Seek(0, 0); err == nil {
+		thumbnail, err := u.generateThumbnail(ctx, src, ext, objectKey, imageWidth, imageHeight)
+		if err == nil && thumbnail != nil {
+			thumbnailPath = thumbnail.FilePath
+			thumbnailURL = thumbnail.URL
+			thumbnailWidth = thumbnail.Width
+			thumbnailHeight = thumbnail.Height
+		} else if err != nil && logger.Logger != nil {
+			logger.Warn("thumbnail generation failed",
+				logger.String("file_name", safeFileName(file.Filename)),
+				logger.String("extension", ext),
+				logger.Err(err),
+			)
+		}
+	}
+
 	// Resolve file type.
 	fileType := u.getFileType(ext)
 
 	// Build file metadata.
 	info := &FileInfo{
-		FileName:    safeFileName(file.Filename),
-		FilePath:    stored.FilePath,
-		FileSize:    file.Size,
-		FileType:    fileType,
-		MimeType:    mimeType,
-		Extension:   ext,
-		StorageType: stored.StorageType,
-		URL:         stored.URL,
-		Hash:        hash,
+		FileName:        safeFileName(file.Filename),
+		FilePath:        stored.FilePath,
+		FileSize:        file.Size,
+		FileType:        fileType,
+		MimeType:        mimeType,
+		Extension:       ext,
+		StorageType:     stored.StorageType,
+		URL:             stored.URL,
+		Hash:            hash,
+		ImageWidth:      imageWidth,
+		ImageHeight:     imageHeight,
+		ThumbnailPath:   thumbnailPath,
+		ThumbnailURL:    thumbnailURL,
+		ThumbnailWidth:  thumbnailWidth,
+		ThumbnailHeight: thumbnailHeight,
 	}
 
 	return info, nil
-}
-
-// UploadMultiple uploads multiple files.
-// Deprecated: use UploadMultipleContext instead.
-func (u *Uploader) UploadMultiple(files []*multipart.FileHeader) ([]*FileInfo, []error) {
-	return u.UploadMultipleContext(context.Background(), files)
 }
 
 func (u *Uploader) UploadMultipleContext(ctx context.Context, files []*multipart.FileHeader) ([]*FileInfo, []error) {
@@ -170,12 +206,6 @@ func (u *Uploader) UploadMultipleContext(ctx context.Context, files []*multipart
 	return results, errs
 }
 
-// Delete deletes a file from storage.
-// Deprecated: use DeleteContext instead.
-func (u *Uploader) Delete(filePath string) error {
-	return u.DeleteContext(context.Background(), filePath)
-}
-
 func (u *Uploader) DeleteContext(ctx context.Context, filePath string) error {
 	if ctx == nil {
 		ctx = context.Background()
@@ -184,6 +214,56 @@ func (u *Uploader) DeleteContext(ctx context.Context, filePath string) error {
 		return err
 	}
 	return u.provider.Delete(ctx, filePath)
+}
+
+func (u *Uploader) DeleteForStorageTypeContext(ctx context.Context, storageType, filePath string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	provider, err := u.providerForStorageType(storageType)
+	if err != nil {
+		return err
+	}
+	return provider.Delete(ctx, filePath)
+}
+
+func (u *Uploader) OpenContext(ctx context.Context, filePath string) (*StoredObjectReader, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := u.ensureProvider(); err != nil {
+		return nil, err
+	}
+	return u.provider.Open(ctx, filePath)
+}
+
+func (u *Uploader) OpenForStorageTypeContext(ctx context.Context, storageType, filePath string) (*StoredObjectReader, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	provider, err := u.providerForStorageType(storageType)
+	if err != nil {
+		return nil, err
+	}
+	return provider.Open(ctx, filePath)
+}
+
+func (u *Uploader) providerForStorageType(storageType string) (StorageProvider, error) {
+	normalized := strings.ToLower(strings.TrimSpace(storageType))
+	if normalized == "" || normalized == u.config.EffectiveStorageType() {
+		if err := u.ensureProvider(); err != nil {
+			return nil, err
+		}
+		return u.provider, nil
+	}
+
+	cfg := u.config
+	cfg.StorageType = normalized
+	provider, err := NewStorageProvider(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return provider, nil
 }
 
 // isAllowedType reports whether an extension is allowed.
@@ -214,6 +294,92 @@ func (u *Uploader) generateObjectKey(ext string) string {
 	fileName := fmt.Sprintf("%d%s", now.UnixNano(), ext)
 
 	return path.Join(dateDir, fileName)
+}
+
+type thumbnailInfo struct {
+	FilePath string
+	URL      string
+	Width    int
+	Height   int
+}
+
+func (u *Uploader) generateThumbnail(ctx context.Context, src io.Reader, ext, objectKey string, imageWidth, imageHeight int) (*thumbnailInfo, error) {
+	if !supportsThumbnail(ext) || imageWidth <= 0 || imageHeight <= 0 {
+		return nil, nil
+	}
+
+	targetWidth, targetHeight := thumbnailBounds(u.config.Image)
+	width, height := fitDimensions(imageWidth, imageHeight, targetWidth, targetHeight)
+	if width <= 0 || height <= 0 {
+		return nil, nil
+	}
+
+	img, _, err := image.Decode(src)
+	if err != nil {
+		return nil, err
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, width, height))
+	xdraw.CatmullRom.Scale(dst, dst.Bounds(), img, img.Bounds(), xdraw.Over, nil)
+
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, dst); err != nil {
+		return nil, err
+	}
+
+	base := strings.TrimSuffix(path.Base(objectKey), path.Ext(objectKey))
+	thumbnailKey := path.Join(path.Dir(objectKey), "thumbs", fmt.Sprintf("%s_%dx%d.png", base, width, height))
+	stored, err := u.provider.Store(ctx, thumbnailKey, &buf)
+	if err != nil {
+		return nil, err
+	}
+	return &thumbnailInfo{
+		FilePath: stored.FilePath,
+		URL:      stored.URL,
+		Width:    width,
+		Height:   height,
+	}, nil
+}
+
+func supportsThumbnail(ext string) bool {
+	switch strings.ToLower(ext) {
+	case ".jpg", ".jpeg", ".png", ".gif":
+		return true
+	default:
+		return false
+	}
+}
+
+func thumbnailBounds(imageCfg config.ImageConfig) (int, int) {
+	width := imageCfg.ThumbnailWidth
+	height := imageCfg.ThumbnailHeight
+	if width <= 0 {
+		width = 200
+	}
+	if height <= 0 {
+		height = 200
+	}
+	return width, height
+}
+
+func fitDimensions(width, height, maxWidth, maxHeight int) (int, int) {
+	if width <= maxWidth && height <= maxHeight {
+		return width, height
+	}
+	ratioW := float64(maxWidth) / float64(width)
+	ratioH := float64(maxHeight) / float64(height)
+	ratio := ratioW
+	if ratioH < ratio {
+		ratio = ratioH
+	}
+	scaledWidth := int(float64(width) * ratio)
+	scaledHeight := int(float64(height) * ratio)
+	if scaledWidth < 1 {
+		scaledWidth = 1
+	}
+	if scaledHeight < 1 {
+		scaledHeight = 1
+	}
+	return scaledWidth, scaledHeight
 }
 
 func (u *Uploader) ensureProvider() error {
@@ -276,6 +442,20 @@ func detectContentType(file multipart.File) (string, error) {
 		return "", ErrFileEmpty
 	}
 	return http.DetectContentType(head[:n]), nil
+}
+
+func imageDimensions(file multipart.File, ext string) (int, int, error) {
+	switch strings.ToLower(ext) {
+	case ".jpg", ".jpeg", ".png", ".gif":
+	default:
+		return 0, 0, nil
+	}
+
+	cfg, _, err := image.DecodeConfig(file)
+	if err != nil {
+		return 0, 0, ErrFileTypeNotAllowed
+	}
+	return cfg.Width, cfg.Height, nil
 }
 
 func isCompatibleContentType(ext string, contentType string) bool {

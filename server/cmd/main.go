@@ -17,6 +17,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/api"
+	systemAPI "github.com/go-admin-kit/server/internal/api/system"
 	"github.com/go-admin-kit/server/internal/config"
 	"github.com/go-admin-kit/server/internal/middleware"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
@@ -24,6 +25,8 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/logger"
 	"github.com/go-admin-kit/server/internal/pkg/observability"
 	"github.com/go-admin-kit/server/internal/pkg/redis"
+	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
+	monitorSvc "github.com/go-admin-kit/server/internal/service/monitor"
 	systemSvc "github.com/go-admin-kit/server/internal/service/system"
 )
 
@@ -148,43 +151,129 @@ func startDepartmentTreeInvalidationListener(ctx context.Context) (*redis.String
 	return authz.StartDepartmentTreeInvalidationListener(ctx)
 }
 
+func startRuntimeConfigInvalidationListener(ctx context.Context) (*redis.StringSubscriber, error) {
+	return runtimeconfig.StartInvalidationListener(ctx)
+}
+
+func startNotificationRedisBridge(ctx context.Context) error {
+	return systemAPI.StartNotificationRedisBridge(ctx, systemSvc.DefaultNotificationBroadcaster())
+}
+
+func stopNotificationRedisBridge() error {
+	return systemAPI.StopNotificationRedisBridge()
+}
+
+func stopOperationLogProcessor(cancel context.CancelFunc, done <-chan struct{}, timeout time.Duration) error {
+	if cancel != nil {
+		cancel()
+	}
+	if done == nil {
+		return nil
+	}
+	if timeout <= 0 {
+		<-done
+		return nil
+	}
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return nil
+	case <-timer.C:
+		return fmt.Errorf("operation log processor shutdown timed out after %s", timeout)
+	}
+}
+
+type jobSchedulerShutdowner interface {
+	Shutdown() context.Context
+}
+
+func shutdownJobScheduler(scheduler jobSchedulerShutdowner, timeout time.Duration) error {
+	if scheduler == nil {
+		return nil
+	}
+	ctx := scheduler.Shutdown()
+	if ctx == nil {
+		return nil
+	}
+	if timeout <= 0 {
+		<-ctx.Done()
+		return nil
+	}
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return nil
+	case <-timer.C:
+		return fmt.Errorf("job scheduler shutdown timed out after %s", timeout)
+	}
+}
+
 func main() {
+	if err := run(context.Background()); err != nil {
+		if logger.Logger != nil {
+			logger.Error("server exited with error", logger.Err(err))
+		} else {
+			_, _ = fmt.Fprintf(os.Stderr, "server exited with error: %v\n", err)
+		}
+		os.Exit(1)
+	}
+}
+
+func run(ctx context.Context) error {
 	configPath := os.Getenv("CONFIG_FILE")
 	if configPath == "" {
 		configPath = "./configs/config.yaml"
 	}
 	if err := config.LoadConfig(configPath); err != nil {
-		panic(fmt.Sprintf("config load failed: %v", err))
+		return fmt.Errorf("config load failed: %w", err)
 	}
 	if err := config.Validate(); err != nil {
-		panic(fmt.Sprintf("config validation failed: %v", err))
+		return fmt.Errorf("config validation failed: %w", err)
 	}
 
 	logCfg := config.Cfg.Logger
 	logger.InitLogger(logCfg.FilePath, logCfg.Level, logCfg.MaxSize, logCfg.MaxBackups, logCfg.MaxAge)
-	defer logger.Logger.Sync()
+	defer func() {
+		if logger.Logger != nil {
+			_ = logger.Logger.Sync()
+		}
+	}()
 
 	logger.Info("initializing database")
 	if err := database.InitDatabase(); err != nil {
-		logger.Fatal("database initialization failed", logger.Err(err))
+		return fmt.Errorf("database initialization failed: %w", err)
 	}
 	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {
-		logger.Fatal("data scope plugin registration failed", logger.Err(err))
+		return fmt.Errorf("data scope plugin registration failed: %w", err)
 	}
 	defer func() {
 		if err := database.Close(); err != nil {
 			logger.Error("database close failed", logger.Err(err))
 		}
 	}()
-	if menuResult, err := systemSvc.BootstrapDefaultMenusContext(context.Background()); err != nil {
-		logger.Fatal("default menu bootstrap failed", logger.Err(err))
+
+	lifecycleCtx, cancelLifecycle := context.WithCancel(ctx)
+	defer cancelLifecycle()
+	operationLogDone := middleware.StartOperationLogProcessor(lifecycleCtx)
+	defer func() {
+		if err := stopOperationLogProcessor(cancelLifecycle, operationLogDone, 5*time.Second); err != nil {
+			logger.Warn("operation log processor shutdown timeout", logger.Err(err))
+		}
+	}()
+
+	if menuResult, err := systemSvc.BootstrapDefaultMenusContext(ctx); err != nil {
+		return fmt.Errorf("default menu bootstrap failed: %w", err)
 	} else if menuResult.Menus > 0 {
 		logger.Info("default menus bootstrapped", logger.Int("menus", menuResult.Menus))
 	}
 
 	logger.Info("initializing redis")
 	if err := redis.InitRedis(); err != nil {
-		logger.Fatal("redis initialization failed", logger.Err(err))
+		return fmt.Errorf("redis initialization failed: %w", err)
 	}
 	defer func() {
 		if err := redis.Close(); err != nil {
@@ -192,9 +281,7 @@ func main() {
 		}
 	}()
 
-	listenerCtx, cancelDepartmentTreeListener := context.WithCancel(context.Background())
-	defer cancelDepartmentTreeListener()
-	departmentTreeListener, err := startDepartmentTreeInvalidationListener(listenerCtx)
+	departmentTreeListener, err := startDepartmentTreeInvalidationListener(lifecycleCtx)
 	if err != nil {
 		logger.Warn("department tree invalidation listener start failed", logger.Err(err))
 	} else {
@@ -205,10 +292,31 @@ func main() {
 		}()
 	}
 
-	tracingCfg := config.Cfg.Observability.Tracing
-	shutdownTracing, err := observability.InitTracer(context.Background(), tracingCfg)
+	runtimeConfigListener, err := startRuntimeConfigInvalidationListener(lifecycleCtx)
 	if err != nil {
-		logger.Fatal("tracing initialization failed", logger.Err(err))
+		logger.Warn("runtime config invalidation listener start failed", logger.Err(err))
+	} else {
+		defer func() {
+			if err := runtimeConfigListener.Close(); err != nil {
+				logger.Warn("runtime config invalidation listener close failed", logger.Err(err))
+			}
+		}()
+	}
+
+	if err := startNotificationRedisBridge(lifecycleCtx); err != nil {
+		logger.Warn("notification redis bridge start failed", logger.Err(err))
+	} else {
+		defer func() {
+			if err := stopNotificationRedisBridge(); err != nil {
+				logger.Warn("notification redis bridge close failed", logger.Err(err))
+			}
+		}()
+	}
+
+	tracingCfg := config.Cfg.Observability.Tracing
+	shutdownTracing, err := observability.InitTracer(ctx, tracingCfg)
+	if err != nil {
+		return fmt.Errorf("tracing initialization failed: %w", err)
 	}
 	if tracingCfg.Enabled {
 		logger.Info("tracing enabled",
@@ -231,7 +339,7 @@ func main() {
 	router := gin.New()
 	if len(config.Cfg.Security.TrustedProxies) > 0 {
 		if err := router.SetTrustedProxies(config.Cfg.Security.TrustedProxies); err != nil {
-			logger.Fatal("trusted proxy config failed", logger.Err(err))
+			return fmt.Errorf("trusted proxy config failed: %w", err)
 		}
 	}
 
@@ -245,32 +353,24 @@ func main() {
 	router.Use(middleware.SecurityHeaders(config.Cfg.Security.Headers.Enabled, config.Cfg.Security.Headers.HSTS))
 	router.Use(middleware.Recovery())
 
-	if config.Cfg.Security.RateLimit.Enabled {
-		window := time.Duration(config.Cfg.Security.RateLimit.WindowSeconds) * time.Second
-		if window <= 0 {
-			window = time.Second
-		}
-		maxRequests := config.Cfg.Security.RateLimit.MaxRequests
-		if maxRequests <= 0 {
-			maxRequests = 100
-		}
-		router.Use(middleware.RateLimit(middleware.RateLimitConfig{
-			Window:      window,
-			MaxRequests: maxRequests,
-			KeyPrefix:   "rate_limit",
-		}))
-	}
+	router.Use(middleware.DynamicRateLimit(runtimeconfig.DefaultSecurityPolicyReader()))
 
 	router.Use(middleware.RequestLogger())
 	router.Use(middleware.ErrorHandler())
 	setupCORS(router)
 	api.SetupRoutes(router)
+	jobScheduler := monitorSvc.GetJobService()
+	defer func() {
+		if err := shutdownJobScheduler(jobScheduler, 5*time.Second); err != nil {
+			logger.Warn("job scheduler shutdown timeout", logger.Err(err))
+		}
+	}()
 
 	port := config.Cfg.App.Port
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: router}
 	listener, err := net.Listen("tcp", server.Addr)
 	if err != nil {
-		logger.Fatal("server listen failed", logger.Err(err))
+		return fmt.Errorf("server listen failed: %w", err)
 	}
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
@@ -278,6 +378,7 @@ func main() {
 
 	printStartupBanner(config.Cfg.App.Name, config.Cfg.App.Version, config.Cfg.App.Env, port)
 	if err := serveHTTPServer(server, listener, 15*time.Second, shutdown); err != nil {
-		logger.Fatal("server start failed", logger.Err(err))
+		return fmt.Errorf("server start failed: %w", err)
 	}
+	return nil
 }

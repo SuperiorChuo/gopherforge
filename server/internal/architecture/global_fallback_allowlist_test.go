@@ -33,6 +33,7 @@ var allowedFallbackGlobalReferences = map[string]int{
 	"dao/system/permission.go|dbWithContext|database.DB":                 1,
 	"dao/system/permission_cache.go|dbWithContext|database.DB":           1,
 	"dao/system/role.go|dbWithContext|database.DB":                       1,
+	"dao/system/setting.go|dbWithContext|database.DB":                    1,
 	"dao/system/user.go|dbWithContext|database.DB":                       1,
 	"dao/user.go|dbWithContext|database.DB":                              1,
 	"middleware/login_limit.go|redisClient|redis.Client":                 1,
@@ -47,6 +48,8 @@ var allowedFallbackGlobalReferences = map[string]int{
 	"pkg/cache/cache.go|redisClient|redis.Client":                        1,
 	"pkg/jwt/jwt.go|HasTokenID|redis.Client":                             2,
 	"pkg/jwt/jwt.go|SetTokenID|redis.Client":                             2,
+	"pkg/jwt/jwt.go|ConsumeTokenID|redis.Client":                         2,
+	"pkg/runtimeconfig/security_policy.go|GetByKeyContext|database.DB":   1,
 	"service/monitor/redis.go|redisClient|redis.Client":                  1,
 	"service/system/online_user.go|redisClient|redis.Client":             1,
 }

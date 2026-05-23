@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/go-admin-kit/server/internal/config"
 	_ "github.com/go-sql-driver/mysql"
@@ -96,7 +97,9 @@ func RunWithConfig(ctx context.Context, dbCfg config.DatabaseConfig, opts Option
 	}
 	defer db.Close()
 
-	if err := db.PingContext(ctx); err != nil {
+	pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := db.PingContext(pingCtx); err != nil {
 		return fmt.Errorf("ping database: %w", err)
 	}
 	if err := goose.RunContext(ctx, opts.Command, db, opts.Dir, opts.Args...); err != nil {
@@ -115,17 +118,30 @@ func DialectForDriver(driver string) (string, error) {
 }
 
 func MigrationDSN(cfg config.DatabaseConfig) string {
-	return ensureMultiStatements(cfg.GetDSN())
+	return ensureMigrationDSNParams(cfg.GetDSN())
 }
 
 func ensureMultiStatements(dsn string) string {
-	if strings.Contains(dsn, "multiStatements=") {
+	return ensureDSNParam(dsn, "multiStatements", "true")
+}
+
+func ensureMigrationDSNParams(dsn string) string {
+	dsn = ensureMultiStatements(dsn)
+	dsn = ensureDSNParam(dsn, "timeout", "10s")
+	dsn = ensureDSNParam(dsn, "readTimeout", "30s")
+	dsn = ensureDSNParam(dsn, "writeTimeout", "30s")
+	return dsn
+}
+
+func ensureDSNParam(dsn, key, value string) string {
+	if strings.Contains(dsn, key+"=") {
 		return dsn
 	}
+	param := key + "=" + value
 	if strings.Contains(dsn, "?") {
-		return dsn + "&multiStatements=true"
+		return dsn + "&" + param
 	}
-	return dsn + "?multiStatements=true"
+	return dsn + "?" + param
 }
 
 func isSupportedCommand(command string) bool {

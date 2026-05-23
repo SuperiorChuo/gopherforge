@@ -1,22 +1,36 @@
 package system
 
 import (
+	"context"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/server/internal/model"
+	"github.com/go-admin-kit/server/internal/pkg/logger"
 	"github.com/go-admin-kit/server/internal/pkg/response"
 	"github.com/go-admin-kit/server/internal/service/system"
 )
 
+const noticeEmailTimeout = 5 * time.Second
+
+type noticeEmailNotifier interface {
+	SendNoticeEnabledContext(ctx context.Context, notice *model.Notice) error
+}
+
 // NoticeAPI handles notice endpoints.
 type NoticeAPI struct {
 	noticeService system.NoticeService
+	broadcaster   *system.NotificationBroadcaster
+	emailNotifier noticeEmailNotifier
 }
 
 // NewNoticeAPI creates a NoticeAPI instance.
 func NewNoticeAPI() *NoticeAPI {
 	return &NoticeAPI{
 		noticeService: system.NoticeService{},
+		broadcaster:   system.DefaultNotificationBroadcaster(),
+		emailNotifier: system.DefaultNoticeEmailNotifier(),
 	}
 }
 
@@ -118,6 +132,9 @@ func (a *NoticeAPI) CreateNotice(c *gin.Context) {
 		writeSystemNoticeServiceError(c, "failed to create notice", err)
 		return
 	}
+	if notice.Status == 1 {
+		a.notifyNoticeEnabled(context.WithoutCancel(c.Request.Context()), notice)
+	}
 
 	response.SuccessWithMessage(c, "notice created", notice)
 }
@@ -141,6 +158,9 @@ func (a *NoticeAPI) UpdateNotice(c *gin.Context) {
 	if err != nil {
 		writeSystemNoticeServiceError(c, "failed to update notice", err)
 		return
+	}
+	if notice.Status == 1 {
+		a.notifyNoticeEnabled(context.WithoutCancel(c.Request.Context()), notice)
 	}
 
 	response.SuccessWithMessage(c, "notice updated", notice)
@@ -184,8 +204,51 @@ func (a *NoticeAPI) UpdateNoticeStatus(c *gin.Context) {
 		writeSystemNoticeServiceError(c, "failed to update notice status", err)
 		return
 	}
+	if req.Status == 1 {
+		if notice, err := a.noticeService.GetByIDContext(c.Request.Context(), uint(id)); err == nil {
+			a.notifyNoticeEnabled(context.WithoutCancel(c.Request.Context()), notice)
+		}
+	}
 
 	response.SuccessWithMessage(c, "notice status updated", nil)
+}
+
+func (a *NoticeAPI) notifyNoticeEnabled(ctx context.Context, notice *model.Notice) {
+	a.publishNotice(ctx, notice)
+	a.sendNoticeEmailAsync(ctx, notice)
+}
+
+func (a *NoticeAPI) publishNotice(ctx context.Context, notice *model.Notice) {
+	broadcaster := a.broadcaster
+	if broadcaster == nil {
+		broadcaster = system.DefaultNotificationBroadcaster()
+	}
+	_ = broadcaster.PublishContext(ctx, system.NotificationMessageFromNotice(notice))
+}
+
+func (a *NoticeAPI) sendNoticeEmailAsync(ctx context.Context, notice *model.Notice) {
+	if notice == nil {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	noticeCopy := *notice
+	go func() {
+		emailCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), noticeEmailTimeout)
+		defer cancel()
+		a.sendNoticeEmail(emailCtx, &noticeCopy)
+	}()
+}
+
+func (a *NoticeAPI) sendNoticeEmail(ctx context.Context, notice *model.Notice) {
+	notifier := a.emailNotifier
+	if notifier == nil {
+		notifier = system.DefaultNoticeEmailNotifier()
+	}
+	if err := notifier.SendNoticeEnabledContext(ctx, notice); err != nil && logger.Logger != nil {
+		logger.Warn("notice email notification failed", logger.Uint("notice_id", notice.ID), logger.Err(err))
+	}
 }
 
 func resolveNoticeCreator(c *gin.Context) (uint, string) {

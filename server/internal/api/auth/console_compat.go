@@ -28,7 +28,7 @@ func (a *UserAPI) LoginConsole(c *gin.Context) {
 	}
 
 	req.Username = strings.TrimSpace(req.Username)
-	policy := authSvc.DefaultConsoleSecurityPolicy()
+	policy := authSvc.DefaultConsoleSecurityPolicyContext(c.Request.Context())
 	loginLimitCfg := consoleLoginLimitConfig(policy)
 	loginIdentifier := middleware.LoginIdentifier(req.Username, c.ClientIP())
 	if locked, ttl := middleware.IsLoginLockedContext(c.Request.Context(), loginIdentifier, loginLimitCfg); locked {
@@ -44,7 +44,47 @@ func (a *UserAPI) LoginConsole(c *gin.Context) {
 		response.Unauthorized(c, "Invalid console username or password")
 		return
 	}
+	if loginResp.RequiresTOTP {
+		response.Success(c, gin.H{
+			"requires_totp":     true,
+			"totp_challenge_id": loginResp.TOTPChallengeID,
+		})
+		return
+	}
 
+	a.writeConsoleLoginSession(c, loginResp)
+}
+
+func (a *UserAPI) VerifyConsoleTOTPLogin(c *gin.Context) {
+	var req authSvc.VerifyTOTPLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, invalidRequestBodyMessage)
+		return
+	}
+
+	policy := authSvc.DefaultConsoleSecurityPolicyContext(c.Request.Context())
+	loginLimitCfg := consoleLoginLimitConfig(policy)
+	loginLimitCfg.KeyPrefix = "console_totp_login_limit"
+	loginIdentifier := totpLoginIdentifier(req.ChallengeID, c.ClientIP())
+	if locked, ttl := middleware.IsLoginLockedContext(c.Request.Context(), loginIdentifier, loginLimitCfg); locked {
+		response.Error(c, http.StatusTooManyRequests, "two-factor verification attempts exceeded; please retry later")
+		c.Header("Retry-After", fmt.Sprintf("%.0f", ttl.Seconds()))
+		return
+	}
+
+	loginResp, err := a.userService.VerifyTOTPLoginWithAccessTTLContext(c.Request.Context(), req, time.Duration(policy.SessionTTLMinutes)*time.Minute)
+	if err != nil {
+		middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
+		a.recordConsoleAuthAudit(c, "auth.login.failed", consoleTOTPChallengeUsername(req.ChallengeID), nil, authSvc.ConsoleAuthAttemptSnapshot(consoleAuthRequestMetadata(c), consoleTOTPChallengeUsername(req.ChallengeID), "FAILED", "invalid_totp"))
+		writeAuthServiceError(c, "failed to verify console totp login", err)
+		return
+	}
+	middleware.ClearLoginLimitContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
+
+	a.writeConsoleLoginSession(c, loginResp)
+}
+
+func (a *UserAPI) writeConsoleLoginSession(c *gin.Context, loginResp *authSvc.LoginResponse) {
 	sessionRecord, err := a.consoleSessionService.CreateFromTokenContext(c.Request.Context(), loginResp.AccessToken, c.ClientIP(), c.GetHeader("User-Agent"))
 	if err != nil {
 		internalServerError(c, "failed to create console session", err)
@@ -52,7 +92,7 @@ func (a *UserAPI) LoginConsole(c *gin.Context) {
 	}
 
 	permissions := authSvc.ConsolePermissionsForUser(c.Request.Context(), &loginResp.User, a.userService.GetUserPermissions(&loginResp.User))
-	session := authSvc.BuildConsoleSession(&loginResp.User, permissions, loginResp.AccessToken, loginResp.RefreshToken)
+	session := authSvc.BuildConsoleSession(c.Request.Context(), &loginResp.User, permissions, loginResp.AccessToken, loginResp.RefreshToken)
 	setConsoleSessionCookie(c, loginResp.AccessToken, session.TTLSec)
 	a.recordOnlineUser(c, loginResp.AccessToken)
 	a.recordConsoleAuthAudit(c, "auth.login.success", loginResp.User.Username, nil, authSvc.ConsoleLoginSuccessSnapshot(consoleAuthRequestMetadata(c), sessionRecord, session.TTLSec))
@@ -82,7 +122,7 @@ func (a *UserAPI) GetConsoleSession(c *gin.Context) {
 
 	token := consoleauth.TokenFromGinContext(c)
 	permissions := authSvc.ConsolePermissionsForUser(c.Request.Context(), user, a.userService.GetUserPermissions(user))
-	response.Success(c, authSvc.BuildConsoleSession(user, permissions, token, ""))
+	response.Success(c, authSvc.BuildConsoleSession(c.Request.Context(), user, permissions, token, ""))
 }
 
 func (a *UserAPI) GetConsoleRoutes(c *gin.Context) {
@@ -113,12 +153,12 @@ func (a *UserAPI) LogoutConsole(c *gin.Context) {
 	var username string
 	var before map[string]any
 	if token != "" {
-		if claims, err := jwt.ParseToken(token); err == nil {
+		if claims, err := jwt.ParseTokenContext(c.Request.Context(), token); err == nil {
 			username = claims.Username
 			if record, revokeErr := a.consoleSessionService.RevokeByTokenContext(c.Request.Context(), token); revokeErr == nil {
 				before = authSvc.ConsoleSessionSnapshot(record)
 			}
-			_ = jwt.RevokeToken(token, claims)
+			_ = jwt.RevokeTokenContext(c.Request.Context(), token, claims)
 			_ = a.onlineUserService.RemoveOnlineUserContext(c.Request.Context(), claims.ID)
 		}
 	}
@@ -157,6 +197,14 @@ func consoleAuthRequestMetadata(c *gin.Context) authSvc.ConsoleAuthRequestMetada
 		Origin:    c.GetHeader("Origin"),
 		Referer:   c.GetHeader("Referer"),
 	}
+}
+
+func consoleTOTPChallengeUsername(challengeID string) string {
+	claims, err := jwt.ParseTOTPChallenge(strings.TrimSpace(challengeID))
+	if err != nil {
+		return ""
+	}
+	return claims.Username
 }
 
 func setConsoleSessionCookie(c *gin.Context, token string, ttlSec int) {

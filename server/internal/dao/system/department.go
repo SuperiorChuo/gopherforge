@@ -27,31 +27,16 @@ func (d *DepartmentDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
-// Deprecated: use GetByIDContext instead.
-func (d *DepartmentDAO) GetByID(id uint) (*model.Department, error) {
-	return d.GetByIDContext(context.Background(), id)
-}
-
 func (d *DepartmentDAO) GetByIDContext(ctx context.Context, id uint) (*model.Department, error) {
 	var dept model.Department
 	result := d.dbWithContext(ctx).First(&dept, id)
 	return &dept, result.Error
 }
 
-// Deprecated: use GetByCodeContext instead.
-func (d *DepartmentDAO) GetByCode(code string) (*model.Department, error) {
-	return d.GetByCodeContext(context.Background(), code)
-}
-
 func (d *DepartmentDAO) GetByCodeContext(ctx context.Context, code string) (*model.Department, error) {
 	var dept model.Department
 	result := d.dbWithContext(ctx).Where("code = ?", code).First(&dept)
 	return &dept, result.Error
-}
-
-// Deprecated: use GetListContext instead.
-func (d *DepartmentDAO) GetList(req pagination.PageRequest, keyword string, status *int8) ([]model.Department, int64, error) {
-	return d.GetListContext(context.Background(), req, keyword, status)
 }
 
 func (d *DepartmentDAO) GetListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]model.Department, int64, error) {
@@ -78,11 +63,6 @@ func (d *DepartmentDAO) GetListContext(ctx context.Context, req pagination.PageR
 	return depts, total, result.Error
 }
 
-// Deprecated: use GetAllContext instead.
-func (d *DepartmentDAO) GetAll(status *int8) ([]model.Department, error) {
-	return d.GetAllContext(context.Background(), status)
-}
-
 func (d *DepartmentDAO) GetAllContext(ctx context.Context, status *int8) ([]model.Department, error) {
 	var depts []model.Department
 	query := d.dbWithContext(ctx).Model(&model.Department{})
@@ -91,11 +71,6 @@ func (d *DepartmentDAO) GetAllContext(ctx context.Context, status *int8) ([]mode
 	}
 	result := query.Order("parent_id ASC, sort ASC, created_at ASC").Find(&depts)
 	return depts, result.Error
-}
-
-// Deprecated: use GetTreeContext instead.
-func (d *DepartmentDAO) GetTree(status *int8) ([]model.Department, error) {
-	return d.GetTreeContext(context.Background(), status)
 }
 
 func (d *DepartmentDAO) GetTreeContext(ctx context.Context, status *int8) ([]model.Department, error) {
@@ -122,27 +97,12 @@ func buildDepartmentTree(depts []model.Department, parentID uint) []model.Depart
 	return tree
 }
 
-// Deprecated: use CreateContext instead.
-func (d *DepartmentDAO) Create(dept *model.Department) error {
-	return d.CreateContext(context.Background(), dept)
-}
-
 func (d *DepartmentDAO) CreateContext(ctx context.Context, dept *model.Department) error {
 	return d.dbWithContext(ctx).Create(dept).Error
 }
 
-// Deprecated: use UpdateContext instead.
-func (d *DepartmentDAO) Update(dept *model.Department) error {
-	return d.UpdateContext(context.Background(), dept)
-}
-
 func (d *DepartmentDAO) UpdateContext(ctx context.Context, dept *model.Department) error {
 	return d.dbWithContext(ctx).Save(dept).Error
-}
-
-// Deprecated: use DeleteContext instead.
-func (d *DepartmentDAO) Delete(id uint) error {
-	return d.DeleteContext(context.Background(), id)
 }
 
 func (d *DepartmentDAO) DeleteContext(ctx context.Context, id uint) error {
@@ -164,11 +124,6 @@ func (d *DepartmentDAO) DeleteContext(ctx context.Context, id uint) error {
 	}
 
 	return db.Delete(&model.Department{}, id).Error
-}
-
-// Deprecated: use GetChildrenIDsContext instead.
-func (d *DepartmentDAO) GetChildrenIDs(parentID uint) ([]uint, error) {
-	return d.GetChildrenIDsContext(context.Background(), parentID)
 }
 
 func (d *DepartmentDAO) GetChildrenIDsContext(ctx context.Context, parentID uint) ([]uint, error) {

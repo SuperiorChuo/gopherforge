@@ -17,20 +17,10 @@ func NewNoticeDAO(db *gorm.DB) *NoticeDAO {
 	return &NoticeDAO{db: db}
 }
 
-// Deprecated: use GetByIDContext instead.
-func (d *NoticeDAO) GetByID(id uint) (*model.Notice, error) {
-	return d.GetByIDContext(context.Background(), id)
-}
-
 func (d *NoticeDAO) GetByIDContext(ctx context.Context, id uint) (*model.Notice, error) {
 	var notice model.Notice
 	result := d.dbWithContext(ctx).First(&notice, id)
 	return &notice, result.Error
-}
-
-// Deprecated: use GetListContext instead.
-func (d *NoticeDAO) GetList(req pagination.PageRequest, noticeType *int8, status *int8, keyword string) ([]model.Notice, int64, error) {
-	return d.GetListContext(context.Background(), req, noticeType, status, keyword)
 }
 
 func (d *NoticeDAO) GetListContext(ctx context.Context, req pagination.PageRequest, noticeType *int8, status *int8, keyword string) ([]model.Notice, int64, error) {
@@ -59,11 +49,6 @@ func (d *NoticeDAO) GetListContext(ctx context.Context, req pagination.PageReque
 	return notices, total, result.Error
 }
 
-// Deprecated: use GetActiveListContext instead.
-func (d *NoticeDAO) GetActiveList(noticeType *int8) ([]model.Notice, error) {
-	return d.GetActiveListContext(context.Background(), noticeType)
-}
-
 func (d *NoticeDAO) GetActiveListContext(ctx context.Context, noticeType *int8) ([]model.Notice, error) {
 	var notices []model.Notice
 
@@ -80,36 +65,16 @@ func (d *NoticeDAO) GetActiveListContext(ctx context.Context, noticeType *int8) 
 	return notices, result.Error
 }
 
-// Deprecated: use CreateContext instead.
-func (d *NoticeDAO) Create(notice *model.Notice) error {
-	return d.CreateContext(context.Background(), notice)
-}
-
 func (d *NoticeDAO) CreateContext(ctx context.Context, notice *model.Notice) error {
 	return d.dbWithContext(ctx).Create(notice).Error
-}
-
-// Deprecated: use UpdateContext instead.
-func (d *NoticeDAO) Update(notice *model.Notice) error {
-	return d.UpdateContext(context.Background(), notice)
 }
 
 func (d *NoticeDAO) UpdateContext(ctx context.Context, notice *model.Notice) error {
 	return d.dbWithContext(ctx).Save(notice).Error
 }
 
-// Deprecated: use DeleteContext instead.
-func (d *NoticeDAO) Delete(id uint) error {
-	return d.DeleteContext(context.Background(), id)
-}
-
 func (d *NoticeDAO) DeleteContext(ctx context.Context, id uint) error {
 	return d.dbWithContext(ctx).Delete(&model.Notice{}, id).Error
-}
-
-// Deprecated: use UpdateStatusContext instead.
-func (d *NoticeDAO) UpdateStatus(id uint, status int8) error {
-	return d.UpdateStatusContext(context.Background(), id, status)
 }
 
 func (d *NoticeDAO) UpdateStatusContext(ctx context.Context, id uint, status int8) error {

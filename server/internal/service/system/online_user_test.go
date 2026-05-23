@@ -53,31 +53,31 @@ func TestForceLogoutRevokesAndRemovesAllSessionsForUser(t *testing.T) {
 	}
 
 	for _, user := range onlineUsers {
-		if err := service.SetOnlineUser(user, time.Hour); err != nil {
+		if err := service.SetOnlineUserContext(context.Background(), user, time.Hour); err != nil {
 			t.Fatalf("set online user %s: %v", user.TokenID, err)
 		}
 	}
 
-	if err := service.ForceLogout(userAccessTokenIDA); err != nil {
+	if err := service.ForceLogoutContext(context.Background(), userAccessTokenIDA); err != nil {
 		t.Fatalf("force logout: %v", err)
 	}
 
-	if service.IsUserOnline(userAccessTokenIDA) {
+	if service.IsUserOnlineContext(context.Background(), userAccessTokenIDA) {
 		t.Fatal("target session should be removed")
 	}
-	if service.IsUserOnline(userAccessTokenIDB) {
+	if service.IsUserOnlineContext(context.Background(), userAccessTokenIDB) {
 		t.Fatal("same user's other session should be removed")
 	}
-	if !service.IsUserOnline(otherAccessTokenID) {
+	if !service.IsUserOnlineContext(context.Background(), otherAccessTokenID) {
 		t.Fatal("other user's session should remain online")
 	}
-	if !jwtpkg.IsTokenBlacklisted(userAccessTokenA) {
+	if !jwtpkg.IsTokenBlacklistedContext(context.Background(), userAccessTokenA) {
 		t.Fatal("target access token should be blacklisted")
 	}
-	if !jwtpkg.IsTokenBlacklisted(userAccessTokenB) {
+	if !jwtpkg.IsTokenBlacklistedContext(context.Background(), userAccessTokenB) {
 		t.Fatal("same user's other access token should be blacklisted")
 	}
-	if jwtpkg.IsTokenBlacklisted(otherAccessToken) {
+	if jwtpkg.IsTokenBlacklistedContext(context.Background(), otherAccessToken) {
 		t.Fatal("other user's access token should not be blacklisted")
 	}
 }
@@ -94,7 +94,7 @@ func TestForceLogoutUsesUserIndexWithoutWalkingMainIndex(t *testing.T) {
 		{UserID: 7, Username: "alice", TokenID: targetTokenID, AccessTokenExpiresAt: targetExpiresAt},
 		{UserID: 7, Username: "alice", TokenID: sameUserTokenID, AccessTokenExpiresAt: sameUserExpiresAt},
 	} {
-		if err := service.SetOnlineUser(user, time.Hour); err != nil {
+		if err := service.SetOnlineUserContext(context.Background(), user, time.Hour); err != nil {
 			t.Fatalf("set online user %s: %v", user.TokenID, err)
 		}
 	}
@@ -113,17 +113,17 @@ func TestForceLogoutUsesUserIndexWithoutWalkingMainIndex(t *testing.T) {
 		t.Fatalf("index unrelated corrupt payload: %v", err)
 	}
 
-	if err := service.ForceLogout(targetTokenID); err != nil {
+	if err := service.ForceLogoutContext(context.Background(), targetTokenID); err != nil {
 		t.Fatalf("force logout: %v", err)
 	}
 
-	if service.IsUserOnline(sameUserTokenID) {
+	if service.IsUserOnlineContext(context.Background(), sameUserTokenID) {
 		t.Fatal("same user's other session should be removed through the user index")
 	}
-	if !jwtpkg.IsTokenBlacklisted(targetAccessToken) {
+	if !jwtpkg.IsTokenBlacklistedContext(context.Background(), targetAccessToken) {
 		t.Fatal("target access token should be blacklisted")
 	}
-	if !jwtpkg.IsTokenBlacklisted(sameUserAccessToken) {
+	if !jwtpkg.IsTokenBlacklistedContext(context.Background(), sameUserAccessToken) {
 		t.Fatal("same user's access token should be blacklisted")
 	}
 	if _, err := redisstore.Client.ZScore(ctx, onlineUserIndexKey, "corrupt-other-user-token").Result(); err != nil {
@@ -144,7 +144,7 @@ func TestSetOnlineUserDoesNotStorePlainAccessToken(t *testing.T) {
 		AccessTokenExpiresAt: expiresAt,
 	}
 
-	if err := service.SetOnlineUser(user, time.Hour); err != nil {
+	if err := service.SetOnlineUserContext(context.Background(), user, time.Hour); err != nil {
 		t.Fatalf("set online user: %v", err)
 	}
 
@@ -219,7 +219,7 @@ func TestOnlineUsersAreIndexedForListAndCount(t *testing.T) {
 		{UserID: 8, Username: "bob", TokenID: "token-b"},
 	}
 	for _, user := range users {
-		if err := service.SetOnlineUser(user, time.Hour); err != nil {
+		if err := service.SetOnlineUserContext(context.Background(), user, time.Hour); err != nil {
 			t.Fatalf("set online user %s: %v", user.TokenID, err)
 		}
 	}
@@ -229,7 +229,7 @@ func TestOnlineUsersAreIndexedForListAndCount(t *testing.T) {
 		t.Fatalf("online user index missing token-a: %v", err)
 	}
 
-	list, err := service.GetOnlineUsers()
+	list, err := service.GetOnlineUsersContext(context.Background())
 	if err != nil {
 		t.Fatalf("get online users: %v", err)
 	}
@@ -237,7 +237,7 @@ func TestOnlineUsersAreIndexedForListAndCount(t *testing.T) {
 		t.Fatalf("online users len = %d, want 2", len(list))
 	}
 
-	count, err := service.GetOnlineUserCount()
+	count, err := service.GetOnlineUserCountContext(context.Background())
 	if err != nil {
 		t.Fatalf("get online user count: %v", err)
 	}
@@ -251,7 +251,7 @@ func TestSetAndRemoveOnlineUserMaintainsUserIndex(t *testing.T) {
 
 	service := &OnlineUserService{}
 	user := OnlineUser{UserID: 7, Username: "alice", TokenID: "token-a"}
-	if err := service.SetOnlineUser(user, time.Hour); err != nil {
+	if err := service.SetOnlineUserContext(context.Background(), user, time.Hour); err != nil {
 		t.Fatalf("set online user: %v", err)
 	}
 
@@ -260,7 +260,7 @@ func TestSetAndRemoveOnlineUserMaintainsUserIndex(t *testing.T) {
 		t.Fatalf("user online index missing token: %v", err)
 	}
 
-	if err := service.RemoveOnlineUser(user.TokenID); err != nil {
+	if err := service.RemoveOnlineUserContext(context.Background(), user.TokenID); err != nil {
 		t.Fatalf("remove online user: %v", err)
 	}
 	if _, err := redisstore.Client.ZScore(ctx, testOnlineUserUserIndexKey(user.UserID), user.TokenID).Result(); !errors.Is(err, goredis.Nil) {
@@ -286,7 +286,7 @@ func TestOnlineUserCountUsesIndexCardinalityWithoutPayloadChecks(t *testing.T) {
 	}
 
 	commandsBefore := store.CommandCount()
-	count, err := (&OnlineUserService{}).GetOnlineUserCount()
+	count, err := (&OnlineUserService{}).GetOnlineUserCountContext(context.Background())
 	if err != nil {
 		t.Fatalf("get online user count: %v", err)
 	}
@@ -302,7 +302,7 @@ func TestOnlineUserIndexPrunesExpiredSessions(t *testing.T) {
 	setupOnlineUserTestRedis(t)
 
 	service := &OnlineUserService{}
-	if err := service.SetOnlineUser(OnlineUser{
+	if err := service.SetOnlineUserContext(context.Background(), OnlineUser{
 		UserID:               7,
 		Username:             "alice",
 		TokenID:              "token-a",
@@ -311,7 +311,7 @@ func TestOnlineUserIndexPrunesExpiredSessions(t *testing.T) {
 		t.Fatalf("set online user: %v", err)
 	}
 
-	count, err := service.GetOnlineUserCount()
+	count, err := service.GetOnlineUserCountContext(context.Background())
 	if err != nil {
 		t.Fatalf("get online user count: %v", err)
 	}
@@ -336,7 +336,7 @@ func TestForceLogoutPrunesExpiredUserIndexEntries(t *testing.T) {
 	activeAccessToken, activeTokenID, activeExpiresAt := mustAccessToken(t, 7, "alice")
 	expiredTokenID := "expired-token"
 
-	if err := service.SetOnlineUser(OnlineUser{
+	if err := service.SetOnlineUserContext(context.Background(), OnlineUser{
 		UserID:               7,
 		Username:             "alice",
 		TokenID:              activeTokenID,
@@ -351,11 +351,11 @@ func TestForceLogoutPrunesExpiredUserIndexEntries(t *testing.T) {
 		t.Fatalf("seed expired user index entry: %v", err)
 	}
 
-	if err := service.ForceLogout(activeTokenID); err != nil {
+	if err := service.ForceLogoutContext(context.Background(), activeTokenID); err != nil {
 		t.Fatalf("force logout: %v", err)
 	}
 
-	if !jwtpkg.IsTokenBlacklisted(activeAccessToken) {
+	if !jwtpkg.IsTokenBlacklistedContext(context.Background(), activeAccessToken) {
 		t.Fatal("active access token should be blacklisted")
 	}
 	if _, err := redisstore.Client.ZScore(context.Background(), testOnlineUserUserIndexKey(7), expiredTokenID).Result(); !errors.Is(err, goredis.Nil) {
@@ -417,7 +417,7 @@ func mustAccessToken(t *testing.T, userID uint, username string) (string, string
 		t.Fatalf("generate token: %v", err)
 	}
 
-	claims, err := jwtpkg.ParseToken(accessToken)
+	claims, err := jwtpkg.ParseTokenContext(context.Background(), accessToken)
 	if err != nil {
 		t.Fatalf("parse token: %v", err)
 	}

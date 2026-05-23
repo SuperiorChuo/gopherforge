@@ -12,11 +12,6 @@ type MenuBootstrapResult struct {
 	Menus int `json:"menus"`
 }
 
-// Deprecated: use BootstrapDefaultMenusContext instead.
-func BootstrapDefaultMenus() (MenuBootstrapResult, error) {
-	return BootstrapDefaultMenusContext(context.Background())
-}
-
 func BootstrapDefaultMenusContext(ctx context.Context) (MenuBootstrapResult, error) {
 	var result MenuBootstrapResult
 	created, err := (&systemdao.MenuSeedDAO{}).BootstrapDefaultMenusContext(ctx, DefaultMenus(), time.Now())

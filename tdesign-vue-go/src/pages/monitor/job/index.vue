@@ -1,5 +1,5 @@
 <template>
-  <div class="job-page">
+  <div class="job-page ops-list-page">
     <console-page-header title="定时任务管理" :status-theme="headerStatusTheme" :status-text="headerStatusText" :meta="headerMeta">
       <template #actions>
         <t-tag :theme="abnormalCount > 0 ? 'warning' : 'success'" variant="light">异常 {{ abnormalCount }}</t-tag>

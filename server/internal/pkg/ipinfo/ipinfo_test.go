@@ -25,15 +25,15 @@ func TestIPInfoPackageUsesEnglishSourceText(t *testing.T) {
 func TestPrivateIPInfoUsesEnglishLocation(t *testing.T) {
 	client := NewIPInfoClient(time.Second, time.Minute)
 
-	info, err := client.GetIPInfo("127.0.0.1")
+	info, err := client.GetIPInfoContext(context.Background(), "127.0.0.1")
 	if err != nil {
-		t.Fatalf("GetIPInfo(private): %v", err)
+		t.Fatalf("GetIPInfoContext(private): %v", err)
 	}
 	if info.Country != "Private Network" || info.City != "Private Network" {
 		t.Fatalf("private location = country %q city %q, want Private Network", info.Country, info.City)
 	}
 
-	location := client.GetLocation("127.0.0.1")
+	location := client.GetLocationContext(context.Background(), "127.0.0.1")
 	if location != "Private Network" {
 		t.Fatalf("private location string = %q, want Private Network", location)
 	}

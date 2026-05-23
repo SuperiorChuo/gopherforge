@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/pkg/response"
+	"github.com/go-admin-kit/server/internal/pkg/upload"
 	systemsvc "github.com/go-admin-kit/server/internal/service/system"
 )
 
@@ -337,6 +338,19 @@ func TestSystemFileServiceErrorAllowsKnownFileErrors(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), "file not found or permission denied") {
 		t.Fatalf("response did not include safe file error message: %s", recorder.Body.String())
+	}
+	assertErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeFileNotFoundOrPermissionDenied)
+}
+
+func TestSystemFileServiceErrorMapsMissingStoredObjectToNotFound(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+
+	writeSystemFileServiceError(c, "failed to download file", upload.ErrStoredObjectNotFound)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
 	}
 	assertErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeFileNotFoundOrPermissionDenied)
 }

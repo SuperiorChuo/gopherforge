@@ -93,29 +93,29 @@ type UserDataScope struct {
 	RoleCodes     []string
 }
 
-// ResolveUserDataScope resolves the base data permission scope from a user and roles.
-//
-// Role data_scope is the primary configuration; legacy role codes are compatibility fallbacks:
-// super_admin/admin always get all data, and dept_admin gets department-tree data when data_scope is unset.
-// Deprecated: use ResolveUserDataScopeContext instead.
-func ResolveUserDataScope(user *model.User) UserDataScope {
-	scope, err := ResolveUserDataScopeContext(context.Background(), user)
-	if err != nil {
-		if user == nil {
-			return UserDataScope{Scope: DataScopeNone}
-		}
-		return UserDataScope{
-			Scope:         DataScopeSelf,
-			UserID:        user.ID,
-			DepartmentID:  user.DepartmentID,
-			DepartmentIDs: departmentIDs(user.DepartmentID),
-		}
-	}
-	return scope
-}
-
 func ResolveUserDataScopeContext(ctx context.Context, user *model.User) (UserDataScope, error) {
 	return NewDataScopeResolver(nil).ResolveUserDataScopeContext(ctx, user)
+}
+
+// ResolveUserDataScopeFallbackContext resolves scope and falls back to self scope on dependency errors.
+func ResolveUserDataScopeFallbackContext(ctx context.Context, user *model.User) UserDataScope {
+	return NewDataScopeResolver(nil).ResolveUserDataScopeFallbackContext(ctx, user)
+}
+
+func (r *DataScopeResolver) ResolveUserDataScopeFallbackContext(ctx context.Context, user *model.User) UserDataScope {
+	scope, err := r.ResolveUserDataScopeContext(ctx, user)
+	if err == nil {
+		return scope
+	}
+	if user == nil {
+		return UserDataScope{Scope: DataScopeNone}
+	}
+	return UserDataScope{
+		Scope:         DataScopeSelf,
+		UserID:        user.ID,
+		DepartmentID:  user.DepartmentID,
+		DepartmentIDs: departmentIDs(user.DepartmentID),
+	}
 }
 
 func (r *DataScopeResolver) ResolveUserDataScopeContext(ctx context.Context, user *model.User) (UserDataScope, error) {
@@ -406,11 +406,6 @@ func (c *layeredDepartmentTreeCache) SetDepartmentTree(ctx context.Context, dept
 		return err
 	}
 	return redisstore.Client.Set(ctx, departmentTreeCacheKey, data, departmentTreeCacheTTL).Err()
-}
-
-// Deprecated: use InvalidateDepartmentTreeCacheContext instead.
-func InvalidateDepartmentTreeCache() error {
-	return InvalidateDepartmentTreeCacheContext(context.Background())
 }
 
 func InvalidateDepartmentTreeCacheContext(ctx context.Context) error {

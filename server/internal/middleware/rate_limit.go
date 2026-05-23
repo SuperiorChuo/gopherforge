@@ -9,6 +9,7 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/logger"
 	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
 	"github.com/go-admin-kit/server/internal/pkg/response"
+	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -51,37 +52,67 @@ func RateLimit(config RateLimitConfig) gin.HandlerFunc {
 	return NewRateLimiter().Middleware(config)
 }
 
+func DynamicRateLimit(reader runtimeconfig.SecurityPolicyReader) gin.HandlerFunc {
+	return NewRateLimiter().DynamicMiddleware(reader)
+}
+
+func RateLimitConfigFromPolicy(policy runtimeconfig.SecurityPolicy) RateLimitConfig {
+	return RateLimitConfig{
+		Window:      time.Duration(policy.RateLimitWindowSeconds) * time.Second,
+		MaxRequests: policy.RateLimitMaxRequests,
+		KeyPrefix:   "rate_limit",
+	}
+}
+
 // Middleware returns a Gin middleware using the limiter's Redis client.
 func (l *RateLimiter) Middleware(config RateLimitConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		clientIP := c.ClientIP()
-		key := fmt.Sprintf("%s:%s", config.KeyPrefix, clientIP)
-		ctx := c.Request.Context()
-		client := l.redisClient()
-		if client == nil {
-			c.Next()
-			return
-		}
-
-		count, err := client.Incr(ctx, key).Result()
-		if err != nil {
-			logger.Error("rate limit check failed", logger.Err(err))
-			c.Next()
-			return
-		}
-		if count == 1 {
-			if err := client.Expire(ctx, key, config.Window).Err(); err != nil {
-				logger.Error("rate limit expire failed", logger.Err(err))
-			}
-		}
-		if count > int64(config.MaxRequests) {
-			response.ErrorWithCode(c, 429, response.ErrorCodeRateLimited, "too many requests")
-			c.Abort()
-			return
-		}
-
-		c.Next()
+		l.apply(c, config)
 	}
+}
+
+func (l *RateLimiter) DynamicMiddleware(reader runtimeconfig.SecurityPolicyReader) gin.HandlerFunc {
+	if reader == nil {
+		reader = runtimeconfig.DefaultSecurityPolicyReader()
+	}
+	return func(c *gin.Context) {
+		policy := reader.SecurityPolicy(c.Request.Context())
+		if !policy.RateLimitEnabled {
+			c.Next()
+			return
+		}
+		l.apply(c, RateLimitConfigFromPolicy(policy))
+	}
+}
+
+func (l *RateLimiter) apply(c *gin.Context, config RateLimitConfig) {
+	clientIP := c.ClientIP()
+	key := fmt.Sprintf("%s:%s", config.KeyPrefix, clientIP)
+	ctx := c.Request.Context()
+	client := l.redisClient()
+	if client == nil {
+		c.Next()
+		return
+	}
+
+	count, err := client.Incr(ctx, key).Result()
+	if err != nil {
+		logger.Error("rate limit check failed", logger.Err(err))
+		c.Next()
+		return
+	}
+	if count == 1 {
+		if err := client.Expire(ctx, key, config.Window).Err(); err != nil {
+			logger.Error("rate limit expire failed", logger.Err(err))
+		}
+	}
+	if count > int64(config.MaxRequests) {
+		response.ErrorWithCode(c, 429, response.ErrorCodeRateLimited, "too many requests")
+		c.Abort()
+		return
+	}
+
+	c.Next()
 }
 
 func (l *RateLimiter) redisClient() RateLimitRedisClient {

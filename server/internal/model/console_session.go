@@ -17,5 +17,5 @@ type ConsoleSession struct {
 }
 
 func (ConsoleSession) TableName() string {
-	return "wm_console_session"
+	return "console_sessions"
 }

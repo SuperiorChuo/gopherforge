@@ -8,6 +8,7 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/logger"
 	"github.com/go-admin-kit/server/internal/pkg/response"
 	"github.com/go-admin-kit/server/internal/pkg/upload"
+	authsvc "github.com/go-admin-kit/server/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/server/internal/service/system"
 )
 
@@ -19,7 +20,10 @@ func internalServerError(c *gin.Context, message string, err error) {
 }
 
 func writeSystemUserServiceError(c *gin.Context, operation string, err error) {
+	var passwordValidationErr authsvc.PasswordValidationError
 	switch {
+	case errors.As(err, &passwordValidationErr):
+		response.BadRequestWithCode(c, response.ErrorCodeAuthPasswordValidationFailed, passwordValidationErr.Error())
 	case errors.Is(err, systemsvc.ErrUsernameAlreadyExists):
 		response.BadRequestWithCode(c, response.ErrorCodeUsernameAlreadyExists, systemsvc.ErrUsernameAlreadyExists.Error())
 	case errors.Is(err, systemsvc.ErrEmailAlreadyExists):
@@ -141,6 +145,8 @@ func writeSystemFileServiceError(c *gin.Context, operation string, err error) {
 		response.BadRequestWithCode(c, response.ErrorCodeFileTooLarge, upload.ErrFileTooLarge.Error())
 	case errors.Is(err, upload.ErrFileTypeNotAllowed):
 		response.BadRequestWithCode(c, response.ErrorCodeFileTypeNotAllowed, upload.ErrFileTypeNotAllowed.Error())
+	case errors.Is(err, upload.ErrStoredObjectNotFound):
+		response.NotFoundWithCode(c, response.ErrorCodeFileNotFoundOrPermissionDenied, systemsvc.ErrFileNotFoundOrPermissionDenied.Error())
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		internalServerError(c, operation, err)
 	default:

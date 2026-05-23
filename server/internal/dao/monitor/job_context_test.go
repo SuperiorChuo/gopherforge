@@ -34,9 +34,9 @@ func TestJobDAOUsesInjectedDB(t *testing.T) {
 		WithArgs(uint(42), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name"}).AddRow(42, "daily-report"))
 
-	job, err := NewJobDAO(db).GetJobByID(42)
+	job, err := NewJobDAO(db).GetJobByIDContext(context.Background(), 42)
 	if err != nil {
-		t.Fatalf("GetJobByID() error = %v", err)
+		t.Fatalf("GetJobByIDContext() error = %v", err)
 	}
 	if job.ID != 42 || job.Name != "daily-report" {
 		t.Fatalf("job = %#v, want id=42 name=daily-report", job)

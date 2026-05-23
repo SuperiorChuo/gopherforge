@@ -26,11 +26,6 @@ func (d OAuthBindingDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
-// Deprecated: use GetByProviderUserContext instead.
-func (d OAuthBindingDAO) GetByProviderUser(provider, providerUserID string) (*model.OAuthBinding, error) {
-	return d.GetByProviderUserContext(context.Background(), provider, providerUserID)
-}
-
 func (d OAuthBindingDAO) GetByProviderUserContext(ctx context.Context, provider, providerUserID string) (*model.OAuthBinding, error) {
 	var binding model.OAuthBinding
 	err := d.dbWithContext(ctx).
@@ -40,11 +35,22 @@ func (d OAuthBindingDAO) GetByProviderUserContext(ctx context.Context, provider,
 	return &binding, err
 }
 
-// Deprecated: use CreateContext instead.
-func (d OAuthBindingDAO) Create(binding *model.OAuthBinding) error {
-	return d.CreateContext(context.Background(), binding)
+func (d OAuthBindingDAO) GetByUserProviderContext(ctx context.Context, userID uint, provider string) (*model.OAuthBinding, error) {
+	var binding model.OAuthBinding
+	err := d.dbWithContext(ctx).
+		Where("user_id = ? AND provider = ?", userID, provider).
+		First(&binding).
+		Error
+	return &binding, err
 }
 
 func (d OAuthBindingDAO) CreateContext(ctx context.Context, binding *model.OAuthBinding) error {
 	return d.dbWithContext(ctx).Create(binding).Error
+}
+
+func (d OAuthBindingDAO) DeleteByUserProviderContext(ctx context.Context, userID uint, provider string) (int64, error) {
+	result := d.dbWithContext(ctx).
+		Where("user_id = ? AND provider = ?", userID, provider).
+		Delete(&model.OAuthBinding{})
+	return result.RowsAffected, result.Error
 }

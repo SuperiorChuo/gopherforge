@@ -23,9 +23,9 @@ func TestPermissionCacheDAOFindUserIDsByRoleIDsUsesInjectedDB(t *testing.T) {
 		WithArgs(uint(9)).
 		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(uint(42)))
 
-	userIDs, err := NewPermissionCacheDAO(db).FindUserIDsByRoleIDs([]uint{9})
+	userIDs, err := NewPermissionCacheDAO(db).FindUserIDsByRoleIDsContext(context.Background(), []uint{9})
 	if err != nil {
-		t.Fatalf("FindUserIDsByRoleIDs() error = %v", err)
+		t.Fatalf("FindUserIDsByRoleIDsContext() error = %v", err)
 	}
 	if !reflect.DeepEqual(userIDs, []uint{42}) {
 		t.Fatalf("userIDs = %#v, want [42]", userIDs)
@@ -40,9 +40,9 @@ func TestPermissionCacheDAOFindUserIDsByRoleIDs(t *testing.T) {
 			AddRow(uint(10)).
 			AddRow(uint(11)))
 
-	userIDs, err := (&PermissionCacheDAO{}).FindUserIDsByRoleIDs([]uint{2, 3})
+	userIDs, err := (&PermissionCacheDAO{}).FindUserIDsByRoleIDsContext(context.Background(), []uint{2, 3})
 	if err != nil {
-		t.Fatalf("FindUserIDsByRoleIDs() error = %v", err)
+		t.Fatalf("FindUserIDsByRoleIDsContext() error = %v", err)
 	}
 	if !reflect.DeepEqual(userIDs, []uint{10, 11}) {
 		t.Fatalf("userIDs = %#v, want [10 11]", userIDs)
@@ -69,9 +69,9 @@ func TestPermissionCacheDAOFindRoleIDsByPermissionIDs(t *testing.T) {
 			AddRow(uint(20)).
 			AddRow(uint(21)))
 
-	roleIDs, err := (&PermissionCacheDAO{}).FindRoleIDsByPermissionIDs([]uint{5, 6})
+	roleIDs, err := (&PermissionCacheDAO{}).FindRoleIDsByPermissionIDsContext(context.Background(), []uint{5, 6})
 	if err != nil {
-		t.Fatalf("FindRoleIDsByPermissionIDs() error = %v", err)
+		t.Fatalf("FindRoleIDsByPermissionIDsContext() error = %v", err)
 	}
 	if !reflect.DeepEqual(roleIDs, []uint{20, 21}) {
 		t.Fatalf("roleIDs = %#v, want [20 21]", roleIDs)
@@ -81,17 +81,17 @@ func TestPermissionCacheDAOFindRoleIDsByPermissionIDs(t *testing.T) {
 func TestPermissionCacheDAOEmptyInputsSkipDatabase(t *testing.T) {
 	setupSystemDAOTestDB(t)
 
-	userIDs, err := (&PermissionCacheDAO{}).FindUserIDsByRoleIDs(nil)
+	userIDs, err := (&PermissionCacheDAO{}).FindUserIDsByRoleIDsContext(context.Background(), nil)
 	if err != nil {
-		t.Fatalf("FindUserIDsByRoleIDs(nil) error = %v", err)
+		t.Fatalf("FindUserIDsByRoleIDsContext(nil) error = %v", err)
 	}
 	if userIDs != nil {
 		t.Fatalf("userIDs = %#v, want nil", userIDs)
 	}
 
-	roleIDs, err := (&PermissionCacheDAO{}).FindRoleIDsByPermissionIDs(nil)
+	roleIDs, err := (&PermissionCacheDAO{}).FindRoleIDsByPermissionIDsContext(context.Background(), nil)
 	if err != nil {
-		t.Fatalf("FindRoleIDsByPermissionIDs(nil) error = %v", err)
+		t.Fatalf("FindRoleIDsByPermissionIDsContext(nil) error = %v", err)
 	}
 	if roleIDs != nil {
 		t.Fatalf("roleIDs = %#v, want nil", roleIDs)

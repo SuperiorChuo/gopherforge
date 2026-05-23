@@ -28,34 +28,23 @@ type fakeMySQLDAO struct {
 	contextMarker any
 }
 
-func (d *fakeMySQLDAO) ConnectionStats() (sql.DBStats, error) {
-	return sql.DBStats{}, nil
-}
-
 func (d *fakeMySQLDAO) ConnectionStatsContext(ctx context.Context) (sql.DBStats, error) {
 	d.contextMarker = ctx.Value(mysqlContextTestKey{})
-	return d.ConnectionStats()
-}
-
-func (d *fakeMySQLDAO) GetVersion() (string, error) {
-	return "8.0.36", nil
+	return sql.DBStats{}, nil
 }
 
 func (d *fakeMySQLDAO) GetVersionContext(ctx context.Context) (string, error) {
 	d.contextMarker = ctx.Value(mysqlContextTestKey{})
-	return d.GetVersion()
-}
-
-func (d *fakeMySQLDAO) GetCurrentDatabase() (string, error) {
-	return "go_admin", nil
+	return "8.0.36", nil
 }
 
 func (d *fakeMySQLDAO) GetCurrentDatabaseContext(ctx context.Context) (string, error) {
 	d.contextMarker = ctx.Value(mysqlContextTestKey{})
-	return d.GetCurrentDatabase()
+	return "go_admin", nil
 }
 
-func (d *fakeMySQLDAO) GetNameValues(query string) (map[string]string, error) {
+func (d *fakeMySQLDAO) GetNameValuesContext(ctx context.Context, query string) (map[string]string, error) {
+	d.contextMarker = ctx.Value(mysqlContextTestKey{})
 	return map[string]string{
 		"Uptime":                 "100",
 		"Questions":              "250",
@@ -64,16 +53,7 @@ func (d *fakeMySQLDAO) GetNameValues(query string) (map[string]string, error) {
 	}, nil
 }
 
-func (d *fakeMySQLDAO) GetNameValuesContext(ctx context.Context, query string) (map[string]string, error) {
-	d.contextMarker = ctx.Value(mysqlContextTestKey{})
-	return d.GetNameValues(query)
-}
-
-func (d *fakeMySQLDAO) GetTableStats(dbName string) (monitordao.MySQLTableStats, error) {
-	return monitordao.MySQLTableStats{TableCount: 2, DatabaseSize: 2048}, nil
-}
-
 func (d *fakeMySQLDAO) GetTableStatsContext(ctx context.Context, dbName string) (monitordao.MySQLTableStats, error) {
 	d.contextMarker = ctx.Value(mysqlContextTestKey{})
-	return d.GetTableStats(dbName)
+	return monitordao.MySQLTableStats{TableCount: 2, DatabaseSize: 2048}, nil
 }

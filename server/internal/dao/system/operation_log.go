@@ -30,18 +30,8 @@ func (d *OperationLogDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
-// Deprecated: use CreateLogContext instead.
-func (d *OperationLogDAO) CreateLog(log *model.OperationLog) error {
-	return d.CreateLogContext(context.Background(), log)
-}
-
 func (d *OperationLogDAO) CreateLogContext(ctx context.Context, log *model.OperationLog) error {
 	return d.dbWithContext(ctx).Create(log).Error
-}
-
-// Deprecated: use GetLogByIDContext instead.
-func (d *OperationLogDAO) GetLogByID(id uint) (*model.OperationLog, error) {
-	return d.GetLogByIDContext(context.Background(), id)
 }
 
 func (d *OperationLogDAO) GetLogByIDContext(ctx context.Context, id uint) (*model.OperationLog, error) {
@@ -50,28 +40,11 @@ func (d *OperationLogDAO) GetLogByIDContext(ctx context.Context, id uint) (*mode
 	return &log, result.Error
 }
 
-// Deprecated: use GetLogByIDInScopeContext instead.
-func (d *OperationLogDAO) GetLogByIDInScope(id uint, dataScope authz.UserDataScope) (*model.OperationLog, error) {
-	return d.GetLogByIDInScopeContext(context.Background(), id, dataScope)
-}
-
 func (d *OperationLogDAO) GetLogByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*model.OperationLog, error) {
 	var log model.OperationLog
 	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.OperationLog{})
 	result := query.Where("id = ?", id).First(&log)
 	return &log, result.Error
-}
-
-// Deprecated: use GetLogListContext instead.
-func (d *OperationLogDAO) GetLogList(
-	req pagination.PageRequest,
-	userID *uint,
-	username, actorType, actorID, requestID, method, path, module, action string,
-	status *int,
-	startTime, endTime *time.Time,
-	dataScope authz.UserDataScope,
-) ([]model.OperationLog, int64, error) {
-	return d.GetLogListContext(context.Background(), req, userID, username, actorType, actorID, requestID, method, path, module, action, status, startTime, endTime, dataScope)
 }
 
 func (d *OperationLogDAO) GetLogListContext(
@@ -141,28 +114,20 @@ func applyOperationLogFilters(
 	return applyTimeRange(query, startTime, endTime)
 }
 
-// Deprecated: use DeleteLogsBeforeContext instead.
-func (d *OperationLogDAO) DeleteLogsBefore(before time.Time) (int64, error) {
-	return d.DeleteLogsBeforeContext(context.Background(), before)
-}
-
 func (d *OperationLogDAO) DeleteLogsBeforeContext(ctx context.Context, before time.Time) (int64, error) {
 	result := d.dbWithContext(ctx).Where("created_at < ?", before).Delete(&model.OperationLog{})
 	return result.RowsAffected, result.Error
 }
 
-// Deprecated: use GetLogStatsContext instead.
-func (d *OperationLogDAO) GetLogStats(startTime, endTime *time.Time) (*LogStats, error) {
-	return d.GetLogStatsContext(context.Background(), startTime, endTime)
+func (d *OperationLogDAO) DeleteLogsBeforeInScopeContext(ctx context.Context, before time.Time, dataScope authz.UserDataScope) (int64, error) {
+	query := d.dbWithContext(ctx).Model(&model.OperationLog{}).Where("created_at < ?", before)
+	query = authz.ApplyOwnerScope(query, dataScope, "user_id")
+	result := query.Delete(&model.OperationLog{})
+	return result.RowsAffected, result.Error
 }
 
 func (d *OperationLogDAO) GetLogStatsContext(ctx context.Context, startTime, endTime *time.Time) (*LogStats, error) {
 	return d.getLogStatsContext(authz.DisableDataScope(ctx), startTime, endTime)
-}
-
-// Deprecated: use GetLogStatsInScopeContext instead.
-func (d *OperationLogDAO) GetLogStatsInScope(startTime, endTime *time.Time, dataScope authz.UserDataScope) (*LogStats, error) {
-	return d.GetLogStatsInScopeContext(context.Background(), startTime, endTime, dataScope)
 }
 
 func (d *OperationLogDAO) GetLogStatsInScopeContext(ctx context.Context, startTime, endTime *time.Time, dataScope authz.UserDataScope) (*LogStats, error) {

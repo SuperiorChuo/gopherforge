@@ -10,5 +10,5 @@ type SystemSetting struct {
 }
 
 func (SystemSetting) TableName() string {
-	return "wm_system_setting"
+	return "system_settings"
 }

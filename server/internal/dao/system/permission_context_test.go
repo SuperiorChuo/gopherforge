@@ -23,9 +23,9 @@ func TestPermissionManageDAOGetPermissionTreeUsesInjectedDB(t *testing.T) {
 			AddRow(uint(1), "System", "system", int8(1), uint(0)).
 			AddRow(uint(2), "User", "system:user", int8(2), uint(1)))
 
-	permissions, err := NewPermissionManageDAO(db).GetPermissionTree()
+	permissions, err := NewPermissionManageDAO(db).GetPermissionTreeContext(context.Background())
 	if err != nil {
-		t.Fatalf("GetPermissionTree() error = %v", err)
+		t.Fatalf("GetPermissionTreeContext() error = %v", err)
 	}
 	if len(permissions) != 1 || len(permissions[0].Children) != 1 || permissions[0].Children[0].Code != "system:user" {
 		t.Fatalf("permissions = %#v, want injected permission tree", permissions)

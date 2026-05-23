@@ -82,25 +82,52 @@
   overflow: hidden;
 }
 
-.system-management-page.system-management-page > .filter-card > .t-card__body {
+.system-management-page.system-management-page > .filter-card > .t-loading__parent > .t-card__body,
+.system-management-page.system-management-page > .filter-card > .t-card__body,
+.system-management-page.system-management-page .dict-section > .filter-card {
   display: grid;
-  align-items: center;
-  gap: 10px 14px;
-  grid-template-columns: max-content minmax(280px, 1fr) max-content;
-  padding: 12px 16px;
+  align-items: stretch;
+  gap: 0;
+  grid-template-areas: 'head' 'form' 'actions';
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0;
+  background: #fff;
 }
 
 .system-management-page.system-management-page .filter-card__head {
+  display: flex;
+  min-width: 0;
+  position: relative;
+  grid-area: head;
   align-items: center;
-  padding: 0;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  padding: 12px 16px 8px 18px;
   border-bottom: 0;
+  background: linear-gradient(180deg, #fff, #fbfdff);
+}
+
+.system-management-page.system-management-page .filter-card__head::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: 0;
+  width: 3px;
+  height: 18px;
+  border-radius: 0 999px 999px 0;
+  background: #2563eb;
+}
+
+.system-management-page.system-management-page .filter-card__head > div {
+  min-width: 0;
 }
 
 .system-management-page.system-management-page .filter-card__head h3,
 .system-management-page.system-management-page .filter-card__head h4 {
   margin: 0;
   color: #0f172a;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
   line-height: 22px;
   white-space: nowrap;
@@ -110,11 +137,22 @@
   display: none;
 }
 
+.system-management-page.system-management-page .filter-card__head .t-space {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 6px;
+}
+
 .system-management-page.system-management-page .filter-form {
   display: grid;
-  gap: 8px 10px;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  padding: 0;
+  min-width: 0;
+  grid-area: form;
+  align-items: end;
+  justify-content: start;
+  gap: 9px 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 320px));
+  padding: 0 16px 12px 18px;
 }
 
 .system-management-page.system-management-page .filter-form .t-form__item {
@@ -146,16 +184,60 @@
   margin-left: 0 !important;
 }
 
+.system-management-page.system-management-page .filter-form .t-input,
+.system-management-page.system-management-page .filter-form .t-select,
+.system-management-page.system-management-page .filter-form .t-date-picker,
+.system-management-page.system-management-page .filter-form .t-date-range-picker,
+.system-management-page.system-management-page .filter-form .t-tree-select,
+.system-management-page.system-management-page .filter-form .t-cascader,
+.system-management-page.system-management-page .keyword-input,
+.system-management-page.system-management-page .status-select,
+.system-management-page.system-management-page .filter-control,
+.system-management-page.system-management-page .filter-select,
+.system-management-page.system-management-page .type-select,
+.system-management-page.system-management-page .filter-input,
+.system-management-page.system-management-page .request-input,
+.system-management-page.system-management-page .path-input,
+.system-management-page.system-management-page .method-select {
+  width: 100%;
+}
+
 .system-management-page.system-management-page .filter-card__actions {
+  display: flex;
+  min-width: 0;
+  grid-area: actions;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 0;
-  border-top: 0;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px 10px;
+  min-height: 44px;
+  padding: 9px 16px 10px 18px;
+  border-top: 1px solid #e6edf7;
+  background: linear-gradient(90deg, #f8fbff, #fbfefe);
 }
 
 .system-management-page.system-management-page .filter-card__actions .t-space {
+  min-width: 0;
+  flex-wrap: wrap;
   row-gap: 6px;
+}
+
+.system-management-page.system-management-page .filter-card__actions > .t-space:first-child {
+  order: 2;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.system-management-page.system-management-page .filter-card__actions > .t-space:last-child:not(:first-child) {
+  order: 1;
+  justify-content: flex-start;
+  margin-right: auto;
+}
+
+.system-management-page.system-management-page .filter-card__actions > .t-button,
+.system-management-page.system-management-page .filter-card__actions > .t-popconfirm,
+.system-management-page.system-management-page .filter-card__actions > .t-dropdown {
+  order: 3;
 }
 
 .system-management-page.system-management-page .form-grid {
@@ -440,6 +522,7 @@
   padding: 12px;
 }
 
+.system-management-page.system-management-page .table-card > .t-loading__parent > .t-card__body,
 .system-management-page.system-management-page .table-card > .t-card__body {
   padding: 0;
 }
@@ -490,13 +573,7 @@
 }
 
 .system-management-page.system-management-page .dict-section > .filter-card {
-  display: grid;
-  align-items: center;
-  gap: 10px 14px;
-  grid-template-columns: max-content minmax(280px, 1fr) max-content;
-  padding: 12px 16px;
   border-bottom: 1px solid #edf2f7;
-  background: linear-gradient(90deg, #fbfdff, #fff);
 }
 
 .system-management-page.system-management-page .dict-tabs .t-tabs__nav {
@@ -519,14 +596,20 @@
 }
 
 @media (width <= 1280px) {
+  .system-management-page.system-management-page > .filter-card > .t-loading__parent > .t-card__body,
   .system-management-page.system-management-page > .filter-card > .t-card__body,
   .system-management-page.system-management-page .dict-section > .filter-card {
     align-items: stretch;
-    grid-template-columns: 1fr;
+    grid-template-areas: 'head' 'form' 'actions';
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .system-management-page.system-management-page .filter-card__actions {
     justify-content: flex-start;
+  }
+
+  .system-management-page.system-management-page .filter-card__actions > .t-space:first-child {
+    margin-left: 0;
   }
 }
 
@@ -538,6 +621,19 @@
   .system-management-page.system-management-page .table-card__head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .system-management-page.system-management-page .filter-card__head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .system-management-page.system-management-page .filter-card__head .t-space {
+    justify-content: flex-start;
+  }
+
+  .system-management-page.system-management-page .filter-form {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .system-management-page.system-management-page .t-dialog__body,

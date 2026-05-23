@@ -2,9 +2,12 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,7 +15,9 @@ import (
 	"github.com/go-admin-kit/server/internal/middleware"
 	"github.com/go-admin-kit/server/internal/pkg/consoleauth"
 	"github.com/go-admin-kit/server/internal/pkg/jwt"
+	"github.com/go-admin-kit/server/internal/pkg/logger"
 	"github.com/go-admin-kit/server/internal/pkg/response"
+	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
 	"github.com/go-admin-kit/server/internal/service/auth"
 	"github.com/go-admin-kit/server/internal/service/system"
 )
@@ -22,11 +27,17 @@ type UserAPI struct {
 	userService           auth.UserService
 	consoleRouteService   auth.ConsoleRouteService
 	consoleSessionService auth.ConsoleSessionService
-	onlineUserService     system.OnlineUserService
+	onlineUserService     onlineUserRecorder
 	auditService          system.AuditLogService
 }
 
 const invalidRequestBodyMessage = "invalid request body"
+const onlineUserWriteTimeout = 3 * time.Second
+
+type onlineUserRecorder interface {
+	SetOnlineUserContext(ctx context.Context, user system.OnlineUser, expiration time.Duration) error
+	RemoveOnlineUserContext(ctx context.Context, tokenID string) error
+}
 
 // NewUserAPI creates a UserAPI instance.
 func NewUserAPI() *UserAPI {
@@ -34,7 +45,7 @@ func NewUserAPI() *UserAPI {
 		userService:           auth.UserService{},
 		consoleRouteService:   auth.ConsoleRouteService{},
 		consoleSessionService: auth.ConsoleSessionService{},
-		onlineUserService:     system.OnlineUserService{},
+		onlineUserService:     &system.OnlineUserService{},
 		auditService:          system.AuditLogService{},
 	}
 }
@@ -47,9 +58,10 @@ func (a *UserAPI) Login(c *gin.Context) {
 		return
 	}
 
-	loginLimitCfg := middleware.LoginLimitConfigFromApp()
+	policy := runtimeconfig.DefaultSecurityPolicyReader().SecurityPolicy(c.Request.Context())
+	loginLimitCfg := middleware.LoginLimitConfigFromPolicy(policy)
 	loginIdentifier := middleware.LoginIdentifier(req.Username, c.ClientIP())
-	if middleware.LoginLimitEnabled() {
+	if policy.LoginLimitEnabled {
 		if locked, ttl := middleware.IsLoginLockedContext(c.Request.Context(), loginIdentifier, loginLimitCfg); locked {
 			response.Error(c, 429, "too many failed login attempts, please try again later")
 			c.Header("Retry-After", fmt.Sprintf("%.0f", ttl.Seconds()))
@@ -59,25 +71,33 @@ func (a *UserAPI) Login(c *gin.Context) {
 
 	resp, err := a.userService.LoginContext(c.Request.Context(), req)
 	if err != nil {
-		if middleware.LoginLimitEnabled() {
+		if policy.LoginLimitEnabled {
 			middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 		}
 		writeAuthServiceError(c, "login failed", err)
 		return
 	}
-	if middleware.LoginLimitEnabled() {
+	if policy.LoginLimitEnabled {
 		middleware.ClearLoginLimitContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 	}
 
 	// Extract permission codes for the frontend session payload.
 	permissions := a.userService.GetUserPermissions(&resp.User)
+	if resp.RequiresTOTP {
+		loginResp := LoginResponseData{
+			RequiresTOTP:    true,
+			TOTPChallengeID: resp.TOTPChallengeID,
+		}
+		response.SuccessWithMessage(c, "totp verification required", loginResp)
+		return
+	}
 
 	// Record the online user in Redis.
 	tokenID := ""
 	browser, os := system.ParseUserAgent(c.GetHeader("User-Agent"))
 	tokenTTL := time.Hour
 	var accessTokenExpiresAt time.Time
-	if claims, err := jwt.ParseToken(resp.AccessToken); err == nil && claims.ExpiresAt != nil {
+	if claims, err := jwt.ParseTokenContext(c.Request.Context(), resp.AccessToken); err == nil && claims.ExpiresAt != nil {
 		tokenID = claims.ID
 		accessTokenExpiresAt = claims.ExpiresAt.Time
 		if ttl := time.Until(accessTokenExpiresAt); ttl > 0 {
@@ -99,18 +119,71 @@ func (a *UserAPI) Login(c *gin.Context) {
 	}
 	// Write asynchronously so the login response is not blocked.
 	if tokenID != "" {
-		go a.onlineUserService.SetOnlineUserContext(context.WithoutCancel(c.Request.Context()), onlineUser, tokenTTL)
+		a.recordOnlineUserAsync(c.Request.Context(), onlineUser, tokenTTL)
 	}
 
 	// Build the response payload.
+	loginResp := LoginResponseData{
+		User:            ConvertUserToResponse(&resp.User, permissions),
+		AccessToken:     resp.AccessToken,
+		RefreshToken:    resp.RefreshToken,
+		RequiresTOTP:    resp.RequiresTOTP,
+		TOTPChallengeID: resp.TOTPChallengeID,
+	}
+
+	targetUserID := resp.User.ID
+	response.SuccessWithMessageMasked(c, "login success", loginResp, sharedapi.ShouldMask(resp.User.ID, &targetUserID, nil))
+}
+
+// VerifyTOTPLogin completes a two-factor login challenge.
+func (a *UserAPI) VerifyTOTPLogin(c *gin.Context) {
+	var req auth.VerifyTOTPLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, invalidRequestBodyMessage)
+		return
+	}
+
+	policy := runtimeconfig.DefaultSecurityPolicyReader().SecurityPolicy(c.Request.Context())
+	loginLimitCfg := middleware.LoginLimitConfigFromPolicy(policy)
+	loginLimitCfg.KeyPrefix = "totp_login_limit"
+	loginIdentifier := totpLoginIdentifier(req.ChallengeID, c.ClientIP())
+	if policy.LoginLimitEnabled {
+		if locked, ttl := middleware.IsLoginLockedContext(c.Request.Context(), loginIdentifier, loginLimitCfg); locked {
+			response.Error(c, 429, "too many failed two-factor verification attempts, please try again later")
+			c.Header("Retry-After", fmt.Sprintf("%.0f", ttl.Seconds()))
+			return
+		}
+	}
+
+	resp, err := a.userService.VerifyTOTPLoginContext(c.Request.Context(), req)
+	if err != nil {
+		if policy.LoginLimitEnabled {
+			middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
+		}
+		writeAuthServiceError(c, "failed to verify totp login", err)
+		return
+	}
+	if policy.LoginLimitEnabled {
+		middleware.ClearLoginLimitContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
+	}
+
+	permissions := a.userService.GetUserPermissions(&resp.User)
 	loginResp := LoginResponseData{
 		User:         ConvertUserToResponse(&resp.User, permissions),
 		AccessToken:  resp.AccessToken,
 		RefreshToken: resp.RefreshToken,
 	}
-
 	targetUserID := resp.User.ID
 	response.SuccessWithMessageMasked(c, "login success", loginResp, sharedapi.ShouldMask(resp.User.ID, &targetUserID, nil))
+}
+
+func totpLoginIdentifier(challengeID, ip string) string {
+	challengeID = strings.TrimSpace(challengeID)
+	if claims, err := jwt.ParseTOTPChallenge(challengeID); err == nil && claims.UserID != 0 {
+		return middleware.LoginIdentifier(fmt.Sprintf("totp:%d", claims.UserID), ip)
+	}
+	sum := sha256.Sum256([]byte(challengeID))
+	return middleware.LoginIdentifier("totp:"+hex.EncodeToString(sum[:]), ip)
 }
 
 // Register creates a new user account.
@@ -204,7 +277,7 @@ func (a *UserAPI) RefreshToken(c *gin.Context) {
 	}
 
 	// Refresh the access token and rotate the refresh token.
-	accessToken, refreshToken, err := jwt.RefreshToken(req.RefreshToken)
+	accessToken, refreshToken, err := jwt.RefreshTokenContext(c.Request.Context(), req.RefreshToken)
 	if err != nil {
 		writeJWTUnauthorizedError(c, err)
 		return
@@ -225,12 +298,12 @@ func (a *UserAPI) Logout(c *gin.Context) {
 		return
 	}
 
-	claims, err := jwt.ParseToken(accessToken)
+	claims, err := jwt.ParseTokenContext(c.Request.Context(), accessToken)
 	if err != nil {
 		writeJWTUnauthorizedError(c, err)
 		return
 	}
-	if err := jwt.RevokeToken(accessToken, claims); err != nil {
+	if err := jwt.RevokeTokenContext(c.Request.Context(), accessToken, claims); err != nil {
 		internalServerError(c, "failed to revoke access token", err)
 		return
 	}
@@ -244,8 +317,8 @@ func (a *UserAPI) Logout(c *gin.Context) {
 		_ = c.ShouldBindJSON(&req)
 	}
 	if req.RefreshToken != "" {
-		if refreshClaims, err := jwt.ParseToken(req.RefreshToken); err == nil {
-			_ = jwt.RevokeToken(req.RefreshToken, refreshClaims)
+		if refreshClaims, err := jwt.ParseTokenContext(c.Request.Context(), req.RefreshToken); err == nil {
+			_ = jwt.RevokeTokenContext(c.Request.Context(), req.RefreshToken, refreshClaims)
 		}
 	}
 
@@ -274,12 +347,92 @@ func (a *UserAPI) ChangePassword(c *gin.Context) {
 	response.SuccessWithMessage(c, "password changed successfully", nil)
 }
 
+func (a *UserAPI) SetupTOTP(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		response.Unauthorized(c, "user not found in context")
+		return
+	}
+
+	var req auth.TOTPSetupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, invalidRequestBodyMessage)
+		return
+	}
+
+	setup, err := a.userService.GenerateTOTPSetupContext(c.Request.Context(), userID.(uint), req)
+	if err != nil {
+		writeAuthServiceError(c, "failed to setup totp", err)
+		return
+	}
+	response.Success(c, setup)
+}
+
+func (a *UserAPI) EnableTOTP(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		response.Unauthorized(c, "user not found in context")
+		return
+	}
+
+	var req auth.TOTPVerifyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, invalidRequestBodyMessage)
+		return
+	}
+	recoveryCodes, err := a.userService.EnableTOTPContext(c.Request.Context(), userID.(uint), req)
+	if err != nil {
+		writeAuthServiceError(c, "failed to enable totp", err)
+		return
+	}
+	response.SuccessWithMessage(c, "totp enabled successfully", recoveryCodes)
+}
+
+func (a *UserAPI) DisableTOTP(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		response.Unauthorized(c, "user not found in context")
+		return
+	}
+
+	var req auth.TOTPVerifyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, invalidRequestBodyMessage)
+		return
+	}
+	if err := a.userService.DisableTOTPContext(c.Request.Context(), userID.(uint), req); err != nil {
+		writeAuthServiceError(c, "failed to disable totp", err)
+		return
+	}
+	response.SuccessWithMessage(c, "totp disabled successfully", nil)
+}
+
+func (a *UserAPI) RegenerateTOTPRecoveryCodes(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		response.Unauthorized(c, "user not found in context")
+		return
+	}
+
+	var req auth.TOTPVerifyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, invalidRequestBodyMessage)
+		return
+	}
+	recoveryCodes, err := a.userService.RegenerateTOTPRecoveryCodesContext(c.Request.Context(), userID.(uint), req)
+	if err != nil {
+		writeAuthServiceError(c, "failed to regenerate totp recovery codes", err)
+		return
+	}
+	response.SuccessWithMessage(c, "totp recovery codes regenerated successfully", recoveryCodes)
+}
+
 func bearerToken(c *gin.Context) string {
 	return consoleauth.TokenFromGinContext(c)
 }
 
 func (a *UserAPI) recordOnlineUser(c *gin.Context, accessToken string) {
-	claims, err := jwt.ParseToken(accessToken)
+	claims, err := jwt.ParseTokenContext(c.Request.Context(), accessToken)
 	if err != nil || claims.ExpiresAt == nil {
 		return
 	}
@@ -308,5 +461,23 @@ func (a *UserAPI) recordOnlineUser(c *gin.Context, accessToken string) {
 		TokenID:              claims.ID,
 		AccessTokenExpiresAt: expiresAt,
 	}
-	go a.onlineUserService.SetOnlineUserContext(context.WithoutCancel(c.Request.Context()), onlineUser, tokenTTL)
+	a.recordOnlineUserAsync(c.Request.Context(), onlineUser, tokenTTL)
+}
+
+func (a *UserAPI) recordOnlineUserAsync(ctx context.Context, onlineUser system.OnlineUser, tokenTTL time.Duration) {
+	go func() {
+		writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), onlineUserWriteTimeout)
+		defer cancel()
+
+		if err := a.onlineUserService.SetOnlineUserContext(writeCtx, onlineUser, tokenTTL); err != nil {
+			logAuthOnlineUserError("failed to record online user", err)
+		}
+	}()
+}
+
+func logAuthOnlineUserError(message string, err error) {
+	if logger.Logger == nil {
+		return
+	}
+	logger.Error(message, logger.Err(err))
 }

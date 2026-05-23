@@ -3,7 +3,9 @@ package system
 import (
 	"context"
 	"errors"
+	"io"
 	"mime/multipart"
+	"strings"
 	"time"
 
 	systemdao "github.com/go-admin-kit/server/internal/dao/system"
@@ -19,6 +21,13 @@ var ErrFileNotFoundOrPermissionDenied = errors.New("file not found or permission
 type FileService struct {
 	fileDAO  systemdao.FileDAO
 	uploader *upload.Uploader
+}
+
+type FileContent struct {
+	FileName    string
+	ContentType string
+	Size        int64
+	Body        io.ReadCloser
 }
 
 func NewFileService() *FileService {
@@ -38,11 +47,6 @@ type FileListRequest struct {
 	DataScope authz.UserDataScope `json:"-" form:"-"`
 }
 
-// Deprecated: use UploadContext instead.
-func (s *FileService) Upload(file *multipart.FileHeader, userID uint) (*model.File, error) {
-	return s.UploadContext(context.Background(), file, userID)
-}
-
 func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHeader, userID uint) (*model.File, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -59,17 +63,26 @@ func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHea
 	existingFile, err := s.fileDAO.GetByHashContext(ctx, info.Hash)
 	if err == nil && existingFile != nil {
 		_ = s.uploader.DeleteContext(ctx, info.FilePath)
+		if info.ThumbnailPath != "" {
+			_ = s.uploader.DeleteContext(ctx, info.ThumbnailPath)
+		}
 		newFile := &model.File{
-			UserID:      userID,
-			FileName:    info.FileName,
-			FilePath:    existingFile.FilePath,
-			FileSize:    existingFile.FileSize,
-			FileType:    existingFile.FileType,
-			MimeType:    existingFile.MimeType,
-			Extension:   existingFile.Extension,
-			StorageType: existingFile.StorageType,
-			URL:         existingFile.URL,
-			Hash:        existingFile.Hash,
+			UserID:          userID,
+			FileName:        info.FileName,
+			FilePath:        existingFile.FilePath,
+			FileSize:        existingFile.FileSize,
+			ImageWidth:      existingFile.ImageWidth,
+			ImageHeight:     existingFile.ImageHeight,
+			ThumbnailPath:   existingFile.ThumbnailPath,
+			ThumbnailURL:    existingFile.ThumbnailURL,
+			ThumbnailWidth:  existingFile.ThumbnailWidth,
+			ThumbnailHeight: existingFile.ThumbnailHeight,
+			FileType:        existingFile.FileType,
+			MimeType:        existingFile.MimeType,
+			Extension:       existingFile.Extension,
+			StorageType:     existingFile.StorageType,
+			URL:             existingFile.URL,
+			Hash:            existingFile.Hash,
 		}
 		if err := s.fileDAO.CreateContext(ctx, newFile); err != nil {
 			return nil, err
@@ -78,33 +91,40 @@ func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHea
 	}
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		_ = s.uploader.DeleteContext(ctx, info.FilePath)
+		if info.ThumbnailPath != "" {
+			_ = s.uploader.DeleteContext(ctx, info.ThumbnailPath)
+		}
 		return nil, err
 	}
 
 	fileRecord := &model.File{
-		UserID:      userID,
-		FileName:    info.FileName,
-		FilePath:    info.FilePath,
-		FileSize:    info.FileSize,
-		FileType:    info.FileType,
-		MimeType:    info.MimeType,
-		Extension:   info.Extension,
-		StorageType: info.StorageType,
-		URL:         info.URL,
-		Hash:        info.Hash,
+		UserID:          userID,
+		FileName:        info.FileName,
+		FilePath:        info.FilePath,
+		FileSize:        info.FileSize,
+		ImageWidth:      info.ImageWidth,
+		ImageHeight:     info.ImageHeight,
+		FileType:        info.FileType,
+		MimeType:        info.MimeType,
+		Extension:       info.Extension,
+		StorageType:     info.StorageType,
+		URL:             info.URL,
+		Hash:            info.Hash,
+		ThumbnailPath:   info.ThumbnailPath,
+		ThumbnailURL:    info.ThumbnailURL,
+		ThumbnailWidth:  info.ThumbnailWidth,
+		ThumbnailHeight: info.ThumbnailHeight,
 	}
 
 	if err := s.fileDAO.CreateContext(ctx, fileRecord); err != nil {
 		_ = s.uploader.DeleteContext(ctx, info.FilePath)
+		if info.ThumbnailPath != "" {
+			_ = s.uploader.DeleteContext(ctx, info.ThumbnailPath)
+		}
 		return nil, err
 	}
 
 	return fileRecord, nil
-}
-
-// Deprecated: use UploadMultipleContext instead.
-func (s *FileService) UploadMultiple(files []*multipart.FileHeader, userID uint) ([]*model.File, []error) {
-	return s.UploadMultipleContext(context.Background(), files, userID)
 }
 
 func (s *FileService) UploadMultipleContext(ctx context.Context, files []*multipart.FileHeader, userID uint) ([]*model.File, []error) {
@@ -123,11 +143,6 @@ func (s *FileService) UploadMultipleContext(ctx context.Context, files []*multip
 	return results, errs
 }
 
-// Deprecated: use GetFileByIDContext instead.
-func (s *FileService) GetFileByID(id uint) (*model.File, error) {
-	return s.GetFileByIDContext(context.Background(), id)
-}
-
 func (s *FileService) GetFileByIDContext(ctx context.Context, id uint) (*model.File, error) {
 	file, err := s.fileDAO.GetByIDContext(ctx, id)
 	if err != nil {
@@ -137,11 +152,6 @@ func (s *FileService) GetFileByIDContext(ctx context.Context, id uint) (*model.F
 		return nil, err
 	}
 	return file, nil
-}
-
-// Deprecated: use GetFileByIDInScopeContext instead.
-func (s *FileService) GetFileByIDInScope(id uint, dataScope authz.UserDataScope) (*model.File, error) {
-	return s.GetFileByIDInScopeContext(context.Background(), id, dataScope)
 }
 
 func (s *FileService) GetFileByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*model.File, error) {
@@ -155,11 +165,6 @@ func (s *FileService) GetFileByIDInScopeContext(ctx context.Context, id uint, da
 	return file, nil
 }
 
-// Deprecated: use GetFileByHashContext instead.
-func (s *FileService) GetFileByHash(hash string, dataScope authz.UserDataScope) (*model.File, error) {
-	return s.GetFileByHashContext(context.Background(), hash, dataScope)
-}
-
 func (s *FileService) GetFileByHashContext(ctx context.Context, hash string, dataScope authz.UserDataScope) (*model.File, error) {
 	file, err := s.fileDAO.GetByHashInScopeContext(ctx, hash, dataScope)
 	if err != nil {
@@ -171,18 +176,8 @@ func (s *FileService) GetFileByHashContext(ctx context.Context, hash string, dat
 	return file, nil
 }
 
-// Deprecated: use GetFileListContext instead.
-func (s *FileService) GetFileList(req FileListRequest) ([]model.File, int64, error) {
-	return s.GetFileListContext(context.Background(), req)
-}
-
 func (s *FileService) GetFileListContext(ctx context.Context, req FileListRequest) ([]model.File, int64, error) {
 	return s.fileDAO.GetListContext(ctx, req.PageRequest, req.UserID, req.FileType, req.Keyword, req.StartTime, req.EndTime, req.DataScope)
-}
-
-// Deprecated: use DeleteFileContext instead.
-func (s *FileService) DeleteFile(id uint, userID uint, dataScope authz.UserDataScope) error {
-	return s.DeleteFileContext(context.Background(), id, userID, dataScope)
 }
 
 func (s *FileService) DeleteFileContext(ctx context.Context, id uint, userID uint, dataScope authz.UserDataScope) error {
@@ -198,13 +193,23 @@ func (s *FileService) DeleteFileContext(ctx context.Context, id uint, userID uin
 		return err
 	}
 
-	_ = s.uploader.DeleteContext(ctx, file.FilePath)
+	filePathReferences, err := s.fileDAO.CountByFilePathExcludingIDContext(ctx, file.StorageType, file.FilePath, file.ID)
+	if err != nil {
+		return err
+	}
+	if filePathReferences == 0 {
+		_ = s.uploader.DeleteForStorageTypeContext(ctx, file.StorageType, file.FilePath)
+	}
+	if file.ThumbnailPath != "" {
+		thumbnailPathReferences, err := s.fileDAO.CountByThumbnailPathExcludingIDContext(ctx, file.StorageType, file.ThumbnailPath, file.ID)
+		if err != nil {
+			return err
+		}
+		if thumbnailPathReferences == 0 {
+			_ = s.uploader.DeleteForStorageTypeContext(ctx, file.StorageType, file.ThumbnailPath)
+		}
+	}
 	return s.fileDAO.DeleteContext(ctx, id)
-}
-
-// Deprecated: use DeleteFilesContext instead.
-func (s *FileService) DeleteFiles(ids []uint, userID uint, dataScope authz.UserDataScope) error {
-	return s.DeleteFilesContext(context.Background(), ids, userID, dataScope)
 }
 
 func (s *FileService) DeleteFilesContext(ctx context.Context, ids []uint, userID uint, dataScope authz.UserDataScope) error {
@@ -216,11 +221,29 @@ func (s *FileService) DeleteFilesContext(ctx context.Context, ids []uint, userID
 	return nil
 }
 
-// Deprecated: use GetFileStatsContext instead.
-func (s *FileService) GetFileStats(userID *uint, dataScope authz.UserDataScope) (*systemdao.FileStats, error) {
-	return s.GetFileStatsContext(context.Background(), userID, dataScope)
-}
-
 func (s *FileService) GetFileStatsContext(ctx context.Context, userID *uint, dataScope authz.UserDataScope) (*systemdao.FileStats, error) {
 	return s.fileDAO.GetStatsInScopeContext(ctx, userID, dataScope)
+}
+
+func (s *FileService) OpenFileContentContext(ctx context.Context, file *model.File) (*FileContent, error) {
+	if file == nil {
+		return nil, ErrFileNotFoundOrPermissionDenied
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	opened, err := s.uploader.OpenForStorageTypeContext(ctx, file.StorageType, file.FilePath)
+	if err != nil {
+		return nil, err
+	}
+	contentType := strings.TrimSpace(file.MimeType)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	return &FileContent{
+		FileName:    file.FileName,
+		ContentType: contentType,
+		Size:        opened.Size,
+		Body:        opened.Body,
+	}, nil
 }

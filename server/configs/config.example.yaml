@@ -54,10 +54,12 @@ logger:
 
 oauth:
   github:
+    enabled: false
     client_id: ""
     client_secret: ""
     redirect_uri: "http://localhost:8081/api/v1/oauth/github/callback"
   wechat:
+    enabled: false
     client_id: ""
     client_secret: ""
     redirect_uri: "http://localhost:8081/api/v1/oauth/wechat/callback"
@@ -93,6 +95,8 @@ upload:
 
 security:
   trusted_proxies: ["127.0.0.1"]
+  password_max_age_days: 90
+  password_history_count: 5
   headers:
     enabled: true
     hsts: false
@@ -109,6 +113,23 @@ security:
     warn_default_password: true
     force_change_password: true
     default_username: "admin"
+
+notification:
+  email:
+    enabled: false
+    smtp_host: ""
+    smtp_port: 25
+    use_tls: false
+    start_tls: false
+    username: ""
+    password: ""
+    sender: ""
+    alert_receiver: ""
+    alert_receivers: []
+    subject_template: ""
+    body_template: ""
+    recipient_groups:
+      notice: []
 
 observability:
   request_id_header: "X-Request-ID"

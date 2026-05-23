@@ -5,6 +5,9 @@ export interface paths {
   "/api/v1/auth/login": {
     post: operations["postApiV1AuthLogin"];
   };
+  "/api/v1/auth/login/2fa/verify": {
+    post: operations["postApiV1AuthLogin2faVerify"];
+  };
   "/api/v1/auth/logout": {
     post: operations["postApiV1AuthLogout"];
   };
@@ -153,6 +156,9 @@ export interface paths {
   "/api/v1/login-logs/user/{user_id}": {
     get: operations["getApiV1LoginLogsUserUserId"];
   };
+  "/api/v1/login/2fa/verify": {
+    post: operations["postApiV1Login2faVerify"];
+  };
   "/api/v1/logout": {
     post: operations["postApiV1Logout"];
   };
@@ -299,6 +305,29 @@ export interface paths {
   "/api/v1/roles/{id}/permissions": {
     post: operations["postApiV1RolesIdPermissions"];
   };
+  "/api/v1/system-settings": {
+    get: operations["getApiV1SystemSettings"];
+  };
+  "/api/v1/system-settings/batch": {
+    post: operations["postApiV1SystemSettingsBatch"];
+  };
+  "/api/v1/system-settings/{key}": {
+    delete: operations["deleteApiV1SystemSettingsKey"];
+    get: operations["getApiV1SystemSettingsKey"];
+    put: operations["putApiV1SystemSettingsKey"];
+  };
+  "/api/v1/user/2fa/disable": {
+    post: operations["postApiV1User2faDisable"];
+  };
+  "/api/v1/user/2fa/enable": {
+    post: operations["postApiV1User2faEnable"];
+  };
+  "/api/v1/user/2fa/recovery-codes": {
+    post: operations["postApiV1User2faRecoveryCodes"];
+  };
+  "/api/v1/user/2fa/setup": {
+    post: operations["postApiV1User2faSetup"];
+  };
   "/api/v1/user/me": {
     get: operations["getApiV1UserMe"];
   };
@@ -326,19 +355,54 @@ export interface paths {
   "/api/v1/users/{id}/status": {
     put: operations["putApiV1UsersIdStatus"];
   };
+  "/api/v1/ws/notifications": {
+    get: operations["getApiV1WsNotifications"];
+  };
+  "/api/v1/ws/notifications/ticket": {
+    post: operations["postApiV1WsNotificationsTicket"];
+  };
 }
 
 export interface operations {
   "postApiV1AuthLogin": {
     requestBody: {
       content: {
-        "application/json": components["schemas"]["LoginRequest"];
+        "application/json": components["schemas"]["ConsoleLoginRequest"];
       };
     };
     responses: {
       "200": {
         content: {
-          "application/json": components["schemas"]["LoginResponseEnvelope"];
+          "application/json": components["schemas"]["ConsoleLoginResponseEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1AuthLogin2faVerify": {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["VerifyTOTPLoginRequest"];
+      };
+    };
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["ConsoleSessionEnvelope"];
         };
       };
       "400": {
@@ -1381,11 +1445,16 @@ export interface operations {
     };
   };
   "getApiV1FilesHashCheck": {
+    parameters: {
+      query: {
+        hash: string;
+      };
+    };
     security: [{"BearerAuth":[]}];
     responses: {
       "200": {
         content: {
-          "application/json": components["schemas"]["ApiResponse"];
+          "application/json": components["schemas"]["FileHashCheckEnvelope"];
         };
       };
       "400": {
@@ -1599,7 +1668,7 @@ export interface operations {
     responses: {
       "200": {
         content: {
-          "application/json": components["schemas"]["ApiResponse"];
+          "application/octet-stream": string;
         };
       };
       "400": {
@@ -1629,7 +1698,7 @@ export interface operations {
     responses: {
       "200": {
         content: {
-          "application/json": components["schemas"]["ApiResponse"];
+          "application/octet-stream": string;
         };
       };
       "400": {
@@ -2058,6 +2127,35 @@ export interface operations {
       "200": {
         content: {
           "application/json": components["schemas"]["LoginLogListEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1Login2faVerify": {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["VerifyTOTPLoginRequest"];
+      };
+    };
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["LoginResponseEnvelope"];
         };
       };
       "400": {
@@ -2948,13 +3046,14 @@ export interface operations {
   "postApiV1OauthBind": {
     requestBody: {
       content: {
-        "application/json": Record<string, unknown>;
+        "application/json": components["schemas"]["OAuthBindRequest"];
       };
     };
+    security: [{"BearerAuth":[]}];
     responses: {
       "200": {
         content: {
-          "application/json": components["schemas"]["ApiResponse"];
+          "application/json": components["schemas"]["EmptyEnvelope"];
         };
       };
       "400": {
@@ -2967,7 +3066,17 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "409": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -2996,14 +3105,16 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "503": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
     };
   };
   "getApiV1OauthGithubLogin": {
     responses: {
-      "200": {
-        content: {
-          "application/json": components["schemas"]["ApiResponse"];
-        };
+      "302": {
       };
       "400": {
         content: {
@@ -3016,6 +3127,11 @@ export interface operations {
         };
       };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -3025,13 +3141,14 @@ export interface operations {
   "postApiV1OauthUnbind": {
     requestBody: {
       content: {
-        "application/json": Record<string, unknown>;
+        "application/json": components["schemas"]["OAuthUnbindRequest"];
       };
     };
+    security: [{"BearerAuth":[]}];
     responses: {
       "200": {
         content: {
-          "application/json": components["schemas"]["ApiResponse"];
+          "application/json": components["schemas"]["EmptyEnvelope"];
         };
       };
       "400": {
@@ -3044,7 +3161,17 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "404": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -3073,14 +3200,16 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "503": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
     };
   };
   "getApiV1OauthWechatLogin": {
     responses: {
-      "200": {
-        content: {
-          "application/json": components["schemas"]["ApiResponse"];
-        };
+      "302": {
       };
       "400": {
         content: {
@@ -3093,6 +3222,11 @@ export interface operations {
         };
       };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -3814,6 +3948,281 @@ export interface operations {
       };
     };
   };
+  "getApiV1SystemSettings": {
+    parameters: {
+      query: {
+        group?: string;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["SystemSettingArrayEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1SystemSettingsBatch": {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BatchUpsertSystemSettingsRequest"];
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["SystemSettingArrayEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "deleteApiV1SystemSettingsKey": {
+    parameters: {
+      path: {
+        key: string;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["EmptyEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1SystemSettingsKey": {
+    parameters: {
+      path: {
+        key: string;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["SystemSettingEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "putApiV1SystemSettingsKey": {
+    parameters: {
+      path: {
+        key: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpsertSystemSettingRequest"];
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["SystemSettingEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1User2faDisable": {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TOTPVerifyRequest"];
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["EmptyEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1User2faEnable": {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TOTPVerifyRequest"];
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["TOTPRecoveryCodesEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1User2faRecoveryCodes": {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TOTPVerifyRequest"];
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["TOTPRecoveryCodesEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1User2faSetup": {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TOTPSetupRequest"];
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["TOTPSetupEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
   "getApiV1UserMe": {
     security: [{"BearerAuth":[]}];
     responses: {
@@ -4152,6 +4561,57 @@ export interface operations {
       };
     };
   };
+  "getApiV1WsNotifications": {
+    parameters: {
+      query: {
+        ticket: string;
+      };
+    };
+    responses: {
+      "101": {
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1WsNotificationsTicket": {
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["NotificationTicketEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
 }
 
 export interface components {
@@ -4168,6 +4628,9 @@ export interface components {
     AssignRolesRequest: {
       role_ids: number[];
     };
+    BatchUpsertSystemSettingsRequest: {
+      settings: components["schemas"]["SystemSettingItem"][];
+    };
     ChangePasswordRequest: {
       new_password: string;
       old_password: string;
@@ -4182,6 +4645,53 @@ export interface components {
     };
     ClearLogsResponse: {
       deleted_count: number;
+    };
+    ConsoleLoginRequest: {
+      password: string;
+      username: string;
+    };
+    ConsoleLoginResponse: {
+      access_token?: string;
+      auth_enabled?: boolean;
+      authenticated?: boolean;
+      expires_at?: string;
+      refresh_token?: string;
+      requires_totp?: boolean;
+      totp_challenge_id?: string;
+      ttl_sec?: number;
+      user?: components["schemas"]["ConsoleSessionUser"];
+    };
+    ConsoleLoginResponseEnvelope: {
+      code: number;
+      data: components["schemas"]["ConsoleLoginResponse"];
+      message: string;
+    };
+    ConsoleSessionEnvelope: {
+      code: number;
+      data: components["schemas"]["ConsoleSessionResponse"];
+      message: string;
+    };
+    ConsoleSessionResponse: {
+      access_token?: string;
+      auth_enabled: boolean;
+      authenticated: boolean;
+      expires_at: string;
+      refresh_token?: string;
+      ttl_sec: number;
+      user: components["schemas"]["ConsoleSessionUser"];
+    };
+    ConsoleSessionUser: {
+      actor_id: string;
+      actor_type: string;
+      avatar?: string;
+      display_name: string;
+      id: number;
+      must_change_password: boolean;
+      nickname?: string;
+      permissions: string[];
+      role: string;
+      roles: string[];
+      username: string;
     };
     CreateDepartmentRequest: {
       code: string;
@@ -4386,6 +4896,15 @@ export interface components {
       data: components["schemas"]["FileItem"];
       message: string;
     };
+    FileHashCheck: {
+      exists: boolean;
+      file?: components["schemas"]["FileItem"];
+    };
+    FileHashCheckEnvelope: {
+      code: number;
+      data: components["schemas"]["FileHashCheck"];
+      message: string;
+    };
     FileItem: {
       created_at?: string;
       extension?: string;
@@ -4395,8 +4914,14 @@ export interface components {
       file_type?: string;
       hash?: string;
       id: number;
+      image_height?: number;
+      image_width?: number;
       mime_type?: string;
       storage_type?: string;
+      thumbnail_height?: number;
+      thumbnail_path?: string;
+      thumbnail_url?: string;
+      thumbnail_width?: number;
       updated_at?: string;
       url: string;
       user_id?: number;
@@ -4413,17 +4938,18 @@ export interface components {
       total: number;
     };
     FileStats: {
-      document_count?: number;
-      image_count?: number;
-      other_count?: number;
-      total_files?: number;
+      by_type?: Record<string, components["schemas"]["FileTypeStat"]>;
+      total?: number;
       total_size?: number;
-      video_count?: number;
     };
     FileStatsEnvelope: {
       code: number;
       data: components["schemas"]["FileStats"];
       message: string;
+    };
+    FileTypeStat: {
+      count: number;
+      size: number;
     };
     JobAbnormalStatus: {
       group_name?: string;
@@ -4522,9 +5048,11 @@ export interface components {
       username: string;
     };
     LoginResponse: {
-      access_token: string;
-      refresh_token: string;
-      user: components["schemas"]["UserInfo"];
+      access_token?: string;
+      refresh_token?: string;
+      requires_totp?: boolean;
+      totp_challenge_id?: string;
+      user?: components["schemas"]["UserInfo"];
     };
     LoginResponseEnvelope: {
       code: number;
@@ -4705,6 +5233,36 @@ export interface components {
       page: number;
       page_size: number;
       total: number;
+    };
+    NotificationMessage: {
+      content: string;
+      created_at: string;
+      id: string;
+      link?: string;
+      title: string;
+      type: string;
+      user_id?: number;
+    };
+    NotificationMessageEnvelope: {
+      code: number;
+      data: components["schemas"]["NotificationMessage"];
+      message: string;
+    };
+    NotificationTicketEnvelope: {
+      code: number;
+      data: components["schemas"]["NotificationTicketResponse"];
+      message: string;
+    };
+    NotificationTicketResponse: {
+      ticket: string;
+    };
+    OAuthBindRequest: {
+      code: string;
+      provider: "github" | "wechat";
+      state?: string;
+    };
+    OAuthUnbindRequest: {
+      provider: "github" | "wechat";
     };
     OnlineUserCountEnvelope: {
       code: number;
@@ -5007,6 +5565,45 @@ export interface components {
       num_goroutine: number;
       platform: string;
     };
+    SystemSettingArrayEnvelope: {
+      code: number;
+      data: components["schemas"]["SystemSettingItem"][];
+      message: string;
+    };
+    SystemSettingEnvelope: {
+      code: number;
+      data: components["schemas"]["SystemSettingItem"];
+      message: string;
+    };
+    SystemSettingItem: {
+      setting_key: string;
+      updated_at?: string;
+      value_json: Record<string, unknown>;
+    };
+    TOTPRecoveryCodesEnvelope: {
+      code: number;
+      data: components["schemas"]["TOTPRecoveryCodesResponse"];
+      message: string;
+    };
+    TOTPRecoveryCodesResponse: {
+      recovery_codes: string[];
+    };
+    TOTPSetupEnvelope: {
+      code: number;
+      data: components["schemas"]["TOTPSetupResponse"];
+      message: string;
+    };
+    TOTPSetupRequest: {
+      current_password: string;
+    };
+    TOTPSetupResponse: {
+      otp_auth_url: string;
+      secret: string;
+    };
+    TOTPVerifyRequest: {
+      code: string;
+      current_password: string;
+    };
     TokenRefreshEnvelope: {
       code: number;
       data: components["schemas"]["TokenRefreshResponse"];
@@ -5094,6 +5691,9 @@ export interface components {
     UpdateUserStatusRequest: {
       status: number;
     };
+    UpsertSystemSettingRequest: {
+      value_json: Record<string, unknown>;
+    };
     UserEnvelope: {
       code: number;
       data: components["schemas"]["UserInfo"];
@@ -5107,10 +5707,12 @@ export interface components {
       id: number;
       must_change_password?: boolean;
       nickname?: string;
+      password_changed_at?: string;
       permissions?: string[];
       phone?: string;
       roles?: components["schemas"]["RoleInfo"][];
       status: number;
+      totp_enabled?: boolean;
       updated_at?: string;
       username: string;
     };
@@ -5124,6 +5726,10 @@ export interface components {
       page: number;
       page_size: number;
       total: number;
+    };
+    VerifyTOTPLoginRequest: {
+      challenge_id: string;
+      code: string;
     };
   };
   securitySchemes: {

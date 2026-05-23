@@ -91,7 +91,14 @@ func (a *OperationLogAPI) ClearOperationLogs(c *gin.Context) {
 		return
 	}
 
-	count, err := a.logService.ClearLogsContext(c.Request.Context(), req.Days)
+	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
+	if err != nil {
+		logOperationLogError("failed to resolve operation log cleanup data scope", err)
+		response.InternalServerError(c, "failed to clear operation logs")
+		return
+	}
+
+	count, err := a.logService.ClearLogsInScopeContext(c.Request.Context(), req.Days, dataScope)
 	if err != nil {
 		logOperationLogError("failed to clear operation logs", err)
 		response.InternalServerError(c, "failed to clear operation logs")

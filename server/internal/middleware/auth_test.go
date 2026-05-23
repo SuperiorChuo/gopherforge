@@ -155,7 +155,7 @@ func TestAuthMiddlewareUsesStableErrorCodeForRevokedToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate token: %v", err)
 	}
-	claims, err := jwtpkg.ParseToken(accessToken)
+	claims, err := jwtpkg.ParseTokenContext(context.Background(), accessToken)
 	if err != nil {
 		t.Fatalf("parse token: %v", err)
 	}
@@ -185,9 +185,64 @@ func TestAuthMiddlewareUsesStableErrorCodeForWrongTokenType(t *testing.T) {
 	assertAuthErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeAuthTokenInvalid)
 }
 
+func TestAuthMiddlewareUsesRequestContextForSingleBlacklistLookup(t *testing.T) {
+	setAuthMiddlewareJWTConfig(t)
+	store := &authMiddlewareBlacklistStore{revoked: make(map[string]bool)}
+	restoreStore := jwtpkg.SetTokenBlacklistStore(store)
+	t.Cleanup(restoreStore)
+
+	tokenID := "request-context-token-id"
+	accessToken := signedAuthMiddlewareToken(t, jwtpkg.Claims{
+		UserID:    42,
+		Username:  "alice",
+		TokenType: jwtpkg.AccessTokenType,
+		RegisteredClaims: jwtlib.RegisteredClaims{
+			ExpiresAt: jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
+			IssuedAt:  jwtlib.NewNumericDate(time.Now()),
+			NotBefore: jwtlib.NewNumericDate(time.Now()),
+			Issuer:    config.Cfg.JWT.Issuer,
+			Subject:   "42",
+			ID:        tokenID,
+		},
+	})
+
+	requestContext := context.WithValue(context.Background(), authMiddlewareRequestContextKey{}, "request-context")
+	recorder := requestThroughAuthMiddlewareWithContext(t, requestContext, accessToken)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if len(store.hasTokenIDs) != 1 {
+		t.Fatalf("blacklist lookup count = %d, want 1; tokenIDs=%v", len(store.hasTokenIDs), store.hasTokenIDs)
+	}
+	if store.hasTokenIDs[0] != tokenID {
+		t.Fatalf("blacklist lookup token ID = %q, want %q", store.hasTokenIDs[0], tokenID)
+	}
+	if len(store.hasContexts) != 1 || store.hasContexts[0].Value(authMiddlewareRequestContextKey{}) != "request-context" {
+		t.Fatalf("blacklist lookup did not receive the request context")
+	}
+}
+
 func requestThroughAuthMiddleware(t *testing.T, token string) *httptest.ResponseRecorder {
 	t.Helper()
 	return requestThroughAuthMiddlewareWithAuthorizationHeader(t, "Bearer "+token)
+}
+
+func requestThroughAuthMiddlewareWithContext(t *testing.T, ctx context.Context, token string) *httptest.ResponseRecorder {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(AuthMiddleware())
+	router.GET("/", func(c *gin.Context) {
+		response.Success(c, nil)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctx)
+	req.Header.Set("Authorization", "Bearer "+token)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	return recorder
 }
 
 func requestThroughAuthMiddlewareWithAuthorizationHeader(t *testing.T, authHeader string) *httptest.ResponseRecorder {
@@ -295,7 +350,9 @@ func signedAuthMiddlewareToken(t *testing.T, claims jwtpkg.Claims) string {
 }
 
 type authMiddlewareBlacklistStore struct {
-	revoked map[string]bool
+	revoked     map[string]bool
+	hasContexts []context.Context
+	hasTokenIDs []string
 }
 
 func (s *authMiddlewareBlacklistStore) SetTokenID(_ context.Context, tokenID string, _ time.Duration) error {
@@ -303,6 +360,10 @@ func (s *authMiddlewareBlacklistStore) SetTokenID(_ context.Context, tokenID str
 	return nil
 }
 
-func (s *authMiddlewareBlacklistStore) HasTokenID(_ context.Context, tokenID string) (bool, error) {
+func (s *authMiddlewareBlacklistStore) HasTokenID(ctx context.Context, tokenID string) (bool, error) {
+	s.hasContexts = append(s.hasContexts, ctx)
+	s.hasTokenIDs = append(s.hasTokenIDs, tokenID)
 	return s.revoked[tokenID], nil
 }
+
+type authMiddlewareRequestContextKey struct{}

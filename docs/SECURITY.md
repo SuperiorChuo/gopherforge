@@ -10,7 +10,11 @@
 - 敏感日志脱敏：密码、token、secret 等字段会在操作日志里脱敏
 - Token 撤销：退出登录会撤销 access token，refresh token 默认轮换并撤销旧 token
 - 强制下线：在线用户管理会撤销目标用户当前 Redis 记录的 access token，后续请求返回 401
+- GitHub OAuth：启用真实 GitHub provider 时，登录流程使用 Redis-backed 一次性 `state` 和 PKCE `S256`，回调必须先消费 state/code verifier，再换取 access token 并调用 GitHub `/user` 重新确认身份
+- WeChat OAuth：启用真实 WeChat provider 时，登录流程使用开放平台扫码登录、一次性 Redis `state`、服务端 token exchange 和 `/sns/userinfo` 身份确认；配置缺失或 provider 返回异常时 fail-closed
 - 强制改密：可通过 `DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD=true` 要求默认管理员首次登录后修改密码
+- 运行时安全策略：`system_settings.security.policy` 可覆盖密码过期天数、密码历史数量、登录失败阈值和 RPS 限流；保存或删除该 key 后会刷新当前进程内存快照，并通过 Redis Pub/Sub 通知其他实例刷新
+- 邮件通知：`notification.email` 可覆盖启用状态、SMTP 主机、发件人、告警收件人、收件组、纯文本模板和 TLS/STARTTLS 模式；SMTP 用户名和密码建议通过环境变量配置，公告/通知启用后的邮件发送失败不会阻断业务接口
 - HTTP 状态码：认证、授权、参数、资源不存在和限流分别返回 401/403/400/404/429
 - 文件上传校验：后缀白名单、大小限制、文件头 MIME sniffing
 
@@ -29,7 +33,7 @@ DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD=true
 
 ## 文件上传
 
-当前项目已有文件大小、后缀限制和 MIME sniffing，并通过 `upload.storage_type` 抽象存储后端。本地模式会把文件写入 `upload.local_path`，用 `upload.public_base_url` 生成下载 URL；`s3`/`minio` 模式已通过 MinIO SDK 接入 `Store()`、`Open()` 和 `Delete()`，上传响应仍只返回受控 object key 与公共 URL。
+当前项目已有文件大小、后缀限制和 MIME sniffing，并通过 `upload.storage_type` 抽象存储后端。本地模式会把文件写入 `upload.local_path`，用 `upload.public_base_url` 生成下载 URL；`s3`/`minio` 模式已通过 MinIO SDK 接入 `Store()`、`Open()` 和 `Delete()`，上传响应仍只返回受控 object key 与公共 URL。JPEG/PNG/GIF 上传会记录 `image_width` 和 `image_height` 元数据，WebP 等暂不解析尺寸。
 
 生产落地时建议继续补：
 

@@ -21,6 +21,7 @@ type Config struct {
 	OAuth         OAuthConfig         `yaml:"oauth"`
 	Upload        UploadConfig        `yaml:"upload"`
 	Security      SecurityConfig      `yaml:"security"`
+	Notification  NotificationConfig  `yaml:"notification"`
 	Observability ObservabilityConfig `yaml:"observability"`
 }
 
@@ -54,11 +55,13 @@ type RedisConfig struct {
 }
 
 type SecurityConfig struct {
-	TrustedProxies []string           `yaml:"trusted_proxies"`
-	Headers        SecurityHeaders    `yaml:"headers"`
-	RateLimit      RateLimitConfig    `yaml:"rate_limit"`
-	LoginLimit     LoginLimitConfig   `yaml:"login_limit"`
-	DefaultAdmin   DefaultAdminConfig `yaml:"default_admin"`
+	TrustedProxies       []string           `yaml:"trusted_proxies"`
+	PasswordMaxAgeDays   int                `yaml:"password_max_age_days"`
+	PasswordHistoryCount int                `yaml:"password_history_count"`
+	Headers              SecurityHeaders    `yaml:"headers"`
+	RateLimit            RateLimitConfig    `yaml:"rate_limit"`
+	LoginLimit           LoginLimitConfig   `yaml:"login_limit"`
+	DefaultAdmin         DefaultAdminConfig `yaml:"default_admin"`
 }
 
 type SecurityHeaders struct {
@@ -83,6 +86,26 @@ type DefaultAdminConfig struct {
 	WarnDefaultPassword bool   `yaml:"warn_default_password"`
 	ForceChangePassword bool   `yaml:"force_change_password"`
 	DefaultUsername     string `yaml:"default_username"`
+}
+
+type NotificationConfig struct {
+	Email EmailConfig `yaml:"email"`
+}
+
+type EmailConfig struct {
+	Enabled         bool                `yaml:"enabled"`
+	SMTPHost        string              `yaml:"smtp_host"`
+	SMTPPort        int                 `yaml:"smtp_port"`
+	Username        string              `yaml:"username"`
+	Password        string              `yaml:"password"`
+	Sender          string              `yaml:"sender"`
+	AlertReceiver   string              `yaml:"alert_receiver"`
+	AlertReceivers  []string            `yaml:"alert_receivers"`
+	SubjectTemplate string              `yaml:"subject_template"`
+	BodyTemplate    string              `yaml:"body_template"`
+	RecipientGroups map[string][]string `yaml:"recipient_groups"`
+	UseTLS          bool                `yaml:"use_tls"`
+	StartTLS        bool                `yaml:"start_tls"`
 }
 
 type ObservabilityConfig struct {
@@ -130,9 +153,17 @@ type OAuthConfig struct {
 }
 
 type OAuthProviderConfig struct {
+	Enabled      bool   `yaml:"enabled"`
 	ClientID     string `yaml:"client_id"`
 	ClientSecret string `yaml:"client_secret"`
 	RedirectURI  string `yaml:"redirect_uri"`
+}
+
+func (c OAuthProviderConfig) Ready() bool {
+	return c.Enabled &&
+		oauthConfigValueReady(c.ClientID) &&
+		oauthConfigValueReady(c.ClientSecret) &&
+		oauthConfigValueReady(c.RedirectURI)
 }
 
 type UploadConfig struct {
@@ -208,6 +239,15 @@ func Validate() error {
 	}
 	if Cfg.Observability.Tracing.SampleRatio < 0 || Cfg.Observability.Tracing.SampleRatio > 1 {
 		return fmt.Errorf("observability.tracing.sample_ratio must be between 0 and 1")
+	}
+	if Cfg.Security.PasswordMaxAgeDays < 0 {
+		return fmt.Errorf("security.password_max_age_days must be greater than or equal to 0")
+	}
+	if Cfg.Security.PasswordHistoryCount < 0 {
+		return fmt.Errorf("security.password_history_count must be greater than or equal to 0")
+	}
+	if Cfg.Notification.Email.UseTLS && Cfg.Notification.Email.StartTLS {
+		return fmt.Errorf("notification.email.use_tls and notification.email.start_tls cannot both be true")
 	}
 	return nil
 }
@@ -351,6 +391,11 @@ func normalizeSecretValue(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }
 
+func oauthConfigValueReady(value string) bool {
+	value = strings.TrimSpace(value)
+	return value != "" && !isPlaceholderValue(value)
+}
+
 // replaceEnvVars replaces environment variables in the configuration.
 func replaceEnvVars(config *Config) {
 	config.App.Env = getEnvString("APP_ENV", config.App.Env)
@@ -391,6 +436,8 @@ func replaceEnvVars(config *Config) {
 	config.CORS.AllowOrigins = getEnvStringSlice("CORS_ALLOW_ORIGINS", config.CORS.AllowOrigins)
 	config.CORS.AllowCredentials = getEnvBool("CORS_ALLOW_CREDENTIALS", config.CORS.AllowCredentials)
 	config.Security.TrustedProxies = getEnvStringSlice("TRUSTED_PROXIES", config.Security.TrustedProxies)
+	config.Security.PasswordMaxAgeDays = getEnvInt("PASSWORD_MAX_AGE_DAYS", config.Security.PasswordMaxAgeDays)
+	config.Security.PasswordHistoryCount = getEnvInt("PASSWORD_HISTORY_COUNT", config.Security.PasswordHistoryCount)
 	config.Security.Headers.Enabled = getEnvBool("SECURITY_HEADERS_ENABLED", config.Security.Headers.Enabled)
 	config.Security.Headers.HSTS = getEnvBool("SECURITY_HSTS_ENABLED", config.Security.Headers.HSTS)
 	config.Security.RateLimit.Enabled = getEnvBool("RATE_LIMIT_ENABLED", config.Security.RateLimit.Enabled)
@@ -403,6 +450,18 @@ func replaceEnvVars(config *Config) {
 	config.Security.DefaultAdmin.WarnDefaultPassword = getEnvBool("DEFAULT_ADMIN_WARN_DEFAULT_PASSWORD", config.Security.DefaultAdmin.WarnDefaultPassword)
 	config.Security.DefaultAdmin.ForceChangePassword = getEnvBool("DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD", config.Security.DefaultAdmin.ForceChangePassword)
 	config.Security.DefaultAdmin.DefaultUsername = getEnvString("DEFAULT_ADMIN_USERNAME", config.Security.DefaultAdmin.DefaultUsername)
+	config.Notification.Email.Enabled = getEnvBool("EMAIL_NOTIFICATION_ENABLED", config.Notification.Email.Enabled)
+	config.Notification.Email.SMTPHost = getEnvString("EMAIL_SMTP_HOST", config.Notification.Email.SMTPHost)
+	config.Notification.Email.SMTPPort = getEnvInt("EMAIL_SMTP_PORT", config.Notification.Email.SMTPPort)
+	config.Notification.Email.Username = getEnvString("EMAIL_SMTP_USERNAME", config.Notification.Email.Username)
+	config.Notification.Email.Password = getEnvString("EMAIL_SMTP_PASSWORD", config.Notification.Email.Password)
+	config.Notification.Email.Sender = getEnvString("EMAIL_SENDER", config.Notification.Email.Sender)
+	config.Notification.Email.AlertReceiver = getEnvString("EMAIL_ALERT_RECEIVER", config.Notification.Email.AlertReceiver)
+	config.Notification.Email.AlertReceivers = getEnvStringSlice("EMAIL_ALERT_RECEIVERS", config.Notification.Email.AlertReceivers)
+	config.Notification.Email.SubjectTemplate = getEnvString("EMAIL_SUBJECT_TEMPLATE", config.Notification.Email.SubjectTemplate)
+	config.Notification.Email.BodyTemplate = getEnvString("EMAIL_BODY_TEMPLATE", config.Notification.Email.BodyTemplate)
+	config.Notification.Email.UseTLS = getEnvBool("EMAIL_USE_TLS", config.Notification.Email.UseTLS)
+	config.Notification.Email.StartTLS = getEnvBool("EMAIL_START_TLS", config.Notification.Email.StartTLS)
 	config.Observability.RequestIDHeader = getEnvString("REQUEST_ID_HEADER", config.Observability.RequestIDHeader)
 	config.Observability.MetricsEnabled = getEnvBool("METRICS_ENABLED", config.Observability.MetricsEnabled)
 	config.Observability.Tracing.Enabled = getEnvBool("TRACING_ENABLED", config.Observability.Tracing.Enabled)
@@ -412,9 +471,11 @@ func replaceEnvVars(config *Config) {
 	config.Observability.Tracing.OTLPEndpoint = getEnvString("OTEL_EXPORTER_OTLP_ENDPOINT", config.Observability.Tracing.OTLPEndpoint)
 	config.Observability.Tracing.OTLPEndpoint = getEnvString("TRACING_OTLP_ENDPOINT", config.Observability.Tracing.OTLPEndpoint)
 	config.Observability.Tracing.SampleRatio = getEnvFloat64("TRACING_SAMPLE_RATIO", config.Observability.Tracing.SampleRatio)
+	config.OAuth.Github.Enabled = getEnvBool("GITHUB_OAUTH_ENABLED", config.OAuth.Github.Enabled)
 	config.OAuth.Github.ClientID = getEnvString("GITHUB_CLIENT_ID", config.OAuth.Github.ClientID)
 	config.OAuth.Github.ClientSecret = getEnvString("GITHUB_CLIENT_SECRET", config.OAuth.Github.ClientSecret)
 	config.OAuth.Github.RedirectURI = getEnvString("GITHUB_REDIRECT_URI", config.OAuth.Github.RedirectURI)
+	config.OAuth.Wechat.Enabled = getEnvBool("WECHAT_OAUTH_ENABLED", config.OAuth.Wechat.Enabled)
 	config.OAuth.Wechat.ClientID = getEnvString("WECHAT_CLIENT_ID", config.OAuth.Wechat.ClientID)
 	config.OAuth.Wechat.ClientSecret = getEnvString("WECHAT_CLIENT_SECRET", config.OAuth.Wechat.ClientSecret)
 	config.OAuth.Wechat.RedirectURI = getEnvString("WECHAT_REDIRECT_URI", config.OAuth.Wechat.RedirectURI)
@@ -535,6 +596,20 @@ func (c UploadConfig) EffectiveLocalURLPrefix() string {
 		return "/" + strings.TrimLeft(candidate, "/")
 	}
 	return "/uploads"
+}
+
+func (c SecurityConfig) EffectivePasswordMaxAgeDays() int {
+	if c.PasswordMaxAgeDays < 0 {
+		return 0
+	}
+	return c.PasswordMaxAgeDays
+}
+
+func (c SecurityConfig) EffectivePasswordHistoryCount() int {
+	if c.PasswordHistoryCount < 0 {
+		return 0
+	}
+	return c.PasswordHistoryCount
 }
 
 // GetDSN returns the database connection string.
