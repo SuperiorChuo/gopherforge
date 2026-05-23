@@ -13,7 +13,9 @@ func TestRegisterPublicRoutes(t *testing.T) {
 
 	for _, route := range []string{
 		"POST /api/v1/login",
+		"POST /api/v1/login/2fa/verify",
 		"POST /api/v1/auth/login",
+		"POST /api/v1/auth/login/2fa/verify",
 		"POST /api/v1/register",
 		"POST /api/v1/refresh",
 		"GET /api/v1/captcha",
@@ -46,6 +48,10 @@ func TestRegisterProtectedRoutes(t *testing.T) {
 		"GET /api/v1/user/me",
 		"PUT /api/v1/user/profile",
 		"PUT /api/v1/user/password",
+		"POST /api/v1/user/2fa/setup",
+		"POST /api/v1/user/2fa/enable",
+		"POST /api/v1/user/2fa/disable",
+		"POST /api/v1/user/2fa/recovery-codes",
 		"POST /api/v1/logout",
 		"GET /api/v1/user/menus",
 		"POST /api/v1/oauth/bind",

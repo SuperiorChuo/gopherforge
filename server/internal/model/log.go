@@ -40,7 +40,7 @@ type AuditLog struct {
 }
 
 func (AuditLog) TableName() string {
-	return "wm_audit_log"
+	return "audit_logs"
 }
 
 // LoginLog stores authentication attempt records.

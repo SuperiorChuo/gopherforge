@@ -9,7 +9,9 @@ import (
 func RegisterPublicRoutes(r gin.IRoutes) {
 	userAPI := NewUserAPI()
 	r.POST("/login", userAPI.Login)
+	r.POST("/login/2fa/verify", userAPI.VerifyTOTPLogin)
 	r.POST("/auth/login", userAPI.LoginConsole)
+	r.POST("/auth/login/2fa/verify", userAPI.VerifyConsoleTOTPLogin)
 	r.POST("/register", userAPI.Register)
 	r.POST("/refresh", userAPI.RefreshToken)
 
@@ -38,6 +40,10 @@ func RegisterProtectedRoutes(r gin.IRoutes) {
 	r.GET("/user/me", userAPI.GetCurrentUser)
 	r.PUT("/user/profile", userAPI.UpdateProfile)
 	r.PUT("/user/password", userAPI.ChangePassword)
+	r.POST("/user/2fa/setup", userAPI.SetupTOTP)
+	r.POST("/user/2fa/enable", userAPI.EnableTOTP)
+	r.POST("/user/2fa/disable", userAPI.DisableTOTP)
+	r.POST("/user/2fa/recovery-codes", userAPI.RegenerateTOTPRecoveryCodes)
 	r.POST("/logout", userAPI.Logout)
 
 	menuAPI := NewMenuAPI()

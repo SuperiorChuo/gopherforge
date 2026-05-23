@@ -25,11 +25,6 @@ func (d *PermissionDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
-// Deprecated: use GetUserPermissionsContext instead.
-func (d *PermissionDAO) GetUserPermissions(userID uint) ([]string, error) {
-	return d.GetUserPermissionsContext(context.Background(), userID)
-}
-
 func (d *PermissionDAO) GetUserPermissionsContext(ctx context.Context, userID uint) ([]string, error) {
 	var codes []string
 	result := d.dbWithContext(ctx).
@@ -47,11 +42,6 @@ func (d *PermissionDAO) GetUserPermissionsContext(ctx context.Context, userID ui
 	return codes, nil
 }
 
-// Deprecated: use GetUserPermissionsByCodeContext instead.
-func (d *PermissionDAO) GetUserPermissionsByCode(userID uint) (map[string]bool, error) {
-	return d.GetUserPermissionsByCodeContext(context.Background(), userID)
-}
-
 func (d *PermissionDAO) GetUserPermissionsByCodeContext(ctx context.Context, userID uint) (map[string]bool, error) {
 	codes, err := d.GetUserPermissionsContext(ctx, userID)
 	if err != nil {
@@ -63,11 +53,6 @@ func (d *PermissionDAO) GetUserPermissionsByCodeContext(ctx context.Context, use
 		permissionMap[code] = true
 	}
 	return permissionMap, nil
-}
-
-// Deprecated: use HasPermissionContext instead.
-func (d *PermissionDAO) HasPermission(userID uint, permissionCode string) (bool, error) {
-	return d.HasPermissionContext(context.Background(), userID, permissionCode)
 }
 
 func (d *PermissionDAO) HasPermissionContext(ctx context.Context, userID uint, permissionCode string) (bool, error) {

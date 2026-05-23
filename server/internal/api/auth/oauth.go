@@ -1,30 +1,40 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/pkg/response"
-	"github.com/go-admin-kit/server/internal/service/auth"
+	authsvc "github.com/go-admin-kit/server/internal/service/auth"
 )
+
+type oauthService interface {
+	GetGithubAuthURLContext(ctx context.Context) (string, error)
+	GithubCallbackContext(ctx context.Context, code, state string) (*authsvc.OAuthResponse, error)
+	GetWechatAuthURLContext(ctx context.Context) (string, error)
+	WechatCallbackContext(ctx context.Context, code, state string) (*authsvc.OAuthResponse, error)
+	BindOAuthContext(ctx context.Context, userID uint, req authsvc.BindOAuthRequest) error
+	UnbindOAuthContext(ctx context.Context, userID uint, req authsvc.UnbindOAuthRequest) error
+}
 
 // OAuthAPI OAuth API
 type OAuthAPI struct {
-	oauthService auth.OAuthService
+	oauthService oauthService
 }
 
 // NewOAuthAPI creates an OAuthAPI instance.
 func NewOAuthAPI() *OAuthAPI {
 	return &OAuthAPI{
-		oauthService: auth.OAuthService{},
+		oauthService: &authsvc.OAuthService{},
 	}
 }
 
 // GithubLogin redirects to GitHub OAuth.
 func (a *OAuthAPI) GithubLogin(c *gin.Context) {
-	url, err := a.oauthService.GetGithubAuthURL()
+	url, err := a.oauthService.GetGithubAuthURLContext(c.Request.Context())
 	if err != nil {
-		internalServerError(c, "failed to get GitHub auth URL", err)
+		writeAuthServiceError(c, "failed to get GitHub auth URL", err)
 		return
 	}
 	c.Redirect(http.StatusFound, url)
@@ -37,7 +47,7 @@ func (a *OAuthAPI) GithubCallback(c *gin.Context) {
 
 	resp, err := a.oauthService.GithubCallbackContext(c.Request.Context(), code, state)
 	if err != nil {
-		internalServerError(c, "failed to handle GitHub callback", err)
+		writeAuthServiceError(c, "failed to handle GitHub callback", err)
 		return
 	}
 
@@ -46,9 +56,9 @@ func (a *OAuthAPI) GithubCallback(c *gin.Context) {
 
 // WechatLogin redirects to WeChat OAuth.
 func (a *OAuthAPI) WechatLogin(c *gin.Context) {
-	url, err := a.oauthService.GetWechatAuthURL()
+	url, err := a.oauthService.GetWechatAuthURLContext(c.Request.Context())
 	if err != nil {
-		internalServerError(c, "failed to get WeChat auth URL", err)
+		writeAuthServiceError(c, "failed to get WeChat auth URL", err)
 		return
 	}
 	c.Redirect(http.StatusFound, url)
@@ -61,7 +71,7 @@ func (a *OAuthAPI) WechatCallback(c *gin.Context) {
 
 	resp, err := a.oauthService.WechatCallbackContext(c.Request.Context(), code, state)
 	if err != nil {
-		internalServerError(c, "failed to handle WeChat callback", err)
+		writeAuthServiceError(c, "failed to handle WeChat callback", err)
 		return
 	}
 
@@ -70,10 +80,47 @@ func (a *OAuthAPI) WechatCallback(c *gin.Context) {
 
 // BindOAuth binds a third-party account.
 func (a *OAuthAPI) BindOAuth(c *gin.Context) {
+	var req authsvc.BindOAuthRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid request body")
+		return
+	}
+	userID, ok := currentOAuthUserID(c)
+	if !ok {
+		response.UnauthorizedWithCode(c, response.ErrorCodeAuthContextMissing, "user not found in context")
+		return
+	}
+	if err := a.oauthService.BindOAuthContext(c.Request.Context(), userID, req); err != nil {
+		writeAuthServiceError(c, "failed to bind OAuth account", err)
+		return
+	}
 	response.SuccessWithMessage(c, "bind success", nil)
 }
 
 // UnbindOAuth unbinds a third-party account.
 func (a *OAuthAPI) UnbindOAuth(c *gin.Context) {
+	var req authsvc.UnbindOAuthRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid request body")
+		return
+	}
+	userID, ok := currentOAuthUserID(c)
+	if !ok {
+		response.UnauthorizedWithCode(c, response.ErrorCodeAuthContextMissing, "user not found in context")
+		return
+	}
+	if err := a.oauthService.UnbindOAuthContext(c.Request.Context(), userID, req); err != nil {
+		writeAuthServiceError(c, "failed to unbind OAuth account", err)
+		return
+	}
 	response.SuccessWithMessage(c, "unbind success", nil)
+}
+
+func currentOAuthUserID(c *gin.Context) (uint, bool) {
+	value, exists := c.Get("user_id")
+	if !exists {
+		return 0, false
+	}
+	userID, ok := value.(uint)
+	return userID, ok && userID != 0
 }

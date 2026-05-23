@@ -202,18 +202,64 @@ func readRequestBodyForLog(body io.ReadCloser, maxSize int) (string, io.ReadClos
 // logChanBufferSize limits queued operation log writes.
 const logChanBufferSize = 1000
 
+const operationLogWriteTimeout = 2 * time.Second
+
 var logChan = make(chan *model.OperationLog, logChanBufferSize)
 
-func init() {
-	go processLogs()
+type operationLogRecorder interface {
+	RecordContext(context.Context, *model.OperationLog) error
 }
 
-// processLogs persists queued operation logs.
-func processLogs() {
-	service := &system.OperationLogService{}
-	for log := range logChan {
-		_ = service.RecordContext(context.Background(), log)
+// StartOperationLogProcessor starts the background operation log processor.
+func StartOperationLogProcessor(ctx context.Context) <-chan struct{} {
+	return processLogs(ctx, logChan, &system.OperationLogService{}, operationLogWriteTimeout)
+}
+
+// processLogs persists queued operation logs until ctx is canceled.
+func processLogs(ctx context.Context, queue <-chan *model.OperationLog, recorder operationLogRecorder, writeTimeout time.Duration) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			select {
+			case <-ctx.Done():
+				drainOperationLogs(queue, recorder, writeTimeout)
+				return
+			case log, ok := <-queue:
+				if !ok {
+					return
+				}
+				recordOperationLog(ctx, recorder, log, writeTimeout)
+			}
+		}
+	}()
+	return done
+}
+
+func drainOperationLogs(queue <-chan *model.OperationLog, recorder operationLogRecorder, writeTimeout time.Duration) {
+	for {
+		select {
+		case log, ok := <-queue:
+			if !ok {
+				return
+			}
+			recordOperationLog(context.Background(), recorder, log, writeTimeout)
+		default:
+			return
+		}
 	}
+}
+
+func recordOperationLog(parent context.Context, recorder operationLogRecorder, log *model.OperationLog, writeTimeout time.Duration) {
+	if recorder == nil || log == nil {
+		return
+	}
+	if writeTimeout <= 0 {
+		writeTimeout = operationLogWriteTimeout
+	}
+	ctx, cancel := context.WithTimeout(parent, writeTimeout)
+	defer cancel()
+	_ = recorder.RecordContext(ctx, log)
 }
 
 // getModule resolves a module name from a route path.
@@ -292,7 +338,7 @@ func maskSensitivePayload(payload any) {
 
 func isSensitiveField(field string) bool {
 	switch strings.ToLower(field) {
-	case "password", "old_password", "new_password", "token", "access_token", "refresh_token", "secret":
+	case "password", "old_password", "new_password", "current_password", "token", "access_token", "refresh_token", "secret":
 		return true
 	default:
 		return false

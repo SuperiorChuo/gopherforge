@@ -67,13 +67,6 @@ func NewIPInfoClient(timeout, cacheTTL time.Duration) *IPInfoClient {
 	}
 }
 
-// GetIPInfo returns IP geolocation details.
-// It uses the free ip-api.com JSON API: https://ip-api.com/docs/api:json
-// Deprecated: use GetIPInfoContext instead.
-func (c *IPInfoClient) GetIPInfo(ip string) (*IPInfo, error) {
-	return c.GetIPInfoContext(context.Background(), ip)
-}
-
 // GetIPInfoContext returns IP geolocation details using the caller context.
 // It uses the free ip-api.com JSON API: https://ip-api.com/docs/api:json
 func (c *IPInfoClient) GetIPInfoContext(ctx context.Context, ip string) (*IPInfo, error) {
@@ -139,12 +132,6 @@ func (c *IPInfoClient) GetIPInfoContext(ctx context.Context, ip string) (*IPInfo
 	return &info, nil
 }
 
-// GetLocation returns a simplified location string.
-// Deprecated: use GetLocationContext instead.
-func (c *IPInfoClient) GetLocation(ip string) string {
-	return c.GetLocationContext(context.Background(), ip)
-}
-
 // GetLocationContext returns a simplified location string using the caller context.
 func (c *IPInfoClient) GetLocationContext(ctx context.Context, ip string) string {
 	info, err := c.GetIPInfoContext(ctx, ip)
@@ -155,9 +142,9 @@ func (c *IPInfoClient) GetLocationContext(ctx context.Context, ip string) string
 }
 
 // GetLocationAsync returns a simplified location string asynchronously.
-func (c *IPInfoClient) GetLocationAsync(ip string, callback func(location string)) {
+func (c *IPInfoClient) GetLocationAsync(ctx context.Context, ip string, callback func(location string)) {
 	go func() {
-		location := c.GetLocation(ip)
+		location := c.GetLocationContext(ctx, ip)
 		if callback != nil {
 			callback(location)
 		}
@@ -220,19 +207,9 @@ func isPrivateIP(ip string) bool {
 	return false
 }
 
-// GetIPInfoByQuery queries with the default client.
-func GetIPInfoByQuery(ip string) (*IPInfo, error) {
-	return GetClient().GetIPInfo(ip)
-}
-
 // GetIPInfoByQueryContext queries with the default client using the caller context.
 func GetIPInfoByQueryContext(ctx context.Context, ip string) (*IPInfo, error) {
 	return GetClient().GetIPInfoContext(ctx, ip)
-}
-
-// GetLocationByIP returns a simplified location with the default client.
-func GetLocationByIP(ip string) string {
-	return GetClient().GetLocation(ip)
 }
 
 // GetLocationByIPContext returns a simplified location with the default client using the caller context.

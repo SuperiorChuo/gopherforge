@@ -19,6 +19,7 @@ func TestBindErrorsDoNotExposeDecoderMessages(t *testing.T) {
 		"console_routes.go",
 		"console_compat.go",
 		"captcha.go",
+		"oauth.go",
 	}
 	assertNoBindErrorPassthrough(t, files)
 }

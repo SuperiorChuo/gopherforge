@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +19,19 @@ import (
 	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )
+
+func TestRunReturnsErrorWhenConfigLoadFails(t *testing.T) {
+	t.Setenv("CONFIG_FILE", filepath.Join(t.TempDir(), "missing.yaml"))
+
+	err := run(context.Background())
+
+	if err == nil {
+		t.Fatal("expected config load error")
+	}
+	if !strings.Contains(err.Error(), "config load failed") {
+		t.Fatalf("error = %q, want config load context", err.Error())
+	}
+}
 
 func TestSetupCORSAllowsLocalDevelopmentFrontendPorts(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -203,4 +218,121 @@ func TestStartDepartmentTreeInvalidationListenerStartsAndCloses(t *testing.T) {
 	if err := listener.Close(); err != nil {
 		t.Fatalf("listener.Close() error = %v", err)
 	}
+}
+
+func TestStartRuntimeConfigInvalidationListenerReturnsErrorWithoutRedis(t *testing.T) {
+	oldClient := redisstore.Client
+	redisstore.Client = nil
+	t.Cleanup(func() {
+		redisstore.Client = oldClient
+	})
+
+	listener, err := startRuntimeConfigInvalidationListener(context.Background())
+	if err == nil {
+		t.Fatal("expected error when redis client is nil")
+	}
+	if listener != nil {
+		t.Fatal("expected nil listener when redis client is nil")
+	}
+}
+
+func TestStartRuntimeConfigInvalidationListenerStartsAndCloses(t *testing.T) {
+	store, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("start miniredis: %v", err)
+	}
+
+	oldClient := redisstore.Client
+	redisstore.Client = goredis.NewClient(&goredis.Options{Addr: store.Addr()})
+	t.Cleanup(func() {
+		_ = redisstore.Client.Close()
+		redisstore.Client = oldClient
+		store.Close()
+	})
+
+	listener, err := startRuntimeConfigInvalidationListener(context.Background())
+	if err != nil {
+		t.Fatalf("startRuntimeConfigInvalidationListener() error = %v", err)
+	}
+	if listener == nil {
+		t.Fatal("expected listener")
+	}
+	if err := listener.Close(); err != nil {
+		t.Fatalf("listener.Close() error = %v", err)
+	}
+}
+
+func TestStopOperationLogProcessorCancelsAndWaits(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+
+	go func() {
+		<-ctx.Done()
+		close(done)
+	}()
+
+	if err := stopOperationLogProcessor(cancel, done, time.Second); err != nil {
+		t.Fatalf("stopOperationLogProcessor() error = %v", err)
+	}
+}
+
+func TestStopOperationLogProcessorTimesOut(t *testing.T) {
+	cancelCalled := false
+	err := stopOperationLogProcessor(func() {
+		cancelCalled = true
+	}, make(chan struct{}), 10*time.Millisecond)
+
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+	if !cancelCalled {
+		t.Fatal("cancel was not called")
+	}
+}
+
+func TestShutdownJobSchedulerWaitsForRunningJobs(t *testing.T) {
+	scheduler := &fakeJobScheduler{done: make(chan struct{})}
+	released := make(chan struct{})
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		close(scheduler.done)
+		close(released)
+	}()
+
+	if err := shutdownJobScheduler(scheduler, time.Second); err != nil {
+		t.Fatalf("shutdownJobScheduler() error = %v", err)
+	}
+
+	select {
+	case <-released:
+	default:
+		t.Fatal("shutdownJobScheduler returned before scheduler completed")
+	}
+}
+
+func TestShutdownJobSchedulerTimesOut(t *testing.T) {
+	scheduler := &fakeJobScheduler{done: make(chan struct{})}
+
+	err := shutdownJobScheduler(scheduler, 10*time.Millisecond)
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+	if !scheduler.shutdownCalled {
+		t.Fatal("scheduler Shutdown was not called")
+	}
+}
+
+type fakeJobScheduler struct {
+	done           chan struct{}
+	shutdownCalled bool
+}
+
+func (s *fakeJobScheduler) Shutdown() context.Context {
+	s.shutdownCalled = true
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-s.done
+		cancel()
+	}()
+	return ctx
 }

@@ -40,7 +40,7 @@ func TestIsTokenIDBlacklistedWithoutRedisClient(t *testing.T) {
 		redisstore.Client = oldClient
 	})
 
-	if IsTokenIDBlacklisted("token-id") {
+	if IsTokenIDBlacklistedContext(context.Background(), "token-id") {
 		t.Fatal("token should not be blacklisted when redis client is unavailable")
 	}
 }
@@ -54,11 +54,11 @@ func TestRevokeTokenBlacklistsUnexpiredToken(t *testing.T) {
 		t.Fatalf("generate token: %v", err)
 	}
 
-	claims, err := ParseToken(accessToken)
+	claims, err := ParseTokenContext(context.Background(), accessToken)
 	if err != nil {
 		t.Fatalf("parse token before revoke: %v", err)
 	}
-	if IsTokenBlacklisted(accessToken) {
+	if IsTokenBlacklistedContext(context.Background(), accessToken) {
 		t.Fatal("token should not start blacklisted")
 	}
 
@@ -73,11 +73,11 @@ func TestRevokeTokenBlacklistsUnexpiredToken(t *testing.T) {
 	if store.Exists(fmt.Sprintf("jwt:blacklist:%s", accessToken)) {
 		t.Fatal("blacklist should not use the full token as the redis key")
 	}
-	if !IsTokenBlacklisted(accessToken) {
+	if !IsTokenBlacklistedContext(context.Background(), accessToken) {
 		t.Fatal("token should be reported as blacklisted")
 	}
 
-	_, err = ParseToken(accessToken)
+	_, err = ParseTokenContext(context.Background(), accessToken)
 	if !errors.Is(err, ErrRevokedToken) {
 		t.Fatalf("parse revoked token error = %v, want %v", err, ErrRevokedToken)
 	}
@@ -103,7 +103,7 @@ func TestRevokeTokenUsesInjectedBlacklistStore(t *testing.T) {
 		t.Fatalf("generate token: %v", err)
 	}
 
-	claims, err := ParseToken(accessToken)
+	claims, err := ParseTokenContext(context.Background(), accessToken)
 	if err != nil {
 		t.Fatalf("parse token before revoke: %v", err)
 	}
@@ -118,9 +118,90 @@ func TestRevokeTokenUsesInjectedBlacklistStore(t *testing.T) {
 		t.Fatalf("blacklist ttl = %s, want positive", store.values[claims.ID])
 	}
 
-	_, err = ParseToken(accessToken)
+	_, err = ParseTokenContext(context.Background(), accessToken)
 	if !errors.Is(err, ErrRevokedToken) {
 		t.Fatalf("parse revoked token error = %v, want %v", err, ErrRevokedToken)
+	}
+}
+
+func TestContextAPIsPassContextToBlacklistStore(t *testing.T) {
+	setupJWTTestRedis(t)
+	setJWTTestConfig(t)
+
+	const contextValue = "request-ctx"
+	ctx := context.WithValue(context.Background(), stubContextKey{}, contextValue)
+	store := &stubTokenBlacklistStore{
+		values: make(map[string]time.Duration),
+	}
+	restore := SetTokenBlacklistStore(store)
+	t.Cleanup(restore)
+
+	accessToken, refreshToken, err := GenerateToken(42, "alice")
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	accessClaims, err := ParseTokenContext(context.Background(), accessToken)
+	if err != nil {
+		t.Fatalf("parse access token: %v", err)
+	}
+
+	if err := BlacklistTokenIDContext(ctx, "token-id", time.Minute); err != nil {
+		t.Fatalf("BlacklistTokenIDContext() error = %v", err)
+	}
+	if store.setContextValue != contextValue {
+		t.Fatalf("BlacklistTokenIDContext() context value = %v, want %q", store.setContextValue, contextValue)
+	}
+
+	store.setContextValue = nil
+	if err := BlacklistTokenContext(ctx, accessToken, time.Minute); err != nil {
+		t.Fatalf("BlacklistTokenContext() error = %v", err)
+	}
+	if store.setContextValue != contextValue {
+		t.Fatalf("BlacklistTokenContext() context value = %v, want %q", store.setContextValue, contextValue)
+	}
+
+	store.setContextValue = nil
+	if err := RevokeTokenContext(ctx, accessToken, accessClaims); err != nil {
+		t.Fatalf("RevokeTokenContext() error = %v", err)
+	}
+	if store.setContextValue != contextValue {
+		t.Fatalf("RevokeTokenContext() context value = %v, want %q", store.setContextValue, contextValue)
+	}
+
+	store.setContextValue = nil
+	store.hasContextValue = nil
+	if _, _, err := RefreshTokenContext(ctx, refreshToken); err != nil {
+		t.Fatalf("RefreshTokenContext() error = %v", err)
+	}
+	if store.hasContextValue != contextValue {
+		t.Fatalf("RefreshTokenContext() revocation check context value = %v, want %q", store.hasContextValue, contextValue)
+	}
+	if store.setContextValue != contextValue {
+		t.Fatalf("RefreshTokenContext() revoke context value = %v, want %q", store.setContextValue, contextValue)
+	}
+}
+
+func TestConsumeTokenIDUsesInjectedBlacklistStore(t *testing.T) {
+	store := &stubTokenBlacklistStore{
+		values: make(map[string]time.Duration),
+	}
+	restore := SetTokenBlacklistStore(store)
+	t.Cleanup(restore)
+
+	consumed, err := ConsumeTokenID(context.Background(), "challenge-id", time.Minute)
+	if err != nil {
+		t.Fatalf("ConsumeTokenID() error = %v", err)
+	}
+	if !consumed {
+		t.Fatal("first ConsumeTokenID() should consume the token id")
+	}
+
+	consumed, err = ConsumeTokenID(context.Background(), "challenge-id", time.Minute)
+	if err != nil {
+		t.Fatalf("second ConsumeTokenID() error = %v", err)
+	}
+	if consumed {
+		t.Fatal("second ConsumeTokenID() should report an already consumed token id")
 	}
 }
 
@@ -133,11 +214,11 @@ func TestGenerateTokenWithAccessTTLUsesCustomTTL(t *testing.T) {
 		t.Fatalf("generate token: %v", err)
 	}
 
-	accessClaims, err := ParseToken(accessToken)
+	accessClaims, err := ParseTokenContext(context.Background(), accessToken)
 	if err != nil {
 		t.Fatalf("parse access token: %v", err)
 	}
-	refreshClaims, err := ParseToken(refreshToken)
+	refreshClaims, err := ParseTokenContext(context.Background(), refreshToken)
 	if err != nil {
 		t.Fatalf("parse refresh token: %v", err)
 	}
@@ -152,6 +233,27 @@ func TestGenerateTokenWithAccessTTLUsesCustomTTL(t *testing.T) {
 	refreshTTL := refreshClaims.ExpiresAt.Sub(refreshClaims.IssuedAt.Time)
 	if refreshTTL < 2*time.Hour-time.Second || refreshTTL > 2*time.Hour+time.Second {
 		t.Fatalf("refresh token ttl = %s, want about default 2h", refreshTTL)
+	}
+}
+
+func TestGenerateWebSocketTicketUsesDedicatedTokenType(t *testing.T) {
+	setupJWTTestRedis(t)
+	setJWTTestConfig(t)
+
+	ticket, err := GenerateWebSocketTicket(42, "alice", time.Minute)
+	if err != nil {
+		t.Fatalf("GenerateWebSocketTicket() error = %v", err)
+	}
+
+	claims, err := ParseWebSocketTicket(ticket)
+	if err != nil {
+		t.Fatalf("ParseWebSocketTicket() error = %v", err)
+	}
+	if claims.TokenType != WebSocketTicketTokenType {
+		t.Fatalf("token type = %q, want %q", claims.TokenType, WebSocketTicketTokenType)
+	}
+	if claims.UserID != 42 || claims.Username != "alice" {
+		t.Fatalf("claims user = %d/%s, want 42/alice", claims.UserID, claims.Username)
 	}
 }
 
@@ -194,17 +296,23 @@ func setJWTTestConfig(t *testing.T) {
 }
 
 type stubTokenBlacklistStore struct {
-	values     map[string]time.Duration
-	setTokenID string
+	values          map[string]time.Duration
+	setTokenID      string
+	setContextValue any
+	hasContextValue any
 }
 
 func (s *stubTokenBlacklistStore) SetTokenID(ctx context.Context, tokenID string, expireTime time.Duration) error {
 	s.setTokenID = tokenID
+	s.setContextValue = ctx.Value(stubContextKey{})
 	s.values[tokenID] = expireTime
 	return nil
 }
 
 func (s *stubTokenBlacklistStore) HasTokenID(ctx context.Context, tokenID string) (bool, error) {
+	s.hasContextValue = ctx.Value(stubContextKey{})
 	_, ok := s.values[tokenID]
 	return ok, nil
 }
+
+type stubContextKey struct{}

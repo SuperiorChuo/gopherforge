@@ -118,6 +118,12 @@ const legacyFallbackRoutes: RouteRecordRaw[] = [
         component: () => import('@/pages/system/notice/index.vue'),
         meta: hiddenPermissionMeta('system:notice:list'),
       },
+      {
+        path: 'setting',
+        name: 'SystemSettingFallback',
+        component: () => import('@/pages/system/setting/index.vue'),
+        meta: hiddenPermissionMeta('system:setting:list'),
+      },
     ],
   },
 ];

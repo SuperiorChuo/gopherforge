@@ -58,11 +58,6 @@ const (
 	onlineUserUserIndexPrefix = "online_users:user:"
 )
 
-// Deprecated: use SetOnlineUserContext instead.
-func (s *OnlineUserService) SetOnlineUser(user OnlineUser, expiration time.Duration) error {
-	return s.SetOnlineUserContext(context.Background(), user, expiration)
-}
-
 func (s *OnlineUserService) SetOnlineUserContext(ctx context.Context, user OnlineUser, expiration time.Duration) error {
 	data, err := json.Marshal(user)
 	if err != nil {
@@ -82,11 +77,6 @@ func (s *OnlineUserService) SetOnlineUserContext(ctx context.Context, user Onlin
 	})
 	_, err = pipe.Exec(ctx)
 	return err
-}
-
-// Deprecated: use RemoveOnlineUserContext instead.
-func (s *OnlineUserService) RemoveOnlineUser(tokenID string) error {
-	return s.RemoveOnlineUserContext(context.Background(), tokenID)
 }
 
 func (s *OnlineUserService) RemoveOnlineUserContext(ctx context.Context, tokenID string) error {
@@ -111,18 +101,8 @@ func (s *OnlineUserService) RemoveOnlineUserContext(ctx context.Context, tokenID
 	return err
 }
 
-// Deprecated: use GetOnlineUsersContext instead.
-func (s *OnlineUserService) GetOnlineUsers() ([]OnlineUser, error) {
-	return s.GetOnlineUsersContext(context.Background())
-}
-
 func (s *OnlineUserService) GetOnlineUsersContext(ctx context.Context) ([]OnlineUser, error) {
 	return s.getIndexedOnlineUsers(ctx)
-}
-
-// Deprecated: use GetOnlineUserCountContext instead.
-func (s *OnlineUserService) GetOnlineUserCount() (int64, error) {
-	return s.GetOnlineUserCountContext(context.Background())
 }
 
 func (s *OnlineUserService) GetOnlineUserCountContext(ctx context.Context) (int64, error) {
@@ -132,11 +112,6 @@ func (s *OnlineUserService) GetOnlineUserCountContext(ctx context.Context) (int6
 	return s.countIndexedOnlineUsersContext(ctx)
 }
 
-// Deprecated: use ForceLogoutContext instead.
-func (s *OnlineUserService) ForceLogout(tokenID string) error {
-	return s.ForceLogoutContext(context.Background(), tokenID)
-}
-
 func (s *OnlineUserService) ForceLogoutContext(ctx context.Context, tokenID string) error {
 	data, err := s.redisClient().Get(ctx, onlineUserKey(tokenID)).Result()
 	var targetUserID uint
@@ -144,7 +119,7 @@ func (s *OnlineUserService) ForceLogoutContext(ctx context.Context, tokenID stri
 		var user OnlineUser
 		if json.Unmarshal([]byte(data), &user) == nil {
 			targetUserID = user.UserID
-			s.revokeOnlineUserToken(user)
+			s.revokeOnlineUserToken(ctx, user)
 		}
 	}
 	if targetUserID != 0 {
@@ -205,7 +180,7 @@ func (s *OnlineUserService) revokeUserOnlineTokensContext(ctx context.Context, u
 			continue
 		}
 
-		s.revokeOnlineUserToken(user)
+		s.revokeOnlineUserToken(ctx, user)
 		pipe.Del(ctx, onlineUserKey(tokenID))
 		pipe.ZRem(ctx, onlineUserIndexKey, tokenID)
 		pipe.ZRem(ctx, userIndexKey, tokenID)
@@ -214,17 +189,12 @@ func (s *OnlineUserService) revokeUserOnlineTokensContext(ctx context.Context, u
 	return err
 }
 
-func (s *OnlineUserService) revokeOnlineUserToken(user OnlineUser) {
+func (s *OnlineUserService) revokeOnlineUserToken(ctx context.Context, user OnlineUser) {
 	if user.TokenID != "" && !user.AccessTokenExpiresAt.IsZero() {
 		if ttl := time.Until(user.AccessTokenExpiresAt); ttl > 0 {
-			_ = jwt.BlacklistTokenID(user.TokenID, ttl)
+			_ = jwt.BlacklistTokenIDContext(ctx, user.TokenID, ttl)
 		}
 	}
-}
-
-// Deprecated: use IsUserOnlineContext instead.
-func (s *OnlineUserService) IsUserOnline(tokenID string) bool {
-	return s.IsUserOnlineContext(context.Background(), tokenID)
 }
 
 func (s *OnlineUserService) IsUserOnlineContext(ctx context.Context, tokenID string) bool {

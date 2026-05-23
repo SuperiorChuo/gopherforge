@@ -33,6 +33,7 @@ make api-contract
 刷新契约后执行：
 
 ```powershell
+git diff --exit-code -- server/docs/openapi.json tdesign-vue-go/src/api/generated/schema.d.ts
 npm run test:contract
 ```
 
@@ -54,10 +55,11 @@ npm run test:contract
 
 ```powershell
 npm run api:contract
+git diff --exit-code -- server/docs/openapi.json tdesign-vue-go/src/api/generated/schema.d.ts
 npm run test:contract
 ```
 
-因此提交前建议本地先跑一遍契约生成和测试，减少 CI 上才发现接口契约漂移的情况。
+因此提交前建议本地先跑一遍契约生成、生成物漂移检查和契约测试。`git diff --exit-code` 返回非零时，表示 `server/docs/openapi.json` 或 `tdesign-vue-go/src/api/generated/schema.d.ts` 已被重新生成但未提交，需要把生成物纳入本次提交后再发起 PR。
 
 ## 当前边界
 

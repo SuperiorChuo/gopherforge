@@ -104,6 +104,28 @@ func newJobService(dao jobDAO, bootstrapJobs bool) *JobService {
 	return service
 }
 
+// Stop stops the scheduler and returns a context that is done after running jobs finish.
+func (s *JobService) Stop() context.Context {
+	if s == nil || s.cron == nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		return ctx
+	}
+
+	s.runningMap.Range(func(jobID, entryID any) bool {
+		s.cron.Remove(entryID.(cron.EntryID))
+		s.runningMap.Delete(jobID)
+		return true
+	})
+
+	return s.cron.Stop()
+}
+
+// Shutdown is an alias for Stop for service lifecycle integration.
+func (s *JobService) Shutdown() context.Context {
+	return s.Stop()
+}
+
 // initJobs loads active jobs into the scheduler.
 func (s *JobService) initJobs() {
 	jobs, err := s.dao.GetAllActiveJobsContext(context.Background())
@@ -212,12 +234,6 @@ func (s *JobService) executeTaskContext(ctx context.Context, target string) (str
 	}
 }
 
-// CleanupJobLogs deletes scheduled job logs by retention days.
-// Deprecated: use CleanupJobLogsContext instead.
-func (s *JobService) CleanupJobLogs(retentionDays int) (*JobLogCleanupResult, error) {
-	return s.CleanupJobLogsContext(context.Background(), retentionDays)
-}
-
 func (s *JobService) CleanupJobLogsContext(ctx context.Context, retentionDays int) (*JobLogCleanupResult, error) {
 	if retentionDays <= 0 {
 		return nil, ErrInvalidRetentionDays
@@ -234,12 +250,6 @@ func (s *JobService) CleanupJobLogsContext(ctx context.Context, retentionDays in
 		CutoffTime:    cutoff,
 		DeletedRows:   deletedRows,
 	}, nil
-}
-
-// CheckJobHealth summarizes job health status.
-// Deprecated: use CheckJobHealthContext instead.
-func (s *JobService) CheckJobHealth(windowHours int) (*JobHealthCheck, error) {
-	return s.CheckJobHealthContext(context.Background(), windowHours)
 }
 
 func (s *JobService) CheckJobHealthContext(ctx context.Context, windowHours int) (*JobHealthCheck, error) {
@@ -341,20 +351,8 @@ func (s *JobService) buildAbnormalJobsContext(ctx context.Context, jobs []model.
 	return abnormalJobs, nil
 }
 
-// GetJobList returns scheduled jobs.
-// Deprecated: use GetJobListContext instead.
-func (s *JobService) GetJobList(req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error) {
-	return s.GetJobListContext(context.Background(), req, name, status)
-}
-
 func (s *JobService) GetJobListContext(ctx context.Context, req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error) {
 	return s.dao.GetJobListContext(ctx, req, name, status)
-}
-
-// CreateJob creates a scheduled job.
-// Deprecated: use CreateJobContext instead.
-func (s *JobService) CreateJob(job *model.ScheduledJob) error {
-	return s.CreateJobContext(context.Background(), job)
 }
 
 func (s *JobService) CreateJobContext(ctx context.Context, job *model.ScheduledJob) error {
@@ -374,12 +372,6 @@ func (s *JobService) CreateJobContext(ctx context.Context, job *model.ScheduledJ
 		}
 	}
 	return nil
-}
-
-// UpdateJob updates a scheduled job.
-// Deprecated: use UpdateJobContext instead.
-func (s *JobService) UpdateJob(job *model.ScheduledJob) error {
-	return s.UpdateJobContext(context.Background(), job)
 }
 
 func (s *JobService) UpdateJobContext(ctx context.Context, job *model.ScheduledJob) error {
@@ -417,12 +409,6 @@ func (s *JobService) UpdateJobContext(ctx context.Context, job *model.ScheduledJ
 	return nil
 }
 
-// StartJobByID starts a job by ID.
-// Deprecated: use StartJobByIDContext instead.
-func (s *JobService) StartJobByID(id uint) error {
-	return s.StartJobByIDContext(context.Background(), id)
-}
-
 func (s *JobService) StartJobByIDContext(ctx context.Context, id uint) error {
 	job, err := s.dao.GetJobByIDContext(ctx, id)
 	if err != nil {
@@ -443,12 +429,6 @@ func (s *JobService) StartJobByIDContext(ctx context.Context, id uint) error {
 	return s.dao.UpdateJobContext(ctx, job)
 }
 
-// StopJobByID stops a job by ID.
-// Deprecated: use StopJobByIDContext instead.
-func (s *JobService) StopJobByID(id uint) error {
-	return s.StopJobByIDContext(context.Background(), id)
-}
-
 func (s *JobService) StopJobByIDContext(ctx context.Context, id uint) error {
 	job, err := s.dao.GetJobByIDContext(ctx, id)
 	if err != nil {
@@ -460,24 +440,12 @@ func (s *JobService) StopJobByIDContext(ctx context.Context, id uint) error {
 	return s.dao.UpdateJobContext(ctx, job)
 }
 
-// DeleteJob deletes a scheduled job.
-// Deprecated: use DeleteJobContext instead.
-func (s *JobService) DeleteJob(id uint) error {
-	return s.DeleteJobContext(context.Background(), id)
-}
-
 func (s *JobService) DeleteJobContext(ctx context.Context, id uint) error {
 	if _, err := s.dao.GetJobByIDContext(ctx, id); err != nil {
 		return err
 	}
 	s.StopJob(id)
 	return s.dao.DeleteJobContext(ctx, id)
-}
-
-// RunJob executes a job immediately.
-// Deprecated: use RunJobContext instead.
-func (s *JobService) RunJob(id uint) error {
-	return s.RunJobContext(context.Background(), id)
 }
 
 func (s *JobService) RunJobContext(ctx context.Context, id uint) error {

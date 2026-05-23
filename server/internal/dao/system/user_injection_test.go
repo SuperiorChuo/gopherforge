@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"regexp"
 	"testing"
 
@@ -29,17 +30,18 @@ func TestUserDAOGetUserListUsesInjectedDB(t *testing.T) {
 		WithArgs(uint(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"user_id", "role_id"}))
 
-	users, total, err := NewUserDAO(db).GetUserList(
+	users, total, err := NewUserDAO(db).GetUserListContext(
+		context.Background(),
 		pagination.PageRequest{Page: 1, PageSize: 10},
 		"",
 		nil,
 		authz.UserDataScope{Scope: authz.DataScopeAll},
 	)
 	if err != nil {
-		t.Fatalf("GetUserList() error = %v", err)
+		t.Fatalf("GetUserListContext() error = %v", err)
 	}
 	if total != 1 || len(users) != 1 || users[0].Username != "alice" {
-		t.Fatalf("GetUserList() total=%d users=%#v, want one alice", total, users)
+		t.Fatalf("GetUserListContext() total=%d users=%#v, want one alice", total, users)
 	}
 }
 

@@ -22,13 +22,13 @@ func TestJWTBlacklistUsesTokenIDKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate token: %v", err)
 	}
-	claims, err := jwtpkg.ParseToken(accessToken)
+	claims, err := jwtpkg.ParseTokenContext(context.Background(), accessToken)
 	if err != nil {
 		t.Fatalf("parse token: %v", err)
 	}
 
 	service := NewCacheService()
-	if err := service.AddJWTToBlacklist(accessToken, time.Hour); err != nil {
+	if err := service.AddJWTToBlacklistContext(context.Background(), accessToken, time.Hour); err != nil {
 		t.Fatalf("add jwt to blacklist: %v", err)
 	}
 
@@ -39,13 +39,13 @@ func TestJWTBlacklistUsesTokenIDKey(t *testing.T) {
 	if store.Exists(fmt.Sprintf(KeyJWTBlacklist, accessToken)) {
 		t.Fatal("cache blacklist should not use the full token as the redis key")
 	}
-	if !service.IsJWTInBlacklist(accessToken) {
+	if !service.IsJWTInBlacklistContext(context.Background(), accessToken) {
 		t.Fatal("token should be reported as blacklisted")
 	}
-	if err := service.RemoveJWTFromBlacklist(accessToken); err != nil {
+	if err := service.RemoveJWTFromBlacklistContext(context.Background(), accessToken); err != nil {
 		t.Fatalf("remove jwt from blacklist: %v", err)
 	}
-	if service.IsJWTInBlacklist(accessToken) {
+	if service.IsJWTInBlacklistContext(context.Background(), accessToken) {
 		t.Fatal("token should not remain blacklisted")
 	}
 }
@@ -74,6 +74,48 @@ func TestNewCacheServiceWithClientUsesInjectedClient(t *testing.T) {
 	}
 	if globalStore.Exists(key) {
 		t.Fatalf("global cache key %q was written; expected injected client only", key)
+	}
+}
+
+func TestOAuthStateConsumeDeletesStoredVerifier(t *testing.T) {
+	setupCacheTestRedis(t)
+
+	service := NewCacheService()
+	if err := service.SetOAuthStateContext(context.Background(), "state-token", "pkce-verifier", time.Minute); err != nil {
+		t.Fatalf("SetOAuthStateContext(): %v", err)
+	}
+
+	got, err := service.ConsumeOAuthStateContext(context.Background(), "state-token")
+	if err != nil {
+		t.Fatalf("ConsumeOAuthStateContext(): %v", err)
+	}
+	if got != "pkce-verifier" {
+		t.Fatalf("verifier = %q, want pkce-verifier", got)
+	}
+
+	_, err = service.ConsumeOAuthStateContext(context.Background(), "state-token")
+	if !errors.Is(err, ErrOAuthStateNotFound) {
+		t.Fatalf("second ConsumeOAuthStateContext() error = %v, want ErrOAuthStateNotFound", err)
+	}
+}
+
+func TestOAuthStateSetDoesNotOverwriteExistingVerifier(t *testing.T) {
+	setupCacheTestRedis(t)
+
+	service := NewCacheService()
+	if err := service.SetOAuthStateContext(context.Background(), "state-token", "first-verifier", time.Minute); err != nil {
+		t.Fatalf("first SetOAuthStateContext(): %v", err)
+	}
+	if err := service.SetOAuthStateContext(context.Background(), "state-token", "second-verifier", time.Minute); !errors.Is(err, ErrOAuthStateAlreadyExists) {
+		t.Fatalf("second SetOAuthStateContext() error = %v, want ErrOAuthStateAlreadyExists", err)
+	}
+
+	got, err := service.ConsumeOAuthStateContext(context.Background(), "state-token")
+	if err != nil {
+		t.Fatalf("ConsumeOAuthStateContext(): %v", err)
+	}
+	if got != "first-verifier" {
+		t.Fatalf("verifier = %q, want first verifier to remain", got)
 	}
 }
 

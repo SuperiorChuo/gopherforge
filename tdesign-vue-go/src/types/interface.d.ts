@@ -37,6 +37,7 @@ export interface UserInfo {
   roles: string[];
   permissions?: string[];
   mustChangePassword?: boolean;
+  totpEnabled?: boolean;
 }
 
 export interface NotificationItem {

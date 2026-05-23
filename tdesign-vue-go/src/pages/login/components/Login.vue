@@ -81,6 +81,12 @@
   </t-form>
 
   <slide-captcha v-model:show="showSlideCaptcha" @success="handleSlideSuccess" />
+  <totp-verify-dialog
+    v-model:visible="showTotpDialog"
+    :loading="totpLoading"
+    @submit="handleTotpSubmit"
+    @cancel="handleTotpCancel"
+  />
 </template>
 <script setup lang="ts">
 import QrcodeVue from 'qrcode.vue';
@@ -92,7 +98,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { useCounter } from '@/hooks';
 import { t } from '@/locales';
 import { useUserStore } from '@/store';
+import { verifyTotpLogin } from '@/api/auth';
 import SlideCaptcha from '@/components/SlideCaptcha/index.vue';
+import TotpVerifyDialog from './TotpVerifyDialog.vue';
 import { normalizeRedirectUrl } from '../utils';
 
 const userStore = useUserStore();
@@ -118,6 +126,9 @@ const form = ref<FormInstanceFunctions>();
 const formData = ref({ ...INITIAL_DATA });
 const showPsw = ref(false);
 const showSlideCaptcha = ref(false);
+const showTotpDialog = ref(false);
+const totpLoading = ref(false);
+const pendingTotpChallengeId = ref('');
 
 const [countDown, handleCounter] = useCounter();
 
@@ -151,13 +162,25 @@ const onSubmit = async (ctx: SubmitContext) => {
 
 const handleSlideSuccess = async ({ captcha_id, captcha_code }: { captcha_id: string; captcha_code: string }) => {
   try {
-    await userStore.login({
+    const loginResp = await userStore.login({
       username: formData.value.account,
       password: formData.value.password,
       captcha_id: captcha_id,
       captcha_code: captcha_code,
     });
+    if (loginResp.requires_totp && loginResp.totp_challenge_id) {
+      pendingTotpChallengeId.value = loginResp.totp_challenge_id;
+      showTotpDialog.value = true;
+      return;
+    }
 
+    await finishLogin();
+  } catch (error: any) {
+    MessagePlugin.error(error?.message || '登录失败，请检查用户名和密码');
+  }
+};
+
+const finishLogin = async () => {
     await userStore.getUserInfo();
 
     MessagePlugin.success('登录成功');
@@ -168,9 +191,29 @@ const handleSlideSuccess = async ({ captcha_id, captcha_code }: { captcha_id: st
         ? normalizeRedirectUrl(redirect)
         : '/dashboard/index';
     router.push(redirectUrl);
+};
+
+const handleTotpSubmit = async (code: string) => {
+  if (!pendingTotpChallengeId.value) return;
+  totpLoading.value = true;
+  try {
+    const loginResp = await verifyTotpLogin({
+      challenge_id: pendingTotpChallengeId.value,
+      code,
+    });
+    userStore.applyLoginSession(loginResp);
+    showTotpDialog.value = false;
+    pendingTotpChallengeId.value = '';
+    await finishLogin();
   } catch (error: any) {
-    MessagePlugin.error(error?.message || '登录失败，请检查用户名和密码');
+    MessagePlugin.error(error?.message || '两步验证码校验失败');
+  } finally {
+    totpLoading.value = false;
   }
+};
+
+const handleTotpCancel = () => {
+  pendingTotpChallengeId.value = '';
 };
 
 onMounted(() => {

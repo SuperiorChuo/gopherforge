@@ -35,9 +35,9 @@ func TestDepartmentDAOGetAllUsesInjectedDB(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `departments` ORDER BY parent_id ASC, sort ASC, created_at ASC")).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "code"}).AddRow(7, "Engineering", "eng"))
 
-	depts, err := NewDepartmentDAO(db).GetAll(nil)
+	depts, err := NewDepartmentDAO(db).GetAllContext(context.Background(), nil)
 	if err != nil {
-		t.Fatalf("GetAll() error = %v", err)
+		t.Fatalf("GetAllContext() error = %v", err)
 	}
 	if len(depts) != 1 || depts[0].Code != "eng" {
 		t.Fatalf("GetAll() departments = %#v, want one injected row", depts)

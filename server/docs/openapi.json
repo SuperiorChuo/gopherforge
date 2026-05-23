@@ -22,7 +22,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LoginRequest"
+                "$ref": "#/components/schemas/ConsoleLoginRequest"
               }
             }
           }
@@ -33,7 +33,68 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LoginResponseEnvelope"
+                  "$ref": "#/components/schemas/ConsoleLoginResponseEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login/2fa/verify": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "POST /api/v1/auth/login/2fa/verify",
+        "operationId": "postApiV1AuthLogin2faVerify",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyTOTPLoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsoleSessionEnvelope"
                 }
               }
             }
@@ -2413,13 +2474,23 @@
             "BearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "hash",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Request succeeded",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/FileHashCheckEnvelope"
                 }
               }
             }
@@ -2939,11 +3010,12 @@
         ],
         "responses": {
           "200": {
-            "description": "Request succeeded",
+            "description": "File content stream",
             "content": {
-              "application/json": {
+              "application/octet-stream": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }
@@ -3006,11 +3078,12 @@
         ],
         "responses": {
           "200": {
-            "description": "Request succeeded",
+            "description": "File content stream",
             "content": {
-              "application/json": {
+              "application/octet-stream": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }
@@ -4088,6 +4161,67 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LoginLogListEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/login/2fa/verify": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "POST /api/v1/login/2fa/verify",
+        "operationId": "postApiV1Login2faVerify",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyTOTPLoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseEnvelope"
                 }
               }
             }
@@ -6105,13 +6239,17 @@
         ],
         "summary": "POST /api/v1/oauth/bind",
         "operationId": "postApiV1OauthBind",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/OAuthBindRequest"
               }
             }
           }
@@ -6122,7 +6260,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/EmptyEnvelope"
                 }
               }
             }
@@ -6147,8 +6285,28 @@
               }
             }
           },
+          "409": {
+            "description": "OAuth account conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "OAuth provider unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -6207,6 +6365,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "OAuth provider unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -6219,15 +6387,8 @@
         "summary": "GET /api/v1/oauth/github/login",
         "operationId": "getApiV1OauthGithubLogin",
         "responses": {
-          "200": {
-            "description": "Request succeeded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
+          "302": {
+            "description": "Redirect to OAuth provider authorization URL"
           },
           "400": {
             "description": "Invalid request parameters",
@@ -6251,6 +6412,16 @@
           },
           "500": {
             "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "OAuth provider unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -6269,13 +6440,17 @@
         ],
         "summary": "POST /api/v1/oauth/unbind",
         "operationId": "postApiV1OauthUnbind",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/OAuthUnbindRequest"
               }
             }
           }
@@ -6286,7 +6461,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/EmptyEnvelope"
                 }
               }
             }
@@ -6311,8 +6486,28 @@
               }
             }
           },
+          "404": {
+            "description": "OAuth binding not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "OAuth provider unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -6371,6 +6566,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "OAuth provider unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -6383,15 +6588,8 @@
         "summary": "GET /api/v1/oauth/wechat/login",
         "operationId": "getApiV1OauthWechatLogin",
         "responses": {
-          "200": {
-            "description": "Request succeeded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
+          "302": {
+            "description": "Redirect to OAuth provider authorization URL"
           },
           "400": {
             "description": "Invalid request parameters",
@@ -6415,6 +6613,16 @@
           },
           "500": {
             "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "OAuth provider unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -8189,6 +8397,606 @@
         }
       }
     },
+    "/api/v1/system-settings": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "GET /api/v1/system-settings",
+        "operationId": "getApiV1SystemSettings",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingArrayEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system-settings/batch": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "POST /api/v1/system-settings/batch",
+        "operationId": "postApiV1SystemSettingsBatch",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchUpsertSystemSettingsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingArrayEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system-settings/{key}": {
+      "delete": {
+        "tags": [
+          "system"
+        ],
+        "summary": "DELETE /api/v1/system-settings/{key}",
+        "operationId": "deleteApiV1SystemSettingsKey",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmptyEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "GET /api/v1/system-settings/{key}",
+        "operationId": "getApiV1SystemSettingsKey",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "system"
+        ],
+        "summary": "PUT /api/v1/system-settings/{key}",
+        "operationId": "putApiV1SystemSettingsKey",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertSystemSettingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/2fa/disable": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "POST /api/v1/user/2fa/disable",
+        "operationId": "postApiV1User2faDisable",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TOTPVerifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmptyEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/2fa/enable": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "POST /api/v1/user/2fa/enable",
+        "operationId": "postApiV1User2faEnable",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TOTPVerifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TOTPRecoveryCodesEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/2fa/recovery-codes": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "POST /api/v1/user/2fa/recovery-codes",
+        "operationId": "postApiV1User2faRecoveryCodes",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TOTPVerifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TOTPRecoveryCodesEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/2fa/setup": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "POST /api/v1/user/2fa/setup",
+        "operationId": "postApiV1User2faSetup",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TOTPSetupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TOTPSetupEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/user/me": {
       "get": {
         "tags": [
@@ -8950,6 +9758,117 @@
           }
         }
       }
+    },
+    "/api/v1/ws/notifications": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "GET /api/v1/ws/notifications",
+        "operationId": "getApiV1WsNotifications",
+        "parameters": [
+          {
+            "name": "ticket",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "Switching Protocols to notification WebSocket stream"
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-websocket": true
+      }
+    },
+    "/api/v1/ws/notifications/ticket": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "POST /api/v1/ws/notifications/ticket",
+        "operationId": "postApiV1WsNotificationsTicket",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationTicketEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -8999,6 +9918,20 @@
             "items": {
               "type": "integer",
               "format": "int64"
+            }
+          }
+        }
+      },
+      "BatchUpsertSystemSettingsRequest": {
+        "type": "object",
+        "required": [
+          "settings"
+        ],
+        "properties": {
+          "settings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemSettingItem"
             }
           }
         }
@@ -9059,6 +9992,184 @@
           "deleted_count": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "ConsoleLoginRequest": {
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
+      "ConsoleLoginResponse": {
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "auth_enabled": {
+            "type": "boolean"
+          },
+          "authenticated": {
+            "type": "boolean"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
+          "requires_totp": {
+            "type": "boolean"
+          },
+          "totp_challenge_id": {
+            "type": "string"
+          },
+          "ttl_sec": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "user": {
+            "$ref": "#/components/schemas/ConsoleSessionUser"
+          }
+        }
+      },
+      "ConsoleLoginResponseEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ConsoleLoginResponse"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ConsoleSessionEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ConsoleSessionResponse"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ConsoleSessionResponse": {
+        "type": "object",
+        "required": [
+          "authenticated",
+          "auth_enabled",
+          "user",
+          "expires_at",
+          "ttl_sec"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "auth_enabled": {
+            "type": "boolean"
+          },
+          "authenticated": {
+            "type": "boolean"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
+          "ttl_sec": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "user": {
+            "$ref": "#/components/schemas/ConsoleSessionUser"
+          }
+        }
+      },
+      "ConsoleSessionUser": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "display_name",
+          "role",
+          "roles",
+          "permissions",
+          "actor_type",
+          "actor_id",
+          "must_change_password"
+        ],
+        "properties": {
+          "actor_id": {
+            "type": "string"
+          },
+          "actor_type": {
+            "type": "string"
+          },
+          "avatar": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "must_change_password": {
+            "type": "boolean"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "role": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "username": {
+            "type": "string"
           }
         }
       },
@@ -9903,6 +11014,40 @@
           }
         }
       },
+      "FileHashCheck": {
+        "type": "object",
+        "required": [
+          "exists"
+        ],
+        "properties": {
+          "exists": {
+            "type": "boolean"
+          },
+          "file": {
+            "$ref": "#/components/schemas/FileItem"
+          }
+        }
+      },
+      "FileHashCheckEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/FileHashCheck"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
       "FileItem": {
         "type": "object",
         "required": [
@@ -9939,11 +11084,33 @@
             "type": "integer",
             "format": "int64"
           },
+          "image_height": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "image_width": {
+            "type": "integer",
+            "format": "int64"
+          },
           "mime_type": {
             "type": "string"
           },
           "storage_type": {
             "type": "string"
+          },
+          "thumbnail_height": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "thumbnail_path": {
+            "type": "string"
+          },
+          "thumbnail_url": {
+            "type": "string"
+          },
+          "thumbnail_width": {
+            "type": "integer",
+            "format": "int64"
           },
           "updated_at": {
             "type": "string",
@@ -10010,27 +11177,17 @@
       "FileStats": {
         "type": "object",
         "properties": {
-          "document_count": {
-            "type": "integer",
-            "format": "int64"
+          "by_type": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FileTypeStat"
+            }
           },
-          "image_count": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "other_count": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "total_files": {
+          "total": {
             "type": "integer",
             "format": "int64"
           },
           "total_size": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "video_count": {
             "type": "integer",
             "format": "int64"
           }
@@ -10053,6 +11210,23 @@
           },
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "FileTypeStat": {
+        "type": "object",
+        "required": [
+          "count",
+          "size"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -10457,16 +11631,17 @@
       },
       "LoginResponse": {
         "type": "object",
-        "required": [
-          "user",
-          "access_token",
-          "refresh_token"
-        ],
         "properties": {
           "access_token": {
             "type": "string"
           },
           "refresh_token": {
+            "type": "string"
+          },
+          "requires_totp": {
+            "type": "boolean"
+          },
+          "totp_challenge_id": {
             "type": "string"
           },
           "user": {
@@ -11230,6 +12405,129 @@
           "total": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "NotificationMessage": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "title",
+          "content",
+          "created_at"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "NotificationMessageEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/NotificationMessage"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "NotificationTicketEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/NotificationTicketResponse"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "NotificationTicketResponse": {
+        "type": "object",
+        "required": [
+          "ticket"
+        ],
+        "properties": {
+          "ticket": {
+            "type": "string"
+          }
+        }
+      },
+      "OAuthBindRequest": {
+        "type": "object",
+        "required": [
+          "provider",
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "github",
+              "wechat"
+            ]
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
+      "OAuthUnbindRequest": {
+        "type": "object",
+        "required": [
+          "provider"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "github",
+              "wechat"
+            ]
           }
         }
       },
@@ -12479,6 +13777,164 @@
           }
         }
       },
+      "SystemSettingArrayEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemSettingItem"
+            }
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "SystemSettingEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SystemSettingItem"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "SystemSettingItem": {
+        "type": "object",
+        "required": [
+          "setting_key",
+          "value_json"
+        ],
+        "properties": {
+          "setting_key": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "value_json": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "TOTPRecoveryCodesEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TOTPRecoveryCodesResponse"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "TOTPRecoveryCodesResponse": {
+        "type": "object",
+        "required": [
+          "recovery_codes"
+        ],
+        "properties": {
+          "recovery_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TOTPSetupEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TOTPSetupResponse"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "TOTPSetupRequest": {
+        "type": "object",
+        "required": [
+          "current_password"
+        ],
+        "properties": {
+          "current_password": {
+            "type": "string"
+          }
+        }
+      },
+      "TOTPSetupResponse": {
+        "type": "object",
+        "required": [
+          "secret",
+          "otp_auth_url"
+        ],
+        "properties": {
+          "otp_auth_url": {
+            "type": "string"
+          },
+          "secret": {
+            "type": "string"
+          }
+        }
+      },
+      "TOTPVerifyRequest": {
+        "type": "object",
+        "required": [
+          "code",
+          "current_password"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "current_password": {
+            "type": "string"
+          }
+        }
+      },
       "TokenRefreshEnvelope": {
         "type": "object",
         "required": [
@@ -12779,6 +14235,18 @@
           }
         }
       },
+      "UpsertSystemSettingRequest": {
+        "type": "object",
+        "required": [
+          "value_json"
+        ],
+        "properties": {
+          "value_json": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
       "UserEnvelope": {
         "type": "object",
         "required": [
@@ -12831,6 +14299,10 @@
           "nickname": {
             "type": "string"
           },
+          "password_changed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
           "permissions": {
             "type": "array",
             "items": {
@@ -12849,6 +14321,9 @@
           "status": {
             "type": "integer",
             "format": "int64"
+          },
+          "totp_enabled": {
+            "type": "boolean"
           },
           "updated_at": {
             "type": "string",
@@ -12905,6 +14380,21 @@
           "total": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "VerifyTOTPLoginRequest": {
+        "type": "object",
+        "required": [
+          "challenge_id",
+          "code"
+        ],
+        "properties": {
+          "challenge_id": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
           }
         }
       }

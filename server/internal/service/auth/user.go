@@ -12,13 +12,15 @@ import (
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/captcha"
 	"github.com/go-admin-kit/server/internal/pkg/jwt"
+	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 // UserService handles user authentication.
 type UserService struct {
-	userDAO auth.UserDAO
+	userDAO      auth.UserDAO
+	policyReader runtimeconfig.SecurityPolicyReader
 }
 
 // LoginRequest is the login request payload.
@@ -31,9 +33,11 @@ type LoginRequest struct {
 
 // LoginResponse is the login response payload.
 type LoginResponse struct {
-	User         model.User `json:"user"`
-	AccessToken  string     `json:"access_token"`
-	RefreshToken string     `json:"refresh_token"`
+	User            model.User `json:"user"`
+	AccessToken     string     `json:"access_token"`
+	RefreshToken    string     `json:"refresh_token"`
+	RequiresTOTP    bool       `json:"requires_totp"`
+	TOTPChallengeID string     `json:"totp_challenge_id,omitempty"`
 }
 
 // RegisterRequest is the registration request payload.
@@ -68,6 +72,8 @@ var (
 	ErrUserNotFound = errors.New("user not found")
 	// ErrOldPasswordIncorrect indicates the old password did not match.
 	ErrOldPasswordIncorrect = errors.New("old password is incorrect")
+	// ErrPasswordRecentlyUsed indicates the requested password appears in recent history.
+	ErrPasswordRecentlyUsed = errors.New("new password was recently used")
 	// ErrUsernameAlreadyExists indicates the username is already registered.
 	ErrUsernameAlreadyExists = errors.New("username already exists")
 	// ErrEmailAlreadyExists indicates the email is used by another user.
@@ -94,12 +100,6 @@ func (e PasswordValidationError) Error() string {
 	return e.Message
 }
 
-// Login authenticates a user.
-// Deprecated: use LoginContext instead.
-func (s *UserService) Login(req LoginRequest) (*LoginResponse, error) {
-	return s.LoginContext(context.Background(), req)
-}
-
 func (s *UserService) LoginContext(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
 	if !captcha.CheckTextCaptchaContext(ctx, req.CaptchaID, req.CaptchaCode) {
 		return nil, ErrInvalidCaptcha
@@ -108,18 +108,8 @@ func (s *UserService) LoginContext(ctx context.Context, req LoginRequest) (*Logi
 	return s.LoginPasswordContext(ctx, req.Username, req.Password)
 }
 
-// Deprecated: use LoginPasswordContext instead.
-func (s *UserService) LoginPassword(username, password string) (*LoginResponse, error) {
-	return s.LoginPasswordContext(context.Background(), username, password)
-}
-
 func (s *UserService) LoginPasswordContext(ctx context.Context, username, password string) (*LoginResponse, error) {
 	return s.LoginPasswordWithAccessTTLContext(ctx, username, password, 0)
-}
-
-// Deprecated: use LoginPasswordWithAccessTTLContext instead.
-func (s *UserService) LoginPasswordWithAccessTTL(username, password string, accessTTL time.Duration) (*LoginResponse, error) {
-	return s.LoginPasswordWithAccessTTLContext(context.Background(), username, password, accessTTL)
 }
 
 func (s *UserService) LoginPasswordWithAccessTTLContext(ctx context.Context, username, password string, accessTTL time.Duration) (*LoginResponse, error) {
@@ -139,9 +129,33 @@ func (s *UserService) LoginPasswordWithAccessTTLContext(ctx context.Context, use
 		return nil, ErrInvalidCredentials
 	}
 
-	if shouldMarkDefaultAdminPassword(user, password) {
+	policy := s.securityPolicy(ctx)
+	passwordChangeRequired := shouldMarkDefaultAdminPassword(user, password) ||
+		isPasswordExpired(user, time.Now(), policy.PasswordMaxAgeDays)
+	if passwordChangeRequired && !user.MustChangePassword {
+		if err := s.userDAO.MarkPasswordChangeRequiredContext(ctx, user.ID); err != nil {
+			return nil, err
+		}
 		user.MustChangePassword = true
-		_ = s.userDAO.UpdateUserContext(ctx, user)
+	}
+
+	userWithRoles, err := s.userDAO.GetUserWithRolesAndPermissionsContext(ctx, user.ID)
+	if err == nil {
+		user = userWithRoles
+	}
+	if passwordChangeRequired {
+		user.MustChangePassword = true
+	}
+	if user.TOTPEnabled {
+		challengeID, err := jwt.GenerateTOTPChallenge(user.ID, user.Username, 5*time.Minute)
+		if err != nil {
+			return nil, err
+		}
+		return &LoginResponse{
+			User:            *user,
+			RequiresTOTP:    true,
+			TOTPChallengeID: challengeID,
+		}, nil
 	}
 
 	accessToken, refreshToken, err := jwt.GenerateTokenWithAccessTTL(user.ID, user.Username, accessTTL)
@@ -149,22 +163,11 @@ func (s *UserService) LoginPasswordWithAccessTTLContext(ctx context.Context, use
 		return nil, err
 	}
 
-	userWithRoles, err := s.userDAO.GetUserWithRolesAndPermissionsContext(ctx, user.ID)
-	if err == nil {
-		user = userWithRoles
-	}
-
 	return &LoginResponse{
 		User:         *user,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
-}
-
-// Register creates a user account.
-// Deprecated: use RegisterContext instead.
-func (s *UserService) Register(req RegisterRequest) (*model.User, error) {
-	return s.RegisterContext(context.Background(), req)
 }
 
 func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) (*model.User, error) {
@@ -193,11 +196,13 @@ func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) 
 		return nil, err
 	}
 
+	now := time.Now()
 	user := &model.User{
-		Username: req.Username,
-		Password: string(hashedPassword),
-		Email:    req.Email,
-		Status:   1,
+		Username:          req.Username,
+		Password:          string(hashedPassword),
+		Email:             req.Email,
+		Status:            1,
+		PasswordChangedAt: &now,
 	}
 
 	if err := s.userDAO.CreateUserContext(ctx, user); err != nil {
@@ -207,20 +212,8 @@ func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) 
 	return user, nil
 }
 
-// GetUserWithRoles returns a user with roles.
-// Deprecated: use GetUserWithRolesContext instead.
-func (s *UserService) GetUserWithRoles(id uint) (*model.User, error) {
-	return s.GetUserWithRolesContext(context.Background(), id)
-}
-
 func (s *UserService) GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error) {
 	return s.userDAO.GetUserWithRolesContext(ctx, id)
-}
-
-// ChangePassword changes a user's password.
-// Deprecated: use ChangePasswordContext instead.
-func (s *UserService) ChangePassword(userID uint, req ChangePasswordRequest) error {
-	return s.ChangePasswordContext(context.Background(), userID, req)
 }
 
 func (s *UserService) ChangePasswordContext(ctx context.Context, userID uint, req ChangePasswordRequest) error {
@@ -237,20 +230,23 @@ func (s *UserService) ChangePasswordContext(ctx context.Context, userID uint, re
 		return err
 	}
 
+	historyCount := s.securityPolicy(ctx).PasswordHistoryCount
+	if err := s.ensurePasswordNotRecentlyUsed(ctx, user, req.NewPassword, historyCount); err != nil {
+		return err
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 
-	user.Password = string(hashedPassword)
-	user.MustChangePassword = false
-	return s.userDAO.UpdateUserContext(ctx, user)
-}
-
-// UpdateProfile updates the current user's profile.
-// Deprecated: use UpdateProfileContext instead.
-func (s *UserService) UpdateProfile(userID uint, req UpdateProfileRequest) (*model.User, error) {
-	return s.UpdateProfileContext(context.Background(), userID, req)
+	now := time.Now()
+	previousHash := user.Password
+	err = s.userDAO.UpdatePasswordWithHistoryContext(ctx, user.ID, previousHash, string(hashedPassword), now, historyCount)
+	if err != nil {
+		return mapPasswordUpdateError(err)
+	}
+	return nil
 }
 
 func (s *UserService) UpdateProfileContext(ctx context.Context, userID uint, req UpdateProfileRequest) (*model.User, error) {
@@ -346,10 +342,64 @@ func shouldMarkDefaultAdminPassword(user *model.User, plainPassword string) bool
 	return user.Username == username && !user.MustChangePassword && plainPassword == "admin123"
 }
 
-// GetUserWithRolesAndPermissions returns a user with roles and permissions.
-// Deprecated: use GetUserWithRolesAndPermissionsContext instead.
-func (s *UserService) GetUserWithRolesAndPermissions(id uint) (*model.User, error) {
-	return s.GetUserWithRolesAndPermissionsContext(context.Background(), id)
+func hasDefaultAdminPassword(user *model.User) bool {
+	defaultAdmin := config.Cfg.Security.DefaultAdmin
+	if !defaultAdmin.ForceChangePassword || user == nil || user.MustChangePassword {
+		return false
+	}
+	username := defaultAdmin.DefaultUsername
+	if username == "" {
+		username = "admin"
+	}
+	return user.Username == username && bcrypt.CompareHashAndPassword([]byte(user.Password), []byte("admin123")) == nil
+}
+
+func isPasswordExpired(user *model.User, now time.Time, maxAgeDays int) bool {
+	if maxAgeDays <= 0 || user == nil {
+		return false
+	}
+	if user.PasswordChangedAt == nil || user.PasswordChangedAt.IsZero() {
+		return true
+	}
+	expiresAt := user.PasswordChangedAt.AddDate(0, 0, maxAgeDays)
+	return !expiresAt.After(now)
+}
+
+func (s *UserService) ensurePasswordNotRecentlyUsed(ctx context.Context, user *model.User, newPassword string, historyCount int) error {
+	if user == nil {
+		return ErrUserNotFound
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(newPassword)) == nil {
+		return ErrPasswordRecentlyUsed
+	}
+	if historyCount <= 0 {
+		return nil
+	}
+
+	history, err := s.userDAO.ListRecentPasswordHistoryContext(ctx, user.ID, historyCount)
+	if err != nil {
+		return err
+	}
+	for _, item := range history {
+		if bcrypt.CompareHashAndPassword([]byte(item.PasswordHash), []byte(newPassword)) == nil {
+			return ErrPasswordRecentlyUsed
+		}
+	}
+	return nil
+}
+
+func (s *UserService) securityPolicy(ctx context.Context) runtimeconfig.SecurityPolicy {
+	if s != nil && s.policyReader != nil {
+		return s.policyReader.SecurityPolicy(ctx)
+	}
+	return runtimeconfig.DefaultSecurityPolicyReader().SecurityPolicy(ctx)
+}
+
+func mapPasswordUpdateError(err error) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ErrOldPasswordIncorrect
+	}
+	return err
 }
 
 func (s *UserService) GetUserWithRolesAndPermissionsContext(ctx context.Context, id uint) (*model.User, error) {
@@ -374,8 +424,8 @@ func (s *UserService) GetUserPermissions(user *model.User) []string {
 	return permissions
 }
 
-// validatePasswordStrength validates password strength.
-func validatePasswordStrength(password string) error {
+// ValidatePasswordStrength validates password strength.
+func ValidatePasswordStrength(password string) error {
 	if len(password) < 8 {
 		return PasswordValidationError{Message: "password must be at least 8 characters"}
 	}
@@ -403,6 +453,10 @@ func validatePasswordStrength(password string) error {
 	}
 
 	return nil
+}
+
+func validatePasswordStrength(password string) error {
+	return ValidatePasswordStrength(password)
 }
 
 func validateProfileEmail(email string) error {

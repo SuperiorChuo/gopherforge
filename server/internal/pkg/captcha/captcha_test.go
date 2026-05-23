@@ -49,7 +49,7 @@ func TestRenderTextCaptchaPNGReturnsBase64Image(t *testing.T) {
 func TestGetTextCaptchaDoesNotExposeCodeHint(t *testing.T) {
 	setupCaptchaTestRedis(t)
 
-	data, err := GetTextCaptcha("unit-test-captcha")
+	data, err := GetTextCaptchaContext(context.Background(), "unit-test-captcha")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -26,12 +26,6 @@ func NewMySQLService() *MySQLService {
 	return &MySQLService{dao: monitordao.NewMySQLDAO()}
 }
 
-// GetMySQLInfo returns MySQL information.
-// Deprecated: use GetMySQLInfoContext instead.
-func (s *MySQLService) GetMySQLInfo() (map[string]any, error) {
-	return s.GetMySQLInfoContext(context.Background())
-}
-
 func (s *MySQLService) GetMySQLInfoContext(ctx context.Context) (map[string]any, error) {
 	stats, err := s.dao.ConnectionStatsContext(ctx)
 	if err != nil {

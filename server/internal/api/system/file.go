@@ -2,10 +2,12 @@ package system
 
 import (
 	"errors"
+	"io"
+	"mime"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/config"
@@ -153,16 +155,18 @@ func (a *FileAPI) Download(c *gin.Context) {
 		return
 	}
 
-	// Verify the file still exists on disk.
-	if _, err := os.Stat(file.FilePath); os.IsNotExist(err) {
-		response.NotFound(c, "file not found on disk")
+	content, err := a.fileService.OpenFileContentContext(c.Request.Context(), file)
+	if err != nil {
+		writeSystemFileServiceError(c, "failed to open file content", err)
 		return
 	}
+	defer content.Body.Close()
 
 	// Set download headers before streaming the file.
-	c.Header("Content-Disposition", "attachment; filename="+file.FileName)
-	c.Header("Content-Type", file.MimeType)
-	c.File(file.FilePath)
+	c.Header("Content-Disposition", fileDownloadDisposition(content.FileName))
+	c.Header("Content-Type", content.ContentType)
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, content.Body)
 }
 
 // DeleteFile deletes a file.
@@ -282,28 +286,16 @@ func (a *FileAPI) Preview(c *gin.Context) {
 		return
 	}
 
-	// Verify the file still exists on disk.
-	if _, err := os.Stat(file.FilePath); os.IsNotExist(err) {
-		response.NotFound(c, "file not found on disk")
+	content, err := a.fileService.OpenFileContentContext(c.Request.Context(), file)
+	if err != nil {
+		writeSystemFileServiceError(c, "failed to open preview content", err)
 		return
 	}
+	defer content.Body.Close()
 
-	// Resolve the MIME type from the file extension.
-	ext := filepath.Ext(file.FilePath)
-	contentType := "image/jpeg"
-	switch ext {
-	case ".png":
-		contentType = "image/png"
-	case ".gif":
-		contentType = "image/gif"
-	case ".webp":
-		contentType = "image/webp"
-	case ".svg":
-		contentType = "image/svg+xml"
-	}
-
-	c.Header("Content-Type", contentType)
-	c.File(file.FilePath)
+	c.Header("Content-Type", content.ContentType)
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, content.Body)
 }
 
 // CheckHash checks whether a file hash already exists.
@@ -368,7 +360,10 @@ func (a *FileAPI) GetMyFiles(c *gin.Context) {
 	response.PageSuccess(c, files, total, req.Page, req.PageSize)
 }
 
-// ImageResize is reserved for future image resizing.
-func (a *FileAPI) ImageResize(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"message": "not implemented"})
+func fileDownloadDisposition(filename string) string {
+	filename = strings.NewReplacer("\r", "_", "\n", "_").Replace(strings.TrimSpace(filename))
+	if filename == "" {
+		filename = "download"
+	}
+	return mime.FormatMediaType("attachment", map[string]string{"filename": filename})
 }

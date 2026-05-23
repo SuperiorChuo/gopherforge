@@ -12,6 +12,7 @@ import (
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/pkg/response"
+	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -86,6 +87,18 @@ func TestLoginLimiterWithClientUsesInjectedClient(t *testing.T) {
 	limiter.ClearContext(context.Background(), identifier, cfg)
 	if injectedStore.Exists(key) || injectedStore.Exists(lockKey) {
 		t.Fatal("ClearContext did not remove injected login limit keys")
+	}
+}
+
+func TestLoginLimitConfigFromPolicy(t *testing.T) {
+	cfg := LoginLimitConfigFromPolicy(runtimeconfig.SecurityPolicy{
+		LoginLimitMaxFailures:   3,
+		LoginLimitWindowMinutes: 7,
+		LoginLimitLockMinutes:   11,
+	})
+
+	if cfg.MaxFailures != 3 || cfg.Window != 7*time.Minute || cfg.LockDuration != 11*time.Minute || cfg.KeyPrefix != "login_limit" {
+		t.Fatalf("LoginLimitConfigFromPolicy() = %#v, want runtime policy values", cfg)
 	}
 }
 

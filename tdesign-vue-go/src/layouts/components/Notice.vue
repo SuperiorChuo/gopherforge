@@ -48,14 +48,16 @@
 </template>
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
+import { onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { t } from '@/locales';
-import { useNotificationStore } from '@/store';
+import { useNotificationStore, useUserStore } from '@/store';
 import type { NotificationItem } from '@/types/interface';
 
 const router = useRouter();
 const store = useNotificationStore();
+const userStore = useUserStore();
 const { msgData, unreadMsg } = storeToRefs(store);
 
 const setRead = (type: string, item?: NotificationItem) => {
@@ -75,8 +77,27 @@ const setRead = (type: string, item?: NotificationItem) => {
 };
 
 const goDetail = () => {
-  router.push('/detail/secondary');
+  router.push('/system/notice');
 };
+
+onMounted(() => {
+  void store.connect(userStore.token);
+});
+
+onUnmounted(() => {
+  store.disconnect();
+});
+
+watch(
+  () => userStore.token,
+  (token) => {
+    if (token) {
+      void store.connect(token);
+    } else {
+      store.disconnect();
+    }
+  },
+);
 </script>
 <style lang="less" scoped>
 .header-msg {

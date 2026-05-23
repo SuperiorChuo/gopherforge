@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/config"
 	"github.com/go-admin-kit/server/internal/pkg/logger"
 	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
 	"github.com/go-admin-kit/server/internal/pkg/response"
+	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -48,29 +48,22 @@ type LoginLimitConfig struct {
 }
 
 func LoginLimitConfigFromApp() LoginLimitConfig {
-	cfg := config.Cfg.Security.LoginLimit
-	window := time.Duration(cfg.WindowMinutes) * time.Minute
-	if window <= 0 {
-		window = 15 * time.Minute
-	}
-	lockDuration := time.Duration(cfg.LockMinutes) * time.Minute
-	if lockDuration <= 0 {
-		lockDuration = 30 * time.Minute
-	}
-	maxFailures := cfg.MaxFailures
-	if maxFailures <= 0 {
-		maxFailures = 5
-	}
+	return LoginLimitConfigFromPolicy(runtimeconfig.SecurityPolicyFromConfig())
+}
+
+func LoginLimitConfigFromPolicy(policy runtimeconfig.SecurityPolicy) LoginLimitConfig {
+	window := time.Duration(policy.LoginLimitWindowMinutes) * time.Minute
+	lockDuration := time.Duration(policy.LoginLimitLockMinutes) * time.Minute
 	return LoginLimitConfig{
 		Window:       window,
-		MaxFailures:  maxFailures,
+		MaxFailures:  policy.LoginLimitMaxFailures,
 		LockDuration: lockDuration,
 		KeyPrefix:    "login_limit",
 	}
 }
 
 func LoginLimitEnabled() bool {
-	return config.Cfg.Security.LoginLimit.Enabled
+	return runtimeconfig.SecurityPolicyFromConfig().LoginLimitEnabled
 }
 
 func LoginIdentifier(username, ip string) string {
@@ -79,11 +72,6 @@ func LoginIdentifier(username, ip string) string {
 		return ip
 	}
 	return fmt.Sprintf("%s:%s", username, ip)
-}
-
-// Deprecated: use IsLoginLockedContext instead.
-func IsLoginLocked(identifier string, config LoginLimitConfig) (bool, time.Duration) {
-	return IsLoginLockedContext(context.Background(), identifier, config)
 }
 
 func IsLoginLockedContext(ctx context.Context, identifier string, config LoginLimitConfig) (bool, time.Duration) {
@@ -149,12 +137,6 @@ func (l *LoginLimiter) Check(config LoginLimitConfig) gin.HandlerFunc {
 	}
 }
 
-// RecordLoginFailure records a failed login attempt.
-// Deprecated: use RecordLoginFailureContext instead.
-func RecordLoginFailure(identifier string, config LoginLimitConfig) {
-	RecordLoginFailureContext(context.Background(), identifier, config)
-}
-
 func RecordLoginFailureContext(ctx context.Context, identifier string, config LoginLimitConfig) {
 	NewLoginLimiter().RecordFailureContext(ctx, identifier, config)
 }
@@ -181,12 +163,6 @@ func (l *LoginLimiter) RecordFailureContext(ctx context.Context, identifier stri
 			logger.Int64("failures", failures),
 		)
 	}
-}
-
-// ClearLoginLimit clears login throttling after a successful login.
-// Deprecated: use ClearLoginLimitContext instead.
-func ClearLoginLimit(identifier string, config LoginLimitConfig) {
-	ClearLoginLimitContext(context.Background(), identifier, config)
 }
 
 func ClearLoginLimitContext(ctx context.Context, identifier string, config LoginLimitConfig) {

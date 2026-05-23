@@ -1,19 +1,20 @@
 import { defineStore } from 'pinia';
 
-import { getCurrentUser, login as loginAPI, logout as logoutAPI, type LoginRequest } from '@/api/auth';
+import { getCurrentUser, login as loginAPI, logout as logoutAPI, type LoginRequest, type LoginResponse } from '@/api/auth';
 import { usePermissionStore } from '@/store';
 import type { UserInfo } from '@/types/interface';
 
 const InitUserInfo: UserInfo = {
-  name: '', // 用户名，用于展示在页面右上角头像处
-  roles: [], // 前端权限模型使用 如果使用请配置modules/permission-fe.ts使用
-  permissions: [], // 用户权限列表
+  name: '',
+  roles: [],
+  permissions: [],
   mustChangePassword: false,
+  totpEnabled: false,
 };
 
 export const useUserStore = defineStore('user', {
   state: () => ({
-    token: '', // 默认token不走权限
+    token: '',
     refreshToken: '',
     userInfo: { ...InitUserInfo },
   }),
@@ -24,25 +25,26 @@ export const useUserStore = defineStore('user', {
   },
   actions: {
     async login(userInfo: LoginRequest) {
-      // 登录请求流程
       const res = await loginAPI(userInfo);
-      this.token = res.access_token;
-      this.refreshToken = res.refresh_token;
-      // 保存用户信息
+      this.applyLoginSession(res);
+      return res;
+    },
+    applyLoginSession(res: LoginResponse) {
+      if (res.access_token) {
+        this.token = res.access_token;
+      }
+      if (res.refresh_token) {
+        this.refreshToken = res.refresh_token;
+      }
       if (res.user) {
-        this.userInfo = {
-          name: res.user.username,
-          nickname: res.user.nickname,
-          username: res.user.username,
-          roles: res.user.roles?.map((r) => r.code) || [],
-          permissions: res.user.permissions || [],
-          mustChangePassword: !!res.user.must_change_password,
-        };
+        this.applyUserInfo(res.user);
       }
     },
     async getUserInfo() {
-      // 获取用户信息
       const res = await getCurrentUser();
+      this.applyUserInfo(res);
+    },
+    applyUserInfo(res: NonNullable<LoginResponse['user']>) {
       this.userInfo = {
         name: res.username,
         nickname: res.nickname,
@@ -50,6 +52,7 @@ export const useUserStore = defineStore('user', {
         roles: res.roles?.map((r) => r.code) || [],
         permissions: res.permissions || [],
         mustChangePassword: !!res.must_change_password,
+        totpEnabled: !!res.totp_enabled,
       };
     },
     async logout(remote = false) {
@@ -58,7 +61,7 @@ export const useUserStore = defineStore('user', {
         try {
           await logoutAPI(refreshToken ? { refresh_token: refreshToken } : undefined);
         } catch {
-          // 本地退出不能被网络或 token 过期问题阻断。
+          // Local logout should not be blocked by network or token-expiry errors.
         }
       }
       this.token = '';

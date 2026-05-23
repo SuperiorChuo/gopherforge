@@ -13,17 +13,17 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestConsoleSessionDAOGetBySessionID(t *testing.T) {
+func TestConsoleSessionDAOGetBySessionIDContext(t *testing.T) {
 	mock := setupAuthDAOTestDB(t)
 	now := time.Now().UTC()
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `wm_console_session` WHERE session_id = ? ORDER BY `wm_console_session`.`session_id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `console_sessions` WHERE session_id = ? ORDER BY `console_sessions`.`session_id` LIMIT ?")).
 		WithArgs("session-1", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"session_id", "username", "issued_at", "expires_at", "created_at"}).
 			AddRow("session-1", "alice", now, now.Add(time.Hour), now))
 
-	record, err := (ConsoleSessionDAO{}).GetBySessionID("session-1")
+	record, err := (ConsoleSessionDAO{}).GetBySessionIDContext(context.Background(), "session-1")
 	if err != nil {
-		t.Fatalf("GetBySessionID() error = %v", err)
+		t.Fatalf("GetBySessionIDContext() error = %v", err)
 	}
 	if record.SessionID != "session-1" || record.Username != "alice" {
 		t.Fatalf("record = %#v, want session-1/alice", record)
@@ -63,14 +63,14 @@ func TestConsoleSessionDAOUsesInjectedDB(t *testing.T) {
 
 	db, mock := newInjectedAuthDAOTestDB(t)
 	now := time.Now().UTC()
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `wm_console_session` WHERE session_id = ? ORDER BY `wm_console_session`.`session_id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `console_sessions` WHERE session_id = ? ORDER BY `console_sessions`.`session_id` LIMIT ?")).
 		WithArgs("session-1", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"session_id", "username", "issued_at", "expires_at", "created_at"}).
 			AddRow("session-1", "alice", now, now.Add(time.Hour), now))
 
-	record, err := NewConsoleSessionDAO(db).GetBySessionID("session-1")
+	record, err := NewConsoleSessionDAO(db).GetBySessionIDContext(context.Background(), "session-1")
 	if err != nil {
-		t.Fatalf("GetBySessionID() error = %v", err)
+		t.Fatalf("GetBySessionIDContext() error = %v", err)
 	}
 	if record.SessionID != "session-1" || record.Username != "alice" {
 		t.Fatalf("record = %#v, want session-1/alice", record)

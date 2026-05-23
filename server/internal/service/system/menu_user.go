@@ -14,12 +14,6 @@ type MenuUserService struct {
 	permissionDAO auth.PermissionDAO
 }
 
-// GetUserMenuTree returns the current user's menu tree.
-// Deprecated: use GetUserMenuTreeContext instead.
-func (s *MenuUserService) GetUserMenuTree(userID uint) ([]model.Menu, error) {
-	return s.GetUserMenuTreeContext(context.Background(), userID)
-}
-
 func (s *MenuUserService) GetUserMenuTreeContext(ctx context.Context, userID uint) ([]model.Menu, error) {
 	// Load enabled menus only.
 	status := int8(1)

@@ -15,15 +15,18 @@ func SetupRoutes(router *gin.Engine) {
 
 	common.RegisterPublicRoutes(api)
 
+	notificationAPI := system.NewNotificationAPI()
 	public := api.Group("/")
 	{
 		auth.RegisterPublicRoutes(public)
+		public.GET("/ws/notifications", notificationAPI.Connect)
 	}
 
 	protected := api.Group("/")
 	protected.Use(middleware.AuthMiddleware(), middleware.OperationLogger())
 	{
 		auth.RegisterProtectedRoutes(protected)
+		protected.POST("/ws/notifications/ticket", notificationAPI.CreateTicket)
 
 		userMgmtAPI := system.NewUserManagementAPI()
 		protected.GET("/users", middleware.PermissionMiddleware("system:user:list"), userMgmtAPI.GetUserList)
@@ -74,7 +77,7 @@ func SetupRoutes(router *gin.Engine) {
 		protected.GET("/operation-logs/stats", middleware.PermissionMiddleware("system:log:operation"), opLogAPI.GetOperationLogStats)
 		protected.GET("/operation-logs/export", middleware.PermissionMiddleware("system:log:operation"), opLogAPI.ExportOperationLogs)
 		protected.GET("/operation-logs/:id", middleware.PermissionMiddleware("system:log:operation"), opLogAPI.GetOperationLogDetail)
-		protected.DELETE("/operation-logs/clear", middleware.PermissionMiddleware("system:log:operation"), opLogAPI.ClearOperationLogs)
+		protected.DELETE("/operation-logs/clear", middleware.PermissionMiddleware("system:log:operation:clear"), opLogAPI.ClearOperationLogs)
 		protected.GET("/logs/audit", middleware.PermissionMiddleware("system:log:audit"), auditLogAPI.GetAuditLogs)
 
 		onlineUserAPI := system.NewOnlineUserAPI()
@@ -131,6 +134,13 @@ func SetupRoutes(router *gin.Engine) {
 		protected.GET("/dicts/:code", dictAPI.GetDictData)
 		protected.GET("/dicts", dictAPI.GetMultipleDictData)
 		protected.GET("/dicts/all", dictAPI.GetAllDictData)
+
+		settingAPI := system.NewSettingAPI()
+		protected.GET("/system-settings", middleware.PermissionMiddleware("system:setting:list"), settingAPI.GetSettings)
+		protected.POST("/system-settings/batch", middleware.PermissionMiddleware("system:setting:update"), settingAPI.BatchUpsertSettings)
+		protected.GET("/system-settings/:key", middleware.PermissionMiddleware("system:setting:list"), settingAPI.GetSetting)
+		protected.PUT("/system-settings/:key", middleware.PermissionMiddleware("system:setting:update"), settingAPI.UpsertSetting)
+		protected.DELETE("/system-settings/:key", middleware.PermissionMiddleware("system:setting:delete"), settingAPI.DeleteSetting)
 
 		monitor.RegisterProtectedRoutes(protected)
 	}

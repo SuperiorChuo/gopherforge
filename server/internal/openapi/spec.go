@@ -51,6 +51,7 @@ type Operation struct {
 	Parameters  []Parameter           `json:"parameters,omitempty"`
 	RequestBody *RequestBody          `json:"requestBody,omitempty"`
 	Responses   map[string]Response   `json:"responses"`
+	XWebSocket  bool                  `json:"x-websocket,omitempty"`
 }
 
 type Parameter struct {
@@ -220,12 +221,46 @@ func buildOperation(method, path string) Operation {
 	if hasContract && contract.ResponseSchema != "" {
 		op.Responses["200"] = jsonResponse("Request succeeded", refSchema(contract.ResponseSchema))
 	}
+	if path == "/api/v1/files/{id}/download" || path == "/api/v1/files/{id}/preview" {
+		op.Responses["200"] = Response{
+			Description: "File content stream",
+			Content: map[string]MediaType{
+				"application/octet-stream": {Schema: Schema{Type: "string", Format: "binary"}},
+			},
+		}
+	}
+	if path == "/api/v1/oauth/github/login" || path == "/api/v1/oauth/wechat/login" {
+		delete(op.Responses, "200")
+		op.Responses["302"] = Response{Description: "Redirect to OAuth provider authorization URL"}
+		op.Responses["503"] = jsonResponse("OAuth provider unavailable", Schema{Ref: "#/components/schemas/ApiResponse"})
+	}
+	if path == "/api/v1/oauth/github/callback" || path == "/api/v1/oauth/wechat/callback" {
+		op.Responses["503"] = jsonResponse("OAuth provider unavailable", Schema{Ref: "#/components/schemas/ApiResponse"})
+	}
+	if path == "/api/v1/oauth/bind" {
+		op.Responses["409"] = jsonResponse("OAuth account conflict", Schema{Ref: "#/components/schemas/ApiResponse"})
+		op.Responses["503"] = jsonResponse("OAuth provider unavailable", Schema{Ref: "#/components/schemas/ApiResponse"})
+	}
+	if path == "/api/v1/oauth/unbind" {
+		op.Responses["404"] = jsonResponse("OAuth binding not found", Schema{Ref: "#/components/schemas/ApiResponse"})
+		op.Responses["503"] = jsonResponse("OAuth provider unavailable", Schema{Ref: "#/components/schemas/ApiResponse"})
+	}
 	if path == "/api/v1/metrics" {
 		op.Responses["200"] = Response{
 			Description: "Prometheus metrics text",
 			Content: map[string]MediaType{
 				"text/plain": {Schema: Schema{Type: "string"}},
 			},
+		}
+	}
+	if path == "/api/v1/ws/notifications" {
+		delete(op.Responses, "200")
+		op.XWebSocket = true
+		op.Responses["101"] = Response{Description: "Switching Protocols to notification WebSocket stream"}
+		for i := range op.Parameters {
+			if op.Parameters[i].Name == "ticket" && op.Parameters[i].In == "query" {
+				op.Parameters[i].Required = true
+			}
 		}
 	}
 	return op
@@ -261,12 +296,19 @@ func hasJSONRequestBody(method, path string) bool {
 func isPublicRoute(method, path string) bool {
 	method = strings.ToUpper(method)
 	publicExact := map[string]struct{}{
-		"POST /api/v1/login":          {},
-		"POST /api/v1/auth/login":     {},
-		"POST /api/v1/register":       {},
-		"POST /api/v1/refresh":        {},
-		"GET /api/v1/captcha":         {},
-		"POST /api/v1/captcha/verify": {},
+		"POST /api/v1/login":                 {},
+		"POST /api/v1/login/2fa/verify":      {},
+		"POST /api/v1/auth/login":            {},
+		"POST /api/v1/auth/login/2fa/verify": {},
+		"GET /api/v1/ws/notifications":       {},
+		"POST /api/v1/register":              {},
+		"POST /api/v1/refresh":               {},
+		"GET /api/v1/captcha":                {},
+		"POST /api/v1/captcha/verify":        {},
+		"GET /api/v1/oauth/github/login":     {},
+		"GET /api/v1/oauth/github/callback":  {},
+		"GET /api/v1/oauth/wechat/login":     {},
+		"GET /api/v1/oauth/wechat/callback":  {},
 	}
 	if _, ok := publicExact[method+" "+path]; ok {
 		return true
@@ -275,7 +317,6 @@ func isPublicRoute(method, path string) bool {
 		"/api/v1/health",
 		"/api/v1/metrics",
 		"/api/v1/ip/",
-		"/api/v1/oauth/",
 	}
 	for _, prefix := range publicPrefixes {
 		if strings.HasPrefix(path, prefix) {

@@ -21,6 +21,7 @@ var (
 	ErrStorageProviderNotConfigured = errors.New("storage provider not configured")
 	ErrStorageProviderUnavailable   = errors.New("storage provider unavailable")
 	ErrStorageReadNotImplemented    = errors.New("storage provider read not implemented")
+	ErrStoredObjectNotFound         = errors.New("stored object not found")
 )
 
 // StorageProvider hides the physical storage backend behind the uploader.
@@ -196,6 +197,9 @@ func (p *LocalStorageProvider) resolveExistingPath(filePath string) (string, err
 	}
 	evalTarget, err := filepath.EvalSymlinks(filepath.Clean(targetPath))
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("%w: %s", ErrStoredObjectNotFound, filePath)
+		}
 		return "", err
 	}
 	if err := ensureWithinBase(evalRoot, evalTarget); err != nil {
@@ -306,6 +310,9 @@ func (p *reservedObjectStorageProvider) Open(ctx context.Context, filePath strin
 	}
 	stat, err := client.StatObject(ctx, p.cfg.Bucket, key, minio.StatObjectOptions{})
 	if err != nil {
+		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+			return nil, fmt.Errorf("%w: %s %q", ErrStoredObjectNotFound, p.storageType, key)
+		}
 		return nil, fmt.Errorf("%w: %s stat %q failed: %v", ErrStorageProviderUnavailable, p.storageType, key, err)
 	}
 	body, err := client.GetObject(ctx, p.cfg.Bucket, key, minio.GetObjectOptions{})

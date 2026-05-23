@@ -128,13 +128,26 @@
         </template>
         <template #file="{ row }">
           <div class="file-cell">
-            <span class="file-avatar">
-              <t-icon :name="fileIcon(row)" />
+            <span class="file-avatar" :class="{ 'file-avatar--image': fileThumbnail(row) }">
+              <img
+                v-if="fileThumbnail(row)"
+                :src="fileThumbnail(row)"
+                :alt="row.file_name || 'file thumbnail'"
+                loading="lazy"
+              />
+              <t-icon v-else :name="fileIcon(row)" />
             </span>
             <div class="file-cell__main">
-              <t-link theme="primary" hover="color" :title="row.file_name" @click="handlePreview(row)">
+              <t-link
+                v-if="isImageFile(row)"
+                theme="primary"
+                hover="color"
+                :title="row.file_name"
+                @click="handlePreview(row)"
+              >
                 {{ row.file_name || '未命名文件' }}
               </t-link>
+              <strong v-else :title="row.file_name">{{ row.file_name || '未命名文件' }}</strong>
               <span class="mono-text">{{ row.extension || fileExtension(row.file_name) || '-' }} · ID {{ row.id }}</span>
             </div>
           </div>
@@ -165,7 +178,7 @@
         <template #operation="{ row }">
           <div class="operation-actions">
             <t-link theme="primary" hover="color" @click="handleDownload(row)">下载</t-link>
-            <t-link theme="primary" hover="color" @click="handlePreview(row)">预览</t-link>
+            <t-link v-if="isImageFile(row)" theme="primary" hover="color" @click="handlePreview(row)">预览</t-link>
             <t-popconfirm content="确定删除该文件吗？" @confirm="handleDelete(row)">
               <t-link theme="danger" hover="color">删除</t-link>
             </t-popconfirm>
@@ -185,10 +198,8 @@
         </div>
         <t-upload
           v-model="fileList"
-          :action="uploadAction"
-          :headers="uploadHeaders"
-          :data="uploadData"
-          multiple
+          :request-method="handleUploadRequest"
+          :multiple="false"
           @success="handleUploadSuccess"
         />
       </div>
@@ -198,18 +209,20 @@
 
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next';
+import type { UploadFile } from 'tdesign-vue-next';
 import { computed, onMounted, ref } from 'vue';
 
 import {
+  checkFileHash,
   deleteFile,
   downloadFile,
   getFileList,
   getFileStats,
   previewFile,
+  uploadFile,
   type FileItem,
   type FileStats,
 } from '@/api/system/file';
-import { useUserStore } from '@/store';
 import { formatDateTime } from '@/utils/date';
 import ConsolePageHeader from '@/components/common/ConsolePageHeader.vue';
 
@@ -219,7 +232,6 @@ defineOptions({
   name: 'SystemFile',
 });
 
-const userStore = useUserStore();
 const loading = ref(false);
 const statsLoading = ref(false);
 const tableData = ref<FileItem[]>([]);
@@ -249,12 +261,6 @@ const columns: any[] = [
   { colKey: 'operation', title: '操作', width: 150, fixed: 'right' as const },
 ];
 
-const uploadAction = '/api/v1/files/upload';
-const uploadHeaders = computed(() => ({
-  Authorization: `Bearer ${userStore.token}`,
-}));
-const uploadData = ref({});
-
 const activeFilterCount = computed(() => {
   let count = 0;
   if (searchForm.value.keyword.trim()) count += 1;
@@ -278,7 +284,7 @@ const totalSizeText = computed(() => formatFileSize(totalSize.value));
 const summaryItems = computed<Array<{ label: string; value: string | number; hint: string; icon: string; tone: SummaryTone }>>(() => [
   {
     label: '文件总数',
-    value: stats.value?.total_count ?? stats.value?.total ?? pagination.value.total ?? tableData.value.length,
+    value: stats.value?.total ?? pagination.value.total ?? tableData.value.length,
     hint: `当前页 ${tableData.value.length} 个文件`,
     icon: 'file',
     tone: 'blue',
@@ -326,13 +332,26 @@ const fileExtension = (fileName?: string) => {
 
 const fileIcon = (row: FileItem) => {
   const type = `${row.file_type || row.mime_type || row.extension || ''}`.toLowerCase();
-  if (type.includes('image')) return 'file-image';
+  if (isImageFile(row)) return 'file-image';
   if (type.includes('pdf')) return 'file-pdf';
   if (type.includes('zip') || type.includes('rar')) return 'file-zip';
   if (type.includes('excel') || type.includes('sheet')) return 'file-excel';
   if (type.includes('word') || type.includes('document')) return 'file-word';
   return 'file';
 };
+
+const isImageFile = (row: FileItem) => {
+  const fileType = `${row.file_type || ''}`.toLowerCase();
+  const mimeType = `${row.mime_type || ''}`.toLowerCase();
+  if (fileType || mimeType) {
+    return fileType.includes('image') || mimeType.startsWith('image/');
+  }
+
+  const extension = `${row.extension || fileExtension(row.file_name)}`.toLowerCase();
+  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif'].includes(extension);
+};
+
+const fileThumbnail = (row: FileItem) => row.thumbnail_url || (isImageFile(row) ? row.url : '');
 
 const loadData = async () => {
   loading.value = true;
@@ -381,6 +400,79 @@ const handleUpload = () => {
   uploadVisible.value = true;
 };
 
+const calculateFileSha256 = async (file: File) => {
+  try {
+    if (!globalThis.crypto?.subtle) return '';
+    const buffer = await file.arrayBuffer();
+    const digest = await crypto.subtle.digest('SHA-256', buffer);
+    return Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+  } catch {
+    return '';
+  }
+};
+
+const buildUploadResponse = (file: FileItem, instant = false) => ({
+  status: 'success' as const,
+  response: {
+    url: file.url || '',
+    file,
+    instant,
+    files: [
+      {
+        name: file.file_name,
+        size: file.file_size,
+        status: 'success' as const,
+        type: file.mime_type || file.file_type,
+        url: file.url || '',
+      },
+    ],
+  },
+});
+
+const handleUploadRequest = async (uploadFileInfo: UploadFile | UploadFile[]) => {
+  const currentFile = Array.isArray(uploadFileInfo) ? uploadFileInfo[0] : uploadFileInfo;
+  const rawFile = currentFile?.raw;
+
+  if (!rawFile) {
+    return {
+      status: 'fail' as const,
+      error: '文件读取失败',
+      response: {},
+    };
+  }
+
+  let hash = '';
+  try {
+    hash = await calculateFileSha256(rawFile);
+    if (hash) {
+      const hashCheck = await checkFileHash(hash);
+      if (hashCheck.exists && hashCheck.file) {
+        MessagePlugin.success('秒传成功');
+        uploadVisible.value = false;
+        fileList.value = [];
+        loadData();
+        loadStats();
+        return buildUploadResponse(hashCheck.file, true);
+      }
+    }
+  } catch {
+    hash = '';
+  }
+
+  try {
+    const uploaded = await uploadFile(rawFile, hash || undefined);
+    return buildUploadResponse(uploaded);
+  } catch (error: any) {
+    return {
+      status: 'fail' as const,
+      error: error.message || '上传失败',
+      response: {},
+    };
+  }
+};
+
 const handleUploadSuccess = () => {
   MessagePlugin.success('上传成功');
   uploadVisible.value = false;
@@ -413,6 +505,11 @@ const handleDownload = async (row: FileItem) => {
 };
 
 const handlePreview = async (row: FileItem) => {
+  if (!isImageFile(row)) {
+    MessagePlugin.warning('仅支持预览图片文件');
+    return;
+  }
+
   try {
     const blob = await previewFile(row.id);
     openBlob(blob);
@@ -782,6 +879,19 @@ onMounted(() => {
   background: linear-gradient(135deg, #dbeafe, #cffafe);
   color: #2563eb;
   font-size: 18px;
+}
+
+.file-avatar--image {
+  overflow: hidden;
+  background: #e5e7eb;
+  color: inherit;
+}
+
+.file-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .file-cell__main,

@@ -19,6 +19,8 @@ jobs:
           node-version: '24'
 
       - run: npm run api:contract
+      - name: Check generated API artifacts are committed
+        run: git diff --exit-code -- server/docs/openapi.json tdesign-vue-go/src/api/generated/schema.d.ts
       - run: npm run test:contract
       - run: npm run test:smoke:unit
 
@@ -116,6 +118,7 @@ jobs:
           DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD: 'false'
           SMOKE_API_BASE_URL: http://127.0.0.1:8081/api/v1
         run: |
+          go run ./cmd/migration-rehearsal -config ./configs/config.yaml -dir ./migrations -database go_admin_kit_ci_migration_rehearsal
           go run ./cmd/migrate -config ./configs/config.yaml -dir ./migrations up
           nohup go run ./cmd/main.go > /tmp/go-admin-kit-api.log 2>&1 &
           echo $! > /tmp/go-admin-kit-api.pid

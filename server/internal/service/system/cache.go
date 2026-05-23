@@ -7,21 +7,9 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/cache"
 )
 
-// InvalidatePermissionCacheForUsers clears permission caches for specific users.
-// Deprecated: use InvalidatePermissionCacheForUsersContext instead.
-func InvalidatePermissionCacheForUsers(userIDs ...uint) error {
-	return InvalidatePermissionCacheForUsersContext(context.Background(), userIDs...)
-}
-
 func InvalidatePermissionCacheForUsersContext(ctx context.Context, userIDs ...uint) error {
 	uniqueUserIDs := uniqueUint(userIDs)
 	return cache.NewCacheService().DelUserPermissionsBatchContext(ctx, uniqueUserIDs)
-}
-
-// InvalidatePermissionCacheByRoles clears permission caches for users with specific roles.
-// Deprecated: use InvalidatePermissionCacheByRolesContext instead.
-func InvalidatePermissionCacheByRoles(roleIDs ...uint) error {
-	return InvalidatePermissionCacheByRolesContext(context.Background(), roleIDs...)
 }
 
 func InvalidatePermissionCacheByRolesContext(ctx context.Context, roleIDs ...uint) error {
@@ -38,12 +26,6 @@ func InvalidatePermissionCacheByRolesContext(ctx context.Context, roleIDs ...uin
 	return InvalidatePermissionCacheForUsersContext(ctx, userIDs...)
 }
 
-// InvalidatePermissionCacheByPermissions clears permission caches for users with specific permissions.
-// Deprecated: use InvalidatePermissionCacheByPermissionsContext instead.
-func InvalidatePermissionCacheByPermissions(permissionIDs ...uint) error {
-	return InvalidatePermissionCacheByPermissionsContext(context.Background(), permissionIDs...)
-}
-
 func InvalidatePermissionCacheByPermissionsContext(ctx context.Context, permissionIDs ...uint) error {
 	permissionIDs = uniqueUint(permissionIDs)
 	if len(permissionIDs) == 0 {
@@ -56,12 +38,6 @@ func InvalidatePermissionCacheByPermissionsContext(ctx context.Context, permissi
 	}
 
 	return InvalidatePermissionCacheByRolesContext(ctx, roleIDs...)
-}
-
-// InvalidatePermissionCacheAll clears all user permission caches for broad permission resource changes.
-// Deprecated: use InvalidatePermissionCacheAllContext instead.
-func InvalidatePermissionCacheAll() error {
-	return InvalidatePermissionCacheAllContext(context.Background())
 }
 
 func InvalidatePermissionCacheAllContext(ctx context.Context) error {

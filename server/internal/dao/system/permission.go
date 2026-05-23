@@ -29,31 +29,16 @@ func (d *PermissionManageDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return database.DB.WithContext(ctx)
 }
 
-// Deprecated: use GetPermissionByIDContext instead.
-func (d *PermissionManageDAO) GetPermissionByID(id uint) (*model.Permission, error) {
-	return d.GetPermissionByIDContext(context.Background(), id)
-}
-
 func (d *PermissionManageDAO) GetPermissionByIDContext(ctx context.Context, id uint) (*model.Permission, error) {
 	var permission model.Permission
 	result := d.dbWithContext(ctx).First(&permission, id)
 	return &permission, result.Error
 }
 
-// Deprecated: use GetPermissionByCodeContext instead.
-func (d *PermissionManageDAO) GetPermissionByCode(code string) (*model.Permission, error) {
-	return d.GetPermissionByCodeContext(context.Background(), code)
-}
-
 func (d *PermissionManageDAO) GetPermissionByCodeContext(ctx context.Context, code string) (*model.Permission, error) {
 	var permission model.Permission
 	result := d.dbWithContext(ctx).Where("code = ?", code).First(&permission)
 	return &permission, result.Error
-}
-
-// Deprecated: use GetPermissionListContext instead.
-func (d *PermissionManageDAO) GetPermissionList(req pagination.PageRequest, keyword string, permissionType *int8) ([]model.Permission, int64, error) {
-	return d.GetPermissionListContext(context.Background(), req, keyword, permissionType)
 }
 
 func (d *PermissionManageDAO) GetPermissionListContext(ctx context.Context, req pagination.PageRequest, keyword string, permissionType *int8) ([]model.Permission, int64, error) {
@@ -80,11 +65,6 @@ func (d *PermissionManageDAO) GetPermissionListContext(ctx context.Context, req 
 	return permissions, total, result.Error
 }
 
-// Deprecated: use GetPermissionTreeContext instead.
-func (d *PermissionManageDAO) GetPermissionTree() ([]model.Permission, error) {
-	return d.GetPermissionTreeContext(context.Background())
-}
-
 func (d *PermissionManageDAO) GetPermissionTreeContext(ctx context.Context) ([]model.Permission, error) {
 	var permissions []model.Permission
 	result := d.dbWithContext(ctx).Order("parent_id ASC, created_at ASC").Find(&permissions)
@@ -106,27 +86,12 @@ func buildPermissionTree(permissions []model.Permission, parentID uint) []model.
 	return tree
 }
 
-// Deprecated: use CreatePermissionContext instead.
-func (d *PermissionManageDAO) CreatePermission(permission *model.Permission) error {
-	return d.CreatePermissionContext(context.Background(), permission)
-}
-
 func (d *PermissionManageDAO) CreatePermissionContext(ctx context.Context, permission *model.Permission) error {
 	return d.dbWithContext(ctx).Create(permission).Error
 }
 
-// Deprecated: use UpdatePermissionContext instead.
-func (d *PermissionManageDAO) UpdatePermission(permission *model.Permission) error {
-	return d.UpdatePermissionContext(context.Background(), permission)
-}
-
 func (d *PermissionManageDAO) UpdatePermissionContext(ctx context.Context, permission *model.Permission) error {
 	return d.dbWithContext(ctx).Save(permission).Error
-}
-
-// Deprecated: use DeletePermissionContext instead.
-func (d *PermissionManageDAO) DeletePermission(id uint) error {
-	return d.DeletePermissionContext(context.Background(), id)
 }
 
 func (d *PermissionManageDAO) DeletePermissionContext(ctx context.Context, id uint) error {

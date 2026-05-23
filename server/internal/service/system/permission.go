@@ -45,11 +45,6 @@ var (
 	ErrPermissionParentIsDescendant = errors.New("cannot set parent to descendant")
 )
 
-// Deprecated: use GetPermissionByIDContext instead.
-func (s *PermissionService) GetPermissionByID(id uint) (*model.Permission, error) {
-	return s.GetPermissionByIDContext(context.Background(), id)
-}
-
 func (s *PermissionService) GetPermissionByIDContext(ctx context.Context, id uint) (*model.Permission, error) {
 	permission, err := s.permissionDAO.GetPermissionByIDContext(ctx, id)
 	if err != nil {
@@ -61,27 +56,12 @@ func (s *PermissionService) GetPermissionByIDContext(ctx context.Context, id uin
 	return permission, nil
 }
 
-// Deprecated: use GetPermissionListContext instead.
-func (s *PermissionService) GetPermissionList(req PermissionListRequest) ([]model.Permission, int64, error) {
-	return s.GetPermissionListContext(context.Background(), req)
-}
-
 func (s *PermissionService) GetPermissionListContext(ctx context.Context, req PermissionListRequest) ([]model.Permission, int64, error) {
 	return s.permissionDAO.GetPermissionListContext(ctx, req.PageRequest, req.Keyword, req.Type)
 }
 
-// Deprecated: use GetPermissionTreeContext instead.
-func (s *PermissionService) GetPermissionTree() ([]model.Permission, error) {
-	return s.GetPermissionTreeContext(context.Background())
-}
-
 func (s *PermissionService) GetPermissionTreeContext(ctx context.Context) ([]model.Permission, error) {
 	return s.permissionDAO.GetPermissionTreeContext(ctx)
-}
-
-// Deprecated: use CreatePermissionContext instead.
-func (s *PermissionService) CreatePermission(req CreatePermissionRequest) (*model.Permission, error) {
-	return s.CreatePermissionContext(context.Background(), req)
 }
 
 func (s *PermissionService) CreatePermissionContext(ctx context.Context, req CreatePermissionRequest) (*model.Permission, error) {
@@ -118,11 +98,6 @@ func (s *PermissionService) CreatePermissionContext(ctx context.Context, req Cre
 	}
 
 	return permission, nil
-}
-
-// Deprecated: use UpdatePermissionContext instead.
-func (s *PermissionService) UpdatePermission(id uint, req UpdatePermissionRequest) (*model.Permission, error) {
-	return s.UpdatePermissionContext(context.Background(), id, req)
 }
 
 func (s *PermissionService) UpdatePermissionContext(ctx context.Context, id uint, req UpdatePermissionRequest) (*model.Permission, error) {
@@ -167,11 +142,6 @@ func (s *PermissionService) UpdatePermissionContext(ctx context.Context, id uint
 	}
 
 	return permission, nil
-}
-
-// Deprecated: use DeletePermissionContext instead.
-func (s *PermissionService) DeletePermission(id uint) error {
-	return s.DeletePermissionContext(context.Background(), id)
 }
 
 func (s *PermissionService) DeletePermissionContext(ctx context.Context, id uint) error {

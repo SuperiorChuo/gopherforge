@@ -1,4 +1,7 @@
 import { request } from '@/utils/request';
+import type { components } from '@/api/generated/schema';
+
+type Schema<Name extends keyof components['schemas']> = components['schemas'][Name];
 
 // 文件列表请求
 export interface FileListRequest {
@@ -8,46 +11,12 @@ export interface FileListRequest {
   file_type?: string;
 }
 
-// 文件列表响应
-export interface FileListResponse {
-  list: FileItem[];
-  total: number;
-  page: number;
-  page_size: number;
-}
-
-// 文件项
-export interface FileItem {
-  id: number;
-  user_id: number;
-  file_name: string;
-  file_path: string;
-  file_size: number;
-  file_type: string;
-  mime_type: string;
-  extension: string;
-  storage_type: string;
-  url: string;
-  hash?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// 文件统计
-export interface FileStats {
-  total: number;
-  total_count?: number;
-  total_size: number;
-  by_type: Record<string, number | { count: number; size: number }>;
-}
-
-// 上传文件响应
-export interface UploadFileResponse {
-  id: number;
-  file_name: string;
-  url: string;
-  file_size: number;
-}
+export type FileListResponse = Schema<'FileListResponse'>;
+export type FileItem = Schema<'FileItem'>;
+export type FileStats = Schema<'FileStats'>;
+export type FileHashCheckResponse = Schema<'FileHashCheck'>;
+export type UploadFileResponse = Schema<'FileItem'>;
+export type MultipleUploadResponse = Schema<'MultipleUploadResponse'>;
 
 const Api = {
   Upload: '/files/upload',
@@ -58,6 +27,7 @@ const Api = {
   GetFile: '/files',
   Download: '/files',
   Preview: '/files',
+  CheckHash: '/files/hash/check',
   DeleteFile: '/files',
   DeleteFiles: '/files/batch',
 };
@@ -65,9 +35,12 @@ const Api = {
 /**
  * 上传单个文件
  */
-export function uploadFile(file: File) {
+export function uploadFile(file: File, hash?: string) {
   const formData = new FormData();
   formData.append('file', file);
+  if (hash) {
+    formData.append('hash', hash);
+  }
   return request.post<UploadFileResponse>({
     url: Api.Upload,
     data: formData,
@@ -85,7 +58,7 @@ export function uploadMultipleFiles(files: File[]) {
   files.forEach((file) => {
     formData.append('files', file);
   });
-  return request.post<UploadFileResponse[]>({
+  return request.post<MultipleUploadResponse>({
     url: Api.UploadMultiple,
     data: formData,
     headers: {
@@ -120,6 +93,16 @@ export function getMyFiles(params: FileListRequest) {
 export function getFileStats() {
   return request.get<FileStats>({
     url: Api.GetFileStats,
+  });
+}
+
+/**
+ * 检查文件哈希是否已存在
+ */
+export function checkFileHash(hash: string) {
+  return request.get<FileHashCheckResponse>({
+    url: Api.CheckHash,
+    params: { hash },
   });
 }
 

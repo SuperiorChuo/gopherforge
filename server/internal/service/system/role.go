@@ -46,11 +46,6 @@ var (
 	ErrCustomDataScopeRequiresDepartments = errors.New("custom data scope requires department ids")
 )
 
-// Deprecated: use GetRoleByIDContext instead.
-func (s *RoleService) GetRoleByID(id uint) (*model.Role, error) {
-	return s.GetRoleByIDContext(context.Background(), id)
-}
-
 func (s *RoleService) GetRoleByIDContext(ctx context.Context, id uint) (*model.Role, error) {
 	role, err := s.roleDAO.GetRoleByIDContext(ctx, id)
 	if err != nil {
@@ -62,27 +57,12 @@ func (s *RoleService) GetRoleByIDContext(ctx context.Context, id uint) (*model.R
 	return role, nil
 }
 
-// Deprecated: use GetRoleListContext instead.
-func (s *RoleService) GetRoleList(req RoleListRequest) ([]model.Role, int64, error) {
-	return s.GetRoleListContext(context.Background(), req)
-}
-
 func (s *RoleService) GetRoleListContext(ctx context.Context, req RoleListRequest) ([]model.Role, int64, error) {
 	return s.roleDAO.GetRoleListContext(ctx, req.PageRequest, req.Keyword)
 }
 
-// Deprecated: use GetAllRolesContext instead.
-func (s *RoleService) GetAllRoles() ([]model.Role, error) {
-	return s.GetAllRolesContext(context.Background())
-}
-
 func (s *RoleService) GetAllRolesContext(ctx context.Context) ([]model.Role, error) {
 	return s.roleDAO.GetAllRolesContext(ctx)
-}
-
-// Deprecated: use CreateRoleContext instead.
-func (s *RoleService) CreateRole(req CreateRoleRequest) (*model.Role, error) {
-	return s.CreateRoleContext(context.Background(), req)
 }
 
 func (s *RoleService) CreateRoleContext(ctx context.Context, req CreateRoleRequest) (*model.Role, error) {
@@ -113,11 +93,6 @@ func (s *RoleService) CreateRoleContext(ctx context.Context, req CreateRoleReque
 	}
 
 	return role, nil
-}
-
-// Deprecated: use UpdateRoleContext instead.
-func (s *RoleService) UpdateRole(id uint, req UpdateRoleRequest) (*model.Role, error) {
-	return s.UpdateRoleContext(context.Background(), id, req)
 }
 
 func (s *RoleService) UpdateRoleContext(ctx context.Context, id uint, req UpdateRoleRequest) (*model.Role, error) {
@@ -162,11 +137,6 @@ func (s *RoleService) UpdateRoleContext(ctx context.Context, id uint, req Update
 	return role, nil
 }
 
-// Deprecated: use DeleteRoleContext instead.
-func (s *RoleService) DeleteRole(id uint) error {
-	return s.DeleteRoleContext(context.Background(), id)
-}
-
 func (s *RoleService) DeleteRoleContext(ctx context.Context, id uint) error {
 	if _, err := s.roleDAO.GetRoleByIDContext(ctx, id); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -180,11 +150,6 @@ func (s *RoleService) DeleteRoleContext(ctx context.Context, id uint) error {
 	}
 
 	return s.roleDAO.DeleteRoleContext(ctx, id)
-}
-
-// Deprecated: use AssignPermissionsContext instead.
-func (s *RoleService) AssignPermissions(roleID uint, req AssignPermissionsRequest) error {
-	return s.AssignPermissionsContext(context.Background(), roleID, req)
 }
 
 func (s *RoleService) AssignPermissionsContext(ctx context.Context, roleID uint, req AssignPermissionsRequest) error {

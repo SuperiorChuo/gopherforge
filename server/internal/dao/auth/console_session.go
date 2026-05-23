@@ -31,18 +31,8 @@ func (d ConsoleSessionDAO) Ready() bool {
 	return d.db != nil || database.DB != nil
 }
 
-// Deprecated: use CreateContext instead.
-func (d ConsoleSessionDAO) Create(record *model.ConsoleSession) error {
-	return d.CreateContext(context.Background(), record)
-}
-
 func (d ConsoleSessionDAO) CreateContext(ctx context.Context, record *model.ConsoleSession) error {
 	return d.dbWithContext(ctx).Create(record).Error
-}
-
-// Deprecated: use GetBySessionIDContext instead.
-func (d ConsoleSessionDAO) GetBySessionID(sessionID string) (*model.ConsoleSession, error) {
-	return d.GetBySessionIDContext(context.Background(), sessionID)
 }
 
 func (d ConsoleSessionDAO) GetBySessionIDContext(ctx context.Context, sessionID string) (*model.ConsoleSession, error) {
@@ -51,21 +41,11 @@ func (d ConsoleSessionDAO) GetBySessionIDContext(ctx context.Context, sessionID 
 	return &record, err
 }
 
-// Deprecated: use TouchContext instead.
-func (d ConsoleSessionDAO) Touch(sessionID string, seenAt time.Time) error {
-	return d.TouchContext(context.Background(), sessionID, seenAt)
-}
-
 func (d ConsoleSessionDAO) TouchContext(ctx context.Context, sessionID string, seenAt time.Time) error {
 	return d.dbWithContext(ctx).Model(&model.ConsoleSession{}).
 		Where("session_id = ?", sessionID).
 		Update("last_seen_at", seenAt).
 		Error
-}
-
-// Deprecated: use RevokeContext instead.
-func (d ConsoleSessionDAO) Revoke(record *model.ConsoleSession, revokedAt time.Time) error {
-	return d.RevokeContext(context.Background(), record, revokedAt)
 }
 
 func (d ConsoleSessionDAO) RevokeContext(ctx context.Context, record *model.ConsoleSession, revokedAt time.Time) error {

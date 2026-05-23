@@ -51,7 +51,7 @@ func TestBuildConsoleSessionUsesTokenExpiryAndUserMetadata(t *testing.T) {
 		t.Fatalf("GenerateTokenWithAccessTTL() error = %v", err)
 	}
 
-	session := BuildConsoleSession(&model.User{
+	session := BuildConsoleSession(context.Background(), &model.User{
 		ID:                 42,
 		Username:           "alice",
 		Nickname:           "Alice Admin",
@@ -87,7 +87,7 @@ func TestBuildConsoleSessionUsesTokenExpiryAndUserMetadata(t *testing.T) {
 }
 
 func TestBuildConsoleSessionFallsBackToUsernameDisplayName(t *testing.T) {
-	session := BuildConsoleSession(&model.User{Username: "bob"}, nil, "", "")
+	session := BuildConsoleSession(context.Background(), &model.User{Username: "bob"}, nil, "", "")
 
 	if session.User.DisplayName != "bob" {
 		t.Fatalf("display name = %q, want username fallback", session.User.DisplayName)

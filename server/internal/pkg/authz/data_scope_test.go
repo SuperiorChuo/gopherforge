@@ -1,6 +1,8 @@
 package authz
 
 import (
+	"context"
+	"errors"
 	"slices"
 	"testing"
 
@@ -142,7 +144,10 @@ func TestResolveUserDataScopeFallbacks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ResolveUserDataScope(tt.user)
+			got, err := ResolveUserDataScopeContext(context.Background(), tt.user)
+			if err != nil {
+				t.Fatalf("ResolveUserDataScopeContext() error = %v", err)
+			}
 
 			if got.Scope != tt.wantScope {
 				t.Fatalf("scope = %q, want %q", got.Scope, tt.wantScope)
@@ -166,6 +171,51 @@ func TestResolveUserDataScopeFallbacks(t *testing.T) {
 				t.Fatalf("can access all = %v, want %v", got.CanAccessAll(), tt.wantAll)
 			}
 		})
+	}
+}
+
+func TestResolveUserDataScopeFallbackContextReturnsSelfScopeOnDependencyError(t *testing.T) {
+	injectedErr := errors.New("department tree unavailable")
+	resolver := NewDataScopeResolver(&stubDataScopeStore{departmentErr: injectedErr})
+
+	got := resolver.ResolveUserDataScopeFallbackContext(context.Background(), &model.User{
+		ID:           42,
+		DepartmentID: 7,
+		Roles: []model.Role{
+			{ID: 5, Code: "dept_admin"},
+		},
+	})
+
+	if got.Scope != DataScopeSelf {
+		t.Fatalf("scope = %q, want %q", got.Scope, DataScopeSelf)
+	}
+	if got.UserID != 42 {
+		t.Fatalf("user id = %d, want 42", got.UserID)
+	}
+	if got.DepartmentID != 7 {
+		t.Fatalf("department id = %d, want 7", got.DepartmentID)
+	}
+	if !slices.Equal(got.DepartmentIDs, []uint{7}) {
+		t.Fatalf("department ids = %#v, want []uint{7}", got.DepartmentIDs)
+	}
+}
+
+func TestResolveUserDataScopeContextReturnsDependencyError(t *testing.T) {
+	injectedErr := errors.New("department tree unavailable")
+	resolver := NewDataScopeResolver(&stubDataScopeStore{departmentErr: injectedErr})
+
+	_, err := resolver.ResolveUserDataScopeContext(context.Background(), &model.User{
+		ID:           42,
+		DepartmentID: 7,
+		Roles: []model.Role{
+			{ID: 5, Code: "dept_admin"},
+		},
+	})
+	if err == nil {
+		t.Fatal("ResolveUserDataScopeContext() error = nil, want dependency error")
+	}
+	if !errors.Is(err, injectedErr) {
+		t.Fatalf("ResolveUserDataScopeContext() error = %v, want %v", err, injectedErr)
 	}
 }
 

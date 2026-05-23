@@ -31,13 +31,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		if jwt.IsTokenBlacklisted(tokenString) {
-			response.UnauthorizedWithCode(c, response.ErrorCodeAuthTokenRevoked, "Token has been revoked")
-			c.Abort()
-			return
-		}
-
-		claims, err := jwt.ParseToken(tokenString)
+		claims, err := jwt.ParseTokenContext(c.Request.Context(), tokenString)
 		if err != nil {
 			var message string
 			errorCode := response.ErrorCodeAuthTokenInvalid

@@ -171,6 +171,58 @@
                   </t-button>
                 </div>
               </t-form>
+
+              <div class="totp-panel">
+                <div class="totp-panel__head">
+                  <div>
+                    <h4>两步验证</h4>
+                    <p>使用认证器应用生成的一次性验证码保护账号登录。</p>
+                  </div>
+                  <t-tag :theme="userInfo.totp_enabled ? 'success' : 'warning'" variant="light">
+                    {{ userInfo.totp_enabled ? '已开启' : '未开启' }}
+                  </t-tag>
+                </div>
+
+                <template v-if="!userInfo.totp_enabled">
+                  <div v-if="totpSetup" class="totp-setup">
+                    <qrcode-vue :value="totpSetup.otp_auth_url" :size="144" level="M" />
+                    <div class="totp-setup__main">
+                      <t-input :value="totpSetup.secret" readonly />
+                      <div class="totp-setup__verify">
+                        <t-input v-model="totpCurrentPassword" type="password" placeholder="当前密码" />
+                        <t-input v-model="totpCode" maxlength="6" placeholder="请输入 6 位验证码" />
+                        <t-button theme="primary" :loading="totpLoading" @click="handleEnableTotp">启用</t-button>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="totp-bind">
+                    <t-input v-model="totpCurrentPassword" type="password" placeholder="当前密码" />
+                    <t-button theme="primary" :loading="totpLoading" @click="handleGenerateTotp">
+                    <template #icon><t-icon name="secured" /></template>
+                    绑定认证器
+                  </t-button>
+                  </div>
+                </template>
+
+                <div v-else class="totp-disable">
+                  <t-input v-model="totpCurrentPassword" type="password" placeholder="当前密码" />
+                  <t-input v-model="totpCode" maxlength="6" placeholder="输入当前验证码" />
+                  <t-button variant="outline" :loading="totpLoading" @click="handleRegenerateRecoveryCodes">
+                    重新生成恢复码
+                  </t-button>
+                  <t-button theme="danger" :loading="totpLoading" @click="handleDisableTotp">关闭两步验证</t-button>
+                </div>
+
+                <div v-if="totpRecoveryCodes.length" class="totp-recovery">
+                  <div class="totp-recovery__head">
+                    <h5>恢复码</h5>
+                    <t-tag size="small" theme="warning" variant="light">仅展示一次</t-tag>
+                  </div>
+                  <div class="totp-recovery__grid">
+                    <span v-for="code in totpRecoveryCodes" :key="code" class="totp-recovery__code">{{ code }}</span>
+                  </div>
+                </div>
+              </div>
             </t-tab-panel>
 
             <t-tab-panel value="login-history" label="登录记录">
@@ -229,11 +281,23 @@
 </template>
 
 <script setup lang="ts">
+import QrcodeVue from 'qrcode.vue';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
-import { changePassword, getCurrentUser, updateProfile, type UserInfo } from '@/api/auth';
+import {
+  changePassword,
+  disableTotp,
+  enableTotp,
+  generateTotpSetup,
+  getCurrentUser,
+  regenerateTotpRecoveryCodes,
+  updateProfile,
+  type TOTPRecoveryCodesResponse,
+  type TOTPSetupResponse,
+  type UserInfo,
+} from '@/api/auth';
 import { getMyLoginLogs, type LoginLogItem } from '@/api/system/loginLog';
 import { useUserStore } from '@/store';
 import { formatDateTime } from '@/utils/date';
@@ -247,13 +311,19 @@ defineOptions({
 
 const userStore = useUserStore();
 const route = useRoute();
+const router = useRouter();
 
 const activeTab = ref(route.query.force_change_password ? 'password' : 'info');
 const userInfo = ref<Partial<UserInfo>>({});
 const infoLoading = ref(false);
 const pwdLoading = ref(false);
+const totpLoading = ref(false);
 const historyLoading = ref(false);
 const loginHistory = ref<LoginLogItem[]>([]);
+const totpSetup = ref<TOTPSetupResponse | null>(null);
+const totpCode = ref('');
+const totpCurrentPassword = ref('');
+const totpRecoveryCodes = ref<string[]>([]);
 
 const infoFormRef = ref();
 const pwdFormRef = ref();
@@ -457,6 +527,12 @@ const handleChangePassword = async () => {
     });
     MessagePlugin.success('密码修改成功');
     await userStore.getUserInfo();
+    await loadUserInfo();
+    if (route.query.force_change_password) {
+      const query = { ...route.query };
+      delete query.force_change_password;
+      await router.replace({ path: route.path, query });
+    }
     pwdForm.value = {
       old_password: '',
       new_password: '',
@@ -466,6 +542,97 @@ const handleChangePassword = async () => {
     MessagePlugin.error(error.message || '修改密码失败');
   } finally {
     pwdLoading.value = false;
+  }
+};
+
+const validTotpCode = () => {
+  if (!/^\d{6}$/.test(totpCode.value.trim())) {
+    MessagePlugin.warning('请输入 6 位数字验证码');
+    return false;
+  }
+  return true;
+};
+
+const validTotpCurrentPassword = () => {
+  if (!totpCurrentPassword.value) {
+    MessagePlugin.warning('请输入当前密码');
+    return false;
+  }
+  return true;
+};
+
+const applyTotpRecoveryCodes = (res: TOTPRecoveryCodesResponse) => {
+  totpRecoveryCodes.value = res.recovery_codes || [];
+};
+
+const handleGenerateTotp = async () => {
+  if (!validTotpCurrentPassword()) return;
+  totpLoading.value = true;
+  try {
+    totpSetup.value = await generateTotpSetup({ current_password: totpCurrentPassword.value });
+    totpCode.value = '';
+    totpRecoveryCodes.value = [];
+  } catch (error: any) {
+    MessagePlugin.error(error.message || '生成两步验证配置失败');
+  } finally {
+    totpLoading.value = false;
+  }
+};
+
+const handleEnableTotp = async () => {
+  if (!validTotpCode()) return;
+  if (!validTotpCurrentPassword()) return;
+  totpLoading.value = true;
+  try {
+    const res = await enableTotp({ code: totpCode.value.trim(), current_password: totpCurrentPassword.value });
+    applyTotpRecoveryCodes(res);
+    MessagePlugin.success('两步验证已开启');
+    totpSetup.value = null;
+    totpCode.value = '';
+    totpCurrentPassword.value = '';
+    await loadUserInfo();
+    await userStore.getUserInfo();
+  } catch (error: any) {
+    MessagePlugin.error(error.message || '开启两步验证失败');
+  } finally {
+    totpLoading.value = false;
+  }
+};
+
+const handleRegenerateRecoveryCodes = async () => {
+  if (!validTotpCode()) return;
+  if (!validTotpCurrentPassword()) return;
+  totpLoading.value = true;
+  try {
+    const res = await regenerateTotpRecoveryCodes({ code: totpCode.value.trim(), current_password: totpCurrentPassword.value });
+    applyTotpRecoveryCodes(res);
+    MessagePlugin.success('恢复码已重新生成');
+    totpCode.value = '';
+    totpCurrentPassword.value = '';
+  } catch (error: any) {
+    MessagePlugin.error(error.message || '重新生成恢复码失败');
+  } finally {
+    totpLoading.value = false;
+  }
+};
+
+const handleDisableTotp = async () => {
+  if (!validTotpCode()) return;
+  if (!validTotpCurrentPassword()) return;
+  totpLoading.value = true;
+  try {
+    await disableTotp({ code: totpCode.value.trim(), current_password: totpCurrentPassword.value });
+    MessagePlugin.success('两步验证已关闭');
+    totpCode.value = '';
+    totpCurrentPassword.value = '';
+    totpSetup.value = null;
+    totpRecoveryCodes.value = [];
+    await loadUserInfo();
+    await userStore.getUserInfo();
+  } catch (error: any) {
+    MessagePlugin.error(error.message || '关闭两步验证失败');
+  } finally {
+    totpLoading.value = false;
   }
 };
 
@@ -902,6 +1069,111 @@ onMounted(() => {
   line-height: 20px;
 }
 
+.totp-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 640px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #edf1f7;
+}
+
+.totp-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.totp-panel__head h4 {
+  margin: 0;
+  color: #101828;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 22px;
+}
+
+.totp-panel__head p {
+  margin: 2px 0 0;
+  color: #667085;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.totp-setup {
+  display: grid;
+  align-items: start;
+  gap: 16px;
+  grid-template-columns: 144px minmax(0, 1fr);
+}
+
+.totp-setup__main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.totp-setup__verify,
+.totp-bind,
+.totp-disable {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.totp-setup__verify :deep(.t-input),
+.totp-bind :deep(.t-input),
+.totp-disable :deep(.t-input) {
+  max-width: 220px;
+}
+
+.totp-recovery {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #ffe1bd;
+  border-radius: 8px;
+  background: #fffaf3;
+}
+
+.totp-recovery__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.totp-recovery__head h5 {
+  margin: 0;
+  color: #101828;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 20px;
+}
+
+.totp-recovery__grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.totp-recovery__code {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  background: #fff;
+  color: #9a3412;
+  font-family: var(--profile-number-font);
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-align: center;
+}
+
 .login-table {
   margin-top: 14px;
 }
@@ -989,6 +1261,26 @@ onMounted(() => {
 
   .form-actions :deep(.t-button) {
     width: 100%;
+  }
+
+  .totp-setup {
+    grid-template-columns: 1fr;
+  }
+
+  .totp-setup__verify,
+  .totp-bind,
+  .totp-disable {
+    flex-direction: column;
+  }
+
+  .totp-setup__verify :deep(.t-input),
+  .totp-bind :deep(.t-input),
+  .totp-disable :deep(.t-input) {
+    max-width: none;
+  }
+
+  .totp-recovery__grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

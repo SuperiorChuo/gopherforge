@@ -68,11 +68,6 @@ func (s *AuditLogService) RecordContext(ctx context.Context, c *gin.Context, req
 	return s.logDAO.CreateLogContext(ctx, log)
 }
 
-// Deprecated: use ListLogsContext instead.
-func (s *AuditLogService) ListLogs(req AuditLogListRequest) (dao.AuditLogListResult, error) {
-	return s.ListLogsContext(context.Background(), req)
-}
-
 func (s *AuditLogService) ListLogsContext(ctx context.Context, req AuditLogListRequest) (dao.AuditLogListResult, error) {
 	normalized := NormalizeAuditLogListRequest(req)
 	return s.logDAO.ListLogsContext(ctx, dao.AuditLogListQuery{

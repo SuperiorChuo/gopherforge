@@ -8,6 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/pkg/database"
+	authsvc "github.com/go-admin-kit/server/internal/service/auth"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -20,7 +21,7 @@ func TestUserServiceCreateUserContextHonorsCanceledContext(t *testing.T) {
 
 	_, err := (&UserService{}).CreateUserContext(ctx, CreateUserRequest{
 		Username: "alice",
-		Password: "secret123",
+		Password: "Secret123",
 	})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("CreateUserContext() error = %v, want context.Canceled", err)
@@ -40,6 +41,22 @@ func TestUserServiceCreateUserContextReturnsUsernameLookupError(t *testing.T) {
 	})
 	if !errors.Is(err, lookupErr) {
 		t.Fatalf("CreateUserContext() error = %v, want username lookup error", err)
+	}
+}
+
+func TestUserServiceCreateUserContextRejectsWeakPassword(t *testing.T) {
+	mock := setupSystemUserServiceContextTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? ORDER BY `users`.`id` LIMIT ?")).
+		WithArgs("alice", 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password"}))
+
+	_, err := (&UserService{}).CreateUserContext(context.Background(), CreateUserRequest{
+		Username: "alice",
+		Password: "short",
+	})
+	var validationErr authsvc.PasswordValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("CreateUserContext() error = %T/%v, want PasswordValidationError", err, err)
 	}
 }
 

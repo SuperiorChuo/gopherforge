@@ -13,16 +13,16 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestMySQLDAOGetNameValues(t *testing.T) {
+func TestMySQLDAOGetNameValuesContext(t *testing.T) {
 	mock := setupMonitorDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SHOW GLOBAL STATUS")).
 		WillReturnRows(sqlmock.NewRows([]string{"Variable_name", "Value"}).
 			AddRow("Uptime", "120").
 			AddRow("Questions", "240"))
 
-	values, err := NewMySQLDAO().GetNameValues("SHOW GLOBAL STATUS")
+	values, err := NewMySQLDAO().GetNameValuesContext(context.Background(), "SHOW GLOBAL STATUS")
 	if err != nil {
-		t.Fatalf("GetNameValues() error = %v", err)
+		t.Fatalf("GetNameValuesContext() error = %v", err)
 	}
 	want := map[string]string{"Uptime": "120", "Questions": "240"}
 	if !reflect.DeepEqual(values, want) {
@@ -42,7 +42,7 @@ func TestMySQLDAOGetVersionContextHonorsCanceledContext(t *testing.T) {
 	}
 }
 
-func TestMySQLDAOGetTableStats(t *testing.T) {
+func TestMySQLDAOGetTableStatsContext(t *testing.T) {
 	mock := setupMonitorDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT COUNT(*) AS table_count, COALESCE(SUM(data_length + index_length), 0) AS database_size
 		 FROM information_schema.tables
@@ -51,23 +51,23 @@ func TestMySQLDAOGetTableStats(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"table_count", "database_size"}).
 			AddRow(12, 4096))
 
-	stats, err := NewMySQLDAO().GetTableStats("go_admin")
+	stats, err := NewMySQLDAO().GetTableStatsContext(context.Background(), "go_admin")
 	if err != nil {
-		t.Fatalf("GetTableStats() error = %v", err)
+		t.Fatalf("GetTableStatsContext() error = %v", err)
 	}
 	if stats.TableCount != 12 || stats.DatabaseSize != 4096 {
 		t.Fatalf("stats = %#v, want table_count=12 database_size=4096", stats)
 	}
 }
 
-func TestMySQLDAOGetVersion(t *testing.T) {
+func TestMySQLDAOGetVersionContext(t *testing.T) {
 	mock := setupMonitorDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT VERSION()")).
 		WillReturnRows(sqlmock.NewRows([]string{"VERSION()"}).AddRow("8.0.36"))
 
-	version, err := NewMySQLDAO().GetVersion()
+	version, err := NewMySQLDAO().GetVersionContext(context.Background())
 	if err != nil {
-		t.Fatalf("GetVersion() error = %v", err)
+		t.Fatalf("GetVersionContext() error = %v", err)
 	}
 	if version != "8.0.36" {
 		t.Fatalf("version = %q, want 8.0.36", version)
@@ -85,9 +85,9 @@ func TestMySQLDAOUsesInjectedDB(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT VERSION()")).
 		WillReturnRows(sqlmock.NewRows([]string{"VERSION()"}).AddRow("8.0.36"))
 
-	version, err := NewMySQLDAO(db).GetVersion()
+	version, err := NewMySQLDAO(db).GetVersionContext(context.Background())
 	if err != nil {
-		t.Fatalf("GetVersion() error = %v", err)
+		t.Fatalf("GetVersionContext() error = %v", err)
 	}
 	if version != "8.0.36" {
 		t.Fatalf("version = %q, want 8.0.36", version)

@@ -39,18 +39,8 @@ type ClearLogsRequest struct {
 
 var ErrOperationLogNotFound = errors.New("operation log not found")
 
-// Deprecated: use RecordContext instead.
-func (s *OperationLogService) Record(log *model.OperationLog) error {
-	return s.RecordContext(context.Background(), log)
-}
-
 func (s *OperationLogService) RecordContext(ctx context.Context, log *model.OperationLog) error {
 	return s.logDAO.CreateLogContext(ctx, log)
-}
-
-// Deprecated: use GetLogByIDContext instead.
-func (s *OperationLogService) GetLogByID(id uint) (*model.OperationLog, error) {
-	return s.GetLogByIDContext(context.Background(), id)
 }
 
 func (s *OperationLogService) GetLogByIDContext(ctx context.Context, id uint) (*model.OperationLog, error) {
@@ -75,11 +65,6 @@ func (s *OperationLogService) GetLogByIDInScopeContext(ctx context.Context, id u
 	return log, nil
 }
 
-// Deprecated: use GetLogListContext instead.
-func (s *OperationLogService) GetLogList(req OperationLogListRequest) ([]model.OperationLog, int64, error) {
-	return s.GetLogListContext(context.Background(), req)
-}
-
 func (s *OperationLogService) GetLogListContext(ctx context.Context, req OperationLogListRequest) ([]model.OperationLog, int64, error) {
 	return s.logDAO.GetLogListContext(
 		ctx,
@@ -100,19 +85,14 @@ func (s *OperationLogService) GetLogListContext(ctx context.Context, req Operati
 	)
 }
 
-// Deprecated: use ClearLogsContext instead.
-func (s *OperationLogService) ClearLogs(days int) (int64, error) {
-	return s.ClearLogsContext(context.Background(), days)
-}
-
 func (s *OperationLogService) ClearLogsContext(ctx context.Context, days int) (int64, error) {
 	before := time.Now().AddDate(0, 0, -days)
 	return s.logDAO.DeleteLogsBeforeContext(ctx, before)
 }
 
-// Deprecated: use GetLogStatsContext instead.
-func (s *OperationLogService) GetLogStats(startTime, endTime *time.Time) (*systemdao.LogStats, error) {
-	return s.GetLogStatsContext(context.Background(), startTime, endTime)
+func (s *OperationLogService) ClearLogsInScopeContext(ctx context.Context, days int, dataScope authz.UserDataScope) (int64, error) {
+	before := time.Now().AddDate(0, 0, -days)
+	return s.logDAO.DeleteLogsBeforeInScopeContext(ctx, before, dataScope)
 }
 
 func (s *OperationLogService) GetLogStatsContext(ctx context.Context, startTime, endTime *time.Time) (*systemdao.LogStats, error) {
@@ -121,11 +101,6 @@ func (s *OperationLogService) GetLogStatsContext(ctx context.Context, startTime,
 
 func (s *OperationLogService) GetLogStatsInScopeContext(ctx context.Context, startTime, endTime *time.Time, dataScope authz.UserDataScope) (*systemdao.LogStats, error) {
 	return s.logDAO.GetLogStatsInScopeContext(ctx, startTime, endTime, dataScope)
-}
-
-// Deprecated: use ExportLogsContext instead.
-func (s *OperationLogService) ExportLogs(req OperationLogListRequest) ([]model.OperationLog, error) {
-	return s.ExportLogsContext(context.Background(), req)
 }
 
 func (s *OperationLogService) ExportLogsContext(ctx context.Context, req OperationLogListRequest) ([]model.OperationLog, error) {

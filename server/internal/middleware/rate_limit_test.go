@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
 	"github.com/go-admin-kit/server/internal/pkg/response"
+	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -96,6 +98,40 @@ func TestRateLimiterWithClientUsesInjectedClient(t *testing.T) {
 	}
 }
 
+func TestRateLimiterDynamicMiddlewareUsesRuntimePolicy(t *testing.T) {
+	setupRateLimitTestRedis(t)
+	gin.SetMode(gin.TestMode)
+
+	reader := stubRuntimePolicyReader{policy: runtimeconfig.SecurityPolicy{
+		RateLimitEnabled:       true,
+		RateLimitWindowSeconds: 1,
+		RateLimitMaxRequests:   1,
+	}}
+
+	router := gin.New()
+	router.Use(NewRateLimiter().DynamicMiddleware(reader))
+	router.GET("/", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "192.0.2.3:12345"
+	first := httptest.NewRecorder()
+	router.ServeHTTP(first, req)
+	if first.Code != http.StatusNoContent {
+		t.Fatalf("first status = %d, want %d", first.Code, http.StatusNoContent)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "192.0.2.3:12345"
+	second := httptest.NewRecorder()
+	router.ServeHTTP(second, req)
+	if second.Code != http.StatusTooManyRequests {
+		t.Fatalf("second status = %d, want %d", second.Code, http.StatusTooManyRequests)
+	}
+	assertMiddlewareErrorCode(t, second.Body.Bytes(), response.ErrorCodeRateLimited)
+}
+
 func setupRateLimitTestRedis(t *testing.T) *miniredis.Miniredis {
 	t.Helper()
 
@@ -115,6 +151,14 @@ func setupRateLimitTestRedis(t *testing.T) *miniredis.Miniredis {
 	})
 
 	return store
+}
+
+type stubRuntimePolicyReader struct {
+	policy runtimeconfig.SecurityPolicy
+}
+
+func (s stubRuntimePolicyReader) SecurityPolicy(ctx context.Context) runtimeconfig.SecurityPolicy {
+	return s.policy
 }
 
 func assertMiddlewareErrorCode(t *testing.T, body []byte, want response.ErrorCode) {

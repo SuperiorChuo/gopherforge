@@ -5,6 +5,7 @@ import (
 	"errors"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
@@ -23,17 +24,18 @@ func TestUserDAOGetUserListAppliesDepartmentScope(t *testing.T) {
 		WithArgs(uint(10), uint(11), 10).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	users, total, err := (&UserDAO{}).GetUserList(
+	users, total, err := (&UserDAO{}).GetUserListContext(
+		context.Background(),
 		pagination.PageRequest{Page: 1, PageSize: 10},
 		"",
 		nil,
 		authz.UserDataScope{Scope: authz.DataScopeDepartment, DepartmentIDs: []uint{10, 11}},
 	)
 	if err != nil {
-		t.Fatalf("GetUserList() error = %v", err)
+		t.Fatalf("GetUserListContext() error = %v", err)
 	}
 	if total != 0 || len(users) != 0 {
-		t.Fatalf("GetUserList() total=%d users=%d, want empty result", total, len(users))
+		t.Fatalf("GetUserListContext() total=%d users=%d, want empty result", total, len(users))
 	}
 }
 
@@ -61,12 +63,13 @@ func TestFileDAOGetByIDInScopeAppliesOwnerDepartmentScope(t *testing.T) {
 		WithArgs(uint(99), uint(20), uint(21), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	_, err := (&FileDAO{}).GetByIDInScope(
+	_, err := (&FileDAO{}).GetByIDInScopeContext(
+		context.Background(),
 		99,
 		authz.UserDataScope{Scope: authz.DataScopeCustom, DepartmentIDs: []uint{20, 21}},
 	)
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		t.Fatalf("GetByIDInScope() error = %v, want record not found", err)
+		t.Fatalf("GetByIDInScopeContext() error = %v, want record not found", err)
 	}
 }
 
@@ -76,12 +79,13 @@ func TestFileDAOGetByHashInScopeAppliesSelfScope(t *testing.T) {
 		WithArgs("abc123", uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	_, err := (&FileDAO{}).GetByHashInScope(
+	_, err := (&FileDAO{}).GetByHashInScopeContext(
+		context.Background(),
 		"abc123",
 		authz.UserDataScope{Scope: authz.DataScopeSelf, UserID: 7},
 	)
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		t.Fatalf("GetByHashInScope() error = %v, want record not found", err)
+		t.Fatalf("GetByHashInScopeContext() error = %v, want record not found", err)
 	}
 }
 
@@ -93,7 +97,8 @@ func TestFileDAOGetListAppliesNoScope(t *testing.T) {
 		WithArgs(10).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	files, total, err := (&FileDAO{}).GetList(
+	files, total, err := (&FileDAO{}).GetListContext(
+		context.Background(),
 		pagination.PageRequest{Page: 1, PageSize: 10},
 		nil,
 		"",
@@ -103,10 +108,10 @@ func TestFileDAOGetListAppliesNoScope(t *testing.T) {
 		authz.UserDataScope{Scope: authz.DataScopeNone},
 	)
 	if err != nil {
-		t.Fatalf("GetList() error = %v", err)
+		t.Fatalf("GetListContext() error = %v", err)
 	}
 	if total != 0 || len(files) != 0 {
-		t.Fatalf("GetList() total=%d files=%d, want empty result", total, len(files))
+		t.Fatalf("GetListContext() total=%d files=%d, want empty result", total, len(files))
 	}
 }
 
@@ -146,7 +151,8 @@ func TestLoginLogDAOGetListAppliesDepartmentScopeAndFilters(t *testing.T) {
 		WithArgs("%alice%", "%10.%", status, loginType, uint(20), uint(21), 10).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	logs, total, err := (&LoginLogDAO{}).GetList(
+	logs, total, err := (&LoginLogDAO{}).GetListContext(
+		context.Background(),
 		pagination.PageRequest{Page: 1, PageSize: 10},
 		nil,
 		"alice",
@@ -158,10 +164,10 @@ func TestLoginLogDAOGetListAppliesDepartmentScopeAndFilters(t *testing.T) {
 		authz.UserDataScope{Scope: authz.DataScopeDepartment, DepartmentIDs: []uint{20, 21}},
 	)
 	if err != nil {
-		t.Fatalf("GetList() error = %v", err)
+		t.Fatalf("GetListContext() error = %v", err)
 	}
 	if total != 0 || len(logs) != 0 {
-		t.Fatalf("GetList() total=%d logs=%d, want empty result", total, len(logs))
+		t.Fatalf("GetListContext() total=%d logs=%d, want empty result", total, len(logs))
 	}
 }
 
@@ -228,7 +234,8 @@ func TestOperationLogDAOGetLogListAppliesSelfScope(t *testing.T) {
 		WithArgs(uint(7), 10).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	logs, total, err := (&OperationLogDAO{}).GetLogList(
+	logs, total, err := (&OperationLogDAO{}).GetLogListContext(
+		context.Background(),
 		pagination.PageRequest{Page: 1, PageSize: 10},
 		nil,
 		"",
@@ -245,10 +252,10 @@ func TestOperationLogDAOGetLogListAppliesSelfScope(t *testing.T) {
 		authz.UserDataScope{Scope: authz.DataScopeSelf, UserID: 7},
 	)
 	if err != nil {
-		t.Fatalf("GetLogList() error = %v", err)
+		t.Fatalf("GetLogListContext() error = %v", err)
 	}
 	if total != 0 || len(logs) != 0 {
-		t.Fatalf("GetLogList() total=%d logs=%d, want empty result", total, len(logs))
+		t.Fatalf("GetLogListContext() total=%d logs=%d, want empty result", total, len(logs))
 	}
 }
 
@@ -295,6 +302,31 @@ func TestOperationLogDAOGetLogStatsInScopeAppliesDepartmentScope(t *testing.T) {
 	if stats.Total != 6 || stats.ErrorCount != 2 || stats.ByModule["system"] != 6 || stats.ByMethod["GET"] != 6 {
 		t.Fatalf("GetLogStatsInScopeContext() = %#v, want total=6 error=2 module/system=6 method/GET=6", stats)
 	}
+}
+
+func TestOperationLogDAODeleteLogsBeforeInScopeAppliesSelfScope(t *testing.T) {
+	mock := setupSystemDAOTestDB(t)
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM `operation_logs` WHERE created_at < ? AND user_id = ?")).
+		WithArgs(sqlmock.AnyArg(), uint(7)).
+		WillReturnResult(sqlmock.NewResult(0, 3))
+	mock.ExpectCommit()
+
+	deleted, err := (&OperationLogDAO{}).DeleteLogsBeforeInScopeContext(
+		context.Background(),
+		timeNowForOperationLogDeleteTest(),
+		authz.UserDataScope{Scope: authz.DataScopeSelf, UserID: 7},
+	)
+	if err != nil {
+		t.Fatalf("DeleteLogsBeforeInScopeContext() error = %v", err)
+	}
+	if deleted != 3 {
+		t.Fatalf("DeleteLogsBeforeInScopeContext() deleted=%d, want 3", deleted)
+	}
+}
+
+func timeNowForOperationLogDeleteTest() time.Time {
+	return time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC)
 }
 
 func setupSystemDAOTestDB(t *testing.T) sqlmock.Sqlmock {

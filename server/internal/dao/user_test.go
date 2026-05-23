@@ -18,9 +18,9 @@ func TestUserDAOGetUserByUsernameUsesSharedQuery(t *testing.T) {
 		WithArgs("alice", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username"}).AddRow(42, "alice"))
 
-	user, err := (&UserDAO{}).GetUserByUsername("alice")
+	user, err := (&UserDAO{}).GetUserByUsernameContext(context.Background(), "alice")
 	if err != nil {
-		t.Fatalf("GetUserByUsername() error = %v", err)
+		t.Fatalf("GetUserByUsernameContext() error = %v", err)
 	}
 	if user.ID != 42 || user.Username != "alice" {
 		t.Fatalf("user = %#v, want id=42 username=alice", user)
@@ -33,9 +33,9 @@ func TestUserDAOGetUserWithRolesReturnsNotFound(t *testing.T) {
 		WithArgs(uint(99), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	_, err := (&UserDAO{}).GetUserWithRoles(99)
+	_, err := (&UserDAO{}).GetUserWithRolesContext(context.Background(), 99)
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		t.Fatalf("GetUserWithRoles() error = %v, want record not found", err)
+		t.Fatalf("GetUserWithRolesContext() error = %v, want record not found", err)
 	}
 }
 
@@ -79,9 +79,9 @@ func TestUserDAOUsesInjectedDB(t *testing.T) {
 		WithArgs("alice", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username"}).AddRow(42, "alice"))
 
-	user, err := NewUserDAO(db).GetUserByUsername("alice")
+	user, err := NewUserDAO(db).GetUserByUsernameContext(context.Background(), "alice")
 	if err != nil {
-		t.Fatalf("GetUserByUsername() error = %v", err)
+		t.Fatalf("GetUserByUsernameContext() error = %v", err)
 	}
 	if user.ID != 42 || user.Username != "alice" {
 		t.Fatalf("user = %#v, want id=42 username=alice", user)

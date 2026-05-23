@@ -22,14 +22,20 @@ var (
 )
 
 const (
-	AccessTokenType  = "access"
-	RefreshTokenType = "refresh"
+	AccessTokenType          = "access"
+	RefreshTokenType         = "refresh"
+	TOTPChallengeTokenType   = "totp_challenge"
+	WebSocketTicketTokenType = "ws_ticket"
 )
 
 // TokenBlacklistStore stores revoked JWT token IDs.
 type TokenBlacklistStore interface {
 	SetTokenID(ctx context.Context, tokenID string, expireTime time.Duration) error
 	HasTokenID(ctx context.Context, tokenID string) (bool, error)
+}
+
+type tokenIDConsumer interface {
+	ConsumeTokenID(ctx context.Context, tokenID string, expireTime time.Duration) (bool, error)
 }
 
 var (
@@ -117,20 +123,77 @@ func GenerateTokenWithAccessTTL(userID uint, username string, accessTTL time.Dur
 	return accessToken, refreshToken, nil
 }
 
-func ParseToken(tokenString string) (*Claims, error) {
-	return parseToken(tokenString, true)
+func GenerateTOTPChallenge(userID uint, username string, ttl time.Duration) (string, error) {
+	return generateSinglePurposeToken(userID, username, TOTPChallengeTokenType, ttl, 5*time.Minute)
+}
+
+func GenerateWebSocketTicket(userID uint, username string, ttl time.Duration) (string, error) {
+	return generateSinglePurposeToken(userID, username, WebSocketTicketTokenType, ttl, time.Minute)
+}
+
+func generateSinglePurposeToken(userID uint, username, tokenType string, ttl, defaultTTL time.Duration) (string, error) {
+	cfg := config.Cfg.JWT
+	now := time.Now()
+	if ttl <= 0 {
+		ttl = defaultTTL
+	}
+
+	claims := Claims{
+		UserID:    userID,
+		Username:  username,
+		TokenType: tokenType,
+		RegisteredClaims: jwtlib.RegisteredClaims{
+			ExpiresAt: jwtlib.NewNumericDate(now.Add(ttl)),
+			IssuedAt:  jwtlib.NewNumericDate(now),
+			NotBefore: jwtlib.NewNumericDate(now),
+			Issuer:    cfg.Issuer,
+			Subject:   fmt.Sprintf("%d", userID),
+			ID:        uuid.NewString(),
+		},
+	}
+
+	return jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims).SignedString([]byte(cfg.Secret))
+}
+
+func ParseTOTPChallenge(tokenString string) (*Claims, error) {
+	claims, err := parseToken(context.Background(), tokenString, true)
+	if err != nil {
+		return nil, err
+	}
+	if claims.TokenType != TOTPChallengeTokenType {
+		return nil, ErrWrongTokenType
+	}
+	return claims, nil
+}
+
+func ParseWebSocketTicket(tokenString string) (*Claims, error) {
+	claims, err := parseToken(context.Background(), tokenString, true)
+	if err != nil {
+		return nil, err
+	}
+	if claims.TokenType != WebSocketTicketTokenType {
+		return nil, ErrWrongTokenType
+	}
+	return claims, nil
+}
+
+func ParseTokenContext(ctx context.Context, tokenString string) (*Claims, error) {
+	return parseToken(ctx, tokenString, true)
 }
 
 func TokenID(tokenString string) (string, error) {
-	claims, err := parseToken(tokenString, false)
+	claims, err := parseToken(context.Background(), tokenString, false)
 	if err != nil || claims.ID == "" {
 		return "", ErrInvalidToken
 	}
 	return claims.ID, nil
 }
 
-func parseToken(tokenString string, checkRevocation bool) (*Claims, error) {
+func parseToken(ctx context.Context, tokenString string, checkRevocation bool) (*Claims, error) {
 	cfg := config.Cfg.JWT
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	token, err := jwtlib.ParseWithClaims(tokenString, &Claims{}, func(token *jwtlib.Token) (any, error) {
 		if _, ok := token.Method.(*jwtlib.SigningMethodHMAC); !ok {
@@ -149,16 +212,27 @@ func parseToken(tokenString string, checkRevocation bool) (*Claims, error) {
 	if !ok || !token.Valid {
 		return nil, ErrInvalidToken
 	}
-	if checkRevocation && IsTokenIDBlacklisted(claims.ID) {
+	if checkRevocation && IsTokenIDBlacklistedContext(ctx, claims.ID) {
 		return nil, ErrRevokedToken
 	}
 	return claims, nil
 }
 
 func RefreshToken(refreshToken string) (accessToken, newRefreshToken string, err error) {
-	cfg := config.Cfg.JWT
+	return refreshTokenWithBase(context.Background(), refreshToken)
+}
 
-	claims, err := ParseToken(refreshToken)
+func RefreshTokenContext(ctx context.Context, refreshToken string) (accessToken, newRefreshToken string, err error) {
+	return refreshTokenWithBase(ctx, refreshToken)
+}
+
+func refreshTokenWithBase(ctx context.Context, refreshToken string) (accessToken, newRefreshToken string, err error) {
+	cfg := config.Cfg.JWT
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	claims, err := parseToken(ctx, refreshToken, true)
 	if err != nil {
 		return "", "", err
 	}
@@ -210,7 +284,7 @@ func RefreshToken(refreshToken string) (accessToken, newRefreshToken string, err
 		return "", "", err
 	}
 
-	if err := RevokeToken(refreshToken, claims); err != nil {
+	if err := RevokeTokenContext(ctx, refreshToken, claims); err != nil {
 		return "", "", err
 	}
 
@@ -218,27 +292,85 @@ func RefreshToken(refreshToken string) (accessToken, newRefreshToken string, err
 }
 
 func BlacklistToken(tokenString string, expireTime time.Duration) error {
-	claims, err := parseToken(tokenString, false)
+	return blacklistTokenWithBase(context.Background(), tokenString, expireTime)
+}
+
+func BlacklistTokenContext(ctx context.Context, tokenString string, expireTime time.Duration) error {
+	return blacklistTokenWithBase(ctx, tokenString, expireTime)
+}
+
+func blacklistTokenWithBase(ctx context.Context, tokenString string, expireTime time.Duration) error {
+	claims, err := parseToken(ctx, tokenString, false)
 	if err != nil || claims.ID == "" {
 		return ErrInvalidToken
 	}
-	return BlacklistTokenID(claims.ID, expireTime)
+	return blacklistTokenIDWithBase(ctx, claims.ID, expireTime)
 }
 
 func BlacklistTokenID(tokenID string, expireTime time.Duration) error {
+	return blacklistTokenIDWithBase(context.Background(), tokenID, expireTime)
+}
+
+func BlacklistTokenIDContext(ctx context.Context, tokenID string, expireTime time.Duration) error {
+	return blacklistTokenIDWithBase(ctx, tokenID, expireTime)
+}
+
+func blacklistTokenIDWithBase(ctx context.Context, tokenID string, expireTime time.Duration) error {
 	if tokenID == "" {
 		return ErrInvalidToken
 	}
 	if expireTime <= 0 {
 		return nil
 	}
-	ctx := context.Background()
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return currentTokenBlacklistStore().SetTokenID(ctx, tokenID, expireTime)
 }
 
+func ConsumeTokenID(ctx context.Context, tokenID string, expireTime time.Duration) (bool, error) {
+	if tokenID == "" {
+		return false, ErrInvalidToken
+	}
+	if expireTime <= 0 {
+		return false, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	store := currentTokenBlacklistStore()
+	if consumer, ok := store.(tokenIDConsumer); ok {
+		return consumer.ConsumeTokenID(ctx, tokenID, expireTime)
+	}
+
+	used, err := store.HasTokenID(ctx, tokenID)
+	if err != nil {
+		return false, err
+	}
+	if used {
+		return false, nil
+	}
+	if err := store.SetTokenID(ctx, tokenID, expireTime); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func RevokeToken(tokenString string, claims *Claims) error {
+	return revokeTokenWithBase(context.Background(), tokenString, claims)
+}
+
+func RevokeTokenContext(ctx context.Context, tokenString string, claims *Claims) error {
+	return revokeTokenWithBase(ctx, tokenString, claims)
+}
+
+func revokeTokenWithBase(ctx context.Context, tokenString string, claims *Claims) error {
 	if claims == nil || claims.ExpiresAt == nil {
 		return ErrInvalidToken
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	expireTime := time.Until(claims.ExpiresAt.Time)
 	if expireTime <= 0 {
@@ -246,28 +378,30 @@ func RevokeToken(tokenString string, claims *Claims) error {
 	}
 	tokenID := claims.ID
 	if tokenID == "" {
-		parsed, err := parseToken(tokenString, false)
+		parsed, err := parseToken(ctx, tokenString, false)
 		if err != nil || parsed.ID == "" {
 			return ErrInvalidToken
 		}
 		tokenID = parsed.ID
 	}
-	return BlacklistTokenID(tokenID, expireTime)
+	return blacklistTokenIDWithBase(ctx, tokenID, expireTime)
 }
 
-func IsTokenBlacklisted(tokenString string) bool {
-	claims, err := parseToken(tokenString, false)
+func IsTokenBlacklistedContext(ctx context.Context, tokenString string) bool {
+	claims, err := parseToken(ctx, tokenString, false)
 	if err != nil || claims.ID == "" {
 		return false
 	}
-	return IsTokenIDBlacklisted(claims.ID)
+	return IsTokenIDBlacklistedContext(ctx, claims.ID)
 }
 
-func IsTokenIDBlacklisted(tokenID string) bool {
+func IsTokenIDBlacklistedContext(ctx context.Context, tokenID string) bool {
 	if tokenID == "" {
 		return false
 	}
-	ctx := context.Background()
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	ok, err := currentTokenBlacklistStore().HasTokenID(ctx, tokenID)
 	return err == nil && ok
 }
@@ -299,4 +433,11 @@ func (redisTokenBlacklistStore) HasTokenID(ctx context.Context, tokenID string) 
 	}
 	result, err := redis.Client.Get(ctx, blacklistKey(tokenID)).Result()
 	return err == nil && result == "1", nil
+}
+
+func (redisTokenBlacklistStore) ConsumeTokenID(ctx context.Context, tokenID string, expireTime time.Duration) (bool, error) {
+	if redis.Client == nil {
+		return false, errors.New("redis client is not configured")
+	}
+	return redis.Client.SetNX(ctx, blacklistKey(tokenID), "1", expireTime).Result()
 }

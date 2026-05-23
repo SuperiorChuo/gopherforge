@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -14,7 +15,9 @@ import (
 // RedisClient is the Redis command subset used by CacheService.
 type RedisClient interface {
 	Set(ctx context.Context, key string, value any, expiration time.Duration) *goredis.StatusCmd
+	SetNX(ctx context.Context, key string, value any, expiration time.Duration) *goredis.BoolCmd
 	Get(ctx context.Context, key string) *goredis.StringCmd
+	GetDel(ctx context.Context, key string) *goredis.StringCmd
 	Del(ctx context.Context, keys ...string) *goredis.IntCmd
 	SMembers(ctx context.Context, key string) *goredis.StringSliceCmd
 	TxPipeline() goredis.Pipeliner
@@ -39,6 +42,7 @@ func NewCacheServiceWithClient(client RedisClient) *CacheService {
 const (
 	KeyJWTBlacklist         = "jwt:blacklist:%s"
 	KeyLoginCaptcha         = "login:captcha:%s"
+	KeyOAuthState           = "oauth:state:%s"
 	KeyUserInfo             = "user:info:%d"
 	KeyUserPermissions      = "user:permissions:%d"
 	KeyUserPermissionsIndex = "user:permissions:index"
@@ -48,15 +52,16 @@ const (
 const (
 	JWTBlacklistExpire    = 24 * time.Hour
 	LoginCaptchaExpire    = 5 * time.Minute
+	OAuthStateExpire      = 10 * time.Minute
 	UserInfoExpire        = 1 * time.Hour
 	UserPermissionsExpire = 1 * time.Hour
 )
 
-// AddJWTToBlacklist adds a JWT to the blacklist.
-// Deprecated: use AddJWTToBlacklistContext instead.
-func (s *CacheService) AddJWTToBlacklist(token string, expire time.Duration) error {
-	return s.AddJWTToBlacklistContext(context.Background(), token, expire)
-}
+var (
+	ErrOAuthStateNotFound      = errors.New("oauth state not found")
+	ErrOAuthStateAlreadyExists = errors.New("oauth state already exists")
+	ErrCacheUnavailable        = errors.New("redis cache unavailable")
+)
 
 func (s *CacheService) AddJWTToBlacklistContext(ctx context.Context, token string, expire time.Duration) error {
 	tokenID, err := tokenIDFromJWT(token)
@@ -65,12 +70,6 @@ func (s *CacheService) AddJWTToBlacklistContext(ctx context.Context, token strin
 	}
 	key := fmt.Sprintf(KeyJWTBlacklist, tokenID)
 	return s.redisClient().Set(ctx, key, "1", expire).Err()
-}
-
-// IsJWTInBlacklist reports whether a JWT is blacklisted.
-// Deprecated: use IsJWTInBlacklistContext instead.
-func (s *CacheService) IsJWTInBlacklist(token string) bool {
-	return s.IsJWTInBlacklistContext(context.Background(), token)
 }
 
 func (s *CacheService) IsJWTInBlacklistContext(ctx context.Context, token string) bool {
@@ -83,12 +82,6 @@ func (s *CacheService) IsJWTInBlacklistContext(ctx context.Context, token string
 	return err == nil && result == "1"
 }
 
-// RemoveJWTFromBlacklist removes a JWT blacklist entry for short-lived tests or session cleanup.
-// Deprecated: use RemoveJWTFromBlacklistContext instead.
-func (s *CacheService) RemoveJWTFromBlacklist(token string) error {
-	return s.RemoveJWTFromBlacklistContext(context.Background(), token)
-}
-
 func (s *CacheService) RemoveJWTFromBlacklistContext(ctx context.Context, token string) error {
 	tokenID, err := tokenIDFromJWT(token)
 	if err != nil {
@@ -96,12 +89,6 @@ func (s *CacheService) RemoveJWTFromBlacklistContext(ctx context.Context, token 
 	}
 	key := fmt.Sprintf(KeyJWTBlacklist, tokenID)
 	return s.redisClient().Del(ctx, key).Err()
-}
-
-// AddTokenToBlacklistUntilExpiry blacklists a token until its expiry time.
-// Deprecated: use AddTokenToBlacklistUntilExpiryContext instead.
-func (s *CacheService) AddTokenToBlacklistUntilExpiry(token string, expiresAt time.Time) error {
-	return s.AddTokenToBlacklistUntilExpiryContext(context.Background(), token, expiresAt)
 }
 
 func (s *CacheService) AddTokenToBlacklistUntilExpiryContext(ctx context.Context, token string, expiresAt time.Time) error {
@@ -120,21 +107,9 @@ func tokenIDFromJWT(token string) (string, error) {
 	return tokenID, nil
 }
 
-// SetLoginCaptcha stores a login captcha.
-// Deprecated: use SetLoginCaptchaContext instead.
-func (s *CacheService) SetLoginCaptcha(key string, captcha string) error {
-	return s.SetLoginCaptchaContext(context.Background(), key, captcha)
-}
-
 func (s *CacheService) SetLoginCaptchaContext(ctx context.Context, key string, captcha string) error {
 	cacheKey := fmt.Sprintf(KeyLoginCaptcha, key)
 	return s.redisClient().Set(ctx, cacheKey, captcha, LoginCaptchaExpire).Err()
-}
-
-// GetLoginCaptcha returns a login captcha.
-// Deprecated: use GetLoginCaptchaContext instead.
-func (s *CacheService) GetLoginCaptcha(key string) (string, error) {
-	return s.GetLoginCaptchaContext(context.Background(), key)
 }
 
 func (s *CacheService) GetLoginCaptchaContext(ctx context.Context, key string) (string, error) {
@@ -142,32 +117,50 @@ func (s *CacheService) GetLoginCaptchaContext(ctx context.Context, key string) (
 	return s.redisClient().Get(ctx, cacheKey).Result()
 }
 
-// DelLoginCaptcha deletes a login captcha.
-// Deprecated: use DelLoginCaptchaContext instead.
-func (s *CacheService) DelLoginCaptcha(key string) error {
-	return s.DelLoginCaptchaContext(context.Background(), key)
-}
-
 func (s *CacheService) DelLoginCaptchaContext(ctx context.Context, key string) error {
 	cacheKey := fmt.Sprintf(KeyLoginCaptcha, key)
 	return s.redisClient().Del(ctx, cacheKey).Err()
 }
 
-// SetUserInfo caches user information.
-// Deprecated: use SetUserInfoContext instead.
-func (s *CacheService) SetUserInfo(user *model.User) error {
-	return s.SetUserInfoContext(context.Background(), user)
+func (s *CacheService) SetOAuthStateContext(ctx context.Context, state, verifier string, expire time.Duration) error {
+	cacheKey := fmt.Sprintf(KeyOAuthState, state)
+	if expire <= 0 {
+		expire = OAuthStateExpire
+	}
+	client := s.redisClient()
+	if client == nil {
+		return ErrCacheUnavailable
+	}
+	stored, err := client.SetNX(ctx, cacheKey, verifier, expire).Result()
+	if err != nil {
+		return err
+	}
+	if !stored {
+		return ErrOAuthStateAlreadyExists
+	}
+	return nil
+}
+
+func (s *CacheService) StoreOAuthStateContext(ctx context.Context, state, verifier string, expire time.Duration) error {
+	return s.SetOAuthStateContext(ctx, state, verifier, expire)
+}
+
+func (s *CacheService) ConsumeOAuthStateContext(ctx context.Context, state string) (string, error) {
+	cacheKey := fmt.Sprintf(KeyOAuthState, state)
+	client := s.redisClient()
+	if client == nil {
+		return "", ErrCacheUnavailable
+	}
+	verifier, err := client.GetDel(ctx, cacheKey).Result()
+	if errors.Is(err, goredis.Nil) {
+		return "", ErrOAuthStateNotFound
+	}
+	return verifier, err
 }
 
 func (s *CacheService) SetUserInfoContext(ctx context.Context, user *model.User) error {
 	key := fmt.Sprintf(KeyUserInfo, user.ID)
 	return s.redisClient().Set(ctx, key, user, UserInfoExpire).Err()
-}
-
-// GetUserInfo returns cached user information.
-// Deprecated: use GetUserInfoContext instead.
-func (s *CacheService) GetUserInfo(userID uint) (*model.User, error) {
-	return s.GetUserInfoContext(context.Background(), userID)
 }
 
 func (s *CacheService) GetUserInfoContext(ctx context.Context, userID uint) (*model.User, error) {
@@ -177,21 +170,9 @@ func (s *CacheService) GetUserInfoContext(ctx context.Context, userID uint) (*mo
 	return &user, err
 }
 
-// DelUserInfo deletes cached user information.
-// Deprecated: use DelUserInfoContext instead.
-func (s *CacheService) DelUserInfo(userID uint) error {
-	return s.DelUserInfoContext(context.Background(), userID)
-}
-
 func (s *CacheService) DelUserInfoContext(ctx context.Context, userID uint) error {
 	key := fmt.Sprintf(KeyUserInfo, userID)
 	return s.redisClient().Del(ctx, key).Err()
-}
-
-// SetUserPermissions caches user permissions.
-// Deprecated: use SetUserPermissionsContext instead.
-func (s *CacheService) SetUserPermissions(userID uint, permissions []string) error {
-	return s.SetUserPermissionsContext(context.Background(), userID, permissions)
 }
 
 func (s *CacheService) SetUserPermissionsContext(ctx context.Context, userID uint, permissions []string) error {
@@ -209,21 +190,9 @@ func (s *CacheService) SetUserPermissionsContext(ctx context.Context, userID uin
 	return err
 }
 
-// GetUserPermissions returns cached user permissions.
-// Deprecated: use GetUserPermissionsContext instead.
-func (s *CacheService) GetUserPermissions(userID uint) ([]string, error) {
-	return s.GetUserPermissionsContext(context.Background(), userID)
-}
-
 func (s *CacheService) GetUserPermissionsContext(ctx context.Context, userID uint) ([]string, error) {
 	key := fmt.Sprintf(KeyUserPermissions, userID)
 	return s.redisClient().SMembers(ctx, key).Result()
-}
-
-// DelUserPermissions deletes cached user permissions.
-// Deprecated: use DelUserPermissionsContext instead.
-func (s *CacheService) DelUserPermissions(userID uint) error {
-	return s.DelUserPermissionsContext(context.Background(), userID)
 }
 
 func (s *CacheService) DelUserPermissionsContext(ctx context.Context, userID uint) error {
@@ -233,12 +202,6 @@ func (s *CacheService) DelUserPermissionsContext(ctx context.Context, userID uin
 	pipe.SRem(ctx, KeyUserPermissionsIndex, key)
 	_, err := pipe.Exec(ctx)
 	return err
-}
-
-// DelUserPermissionsBatch deletes user permission caches in bulk.
-// Deprecated: use DelUserPermissionsBatchContext instead.
-func (s *CacheService) DelUserPermissionsBatch(userIDs []uint) error {
-	return s.DelUserPermissionsBatchContext(context.Background(), userIDs)
 }
 
 func (s *CacheService) DelUserPermissionsBatchContext(ctx context.Context, userIDs []uint) error {
@@ -255,12 +218,6 @@ func (s *CacheService) DelUserPermissionsBatchContext(ctx context.Context, userI
 	pipe.SRem(ctx, KeyUserPermissionsIndex, stringsToAny(keys)...)
 	_, err := pipe.Exec(ctx)
 	return err
-}
-
-// DelAllUserPermissions deletes all cached user permissions.
-// Deprecated: use DelAllUserPermissionsContext instead.
-func (s *CacheService) DelAllUserPermissions() error {
-	return s.DelAllUserPermissionsContext(context.Background())
 }
 
 func (s *CacheService) DelAllUserPermissionsContext(ctx context.Context) error {

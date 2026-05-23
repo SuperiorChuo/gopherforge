@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { createHash } from 'node:crypto';
+
 import { buildConfig, decodeTextCaptchaCode, getJsonPath, jsonObject, statusMatches } from './api-smoke-lib.mjs';
 
 class SmokeError extends Error {
@@ -16,6 +18,9 @@ const state = {
   refreshToken: '',
   roleId: '',
   permissionId: '',
+  settingKeys: [],
+  fileId: '',
+  noticeId: '',
   originalNickname: '',
   profileNeedsRestore: false,
   loggedOut: false,
@@ -96,6 +101,79 @@ async function request(method, path, expected, body, token = '') {
   return { status: response.status, data, text };
 }
 
+async function requestMultipart(path, expected, form, token = '') {
+  const headers = {
+    Accept: 'application/json',
+    'X-Request-ID': `api-smoke-${config.safeRunId}`,
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let response;
+  try {
+    response = await fetch(`${config.apiBaseUrl}${path}`, {
+      method: 'POST',
+      headers,
+      body: form,
+      signal: AbortSignal.timeout(config.timeoutSeconds * 1000),
+    });
+  } catch (error) {
+    throw new SmokeError(`request failed: POST ${path}: ${error.message}`);
+  }
+
+  const text = await response.text();
+  state.lastResponse = { status: response.status, text };
+
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (error) {
+      throw new SmokeError(`invalid JSON response for POST ${path}: ${error.message}`);
+    }
+  }
+
+  if (!statusMatches(expected, response.status)) {
+    throw new SmokeError(`unexpected HTTP status for POST ${path}; expected ${expected}`);
+  }
+
+  return { status: response.status, data, text };
+}
+
+async function requestBytes(method, path, expected, token = '') {
+  const headers = {
+    'X-Request-ID': `api-smoke-${config.safeRunId}`,
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let response;
+  try {
+    response = await fetch(`${config.apiBaseUrl}${path}`, {
+      method,
+      headers,
+      signal: AbortSignal.timeout(config.timeoutSeconds * 1000),
+    });
+  } catch (error) {
+    throw new SmokeError(`request failed: ${method} ${path}: ${error.message}`);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const text = contentType.includes('json') || contentType.startsWith('text/')
+    ? bytes.toString('utf8')
+    : `<${bytes.length} bytes; content-type=${contentType || 'unknown'}>`;
+  state.lastResponse = { status: response.status, text };
+
+  if (!statusMatches(expected, response.status)) {
+    throw new SmokeError(`unexpected HTTP status for ${method} ${path}; expected ${expected}`);
+  }
+
+  return { status: response.status, bytes, headers: response.headers };
+}
+
 async function cleanupRequest(method, path, body, token = state.accessToken) {
   try {
     await request(method, path, '*', body, token);
@@ -105,6 +183,20 @@ async function cleanupRequest(method, path, body, token = state.accessToken) {
 }
 
 async function cleanup() {
+  if (state.noticeId && state.accessToken) {
+    await cleanupRequest('DELETE', `/notices/${state.noticeId}`);
+  }
+
+  if (state.fileId && state.accessToken) {
+    await cleanupRequest('DELETE', `/files/${state.fileId}`);
+  }
+
+  for (const key of state.settingKeys) {
+    if (state.accessToken) {
+      await cleanupRequest('DELETE', `/system-settings/${encodeURIComponent(key)}`);
+    }
+  }
+
   if (state.profileNeedsRestore && state.accessToken) {
     await cleanupRequest('PUT', '/user/profile', jsonObject({ nickname: state.originalNickname }));
   }
@@ -128,6 +220,19 @@ function assertResponse(condition, description) {
     throw new SmokeError(description);
   }
 }
+
+function md5Hex(buffer) {
+  return createHash('md5').update(buffer).digest('hex');
+}
+
+function hasItemWithId(items, id) {
+  return Array.isArray(items) && items.some((item) => String(item?.id) === String(id));
+}
+
+const smokePng = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR42mP8z8BQDwAFgwJ/lK3g7wAAAABJRU5ErkJggg==',
+  'base64',
+);
 
 async function main() {
   step('health readiness');
@@ -216,6 +321,169 @@ async function main() {
   response = await request('PUT', '/user/profile', 200, jsonObject({ nickname: state.originalNickname }), state.accessToken);
   assertResponse(response.data?.code === 200 && response.data?.data?.nickname === state.originalNickname, 'profile nickname did not restore');
   state.profileNeedsRestore = false;
+
+  step('system settings upsert');
+  const settingsGroup = `smoke_${config.safeRunId.toLowerCase()}`;
+  const primarySettingKey = `${settingsGroup}.primary`;
+  const secondarySettingKey = `${settingsGroup}.secondary`;
+  state.settingKeys.push(primarySettingKey, secondarySettingKey);
+  response = await request(
+    'PUT',
+    `/system-settings/${primarySettingKey}`,
+    200,
+    jsonObject({
+      value_json: {
+        label: `API Smoke ${config.safeRunId}`,
+        enabled: true,
+      },
+    }),
+    state.accessToken,
+  );
+  assertResponse(
+    response.data?.code === 200 &&
+      response.data?.data?.setting_key === primarySettingKey &&
+      response.data?.data?.value_json?.enabled === true,
+    'system setting upsert did not persist value_json',
+  );
+
+  step('system settings batch and list');
+  response = await request(
+    'POST',
+    '/system-settings/batch',
+    200,
+    jsonObject({
+      settings: [
+        { setting_key: primarySettingKey, value_json: { label: `API Smoke ${config.safeRunId}`, enabled: false } },
+        { setting_key: secondarySettingKey, value_json: { count: 2, mode: 'batch' } },
+      ],
+    }),
+    state.accessToken,
+  );
+  assertResponse(
+    response.data?.code === 200 &&
+      Array.isArray(response.data?.data) &&
+      response.data.data.length === 2 &&
+      response.data.data.some((item) => item.setting_key === primarySettingKey && item.value_json?.enabled === false) &&
+      response.data.data.some((item) => item.setting_key === secondarySettingKey && item.value_json?.mode === 'batch'),
+    'system settings batch upsert did not return both settings',
+  );
+
+  response = await request('GET', `/system-settings?group=${settingsGroup}`, 200, '', state.accessToken);
+  assertResponse(
+    response.data?.code === 200 &&
+      Array.isArray(response.data?.data) &&
+      response.data.data.length >= 2 &&
+      response.data.data.every((item) => String(item.setting_key).startsWith(`${settingsGroup}.`)),
+    'system settings list did not return the smoke group',
+  );
+
+  step('system settings cleanup');
+  for (const key of [...state.settingKeys]) {
+    response = await request('DELETE', `/system-settings/${key}`, 200, '', state.accessToken);
+    assertResponse(response.data?.code === 200, `system setting delete failed for ${key}`);
+  }
+  state.settingKeys = [];
+
+  step('file upload');
+  const fileName = `api-smoke-${config.safeRunId}.png`;
+  const expectedFileHash = md5Hex(smokePng);
+  const form = new FormData();
+  form.set('file', new Blob([smokePng], { type: 'image/png' }), fileName);
+  response = await requestMultipart('/files/upload', 200, form, state.accessToken);
+  state.fileId = getJsonPath(response.data, 'data.id');
+  assertResponse(
+    response.data?.code === 200 &&
+      response.data?.data?.file_name === fileName &&
+      response.data?.data?.file_type === 'image' &&
+      response.data?.data?.mime_type === 'image/png' &&
+      response.data?.data?.hash === expectedFileHash,
+    'file upload did not return expected image metadata',
+  );
+
+  step('file hash and detail');
+  response = await request('GET', `/files/hash/check?hash=${expectedFileHash}`, 200, '', state.accessToken);
+  assertResponse(
+    response.data?.code === 200 &&
+      response.data?.data?.exists === true &&
+      String(response.data?.data?.file?.id) === state.fileId,
+    'file hash check did not find uploaded file',
+  );
+
+  response = await request('GET', `/files/${state.fileId}`, 200, '', state.accessToken);
+  assertResponse(
+    response.data?.code === 200 &&
+      String(response.data?.data?.id) === state.fileId &&
+      response.data?.data?.hash === expectedFileHash,
+    'file detail did not return uploaded file metadata',
+  );
+
+  step('file preview and download');
+  let binaryResponse = await requestBytes('GET', `/files/${state.fileId}/preview`, 200, state.accessToken);
+  assertResponse(
+    binaryResponse.headers.get('content-type') === 'image/png' && binaryResponse.bytes.equals(smokePng),
+    'file preview did not stream the uploaded image',
+  );
+
+  binaryResponse = await requestBytes('GET', `/files/${state.fileId}/download`, 200, state.accessToken);
+  assertResponse(
+    binaryResponse.headers.get('content-type') === 'image/png' &&
+      binaryResponse.headers.get('content-disposition')?.includes(fileName) &&
+      binaryResponse.bytes.equals(smokePng),
+    'file download did not stream the uploaded image attachment',
+  );
+
+  step('file cleanup');
+  response = await request('DELETE', `/files/${state.fileId}`, 200, '', state.accessToken);
+  assertResponse(response.data?.code === 200, 'file delete did not succeed');
+  state.fileId = '';
+
+  response = await request('GET', `/files/hash/check?hash=${expectedFileHash}`, 200, '', state.accessToken);
+  assertResponse(response.data?.code === 200 && response.data?.data?.exists === false, 'file hash check still found deleted file');
+
+  step('notice create inactive');
+  const noticeTitle = `API Smoke Notice ${config.safeRunId}`;
+  response = await request(
+    'POST',
+    '/notices',
+    200,
+    jsonObject({
+      title: noticeTitle,
+      content: `created by tests/api-smoke.mjs ${config.safeRunId}`,
+      type: 1,
+      status: 2,
+    }),
+    state.accessToken,
+  );
+  state.noticeId = getJsonPath(response.data, 'data.id');
+  assertResponse(
+    response.data?.code === 200 &&
+      response.data?.data?.title === noticeTitle &&
+      response.data?.data?.status === 2,
+    'notice create did not return inactive notice',
+  );
+
+  step('notice list and activate');
+  response = await request('GET', `/notices?keyword=${encodeURIComponent(noticeTitle)}&status=2`, 200, '', state.accessToken);
+  assertResponse(
+    response.data?.code === 200 &&
+      hasItemWithId(response.data?.data?.list, state.noticeId),
+    'notice list did not include created inactive notice',
+  );
+
+  response = await request('PUT', `/notices/${state.noticeId}/status`, 200, jsonObject({ status: 1 }), state.accessToken);
+  assertResponse(response.data?.code === 200, 'notice status update did not succeed');
+
+  response = await request('GET', '/notices/active?type=1', 200, '', state.accessToken);
+  assertResponse(
+    response.data?.code === 200 &&
+      hasItemWithId(response.data?.data, state.noticeId),
+    'active notices did not include activated notice',
+  );
+
+  step('notice cleanup');
+  response = await request('DELETE', `/notices/${state.noticeId}`, 200, '', state.accessToken);
+  assertResponse(response.data?.code === 200, 'notice delete did not succeed');
+  state.noticeId = '';
 
   step('permission description create');
   const permissionCode = `smoke.permission.${config.safeRunId}`;

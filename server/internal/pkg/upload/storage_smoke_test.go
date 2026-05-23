@@ -187,7 +187,7 @@ func smokeBoolEnv(key string, fallback bool) (bool, error) {
 }
 
 func isRecognizableMissingObjectOpenError(err error, objectKey string) bool {
-	if err == nil || !errors.Is(err, ErrStorageProviderUnavailable) {
+	if err == nil || (!errors.Is(err, ErrStoredObjectNotFound) && !errors.Is(err, ErrStorageProviderUnavailable)) {
 		return false
 	}
 	msg := strings.ToLower(err.Error())
