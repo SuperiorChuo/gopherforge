@@ -266,7 +266,8 @@ func run(ctx context.Context) error {
 
 	lifecycleCtx, cancelLifecycle := context.WithCancel(ctx)
 	defer cancelLifecycle()
-	operationLogDone := middleware.StartOperationLogProcessor(lifecycleCtx)
+	operationLogService := systemSvc.NewOperationLogServiceWithDB(database.DB)
+	operationLogDone := middleware.StartOperationLogProcessor(lifecycleCtx, &operationLogService)
 	defer func() {
 		if err := stopOperationLogProcessor(cancelLifecycle, operationLogDone, 5*time.Second); err != nil {
 			logger.Warn("operation log processor shutdown timeout", logger.Err(err))

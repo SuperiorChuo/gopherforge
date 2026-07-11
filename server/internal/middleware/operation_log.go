@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/service/system"
 )
 
 // Operation module mapping.
@@ -206,13 +205,17 @@ const operationLogWriteTimeout = 2 * time.Second
 
 var logChan = make(chan *model.OperationLog, logChanBufferSize)
 
-type operationLogRecorder interface {
+// OperationLogRecorder persists operation logs queued by the middleware.
+type OperationLogRecorder interface {
 	RecordContext(context.Context, *model.OperationLog) error
 }
 
-// StartOperationLogProcessor starts the background operation log processor.
-func StartOperationLogProcessor(ctx context.Context) <-chan struct{} {
-	return processLogs(ctx, logChan, &system.OperationLogService{}, operationLogWriteTimeout)
+type operationLogRecorder = OperationLogRecorder
+
+// StartOperationLogProcessor starts the background operation log processor
+// backed by the injected recorder.
+func StartOperationLogProcessor(ctx context.Context, recorder OperationLogRecorder) <-chan struct{} {
+	return processLogs(ctx, logChan, recorder, operationLogWriteTimeout)
 }
 
 // processLogs persists queued operation logs until ctx is canceled.
