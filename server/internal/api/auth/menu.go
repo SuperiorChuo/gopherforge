@@ -18,6 +18,11 @@ func NewMenuAPI() *MenuAPI {
 	}
 }
 
+// NewMenuAPIWithService creates a MenuAPI instance from an injected service.
+func NewMenuAPIWithService(menuUserService system.MenuUserService) *MenuAPI {
+	return &MenuAPI{menuUserService: menuUserService}
+}
+
 // GetUserMenus returns the authenticated user's menu tree.
 func (a *MenuAPI) GetUserMenus(c *gin.Context) {
 	userID, exists := c.Get("user_id")
