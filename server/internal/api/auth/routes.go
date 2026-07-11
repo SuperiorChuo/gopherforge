@@ -2,11 +2,19 @@ package auth
 
 import (
 	"github.com/gin-gonic/gin"
+	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
 	"github.com/go-admin-kit/server/internal/middleware"
 )
 
-// RegisterPublicRoutes mounts unauthenticated authentication routes.
+// RegisterPublicRoutes mounts unauthenticated authentication routes using
+// legacy global fallbacks.
 func RegisterPublicRoutes(r gin.IRoutes) {
+	RegisterPublicRoutesWithDeps(r, sharedapi.Dependencies{})
+}
+
+// RegisterPublicRoutesWithDeps mounts unauthenticated authentication routes
+// with injected infrastructure handles.
+func RegisterPublicRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies) {
 	userAPI := NewUserAPI()
 	r.POST("/login", userAPI.Login)
 	r.POST("/login/2fa/verify", userAPI.VerifyTOTPLogin)
@@ -26,8 +34,15 @@ func RegisterPublicRoutes(r gin.IRoutes) {
 	r.GET("/oauth/wechat/callback", oauthAPI.WechatCallback)
 }
 
-// RegisterProtectedRoutes mounts authenticated console/user authentication routes.
+// RegisterProtectedRoutes mounts authenticated console/user authentication
+// routes using legacy global fallbacks.
 func RegisterProtectedRoutes(r gin.IRoutes) {
+	RegisterProtectedRoutesWithDeps(r, sharedapi.Dependencies{})
+}
+
+// RegisterProtectedRoutesWithDeps mounts authenticated console/user
+// authentication routes with injected infrastructure handles.
+func RegisterProtectedRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies) {
 	userAPI := NewUserAPI()
 	r.GET("/auth/me", userAPI.GetConsoleSession)
 	r.GET("/auth/routes", userAPI.GetConsoleRoutes)

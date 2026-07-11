@@ -17,6 +17,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/api"
+	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
 	systemAPI "github.com/go-admin-kit/server/internal/api/system"
 	"github.com/go-admin-kit/server/internal/config"
 	"github.com/go-admin-kit/server/internal/middleware"
@@ -358,8 +359,8 @@ func run(ctx context.Context) error {
 	router.Use(middleware.RequestLogger())
 	router.Use(middleware.ErrorHandler())
 	setupCORS(router)
-	api.SetupRoutes(router)
-	jobScheduler := monitorSvc.GetJobService()
+	jobScheduler := monitorSvc.InitJobService(database.DB)
+	api.SetupRoutesWithDeps(router, sharedapi.Dependencies{DB: database.DB, Redis: redis.Client})
 	defer func() {
 		if err := shutdownJobScheduler(jobScheduler, 5*time.Second); err != nil {
 			logger.Warn("job scheduler shutdown timeout", logger.Err(err))

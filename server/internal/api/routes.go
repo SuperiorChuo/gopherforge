@@ -5,12 +5,18 @@ import (
 	"github.com/go-admin-kit/server/internal/api/auth"
 	"github.com/go-admin-kit/server/internal/api/common"
 	"github.com/go-admin-kit/server/internal/api/monitor"
+	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
 	"github.com/go-admin-kit/server/internal/api/system"
 	"github.com/go-admin-kit/server/internal/middleware"
 )
 
-// SetupRoutes mounts the clean Go Admin Kit API.
+// SetupRoutes mounts the clean Go Admin Kit API using legacy global fallbacks.
 func SetupRoutes(router *gin.Engine) {
+	SetupRoutesWithDeps(router, sharedapi.Dependencies{})
+}
+
+// SetupRoutesWithDeps mounts the API with injected infrastructure handles.
+func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	api := router.Group("/api/v1")
 
 	common.RegisterPublicRoutes(api)
@@ -18,14 +24,14 @@ func SetupRoutes(router *gin.Engine) {
 	notificationAPI := system.NewNotificationAPI()
 	public := api.Group("/")
 	{
-		auth.RegisterPublicRoutes(public)
+		auth.RegisterPublicRoutesWithDeps(public, deps)
 		public.GET("/ws/notifications", notificationAPI.Connect)
 	}
 
 	protected := api.Group("/")
 	protected.Use(middleware.AuthMiddleware(), middleware.OperationLogger())
 	{
-		auth.RegisterProtectedRoutes(protected)
+		auth.RegisterProtectedRoutesWithDeps(protected, deps)
 		protected.POST("/ws/notifications/ticket", notificationAPI.CreateTicket)
 
 		userMgmtAPI := system.NewUserManagementAPI()
@@ -142,7 +148,7 @@ func SetupRoutes(router *gin.Engine) {
 		protected.PUT("/system-settings/:key", middleware.PermissionMiddleware("system:setting:update"), settingAPI.UpsertSetting)
 		protected.DELETE("/system-settings/:key", middleware.PermissionMiddleware("system:setting:delete"), settingAPI.DeleteSetting)
 
-		monitor.RegisterProtectedRoutes(protected)
+		monitor.RegisterProtectedRoutesWithDeps(protected, deps)
 	}
 
 	system.ServeStaticFiles(router)

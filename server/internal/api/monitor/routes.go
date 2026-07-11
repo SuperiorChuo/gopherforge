@@ -2,11 +2,19 @@ package monitor
 
 import (
 	"github.com/gin-gonic/gin"
+	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
 	"github.com/go-admin-kit/server/internal/middleware"
 )
 
-// RegisterProtectedRoutes mounts authenticated system monitoring routes.
+// RegisterProtectedRoutes mounts authenticated system monitoring routes using
+// legacy global fallbacks.
 func RegisterProtectedRoutes(r *gin.RouterGroup) {
+	RegisterProtectedRoutesWithDeps(r, sharedapi.Dependencies{})
+}
+
+// RegisterProtectedRoutesWithDeps mounts authenticated system monitoring
+// routes with injected infrastructure handles.
+func RegisterProtectedRoutesWithDeps(r *gin.RouterGroup, deps sharedapi.Dependencies) {
 	serverAPI := NewServerAPI()
 	mysqlAPI := NewMySQLAPI()
 	redisAPI := NewRedisAPI()
