@@ -16,6 +16,11 @@ func NewMySQLAPI() *MySQLAPI {
 	}
 }
 
+// NewMySQLAPIWithService creates a MySQLAPI instance from an injected service.
+func NewMySQLAPIWithService(service *monitor.MySQLService) *MySQLAPI {
+	return &MySQLAPI{service: service}
+}
+
 // GetMySQLInfo returns MySQL information.
 func (a *MySQLAPI) GetMySQLInfo(c *gin.Context) {
 	data, err := a.service.GetMySQLInfoContext(c.Request.Context())

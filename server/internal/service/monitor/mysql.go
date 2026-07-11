@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-admin-kit/server/internal/config"
 	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
+	"gorm.io/gorm"
 )
 
 type mySQLDAO interface {
@@ -24,6 +25,11 @@ type MySQLService struct {
 
 func NewMySQLService() *MySQLService {
 	return &MySQLService{dao: monitordao.NewMySQLDAO()}
+}
+
+// NewMySQLServiceWithDB builds a MySQLService backed by an injected database handle.
+func NewMySQLServiceWithDB(db *gorm.DB) *MySQLService {
+	return &MySQLService{dao: monitordao.NewMySQLDAO(db)}
 }
 
 func (s *MySQLService) GetMySQLInfoContext(ctx context.Context) (map[string]any, error) {
