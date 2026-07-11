@@ -56,10 +56,10 @@ var allowedBareAPIConstructorCalls = map[string]int{
 	"api/monitor/routes.go|RegisterProtectedRoutesWithDeps|NewRedisAPI":  1,
 	"api/monitor/routes.go|RegisterProtectedRoutesWithDeps|NewServerAPI": 1,
 
-	// api/common/routes.go: health/IP endpoints still assemble zero-value
-	// APIs pending dependency injection.
-	"api/common/routes.go|RegisterPublicRoutes|NewHealthAPI": 1,
-	"api/common/routes.go|RegisterPublicRoutes|NewIPInfoAPI": 1,
+	// api/common/routes.go: legacy zero-value branch for health, plus
+	// IPInfoAPI, which has no injectable infrastructure.
+	"api/common/routes.go|newHealthAPIFromDeps|NewHealthAPI":         1,
+	"api/common/routes.go|RegisterPublicRoutesWithDeps|NewIPInfoAPI": 1,
 }
 
 // TestRouteCompositionUsesInjectedAPIConstructors keeps the composition root
