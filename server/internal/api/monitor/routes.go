@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
 	"github.com/go-admin-kit/server/internal/middleware"
+	monitorsvc "github.com/go-admin-kit/server/internal/service/monitor"
 )
 
 // RegisterProtectedRoutes mounts authenticated system monitoring routes using
@@ -17,7 +18,13 @@ func RegisterProtectedRoutes(r *gin.RouterGroup) {
 func RegisterProtectedRoutesWithDeps(r *gin.RouterGroup, deps sharedapi.Dependencies) {
 	serverAPI := NewServerAPI()
 	mysqlAPI := NewMySQLAPI()
+	if deps.DB != nil {
+		mysqlAPI = NewMySQLAPIWithService(monitorsvc.NewMySQLServiceWithDB(deps.DB))
+	}
 	redisAPI := NewRedisAPI()
+	if deps.Redis != nil {
+		redisAPI = NewRedisAPIWithService(monitorsvc.NewRedisServiceWithClient(deps.Redis))
+	}
 	jobAPI := NewJobAPI()
 
 	monitorGroup := r.Group("/monitor")

@@ -16,6 +16,11 @@ func NewRedisAPI() *RedisAPI {
 	}
 }
 
+// NewRedisAPIWithService creates a RedisAPI instance from an injected service.
+func NewRedisAPIWithService(service *monitor.RedisService) *RedisAPI {
+	return &RedisAPI{service: service}
+}
+
 // GetRedisInfo returns Redis information.
 func (a *RedisAPI) GetRedisInfo(c *gin.Context) {
 	data, err := a.service.GetRedisInfoContext(c.Request.Context())
