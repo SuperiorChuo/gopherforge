@@ -4,7 +4,42 @@ import (
 	"github.com/gin-gonic/gin"
 	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
 	"github.com/go-admin-kit/server/internal/middleware"
+	authsvc "github.com/go-admin-kit/server/internal/service/auth"
+	systemsvc "github.com/go-admin-kit/server/internal/service/system"
 )
+
+// newUserAPIFromDeps assembles a UserAPI from injected handles, falling back
+// to the legacy zero-value wiring when no database handle is provided.
+func newUserAPIFromDeps(deps sharedapi.Dependencies) *UserAPI {
+	if deps.DB == nil {
+		return NewUserAPI()
+	}
+	var onlineUserService onlineUserRecorder = &systemsvc.OnlineUserService{}
+	if deps.Redis != nil {
+		onlineUserService = systemsvc.NewOnlineUserServiceWithClient(deps.Redis)
+	}
+	return NewUserAPIWithServices(
+		authsvc.NewUserServiceWithDB(deps.DB),
+		authsvc.NewConsoleRouteServiceWithDB(deps.DB),
+		authsvc.NewConsoleSessionServiceWithDB(deps.DB),
+		onlineUserService,
+		systemsvc.NewAuditLogServiceWithDB(deps.DB),
+	)
+}
+
+func newOAuthAPIFromDeps(deps sharedapi.Dependencies) *OAuthAPI {
+	if deps.DB == nil {
+		return NewOAuthAPI()
+	}
+	return NewOAuthAPIWithService(authsvc.NewOAuthServiceWithDB(deps.DB))
+}
+
+func newMenuAPIFromDeps(deps sharedapi.Dependencies) *MenuAPI {
+	if deps.DB == nil {
+		return NewMenuAPI()
+	}
+	return NewMenuAPIWithService(systemsvc.NewMenuUserServiceWithDB(deps.DB))
+}
 
 // RegisterPublicRoutes mounts unauthenticated authentication routes using
 // legacy global fallbacks.
@@ -15,7 +50,7 @@ func RegisterPublicRoutes(r gin.IRoutes) {
 // RegisterPublicRoutesWithDeps mounts unauthenticated authentication routes
 // with injected infrastructure handles.
 func RegisterPublicRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies) {
-	userAPI := NewUserAPI()
+	userAPI := newUserAPIFromDeps(deps)
 	r.POST("/login", userAPI.Login)
 	r.POST("/login/2fa/verify", userAPI.VerifyTOTPLogin)
 	r.POST("/auth/login", userAPI.LoginConsole)
@@ -27,7 +62,7 @@ func RegisterPublicRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies) {
 	r.GET("/captcha", captchaAPI.GetCaptcha)
 	r.POST("/captcha/verify", captchaAPI.VerifyCaptcha)
 
-	oauthAPI := NewOAuthAPI()
+	oauthAPI := newOAuthAPIFromDeps(deps)
 	r.GET("/oauth/github/login", oauthAPI.GithubLogin)
 	r.GET("/oauth/github/callback", oauthAPI.GithubCallback)
 	r.GET("/oauth/wechat/login", oauthAPI.WechatLogin)
@@ -43,7 +78,7 @@ func RegisterProtectedRoutes(r gin.IRoutes) {
 // RegisterProtectedRoutesWithDeps mounts authenticated console/user
 // authentication routes with injected infrastructure handles.
 func RegisterProtectedRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies) {
-	userAPI := NewUserAPI()
+	userAPI := newUserAPIFromDeps(deps)
 	r.GET("/auth/me", userAPI.GetConsoleSession)
 	r.GET("/auth/routes", userAPI.GetConsoleRoutes)
 	r.POST("/auth/logout", userAPI.LogoutConsole)
@@ -61,10 +96,10 @@ func RegisterProtectedRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies)
 	r.POST("/user/2fa/recovery-codes", userAPI.RegenerateTOTPRecoveryCodes)
 	r.POST("/logout", userAPI.Logout)
 
-	menuAPI := NewMenuAPI()
+	menuAPI := newMenuAPIFromDeps(deps)
 	r.GET("/user/menus", menuAPI.GetUserMenus)
 
-	oauthAPI := NewOAuthAPI()
+	oauthAPI := newOAuthAPIFromDeps(deps)
 	r.POST("/oauth/bind", oauthAPI.BindOAuth)
 	r.POST("/oauth/unbind", oauthAPI.UnbindOAuth)
 }

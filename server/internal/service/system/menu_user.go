@@ -6,12 +6,22 @@ import (
 	"github.com/go-admin-kit/server/internal/dao/auth"
 	"github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
+	"gorm.io/gorm"
 )
 
 // MenuUserService builds user menu trees.
 type MenuUserService struct {
 	menuDAO       system.MenuDAO
 	permissionDAO auth.PermissionDAO
+}
+
+// NewMenuUserServiceWithDB builds a MenuUserService backed by an injected
+// database handle.
+func NewMenuUserServiceWithDB(db *gorm.DB) MenuUserService {
+	return MenuUserService{
+		menuDAO:       *system.NewMenuDAO(db),
+		permissionDAO: *auth.NewPermissionDAO(db),
+	}
 }
 
 func (s *MenuUserService) GetUserMenuTreeContext(ctx context.Context, userID uint) ([]model.Menu, error) {

@@ -50,6 +50,23 @@ func NewUserAPI() *UserAPI {
 	}
 }
 
+// NewUserAPIWithServices creates a UserAPI instance from injected services.
+func NewUserAPIWithServices(
+	userService auth.UserService,
+	consoleRouteService auth.ConsoleRouteService,
+	consoleSessionService auth.ConsoleSessionService,
+	onlineUserService onlineUserRecorder,
+	auditService system.AuditLogService,
+) *UserAPI {
+	return &UserAPI{
+		userService:           userService,
+		consoleRouteService:   consoleRouteService,
+		consoleSessionService: consoleSessionService,
+		onlineUserService:     onlineUserService,
+		auditService:          auditService,
+	}
+}
+
 // Login authenticates a user.
 func (a *UserAPI) Login(c *gin.Context) {
 	var req auth.LoginRequest
