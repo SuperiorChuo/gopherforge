@@ -24,7 +24,16 @@ func (e ConsoleRouteValidationError) Error() string {
 	return e.Message
 }
 
-type ConsoleRouteService struct{}
+type ConsoleRouteService struct {
+	dao *authDAO.ConsoleRouteDAO
+}
+
+// NewConsoleRouteServiceWithDB builds a ConsoleRouteService backed by an
+// injected database handle.
+func NewConsoleRouteServiceWithDB(db *gorm.DB) ConsoleRouteService {
+	dao := authDAO.NewConsoleRouteDAO(db)
+	return ConsoleRouteService{dao: &dao}
+}
 
 type ConsoleRouteView struct {
 	RouteKey     string         `json:"route_key"`
@@ -79,6 +88,9 @@ type ConsoleRouteBootstrapResult struct {
 }
 
 func (s ConsoleRouteService) routeDAO() authDAO.ConsoleRouteDAO {
+	if s.dao != nil {
+		return *s.dao
+	}
 	return authDAO.NewConsoleRouteDAO()
 }
 

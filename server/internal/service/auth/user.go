@@ -23,6 +23,11 @@ type UserService struct {
 	policyReader runtimeconfig.SecurityPolicyReader
 }
 
+// NewUserServiceWithDB builds a UserService backed by an injected database handle.
+func NewUserServiceWithDB(db *gorm.DB) UserService {
+	return UserService{userDAO: *auth.NewUserDAO(db)}
+}
+
 // LoginRequest is the login request payload.
 type LoginRequest struct {
 	Username    string `json:"username" binding:"required"`

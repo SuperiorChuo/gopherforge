@@ -22,7 +22,16 @@ var (
 )
 
 // ConsoleSessionService persists and validates web-console cookie sessions.
-type ConsoleSessionService struct{}
+type ConsoleSessionService struct {
+	dao *authDAO.ConsoleSessionDAO
+}
+
+// NewConsoleSessionServiceWithDB builds a ConsoleSessionService backed by an
+// injected database handle.
+func NewConsoleSessionServiceWithDB(db *gorm.DB) ConsoleSessionService {
+	dao := authDAO.NewConsoleSessionDAO(db)
+	return ConsoleSessionService{dao: &dao}
+}
 
 type ConsoleSessionUser struct {
 	ID                 uint     `json:"id"`
@@ -49,6 +58,9 @@ type ConsoleSessionResponse struct {
 }
 
 func (s ConsoleSessionService) sessionDAO() authDAO.ConsoleSessionDAO {
+	if s.dao != nil {
+		return *s.dao
+	}
 	return authDAO.ConsoleSessionDAO{}
 }
 
