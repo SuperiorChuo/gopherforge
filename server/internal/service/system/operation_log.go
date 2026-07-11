@@ -16,6 +16,12 @@ type OperationLogService struct {
 	logDAO systemdao.OperationLogDAO
 }
 
+// NewOperationLogServiceWithDB builds an OperationLogService backed by an
+// injected database handle.
+func NewOperationLogServiceWithDB(db *gorm.DB) OperationLogService {
+	return OperationLogService{logDAO: *systemdao.NewOperationLogDAO(db)}
+}
+
 type OperationLogListRequest struct {
 	pagination.PageRequest
 	UserID    *uint               `form:"user_id" json:"user_id"`

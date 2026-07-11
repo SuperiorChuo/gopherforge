@@ -15,6 +15,11 @@ type NoticeService struct {
 	noticeDAO systemdao.NoticeDAO
 }
 
+// NewNoticeServiceWithDB builds a NoticeService backed by an injected database handle.
+func NewNoticeServiceWithDB(db *gorm.DB) NoticeService {
+	return NoticeService{noticeDAO: *systemdao.NewNoticeDAO(db)}
+}
+
 type NoticeListRequest struct {
 	pagination.PageRequest
 	Type    *int8  `json:"type" form:"type"`

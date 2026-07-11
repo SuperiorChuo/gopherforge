@@ -18,6 +18,12 @@ type SettingService struct {
 	emailInvalidator   runtimeconfig.EmailNotificationInvalidator
 }
 
+// NewSettingServiceWithDB builds a SettingService backed by an injected
+// database handle. Invalidators keep their default implementations.
+func NewSettingServiceWithDB(db *gorm.DB) SettingService {
+	return SettingService{settingDAO: *systemdao.NewSettingDAO(db)}
+}
+
 const runtimeConfigInvalidationTimeout = 2 * time.Second
 
 type UpsertSettingRequest struct {

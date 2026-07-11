@@ -15,6 +15,11 @@ type RoleService struct {
 	roleDAO systemdao.RoleDAO
 }
 
+// NewRoleServiceWithDB builds a RoleService backed by an injected database handle.
+func NewRoleServiceWithDB(db *gorm.DB) RoleService {
+	return RoleService{roleDAO: *systemdao.NewRoleDAO(db)}
+}
+
 type RoleListRequest struct {
 	pagination.PageRequest
 	Keyword string `json:"keyword" form:"keyword"`

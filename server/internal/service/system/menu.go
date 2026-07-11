@@ -14,6 +14,11 @@ type MenuService struct {
 	menuDAO systemdao.MenuDAO
 }
 
+// NewMenuServiceWithDB builds a MenuService backed by an injected database handle.
+func NewMenuServiceWithDB(db *gorm.DB) MenuService {
+	return MenuService{menuDAO: *systemdao.NewMenuDAO(db)}
+}
+
 type MenuListRequest struct {
 	pagination.PageRequest
 	Keyword string `json:"keyword" form:"keyword"`

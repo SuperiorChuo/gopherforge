@@ -18,6 +18,12 @@ type LoginLogService struct {
 	logDAO systemdao.LoginLogDAO
 }
 
+// NewLoginLogServiceWithDB builds a LoginLogService backed by an injected
+// database handle.
+func NewLoginLogServiceWithDB(db *gorm.DB) LoginLogService {
+	return LoginLogService{logDAO: *systemdao.NewLoginLogDAO(db)}
+}
+
 type LoginLogListRequest struct {
 	pagination.PageRequest
 	UserID    *uint               `form:"user_id" json:"user_id"`
