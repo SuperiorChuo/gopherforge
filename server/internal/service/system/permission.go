@@ -14,6 +14,12 @@ type PermissionService struct {
 	permissionDAO systemdao.PermissionManageDAO
 }
 
+// NewPermissionServiceWithDB builds a PermissionService backed by an injected
+// database handle.
+func NewPermissionServiceWithDB(db *gorm.DB) PermissionService {
+	return PermissionService{permissionDAO: *systemdao.NewPermissionManageDAO(db)}
+}
+
 type PermissionListRequest struct {
 	pagination.PageRequest
 	Keyword string `json:"keyword" form:"keyword"`

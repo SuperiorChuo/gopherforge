@@ -14,6 +14,11 @@ type DictService struct {
 	dictDAO systemdao.DictDAO
 }
 
+// NewDictServiceWithDB builds a DictService backed by an injected database handle.
+func NewDictServiceWithDB(db *gorm.DB) DictService {
+	return DictService{dictDAO: *systemdao.NewDictDAO(db)}
+}
+
 type DictTypeListRequest struct {
 	pagination.PageRequest
 	Keyword string `form:"keyword" json:"keyword"`
