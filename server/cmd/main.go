@@ -20,6 +20,7 @@ import (
 	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
 	systemAPI "github.com/go-admin-kit/server/internal/api/system"
 	"github.com/go-admin-kit/server/internal/config"
+	authDAO "github.com/go-admin-kit/server/internal/dao/auth"
 	"github.com/go-admin-kit/server/internal/middleware"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/database"
@@ -27,6 +28,7 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/observability"
 	"github.com/go-admin-kit/server/internal/pkg/redis"
 	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
+	authsvc "github.com/go-admin-kit/server/internal/service/auth"
 	monitorSvc "github.com/go-admin-kit/server/internal/service/monitor"
 	systemSvc "github.com/go-admin-kit/server/internal/service/system"
 )
@@ -251,6 +253,11 @@ func run(ctx context.Context) error {
 	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {
 		return fmt.Errorf("data scope plugin registration failed: %w", err)
 	}
+	middleware.SetAuthMiddlewareDependencies(middleware.AuthMiddlewareDependencies{
+		Users:           authDAO.NewUserDAO(database.DB),
+		Permissions:     authDAO.NewPermissionDAO(database.DB),
+		ConsoleSessions: authsvc.NewConsoleSessionServiceWithDB(database.DB),
+	})
 	defer func() {
 		if err := database.Close(); err != nil {
 			logger.Error("database close failed", logger.Err(err))

@@ -5,12 +5,10 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	authDAO "github.com/go-admin-kit/server/internal/dao/auth"
 	"github.com/go-admin-kit/server/internal/pkg/cache"
 	"github.com/go-admin-kit/server/internal/pkg/consoleauth"
 	"github.com/go-admin-kit/server/internal/pkg/jwt"
 	"github.com/go-admin-kit/server/internal/pkg/response"
-	authSvc "github.com/go-admin-kit/server/internal/service/auth"
 )
 
 // AuthMiddleware validates an access token and stores the actor in the request context.
@@ -57,13 +55,18 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 		if tokenSource == consoleauth.TokenSourceCookie {
-			if _, err := (authSvc.ConsoleSessionService{}).ValidateActiveSessionContext(c.Request.Context(), claims.ID, claims.Username); err != nil {
+			deps := currentAuthDeps()
+			if deps.ConsoleSessions == nil || deps.Users == nil {
 				response.UnauthorizedWithCode(c, response.ErrorCodeConsoleLoginRequired, "Console login required")
 				c.Abort()
 				return
 			}
-			userDAO := authDAO.UserDAO{}
-			user, err := userDAO.GetUserWithRolesContext(c.Request.Context(), claims.UserID)
+			if _, err := deps.ConsoleSessions.ValidateActiveSessionContext(c.Request.Context(), claims.ID, claims.Username); err != nil {
+				response.UnauthorizedWithCode(c, response.ErrorCodeConsoleLoginRequired, "Console login required")
+				c.Abort()
+				return
+			}
+			user, err := deps.Users.GetUserWithRolesContext(c.Request.Context(), claims.UserID)
 			if err != nil || user.Status != 1 {
 				response.UnauthorizedWithCode(c, response.ErrorCodeConsoleLoginRequired, "Console login required")
 				c.Abort()
@@ -89,8 +92,13 @@ func RoleMiddleware(requiredRoles ...string) gin.HandlerFunc {
 			return
 		}
 
-		userDAO := authDAO.UserDAO{}
-		user, err := userDAO.GetUserWithRolesContext(c.Request.Context(), userID.(uint))
+		users := currentAuthDeps().Users
+		if users == nil {
+			response.Forbidden(c, "failed to get user roles")
+			c.Abort()
+			return
+		}
+		user, err := users.GetUserWithRolesContext(c.Request.Context(), userID.(uint))
 		if err != nil {
 			response.Forbidden(c, "failed to get user roles")
 			c.Abort()
@@ -138,8 +146,13 @@ func PermissionMiddleware(requiredPermissions ...string) gin.HandlerFunc {
 		cacheService := cache.NewCacheService()
 		permissions, err := cacheService.GetUserPermissionsContext(c.Request.Context(), userID.(uint))
 		if err != nil || len(permissions) == 0 {
-			permissionDAO := authDAO.PermissionDAO{}
-			permissions, err = permissionDAO.GetUserPermissionsContext(c.Request.Context(), userID.(uint))
+			store := currentAuthDeps().Permissions
+			if store == nil {
+				response.Forbidden(c, "failed to get user permissions")
+				c.Abort()
+				return
+			}
+			permissions, err = store.GetUserPermissionsContext(c.Request.Context(), userID.(uint))
 			if err != nil {
 				response.Forbidden(c, "failed to get user permissions")
 				c.Abort()
@@ -174,8 +187,11 @@ func hasAnyRequiredPermission(grantedPermissions []string, requiredPermissions [
 }
 
 func hasRoleContext(ctx context.Context, userID uint, roleCodes ...string) bool {
-	userDAO := authDAO.UserDAO{}
-	user, err := userDAO.GetUserWithRolesContext(ctx, userID)
+	users := currentAuthDeps().Users
+	if users == nil {
+		return false
+	}
+	user, err := users.GetUserWithRolesContext(ctx, userID)
 	if err != nil {
 		return false
 	}
