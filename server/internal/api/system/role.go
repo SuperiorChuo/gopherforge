@@ -20,6 +20,11 @@ func NewRoleManagementAPI() *RoleManagementAPI {
 	}
 }
 
+// NewRoleManagementAPIWithService creates a RoleManagementAPI instance from an injected service.
+func NewRoleManagementAPIWithService(roleService system.RoleService) *RoleManagementAPI {
+	return &RoleManagementAPI{roleService: roleService}
+}
+
 // GetRoleList returns paginated roles.
 func (a *RoleManagementAPI) GetRoleList(c *gin.Context) {
 	var req system.RoleListRequest

@@ -17,6 +17,11 @@ func NewAuditLogAPI() *AuditLogAPI {
 	}
 }
 
+// NewAuditLogAPIWithService creates an AuditLogAPI instance from an injected service.
+func NewAuditLogAPIWithService(logService service.AuditLogService) *AuditLogAPI {
+	return &AuditLogAPI{logService: logService}
+}
+
 func (a *AuditLogAPI) GetAuditLogs(c *gin.Context) {
 	var req service.AuditLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {

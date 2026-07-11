@@ -21,6 +21,11 @@ func NewDictAPI() *DictAPI {
 	}
 }
 
+// NewDictAPIWithService creates a DictAPI instance from an injected service.
+func NewDictAPIWithService(dictService system.DictService) *DictAPI {
+	return &DictAPI{dictService: dictService}
+}
+
 // ========== Dict types ==========
 
 // GetTypeList returns paginated dictionary types.
