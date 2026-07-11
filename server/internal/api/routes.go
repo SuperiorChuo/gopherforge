@@ -84,7 +84,7 @@ func SetupRoutes(router *gin.Engine) {
 func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	api := router.Group("/api/v1")
 
-	common.RegisterPublicRoutes(api)
+	common.RegisterPublicRoutesWithDeps(api, deps)
 
 	apis := newSystemAPIs(deps)
 	notificationAPI := apis.notification
