@@ -34,6 +34,16 @@ func NewNoticeAPI() *NoticeAPI {
 	}
 }
 
+// NewNoticeAPIWithService creates a NoticeAPI instance from an injected
+// service. Broadcaster and email notifier keep their default implementations.
+func NewNoticeAPIWithService(noticeService system.NoticeService) *NoticeAPI {
+	return &NoticeAPI{
+		noticeService: noticeService,
+		broadcaster:   system.DefaultNotificationBroadcaster(),
+		emailNotifier: system.DefaultNoticeEmailNotifier(),
+	}
+}
+
 // GetNoticeList returns paginated notices.
 func (a *NoticeAPI) GetNoticeList(c *gin.Context) {
 	var req system.NoticeListRequest

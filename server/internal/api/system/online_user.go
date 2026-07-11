@@ -62,6 +62,15 @@ func NewOnlineUserAPI() *OnlineUserAPI {
 	}
 }
 
+// NewOnlineUserAPIWithServices creates an OnlineUserAPI instance from
+// injected services.
+func NewOnlineUserAPIWithServices(onlineUserService *system.OnlineUserService, roleService authsvc.UserService) *OnlineUserAPI {
+	return &OnlineUserAPI{
+		onlineUserService: onlineUserService,
+		roleLoader:        authUserRoleLoader{userService: roleService},
+	}
+}
+
 // GetOnlineUsers returns online users.
 // @Summary Get online users
 // @Tags Online User Management

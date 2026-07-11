@@ -20,6 +20,11 @@ func NewMenuManagementAPI() *MenuManagementAPI {
 	}
 }
 
+// NewMenuManagementAPIWithService creates a MenuManagementAPI instance from an injected service.
+func NewMenuManagementAPIWithService(menuService system.MenuService) *MenuManagementAPI {
+	return &MenuManagementAPI{menuService: menuService}
+}
+
 // GetMenuList returns paginated menus.
 func (a *MenuManagementAPI) GetMenuList(c *gin.Context) {
 	var req system.MenuListRequest

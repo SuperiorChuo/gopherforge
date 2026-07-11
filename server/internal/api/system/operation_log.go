@@ -25,6 +25,11 @@ func NewOperationLogAPI() *OperationLogAPI {
 	}
 }
 
+// NewOperationLogAPIWithService creates an OperationLogAPI instance from an injected service.
+func NewOperationLogAPIWithService(logService system.OperationLogService) *OperationLogAPI {
+	return &OperationLogAPI{logService: logService}
+}
+
 // GetOperationLogs returns paginated operation logs.
 func (a *OperationLogAPI) GetOperationLogs(c *gin.Context) {
 	var req system.OperationLogListRequest

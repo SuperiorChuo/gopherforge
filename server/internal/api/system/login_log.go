@@ -24,6 +24,11 @@ func NewLoginLogAPI() *LoginLogAPI {
 	}
 }
 
+// NewLoginLogAPIWithService creates a LoginLogAPI instance from an injected service.
+func NewLoginLogAPIWithService(logService system.LoginLogService) *LoginLogAPI {
+	return &LoginLogAPI{logService: logService}
+}
+
 // GetLoginLogs returns paginated login logs.
 func (a *LoginLogAPI) GetLoginLogs(c *gin.Context) {
 	var req system.LoginLogListRequest

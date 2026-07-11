@@ -21,6 +21,11 @@ func NewUserManagementAPI() *UserManagementAPI {
 	}
 }
 
+// NewUserManagementAPIWithService creates a UserManagementAPI instance from an injected service.
+func NewUserManagementAPIWithService(userService system.UserService) *UserManagementAPI {
+	return &UserManagementAPI{userService: userService}
+}
+
 // CreateUser creates a user.
 func (a *UserManagementAPI) CreateUser(c *gin.Context) {
 	var req system.CreateUserRequest

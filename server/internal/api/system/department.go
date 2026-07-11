@@ -20,6 +20,11 @@ func NewDepartmentAPI() *DepartmentAPI {
 	}
 }
 
+// NewDepartmentAPIWithService creates a DepartmentAPI instance from an injected service.
+func NewDepartmentAPIWithService(deptService system.DepartmentService) *DepartmentAPI {
+	return &DepartmentAPI{deptService: deptService}
+}
+
 // GetDepartmentList returns paginated departments.
 func (a *DepartmentAPI) GetDepartmentList(c *gin.Context) {
 	var req system.DepartmentListRequest

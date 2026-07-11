@@ -20,6 +20,11 @@ func NewPermissionManagementAPI() *PermissionManagementAPI {
 	}
 }
 
+// NewPermissionManagementAPIWithService creates a PermissionManagementAPI instance from an injected service.
+func NewPermissionManagementAPIWithService(permissionService system.PermissionService) *PermissionManagementAPI {
+	return &PermissionManagementAPI{permissionService: permissionService}
+}
+
 // GetPermissionList returns paginated permissions.
 func (a *PermissionManagementAPI) GetPermissionList(c *gin.Context) {
 	var req system.PermissionListRequest

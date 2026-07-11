@@ -46,6 +46,15 @@ func NewNotificationAPI() *NotificationAPI {
 	}
 }
 
+// NewNotificationAPIWithService creates a NotificationAPI instance from an
+// injected notice service. The broadcaster keeps its default implementation.
+func NewNotificationAPIWithService(noticeService systemsvc.NoticeService) *NotificationAPI {
+	return &NotificationAPI{
+		noticeService: noticeService,
+		broadcaster:   systemsvc.DefaultNotificationBroadcaster(),
+	}
+}
+
 func (a *NotificationAPI) CreateTicket(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
