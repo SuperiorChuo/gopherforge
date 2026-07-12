@@ -377,7 +377,6 @@ func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 
 	resetDefaultDepartmentTreeCache()
 
-	oldDB := database.DB
 	sqlDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
@@ -391,7 +390,6 @@ func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 		t.Fatalf("open gorm sqlmock db: %v", err)
 	}
 
-	database.DB = db
 	restorePersistence := SetPersistence(Persistence{
 		Users:       authdao.NewUserDAO(db),
 		Permissions: authdao.NewPermissionDAO(db),
@@ -404,7 +402,6 @@ func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 			t.Fatalf("unmet database expectations: %v", err)
 		}
 		_ = sqlDB.Close()
-		database.DB = oldDB
 	})
 
 	return mock
