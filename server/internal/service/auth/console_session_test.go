@@ -33,12 +33,13 @@ func TestTruncateRunesPreservesRuneBoundaries(t *testing.T) {
 }
 
 func TestConsoleSessionServiceValidateActiveSessionContextHonorsCanceledContext(t *testing.T) {
-	setupAuthServiceContextTestDB(t)
+	db, _ := setupAuthServiceContextTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := (ConsoleSessionService{}).ValidateActiveSessionContext(ctx, "session-1", "alice")
+	svc := NewConsoleSessionServiceWithDB(db)
+	_, err := svc.ValidateActiveSessionContext(ctx, "session-1", "alice")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("ValidateActiveSessionContext() error = %v, want context.Canceled", err)
 	}

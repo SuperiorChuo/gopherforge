@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-admin-kit/server/internal/config"
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/jwt"
 	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
 	"github.com/go-sql-driver/mysql"
@@ -17,24 +16,18 @@ import (
 )
 
 func TestOAuthServiceFindOrCreateUserContextHonorsCanceledContext(t *testing.T) {
-	setupAuthServiceContextTestDB(t)
+	db, _ := setupAuthServiceContextTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := (&OAuthService{}).findOrCreateUserContext(ctx, "github", "123", "alice", "alice@example.com", "")
+	_, err := NewOAuthServiceWithDB(db).findOrCreateUserContext(ctx, "github", "123", "alice", "alice@example.com", "")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("findOrCreateUserContext() error = %v, want context.Canceled", err)
 	}
 }
 
 func TestOAuthServiceFindOrCreateUserContextUsesInjectedStoresForExistingBinding(t *testing.T) {
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
-
 	bindings := &stubOAuthBindingStore{
 		binding: &model.OAuthBinding{UserID: 42},
 	}
@@ -66,11 +59,6 @@ func TestOAuthServiceFindOrCreateUserContextUsesInjectedStoresForExistingBinding
 
 func TestOAuthServiceGithubCallbackContextRequiresTOTPForEnabledUser(t *testing.T) {
 	setOAuthJWTTestConfig(t)
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
 
 	svc := &OAuthService{
 		bindingDAO: &stubOAuthBindingStore{binding: &model.OAuthBinding{UserID: 42}},
@@ -102,12 +90,6 @@ func TestOAuthServiceGithubCallbackContextRequiresTOTPForEnabledUser(t *testing.
 }
 
 func TestOAuthServiceGithubCallbackContextRejectsDisabledUser(t *testing.T) {
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
-
 	svc := &OAuthService{
 		bindingDAO: &stubOAuthBindingStore{binding: &model.OAuthBinding{UserID: 42}},
 		userDAO: &stubOAuthUserStore{
@@ -131,11 +113,6 @@ func TestOAuthServiceGithubCallbackContextMarksDefaultAdminPassword(t *testing.T
 	config.Cfg.Security.DefaultAdmin.DefaultUsername = "admin"
 	t.Cleanup(func() {
 		config.Cfg.Security = oldSecurity
-	})
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
 	})
 
 	users := &stubOAuthUserStore{
@@ -168,11 +145,6 @@ func TestOAuthServiceGithubCallbackContextMarksDefaultAdminPassword(t *testing.T
 
 func TestOAuthServiceGithubCallbackContextUsesRuntimePasswordMaxAge(t *testing.T) {
 	setOAuthJWTTestConfig(t)
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
 
 	changedAt := time.Now().AddDate(0, 0, -60)
 	users := &stubOAuthUserStore{
@@ -298,21 +270,24 @@ func TestOAuthServiceBindOAuthContextRequiresAuthorizationCode(t *testing.T) {
 }
 
 func TestOAuthServiceGithubCallbackContextFailsClosedWithoutProviderClient(t *testing.T) {
-	_, err := (&OAuthService{}).GithubCallbackContext(context.Background(), "oauth-code", "state")
+	db, _ := setupAuthServiceContextTestDB(t)
+	_, err := NewOAuthServiceWithDB(db).GithubCallbackContext(context.Background(), "oauth-code", "state")
 	if !errors.Is(err, ErrOAuthProviderUnavailable) {
 		t.Fatalf("GithubCallbackContext() error = %v, want ErrOAuthProviderUnavailable", err)
 	}
 }
 
 func TestOAuthServiceGetGithubAuthURLFailsClosedWithoutProviderClient(t *testing.T) {
-	_, err := (&OAuthService{}).GetGithubAuthURLContext(context.Background())
+	db, _ := setupAuthServiceContextTestDB(t)
+	_, err := NewOAuthServiceWithDB(db).GetGithubAuthURLContext(context.Background())
 	if !errors.Is(err, ErrOAuthProviderUnavailable) {
 		t.Fatalf("GetGithubAuthURL() error = %v, want ErrOAuthProviderUnavailable", err)
 	}
 }
 
 func TestOAuthServiceBindOAuthContextFailsClosedWithoutProviderClient(t *testing.T) {
-	err := (&OAuthService{}).BindOAuthContext(context.Background(), 42, BindOAuthRequest{
+	db, _ := setupAuthServiceContextTestDB(t)
+	err := NewOAuthServiceWithDB(db).BindOAuthContext(context.Background(), 42, BindOAuthRequest{
 		Provider: "github",
 		Code:     "oauth-code",
 	})

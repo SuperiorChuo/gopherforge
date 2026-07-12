@@ -12,12 +12,13 @@ import (
 )
 
 func TestOperationLogServiceGetLogListContextHonorsCanceledContext(t *testing.T) {
-	setupSystemUserServiceContextTestDB(t)
+	db, _ := setupSystemUserServiceContextTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, _, err := (&OperationLogService{}).GetLogListContext(ctx, OperationLogListRequest{
+	svc := NewOperationLogServiceWithDB(db)
+	_, _, err := (&svc).GetLogListContext(ctx, OperationLogListRequest{
 		PageRequest: pagination.PageRequest{Page: 1, PageSize: 10},
 		DataScope:   authz.UserDataScope{Scope: authz.DataScopeAll},
 	})
@@ -27,12 +28,13 @@ func TestOperationLogServiceGetLogListContextHonorsCanceledContext(t *testing.T)
 }
 
 func TestOperationLogServiceGetLogByIDContextReturnsNotFoundSentinel(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `operation_logs` WHERE `operation_logs`.`id` = ? ORDER BY `operation_logs`.`id` LIMIT ?")).
 		WithArgs(7, 1).
 		WillReturnError(gorm.ErrRecordNotFound)
 
-	_, err := (&OperationLogService{}).GetLogByIDContext(context.Background(), 7)
+	svc := NewOperationLogServiceWithDB(db)
+	_, err := (&svc).GetLogByIDContext(context.Background(), 7)
 	if !errors.Is(err, ErrOperationLogNotFound) {
 		t.Fatalf("GetLogByIDContext() error = %v, want ErrOperationLogNotFound", err)
 	}

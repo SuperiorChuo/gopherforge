@@ -35,12 +35,13 @@ func TestDepartmentServiceCreateInvalidatesDepartmentTreeCache(t *testing.T) {
 }
 
 func TestDepartmentServiceCreateContextHonorsCanceledContext(t *testing.T) {
-	setupSystemUserServiceContextTestDB(t)
+	db, _ := setupSystemUserServiceContextTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := (&DepartmentService{}).CreateContext(ctx, CreateDepartmentRequest{
+	svc := NewDepartmentServiceWithDB(db)
+	_, err := (&svc).CreateContext(ctx, CreateDepartmentRequest{
 		Name: "Engineering",
 		Code: "eng",
 	})
