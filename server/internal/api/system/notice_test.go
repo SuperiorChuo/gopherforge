@@ -16,7 +16,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	systemsvc "github.com/go-admin-kit/server/internal/service/system"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -63,7 +62,7 @@ func TestNoticeAPIMessagesUseEnglish(t *testing.T) {
 
 func TestCreateNoticeEmailFailureDoesNotFailRequest(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	mock := setupNoticeAPITestDB(t)
+	db, mock := setupNoticeAPITestDB(t)
 	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO `notices`").
 		WillReturnResult(sqlmock.NewResult(42, 1))
@@ -81,7 +80,7 @@ func TestCreateNoticeEmailFailureDoesNotFailRequest(t *testing.T) {
 
 	emailNotifier := &failingNoticeEmailNotifier{err: errors.New("smtp unavailable")}
 	api := &NoticeAPI{
-		noticeService: systemsvc.NoticeService{},
+		noticeService: systemsvc.NewNoticeServiceWithDB(db),
 		emailNotifier: emailNotifier,
 	}
 
@@ -95,7 +94,7 @@ func TestCreateNoticeEmailFailureDoesNotFailRequest(t *testing.T) {
 
 func TestUpdateNoticeStatusEmailFailureDoesNotFailRequest(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	mock := setupNoticeAPITestDB(t)
+	db, mock := setupNoticeAPITestDB(t)
 	mock.ExpectBegin()
 	mock.ExpectExec("UPDATE `notices` SET `status`=").
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -113,7 +112,7 @@ func TestUpdateNoticeStatusEmailFailureDoesNotFailRequest(t *testing.T) {
 
 	emailNotifier := &failingNoticeEmailNotifier{err: errors.New("smtp unavailable")}
 	api := &NoticeAPI{
-		noticeService: systemsvc.NoticeService{},
+		noticeService: systemsvc.NewNoticeServiceWithDB(db),
 		broadcaster:   systemsvc.NewNotificationBroadcaster(),
 		emailNotifier: emailNotifier,
 	}
@@ -128,7 +127,7 @@ func TestUpdateNoticeStatusEmailFailureDoesNotFailRequest(t *testing.T) {
 
 func TestUpdateNoticeSendsEmailWhenNoticeBecomesEnabled(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	mock := setupNoticeAPITestDB(t)
+	db, mock := setupNoticeAPITestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `notices` WHERE `notices`.`id` = ? ORDER BY `notices`.`id` LIMIT ?")).
 		WithArgs(7, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "title", "content", "type", "status"}).
@@ -151,7 +150,7 @@ func TestUpdateNoticeSendsEmailWhenNoticeBecomesEnabled(t *testing.T) {
 
 	emailNotifier := &failingNoticeEmailNotifier{err: errors.New("smtp unavailable")}
 	api := &NoticeAPI{
-		noticeService: systemsvc.NoticeService{},
+		noticeService: systemsvc.NewNoticeServiceWithDB(db),
 		broadcaster:   systemsvc.NewNotificationBroadcaster(),
 		emailNotifier: emailNotifier,
 	}
@@ -166,7 +165,7 @@ func TestUpdateNoticeSendsEmailWhenNoticeBecomesEnabled(t *testing.T) {
 
 func TestCreateNoticeReturnsBeforeBlockedEmailNotifier(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	mock := setupNoticeAPITestDB(t)
+	db, mock := setupNoticeAPITestDB(t)
 	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO `notices`").
 		WillReturnResult(sqlmock.NewResult(42, 1))
@@ -187,7 +186,7 @@ func TestCreateNoticeReturnsBeforeBlockedEmailNotifier(t *testing.T) {
 		started: make(chan struct{}),
 	}
 	api := &NoticeAPI{
-		noticeService: systemsvc.NoticeService{},
+		noticeService: systemsvc.NewNoticeServiceWithDB(db),
 		broadcaster:   systemsvc.NewNotificationBroadcaster(),
 		emailNotifier: emailNotifier,
 	}
@@ -251,10 +250,9 @@ func waitForNoticeEmailCalls(t *testing.T, notifier *failingNoticeEmailNotifier,
 	t.Fatalf("email notifier calls = %d, want %d", atomic.LoadInt32(&notifier.calls), want)
 }
 
-func setupNoticeAPITestDB(t *testing.T) sqlmock.Sqlmock {
+func setupNoticeAPITestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	t.Helper()
 
-	oldDB := database.DB
 	sqlDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
@@ -267,14 +265,12 @@ func setupNoticeAPITestDB(t *testing.T) sqlmock.Sqlmock {
 		t.Fatalf("open gorm sqlmock db: %v", err)
 	}
 
-	database.DB = db
 	t.Cleanup(func() {
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatalf("unmet database expectations: %v", err)
 		}
 		_ = sqlDB.Close()
-		database.DB = oldDB
 	})
 
-	return mock
+	return db, mock
 }
