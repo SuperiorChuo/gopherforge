@@ -6,16 +6,15 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 )
 
 func TestConsoleRouteDAOListAllOrdersBySortAndKey(t *testing.T) {
-	mock := setupAuthDAOTestDB(t)
+	db, mock := newAuthDAOTestDB(t)
 	mock.ExpectQuery("SELECT \\* FROM `console_routes` ORDER BY sort_order ASC,route_key ASC").
 		WillReturnRows(sqlmock.NewRows([]string{"route_key", "path", "name", "component_key"}).
 			AddRow("dashboard", "/dashboard", "Dashboard", "DashboardPage"))
 
-	routes, err := NewConsoleRouteDAO().ListAllContext(context.Background())
+	routes, err := NewConsoleRouteDAO(db).ListAllContext(context.Background())
 	if err != nil {
 		t.Fatalf("ListAllContext() error = %v", err)
 	}
@@ -25,24 +24,24 @@ func TestConsoleRouteDAOListAllOrdersBySortAndKey(t *testing.T) {
 }
 
 func TestConsoleRouteDAOListAllContextHonorsCanceledContext(t *testing.T) {
-	setupAuthDAOTestDB(t)
+	db, _ := newAuthDAOTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := NewConsoleRouteDAO().ListAllContext(ctx)
+	_, err := NewConsoleRouteDAO(db).ListAllContext(ctx)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("ListAllContext() error = %v, want context.Canceled", err)
 	}
 }
 
 func TestConsoleRouteDAOFindRouteKeyByPath(t *testing.T) {
-	mock := setupAuthDAOTestDB(t)
+	db, mock := newAuthDAOTestDB(t)
 	mock.ExpectQuery("SELECT `route_key` FROM `console_routes` WHERE path = \\? LIMIT \\?").
 		WithArgs("/dashboard", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"route_key"}).AddRow("dashboard"))
 
-	owner, err := NewConsoleRouteDAO().FindRouteKeyByPathContext(context.Background(), "/dashboard")
+	owner, err := NewConsoleRouteDAO(db).FindRouteKeyByPathContext(context.Background(), "/dashboard")
 	if err != nil {
 		t.Fatalf("FindRouteKeyByPathContext() error = %v", err)
 	}
@@ -52,13 +51,7 @@ func TestConsoleRouteDAOFindRouteKeyByPath(t *testing.T) {
 }
 
 func TestConsoleRouteDAOUsesInjectedDB(t *testing.T) {
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
-
-	db, mock := newInjectedAuthDAOTestDB(t)
+	db, mock := newAuthDAOTestDB(t)
 	mock.ExpectQuery("SELECT \\* FROM `console_routes` ORDER BY sort_order ASC,route_key ASC").
 		WillReturnRows(sqlmock.NewRows([]string{"route_key", "path", "name", "component_key"}).
 			AddRow("dashboard", "/dashboard", "Dashboard", "DashboardPage"))
