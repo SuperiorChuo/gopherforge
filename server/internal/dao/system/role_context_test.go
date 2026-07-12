@@ -7,19 +7,12 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func TestRoleDAOGetRoleByCodeUsesInjectedDB(t *testing.T) {
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
-
 	db, mock := newInjectedRBACDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `roles` WHERE code = ? ORDER BY `roles`.`id` LIMIT ?")).
 		WithArgs("admin", 1).
@@ -35,12 +28,12 @@ func TestRoleDAOGetRoleByCodeUsesInjectedDB(t *testing.T) {
 }
 
 func TestRoleDAOGetRoleListContextHonorsCanceledContext(t *testing.T) {
-	setupSystemDAOTestDB(t)
+	db, _ := setupSystemDAOTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, _, err := (&RoleDAO{}).GetRoleListContext(ctx, pagination.PageRequest{Page: 1, PageSize: 10}, "")
+	_, _, err := NewRoleDAO(db).GetRoleListContext(ctx, pagination.PageRequest{Page: 1, PageSize: 10}, "")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("GetRoleListContext() error = %v, want context.Canceled", err)
 	}

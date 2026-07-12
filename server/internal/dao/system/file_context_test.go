@@ -12,12 +12,12 @@ import (
 )
 
 func TestFileDAOGetListContextHonorsCanceledContext(t *testing.T) {
-	setupSystemDAOTestDB(t)
+	db, _ := setupSystemDAOTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, _, err := (&FileDAO{}).GetListContext(
+	_, _, err := NewFileDAO(db).GetListContext(
 		ctx,
 		pagination.PageRequest{Page: 1, PageSize: 10},
 		nil,
@@ -33,7 +33,6 @@ func TestFileDAOGetListContextHonorsCanceledContext(t *testing.T) {
 }
 
 func TestFileDAOGetByHashContextUsesInjectedDB(t *testing.T) {
-	setupSystemDAOTestDB(t)
 	db, mock := newInjectedLogFileDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `files` WHERE hash = ? ORDER BY `files`.`id` LIMIT ?")).
 		WithArgs("abc123", 1).
@@ -50,7 +49,6 @@ func TestFileDAOGetByHashContextUsesInjectedDB(t *testing.T) {
 }
 
 func TestFileDAOCountByPathExcludingIDUsesInjectedDB(t *testing.T) {
-	setupSystemDAOTestDB(t)
 	db, mock := newInjectedLogFileDAOTestDB(t)
 	dao := NewFileDAO(db)
 
