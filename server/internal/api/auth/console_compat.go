@@ -91,7 +91,7 @@ func (a *UserAPI) writeConsoleLoginSession(c *gin.Context, loginResp *authSvc.Lo
 		return
 	}
 
-	permissions := authSvc.ConsolePermissionsForUser(c.Request.Context(), &loginResp.User, a.userService.GetUserPermissions(&loginResp.User))
+	permissions := authSvc.ConsolePermissionsForUser(c.Request.Context(), a.consoleRouteService, &loginResp.User, a.userService.GetUserPermissions(&loginResp.User))
 	session := authSvc.BuildConsoleSession(c.Request.Context(), &loginResp.User, permissions, loginResp.AccessToken, loginResp.RefreshToken)
 	setConsoleSessionCookie(c, loginResp.AccessToken, session.TTLSec)
 	a.recordOnlineUser(c, loginResp.AccessToken)
@@ -121,7 +121,7 @@ func (a *UserAPI) GetConsoleSession(c *gin.Context) {
 	}
 
 	token := consoleauth.TokenFromGinContext(c)
-	permissions := authSvc.ConsolePermissionsForUser(c.Request.Context(), user, a.userService.GetUserPermissions(user))
+	permissions := authSvc.ConsolePermissionsForUser(c.Request.Context(), a.consoleRouteService, user, a.userService.GetUserPermissions(user))
 	response.Success(c, authSvc.BuildConsoleSession(c.Request.Context(), user, permissions, token, ""))
 }
 
@@ -138,7 +138,7 @@ func (a *UserAPI) GetConsoleRoutes(c *gin.Context) {
 		return
 	}
 
-	permissions := authSvc.ConsolePermissionsForUser(c.Request.Context(), user, a.userService.GetUserPermissions(user))
+	permissions := authSvc.ConsolePermissionsForUser(c.Request.Context(), a.consoleRouteService, user, a.userService.GetUserPermissions(user))
 	roles := authSvc.ConsoleRoleCodes(user.Roles)
 	routes, err := a.consoleRouteService.ListAccessibleRoutesContext(c.Request.Context(), permissions, roles)
 	if err != nil {

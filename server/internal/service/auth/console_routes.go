@@ -534,14 +534,14 @@ func ConsoleRoleCodes(roles []model.Role) []string {
 	return UniqueSortedConsoleStrings(values)
 }
 
-func ConsolePermissionsForUser(ctx context.Context, user *model.User, base []string) []string {
+func ConsolePermissionsForUser(ctx context.Context, routes ConsoleRouteService, user *model.User, base []string) []string {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	values := append([]string{}, base...)
 	values = append(values, consolePermissionAliases(base)...)
 	if ConsoleHasRole(user, "super_admin") {
-		routePermissions, err := ConsoleRouteService{}.AllRoutePermissionsContext(ctx)
+		routePermissions, err := routes.AllRoutePermissionsContext(ctx)
 		if err != nil {
 			routePermissions = AllConsoleRoutePermissions()
 		}

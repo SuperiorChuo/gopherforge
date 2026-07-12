@@ -12,12 +12,16 @@ import (
 )
 
 type RoleService struct {
-	roleDAO systemdao.RoleDAO
+	roleDAO            systemdao.RoleDAO
+	permissionCacheDAO *systemdao.PermissionCacheDAO
 }
 
 // NewRoleServiceWithDB builds a RoleService backed by an injected database handle.
 func NewRoleServiceWithDB(db *gorm.DB) RoleService {
-	return RoleService{roleDAO: *systemdao.NewRoleDAO(db)}
+	return RoleService{
+		roleDAO:            *systemdao.NewRoleDAO(db),
+		permissionCacheDAO: systemdao.NewPermissionCacheDAO(db),
+	}
 }
 
 type RoleListRequest struct {
@@ -135,7 +139,7 @@ func (s *RoleService) UpdateRoleContext(ctx context.Context, id uint, req Update
 		return nil, err
 	}
 
-	if err := InvalidatePermissionCacheByRolesContext(ctx, id); err != nil {
+	if err := InvalidatePermissionCacheByRolesContext(ctx, s.permissionCacheDAO, id); err != nil {
 		return nil, err
 	}
 
@@ -150,7 +154,7 @@ func (s *RoleService) DeleteRoleContext(ctx context.Context, id uint) error {
 		return err
 	}
 
-	if err := InvalidatePermissionCacheByRolesContext(ctx, id); err != nil {
+	if err := InvalidatePermissionCacheByRolesContext(ctx, s.permissionCacheDAO, id); err != nil {
 		return err
 	}
 
@@ -170,7 +174,7 @@ func (s *RoleService) AssignPermissionsContext(ctx context.Context, roleID uint,
 		return err
 	}
 
-	return InvalidatePermissionCacheByRolesContext(ctx, roleID)
+	return InvalidatePermissionCacheByRolesContext(ctx, s.permissionCacheDAO, roleID)
 }
 
 func normalizeRoleDataScope(dataScope string) string {
