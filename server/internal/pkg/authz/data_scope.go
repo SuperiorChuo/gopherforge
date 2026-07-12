@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/dao/auth"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
@@ -70,7 +69,15 @@ func NewDataScopeResolverWithCache(store DataScopeStore, cache DepartmentTreeCac
 	return &DataScopeResolver{store: store, cache: cache}
 }
 
-type databaseDataScopeStore struct{}
+type databaseDataScopeStore struct {
+	db *gorm.DB
+}
+
+// NewDatabaseDataScopeStore builds the default gorm-backed DataScopeStore
+// from an injected database handle.
+func NewDatabaseDataScopeStore(db *gorm.DB) DataScopeStore {
+	return databaseDataScopeStore{db: db}
+}
 
 type layeredDepartmentTreeCache struct {
 	mu        sync.RWMutex
@@ -219,8 +226,11 @@ func ResolveUserDataScopeFromContext(c *gin.Context) (UserDataScope, error) {
 		ctx = c.Request.Context()
 	}
 
-	userDAO := auth.UserDAO{}
-	user, err := userDAO.GetUserWithRolesContext(ctx, uid)
+	users := currentPersistence().Users
+	if users == nil {
+		return UserDataScope{Scope: DataScopeNone}, ErrPersistenceNotConfigured
+	}
+	user, err := users.GetUserWithRolesContext(ctx, uid)
 	if err != nil {
 		return UserDataScope{Scope: DataScopeNone}, err
 	}
@@ -569,6 +579,9 @@ func (r *DataScopeResolver) dataScopeStore() DataScopeStore {
 	if r != nil && r.store != nil {
 		return r.store
 	}
+	if store := currentPersistence().DataScope; store != nil {
+		return store
+	}
 	return databaseDataScopeStore{}
 }
 
@@ -579,25 +592,33 @@ func (r *DataScopeResolver) departmentTreeCache() DepartmentTreeCache {
 	return defaultDepartmentTreeCache
 }
 
-func (databaseDataScopeStore) ListDepartments(ctx context.Context) ([]model.Department, error) {
+func (s databaseDataScopeStore) ListDepartments(ctx context.Context) ([]model.Department, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
+	db := s.db
+	if db == nil {
+		db = database.DB
+	}
 	var depts []model.Department
-	if err := database.DB.WithContext(ctx).Model(&model.Department{}).Select("id", "parent_id").Find(&depts).Error; err != nil {
+	if err := db.WithContext(ctx).Model(&model.Department{}).Select("id", "parent_id").Find(&depts).Error; err != nil {
 		return nil, err
 	}
 	return depts, nil
 }
 
-func (databaseDataScopeStore) ListRoleDataScopeDepartmentIDs(ctx context.Context, roleIDs []uint) ([]uint, error) {
+func (s databaseDataScopeStore) ListRoleDataScopeDepartmentIDs(ctx context.Context, roleIDs []uint) ([]uint, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
+	db := s.db
+	if db == nil {
+		db = database.DB
+	}
 	var relations []model.RoleDataScopeDepartment
-	if err := database.DB.WithContext(ctx).
+	if err := db.WithContext(ctx).
 		Model(&model.RoleDataScopeDepartment{}).
 		Select("department_id").
 		Where("role_id IN ?", roleIDs).

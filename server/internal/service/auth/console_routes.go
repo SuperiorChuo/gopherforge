@@ -24,7 +24,16 @@ func (e ConsoleRouteValidationError) Error() string {
 	return e.Message
 }
 
-type ConsoleRouteService struct{}
+type ConsoleRouteService struct {
+	dao *authDAO.ConsoleRouteDAO
+}
+
+// NewConsoleRouteServiceWithDB builds a ConsoleRouteService backed by an
+// injected database handle.
+func NewConsoleRouteServiceWithDB(db *gorm.DB) ConsoleRouteService {
+	dao := authDAO.NewConsoleRouteDAO(db)
+	return ConsoleRouteService{dao: &dao}
+}
 
 type ConsoleRouteView struct {
 	RouteKey     string         `json:"route_key"`
@@ -79,6 +88,9 @@ type ConsoleRouteBootstrapResult struct {
 }
 
 func (s ConsoleRouteService) routeDAO() authDAO.ConsoleRouteDAO {
+	if s.dao != nil {
+		return *s.dao
+	}
 	return authDAO.NewConsoleRouteDAO()
 }
 
@@ -522,14 +534,14 @@ func ConsoleRoleCodes(roles []model.Role) []string {
 	return UniqueSortedConsoleStrings(values)
 }
 
-func ConsolePermissionsForUser(ctx context.Context, user *model.User, base []string) []string {
+func ConsolePermissionsForUser(ctx context.Context, routes ConsoleRouteService, user *model.User, base []string) []string {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	values := append([]string{}, base...)
 	values = append(values, consolePermissionAliases(base)...)
 	if ConsoleHasRole(user, "super_admin") {
-		routePermissions, err := ConsoleRouteService{}.AllRoutePermissionsContext(ctx)
+		routePermissions, err := routes.AllRoutePermissionsContext(ctx)
 		if err != nil {
 			routePermissions = AllConsoleRoutePermissions()
 		}

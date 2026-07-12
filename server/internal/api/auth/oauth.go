@@ -30,6 +30,11 @@ func NewOAuthAPI() *OAuthAPI {
 	}
 }
 
+// NewOAuthAPIWithService creates an OAuthAPI instance from an injected service.
+func NewOAuthAPIWithService(service *authsvc.OAuthService) *OAuthAPI {
+	return &OAuthAPI{oauthService: service}
+}
+
 // GithubLogin redirects to GitHub OAuth.
 func (a *OAuthAPI) GithubLogin(c *gin.Context) {
 	url, err := a.oauthService.GetGithubAuthURLContext(c.Request.Context())

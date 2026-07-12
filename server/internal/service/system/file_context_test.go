@@ -20,6 +20,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/config"
+	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
@@ -28,7 +29,7 @@ import (
 )
 
 func TestFileServiceUploadContextPersistsImageDimensions(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	content := systemFixtureBase64(t, "iVBORw0KGgoAAAANSUhEUgAAAAIAAAADCAYAAAC56t6BAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAiSURBVBhXY9CImvbfJmrafwaNvGn/bfJAjKZp/22apv0HAKfrDT/onk38AAAAAElFTkSuQmCC")
 	hash := systemMD5Hex(content)
 
@@ -41,7 +42,7 @@ func TestFileServiceUploadContextPersistsImageDimensions(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(7, 1))
 	mock.ExpectCommit()
 
-	service := newLocalUploadFileService(t, ".png")
+	service := newLocalUploadFileService(t, db, ".png")
 	file, err := service.UploadContext(context.Background(), systemMultipartFileHeader(t, "avatar.png", content), 42)
 	if err != nil {
 		t.Fatalf("UploadContext() error = %v", err)
@@ -55,7 +56,7 @@ func TestFileServiceUploadContextPersistsImageDimensions(t *testing.T) {
 }
 
 func TestFileServiceUploadContextReusesExistingImageDimensionsForDuplicateHash(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	content := systemFixtureBase64(t, "iVBORw0KGgoAAAANSUhEUgAAAAIAAAADCAYAAAC56t6BAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAiSURBVBhXY9CImvbfJmrafwaNvGn/bfJAjKZp/22apv0HAKfrDT/onk38AAAAAElFTkSuQmCC")
 	hash := systemMD5Hex(content)
 
@@ -71,7 +72,7 @@ func TestFileServiceUploadContextReusesExistingImageDimensionsForDuplicateHash(t
 		WillReturnResult(sqlmock.NewResult(8, 1))
 	mock.ExpectCommit()
 
-	service := newLocalUploadFileService(t, ".png")
+	service := newLocalUploadFileService(t, db, ".png")
 	file, err := service.UploadContext(context.Background(), systemMultipartFileHeader(t, "avatar.png", content), 42)
 	if err != nil {
 		t.Fatalf("UploadContext() error = %v", err)
@@ -85,7 +86,7 @@ func TestFileServiceUploadContextReusesExistingImageDimensionsForDuplicateHash(t
 }
 
 func TestFileServiceUploadContextPersistsThumbnailFields(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	content := systemPNG(t, 400, 200)
 	hash := systemMD5Hex(content)
 
@@ -98,7 +99,7 @@ func TestFileServiceUploadContextPersistsThumbnailFields(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(7, 1))
 	mock.ExpectCommit()
 
-	service := newLocalUploadFileServiceWithImage(t, config.ImageConfig{ThumbnailWidth: 100, ThumbnailHeight: 100}, ".png")
+	service := newLocalUploadFileServiceWithImage(t, db, config.ImageConfig{ThumbnailWidth: 100, ThumbnailHeight: 100}, ".png")
 	file, err := service.UploadContext(context.Background(), systemMultipartFileHeader(t, "avatar.png", content), 42)
 	if err != nil {
 		t.Fatalf("UploadContext() error = %v", err)
@@ -118,7 +119,7 @@ func TestFileServiceUploadContextPersistsThumbnailFields(t *testing.T) {
 }
 
 func TestFileServiceUploadContextReusesExistingThumbnailFieldsForDuplicateHash(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	content := systemPNG(t, 400, 200)
 	hash := systemMD5Hex(content)
 
@@ -139,7 +140,7 @@ func TestFileServiceUploadContextReusesExistingThumbnailFieldsForDuplicateHash(t
 		WillReturnResult(sqlmock.NewResult(8, 1))
 	mock.ExpectCommit()
 
-	service := newLocalUploadFileServiceWithImage(t, config.ImageConfig{ThumbnailWidth: 100, ThumbnailHeight: 100}, ".png")
+	service := newLocalUploadFileServiceWithImage(t, db, config.ImageConfig{ThumbnailWidth: 100, ThumbnailHeight: 100}, ".png")
 	file, err := service.UploadContext(context.Background(), systemMultipartFileHeader(t, "avatar.png", content), 42)
 	if err != nil {
 		t.Fatalf("UploadContext() error = %v", err)
@@ -153,7 +154,7 @@ func TestFileServiceUploadContextReusesExistingThumbnailFieldsForDuplicateHash(t
 }
 
 func TestFileServiceDeleteFileContextDeletesThumbnailBestEffort(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	dir := t.TempDir()
 	originalPath := dir + "/avatar.png"
 	thumbnailPath := dir + "/thumbs/avatar_20x20.png"
@@ -185,6 +186,7 @@ func TestFileServiceDeleteFileContextDeletesThumbnailBestEffort(t *testing.T) {
 	mock.ExpectCommit()
 
 	service := &FileService{
+		fileDAO: *systemdao.NewFileDAO(db),
 		uploader: upload.NewUploaderWithConfig(config.UploadConfig{
 			StorageType: "local",
 			LocalPath:   dir,
@@ -200,7 +202,7 @@ func TestFileServiceDeleteFileContextDeletesThumbnailBestEffort(t *testing.T) {
 }
 
 func TestFileServiceDeleteFileContextKeepsSharedOriginalAndThumbnail(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	dir := t.TempDir()
 	originalPath := dir + "/avatar.png"
 	thumbnailPath := dir + "/thumbs/avatar_20x20.png"
@@ -232,6 +234,7 @@ func TestFileServiceDeleteFileContextKeepsSharedOriginalAndThumbnail(t *testing.
 	mock.ExpectCommit()
 
 	service := &FileService{
+		fileDAO: *systemdao.NewFileDAO(db),
 		uploader: upload.NewUploaderWithConfig(config.UploadConfig{
 			StorageType: "local",
 			LocalPath:   dir,
@@ -250,12 +253,12 @@ func TestFileServiceDeleteFileContextKeepsSharedOriginalAndThumbnail(t *testing.
 }
 
 func TestFileServiceGetFileListContextHonorsCanceledContext(t *testing.T) {
-	setupSystemUserServiceContextTestDB(t)
+	db, _ := setupSystemUserServiceContextTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, _, err := NewFileService().GetFileListContext(ctx, FileListRequest{
+	_, _, err := NewFileServiceWithDB(db).GetFileListContext(ctx, FileListRequest{
 		PageRequest: pagination.PageRequest{Page: 1, PageSize: 10},
 		DataScope:   authz.UserDataScope{Scope: authz.DataScopeAll},
 	})
@@ -265,12 +268,12 @@ func TestFileServiceGetFileListContextHonorsCanceledContext(t *testing.T) {
 }
 
 func TestFileServiceGetFileByIDInScopeContextReturnsNotFoundSentinel(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `files` WHERE id = ? ORDER BY `files`.`id` LIMIT ?")).
 		WithArgs(7, 1).
 		WillReturnError(gorm.ErrRecordNotFound)
 
-	_, err := NewFileService().GetFileByIDInScopeContext(context.Background(), 7, authz.UserDataScope{
+	_, err := NewFileServiceWithDB(db).GetFileByIDInScopeContext(context.Background(), 7, authz.UserDataScope{
 		Scope: authz.DataScopeAll,
 	})
 	if !errors.Is(err, ErrFileNotFoundOrPermissionDenied) {
@@ -279,13 +282,13 @@ func TestFileServiceGetFileByIDInScopeContextReturnsNotFoundSentinel(t *testing.
 }
 
 func TestFileServiceDeleteFileContextReturnsLookupError(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	lookupErr := errors.New("database lookup failed")
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `files` WHERE id = ? ORDER BY `files`.`id` LIMIT ?")).
 		WithArgs(7, 1).
 		WillReturnError(lookupErr)
 
-	err := NewFileService().DeleteFileContext(context.Background(), 7, 1, authz.UserDataScope{
+	err := NewFileServiceWithDB(db).DeleteFileContext(context.Background(), 7, 1, authz.UserDataScope{
 		Scope: authz.DataScopeAll,
 	})
 	if !errors.Is(err, lookupErr) {
@@ -441,16 +444,17 @@ func TestFileServiceOpenFileContentContextDefaultsContentType(t *testing.T) {
 	}
 }
 
-func newLocalUploadFileService(t *testing.T, allowedTypes ...string) *FileService {
+func newLocalUploadFileService(t *testing.T, db *gorm.DB, allowedTypes ...string) *FileService {
 	t.Helper()
 
-	return newLocalUploadFileServiceWithImage(t, config.ImageConfig{}, allowedTypes...)
+	return newLocalUploadFileServiceWithImage(t, db, config.ImageConfig{}, allowedTypes...)
 }
 
-func newLocalUploadFileServiceWithImage(t *testing.T, imageCfg config.ImageConfig, allowedTypes ...string) *FileService {
+func newLocalUploadFileServiceWithImage(t *testing.T, db *gorm.DB, imageCfg config.ImageConfig, allowedTypes ...string) *FileService {
 	t.Helper()
 
 	return &FileService{
+		fileDAO: *systemdao.NewFileDAO(db),
 		uploader: upload.NewUploaderWithConfig(config.UploadConfig{
 			StorageType:   "local",
 			LocalPath:     t.TempDir(),

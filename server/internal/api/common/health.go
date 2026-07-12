@@ -49,6 +49,12 @@ func NewHealthAPIWithDatabaseClient(client DatabaseClient) *HealthAPI {
 	return &HealthAPI{databaseClient: client}
 }
 
+// NewHealthAPIWithClients creates a HealthAPI with injected database and
+// Redis clients. Nil clients keep the legacy global fallbacks active.
+func NewHealthAPIWithClients(databaseClient DatabaseClient, redisClient RedisPingClient) *HealthAPI {
+	return &HealthAPI{databaseClient: databaseClient, redisClient: redisClient}
+}
+
 // Health returns a lightweight health snapshot.
 func (a *HealthAPI) Health(c *gin.Context) {
 	response.Success(c, gin.H{

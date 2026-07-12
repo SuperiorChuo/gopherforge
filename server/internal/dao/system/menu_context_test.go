@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 )
 
 func TestMenuDAOGetMenuTreeContextHonorsCanceledContext(t *testing.T) {
@@ -23,12 +22,6 @@ func TestMenuDAOGetMenuTreeContextHonorsCanceledContext(t *testing.T) {
 }
 
 func TestMenuDAOGetMenuTreeUsesInjectedDB(t *testing.T) {
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
-
 	db, mock := newInjectedDepartmentMenuDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `menus` ORDER BY parent_id ASC, sort ASC, created_at ASC")).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "title", "parent_id"}).AddRow(9, "dashboard", "Dashboard", 0))

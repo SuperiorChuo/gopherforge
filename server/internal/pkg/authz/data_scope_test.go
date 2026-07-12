@@ -8,7 +8,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -223,7 +222,6 @@ func setupAuthzTestDB(t *testing.T) {
 	t.Helper()
 
 	resetDefaultDepartmentTreeCache()
-	oldDB := database.DB
 	sqlDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
@@ -243,13 +241,15 @@ func setupAuthzTestDB(t *testing.T) {
 		t.Fatalf("open gorm sqlmock db: %v", err)
 	}
 
-	database.DB = db
+	restorePersistence := SetPersistence(Persistence{
+		DataScope: NewDatabaseDataScopeStore(db),
+	})
 	t.Cleanup(func() {
+		restorePersistence()
 		resetDefaultDepartmentTreeCache()
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatalf("unmet database expectations: %v", err)
 		}
 		_ = sqlDB.Close()
-		database.DB = oldDB
 	})
 }

@@ -40,6 +40,16 @@ type OAuthService struct {
 	policyReader    runtimeconfig.SecurityPolicyReader
 }
 
+// NewOAuthServiceWithDB builds an OAuthService whose binding and user stores
+// use an injected database handle. State store and provider clients keep
+// their default implementations.
+func NewOAuthServiceWithDB(db *gorm.DB) *OAuthService {
+	return &OAuthService{
+		bindingDAO: authDAO.NewOAuthBindingDAO(db),
+		userDAO:    authDAO.NewUserDAO(db),
+	}
+}
+
 type oauthProviderClient interface {
 	AuthURLContext(ctx context.Context) (string, error)
 	ResolveIdentityContext(ctx context.Context, code, state string) (*oauthIdentity, error)

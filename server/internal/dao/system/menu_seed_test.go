@@ -8,11 +8,10 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 )
 
 func TestMenuSeedDAOInsertDefaultMenusWhenTableIsEmpty(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT count\\(\\*\\) FROM `menus`").
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
@@ -23,7 +22,7 @@ func TestMenuSeedDAOInsertDefaultMenusWhenTableIsEmpty(t *testing.T) {
 	mock.ExpectCommit()
 
 	now := time.Date(2026, 5, 20, 12, 0, 0, 0, time.UTC)
-	count, err := (&MenuSeedDAO{}).BootstrapDefaultMenusContext(context.Background(), []model.Menu{
+	count, err := NewMenuSeedDAO(db).BootstrapDefaultMenusContext(context.Background(), []model.Menu{
 		{ID: 1, Name: "dashboard", Title: "Dashboard"},
 		{ID: 2, Name: "system", Title: "System"},
 	}, now)
@@ -36,12 +35,12 @@ func TestMenuSeedDAOInsertDefaultMenusWhenTableIsEmpty(t *testing.T) {
 }
 
 func TestMenuSeedDAOBootstrapDefaultMenusContextHonorsCanceledContext(t *testing.T) {
-	setupSystemDAOTestDB(t)
+	db, _ := setupSystemDAOTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := (&MenuSeedDAO{}).BootstrapDefaultMenusContext(ctx, []model.Menu{
+	_, err := NewMenuSeedDAO(db).BootstrapDefaultMenusContext(ctx, []model.Menu{
 		{ID: 1, Name: "dashboard", Title: "Dashboard"},
 	}, time.Now())
 	if !errors.Is(err, context.Canceled) {
@@ -50,13 +49,13 @@ func TestMenuSeedDAOBootstrapDefaultMenusContextHonorsCanceledContext(t *testing
 }
 
 func TestMenuSeedDAOSkipsWhenMenusExist(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT count\\(\\*\\) FROM `menus`").
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(3))
 	mock.ExpectCommit()
 
-	count, err := (&MenuSeedDAO{}).BootstrapDefaultMenusContext(context.Background(), []model.Menu{
+	count, err := NewMenuSeedDAO(db).BootstrapDefaultMenusContext(context.Background(), []model.Menu{
 		{ID: 1, Name: "dashboard", Title: "Dashboard"},
 	}, time.Now())
 	if err != nil {
@@ -69,11 +68,6 @@ func TestMenuSeedDAOSkipsWhenMenusExist(t *testing.T) {
 
 func TestMenuSeedDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedDictNoticeSeedDAOTestDB(t)
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
 
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT count\\(\\*\\) FROM `menus`").

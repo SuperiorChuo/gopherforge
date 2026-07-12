@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	dao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
+	"gorm.io/gorm"
 )
 
 const (
@@ -20,6 +21,12 @@ const (
 // AuditLogService handles independent business audit log behavior.
 type AuditLogService struct {
 	logDAO dao.AuditLogDAO
+}
+
+// NewAuditLogServiceWithDB builds an AuditLogService backed by an injected
+// database handle.
+func NewAuditLogServiceWithDB(db *gorm.DB) AuditLogService {
+	return AuditLogService{logDAO: *dao.NewAuditLogDAO(db)}
 }
 
 type AuditLogListRequest struct {

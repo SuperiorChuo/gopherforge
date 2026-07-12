@@ -29,6 +29,12 @@ type DepartmentService struct {
 	deptDAO departmentDAO
 }
 
+// NewDepartmentServiceWithDB builds a DepartmentService backed by an injected
+// database handle.
+func NewDepartmentServiceWithDB(db *gorm.DB) DepartmentService {
+	return DepartmentService{deptDAO: systemdao.NewDepartmentDAO(db)}
+}
+
 const departmentTreeInvalidationTimeout = 2 * time.Second
 
 func warnDepartmentTreeInvalidation(err error) {

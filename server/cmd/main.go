@@ -17,8 +17,11 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/api"
+	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
 	systemAPI "github.com/go-admin-kit/server/internal/api/system"
 	"github.com/go-admin-kit/server/internal/config"
+	authDAO "github.com/go-admin-kit/server/internal/dao/auth"
+	systemDAO "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/middleware"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/database"
@@ -26,6 +29,7 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/observability"
 	"github.com/go-admin-kit/server/internal/pkg/redis"
 	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
+	authsvc "github.com/go-admin-kit/server/internal/service/auth"
 	monitorSvc "github.com/go-admin-kit/server/internal/service/monitor"
 	systemSvc "github.com/go-admin-kit/server/internal/service/system"
 )
@@ -250,6 +254,17 @@ func run(ctx context.Context) error {
 	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {
 		return fmt.Errorf("data scope plugin registration failed: %w", err)
 	}
+	middleware.SetAuthMiddlewareDependencies(middleware.AuthMiddlewareDependencies{
+		Users:           authDAO.NewUserDAO(database.DB),
+		Permissions:     authDAO.NewPermissionDAO(database.DB),
+		ConsoleSessions: authsvc.NewConsoleSessionServiceWithDB(database.DB),
+	})
+	authz.SetPersistence(authz.Persistence{
+		Users:       authDAO.NewUserDAO(database.DB),
+		Permissions: authDAO.NewPermissionDAO(database.DB),
+		DataScope:   authz.NewDatabaseDataScopeStore(database.DB),
+	})
+	runtimeconfig.SetSecurityPolicyStore(systemDAO.NewSettingDAO(database.DB))
 	defer func() {
 		if err := database.Close(); err != nil {
 			logger.Error("database close failed", logger.Err(err))
@@ -258,14 +273,15 @@ func run(ctx context.Context) error {
 
 	lifecycleCtx, cancelLifecycle := context.WithCancel(ctx)
 	defer cancelLifecycle()
-	operationLogDone := middleware.StartOperationLogProcessor(lifecycleCtx)
+	operationLogService := systemSvc.NewOperationLogServiceWithDB(database.DB)
+	operationLogDone := middleware.StartOperationLogProcessor(lifecycleCtx, &operationLogService)
 	defer func() {
 		if err := stopOperationLogProcessor(cancelLifecycle, operationLogDone, 5*time.Second); err != nil {
 			logger.Warn("operation log processor shutdown timeout", logger.Err(err))
 		}
 	}()
 
-	if menuResult, err := systemSvc.BootstrapDefaultMenusContext(ctx); err != nil {
+	if menuResult, err := systemSvc.BootstrapDefaultMenusContext(ctx, database.DB); err != nil {
 		return fmt.Errorf("default menu bootstrap failed: %w", err)
 	} else if menuResult.Menus > 0 {
 		logger.Info("default menus bootstrapped", logger.Int("menus", menuResult.Menus))
@@ -358,8 +374,8 @@ func run(ctx context.Context) error {
 	router.Use(middleware.RequestLogger())
 	router.Use(middleware.ErrorHandler())
 	setupCORS(router)
-	api.SetupRoutes(router)
-	jobScheduler := monitorSvc.GetJobService()
+	jobScheduler := monitorSvc.InitJobService(database.DB)
+	api.SetupRoutesWithDeps(router, sharedapi.Dependencies{DB: database.DB, Redis: redis.Client})
 	defer func() {
 		if err := shutdownJobScheduler(jobScheduler, 5*time.Second); err != nil {
 			logger.Warn("job scheduler shutdown timeout", logger.Err(err))

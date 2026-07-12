@@ -11,7 +11,17 @@ import (
 )
 
 type PermissionService struct {
-	permissionDAO systemdao.PermissionManageDAO
+	permissionDAO      systemdao.PermissionManageDAO
+	permissionCacheDAO *systemdao.PermissionCacheDAO
+}
+
+// NewPermissionServiceWithDB builds a PermissionService backed by an injected
+// database handle.
+func NewPermissionServiceWithDB(db *gorm.DB) PermissionService {
+	return PermissionService{
+		permissionDAO:      *systemdao.NewPermissionManageDAO(db),
+		permissionCacheDAO: systemdao.NewPermissionCacheDAO(db),
+	}
 }
 
 type PermissionListRequest struct {
@@ -137,7 +147,7 @@ func (s *PermissionService) UpdatePermissionContext(ctx context.Context, id uint
 		return nil, err
 	}
 
-	if err := InvalidatePermissionCacheByPermissionsContext(ctx, id); err != nil {
+	if err := InvalidatePermissionCacheByPermissionsContext(ctx, s.permissionCacheDAO, id); err != nil {
 		return nil, err
 	}
 
@@ -152,7 +162,7 @@ func (s *PermissionService) DeletePermissionContext(ctx context.Context, id uint
 		return err
 	}
 
-	if err := InvalidatePermissionCacheByPermissionsContext(ctx, id); err != nil {
+	if err := InvalidatePermissionCacheByPermissionsContext(ctx, s.permissionCacheDAO, id); err != nil {
 		return err
 	}
 

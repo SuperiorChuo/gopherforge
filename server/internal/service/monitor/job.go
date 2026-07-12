@@ -92,6 +92,17 @@ func GetJobService() *JobService {
 	return jobService
 }
 
+// InitJobService initializes the singleton job service with an injected
+// database handle. It must run before the first GetJobService call to take
+// effect; later calls return the already-initialized singleton.
+func InitJobService(db *gorm.DB) *JobService {
+	once.Do(func() {
+		jobDAO := monitor.NewJobDAO(db)
+		jobService = newJobService(jobDAO, jobDAO.Ready())
+	})
+	return jobService
+}
+
 func newJobService(dao jobDAO, bootstrapJobs bool) *JobService {
 	service := &JobService{
 		dao:  dao,

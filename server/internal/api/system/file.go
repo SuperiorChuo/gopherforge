@@ -28,6 +28,11 @@ func NewFileAPI() *FileAPI {
 	}
 }
 
+// NewFileAPIWithService creates a FileAPI instance from an injected service.
+func NewFileAPIWithService(fileService *system.FileService) *FileAPI {
+	return &FileAPI{fileService: fileService}
+}
+
 // Upload uploads a single file.
 func (a *FileAPI) Upload(c *gin.Context) {
 	file, err := c.FormFile("file")

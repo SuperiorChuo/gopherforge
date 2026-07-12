@@ -9,14 +9,13 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func TestUserDAOGetUserListAppliesDepartmentScope(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `users` WHERE department_id IN (?,?)")).
 		WithArgs(uint(10), uint(11)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
@@ -24,7 +23,7 @@ func TestUserDAOGetUserListAppliesDepartmentScope(t *testing.T) {
 		WithArgs(uint(10), uint(11), 10).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	users, total, err := (&UserDAO{}).GetUserListContext(
+	users, total, err := NewUserDAO(db).GetUserListContext(
 		context.Background(),
 		pagination.PageRequest{Page: 1, PageSize: 10},
 		"",
@@ -40,12 +39,12 @@ func TestUserDAOGetUserListAppliesDepartmentScope(t *testing.T) {
 }
 
 func TestUserDAOGetUserListContextHonorsCanceledContext(t *testing.T) {
-	setupSystemDAOTestDB(t)
+	db, _ := setupSystemDAOTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, _, err := (&UserDAO{}).GetUserListContext(
+	_, _, err := NewUserDAO(db).GetUserListContext(
 		ctx,
 		pagination.PageRequest{Page: 1, PageSize: 10},
 		"",
@@ -58,12 +57,12 @@ func TestUserDAOGetUserListContextHonorsCanceledContext(t *testing.T) {
 }
 
 func TestFileDAOGetByIDInScopeAppliesOwnerDepartmentScope(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `files` WHERE id = ? AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?)) ORDER BY `files`.`id` LIMIT ?")).
 		WithArgs(uint(99), uint(20), uint(21), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	_, err := (&FileDAO{}).GetByIDInScopeContext(
+	_, err := NewFileDAO(db).GetByIDInScopeContext(
 		context.Background(),
 		99,
 		authz.UserDataScope{Scope: authz.DataScopeCustom, DepartmentIDs: []uint{20, 21}},
@@ -74,12 +73,12 @@ func TestFileDAOGetByIDInScopeAppliesOwnerDepartmentScope(t *testing.T) {
 }
 
 func TestFileDAOGetByHashInScopeAppliesSelfScope(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `files` WHERE hash = ? AND user_id = ? ORDER BY `files`.`id` LIMIT ?")).
 		WithArgs("abc123", uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	_, err := (&FileDAO{}).GetByHashInScopeContext(
+	_, err := NewFileDAO(db).GetByHashInScopeContext(
 		context.Background(),
 		"abc123",
 		authz.UserDataScope{Scope: authz.DataScopeSelf, UserID: 7},
@@ -90,14 +89,14 @@ func TestFileDAOGetByHashInScopeAppliesSelfScope(t *testing.T) {
 }
 
 func TestFileDAOGetListAppliesNoScope(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `files` WHERE 1 = 0")).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `files` WHERE 1 = 0 ORDER BY created_at DESC LIMIT ?")).
 		WithArgs(10).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	files, total, err := (&FileDAO{}).GetListContext(
+	files, total, err := NewFileDAO(db).GetListContext(
 		context.Background(),
 		pagination.PageRequest{Page: 1, PageSize: 10},
 		nil,
@@ -116,7 +115,7 @@ func TestFileDAOGetListAppliesNoScope(t *testing.T) {
 }
 
 func TestFileDAOGetStatsInScopeAppliesOwnerDepartmentScopeToBothAggregates(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) as count, COALESCE(SUM(file_size), 0) as total_size FROM `files` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))")).
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count", "total_size"}).AddRow(3, 2048))
@@ -124,7 +123,7 @@ func TestFileDAOGetStatsInScopeAppliesOwnerDepartmentScopeToBothAggregates(t *te
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"file_type", "count", "size"}).AddRow("image", 2, 1024).AddRow("doc", 1, 1024))
 
-	stats, err := (&FileDAO{}).GetStatsInScopeContext(
+	stats, err := NewFileDAO(db).GetStatsInScopeContext(
 		context.Background(),
 		nil,
 		authz.UserDataScope{Scope: authz.DataScopeDepartment, DepartmentIDs: []uint{20, 21}},
@@ -141,7 +140,7 @@ func TestFileDAOGetStatsInScopeAppliesOwnerDepartmentScopeToBothAggregates(t *te
 }
 
 func TestLoginLogDAOGetListAppliesDepartmentScopeAndFilters(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	status := int8(1)
 	loginType := int8(2)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `login_logs` WHERE username LIKE ? AND ip LIKE ? AND status = ? AND login_type = ? AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))")).
@@ -151,7 +150,7 @@ func TestLoginLogDAOGetListAppliesDepartmentScopeAndFilters(t *testing.T) {
 		WithArgs("%alice%", "%10.%", status, loginType, uint(20), uint(21), 10).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	logs, total, err := (&LoginLogDAO{}).GetListContext(
+	logs, total, err := NewLoginLogDAO(db).GetListContext(
 		context.Background(),
 		pagination.PageRequest{Page: 1, PageSize: 10},
 		nil,
@@ -172,7 +171,7 @@ func TestLoginLogDAOGetListAppliesDepartmentScopeAndFilters(t *testing.T) {
 }
 
 func TestLoginLogDAOGetStatsInScopeAppliesDepartmentScope(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `login_logs` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))")).
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(5))
@@ -189,7 +188,7 @@ func TestLoginLogDAOGetStatsInScopeAppliesDepartmentScope(t *testing.T) {
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"browser", "count"}).AddRow("Chrome", 4))
 
-	stats, err := (&LoginLogDAO{}).GetStatsInScopeContext(
+	stats, err := NewLoginLogDAO(db).GetStatsInScopeContext(
 		context.Background(),
 		nil,
 		nil,
@@ -204,7 +203,7 @@ func TestLoginLogDAOGetStatsInScopeAppliesDepartmentScope(t *testing.T) {
 }
 
 func TestLoginLogDAOGetLoginTrendInScopeAppliesDepartmentScope(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `login_logs` WHERE (created_at >= ? AND created_at < ?) AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))")).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(5))
@@ -212,7 +211,7 @@ func TestLoginLogDAOGetLoginTrendInScopeAppliesDepartmentScope(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(4))
 
-	trend, err := (&LoginLogDAO{}).GetLoginTrendInScopeContext(
+	trend, err := NewLoginLogDAO(db).GetLoginTrendInScopeContext(
 		context.Background(),
 		1,
 		authz.UserDataScope{Scope: authz.DataScopeDepartment, DepartmentIDs: []uint{20, 21}},
@@ -226,7 +225,7 @@ func TestLoginLogDAOGetLoginTrendInScopeAppliesDepartmentScope(t *testing.T) {
 }
 
 func TestOperationLogDAOGetLogListAppliesSelfScope(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `operation_logs` WHERE user_id = ?")).
 		WithArgs(uint(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
@@ -234,7 +233,7 @@ func TestOperationLogDAOGetLogListAppliesSelfScope(t *testing.T) {
 		WithArgs(uint(7), 10).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	logs, total, err := (&OperationLogDAO{}).GetLogListContext(
+	logs, total, err := NewOperationLogDAO(db).GetLogListContext(
 		context.Background(),
 		pagination.PageRequest{Page: 1, PageSize: 10},
 		nil,
@@ -260,12 +259,12 @@ func TestOperationLogDAOGetLogListAppliesSelfScope(t *testing.T) {
 }
 
 func TestOperationLogDAOGetLogByIDInScopeAppliesDepartmentScope(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `operation_logs` WHERE id = ? AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?)) ORDER BY `operation_logs`.`id` LIMIT ?")).
 		WithArgs(uint(88), uint(20), uint(21), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	_, err := (&OperationLogDAO{}).GetLogByIDInScopeContext(
+	_, err := NewOperationLogDAO(db).GetLogByIDInScopeContext(
 		context.Background(),
 		88,
 		authz.UserDataScope{Scope: authz.DataScopeDepartment, DepartmentIDs: []uint{20, 21}},
@@ -276,7 +275,7 @@ func TestOperationLogDAOGetLogByIDInScopeAppliesDepartmentScope(t *testing.T) {
 }
 
 func TestOperationLogDAOGetLogStatsInScopeAppliesDepartmentScope(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `operation_logs` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))")).
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(6))
@@ -290,7 +289,7 @@ func TestOperationLogDAOGetLogStatsInScopeAppliesDepartmentScope(t *testing.T) {
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(2))
 
-	stats, err := (&OperationLogDAO{}).GetLogStatsInScopeContext(
+	stats, err := NewOperationLogDAO(db).GetLogStatsInScopeContext(
 		context.Background(),
 		nil,
 		nil,
@@ -305,14 +304,14 @@ func TestOperationLogDAOGetLogStatsInScopeAppliesDepartmentScope(t *testing.T) {
 }
 
 func TestOperationLogDAODeleteLogsBeforeInScopeAppliesSelfScope(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectBegin()
 	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM `operation_logs` WHERE created_at < ? AND user_id = ?")).
 		WithArgs(sqlmock.AnyArg(), uint(7)).
 		WillReturnResult(sqlmock.NewResult(0, 3))
 	mock.ExpectCommit()
 
-	deleted, err := (&OperationLogDAO{}).DeleteLogsBeforeInScopeContext(
+	deleted, err := NewOperationLogDAO(db).DeleteLogsBeforeInScopeContext(
 		context.Background(),
 		timeNowForOperationLogDeleteTest(),
 		authz.UserDataScope{Scope: authz.DataScopeSelf, UserID: 7},
@@ -329,10 +328,9 @@ func timeNowForOperationLogDeleteTest() time.Time {
 	return time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC)
 }
 
-func setupSystemDAOTestDB(t *testing.T) sqlmock.Sqlmock {
+func setupSystemDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	t.Helper()
 
-	oldDB := database.DB
 	sqlDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
@@ -348,14 +346,12 @@ func setupSystemDAOTestDB(t *testing.T) sqlmock.Sqlmock {
 		t.Fatalf("register data scope plugin: %v", err)
 	}
 
-	database.DB = db
 	t.Cleanup(func() {
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatalf("unmet database expectations: %v", err)
 		}
 		_ = sqlDB.Close()
-		database.DB = oldDB
 	})
 
-	return mock
+	return db, mock
 }

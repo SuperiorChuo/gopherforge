@@ -37,6 +37,15 @@ func NewFileService() *FileService {
 	}
 }
 
+// NewFileServiceWithDB builds a FileService backed by an injected database
+// handle. The uploader keeps its default implementation.
+func NewFileServiceWithDB(db *gorm.DB) *FileService {
+	return &FileService{
+		fileDAO:  *systemdao.NewFileDAO(db),
+		uploader: upload.NewUploader(),
+	}
+}
+
 type FileListRequest struct {
 	pagination.PageRequest
 	UserID    *uint               `form:"user_id" json:"user_id"`

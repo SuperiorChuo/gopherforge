@@ -36,12 +36,13 @@ func TestPermissionRequestsExposeDescription(t *testing.T) {
 }
 
 func TestPermissionServiceCreatePermissionContextHonorsCanceledContext(t *testing.T) {
-	setupSystemUserServiceContextTestDB(t)
+	db, _ := setupSystemUserServiceContextTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := (&PermissionService{}).CreatePermissionContext(ctx, CreatePermissionRequest{
+	svc := NewPermissionServiceWithDB(db)
+	_, err := (&svc).CreatePermissionContext(ctx, CreatePermissionRequest{
 		Name: "List Users",
 		Code: "system:user:list",
 		Type: 2,
@@ -52,13 +53,14 @@ func TestPermissionServiceCreatePermissionContextHonorsCanceledContext(t *testin
 }
 
 func TestPermissionServiceCreatePermissionContextReturnsCodeLookupError(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	lookupErr := errors.New("database lookup failed")
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `permissions` WHERE code = ? ORDER BY `permissions`.`id` LIMIT ?")).
 		WithArgs("system:user:list", 1).
 		WillReturnError(lookupErr)
 
-	_, err := (&PermissionService{}).CreatePermissionContext(context.Background(), CreatePermissionRequest{
+	svc := NewPermissionServiceWithDB(db)
+	_, err := (&svc).CreatePermissionContext(context.Background(), CreatePermissionRequest{
 		Name: "List Users",
 		Code: "system:user:list",
 		Type: 2,

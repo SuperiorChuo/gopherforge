@@ -6,15 +6,16 @@ import (
 
 	systemdao "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/model"
+	"gorm.io/gorm"
 )
 
 type MenuBootstrapResult struct {
 	Menus int `json:"menus"`
 }
 
-func BootstrapDefaultMenusContext(ctx context.Context) (MenuBootstrapResult, error) {
+func BootstrapDefaultMenusContext(ctx context.Context, db *gorm.DB) (MenuBootstrapResult, error) {
 	var result MenuBootstrapResult
-	created, err := (&systemdao.MenuSeedDAO{}).BootstrapDefaultMenusContext(ctx, DefaultMenus(), time.Now())
+	created, err := systemdao.NewMenuSeedDAO(db).BootstrapDefaultMenusContext(ctx, DefaultMenus(), time.Now())
 	result.Menus = created
 	return result, err
 }

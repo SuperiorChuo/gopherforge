@@ -7,16 +7,9 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 )
 
 func TestPermissionManageDAOGetPermissionTreeUsesInjectedDB(t *testing.T) {
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
-
 	db, mock := newInjectedRBACDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `permissions` ORDER BY parent_id ASC, created_at ASC")).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "code", "type", "parent_id"}).
@@ -33,12 +26,12 @@ func TestPermissionManageDAOGetPermissionTreeUsesInjectedDB(t *testing.T) {
 }
 
 func TestPermissionManageDAOGetPermissionTreeContextHonorsCanceledContext(t *testing.T) {
-	setupSystemDAOTestDB(t)
+	db, _ := setupSystemDAOTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := (&PermissionManageDAO{}).GetPermissionTreeContext(ctx)
+	_, err := NewPermissionManageDAO(db).GetPermissionTreeContext(ctx)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("GetPermissionTreeContext() error = %v, want context.Canceled", err)
 	}

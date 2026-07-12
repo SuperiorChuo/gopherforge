@@ -8,12 +8,13 @@ import (
 )
 
 func TestConsoleRouteServiceListRoutesContextHonorsCanceledContext(t *testing.T) {
-	setupAuthServiceContextTestDB(t)
+	db, _ := setupAuthServiceContextTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := (ConsoleRouteService{}).ListRoutesContext(ctx)
+	svc := NewConsoleRouteServiceWithDB(db)
+	_, err := svc.ListRoutesContext(ctx)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("ListRoutesContext() error = %v, want context.Canceled", err)
 	}

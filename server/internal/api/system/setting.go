@@ -16,6 +16,11 @@ func NewSettingAPI() *SettingAPI {
 	return &SettingAPI{settingService: systemsvc.SettingService{}}
 }
 
+// NewSettingAPIWithService creates a SettingAPI instance from an injected service.
+func NewSettingAPIWithService(settingService systemsvc.SettingService) *SettingAPI {
+	return &SettingAPI{settingService: settingService}
+}
+
 func (a *SettingAPI) GetSettings(c *gin.Context) {
 	settings, err := a.settingService.ListSettingsContext(c.Request.Context(), c.Query("group"))
 	if err != nil {

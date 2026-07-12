@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/dao/auth"
 )
 
 func UserHasPermissionContext(ctx context.Context, userID uint, requiredPermission string) (bool, error) {
@@ -18,8 +17,12 @@ func UserHasPermissionContext(ctx context.Context, userID uint, requiredPermissi
 		return false, nil
 	}
 
-	userDAO := auth.UserDAO{}
-	user, err := userDAO.GetUserWithRolesContext(ctx, userID)
+	p := currentPersistence()
+	if p.Users == nil || p.Permissions == nil {
+		return false, ErrPersistenceNotConfigured
+	}
+
+	user, err := p.Users.GetUserWithRolesContext(ctx, userID)
 	if err != nil {
 		return false, err
 	}
@@ -29,8 +32,7 @@ func UserHasPermissionContext(ctx context.Context, userID uint, requiredPermissi
 		}
 	}
 
-	permissionDAO := auth.PermissionDAO{}
-	permissions, err := permissionDAO.GetUserPermissionsContext(ctx, userID)
+	permissions, err := p.Permissions.GetUserPermissionsContext(ctx, userID)
 	if err != nil {
 		return false, err
 	}

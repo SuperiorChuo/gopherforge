@@ -12,6 +12,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
+	authdao "github.com/go-admin-kit/server/internal/dao/auth"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
@@ -376,7 +377,6 @@ func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 
 	resetDefaultDepartmentTreeCache()
 
-	oldDB := database.DB
 	sqlDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
@@ -390,14 +390,18 @@ func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 		t.Fatalf("open gorm sqlmock db: %v", err)
 	}
 
-	database.DB = db
+	restorePersistence := SetPersistence(Persistence{
+		Users:       authdao.NewUserDAO(db),
+		Permissions: authdao.NewPermissionDAO(db),
+		DataScope:   NewDatabaseDataScopeStore(db),
+	})
 	t.Cleanup(func() {
+		restorePersistence()
 		resetDefaultDepartmentTreeCache()
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatalf("unmet database expectations: %v", err)
 		}
 		_ = sqlDB.Close()
-		database.DB = oldDB
 	})
 
 	return mock

@@ -19,6 +19,11 @@ type UserService struct {
 	userDAO systemdao.UserDAO
 }
 
+// NewUserServiceWithDB builds a UserService backed by an injected database handle.
+func NewUserServiceWithDB(db *gorm.DB) UserService {
+	return UserService{userDAO: *systemdao.NewUserDAO(db)}
+}
+
 type UserListRequest struct {
 	pagination.PageRequest
 	Keyword   string              `json:"keyword" form:"keyword"`

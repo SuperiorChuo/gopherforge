@@ -186,7 +186,9 @@ func withoutAuthzGlobals(t *testing.T) {
 	oldRedis := redisstore.Client
 	database.DB = nil
 	redisstore.Client = nil
+	restorePersistence := SetPersistence(Persistence{})
 	t.Cleanup(func() {
+		restorePersistence()
 		resetDefaultDepartmentTreeCache()
 		database.DB = oldDB
 		redisstore.Client = oldRedis

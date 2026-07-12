@@ -14,7 +14,8 @@ import (
 )
 
 func TestLoginPasswordContextReturnsTOTPChallengeWhenEnabled(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 	oldCfg := config.Cfg
 	config.Cfg.JWT.Secret = "local-dev-secret-for-totp-tests-32"
 	config.Cfg.JWT.Issuer = "go-admin-kit-test"
@@ -28,7 +29,7 @@ func TestLoginPasswordContextReturnsTOTPChallengeWhenEnabled(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "must_change_password", "totp_enabled"}).
 			AddRow(uint(7), "alice", currentHash, int8(1), false, true))
 
-	resp, err := (&UserService{}).LoginPasswordContext(context.Background(), "alice", "CurrentPass1")
+	resp, err := (&svc).LoginPasswordContext(context.Background(), "alice", "CurrentPass1")
 	if err != nil {
 		t.Fatalf("LoginPasswordContext() error = %v", err)
 	}
@@ -48,7 +49,8 @@ func TestLoginPasswordContextReturnsTOTPChallengeWhenEnabled(t *testing.T) {
 }
 
 func TestVerifyTOTPLoginContextIssuesTokensForValidCode(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 	restoreStore := jwt.SetTokenBlacklistStore(newTOTPTestBlacklistStore())
 	t.Cleanup(restoreStore)
 	oldCfg := config.Cfg
@@ -75,7 +77,7 @@ func TestVerifyTOTPLoginContextIssuesTokensForValidCode(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "status", "totp_enabled", "totp_secret"}).
 			AddRow(uint(7), "alice", int8(1), true, secret))
 
-	resp, err := (&UserService{}).VerifyTOTPLoginContext(context.Background(), VerifyTOTPLoginRequest{
+	resp, err := (&svc).VerifyTOTPLoginContext(context.Background(), VerifyTOTPLoginRequest{
 		ChallengeID: challenge,
 		Code:        code,
 	})
@@ -92,7 +94,8 @@ func TestVerifyTOTPLoginContextIssuesTokensForValidCode(t *testing.T) {
 }
 
 func TestVerifyTOTPLoginContextAcceptsRecoveryCodeOnce(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 	restoreStore := jwt.SetTokenBlacklistStore(newTOTPTestBlacklistStore())
 	t.Cleanup(restoreStore)
 	oldCfg := config.Cfg
@@ -125,7 +128,7 @@ func TestVerifyTOTPLoginContextAcceptsRecoveryCodeOnce(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
-	resp, err := (&UserService{}).VerifyTOTPLoginContext(context.Background(), VerifyTOTPLoginRequest{
+	resp, err := (&svc).VerifyTOTPLoginContext(context.Background(), VerifyTOTPLoginRequest{
 		ChallengeID: challenge,
 		Code:        recoveryCode,
 	})
@@ -138,7 +141,8 @@ func TestVerifyTOTPLoginContextAcceptsRecoveryCodeOnce(t *testing.T) {
 }
 
 func TestVerifyTOTPLoginContextRejectsInvalidRecoveryCodeWithoutMarkingUsed(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 	oldCfg := config.Cfg
 	config.Cfg.JWT.Secret = "local-dev-secret-for-totp-tests-32"
 	config.Cfg.JWT.Issuer = "go-admin-kit-test"
@@ -161,7 +165,7 @@ func TestVerifyTOTPLoginContextRejectsInvalidRecoveryCodeWithoutMarkingUsed(t *t
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "code_hash", "used_at"}).
 			AddRow(uint(11), uint(7), codeHash, nil))
 
-	_, err = (&UserService{}).VerifyTOTPLoginContext(context.Background(), VerifyTOTPLoginRequest{
+	_, err = (&svc).VerifyTOTPLoginContext(context.Background(), VerifyTOTPLoginRequest{
 		ChallengeID: challenge,
 		Code:        "ZZZZZ-ZZZZZ-ZZZZZ",
 	})
@@ -171,7 +175,8 @@ func TestVerifyTOTPLoginContextRejectsInvalidRecoveryCodeWithoutMarkingUsed(t *t
 }
 
 func TestVerifyTOTPLoginContextRejectsInvalidTOTPWithoutRecoveryLookup(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 	oldCfg := config.Cfg
 	config.Cfg.JWT.Secret = "local-dev-secret-for-totp-tests-32"
 	config.Cfg.JWT.Issuer = "go-admin-kit-test"
@@ -189,7 +194,7 @@ func TestVerifyTOTPLoginContextRejectsInvalidTOTPWithoutRecoveryLookup(t *testin
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "status", "totp_enabled", "totp_secret"}).
 			AddRow(uint(7), "alice", int8(1), true, "JBSWY3DPEHPK3PXP"))
 
-	_, err = (&UserService{}).VerifyTOTPLoginContext(context.Background(), VerifyTOTPLoginRequest{
+	_, err = (&svc).VerifyTOTPLoginContext(context.Background(), VerifyTOTPLoginRequest{
 		ChallengeID: challenge,
 		Code:        "000000",
 	})
@@ -199,7 +204,8 @@ func TestVerifyTOTPLoginContextRejectsInvalidTOTPWithoutRecoveryLookup(t *testin
 }
 
 func TestGenerateTOTPSetupContextStoresSecretDisabled(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 	oldCfg := config.Cfg
 	config.Cfg.App.Name = "go-admin-kit"
 	t.Cleanup(func() {
@@ -216,7 +222,7 @@ func TestGenerateTOTPSetupContextStoresSecretDisabled(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
-	setup, err := (&UserService{}).GenerateTOTPSetupContext(context.Background(), 7, TOTPSetupRequest{
+	setup, err := (&svc).GenerateTOTPSetupContext(context.Background(), 7, TOTPSetupRequest{
 		CurrentPassword: "CurrentPass1",
 	})
 	if err != nil {
@@ -228,7 +234,8 @@ func TestGenerateTOTPSetupContextStoresSecretDisabled(t *testing.T) {
 }
 
 func TestEnableTOTPContextReturnsRecoveryCodes(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 
 	secret := "JBSWY3DPEHPK3PXP"
 	code, err := totp.GenerateCode(secret, time.Now())
@@ -251,7 +258,7 @@ func TestEnableTOTPContextReturnsRecoveryCodes(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(1, 8))
 	mock.ExpectCommit()
 
-	resp, err := (&UserService{}).EnableTOTPContext(context.Background(), 7, TOTPVerifyRequest{
+	resp, err := (&svc).EnableTOTPContext(context.Background(), 7, TOTPVerifyRequest{
 		Code:            code,
 		CurrentPassword: "CurrentPass1",
 	})
@@ -269,7 +276,8 @@ func TestEnableTOTPContextReturnsRecoveryCodes(t *testing.T) {
 }
 
 func TestEnableTOTPContextRejectsMissingCurrentPassword(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 
 	secret := "JBSWY3DPEHPK3PXP"
 	code, err := totp.GenerateCode(secret, time.Now())
@@ -282,14 +290,15 @@ func TestEnableTOTPContextRejectsMissingCurrentPassword(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "totp_enabled", "totp_secret"}).
 			AddRow(uint(7), "alice", mustHashPasswordForTest(t, "CurrentPass1"), int8(1), false, secret))
 
-	_, err = (&UserService{}).EnableTOTPContext(context.Background(), 7, TOTPVerifyRequest{Code: code})
+	_, err = (&svc).EnableTOTPContext(context.Background(), 7, TOTPVerifyRequest{Code: code})
 	if !errors.Is(err, ErrOldPasswordIncorrect) {
 		t.Fatalf("EnableTOTPContext() error = %v, want ErrOldPasswordIncorrect", err)
 	}
 }
 
 func TestRegenerateTOTPRecoveryCodesContextReturnsNewCodes(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 
 	secret := "JBSWY3DPEHPK3PXP"
 	code, err := totp.GenerateCode(secret, time.Now())
@@ -309,7 +318,7 @@ func TestRegenerateTOTPRecoveryCodesContextReturnsNewCodes(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(1, 8))
 	mock.ExpectCommit()
 
-	resp, err := (&UserService{}).RegenerateTOTPRecoveryCodesContext(context.Background(), 7, TOTPVerifyRequest{
+	resp, err := (&svc).RegenerateTOTPRecoveryCodesContext(context.Background(), 7, TOTPVerifyRequest{
 		Code:            code,
 		CurrentPassword: "CurrentPass1",
 	})
