@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -25,12 +24,6 @@ func TestDepartmentDAOGetTreeContextHonorsCanceledContext(t *testing.T) {
 }
 
 func TestDepartmentDAOGetAllUsesInjectedDB(t *testing.T) {
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
-
 	db, mock := newInjectedDepartmentMenuDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `departments` ORDER BY parent_id ASC, sort ASC, created_at ASC")).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "code"}).AddRow(7, "Engineering", "eng"))

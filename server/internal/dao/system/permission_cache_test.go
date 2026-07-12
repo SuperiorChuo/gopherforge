@@ -8,16 +8,9 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 )
 
 func TestPermissionCacheDAOFindUserIDsByRoleIDsUsesInjectedDB(t *testing.T) {
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
-
 	db, mock := newInjectedRBACDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT DISTINCT `user_id` FROM `user_roles` WHERE role_id IN (?)")).
 		WithArgs(uint(9)).
@@ -33,14 +26,14 @@ func TestPermissionCacheDAOFindUserIDsByRoleIDsUsesInjectedDB(t *testing.T) {
 }
 
 func TestPermissionCacheDAOFindUserIDsByRoleIDs(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT DISTINCT `user_id` FROM `user_roles` WHERE role_id IN (?,?)")).
 		WithArgs(uint(2), uint(3)).
 		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).
 			AddRow(uint(10)).
 			AddRow(uint(11)))
 
-	userIDs, err := (&PermissionCacheDAO{}).FindUserIDsByRoleIDsContext(context.Background(), []uint{2, 3})
+	userIDs, err := NewPermissionCacheDAO(db).FindUserIDsByRoleIDsContext(context.Background(), []uint{2, 3})
 	if err != nil {
 		t.Fatalf("FindUserIDsByRoleIDsContext() error = %v", err)
 	}
@@ -50,26 +43,26 @@ func TestPermissionCacheDAOFindUserIDsByRoleIDs(t *testing.T) {
 }
 
 func TestPermissionCacheDAOFindUserIDsByRoleIDsContextHonorsCanceledContext(t *testing.T) {
-	setupSystemDAOTestDB(t)
+	db, _ := setupSystemDAOTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := (&PermissionCacheDAO{}).FindUserIDsByRoleIDsContext(ctx, []uint{2})
+	_, err := NewPermissionCacheDAO(db).FindUserIDsByRoleIDsContext(ctx, []uint{2})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("FindUserIDsByRoleIDsContext() error = %v, want context.Canceled", err)
 	}
 }
 
 func TestPermissionCacheDAOFindRoleIDsByPermissionIDs(t *testing.T) {
-	mock := setupSystemDAOTestDB(t)
+	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT DISTINCT `role_id` FROM `role_permissions` WHERE permission_id IN (?,?)")).
 		WithArgs(uint(5), uint(6)).
 		WillReturnRows(sqlmock.NewRows([]string{"role_id"}).
 			AddRow(uint(20)).
 			AddRow(uint(21)))
 
-	roleIDs, err := (&PermissionCacheDAO{}).FindRoleIDsByPermissionIDsContext(context.Background(), []uint{5, 6})
+	roleIDs, err := NewPermissionCacheDAO(db).FindRoleIDsByPermissionIDsContext(context.Background(), []uint{5, 6})
 	if err != nil {
 		t.Fatalf("FindRoleIDsByPermissionIDsContext() error = %v", err)
 	}
@@ -79,9 +72,10 @@ func TestPermissionCacheDAOFindRoleIDsByPermissionIDs(t *testing.T) {
 }
 
 func TestPermissionCacheDAOEmptyInputsSkipDatabase(t *testing.T) {
-	setupSystemDAOTestDB(t)
+	db, _ := setupSystemDAOTestDB(t)
+	dao := NewPermissionCacheDAO(db)
 
-	userIDs, err := (&PermissionCacheDAO{}).FindUserIDsByRoleIDsContext(context.Background(), nil)
+	userIDs, err := dao.FindUserIDsByRoleIDsContext(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("FindUserIDsByRoleIDsContext(nil) error = %v", err)
 	}
@@ -89,7 +83,7 @@ func TestPermissionCacheDAOEmptyInputsSkipDatabase(t *testing.T) {
 		t.Fatalf("userIDs = %#v, want nil", userIDs)
 	}
 
-	roleIDs, err := (&PermissionCacheDAO{}).FindRoleIDsByPermissionIDsContext(context.Background(), nil)
+	roleIDs, err := dao.FindRoleIDsByPermissionIDsContext(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("FindRoleIDsByPermissionIDsContext(nil) error = %v", err)
 	}

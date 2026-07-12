@@ -12,12 +12,12 @@ import (
 )
 
 func TestLoginLogDAOGetListContextHonorsCanceledContext(t *testing.T) {
-	setupSystemDAOTestDB(t)
+	db, _ := setupSystemDAOTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, _, err := (&LoginLogDAO{}).GetListContext(
+	_, _, err := NewLoginLogDAO(db).GetListContext(
 		ctx,
 		pagination.PageRequest{Page: 1, PageSize: 10},
 		nil,
@@ -35,7 +35,6 @@ func TestLoginLogDAOGetListContextHonorsCanceledContext(t *testing.T) {
 }
 
 func TestLoginLogDAOGetByIDContextUsesInjectedDB(t *testing.T) {
-	setupSystemDAOTestDB(t)
 	db, mock := newInjectedLogFileDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `login_logs` WHERE `login_logs`.`id` = ? ORDER BY `login_logs`.`id` LIMIT ?")).
 		WithArgs(uint(9), 1).

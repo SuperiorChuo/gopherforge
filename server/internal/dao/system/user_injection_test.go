@@ -7,19 +7,12 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func TestUserDAOGetUserListUsesInjectedDB(t *testing.T) {
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
-
 	db, mock := newInjectedSystemUserTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `users`")).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(1))

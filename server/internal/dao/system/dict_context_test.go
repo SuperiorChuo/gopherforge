@@ -7,19 +7,18 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func TestDictDAOGetTypeListContextHonorsCanceledContext(t *testing.T) {
-	setupSystemDAOTestDB(t)
+	db, _ := setupSystemDAOTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, _, err := (&DictDAO{}).GetTypeListContext(ctx, pagination.PageRequest{Page: 1, PageSize: 10}, "", nil)
+	_, _, err := NewDictDAO(db).GetTypeListContext(ctx, pagination.PageRequest{Page: 1, PageSize: 10}, "", nil)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("GetTypeListContext() error = %v, want context.Canceled", err)
 	}
@@ -27,11 +26,6 @@ func TestDictDAOGetTypeListContextHonorsCanceledContext(t *testing.T) {
 
 func TestDictDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedDictNoticeSeedDAOTestDB(t)
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `dict_types` WHERE code = ? ORDER BY `dict_types`.`id` LIMIT ?")).
 		WithArgs("gender", 1).

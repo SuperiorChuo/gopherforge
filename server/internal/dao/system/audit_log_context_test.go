@@ -13,19 +13,18 @@ import (
 )
 
 func TestAuditLogDAOListLogsContextHonorsCanceledContext(t *testing.T) {
-	setupSystemDAOTestDB(t)
+	db, _ := setupSystemDAOTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := (&AuditLogDAO{}).ListLogsContext(ctx, AuditLogListQuery{Page: 1, PageSize: 10})
+	_, err := NewAuditLogDAO(db).ListLogsContext(ctx, AuditLogListQuery{Page: 1, PageSize: 10})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("ListLogsContext() error = %v, want context.Canceled", err)
 	}
 }
 
 func TestAuditLogDAOCreateLogContextUsesInjectedDB(t *testing.T) {
-	setupSystemDAOTestDB(t)
 	db, mock := newInjectedLogFileDAOTestDB(t)
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `audit_logs`")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
