@@ -7,19 +7,12 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func TestUserDAOGetUserByPhoneUsesInjectedDB(t *testing.T) {
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
-
-	db, mock := newInjectedAuthDAOTestDB(t)
+	db, mock := newAuthDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE phone = ? ORDER BY `users`.`id` LIMIT ?")).
 		WithArgs("13800000000", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "phone"}).AddRow(42, "alice", "13800000000"))
@@ -34,7 +27,7 @@ func TestUserDAOGetUserByPhoneUsesInjectedDB(t *testing.T) {
 }
 
 func TestUserDAOReplaceTOTPRecoveryCodesContext(t *testing.T) {
-	db, mock := newInjectedAuthDAOTestDB(t)
+	db, mock := newAuthDAOTestDB(t)
 	now := time.Date(2026, 5, 22, 9, 10, 0, 0, time.UTC)
 
 	mock.ExpectBegin()
@@ -51,7 +44,7 @@ func TestUserDAOReplaceTOTPRecoveryCodesContext(t *testing.T) {
 }
 
 func TestUserDAOListUnusedTOTPRecoveryCodesContext(t *testing.T) {
-	db, mock := newInjectedAuthDAOTestDB(t)
+	db, mock := newAuthDAOTestDB(t)
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `totp_recovery_codes` WHERE user_id = ? AND used_at IS NULL ORDER BY id ASC")).
 		WithArgs(uint(7)).
@@ -69,7 +62,7 @@ func TestUserDAOListUnusedTOTPRecoveryCodesContext(t *testing.T) {
 }
 
 func TestUserDAOMarkTOTPRecoveryCodeUsedContext(t *testing.T) {
-	db, mock := newInjectedAuthDAOTestDB(t)
+	db, mock := newAuthDAOTestDB(t)
 	now := time.Date(2026, 5, 22, 9, 12, 0, 0, time.UTC)
 
 	mock.ExpectBegin()
@@ -83,7 +76,9 @@ func TestUserDAOMarkTOTPRecoveryCodeUsedContext(t *testing.T) {
 	}
 }
 
-func newInjectedAuthDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
+// newAuthDAOTestDB returns a sqlmock-backed *gorm.DB for constructor
+// injection into auth DAOs. It never touches the global database.DB.
+func newAuthDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	t.Helper()
 
 	sqlDB, mock, err := sqlmock.New()

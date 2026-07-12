@@ -8,19 +8,18 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func TestMySQLDAOGetNameValuesContext(t *testing.T) {
-	mock := setupMonitorDAOTestDB(t)
+	db, mock := newMonitorDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SHOW GLOBAL STATUS")).
 		WillReturnRows(sqlmock.NewRows([]string{"Variable_name", "Value"}).
 			AddRow("Uptime", "120").
 			AddRow("Questions", "240"))
 
-	values, err := NewMySQLDAO().GetNameValuesContext(context.Background(), "SHOW GLOBAL STATUS")
+	values, err := NewMySQLDAO(db).GetNameValuesContext(context.Background(), "SHOW GLOBAL STATUS")
 	if err != nil {
 		t.Fatalf("GetNameValuesContext() error = %v", err)
 	}
@@ -31,19 +30,19 @@ func TestMySQLDAOGetNameValuesContext(t *testing.T) {
 }
 
 func TestMySQLDAOGetVersionContextHonorsCanceledContext(t *testing.T) {
-	setupMonitorDAOTestDB(t)
+	db, _ := newMonitorDAOTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := NewMySQLDAO().GetVersionContext(ctx)
+	_, err := NewMySQLDAO(db).GetVersionContext(ctx)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("GetVersionContext() error = %v, want context.Canceled", err)
 	}
 }
 
 func TestMySQLDAOGetTableStatsContext(t *testing.T) {
-	mock := setupMonitorDAOTestDB(t)
+	db, mock := newMonitorDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT COUNT(*) AS table_count, COALESCE(SUM(data_length + index_length), 0) AS database_size
 		 FROM information_schema.tables
 		 WHERE table_schema = ?`)).
@@ -51,7 +50,7 @@ func TestMySQLDAOGetTableStatsContext(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"table_count", "database_size"}).
 			AddRow(12, 4096))
 
-	stats, err := NewMySQLDAO().GetTableStatsContext(context.Background(), "go_admin")
+	stats, err := NewMySQLDAO(db).GetTableStatsContext(context.Background(), "go_admin")
 	if err != nil {
 		t.Fatalf("GetTableStatsContext() error = %v", err)
 	}
@@ -61,27 +60,7 @@ func TestMySQLDAOGetTableStatsContext(t *testing.T) {
 }
 
 func TestMySQLDAOGetVersionContext(t *testing.T) {
-	mock := setupMonitorDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT VERSION()")).
-		WillReturnRows(sqlmock.NewRows([]string{"VERSION()"}).AddRow("8.0.36"))
-
-	version, err := NewMySQLDAO().GetVersionContext(context.Background())
-	if err != nil {
-		t.Fatalf("GetVersionContext() error = %v", err)
-	}
-	if version != "8.0.36" {
-		t.Fatalf("version = %q, want 8.0.36", version)
-	}
-}
-
-func TestMySQLDAOUsesInjectedDB(t *testing.T) {
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
-
-	db, mock := newInjectedMonitorDAOTestDB(t)
+	db, mock := newMonitorDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT VERSION()")).
 		WillReturnRows(sqlmock.NewRows([]string{"VERSION()"}).AddRow("8.0.36"))
 
@@ -94,53 +73,41 @@ func TestMySQLDAOUsesInjectedDB(t *testing.T) {
 	}
 }
 
-func setupMonitorDAOTestDB(t *testing.T) sqlmock.Sqlmock {
+func TestMySQLDAOUsesInjectedDB(t *testing.T) {
+	db, mock := newMonitorDAOTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT VERSION()")).
+		WillReturnRows(sqlmock.NewRows([]string{"VERSION()"}).AddRow("8.0.36"))
+
+	version, err := NewMySQLDAO(db).GetVersionContext(context.Background())
+	if err != nil {
+		t.Fatalf("GetVersionContext() error = %v", err)
+	}
+	if version != "8.0.36" {
+		t.Fatalf("version = %q, want 8.0.36", version)
+	}
+}
+
+// newMonitorDAOTestDB returns a sqlmock-backed *gorm.DB for constructor
+// injection into monitor DAOs. It never touches the global database.DB.
+func newMonitorDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	t.Helper()
 
-	oldDB := database.DB
 	sqlDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
 	}
+	t.Cleanup(func() {
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatalf("unmet database expectations: %v", err)
+		}
+		_ = sqlDB.Close()
+	})
 	db, err := gorm.Open(mysql.New(mysql.Config{
 		Conn:                      sqlDB,
 		SkipInitializeWithVersion: true,
 	}), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)
-	}
-
-	database.DB = db
-	t.Cleanup(func() {
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Fatalf("unmet database expectations: %v", err)
-		}
-		_ = sqlDB.Close()
-		database.DB = oldDB
-	})
-
-	return mock
-}
-
-func newInjectedMonitorDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
-	t.Helper()
-
-	sqlDB, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("open injected sqlmock db: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Fatalf("unmet injected database expectations: %v", err)
-		}
-		_ = sqlDB.Close()
-	})
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
-	}), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open injected gorm sqlmock db: %v", err)
 	}
 	return db, mock
 }
