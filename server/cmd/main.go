@@ -21,6 +21,7 @@ import (
 	systemAPI "github.com/go-admin-kit/server/internal/api/system"
 	"github.com/go-admin-kit/server/internal/config"
 	authDAO "github.com/go-admin-kit/server/internal/dao/auth"
+	systemDAO "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/middleware"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/database"
@@ -263,6 +264,7 @@ func run(ctx context.Context) error {
 		Permissions: authDAO.NewPermissionDAO(database.DB),
 		DataScope:   authz.NewDatabaseDataScopeStore(database.DB),
 	})
+	runtimeconfig.SetSecurityPolicyStore(systemDAO.NewSettingDAO(database.DB))
 	defer func() {
 		if err := database.Close(); err != nil {
 			logger.Error("database close failed", logger.Err(err))

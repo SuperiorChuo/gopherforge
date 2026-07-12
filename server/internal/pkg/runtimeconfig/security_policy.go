@@ -71,9 +71,36 @@ func DefaultSecurityPolicyReader() *CachedSecurityPolicyReader {
 	return defaultSecurityPolicyReader
 }
 
+var (
+	securityPolicyStoreMu sync.RWMutex
+	securityPolicyStore   SecurityPolicyStore
+)
+
+// SetSecurityPolicyStore installs the store behind DefaultSecurityPolicyReader
+// and returns a restore function. The default reader resolves the store per
+// lookup, so wiring only needs to happen before the first request is served.
+func SetSecurityPolicyStore(store SecurityPolicyStore) func() {
+	securityPolicyStoreMu.Lock()
+	previous := securityPolicyStore
+	securityPolicyStore = store
+	securityPolicyStoreMu.Unlock()
+
+	return func() {
+		securityPolicyStoreMu.Lock()
+		securityPolicyStore = previous
+		securityPolicyStoreMu.Unlock()
+	}
+}
+
 type defaultSecurityPolicyStore struct{}
 
 func (defaultSecurityPolicyStore) GetByKeyContext(ctx context.Context, key string) (*model.SystemSetting, error) {
+	securityPolicyStoreMu.RLock()
+	store := securityPolicyStore
+	securityPolicyStoreMu.RUnlock()
+	if store != nil {
+		return store.GetByKeyContext(ctx, key)
+	}
 	if database.DB == nil {
 		return nil, ErrStoreUnavailable
 	}
