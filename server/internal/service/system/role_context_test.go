@@ -8,12 +8,13 @@ import (
 )
 
 func TestRoleServiceCreateRoleContextHonorsCanceledContext(t *testing.T) {
-	setupSystemUserServiceContextTestDB(t)
+	db, _ := setupSystemUserServiceContextTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := (&RoleService{}).CreateRoleContext(ctx, CreateRoleRequest{
+	svc := NewRoleServiceWithDB(db)
+	_, err := (&svc).CreateRoleContext(ctx, CreateRoleRequest{
 		Name: "Manager",
 		Code: "manager",
 	})
@@ -23,13 +24,14 @@ func TestRoleServiceCreateRoleContextHonorsCanceledContext(t *testing.T) {
 }
 
 func TestRoleServiceCreateRoleContextReturnsCodeLookupError(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	lookupErr := errors.New("database lookup failed")
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `roles` WHERE code = ? ORDER BY `roles`.`id` LIMIT ?")).
 		WithArgs("manager", 1).
 		WillReturnError(lookupErr)
 
-	_, err := (&RoleService{}).CreateRoleContext(context.Background(), CreateRoleRequest{
+	svc := NewRoleServiceWithDB(db)
+	_, err := (&svc).CreateRoleContext(context.Background(), CreateRoleRequest{
 		Name: "Manager",
 		Code: "manager",
 	})

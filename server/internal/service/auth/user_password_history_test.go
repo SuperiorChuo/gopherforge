@@ -15,7 +15,8 @@ import (
 )
 
 func TestChangePasswordContextRejectsRecentlyUsedPassword(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 	oldCfg := config.Cfg
 	config.Cfg.Security.PasswordHistoryCount = 5
 	t.Cleanup(func() {
@@ -35,7 +36,7 @@ func TestChangePasswordContextRejectsRecentlyUsedPassword(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "password_hash", "changed_at"}).
 			AddRow(uint(1), uint(7), reusedHash, changedAt))
 
-	err := (&UserService{}).ChangePasswordContext(context.Background(), 7, ChangePasswordRequest{
+	err := (&svc).ChangePasswordContext(context.Background(), 7, ChangePasswordRequest{
 		OldPassword: "CurrentPass1",
 		NewPassword: "UsedPass1",
 	})
@@ -45,7 +46,8 @@ func TestChangePasswordContextRejectsRecentlyUsedPassword(t *testing.T) {
 }
 
 func TestChangePasswordContextUpdatesPasswordAndHistoryAtomically(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 	oldCfg := config.Cfg
 	config.Cfg.Security.PasswordHistoryCount = 5
 	t.Cleanup(func() {
@@ -70,7 +72,7 @@ func TestChangePasswordContextUpdatesPasswordAndHistoryAtomically(t *testing.T) 
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
-	err := (&UserService{}).ChangePasswordContext(context.Background(), 7, ChangePasswordRequest{
+	err := (&svc).ChangePasswordContext(context.Background(), 7, ChangePasswordRequest{
 		OldPassword: "CurrentPass1",
 		NewPassword: "FreshPass1",
 	})
@@ -80,7 +82,8 @@ func TestChangePasswordContextUpdatesPasswordAndHistoryAtomically(t *testing.T) 
 }
 
 func TestChangePasswordContextUsesRuntimePasswordHistoryCount(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 	oldCfg := config.Cfg
 	config.Cfg.Security.PasswordHistoryCount = 5
 	t.Cleanup(func() {
@@ -105,8 +108,8 @@ func TestChangePasswordContextUsesRuntimePasswordHistoryCount(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
-	service := &UserService{policyReader: stubSecurityPolicyReader{policy: runtimeconfig.SecurityPolicy{PasswordHistoryCount: 2}}}
-	err := service.ChangePasswordContext(context.Background(), 7, ChangePasswordRequest{
+	svc.policyReader = stubSecurityPolicyReader{policy: runtimeconfig.SecurityPolicy{PasswordHistoryCount: 2}}
+	err := (&svc).ChangePasswordContext(context.Background(), 7, ChangePasswordRequest{
 		OldPassword: "CurrentPass1",
 		NewPassword: "FreshPass1",
 	})
@@ -116,7 +119,8 @@ func TestChangePasswordContextUsesRuntimePasswordHistoryCount(t *testing.T) {
 }
 
 func TestChangePasswordContextReturnsOldPasswordErrorWhenConcurrentUpdateWins(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 	oldCfg := config.Cfg
 	config.Cfg.Security.PasswordHistoryCount = 0
 	t.Cleanup(func() {
@@ -135,7 +139,7 @@ func TestChangePasswordContextReturnsOldPasswordErrorWhenConcurrentUpdateWins(t 
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectRollback()
 
-	err := (&UserService{}).ChangePasswordContext(context.Background(), 7, ChangePasswordRequest{
+	err := (&svc).ChangePasswordContext(context.Background(), 7, ChangePasswordRequest{
 		OldPassword: "CurrentPass1",
 		NewPassword: "FreshPass1",
 	})
@@ -145,7 +149,8 @@ func TestChangePasswordContextReturnsOldPasswordErrorWhenConcurrentUpdateWins(t 
 }
 
 func TestUserServiceLoginPasswordContextReturnsUpdateErrorWhenExpiredFlagCannotPersist(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 	oldCfg := config.Cfg
 	config.Cfg.Security.PasswordMaxAgeDays = 30
 	t.Cleanup(func() {
@@ -166,14 +171,15 @@ func TestUserServiceLoginPasswordContextReturnsUpdateErrorWhenExpiredFlagCannotP
 		WillReturnError(updateErr)
 	mock.ExpectRollback()
 
-	_, err := (&UserService{}).LoginPasswordContext(context.Background(), "alice", "CurrentPass1")
+	_, err := (&svc).LoginPasswordContext(context.Background(), "alice", "CurrentPass1")
 	if !errors.Is(err, updateErr) {
 		t.Fatalf("LoginPasswordContext() error = %v, want update error", err)
 	}
 }
 
 func TestUserServiceLoginPasswordContextUsesRuntimePasswordMaxAge(t *testing.T) {
-	mock := setupAuthServiceContextTestDB(t)
+	db, mock := setupAuthServiceContextTestDB(t)
+	svc := NewUserServiceWithDB(db)
 	oldCfg := config.Cfg
 	config.Cfg.Security.PasswordMaxAgeDays = 0
 	t.Cleanup(func() {
@@ -200,8 +206,8 @@ func TestUserServiceLoginPasswordContextUsesRuntimePasswordMaxAge(t *testing.T) 
 		WithArgs(uint(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"user_id", "role_id"}))
 
-	service := &UserService{policyReader: stubSecurityPolicyReader{policy: runtimeconfig.SecurityPolicy{PasswordMaxAgeDays: 30}}}
-	resp, err := service.LoginPasswordContext(context.Background(), "alice", "CurrentPass1")
+	svc.policyReader = stubSecurityPolicyReader{policy: runtimeconfig.SecurityPolicy{PasswordMaxAgeDays: 30}}
+	resp, err := (&svc).LoginPasswordContext(context.Background(), "alice", "CurrentPass1")
 	if err != nil {
 		t.Fatalf("LoginPasswordContext() error = %v", err)
 	}

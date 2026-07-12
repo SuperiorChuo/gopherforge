@@ -16,21 +16,23 @@ import (
 )
 
 func TestSettingServiceGetSettingContextMapsNotFound(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `system_settings` WHERE setting_key = ? ORDER BY `system_settings`.`setting_key` LIMIT ?")).
 		WithArgs("security.password_policy", 1).
 		WillReturnError(gorm.ErrRecordNotFound)
 
-	_, err := (&SettingService{}).GetSettingContext(context.Background(), "security.password_policy")
+	svc := NewSettingServiceWithDB(db)
+	_, err := (&svc).GetSettingContext(context.Background(), "security.password_policy")
 	if !errors.Is(err, ErrSystemSettingNotFound) {
 		t.Fatalf("GetSettingContext() error = %v, want ErrSystemSettingNotFound", err)
 	}
 }
 
 func TestSettingServiceUpsertSettingContextRejectsInvalidKey(t *testing.T) {
-	setupSystemUserServiceContextTestDB(t)
+	db, _ := setupSystemUserServiceContextTestDB(t)
 
-	_, err := (&SettingService{}).UpsertSettingContext(context.Background(), UpsertSettingRequest{
+	svc := NewSettingServiceWithDB(db)
+	_, err := (&svc).UpsertSettingContext(context.Background(), UpsertSettingRequest{
 		SettingKey: "security password",
 		ValueJSON:  map[string]any{"password_max_age_days": 90},
 	})
@@ -40,21 +42,22 @@ func TestSettingServiceUpsertSettingContextRejectsInvalidKey(t *testing.T) {
 }
 
 func TestSettingServiceDeleteSettingContextMapsNotFound(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectBegin()
 	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM `system_settings` WHERE setting_key = ?")).
 		WithArgs("security.policy").
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectCommit()
 
-	err := (&SettingService{}).DeleteSettingContext(context.Background(), "security.policy")
+	svc := NewSettingServiceWithDB(db)
+	err := (&svc).DeleteSettingContext(context.Background(), "security.policy")
 	if !errors.Is(err, ErrSystemSettingNotFound) {
 		t.Fatalf("DeleteSettingContext() error = %v, want ErrSystemSettingNotFound", err)
 	}
 }
 
 func TestSettingServiceUpsertSecurityPolicyRefreshesRuntimeConfig(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO `system_settings`").
 		WithArgs(runtimeconfig.SecurityPolicySettingKey, sqlmock.AnyArg(), sqlmock.AnyArg()).
@@ -62,7 +65,9 @@ func TestSettingServiceUpsertSecurityPolicyRefreshesRuntimeConfig(t *testing.T) 
 	mock.ExpectCommit()
 
 	invalidator := &stubRuntimeConfigInvalidator{}
-	_, err := (&SettingService{runtimeInvalidator: invalidator}).UpsertSettingContext(context.Background(), UpsertSettingRequest{
+	svc := NewSettingServiceWithDB(db)
+	svc.runtimeInvalidator = invalidator
+	_, err := (&svc).UpsertSettingContext(context.Background(), UpsertSettingRequest{
 		SettingKey: runtimeconfig.SecurityPolicySettingKey,
 		ValueJSON:  map[string]any{"password_history_count": 3},
 	})
@@ -75,7 +80,7 @@ func TestSettingServiceUpsertSecurityPolicyRefreshesRuntimeConfig(t *testing.T) 
 }
 
 func TestSettingServiceDeleteSecurityPolicyRefreshesRuntimeConfig(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectBegin()
 	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM `system_settings` WHERE setting_key = ?")).
 		WithArgs(runtimeconfig.SecurityPolicySettingKey).
@@ -83,7 +88,9 @@ func TestSettingServiceDeleteSecurityPolicyRefreshesRuntimeConfig(t *testing.T) 
 	mock.ExpectCommit()
 
 	invalidator := &stubRuntimeConfigInvalidator{}
-	err := (&SettingService{runtimeInvalidator: invalidator}).DeleteSettingContext(context.Background(), runtimeconfig.SecurityPolicySettingKey)
+	svc := NewSettingServiceWithDB(db)
+	svc.runtimeInvalidator = invalidator
+	err := (&svc).DeleteSettingContext(context.Background(), runtimeconfig.SecurityPolicySettingKey)
 	if err != nil {
 		t.Fatalf("DeleteSettingContext() error = %v", err)
 	}
@@ -93,7 +100,7 @@ func TestSettingServiceDeleteSecurityPolicyRefreshesRuntimeConfig(t *testing.T) 
 }
 
 func TestSettingServiceUpsertEmailNotificationRefreshesRuntimeConfig(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO `system_settings`").
 		WithArgs(runtimeconfig.EmailNotificationSettingKey, sqlmock.AnyArg(), sqlmock.AnyArg()).
@@ -101,7 +108,9 @@ func TestSettingServiceUpsertEmailNotificationRefreshesRuntimeConfig(t *testing.
 	mock.ExpectCommit()
 
 	emailInvalidator := &stubRuntimeConfigInvalidator{}
-	_, err := (&SettingService{emailInvalidator: emailInvalidator}).UpsertSettingContext(context.Background(), UpsertSettingRequest{
+	svc := NewSettingServiceWithDB(db)
+	svc.emailInvalidator = emailInvalidator
+	_, err := (&svc).UpsertSettingContext(context.Background(), UpsertSettingRequest{
 		SettingKey: runtimeconfig.EmailNotificationSettingKey,
 		ValueJSON:  map[string]any{"enabled": true},
 	})
@@ -151,7 +160,7 @@ func TestSettingServiceUpsertRuntimeConfigPublishesInvalidation(t *testing.T) {
 				}
 			}()
 
-			mock := setupSystemUserServiceContextTestDB(t)
+			db, mock := setupSystemUserServiceContextTestDB(t)
 			mock.ExpectBegin()
 			mock.ExpectExec("INSERT INTO `system_settings`").
 				WithArgs(tt.key, sqlmock.AnyArg(), sqlmock.AnyArg()).
@@ -159,7 +168,7 @@ func TestSettingServiceUpsertRuntimeConfigPublishesInvalidation(t *testing.T) {
 			mock.ExpectCommit()
 
 			invalidator := &stubRuntimeConfigInvalidator{}
-			service := &SettingService{}
+			service := NewSettingServiceWithDB(db)
 			if tt.key == runtimeconfig.SecurityPolicySettingKey {
 				service.runtimeInvalidator = invalidator
 			} else {
@@ -196,7 +205,7 @@ func TestSettingServiceUpsertRuntimeConfigIgnoresPublishFailure(t *testing.T) {
 		redisstore.Client = oldClient
 	})
 
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO `system_settings`").
 		WithArgs(runtimeconfig.SecurityPolicySettingKey, sqlmock.AnyArg(), sqlmock.AnyArg()).
@@ -204,7 +213,9 @@ func TestSettingServiceUpsertRuntimeConfigIgnoresPublishFailure(t *testing.T) {
 	mock.ExpectCommit()
 
 	invalidator := &stubRuntimeConfigInvalidator{}
-	_, err := (&SettingService{runtimeInvalidator: invalidator}).UpsertSettingContext(context.Background(), UpsertSettingRequest{
+	svc := NewSettingServiceWithDB(db)
+	svc.runtimeInvalidator = invalidator
+	_, err := (&svc).UpsertSettingContext(context.Background(), UpsertSettingRequest{
 		SettingKey: runtimeconfig.SecurityPolicySettingKey,
 		ValueJSON:  map[string]any{"password_history_count": 3},
 	})

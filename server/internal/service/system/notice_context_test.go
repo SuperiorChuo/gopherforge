@@ -8,12 +8,13 @@ import (
 )
 
 func TestNoticeServiceCreateContextHonorsCanceledContext(t *testing.T) {
-	setupSystemUserServiceContextTestDB(t)
+	db, _ := setupSystemUserServiceContextTestDB(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := (&NoticeService{}).CreateContext(ctx, CreateNoticeRequest{
+	svc := NewNoticeServiceWithDB(db)
+	_, err := (&svc).CreateContext(ctx, CreateNoticeRequest{
 		Title:   "Maintenance",
 		Content: "Tonight",
 	}, 1, "admin")
@@ -23,13 +24,14 @@ func TestNoticeServiceCreateContextHonorsCanceledContext(t *testing.T) {
 }
 
 func TestNoticeServiceUpdateContextReturnsLookupError(t *testing.T) {
-	mock := setupSystemUserServiceContextTestDB(t)
+	db, mock := setupSystemUserServiceContextTestDB(t)
 	lookupErr := errors.New("database lookup failed")
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `notices` WHERE `notices`.`id` = ? ORDER BY `notices`.`id` LIMIT ?")).
 		WithArgs(7, 1).
 		WillReturnError(lookupErr)
 
-	_, err := (&NoticeService{}).UpdateContext(context.Background(), 7, UpdateNoticeRequest{
+	svc := NewNoticeServiceWithDB(db)
+	_, err := (&svc).UpdateContext(context.Background(), 7, UpdateNoticeRequest{
 		Title: "Maintenance",
 	})
 	if !errors.Is(err, lookupErr) {
