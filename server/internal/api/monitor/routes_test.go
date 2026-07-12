@@ -5,13 +5,16 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/pkg/database"
+	monitorsvc "github.com/go-admin-kit/server/internal/service/monitor"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func TestRegisterProtectedRoutes(t *testing.T) {
-	setupMonitorRouteSQLMock(t)
+	db := setupMonitorRouteSQLMock(t)
+	// Initialize the job service singleton with the injected database so route
+	// registration does not consult the global handle.
+	monitorsvc.InitJobService(db)
 	routes := registeredMonitorRoutes(func(r *gin.RouterGroup) {
 		RegisterProtectedRoutes(r)
 	})
@@ -36,10 +39,9 @@ func TestRegisterProtectedRoutes(t *testing.T) {
 	}
 }
 
-func setupMonitorRouteSQLMock(t *testing.T) {
+func setupMonitorRouteSQLMock(t *testing.T) *gorm.DB {
 	t.Helper()
 
-	oldDB := database.DB
 	sqlDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
@@ -56,14 +58,13 @@ func setupMonitorRouteSQLMock(t *testing.T) {
 		t.Fatalf("open gorm sqlmock db: %v", err)
 	}
 
-	database.DB = db
 	t.Cleanup(func() {
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatalf("unmet database expectations: %v", err)
 		}
 		_ = sqlDB.Close()
-		database.DB = oldDB
 	})
+	return db
 }
 
 func registeredMonitorRoutes(register func(*gin.RouterGroup)) map[string]struct{} {
