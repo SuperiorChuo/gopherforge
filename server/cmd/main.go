@@ -258,6 +258,11 @@ func run(ctx context.Context) error {
 		Permissions:     authDAO.NewPermissionDAO(database.DB),
 		ConsoleSessions: authsvc.NewConsoleSessionServiceWithDB(database.DB),
 	})
+	authz.SetPersistence(authz.Persistence{
+		Users:       authDAO.NewUserDAO(database.DB),
+		Permissions: authDAO.NewPermissionDAO(database.DB),
+		DataScope:   authz.NewDatabaseDataScopeStore(database.DB),
+	})
 	defer func() {
 		if err := database.Close(); err != nil {
 			logger.Error("database close failed", logger.Err(err))
