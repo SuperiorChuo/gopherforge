@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 	"gorm.io/gorm"
 )
@@ -21,10 +20,7 @@ func (d *DepartmentDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if d != nil && d.db != nil {
-		return d.db.WithContext(ctx)
-	}
-	return database.DB.WithContext(ctx)
+	return d.db.WithContext(ctx)
 }
 
 func (d *DepartmentDAO) GetByIDContext(ctx context.Context, id uint) (*model.Department, error) {

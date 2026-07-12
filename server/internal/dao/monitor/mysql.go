@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"gorm.io/gorm"
 )
 
@@ -23,11 +22,7 @@ type MySQLTableStats struct {
 	DatabaseSize int64 `gorm:"column:database_size"`
 }
 
-func NewMySQLDAO(dbs ...*gorm.DB) *MySQLDAO {
-	db := database.DB
-	if len(dbs) > 0 {
-		db = dbs[0]
-	}
+func NewMySQLDAO(db *gorm.DB) *MySQLDAO {
 	return &MySQLDAO{db: db}
 }
 
@@ -35,24 +30,17 @@ func (d *MySQLDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if d != nil && d.db != nil {
-		return d.db.WithContext(ctx)
-	}
-	return database.DB.WithContext(ctx)
+	return d.db.WithContext(ctx)
 }
 
 func (d *MySQLDAO) ConnectionStatsContext(ctx context.Context) (sql.DBStats, error) {
 	if err := ctx.Err(); err != nil {
 		return sql.DBStats{}, err
 	}
-	db := database.DB
-	if d != nil && d.db != nil {
-		db = d.db
-	}
-	if db == nil {
+	if d == nil || d.db == nil {
 		return sql.DBStats{}, errors.New("database is not initialized")
 	}
-	sqlDB, err := db.DB()
+	sqlDB, err := d.db.DB()
 	if err != nil {
 		return sql.DBStats{}, err
 	}

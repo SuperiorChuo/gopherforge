@@ -48,11 +48,8 @@ var allowedBareAPIConstructorCalls = map[string]int{
 	"api/auth/routes.go|newUserAPIFromDeps|NewUserAPI":              1,
 	"api/auth/routes.go|RegisterPublicRoutesWithDeps|NewCaptchaAPI": 1,
 
-	// api/monitor/routes.go: ServerAPI reads host metrics only; JobAPI wraps
-	// the singleton injected via InitJobService; MySQL/Redis bare calls are
-	// the legacy fallbacks replaced when deps carry the matching handle.
-	"api/monitor/routes.go|RegisterProtectedRoutesWithDeps|NewJobAPI":    1,
-	"api/monitor/routes.go|RegisterProtectedRoutesWithDeps|NewMySQLAPI":  1,
+	// api/monitor/routes.go: ServerAPI reads host metrics only; RedisAPI has a
+	// legacy bare fallback when no Redis client is injected.
 	"api/monitor/routes.go|RegisterProtectedRoutesWithDeps|NewRedisAPI":  1,
 	"api/monitor/routes.go|RegisterProtectedRoutesWithDeps|NewServerAPI": 1,
 

@@ -6,7 +6,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 )
 
 // PermissionCacheDAO provides relation lookups needed for permission cache invalidation.
@@ -22,10 +21,7 @@ func (d *PermissionCacheDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if d != nil && d.db != nil {
-		return d.db.WithContext(ctx)
-	}
-	return database.DB.WithContext(ctx)
+	return d.db.WithContext(ctx)
 }
 
 func (d *PermissionCacheDAO) FindUserIDsByRoleIDsContext(ctx context.Context, roleIDs []uint) ([]uint, error) {

@@ -91,7 +91,7 @@ func (s ConsoleRouteService) routeDAO() authDAO.ConsoleRouteDAO {
 	if s.dao != nil {
 		return *s.dao
 	}
-	return authDAO.NewConsoleRouteDAO()
+	return authDAO.ConsoleRouteDAO{}
 }
 
 func (s ConsoleRouteService) BootstrapDefaultsContext(ctx context.Context) (ConsoleRouteBootstrapResult, error) {

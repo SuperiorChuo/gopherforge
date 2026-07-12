@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 )
 
 type routeMetric struct {
@@ -536,14 +535,7 @@ func currentDatabasePoolStatsProvider() DatabasePoolStatsProvider {
 type defaultDatabasePoolStatsProvider struct{}
 
 func (defaultDatabasePoolStatsProvider) DatabaseStats() (sql.DBStats, error) {
-	if database.DB == nil {
-		return sql.DBStats{}, errDatabasePoolNotInitialized
-	}
-	sqlDB, err := database.DB.DB()
-	if err != nil {
-		return sql.DBStats{}, err
-	}
-	return sqlDB.Stats(), nil
+	return sql.DBStats{}, errDatabasePoolNotInitialized
 }
 
 func formatBucket(bucket float64) string {

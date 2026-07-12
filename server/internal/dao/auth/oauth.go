@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"gorm.io/gorm"
 )
 
@@ -20,10 +19,7 @@ func (d OAuthBindingDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if d.db != nil {
-		return d.db.WithContext(ctx)
-	}
-	return database.DB.WithContext(ctx)
+	return d.db.WithContext(ctx)
 }
 
 func (d OAuthBindingDAO) GetByProviderUserContext(ctx context.Context, provider, providerUserID string) (*model.OAuthBinding, error) {

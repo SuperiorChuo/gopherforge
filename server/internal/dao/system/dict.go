@@ -7,7 +7,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 )
 
@@ -187,8 +186,5 @@ func (d *DictDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if d != nil && d.db != nil {
-		return d.db.WithContext(ctx)
-	}
-	return database.DB.WithContext(ctx)
+	return d.db.WithContext(ctx)
 }

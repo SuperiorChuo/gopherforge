@@ -6,7 +6,6 @@ import (
 
 	sharedDAO "github.com/go-admin-kit/server/internal/dao"
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"gorm.io/gorm"
 )
 
@@ -28,10 +27,7 @@ func (d *UserDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if d != nil && d.db != nil {
-		return d.db.WithContext(ctx)
-	}
-	return database.DB.WithContext(ctx)
+	return d.db.WithContext(ctx)
 }
 
 func (d *UserDAO) UpdateUserProfileContext(ctx context.Context, id uint, updates map[string]any) error {

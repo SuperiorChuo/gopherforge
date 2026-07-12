@@ -10,12 +10,6 @@ type MySQLAPI struct {
 	service *monitor.MySQLService
 }
 
-func NewMySQLAPI() *MySQLAPI {
-	return &MySQLAPI{
-		service: monitor.NewMySQLService(),
-	}
-}
-
 // NewMySQLAPIWithService creates a MySQLAPI instance from an injected service.
 func NewMySQLAPIWithService(service *monitor.MySQLService) *MySQLAPI {
 	return &MySQLAPI{service: service}

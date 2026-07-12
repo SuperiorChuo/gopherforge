@@ -23,10 +23,6 @@ type MySQLService struct {
 	dao mySQLDAO
 }
 
-func NewMySQLService() *MySQLService {
-	return &MySQLService{dao: monitordao.NewMySQLDAO()}
-}
-
 // NewMySQLServiceWithDB builds a MySQLService backed by an injected database handle.
 func NewMySQLServiceWithDB(db *gorm.DB) *MySQLService {
 	return &MySQLService{dao: monitordao.NewMySQLDAO(db)}

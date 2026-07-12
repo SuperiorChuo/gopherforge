@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"gorm.io/gorm"
 )
 
@@ -49,8 +48,5 @@ func (d *MenuSeedDAO) BootstrapDefaultMenusContext(ctx context.Context, seed []m
 }
 
 func (d *MenuSeedDAO) baseDB() *gorm.DB {
-	if d != nil && d.db != nil {
-		return d.db
-	}
-	return database.DB
+	return d.db
 }

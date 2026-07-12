@@ -26,12 +26,6 @@ const (
 	invalidQueryParametersMessage = "invalid query parameters"
 )
 
-func NewJobAPI() *JobAPI {
-	return &JobAPI{
-		service: monitor.GetJobService(),
-	}
-}
-
 // GetJobList returns paginated scheduled jobs.
 func (a *JobAPI) GetJobList(c *gin.Context) {
 	var req pagination.PageRequest

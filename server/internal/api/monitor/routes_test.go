@@ -5,18 +5,15 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
-	monitorsvc "github.com/go-admin-kit/server/internal/service/monitor"
+	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func TestRegisterProtectedRoutes(t *testing.T) {
 	db := setupMonitorRouteSQLMock(t)
-	// Initialize the job service singleton with the injected database so route
-	// registration does not consult the global handle.
-	monitorsvc.InitJobService(db)
 	routes := registeredMonitorRoutes(func(r *gin.RouterGroup) {
-		RegisterProtectedRoutes(r)
+		RegisterProtectedRoutesWithDeps(r, sharedapi.Dependencies{DB: db})
 	})
 
 	for _, route := range []string{

@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"gorm.io/gorm"
 )
 
@@ -15,11 +14,7 @@ type ConsoleRouteDAO struct {
 	db *gorm.DB
 }
 
-func NewConsoleRouteDAO(dbs ...*gorm.DB) ConsoleRouteDAO {
-	db := database.DB
-	if len(dbs) > 0 {
-		db = dbs[0]
-	}
+func NewConsoleRouteDAO(db *gorm.DB) ConsoleRouteDAO {
 	return ConsoleRouteDAO{db: db}
 }
 

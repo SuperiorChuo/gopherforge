@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 	"gorm.io/gorm"
 )
@@ -15,11 +14,7 @@ type JobDAO struct {
 	db *gorm.DB
 }
 
-func NewJobDAO(dbs ...*gorm.DB) *JobDAO {
-	db := database.DB
-	if len(dbs) > 0 {
-		db = dbs[0]
-	}
+func NewJobDAO(db *gorm.DB) *JobDAO {
 	return &JobDAO{db: db}
 }
 
@@ -27,14 +22,11 @@ func (d *JobDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if d != nil && d.db != nil {
-		return d.db.WithContext(ctx)
-	}
-	return database.DB.WithContext(ctx)
+	return d.db.WithContext(ctx)
 }
 
 func (d *JobDAO) Ready() bool {
-	return (d != nil && d.db != nil) || database.DB != nil
+	return d != nil && d.db != nil
 }
 
 func (d *JobDAO) GetJobByIDContext(ctx context.Context, id uint) (*model.ScheduledJob, error) {

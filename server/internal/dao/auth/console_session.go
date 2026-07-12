@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"gorm.io/gorm"
 )
 
@@ -21,14 +20,11 @@ func (d ConsoleSessionDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if d.db != nil {
-		return d.db.WithContext(ctx)
-	}
-	return database.DB.WithContext(ctx)
+	return d.db.WithContext(ctx)
 }
 
 func (d ConsoleSessionDAO) Ready() bool {
-	return d.db != nil || database.DB != nil
+	return d.db != nil
 }
 
 func (d ConsoleSessionDAO) CreateContext(ctx context.Context, record *model.ConsoleSession) error {

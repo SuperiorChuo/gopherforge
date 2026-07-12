@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 
-	"github.com/go-admin-kit/server/internal/pkg/database"
 	"gorm.io/gorm"
 )
 
@@ -19,10 +18,7 @@ func (d *PermissionDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if d != nil && d.db != nil {
-		return d.db.WithContext(ctx)
-	}
-	return database.DB.WithContext(ctx)
+	return d.db.WithContext(ctx)
 }
 
 func (d *PermissionDAO) GetUserPermissionsContext(ctx context.Context, userID uint) ([]string, error) {

@@ -83,12 +83,9 @@ type JobAbnormalStatus struct {
 var jobService *JobService
 var once sync.Once
 
-// GetJobService returns the singleton job service instance.
+// GetJobService returns the singleton job service instance, or nil if it has
+// not been initialized via InitJobService.
 func GetJobService() *JobService {
-	once.Do(func() {
-		jobDAO := monitor.NewJobDAO()
-		jobService = newJobService(jobDAO, jobDAO.Ready())
-	})
 	return jobService
 }
 
