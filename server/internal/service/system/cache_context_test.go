@@ -12,7 +12,7 @@ func TestInvalidatePermissionCacheByRolesContextHonorsCanceledContext(t *testing
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err := InvalidatePermissionCacheByRolesContext(ctx, 1)
+	err := InvalidatePermissionCacheByRolesContext(ctx, nil, 1)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("InvalidatePermissionCacheByRolesContext() error = %v, want context.Canceled", err)
 	}

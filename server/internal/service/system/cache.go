@@ -7,18 +7,27 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/cache"
 )
 
+// PermissionCacheStore resolves the users affected by role or permission changes.
+type PermissionCacheStore interface {
+	FindUserIDsByRoleIDsContext(ctx context.Context, roleIDs []uint) ([]uint, error)
+	FindRoleIDsByPermissionIDsContext(ctx context.Context, permissionIDs []uint) ([]uint, error)
+}
+
 func InvalidatePermissionCacheForUsersContext(ctx context.Context, userIDs ...uint) error {
 	uniqueUserIDs := uniqueUint(userIDs)
 	return cache.NewCacheService().DelUserPermissionsBatchContext(ctx, uniqueUserIDs)
 }
 
-func InvalidatePermissionCacheByRolesContext(ctx context.Context, roleIDs ...uint) error {
+func InvalidatePermissionCacheByRolesContext(ctx context.Context, store PermissionCacheStore, roleIDs ...uint) error {
 	roleIDs = uniqueUint(roleIDs)
 	if len(roleIDs) == 0 {
 		return nil
 	}
 
-	userIDs, err := (&systemdao.PermissionCacheDAO{}).FindUserIDsByRoleIDsContext(ctx, roleIDs)
+	if store == nil {
+		store = &systemdao.PermissionCacheDAO{}
+	}
+	userIDs, err := store.FindUserIDsByRoleIDsContext(ctx, roleIDs)
 	if err != nil {
 		return err
 	}
@@ -26,18 +35,21 @@ func InvalidatePermissionCacheByRolesContext(ctx context.Context, roleIDs ...uin
 	return InvalidatePermissionCacheForUsersContext(ctx, userIDs...)
 }
 
-func InvalidatePermissionCacheByPermissionsContext(ctx context.Context, permissionIDs ...uint) error {
+func InvalidatePermissionCacheByPermissionsContext(ctx context.Context, store PermissionCacheStore, permissionIDs ...uint) error {
 	permissionIDs = uniqueUint(permissionIDs)
 	if len(permissionIDs) == 0 {
 		return nil
 	}
 
-	roleIDs, err := (&systemdao.PermissionCacheDAO{}).FindRoleIDsByPermissionIDsContext(ctx, permissionIDs)
+	if store == nil {
+		store = &systemdao.PermissionCacheDAO{}
+	}
+	roleIDs, err := store.FindRoleIDsByPermissionIDsContext(ctx, permissionIDs)
 	if err != nil {
 		return err
 	}
 
-	return InvalidatePermissionCacheByRolesContext(ctx, roleIDs...)
+	return InvalidatePermissionCacheByRolesContext(ctx, store, roleIDs...)
 }
 
 func InvalidatePermissionCacheAllContext(ctx context.Context) error {

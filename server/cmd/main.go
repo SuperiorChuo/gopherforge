@@ -281,7 +281,7 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	if menuResult, err := systemSvc.BootstrapDefaultMenusContext(ctx); err != nil {
+	if menuResult, err := systemSvc.BootstrapDefaultMenusContext(ctx, database.DB); err != nil {
 		return fmt.Errorf("default menu bootstrap failed: %w", err)
 	} else if menuResult.Menus > 0 {
 		logger.Info("default menus bootstrapped", logger.Int("menus", menuResult.Menus))

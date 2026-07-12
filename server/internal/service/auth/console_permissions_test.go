@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
 )
 
 func TestConsoleRoleCodesTrimsDeduplicatesAndSorts(t *testing.T) {
@@ -23,16 +22,12 @@ func TestConsoleRoleCodesTrimsDeduplicatesAndSorts(t *testing.T) {
 }
 
 func TestConsolePermissionsForUserAddsAliasesAndSuperAdminDefaults(t *testing.T) {
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
-
 	user := &model.User{
 		Roles: []model.Role{{Code: "super_admin"}},
 	}
-	got := ConsolePermissionsForUser(context.Background(), user, []string{
+	// A zero-value route service falls back to the static route seed, so the
+	// test needs no database.
+	got := ConsolePermissionsForUser(context.Background(), ConsoleRouteService{}, user, []string{
 		"system:user:list",
 		"system:role:update",
 	})
