@@ -9,7 +9,7 @@
 - npm
 - uv 0.11+
 - Docker Desktop
-- MySQL 客户端可选，仅在手动导入 SQL 时需要
+- PostgreSQL 客户端（psql）可选，仅在手动导入 SQL 时需要
 
 ## Docker 一键启动
 
@@ -44,7 +44,7 @@ docker compose up -d --build
 
 ## 端口冲突处理
 
-默认 Compose 会把 MySQL、Redis、后端、前端分别映射到宿主机 `3306`、`6379`、`8081`、`3000`，启用 `storage` profile 时 MinIO 还会占用 `9000` 和 `9001`。如果本机已有 scaffold 容器或本地服务占用这些端口，先查看冲突来源：
+默认 Compose 会把 PostgreSQL、Redis、后端、前端、网关分别映射到宿主机 `5432`、`6379`、`8081`、`3000`、`8000`，启用 `storage` profile 时 MinIO 还会占用 `9000` 和 `9001`。如果本机已有 scaffold 容器或本地服务占用这些端口，先查看冲突来源：
 
 ```powershell
 docker ps --format "table {{.Names}}\t{{.Ports}}"
@@ -59,22 +59,23 @@ docker stop <container-name>
 如果需要保留冲突容器并行运行，请在 `.env` 中改宿主机映射端口：
 
 ```env
-MYSQL_PORT=13306
+POSTGRES_PORT=15432
 REDIS_PORT=16379
 MINIO_API_PORT=19000
 MINIO_CONSOLE_PORT=19001
+GATEWAY_PORT=18000
 BACKEND_PORT=18081
 FRONTEND_PORT=13000
 ```
 
-这些变量只影响宿主机访问地址，容器内部仍使用 `go-admin-kit-mysql:3306`、`go-admin-kit-redis:6379`、`go-admin-kit-minio:9000` 和后端内部 `8081`。修改后重新执行 `docker compose up -d --build`；如果启用对象存储，使用 `docker compose --profile storage up -d --build`。
+这些变量只影响宿主机访问地址，容器内部仍使用 `go-admin-kit-postgres:5432`、`go-admin-kit-redis:6379`、`go-admin-kit-minio:9000` 和后端内部 `8081`。修改后重新执行 `docker compose up -d --build`；如果启用对象存储，使用 `docker compose --profile storage up -d --build`。
 
 ## 分别启动前后端
 
 先启动依赖：
 
 ```powershell
-docker compose up -d go-admin-kit-mysql go-admin-kit-redis
+docker compose up -d go-admin-kit-postgres go-admin-kit-redis
 ```
 
 启动后端：
@@ -182,9 +183,12 @@ uv add <package-name>
 
 ## 常用地址
 
-- 前端：`http://localhost:3000`
-- 后端：`http://localhost:8081`
-- 健康检查：`http://localhost:8081/api/v1/health/ready`
+- 统一入口（Traefik 网关）：`http://localhost:8000`，认证路径转发到 auth-service，`/api`、`/uploads` 其余路径转发到后端，页面路径转发到前端
+- 前端直连：`http://localhost:3000`
+- 后端直连：`http://localhost:8081`
+- 认证服务直连：`http://localhost:8082`
+- NATS：`nats://localhost:4222`
+- 健康检查：`http://localhost:8000/api/v1/health/ready`
 - MinIO 控制台：`http://localhost:9001`，需要启用 `storage` profile
 - Grafana：`http://localhost:3003`，需要启用 `monitoring` profile
 

@@ -4,6 +4,7 @@ SHELL := /bin/sh
 help:
 	@echo "Available targets:"
 	@echo "  dev-backend       Start backend locally"
+	@echo "  dev-auth          Start auth-service locally"
 	@echo "  dev-frontend      Start frontend with real API"
 	@echo "  build-server      Build the Go backend server"
 	@echo "  compose-up        Start full stack with Docker Compose"
@@ -12,7 +13,7 @@ help:
 	@echo "  lint              Run backend vet and frontend lint/style/type checks"
 	@echo "  audit             Run frontend production dependency audit"
 	@echo "  smoke-api         Run API smoke tests against a running backend"
-	@echo "  db-import         Import Go Admin Kit SQL into local MySQL"
+	@echo "  db-import         Import Go Admin Kit SQL into local PostgreSQL"
 	@echo "  migrate-up        Apply database migrations"
 	@echo "  migrate-status    Show database migration status"
 	@echo "  migrate-create    Create a new SQL migration, pass NAME=add_table"
@@ -23,6 +24,10 @@ help:
 .PHONY: dev-backend
 dev-backend:
 	cd server && CGO_ENABLED=0 go run ./cmd/main.go
+
+.PHONY: dev-auth
+dev-auth:
+	cd services/auth && CGO_ENABLED=0 go run ./cmd
 
 .PHONY: build-server
 build-server:
@@ -48,12 +53,14 @@ compose-monitoring:
 test:
 	npm run test:smoke:unit
 	cd server && go test ./...
+	cd services/auth && go test ./...
 	cd tdesign-vue-go && npm run test
 	cd tdesign-vue-go && npm run build:type
 
 .PHONY: lint
 lint:
 	cd server && go vet ./...
+	cd services/auth && go vet ./...
 	cd tdesign-vue-go && npm run build:type
 	cd tdesign-vue-go && npm run lint
 	cd tdesign-vue-go && npm run stylelint

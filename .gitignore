@@ -33,6 +33,12 @@ external-services/douyin-python-worker/.worker/
 external-services/douyin-python-worker/**/__pycache__/
 external-services/douyin-python-worker/.pytest_cache/
 
+# Local deploy staging artifacts (built binaries + config copied for scp)
+/dist/
+
+# react-antd is npm-managed (package-lock.json is tracked, CI runs npm ci)
+react-antd/pnpm-lock.yaml
+
 # Local env overrides
 .env
 .env.local
