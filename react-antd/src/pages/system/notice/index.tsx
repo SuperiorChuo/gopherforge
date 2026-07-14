@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  message, Card, DatePicker,
+  Card, DatePicker, Switch,
 } from 'antd'
+import { message } from '@/utils/feedback'
 import { PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Notice } from '@/types'
 import * as NoticeAPI from '@/api/system/notice'
+import TableToolbar from '@/components/TableToolbar'
+import { useUrlParams } from '@/hooks/useUrlParams'
+import { formatDateTime } from '@/utils/format'
+import { usePermission } from '@/hooks/usePermission'
 import dayjs from 'dayjs'
 
 const { RangePicker } = DatePicker
@@ -25,12 +30,13 @@ export default function NoticePage() {
   const [list, setList] = useState<Notice[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [params, setParams] = useState<SearchParams>({ page: 1, page_size: 10 })
+  const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [modalOpen, setModalOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<Notice | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
+  const { hasPerm } = usePermission()
 
   const fetchList = async (p: SearchParams) => {
     setLoading(true)
@@ -82,21 +88,37 @@ export default function NoticePage() {
     try {
       await NoticeAPI.deleteNotice(id)
       message.success('删除成功')
-      fetchList(params)
+      if (list.length === 1 && params.page > 1) {
+        setParams({ ...params, page: params.page - 1 })
+      } else {
+        fetchList(params)
+      }
     } catch {
       message.error('删除失败')
     }
   }
 
-  const handleSubmit = async () => {
+  const handleToggleStatus = async (record: Notice, checked: boolean) => {
     try {
-      const values = await form.validateFields()
-      setSubmitting(true)
+      await NoticeAPI.updateNoticeStatus(record.id, checked ? 1 : 0)
+      message.success(checked ? '已启用' : '已停用')
+      fetchList(params)
+    } catch {
+      message.error('状态更新失败')
+    }
+  }
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields().catch(() => null)
+    if (!values) return
+    setSubmitting(true)
+    try {
       const { time_range, ...rest } = values
+      // 后端按 time.Time 解析，需 RFC3339 格式
       const payload = {
         ...rest,
-        start_time: time_range?.[0]?.format('YYYY-MM-DD HH:mm:ss'),
-        end_time: time_range?.[1]?.format('YYYY-MM-DD HH:mm:ss'),
+        start_time: time_range?.[0]?.toISOString(),
+        end_time: time_range?.[1]?.toISOString(),
       }
       if (editRecord) {
         await NoticeAPI.updateNotice(editRecord.id, payload)
@@ -126,20 +148,33 @@ export default function NoticePage() {
     {
       title: '状态',
       dataIndex: 'status',
-      width: 80,
-      render: (v: number) => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? '启用' : '禁用'}</Tag>,
+      width: 90,
+      render: (v: number, record) => (
+        <Switch
+          size="small"
+          checked={v === 1}
+          checkedChildren="启用"
+          unCheckedChildren="停用"
+          disabled={!hasPerm('system:notice:update')}
+          onChange={(checked) => handleToggleStatus(record, checked)}
+        />
+      ),
     },
-    { title: '开始时间', dataIndex: 'start_time', width: 170 },
-    { title: '结束时间', dataIndex: 'end_time', width: 170 },
+    { title: '开始时间', dataIndex: 'start_time', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '结束时间', dataIndex: 'end_time', width: 170, className: 'cell-time', render: formatDateTime },
     {
       title: '操作',
       width: 140,
       render: (_, record) => (
         <Space>
-          <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
-          <Popconfirm title="确认删除该通知?" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger>删除</Button>
-          </Popconfirm>
+          {hasPerm('system:notice:update') && (
+            <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
+          )}
+          {hasPerm('system:notice:delete') && (
+            <Popconfirm title="确认删除该通知?" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -148,7 +183,7 @@ export default function NoticePage() {
   return (
     <div>
       <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch}>
+        <Form form={searchForm} layout="inline" onFinish={handleSearch} initialValues={params}>
           <Form.Item name="keyword">
             <Input placeholder="标题" prefix={<SearchOutlined />} allowClear />
           </Form.Item>
@@ -174,9 +209,18 @@ export default function NoticePage() {
       </Card>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增通知</Button>
-        </div>
+        <TableToolbar
+          title="通知公告"
+          total={total}
+          extra={
+            <>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              {hasPerm('system:notice:create') && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增通知</Button>
+              )}
+            </>
+          }
+        />
         <Table
           rowKey="id"
           columns={columns}
@@ -199,7 +243,7 @@ export default function NoticePage() {
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
         confirmLoading={submitting}
-        destroyOnClose
+        destroyOnHidden
         width={600}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>

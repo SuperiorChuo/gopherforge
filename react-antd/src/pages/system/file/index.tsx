@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
 import {
-  Table, Button, Space, Popconfirm, message, Card, Input, Form,
-  Upload,
+  Table, Button, Space, Popconfirm, Card, Input, Form,
+  Upload, Tag, Image,
 } from 'antd'
-import { UploadOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
+import { message } from '@/utils/feedback'
+import { UploadOutlined, SearchOutlined, ReloadOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { FileRecord } from '@/types'
 import * as FileAPI from '@/api/system/file'
+import TableToolbar from '@/components/TableToolbar'
+import { useUrlParams } from '@/hooks/useUrlParams'
+import { formatDateTime } from '@/utils/format'
+import { usePermission } from '@/hooks/usePermission'
 
 interface SearchParams {
   keyword?: string
@@ -18,16 +23,25 @@ interface SearchParams {
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
 }
 
 export default function FilePage() {
   const [list, setList] = useState<FileRecord[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [params, setParams] = useState<SearchParams>({ page: 1, page_size: 10 })
+  const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [uploading, setUploading] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [stats, setStats] = useState<FileAPI.FileStats | null>(null)
   const [searchForm] = Form.useForm()
+  const { hasPerm } = usePermission()
+
+  useEffect(() => {
+    FileAPI.getFileStats().then(setStats).catch(() => setStats(null))
+  }, [])
 
   const fetchList = async (p: SearchParams) => {
     setLoading(true)
@@ -59,53 +73,158 @@ export default function FilePage() {
     try {
       await FileAPI.deleteFile(id)
       message.success('删除成功')
-      fetchList(params)
+      if (list.length === 1 && params.page > 1) {
+        setParams({ ...params, page: params.page - 1 })
+      } else {
+        fetchList(params)
+      }
     } catch {
       message.error('删除失败')
     }
   }
 
-  const beforeUpload = async (file: File) => {
-    setUploading(true)
-    try {
-      await FileAPI.uploadFile(file)
-      message.success('上传成功')
-      fetchList(params)
-    } catch {
-      message.error('上传失败')
-    } finally {
-      setUploading(false)
+  // antd 对多选的每个文件各调一次 beforeUpload，以首个文件为代表整批上传一次
+  const beforeUpload = (file: File, fileList: File[]) => {
+    if (fileList[0] !== file) return false
+    const doUpload = async () => {
+      setUploading(true)
+      try {
+        if (fileList.length > 1) {
+          await FileAPI.uploadFiles(fileList)
+          message.success(`已上传 ${fileList.length} 个文件`)
+        } else {
+          await FileAPI.uploadFile(file)
+          message.success('上传成功')
+        }
+        fetchList(params)
+      } catch {
+        message.error('上传失败')
+      } finally {
+        setUploading(false)
+      }
     }
+    doUpload()
     return false
+  }
+
+  const handleDownload = async (record: FileRecord) => {
+    try {
+      await FileAPI.downloadFile(record.id, record.file_name)
+    } catch {
+      message.error('下载失败')
+    }
+  }
+
+  const handlePreview = async (record: FileRecord) => {
+    try {
+      const url = await FileAPI.previewFile(record.id)
+      setPreviewUrl(url)
+    } catch {
+      message.error('预览失败')
+    }
+  }
+
+  const closePreview = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
+  }
+
+  const handleBatchDelete = async () => {
+    try {
+      await FileAPI.batchDeleteFiles(selectedIds)
+      message.success(`已删除 ${selectedIds.length} 个文件`)
+      setSelectedIds([])
+      if (selectedIds.length >= list.length && params.page > 1) {
+        setParams({ ...params, page: params.page - 1 })
+      } else {
+        fetchList(params)
+      }
+    } catch {
+      message.error('批量删除失败')
+    }
   }
 
   const columns: ColumnsType<FileRecord> = [
     { title: 'ID', dataIndex: 'id', width: 60 },
     { title: '文件名', dataIndex: 'file_name', ellipsis: true },
-    { title: '文件类型', dataIndex: 'file_type', width: 120 },
+    {
+      title: '文件类型',
+      dataIndex: 'file_type',
+      width: 120,
+      render: (v: string) => v && <Tag variant="filled" className="cell-mono">{v}</Tag>,
+    },
     {
       title: '文件大小',
       dataIndex: 'file_size',
       width: 100,
-      render: (v: number) => formatSize(v),
+      render: (v: number) => <span className="cell-mono">{formatSize(v)}</span>,
     },
-    { title: '存储类型', dataIndex: 'storage_type', width: 100 },
-    { title: '上传时间', dataIndex: 'created_at', width: 170 },
+    {
+      title: '存储类型',
+      dataIndex: 'storage_type',
+      width: 100,
+      render: (v: string) => v && <Tag color="geekblue" variant="filled">{v}</Tag>,
+    },
+    { title: '上传时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
     {
       title: '操作',
-      width: 80,
+      width: 200,
       render: (_, record) => (
-        <Popconfirm title="确认删除该文件?" onConfirm={() => handleDelete(record.id)}>
-          <Button type="link" size="small" danger>删除</Button>
-        </Popconfirm>
+        <Space>
+          {record.file_type === 'image' && (
+            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handlePreview(record)}>
+              预览
+            </Button>
+          )}
+          <Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(record)}>
+            下载
+          </Button>
+          {hasPerm('system:file:delete') && (
+            <Popconfirm title="确认删除该文件?" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger>删除</Button>
+            </Popconfirm>
+          )}
+        </Space>
       ),
     },
   ]
 
   return (
     <div>
+      {stats && stats.total > 0 && (
+        <Card style={{ marginBottom: 16 }} styles={{ body: { padding: '14px 24px' } }}>
+          <div className="log-stats-row">
+            <div className="log-stat">
+              <span className="log-stat-label">文件总数</span>
+              <span className="log-stat-value">{stats.total.toLocaleString()}</span>
+            </div>
+            <div className="log-stat">
+              <span className="log-stat-label">占用空间</span>
+              <span className="log-stat-value log-stat-accent">{formatSize(stats.total_size)}</span>
+            </div>
+            {Object.keys(stats.by_type ?? {}).length > 0 && (
+              <>
+                <div className="log-stat-divider" />
+                <div className="log-stat">
+                  <span className="log-stat-label">类型分布</span>
+                  <span>
+                    {Object.entries(stats.by_type ?? {})
+                      .sort((a, b) => b[1].count - a[1].count)
+                      .map(([t, s]) => (
+                        <Tag key={t} variant="filled">
+                          {t} {s.count} · {formatSize(s.size)}
+                        </Tag>
+                      ))}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        </Card>
+      )}
+
       <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch}>
+        <Form form={searchForm} layout="inline" onFinish={handleSearch} initialValues={params}>
           <Form.Item name="keyword">
             <Input placeholder="文件名" prefix={<SearchOutlined />} allowClear />
           </Form.Item>
@@ -122,18 +241,39 @@ export default function FilePage() {
       </Card>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
-          <Upload beforeUpload={beforeUpload} showUploadList={false} multiple={false}>
-            <Button type="primary" icon={<UploadOutlined />} loading={uploading}>
-              上传文件
-            </Button>
-          </Upload>
-        </div>
+        <TableToolbar
+          title="文件列表"
+          total={total}
+          extra={
+            <>
+              {selectedIds.length > 0 && hasPerm('system:file:delete') && (
+                <Popconfirm
+                  title={`确认删除选中的 ${selectedIds.length} 个文件?`}
+                  onConfirm={handleBatchDelete}
+                >
+                  <Button danger>批量删除 ({selectedIds.length})</Button>
+                </Popconfirm>
+              )}
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              {hasPerm('system:file:upload') && (
+                <Upload beforeUpload={beforeUpload} showUploadList={false} multiple>
+                  <Button type="primary" icon={<UploadOutlined />} loading={uploading}>
+                    上传文件
+                  </Button>
+                </Upload>
+              )}
+            </>
+          }
+        />
         <Table
           rowKey="id"
           columns={columns}
           dataSource={list}
           loading={loading}
+          rowSelection={{
+            selectedRowKeys: selectedIds,
+            onChange: (keys) => setSelectedIds(keys as number[]),
+          }}
           pagination={{
             total,
             current: params.page,
@@ -144,6 +284,20 @@ export default function FilePage() {
           }}
         />
       </Card>
+
+      {previewUrl && (
+        <Image
+          style={{ display: 'none' }}
+          src={previewUrl}
+          preview={{
+            visible: true,
+            src: previewUrl,
+            onVisibleChange: (visible) => {
+              if (!visible) closePreview()
+            },
+          }}
+        />
+      )}
     </div>
   )
 }

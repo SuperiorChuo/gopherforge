@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react'
-import { Table, Button, Popconfirm, message, Card } from 'antd'
+import { Table, Button, Popconfirm, Card, Badge } from 'antd'
+import { message } from '@/utils/feedback'
 import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { OnlineUser } from '@/types'
 import { getOnlineUserList, kickUser } from '@/api/system/online-user'
+import TableToolbar from '@/components/TableToolbar'
+import { formatDateTime } from '@/utils/format'
+import { usePermission } from '@/hooks/usePermission'
 
 export default function OnlineUserPage() {
   const [list, setList] = useState<OnlineUser[]>([])
   const [loading, setLoading] = useState(false)
+  const { hasPerm } = usePermission()
 
   const fetchList = async () => {
     setLoading(true)
@@ -25,9 +30,9 @@ export default function OnlineUserPage() {
     fetchList()
   }, [])
 
-  const handleKick = async (session_id: string) => {
+  const handleKick = async (tokenId: string) => {
     try {
-      await kickUser(session_id)
+      await kickUser(tokenId)
       message.success('已踢出该用户')
       fetchList()
     } catch {
@@ -36,36 +41,76 @@ export default function OnlineUserPage() {
   }
 
   const columns: ColumnsType<OnlineUser> = [
-    { title: 'Session ID', dataIndex: 'session_id', ellipsis: true },
-    { title: '用户名', dataIndex: 'username', width: 140 },
-    { title: 'IP', dataIndex: 'ip', width: 140 },
-    { title: '最后活跃时间', dataIndex: 'last_seen_at', width: 170 },
-    { title: '登录时间', dataIndex: 'created_at', width: 170 },
+    {
+      title: '用户',
+      dataIndex: 'username',
+      width: 180,
+      render: (v: string, record) => (
+        <Badge status="processing" text={record.nickname ? `${v}（${record.nickname}）` : v} />
+      ),
+    },
+    {
+      title: 'Token',
+      dataIndex: 'token_id',
+      ellipsis: true,
+      render: (v: string) => <span className="cell-mono">{v}</span>,
+    },
+    {
+      title: 'IP / 位置',
+      dataIndex: 'ip',
+      width: 180,
+      render: (v: string, record) => (
+        <span className="cell-mono">{[v, record.location].filter(Boolean).join(' · ') || '-'}</span>
+      ),
+    },
+    {
+      title: '浏览器 / 系统',
+      dataIndex: 'browser',
+      width: 180,
+      render: (v: string, record) => [v, record.os].filter(Boolean).join(' / ') || '-',
+    },
+    {
+      title: '登录时间',
+      dataIndex: 'login_time',
+      width: 170,
+      className: 'cell-time',
+      render: formatDateTime,
+    },
+    {
+      title: '过期时间',
+      dataIndex: 'access_token_expires_at',
+      width: 170,
+      className: 'cell-time',
+      render: formatDateTime,
+    },
     {
       title: '操作',
       width: 100,
-      render: (_, record) => (
-        <Popconfirm
-          title="确认踢出该用户?"
-          onConfirm={() => handleKick(record.session_id)}
-        >
-          <Button type="link" size="small" danger>踢出</Button>
-        </Popconfirm>
-      ),
+      render: (_, record) =>
+        hasPerm('system:online-user:kick') && (
+          <Popconfirm
+            title="确认踢出该用户?"
+            onConfirm={() => handleKick(record.token_id)}
+          >
+            <Button type="link" size="small" danger>踢出</Button>
+          </Popconfirm>
+        ),
     },
   ]
 
   return (
-    <Card
-      title="在线用户"
-      extra={
-        <Button icon={<ReloadOutlined />} onClick={fetchList} loading={loading}>
-          刷新
-        </Button>
-      }
-    >
+    <Card>
+      <TableToolbar
+        title="在线用户"
+        total={list.length}
+        extra={
+          <Button icon={<ReloadOutlined />} onClick={fetchList} loading={loading}>
+            刷新
+          </Button>
+        }
+      />
       <Table
-        rowKey="session_id"
+        rowKey="token_id"
         columns={columns}
         dataSource={list}
         loading={loading}

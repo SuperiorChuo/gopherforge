@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  message, Card,
+  Card,
 } from 'antd'
+import { message } from '@/utils/feedback'
 import { PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Permission } from '@/types'
 import * as PermAPI from '@/api/system/permission'
+import TableToolbar from '@/components/TableToolbar'
+import { useUrlParams } from '@/hooks/useUrlParams'
+import { formatDateTime } from '@/utils/format'
+import { usePermission } from '@/hooks/usePermission'
 
 interface SearchParams {
   keyword?: string
-  status?: number
   page: number
   page_size: number
 }
@@ -22,12 +26,13 @@ export default function PermissionPage() {
   const [list, setList] = useState<Permission[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [params, setParams] = useState<SearchParams>({ page: 1, page_size: 10 })
+  const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [modalOpen, setModalOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<Permission | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
+  const { hasPerm } = usePermission()
 
   const fetchList = async (p: SearchParams) => {
     setLoading(true)
@@ -46,7 +51,7 @@ export default function PermissionPage() {
     fetchList(params)
   }, [params])
 
-  const handleSearch = (values: { keyword?: string; status?: number }) => {
+  const handleSearch = (values: { keyword?: string }) => {
     setParams({ ...params, page: 1, ...values })
   }
 
@@ -68,7 +73,6 @@ export default function PermissionPage() {
       code: record.code,
       type: record.type,
       description: record.description,
-      status: record.status,
     })
     setModalOpen(true)
   }
@@ -77,16 +81,21 @@ export default function PermissionPage() {
     try {
       await PermAPI.deletePermission(id)
       message.success('删除成功')
-      fetchList(params)
+      if (list.length === 1 && params.page > 1) {
+        setParams({ ...params, page: params.page - 1 })
+      } else {
+        fetchList(params)
+      }
     } catch {
       message.error('删除失败')
     }
   }
 
   const handleSubmit = async () => {
+    const values = await form.validateFields().catch(() => null)
+    if (!values) return
+    setSubmitting(true)
     try {
-      const values = await form.validateFields()
-      setSubmitting(true)
       if (editRecord) {
         await PermAPI.updatePermission(editRecord.id, values)
         message.success('更新成功')
@@ -106,27 +115,31 @@ export default function PermissionPage() {
   const columns: ColumnsType<Permission> = [
     { title: 'ID', dataIndex: 'id', width: 60 },
     { title: '名称', dataIndex: 'name' },
-    { title: '编码', dataIndex: 'code' },
+    {
+      title: '编码',
+      dataIndex: 'code',
+      render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
+    },
     {
       title: '类型',
       dataIndex: 'type',
+      width: 80,
       render: (v: number) => <Tag color={typeColors[v]}>{typeLabels[v] ?? v}</Tag>,
     },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      render: (v: number) => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? '启用' : '禁用'}</Tag>,
-    },
-    { title: '创建时间', dataIndex: 'created_at', width: 170 },
+    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
     {
       title: '操作',
       width: 140,
       render: (_, record) => (
         <Space>
-          <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
-          <Popconfirm title="确认删除该权限?" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger>删除</Button>
-          </Popconfirm>
+          {hasPerm('system:permission:update') && (
+            <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
+          )}
+          {hasPerm('system:permission:delete') && (
+            <Popconfirm title="确认删除该权限?" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -135,15 +148,9 @@ export default function PermissionPage() {
   return (
     <div>
       <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch}>
+        <Form form={searchForm} layout="inline" onFinish={handleSearch} initialValues={params}>
           <Form.Item name="keyword">
             <Input placeholder="名称/编码" prefix={<SearchOutlined />} allowClear />
-          </Form.Item>
-          <Form.Item name="status">
-            <Select placeholder="状态" style={{ width: 100 }} allowClear>
-              <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
-            </Select>
           </Form.Item>
           <Form.Item>
             <Space>
@@ -155,9 +162,18 @@ export default function PermissionPage() {
       </Card>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增权限</Button>
-        </div>
+        <TableToolbar
+          title="权限列表"
+          total={total}
+          extra={
+            <>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              {hasPerm('system:permission:create') && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增权限</Button>
+              )}
+            </>
+          }
+        />
         <Table
           rowKey="id"
           columns={columns}
@@ -180,7 +196,7 @@ export default function PermissionPage() {
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
         confirmLoading={submitting}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
@@ -198,12 +214,6 @@ export default function PermissionPage() {
           </Form.Item>
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={3} />
-          </Form.Item>
-          <Form.Item name="status" label="状态" initialValue={1}>
-            <Select>
-              <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
-            </Select>
           </Form.Item>
         </Form>
       </Modal>

@@ -45,5 +45,13 @@ export const disableTotp = (data: { code: string; current_password: string }) =>
 export const regenerateTotpRecoveryCodes = (data: { code: string; current_password: string }) =>
   request.post('/api/v1/user/2fa/recovery-codes', data)
 
+export interface CaptchaData {
+  key: string
+  type: string
+  image: string
+  width: number
+  height: number
+}
+
 export const getCaptcha = () =>
-  request.get<unknown, { captcha_id: string; captcha_image: string }>('/api/v1/captcha')
+  request.get<unknown, CaptchaData>('/api/v1/captcha')

@@ -398,6 +398,7 @@ const loginTypeLabel = (type: number) => {
   if (type === 1) return '账号密码';
   if (type === 2) return 'GitHub';
   if (type === 3) return '微信';
+  if (type === 4) return 'TOTP';
   return '其他方式';
 };
 
@@ -405,6 +406,7 @@ const loginTypeTheme = (type: number): TagTheme => {
   if (type === 1) return 'primary';
   if (type === 2) return 'default';
   if (type === 3) return 'success';
+  if (type === 4) return 'primary';
   return 'warning';
 };
 

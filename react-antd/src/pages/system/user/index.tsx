@@ -1,13 +1,22 @@
 import { useEffect, useState } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  message, Card, Row, Col, InputNumber,
+  Card, Row, Col, Avatar,
 } from 'antd'
-import { PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
+import { message } from '@/utils/feedback'
+import { PlusOutlined, SearchOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import type { SystemUser, SystemRole } from '@/types'
+import type { SystemUser, SystemRole, Department } from '@/types'
 import * as UserAPI from '@/api/system/user'
 import { getRoleList } from '@/api/system/role'
+import { getDepartmentList } from '@/api/system/department'
+import TableToolbar from '@/components/TableToolbar'
+import { useUrlParams } from '@/hooks/useUrlParams'
+import { formatDateTime } from '@/utils/format'
+import { usePermission } from '@/hooks/usePermission'
+
+const avatarPalette = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6']
+const roleTagPalette = ['geekblue', 'cyan', 'purple', 'magenta', 'gold']
 
 interface SearchParams {
   keyword?: string
@@ -20,16 +29,15 @@ export default function UserPage() {
   const [list, setList] = useState<SystemUser[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [params, setParams] = useState<SearchParams>({ page: 1, page_size: 10 })
+  const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [modalOpen, setModalOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<SystemUser | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [roles, setRoles] = useState<SystemRole[]>([])
-  const [pwdModalOpen, setPwdModalOpen] = useState(false)
-  const [pwdUserId, setPwdUserId] = useState<number | null>(null)
+  const [depts, setDepts] = useState<Department[]>([])
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
-  const [pwdForm] = Form.useForm()
+  const { hasPerm } = usePermission()
 
   const fetchList = async (p: SearchParams) => {
     setLoading(true)
@@ -59,6 +67,11 @@ export default function UserPage() {
 
   useEffect(() => {
     fetchRoles()
+    getDepartmentList({ page: 1, page_size: 200 })
+      .then((res) => setDepts(res.list))
+      .catch(() => {
+        // ignore
+      })
   }, [])
 
   const handleSearch = (values: { keyword?: string; status?: number }) => {
@@ -94,19 +107,29 @@ export default function UserPage() {
     try {
       await UserAPI.deleteUser(id)
       message.success('删除成功')
-      fetchList(params)
+      // 删除的是当前页最后一条时回退一页，避免落在空页
+      if (list.length === 1 && params.page > 1) {
+        setParams({ ...params, page: params.page - 1 })
+      } else {
+        fetchList(params)
+      }
     } catch {
       message.error('删除失败')
     }
   }
 
   const handleSubmit = async () => {
+    const values = await form.validateFields().catch(() => null)
+    if (!values) return
+    setSubmitting(true)
     try {
-      const values = await form.validateFields()
-      setSubmitting(true)
       const { role_ids, ...rest } = values
       if (editRecord) {
         await UserAPI.updateUser(editRecord.id, rest)
+        // 后端的用户更新接口不含状态字段，状态走独立接口
+        if (typeof rest.status === 'number' && rest.status !== editRecord.status) {
+          await UserAPI.updateUserStatus(editRecord.id, rest.status)
+        }
         if (role_ids !== undefined) {
           await UserAPI.assignUserRoles(editRecord.id, role_ids ?? [])
         }
@@ -127,53 +150,58 @@ export default function UserPage() {
     }
   }
 
-  const openResetPwd = (id: number) => {
-    setPwdUserId(id)
-    pwdForm.resetFields()
-    setPwdModalOpen(true)
-  }
-
-  const handleResetPwd = async () => {
-    try {
-      const { new_password } = await pwdForm.validateFields()
-      setSubmitting(true)
-      await UserAPI.resetUserPassword(pwdUserId!, new_password)
-      message.success('密码重置成功')
-      setPwdModalOpen(false)
-    } catch {
-      message.error('密码重置失败')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   const columns: ColumnsType<SystemUser> = [
     { title: 'ID', dataIndex: 'id', width: 60 },
-    { title: '用户名', dataIndex: 'username' },
-    { title: '昵称', dataIndex: 'nickname' },
+    {
+      title: '用户',
+      dataIndex: 'username',
+      render: (_, record) => (
+        <div className="user-cell">
+          <Avatar
+            size={36}
+            icon={<UserOutlined />}
+            style={{ background: avatarPalette[record.id % avatarPalette.length], flexShrink: 0 }}
+          >
+            {(record.nickname || record.username)?.slice(0, 1).toUpperCase()}
+          </Avatar>
+          <div>
+            <div className="user-cell-name">{record.username}</div>
+            {record.nickname && <div className="user-cell-sub">{record.nickname}</div>}
+          </div>
+        </div>
+      ),
+    },
     { title: '邮箱', dataIndex: 'email' },
     {
       title: '状态',
       dataIndex: 'status',
+      width: 80,
       render: (v: number) => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? '启用' : '禁用'}</Tag>,
     },
     {
       title: '角色',
       dataIndex: 'roles',
       render: (roles: SystemUser['roles']) =>
-        roles?.map((r) => <Tag key={r.id} color="blue">{r.code}</Tag>),
+        roles?.map((r, i) => (
+          <Tag key={r.id} color={roleTagPalette[i % roleTagPalette.length]} variant="filled">
+            {r.code}
+          </Tag>
+        )),
     },
-    { title: '创建时间', dataIndex: 'created_at', width: 170 },
+    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
     {
       title: '操作',
-      width: 200,
+      width: 140,
       render: (_, record) => (
         <Space>
-          <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
-          <Popconfirm title="确认删除该用户?" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger>删除</Button>
-          </Popconfirm>
-          <Button type="link" size="small" onClick={() => openResetPwd(record.id)}>重置密码</Button>
+          {hasPerm('system:user:update') && (
+            <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
+          )}
+          {hasPerm('system:user:delete') && (
+            <Popconfirm title="确认删除该用户?" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -182,7 +210,7 @@ export default function UserPage() {
   return (
     <div>
       <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch}>
+        <Form form={searchForm} layout="inline" onFinish={handleSearch} initialValues={params}>
           <Form.Item name="keyword">
             <Input placeholder="用户名/邮箱" prefix={<SearchOutlined />} allowClear />
           </Form.Item>
@@ -202,9 +230,18 @@ export default function UserPage() {
       </Card>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增用户</Button>
-        </div>
+        <TableToolbar
+          title="用户列表"
+          total={total}
+          extra={
+            <>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              {hasPerm('system:user:create') && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增用户</Button>
+              )}
+            </>
+          }
+        />
         <Table
           rowKey="id"
           columns={columns}
@@ -227,7 +264,7 @@ export default function UserPage() {
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
         confirmLoading={submitting}
-        destroyOnClose
+        destroyOnHidden
         width={560}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
@@ -245,7 +282,15 @@ export default function UserPage() {
           </Row>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="email" label="邮箱">
+              <Form.Item
+                name="email"
+                label="邮箱"
+                rules={[
+                  { type: 'email', message: '邮箱格式不正确' },
+                  // 后端更新接口要求邮箱必填且合法
+                  ...(editRecord ? [{ required: true, message: '请输入邮箱' }] : []),
+                ]}
+              >
                 <Input />
               </Form.Item>
             </Col>
@@ -256,7 +301,14 @@ export default function UserPage() {
             </Col>
           </Row>
           {!editRecord && (
-            <Form.Item name="password" label="密码" rules={[{ required: true, message: '请输入密码' }]}>
+            <Form.Item
+              name="password"
+              label="密码"
+              rules={[
+                { required: true, message: '请输入密码' },
+                { min: 6, message: '密码至少 6 位' },
+              ]}
+            >
               <Input.Password />
             </Form.Item>
           )}
@@ -270,8 +322,22 @@ export default function UserPage() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="department_id" label="部门ID">
-                <InputNumber style={{ width: '100%' }} min={0} />
+              <Form.Item
+                name="department_id"
+                label="部门"
+                tooltip={editRecord ? '后端暂不支持修改已有用户的部门' : undefined}
+              >
+                <Select
+                  allowClear
+                  showSearch
+                  placeholder="请选择部门"
+                  optionFilterProp="children"
+                  disabled={!!editRecord}
+                >
+                  {depts.map((d) => (
+                    <Select.Option key={d.id} value={d.id}>{d.name}</Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
           </Row>
@@ -281,21 +347,6 @@ export default function UserPage() {
                 <Select.Option key={r.id} value={r.id}>{r.name}</Select.Option>
               ))}
             </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="重置密码"
-        open={pwdModalOpen}
-        onOk={handleResetPwd}
-        onCancel={() => setPwdModalOpen(false)}
-        confirmLoading={submitting}
-        destroyOnClose
-      >
-        <Form form={pwdForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="new_password" label="新密码" rules={[{ required: true, message: '请输入新密码' }]}>
-            <Input.Password />
           </Form.Item>
         </Form>
       </Modal>

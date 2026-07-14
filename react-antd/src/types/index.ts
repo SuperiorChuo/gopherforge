@@ -1,8 +1,16 @@
 export interface LoginRequest {
   username: string
   password: string
-  captcha?: string
-  captcha_id?: string
+  captcha_id: string
+  captcha_code: string
+}
+
+export interface CaptchaResponse {
+  key: string
+  type: string
+  image: string
+  width: number
+  height: number
 }
 
 export interface LoginResponse {
@@ -103,7 +111,7 @@ export interface SystemRole {
   name: string
   code: string
   description?: string
-  status: number
+  data_scope?: string
   created_at?: string
 }
 
@@ -113,7 +121,9 @@ export interface Permission {
   code: string
   type: number
   description?: string
-  status: number
+  path?: string
+  method?: string
+  parent_id?: number
   created_at?: string
 }
 
@@ -127,7 +137,7 @@ export interface Menu {
   parent_id: number
   sort: number
   status: number
-  hidden?: boolean
+  hidden?: number
   created_at?: string
   children?: Menu[]
 }
@@ -180,10 +190,12 @@ export interface LoginLog {
   user_id: number
   username: string
   ip: string
+  location?: string
   status: number
   login_type: number
   browser?: string
   os?: string
+  message?: string
   created_at?: string
 }
 
@@ -193,10 +205,17 @@ export interface OperationLog {
   username?: string
   method: string
   path: string
+  query?: string
+  request_body?: string
+  response_body?: string
   status: number
   module?: string
   action?: string
   request_id?: string
+  ip?: string
+  user_agent?: string
+  latency?: number
+  error_msg?: string
   created_at?: string
 }
 
@@ -221,18 +240,25 @@ export interface ScheduledJob {
   id: number
   name: string
   group_name?: string
-  cron_expr: string
-  handler: string
-  args?: string
+  cron_expression: string
+  invoke_target: string
+  description?: string
   status: number
+  concurrent?: number
+  last_run_time?: string
+  next_run_time?: string
   created_at?: string
 }
 
 export interface OnlineUser {
-  session_id: string
   user_id: number
   username: string
+  nickname?: string
   ip?: string
-  last_seen_at?: string
-  created_at?: string
+  location?: string
+  browser?: string
+  os?: string
+  login_time?: string
+  token_id: string
+  access_token_expires_at?: string
 }

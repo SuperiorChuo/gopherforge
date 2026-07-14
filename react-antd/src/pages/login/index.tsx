@@ -1,24 +1,63 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Form, Input, Button, Card, Typography, message, Alert } from 'antd'
-import { UserOutlined, LockOutlined } from '@ant-design/icons'
+import { Form, Input, Button, Alert, Spin } from 'antd'
+import { message } from '@/utils/feedback'
+import {
+  UserOutlined,
+  LockOutlined,
+  SafetyOutlined,
+  ReloadOutlined,
+  ThunderboltOutlined,
+  SafetyCertificateOutlined,
+  RadarChartOutlined,
+} from '@ant-design/icons'
 import { useAppDispatch, useAppSelector } from '@/hooks/store'
 import { login } from '@/store/slices/authSlice'
-
-const { Title } = Typography
+import { getCaptcha } from '@/api/auth'
+import { setTokens } from '@/utils/request'
 
 export default function LoginPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { loading } = useAppSelector((s) => s.auth)
+  const [form] = Form.useForm()
   const [error, setError] = useState<string | null>(null)
   const [totpStep, setTotpStep] = useState(false)
   const [challengeId, setChallengeId] = useState<string | null>(null)
 
-  const onFinish = async (values: { username: string; password: string }) => {
+  const [captchaImg, setCaptchaImg] = useState('')
+  const [captchaId, setCaptchaId] = useState('')
+  const [captchaLoading, setCaptchaLoading] = useState(false)
+
+  const refreshCaptcha = useCallback(async () => {
+    setCaptchaLoading(true)
+    try {
+      const res = await getCaptcha()
+      setCaptchaId(res.key)
+      setCaptchaImg(res.image.startsWith('data:') ? res.image : `data:image/png;base64,${res.image}`)
+      form.setFieldValue('captcha_code', '')
+    } catch {
+      setError('验证码加载失败，请点击刷新')
+    } finally {
+      setCaptchaLoading(false)
+    }
+  }, [form])
+
+  useEffect(() => {
+    refreshCaptcha()
+  }, [refreshCaptcha])
+
+  const onFinish = async (values: { username: string; password: string; captcha_code: string }) => {
     setError(null)
     try {
-      const result = await dispatch(login(values)).unwrap()
+      const result = await dispatch(
+        login({
+          username: values.username,
+          password: values.password,
+          captcha_id: captchaId,
+          captcha_code: values.captcha_code,
+        }),
+      ).unwrap()
       if (result.require_totp && result.totp_challenge_id) {
         setChallengeId(result.totp_challenge_id)
         setTotpStep(true)
@@ -29,6 +68,7 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '用户名或密码错误'
       setError(msg)
+      refreshCaptcha()
     }
   }
 
@@ -37,7 +77,10 @@ export default function LoginPage() {
     setError(null)
     try {
       const { verifyTotpLogin } = await import('@/api/auth')
-      await verifyTotpLogin({ challenge_id: challengeId, code: values.code })
+      const res = await verifyTotpLogin({ challenge_id: challengeId, code: values.code })
+      if (res.access_token && res.refresh_token) {
+        setTokens(res.access_token, res.refresh_token)
+      }
       message.success('登录成功')
       navigate('/dashboard', { replace: true })
     } catch {
@@ -46,51 +89,148 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #1677ff 0%, #003eb3 100%)',
-    }}>
-      <Card style={{ width: 400, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <Title level={3} style={{ marginBottom: 4, color: '#1677ff' }}>Go Admin Kit</Title>
-          <Typography.Text type="secondary">
-            {totpStep ? '请输入两步验证码' : '欢迎回来，请登录'}
-          </Typography.Text>
+    <div className="login-page">
+      <div className="login-aurora login-aurora-1" />
+      <div className="login-aurora login-aurora-2" />
+      <div className="login-aurora login-aurora-3" />
+      <div className="login-grid" />
+
+      <div className="login-shell">
+        <div className="login-brand">
+          <div className="login-logo">
+            <div className="login-logo-mark">
+              <SafetyOutlined />
+            </div>
+            <span className="login-logo-name">Go Admin Kit</span>
+          </div>
+
+          <div>
+            <h1 className="login-headline">
+              以工程之美，
+              <br />
+              驱动<em>企业级</em>管理
+            </h1>
+            <p className="login-subline">
+              高性能 Go 后端与现代 React 前端的完整解决方案，
+              <br />
+              安全、可靠、开箱即用。
+            </p>
+          </div>
+
+          <ul className="login-features">
+            <li>
+              <span className="login-feature-icon"><ThunderboltOutlined /></span>
+              Go + React 19 现代技术栈，极致响应
+            </li>
+            <li>
+              <span className="login-feature-icon"><SafetyCertificateOutlined /></span>
+              RBAC 细粒度权限 · TOTP 两步验证
+            </li>
+            <li>
+              <span className="login-feature-icon"><RadarChartOutlined /></span>
+              实时监控 · 操作留痕 · 审计一体化
+            </li>
+          </ul>
         </div>
 
-        {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 16 }} closable onClose={() => setError(null)} />}
+        <div className="login-form-panel">
+          <div className="login-form-inner">
+            <h2 className="login-form-title">{totpStep ? '两步验证' : '欢迎回来'}</h2>
+            <p className="login-form-sub">
+              {totpStep ? '请输入身份验证器中的 6 位验证码' : '登录您的账户，继续您的工作'}
+            </p>
 
-        {!totpStep ? (
-          <Form name="login" onFinish={onFinish} autoComplete="off" size="large">
-            <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
-              <Input prefix={<UserOutlined />} placeholder="用户名" />
-            </Form.Item>
-            <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
-              <Input.Password prefix={<LockOutlined />} placeholder="密码" />
-            </Form.Item>
-            <Form.Item>
-              <Button type="primary" htmlType="submit" loading={loading} block>
-                登录
-              </Button>
-            </Form.Item>
-          </Form>
-        ) : (
-          <Form name="totp" onFinish={onTotpFinish} autoComplete="off" size="large">
-            <Form.Item name="code" rules={[{ required: true, message: '请输入验证码' }]}>
-              <Input placeholder="6 位验证码" maxLength={6} style={{ letterSpacing: 4, textAlign: 'center' }} />
-            </Form.Item>
-            <Form.Item>
-              <Button type="primary" htmlType="submit" block>验证</Button>
-            </Form.Item>
-            <Button type="link" block onClick={() => { setTotpStep(false); setChallengeId(null) }}>
-              返回登录
-            </Button>
-          </Form>
-        )}
-      </Card>
+            {error && (
+              <Alert
+                message={error}
+                type="error"
+                showIcon
+                style={{ margin: '20px 0 0' }}
+                closable
+                onClose={() => setError(null)}
+              />
+            )}
+
+            {!totpStep ? (
+              <Form
+                form={form}
+                name="login"
+                onFinish={onFinish}
+                autoComplete="off"
+                size="large"
+                style={{ marginTop: 28 }}
+              >
+                <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
+                  <Input prefix={<UserOutlined />} placeholder="用户名" />
+                </Form.Item>
+                <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
+                  <Input.Password prefix={<LockOutlined />} placeholder="密码" />
+                </Form.Item>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <Form.Item
+                    name="captcha_code"
+                    rules={[{ required: true, message: '请输入验证码' }]}
+                    style={{ flex: 1 }}
+                  >
+                    <Input prefix={<SafetyOutlined />} placeholder="验证码" maxLength={6} />
+                  </Form.Item>
+                  <div
+                    className="login-captcha-img"
+                    onClick={refreshCaptcha}
+                    title="点击刷新验证码"
+                  >
+                    {captchaImg && !captchaLoading ? (
+                      <img src={captchaImg} alt="验证码" />
+                    ) : (
+                      <Spin size="small" indicator={<ReloadOutlined spin />} />
+                    )}
+                  </div>
+                </div>
+                <Form.Item style={{ marginBottom: 0 }}>
+                  <Button type="primary" htmlType="submit" loading={loading} block>
+                    登 录
+                  </Button>
+                </Form.Item>
+              </Form>
+            ) : (
+              <Form
+                name="totp"
+                onFinish={onTotpFinish}
+                autoComplete="off"
+                size="large"
+                style={{ marginTop: 28 }}
+              >
+                <Form.Item name="code" rules={[{ required: true, message: '请输入验证码' }]}>
+                  <Input
+                    placeholder="6 位验证码"
+                    maxLength={6}
+                    style={{ letterSpacing: 8, textAlign: 'center', fontSize: 18 }}
+                  />
+                </Form.Item>
+                <Form.Item style={{ marginBottom: 8 }}>
+                  <Button type="primary" htmlType="submit" block>
+                    验 证
+                  </Button>
+                </Form.Item>
+                <Button
+                  type="link"
+                  block
+                  onClick={() => {
+                    setTotpStep(false)
+                    setChallengeId(null)
+                  }}
+                >
+                  返回登录
+                </Button>
+              </Form>
+            )}
+
+            <div className="login-footer">
+              © {new Date().getFullYear()} Go Admin Kit · All rights reserved
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -35,6 +35,7 @@ const routes: RouteObject[] = [
       { path: 'system/file', element: lazyLoad(() => import('@/pages/system/file')) },
       { path: 'system/login-log', element: lazyLoad(() => import('@/pages/system/login-log')) },
       { path: 'system/operation-log', element: lazyLoad(() => import('@/pages/system/operation-log')) },
+      { path: 'system/audit-log', element: lazyLoad(() => import('@/pages/system/audit-log')) },
       { path: 'system/notice', element: lazyLoad(() => import('@/pages/system/notice')) },
       { path: 'system/online-user', element: lazyLoad(() => import('@/pages/system/online-user')) },
       { path: 'system/setting', element: lazyLoad(() => import('@/pages/system/setting')) },
