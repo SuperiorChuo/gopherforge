@@ -23,6 +23,12 @@ type Config struct {
 	Security      SecurityConfig      `yaml:"security"`
 	Notification  NotificationConfig  `yaml:"notification"`
 	Observability ObservabilityConfig `yaml:"observability"`
+	NATS          NATSConfig          `yaml:"nats"`
+}
+
+type NATSConfig struct {
+	// URL is the NATS server URL; empty disables event consumption.
+	URL string `yaml:"url"`
 }
 
 type AppCfg struct {
@@ -409,6 +415,8 @@ func replaceEnvVars(config *Config) {
 	config.Database.SSLMode = getEnvString("DB_SSLMODE", config.Database.SSLMode)
 	config.Database.ConnMaxLifetimeSeconds = getEnvInt("DB_CONN_MAX_LIFETIME_SECONDS", config.Database.ConnMaxLifetimeSeconds)
 	config.Database.ConnMaxIdleTimeSeconds = getEnvInt("DB_CONN_MAX_IDLE_TIME_SECONDS", config.Database.ConnMaxIdleTimeSeconds)
+
+	config.NATS.URL = getEnvString("NATS_URL", config.NATS.URL)
 
 	config.Redis.Host = getEnvString("REDIS_HOST", config.Redis.Host)
 	config.Redis.Port = getEnvInt("REDIS_PORT", config.Redis.Port)

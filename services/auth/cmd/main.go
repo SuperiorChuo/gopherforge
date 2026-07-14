@@ -16,34 +16,20 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/api"
-	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
-	systemAPI "github.com/go-admin-kit/server/internal/api/system"
-	"github.com/go-admin-kit/server/internal/config"
-	authDAO "github.com/go-admin-kit/server/internal/dao/auth"
-	systemDAO "github.com/go-admin-kit/server/internal/dao/system"
-	"github.com/go-admin-kit/server/internal/events"
-	"github.com/go-admin-kit/server/internal/middleware"
-	"github.com/go-admin-kit/server/internal/pkg/authz"
-	"github.com/go-admin-kit/server/internal/pkg/database"
-	"github.com/go-admin-kit/server/internal/pkg/logger"
-	"github.com/go-admin-kit/server/internal/pkg/observability"
-	"github.com/go-admin-kit/server/internal/pkg/redis"
-	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
-	authsvc "github.com/go-admin-kit/server/internal/service/auth"
-	monitorSvc "github.com/go-admin-kit/server/internal/service/monitor"
-	systemSvc "github.com/go-admin-kit/server/internal/service/system"
+	"github.com/go-admin-kit/services/auth/internal/api"
+	sharedapi "github.com/go-admin-kit/services/auth/internal/api/shared"
+	"github.com/go-admin-kit/services/auth/internal/config"
+	authDAO "github.com/go-admin-kit/services/auth/internal/dao/auth"
+	systemDAO "github.com/go-admin-kit/services/auth/internal/dao/system"
+	"github.com/go-admin-kit/services/auth/internal/events"
+	"github.com/go-admin-kit/services/auth/internal/middleware"
+	"github.com/go-admin-kit/services/auth/internal/pkg/database"
+	"github.com/go-admin-kit/services/auth/internal/pkg/logger"
+	"github.com/go-admin-kit/services/auth/internal/pkg/observability"
+	"github.com/go-admin-kit/services/auth/internal/pkg/redis"
+	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
+	authsvc "github.com/go-admin-kit/services/auth/internal/service/auth"
 )
-
-// @title           Go Admin Kit API
-// @version         1.0
-// @description     A Gin + GORM + Redis admin backend starter.
-// @host            localhost:8081
-// @BasePath        /api/v1
-// @securityDefinitions.apikey Bearer
-// @in              header
-// @name            Authorization
-// @description     Type "Bearer" followed by a space and JWT token.
 
 func setupCORS(router *gin.Engine) {
 	cfg := config.Cfg.CORS
@@ -152,71 +138,6 @@ func serveHTTPServer(server *http.Server, listener net.Listener, shutdownTimeout
 	}
 }
 
-func startDepartmentTreeInvalidationListener(ctx context.Context) (*redis.StringSubscriber, error) {
-	return authz.StartDepartmentTreeInvalidationListener(ctx)
-}
-
-func startRuntimeConfigInvalidationListener(ctx context.Context) (*redis.StringSubscriber, error) {
-	return runtimeconfig.StartInvalidationListener(ctx)
-}
-
-func startNotificationRedisBridge(ctx context.Context) error {
-	return systemAPI.StartNotificationRedisBridge(ctx, systemSvc.DefaultNotificationBroadcaster())
-}
-
-func stopNotificationRedisBridge() error {
-	return systemAPI.StopNotificationRedisBridge()
-}
-
-func stopOperationLogProcessor(cancel context.CancelFunc, done <-chan struct{}, timeout time.Duration) error {
-	if cancel != nil {
-		cancel()
-	}
-	if done == nil {
-		return nil
-	}
-	if timeout <= 0 {
-		<-done
-		return nil
-	}
-
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	select {
-	case <-done:
-		return nil
-	case <-timer.C:
-		return fmt.Errorf("operation log processor shutdown timed out after %s", timeout)
-	}
-}
-
-type jobSchedulerShutdowner interface {
-	Shutdown() context.Context
-}
-
-func shutdownJobScheduler(scheduler jobSchedulerShutdowner, timeout time.Duration) error {
-	if scheduler == nil {
-		return nil
-	}
-	ctx := scheduler.Shutdown()
-	if ctx == nil {
-		return nil
-	}
-	if timeout <= 0 {
-		<-ctx.Done()
-		return nil
-	}
-
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return nil
-	case <-timer.C:
-		return fmt.Errorf("job scheduler shutdown timed out after %s", timeout)
-	}
-}
-
 func main() {
 	if err := run(context.Background()); err != nil {
 		if logger.Logger != nil {
@@ -229,15 +150,8 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	configPath := os.Getenv("CONFIG_FILE")
-	if configPath == "" {
-		configPath = "./configs/config.yaml"
-	}
-	if err := config.LoadConfig(configPath); err != nil {
+	if err := config.Load(); err != nil {
 		return fmt.Errorf("config load failed: %w", err)
-	}
-	if err := config.Validate(); err != nil {
-		return fmt.Errorf("config validation failed: %w", err)
 	}
 
 	logCfg := config.Cfg.Logger
@@ -252,18 +166,11 @@ func run(ctx context.Context) error {
 	if err := database.InitDatabase(); err != nil {
 		return fmt.Errorf("database initialization failed: %w", err)
 	}
-	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {
-		return fmt.Errorf("data scope plugin registration failed: %w", err)
-	}
+	consoleSessionService := authsvc.NewConsoleSessionServiceWithDB(database.DB)
 	middleware.SetAuthMiddlewareDependencies(middleware.AuthMiddlewareDependencies{
 		Users:           authDAO.NewUserDAO(database.DB),
 		Permissions:     authDAO.NewPermissionDAO(database.DB),
-		ConsoleSessions: authsvc.NewConsoleSessionServiceWithDB(database.DB),
-	})
-	authz.SetPersistence(authz.Persistence{
-		Users:       authDAO.NewUserDAO(database.DB),
-		Permissions: authDAO.NewPermissionDAO(database.DB),
-		DataScope:   authz.NewDatabaseDataScopeStore(database.DB),
+		ConsoleSessions: &consoleSessionService,
 	})
 	runtimeconfig.SetSecurityPolicyStore(systemDAO.NewSettingDAO(database.DB))
 	defer func() {
@@ -271,22 +178,6 @@ func run(ctx context.Context) error {
 			logger.Error("database close failed", logger.Err(err))
 		}
 	}()
-
-	lifecycleCtx, cancelLifecycle := context.WithCancel(ctx)
-	defer cancelLifecycle()
-	operationLogService := systemSvc.NewOperationLogServiceWithDB(database.DB)
-	operationLogDone := middleware.StartOperationLogProcessor(lifecycleCtx, &operationLogService)
-	defer func() {
-		if err := stopOperationLogProcessor(cancelLifecycle, operationLogDone, 5*time.Second); err != nil {
-			logger.Warn("operation log processor shutdown timeout", logger.Err(err))
-		}
-	}()
-
-	if menuResult, err := systemSvc.BootstrapDefaultMenusContext(ctx, database.DB); err != nil {
-		return fmt.Errorf("default menu bootstrap failed: %w", err)
-	} else if menuResult.Menus > 0 {
-		logger.Info("default menus bootstrapped", logger.Int("menus", menuResult.Menus))
-	}
 
 	logger.Info("initializing redis")
 	if err := redis.InitRedis(); err != nil {
@@ -298,18 +189,16 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	departmentTreeListener, err := startDepartmentTreeInvalidationListener(lifecycleCtx)
-	if err != nil {
-		logger.Warn("department tree invalidation listener start failed", logger.Err(err))
-	} else {
-		defer func() {
-			if err := departmentTreeListener.Close(); err != nil {
-				logger.Warn("department tree invalidation listener close failed", logger.Err(err))
-			}
-		}()
+	lifecycleCtx, cancelLifecycle := context.WithCancel(ctx)
+	defer cancelLifecycle()
+
+	// Warm up the runtime security policy cache; failures fall back to the
+	// static config defaults on first request.
+	if err := runtimeconfig.DefaultSecurityPolicyReader().Refresh(ctx); err != nil {
+		logger.Warn("security policy warmup failed", logger.Err(err))
 	}
 
-	runtimeConfigListener, err := startRuntimeConfigInvalidationListener(lifecycleCtx)
+	runtimeConfigListener, err := runtimeconfig.StartInvalidationListener(lifecycleCtx)
 	if err != nil {
 		logger.Warn("runtime config invalidation listener start failed", logger.Err(err))
 	} else {
@@ -320,25 +209,14 @@ func run(ctx context.Context) error {
 		}()
 	}
 
-	if err := startNotificationRedisBridge(lifecycleCtx); err != nil {
-		logger.Warn("notification redis bridge start failed", logger.Err(err))
-	} else {
-		defer func() {
-			if err := stopNotificationRedisBridge(); err != nil {
-				logger.Warn("notification redis bridge close failed", logger.Err(err))
-			}
-		}()
-	}
-
-	// Consume auth-service login events from NATS JetStream into login_logs.
-	// An empty NATS_URL disables consumption (single-binary deployments).
-	loginLogService := systemSvc.NewLoginLogServiceWithDB(database.DB)
-	authEventConsumer, err := events.StartLoginLogConsumer(lifecycleCtx, config.Cfg.NATS.URL, &loginLogService)
+	// Connect the NATS event publisher; an empty NATS_URL disables publishing.
+	publisher, err := events.Connect(config.Cfg.NATS.URL)
 	if err != nil {
-		logger.Warn("auth event consumer start failed, login logs from auth-service disabled", logger.Err(err))
-	} else if authEventConsumer != nil {
-		defer authEventConsumer.Close()
-		logger.Info("auth event consumer enabled", logger.String("url", config.Cfg.NATS.URL))
+		logger.Warn("nats connect failed, auth events disabled", logger.Err(err))
+	} else if publisher != nil {
+		events.SetDefault(publisher)
+		defer publisher.Close()
+		logger.Info("nats event publishing enabled", logger.String("url", config.Cfg.NATS.URL))
 	}
 
 	tracingCfg := config.Cfg.Observability.Tracing
@@ -372,27 +250,16 @@ func run(ctx context.Context) error {
 	}
 
 	router.Use(middleware.RequestID(config.Cfg.Observability.RequestIDHeader))
-	if config.Cfg.Observability.Tracing.Enabled {
-		router.Use(observability.GinTracing(config.Cfg.Observability.Tracing.ServiceName, middleware.RequestIDKey))
-	}
-	if config.Cfg.Observability.MetricsEnabled {
-		router.Use(middleware.Metrics())
+	if tracingCfg.Enabled {
+		router.Use(observability.GinTracing(tracingCfg.ServiceName, middleware.RequestIDKey))
 	}
 	router.Use(middleware.SecurityHeaders(config.Cfg.Security.Headers.Enabled, config.Cfg.Security.Headers.HSTS))
 	router.Use(middleware.Recovery())
-
 	router.Use(middleware.DynamicRateLimit(runtimeconfig.DefaultSecurityPolicyReader()))
-
 	router.Use(middleware.RequestLogger())
 	router.Use(middleware.ErrorHandler())
 	setupCORS(router)
-	jobScheduler := monitorSvc.InitJobService(database.DB)
 	api.SetupRoutesWithDeps(router, sharedapi.Dependencies{DB: database.DB, Redis: redis.Client})
-	defer func() {
-		if err := shutdownJobScheduler(jobScheduler, 5*time.Second); err != nil {
-			logger.Warn("job scheduler shutdown timeout", logger.Err(err))
-		}
-	}()
 
 	port := config.Cfg.App.Port
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: router}

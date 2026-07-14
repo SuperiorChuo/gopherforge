@@ -48,7 +48,7 @@ function printFailure(error) {
 
   console.error('');
   console.error('Next checks:');
-  console.error('1. Start dependencies and backend: docker compose up -d go-admin-kit-mysql go-admin-kit-redis, then start backend.');
+  console.error('1. Start dependencies and backend: docker compose up -d go-admin-kit-postgres go-admin-kit-redis, then start backend.');
   console.error(`2. Confirm readiness: Invoke-WebRequest ${config.apiBaseUrl}/health/ready`);
   console.error('3. Confirm credentials, or override: SMOKE_USERNAME=... SMOKE_PASSWORD=... npm run smoke:api.');
   console.error('4. If login is locked by repeated failures, wait for the configured login_limit window or clear local Redis.');

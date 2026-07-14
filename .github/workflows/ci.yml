@@ -52,6 +52,24 @@ jobs:
       - run: go vet ./...
       - run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --config ../.golangci.yml ./...
 
+  auth-service:
+    name: Auth Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/auth
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: services/auth/go.sum
+
+      - run: go mod download
+      - run: go test ./...
+      - run: go vet ./...
+
   integration:
     name: Integration Smoke
     runs-on: ubuntu-latest
@@ -59,16 +77,17 @@ jobs:
       - workspace
       - backend
     services:
-      mysql:
-        image: mysql:8.0
+      postgres:
+        image: pgvector/pgvector:pg16
         env:
-          MYSQL_ROOT_PASSWORD: 123456
-          MYSQL_DATABASE: go_admin_kit_ci
+          POSTGRES_PASSWORD: 123456
+          POSTGRES_DB: go_admin_kit_ci
+          POSTGRES_USER: postgres
           TZ: Asia/Shanghai
         ports:
-          - 3306:3306
+          - 5432:5432
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -p123456 --silent"
+          --health-cmd="pg_isready -U postgres -d go_admin_kit_ci"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=20
@@ -103,10 +122,11 @@ jobs:
           APP_ENV: development
           APP_PORT: 8081
           DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_USER: root
+          DB_PORT: 5432
+          DB_USER: postgres
           DB_PASSWORD: 123456
           DB_NAME: go_admin_kit_ci
+          DB_SSLMODE: disable
           REDIS_HOST: 127.0.0.1
           REDIS_PORT: 6379
           REDIS_PASSWORD: ''

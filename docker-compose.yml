@@ -1,24 +1,21 @@
 name: go-admin-kit
 
 services:
-  go-admin-kit-mysql:
-    image: mysql:8.0
-    container_name: go-admin-kit-mysql
+  go-admin-kit-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: go-admin-kit-postgres
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-go_admin_kit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      POSTGRES_DB: ${POSTGRES_DB:-go_admin_kit}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
       TZ: ${TZ:-Asia/Shanghai}
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --default-time-zone=+08:00
     ports:
-      - "${MYSQL_PORT:-3306}:3306"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - go_admin_kit_mysql_data:/var/lib/mysql
+      - go_admin_kit_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -51,6 +48,26 @@ services:
     networks:
       - go-admin-kit-net
 
+  go-admin-kit-nats:
+    image: nats:2.10-alpine
+    container_name: go-admin-kit-nats
+    restart: unless-stopped
+    command:
+      - --jetstream
+      - --store_dir=/data
+      - --http_port=8222
+    ports:
+      - "${NATS_PORT:-4222}:4222"
+    volumes:
+      - go_admin_kit_nats_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8222/healthz >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - go-admin-kit-net
+
   backend:
     build:
       context: ./server
@@ -60,11 +77,12 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8081
-      DB_HOST: go-admin-kit-mysql
-      DB_PORT: 3306
-      DB_USER: ${DB_USER:-root}
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
-      DB_NAME: ${MYSQL_DATABASE:-go_admin_kit}
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
       REDIS_HOST: go-admin-kit-redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -87,7 +105,7 @@ services:
       UPLOAD_MINIO_ACCESS_KEY: ${UPLOAD_MINIO_ACCESS_KEY:-minioadmin}
       UPLOAD_MINIO_SECRET_KEY: ${UPLOAD_MINIO_SECRET_KEY:-minioadmin}
       UPLOAD_MINIO_USE_SSL: ${UPLOAD_MINIO_USE_SSL:-false}
-      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
       CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
       DEFAULT_ADMIN_WARN_DEFAULT_PASSWORD: ${DEFAULT_ADMIN_WARN_DEFAULT_PASSWORD:-true}
       DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD: ${DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD:-false}
@@ -98,16 +116,86 @@ services:
       TRACING_ENVIRONMENT: ${TRACING_ENVIRONMENT:-development}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
       TRACING_SAMPLE_RATIO: ${TRACING_SAMPLE_RATIO:-1.0}
+      NATS_URL: nats://go-admin-kit-nats:4222
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "${BACKEND_PORT:-8081}:8081"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.backend.rule: "PathPrefix(`/api`) || PathPrefix(`/uploads`)"
+      traefik.http.routers.backend.entrypoints: web
+      traefik.http.routers.backend.middlewares: auth-verify
+      traefik.http.services.backend.loadbalancer.server.port: "8081"
     depends_on:
-      go-admin-kit-mysql:
+      go-admin-kit-postgres:
         condition: service_healthy
       go-admin-kit-redis:
         condition: service_healthy
+      go-admin-kit-nats:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  auth-service:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    container_name: go-admin-kit-auth
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8082
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      JWT_REFRESH_TOKEN_ROTATION: ${JWT_REFRESH_TOKEN_ROTATION:-true}
+      PASSWORD_MAX_AGE_DAYS: ${PASSWORD_MAX_AGE_DAYS:-90}
+      PASSWORD_HISTORY_COUNT: ${PASSWORD_HISTORY_COUNT:-5}
+      GITHUB_OAUTH_ENABLED: ${GITHUB_OAUTH_ENABLED:-false}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_REDIRECT_URI: ${GITHUB_REDIRECT_URI:-http://localhost:8000/api/v1/oauth/github/callback}
+      WECHAT_OAUTH_ENABLED: ${WECHAT_OAUTH_ENABLED:-false}
+      WECHAT_CLIENT_ID: ${WECHAT_CLIENT_ID:-}
+      WECHAT_CLIENT_SECRET: ${WECHAT_CLIENT_SECRET:-}
+      WECHAT_REDIRECT_URI: ${WECHAT_REDIRECT_URI:-http://localhost:8000/api/v1/oauth/wechat/callback}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      NATS_URL: nats://go-admin-kit-nats:4222
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${AUTH_SERVICE_PORT:-8082}:8082"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.auth.rule: "PathPrefix(`/api/v1/login`) || PathPrefix(`/api/v1/register`) || PathPrefix(`/api/v1/refresh`) || PathPrefix(`/api/v1/logout`) || PathPrefix(`/api/v1/captcha`) || PathPrefix(`/api/v1/oauth`) || PathPrefix(`/api/v1/auth`) || PathPrefix(`/api/v1/console-routes`) || PathPrefix(`/api/v1/user/me`) || PathPrefix(`/api/v1/user/profile`) || PathPrefix(`/api/v1/user/password`) || PathPrefix(`/api/v1/user/2fa`)"
+      traefik.http.routers.auth.entrypoints: web
+      traefik.http.routers.auth.priority: "100"
+      traefik.http.services.auth.loadbalancer.server.port: "8082"
+      traefik.http.middlewares.auth-verify.forwardauth.address: "http://go-admin-kit-auth:8082/internal/verify"
+      traefik.http.middlewares.auth-verify.forwardauth.authResponseHeaders: "X-Auth-User-ID,X-Auth-Username"
+    depends_on:
+      go-admin-kit-postgres:
+        condition: service_healthy
+      go-admin-kit-redis:
+        condition: service_healthy
+      go-admin-kit-nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/api/v1/health/ready >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -148,9 +236,52 @@ services:
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:80"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.frontend.rule: "PathPrefix(`/`)"
+      traefik.http.routers.frontend.entrypoints: web
+      traefik.http.routers.frontend.priority: "1"
+      traefik.http.services.frontend.loadbalancer.server.port: "80"
     depends_on:
       backend:
         condition: service_started
+    networks:
+      - go-admin-kit-net
+
+  gateway:
+    # v3.6+ negotiates the Docker API version; older Traefik pins 1.24, which
+    # current Docker daemons reject ("client version 1.24 is too old").
+    image: traefik:v3.6
+    container_name: go-admin-kit-gateway
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=go-admin-kit-net
+      - --entrypoints.web.address=:80
+      - --ping=true
+      - --accesslog=true
+      - --log.level=INFO
+      - --api.insecure=true
+    ports:
+      - "${GATEWAY_PORT:-8000}:80"
+      - "127.0.0.1:8090:8080"
+    volumes:
+      # Docker Desktop for Mac denies container access to /var/run/docker.sock;
+      # set DOCKER_SOCK=/var/run/docker.sock.raw in .env there. Linux keeps the default.
+      - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock:ro
+    depends_on:
+      backend:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      frontend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
     networks:
       - go-admin-kit-net
 
@@ -234,8 +365,9 @@ networks:
     name: go-admin-kit-net
 
 volumes:
-  go_admin_kit_mysql_data:
+  go_admin_kit_postgres_data:
   go_admin_kit_redis_data:
+  go_admin_kit_nats_data:
   go_admin_kit_minio_data:
   go_admin_kit_prometheus_data:
   go_admin_kit_grafana_data:
