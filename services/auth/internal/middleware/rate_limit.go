@@ -17,6 +17,7 @@ import (
 type RateLimitRedisClient interface {
 	Incr(ctx context.Context, key string) *goredis.IntCmd
 	Expire(ctx context.Context, key string, expiration time.Duration) *goredis.BoolCmd
+	ExpireNX(ctx context.Context, key string, expiration time.Duration) *goredis.BoolCmd
 }
 
 // RateLimiter enforces request rate limits.
@@ -101,10 +102,11 @@ func (l *RateLimiter) apply(c *gin.Context, config RateLimitConfig) {
 		c.Next()
 		return
 	}
-	if count == 1 {
-		if err := client.Expire(ctx, key, config.Window).Err(); err != nil {
-			logger.Error("rate limit expire failed", logger.Err(err))
-		}
+	// ExpireNX instead of count==1+Expire: if the first request's Expire is
+	// lost (crash between INCR and EXPIRE, or a failed call), the key would
+	// otherwise live forever and permanently rate-limit the client.
+	if err := client.ExpireNX(ctx, key, config.Window).Err(); err != nil {
+		logger.Error("rate limit expire failed", logger.Err(err))
 	}
 	if count > int64(config.MaxRequests) {
 		response.ErrorWithCode(c, 429, response.ErrorCodeRateLimited, "too many requests")
