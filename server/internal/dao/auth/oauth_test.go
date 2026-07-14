@@ -11,7 +11,7 @@ import (
 
 func TestOAuthBindingDAOGetByProviderUserContext(t *testing.T) {
 	db, mock := newAuthDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `oauth_bindings` WHERE provider = ? AND provider_user_id = ? ORDER BY `oauth_bindings`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "oauth_bindings" WHERE provider = $1 AND provider_user_id = $2 ORDER BY "oauth_bindings"."id" LIMIT $3`)).
 		WithArgs("github", "123", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "provider", "provider_user_id"}).
 			AddRow(7, 42, "github", "123"))
@@ -39,7 +39,7 @@ func TestOAuthBindingDAOGetByProviderUserContextHonorsCanceledContext(t *testing
 
 func TestOAuthBindingDAOGetByUserProviderContext(t *testing.T) {
 	db, mock := newAuthDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `oauth_bindings` WHERE user_id = ? AND provider = ? ORDER BY `oauth_bindings`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "oauth_bindings" WHERE user_id = $1 AND provider = $2 ORDER BY "oauth_bindings"."id" LIMIT $3`)).
 		WithArgs(42, "github", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "provider", "provider_user_id"}).
 			AddRow(7, 42, "github", "123"))
@@ -56,7 +56,7 @@ func TestOAuthBindingDAOGetByUserProviderContext(t *testing.T) {
 func TestOAuthBindingDAODeleteByUserProviderContextConstrainsCurrentUser(t *testing.T) {
 	db, mock := newAuthDAOTestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM `oauth_bindings` WHERE user_id = ? AND provider = ?")).
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "oauth_bindings" WHERE user_id = $1 AND provider = $2`)).
 		WithArgs(42, "github").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
@@ -72,7 +72,7 @@ func TestOAuthBindingDAODeleteByUserProviderContextConstrainsCurrentUser(t *test
 
 func TestOAuthBindingDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newAuthDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `oauth_bindings` WHERE provider = ? AND provider_user_id = ? ORDER BY `oauth_bindings`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "oauth_bindings" WHERE provider = $1 AND provider_user_id = $2 ORDER BY "oauth_bindings"."id" LIMIT $3`)).
 		WithArgs("github", "123", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "provider", "provider_user_id"}).
 			AddRow(7, 42, "github", "123"))

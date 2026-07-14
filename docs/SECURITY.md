@@ -52,7 +52,7 @@ DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD=true
 ## 自动化测试覆盖
 
 - 快速 Go 单测覆盖数据权限 fallback、错误响应真实 HTTP 状态码、JWT blacklist/revoke、在线用户强制下线。
-- Redis 相关测试使用进程内 miniredis，不依赖外部 Redis/MySQL。
+- Redis 相关测试使用进程内 miniredis，不依赖外部 Redis/PostgreSQL。
 
 ## 观测和审计
 

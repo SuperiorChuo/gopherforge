@@ -6,7 +6,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
 	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -43,13 +43,12 @@ func setupMonitorRouteSQLMock(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
 	}
-	mock.ExpectQuery("SELECT \\* FROM `scheduled_jobs` WHERE status = \\?").
+	mock.ExpectQuery("SELECT \\* FROM \"scheduled_jobs\" WHERE status = \\$\\d+").
 		WithArgs(1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)

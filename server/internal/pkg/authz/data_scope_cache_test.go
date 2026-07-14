@@ -17,14 +17,14 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func TestResolveDepartmentTreeIDsUsesCachedDepartmentTree(t *testing.T) {
 	setupAuthzCacheTestRedis(t)
 	mock := setupAuthzCacheTestDB(t)
-	mock.ExpectQuery("SELECT .* FROM `departments`").
+	mock.ExpectQuery("SELECT .* FROM \"departments\"").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
 			AddRow(11, 10).
 			AddRow(12, 11))
@@ -43,7 +43,7 @@ func TestResolveDepartmentTreeIDsUsesCachedDepartmentTree(t *testing.T) {
 func TestResolveDepartmentTreeIDsUsesLocalCacheWhenRedisBecomesUnavailable(t *testing.T) {
 	setupAuthzCacheTestRedis(t)
 	mock := setupAuthzCacheTestDB(t)
-	mock.ExpectQuery("SELECT .* FROM `departments`").
+	mock.ExpectQuery("SELECT .* FROM \"departments\"").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
 			AddRow(11, 10).
 			AddRow(12, 11))
@@ -86,7 +86,7 @@ func TestInvalidateDepartmentTreeCacheRemovesCachedTree(t *testing.T) {
 func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenContextCanceled(t *testing.T) {
 	setupAuthzCacheTestRedis(t)
 	mock := setupAuthzCacheTestDB(t)
-	mock.ExpectQuery("SELECT .* FROM `departments`").
+	mock.ExpectQuery("SELECT .* FROM \"departments\"").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
 			AddRow(11, 10))
 
@@ -108,7 +108,7 @@ func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenContextCanceled
 		redisstore.Client = oldClient
 	})
 
-	mock.ExpectQuery("SELECT .* FROM `departments`").
+	mock.ExpectQuery("SELECT .* FROM \"departments\"").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
 			AddRow(11, 10))
 
@@ -179,7 +179,7 @@ func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenPublishFails(t 
 func TestDepartmentTreeInvalidationListenerClearsLocalCache(t *testing.T) {
 	setupAuthzCacheTestRedis(t)
 	mock := setupAuthzCacheTestDB(t)
-	mock.ExpectQuery("SELECT .* FROM `departments`").
+	mock.ExpectQuery("SELECT .* FROM \"departments\"").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
 			AddRow(11, 10))
 
@@ -222,7 +222,7 @@ func TestDepartmentTreeInvalidationListenerClearsLocalCache(t *testing.T) {
 		redisstore.Client = oldClient
 	})
 
-	mock.ExpectQuery("SELECT .* FROM `departments`").
+	mock.ExpectQuery("SELECT .* FROM \"departments\"").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
 			AddRow(11, 10))
 
@@ -240,7 +240,7 @@ func TestResolveDepartmentTreeIDsFallsBackWhenRedisIsUnavailable(t *testing.T) {
 	})
 
 	mock := setupAuthzCacheTestDB(t)
-	mock.ExpectQuery("SELECT .* FROM `departments`").
+	mock.ExpectQuery("SELECT .* FROM \"departments\"").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
 			AddRow(11, 10).
 			AddRow(12, 11))
@@ -287,9 +287,8 @@ func TestApplyOwnerScopeUsesCurrentQueryDBForDepartmentSubquery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
 	}
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)
@@ -301,7 +300,7 @@ func TestApplyOwnerScopeUsesCurrentQueryDBForDepartmentSubquery(t *testing.T) {
 		_ = sqlDB.Close()
 	})
 
-	mock.ExpectQuery("SELECT \\* FROM `files` WHERE user_id IN \\(SELECT `id` FROM `users` WHERE department_id IN \\(\\?,\\?\\)\\)").
+	mock.ExpectQuery("SELECT \\* FROM \"files\" WHERE user_id IN \\(SELECT `id` FROM `users` WHERE department_id IN \\(\\$\\d+,\\$\\d+\\)\\)").
 		WithArgs(uint(10), uint(11)).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
@@ -382,9 +381,8 @@ func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 		t.Fatalf("open sqlmock db: %v", err)
 	}
 
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)

@@ -26,7 +26,7 @@ func TestDictServiceCreateTypeContextHonorsCanceledContext(t *testing.T) {
 func TestDictServiceCreateTypeContextReturnsCodeLookupError(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	lookupErr := errors.New("database lookup failed")
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `dict_types` WHERE code = ? ORDER BY `dict_types`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "dict_types" WHERE code = $1 ORDER BY "dict_types"."id" LIMIT $2`)).
 		WithArgs("gender", 1).
 		WillReturnError(lookupErr)
 
@@ -43,7 +43,7 @@ func TestDictServiceCreateTypeContextReturnsCodeLookupError(t *testing.T) {
 func TestDictServiceGetMultipleDictDataContextReturnsLookupError(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	lookupErr := errors.New("database lookup failed")
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `dict_types` WHERE code = ? ORDER BY `dict_types`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "dict_types" WHERE code = $1 ORDER BY "dict_types"."id" LIMIT $2`)).
 		WithArgs("gender", 1).
 		WillReturnError(lookupErr)
 

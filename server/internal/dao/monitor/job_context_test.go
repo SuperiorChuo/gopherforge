@@ -23,7 +23,7 @@ func TestJobDAOGetJobByIDContextHonorsCanceledContext(t *testing.T) {
 
 func TestJobDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newMonitorDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `scheduled_jobs` WHERE `scheduled_jobs`.`id` = ? ORDER BY `scheduled_jobs`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "scheduled_jobs" WHERE "scheduled_jobs"."id" = $1 ORDER BY "scheduled_jobs"."id" LIMIT $2`)).
 		WithArgs(uint(42), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name"}).AddRow(42, "daily-report"))
 

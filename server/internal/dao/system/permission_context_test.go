@@ -11,7 +11,7 @@ import (
 
 func TestPermissionManageDAOGetPermissionTreeUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedRBACDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `permissions` ORDER BY parent_id ASC, created_at ASC")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "permissions" ORDER BY parent_id ASC, created_at ASC`)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "code", "type", "parent_id"}).
 			AddRow(uint(1), "System", "system", int8(1), uint(0)).
 			AddRow(uint(2), "User", "system:user", int8(2), uint(1)))

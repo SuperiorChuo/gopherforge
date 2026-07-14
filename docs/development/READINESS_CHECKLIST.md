@@ -22,13 +22,13 @@
 - [x] `cd tdesign-vue-go; npm run stylelint` 通过。
 - [x] `cd tdesign-vue-go; npm run build` 通过。
 - [x] `cd tdesign-vue-go; npm run e2e:frontend` 通过，桌面和移动端共 4 个用例全部通过；前端 E2E 使用 API mock 验证登录 UI、验证码交互、鉴权请求和路由跳转，真实后端登录链路由 API smoke 覆盖。
-- [x] 构建产物已扫描 `JWT_SECRET`、`PASSWORD=`、`SECRET_KEY`、`localhost:3306`、`redis://`，未发现敏感配置；`root:` 仅来自 vendor 构建代码片段。
+- [x] 构建产物已扫描 `JWT_SECRET`、`PASSWORD=`、`SECRET_KEY`、`localhost:5432`、`redis://`，未发现敏感配置；`root:` 仅来自 vendor 构建代码片段。
 
 ### Docker 本机烟测
 
 - [x] `docker compose config` 通过。
-- [x] 默认宿主机端口被现有容器占用时，使用 `MYSQL_PORT=13306`、`REDIS_PORT=16379`、`MINIO_API_PORT=19000`、`MINIO_CONSOLE_PORT=19001`、`BACKEND_PORT=18081`、`FRONTEND_PORT=13000` 完成端口避让；不再需要的冲突容器已通过 `docker stop <container-name>` 停止或确认可保留并行运行。
-- [x] MySQL、Redis 和 backend healthcheck 均为 healthy。
+- [x] 默认宿主机端口被现有容器占用时，使用 `POSTGRES_PORT=15432`、`REDIS_PORT=16379`、`MINIO_API_PORT=19000`、`MINIO_CONSOLE_PORT=19001`、`BACKEND_PORT=18081`、`FRONTEND_PORT=13000` 完成端口避让；不再需要的冲突容器已通过 `docker stop <container-name>` 停止或确认可保留并行运行。
+- [x] PostgreSQL、Redis 和 backend healthcheck 均为 healthy。
 - [x] 后端容器日志显示 goose 迁移成功、数据库连接成功、Redis 连接成功、服务启动成功，未发现 fatal/panic/error。
 - [x] `http://localhost:18081/api/v1/health/ready` 返回 HTTP 200，数据库和 Redis 均为 `ok`。
 - [x] `http://localhost:13000/` 返回 HTTP 200，并加载构建后的前端静态页面。
@@ -63,7 +63,7 @@ CI 或非默认本地环境可覆盖 Make 变量，例如 `OBJECT_STORAGE_SMOKE_
 ### 配置
 
 - [ ] 已替换 `JWT_SECRET`，长度不少于 32 个字符。
-- [ ] 已替换 MySQL、Redis、MinIO、Grafana 等默认密码。
+- [ ] 已替换 PostgreSQL、Redis、MinIO、Grafana 等默认密码。
 - [ ] `APP_ENV=production` 前已通过目标环境后端生产配置校验。
 - [ ] `CORS_ALLOW_ORIGINS` 只包含可信前端域名。
 - [ ] 上传存储路径或对象存储 bucket 已在目标环境确认。

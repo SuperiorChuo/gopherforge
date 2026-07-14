@@ -35,7 +35,7 @@ func (d *fakeMySQLDAO) ConnectionStatsContext(ctx context.Context) (sql.DBStats,
 
 func (d *fakeMySQLDAO) GetVersionContext(ctx context.Context) (string, error) {
 	d.contextMarker = ctx.Value(mysqlContextTestKey{})
-	return "8.0.36", nil
+	return "16.3", nil
 }
 
 func (d *fakeMySQLDAO) GetCurrentDatabaseContext(ctx context.Context) (string, error) {
@@ -43,13 +43,18 @@ func (d *fakeMySQLDAO) GetCurrentDatabaseContext(ctx context.Context) (string, e
 	return "go_admin", nil
 }
 
-func (d *fakeMySQLDAO) GetNameValuesContext(ctx context.Context, query string) (map[string]string, error) {
+func (d *fakeMySQLDAO) GetServerStatsContext(ctx context.Context) (monitordao.MySQLServerStats, error) {
 	d.contextMarker = ctx.Value(mysqlContextTestKey{})
-	return map[string]string{
-		"Uptime":                 "100",
-		"Questions":              "250",
-		"character_set_database": "utf8mb4",
-		"collation_database":     "utf8mb4_unicode_ci",
+	return monitordao.MySQLServerStats{
+		UptimeSeconds: 100,
+		Commits:       200,
+		Rollbacks:     50,
+		RowsReturned:  900,
+		RowsInserted:  30,
+		RowsUpdated:   20,
+		RowsDeleted:   10,
+		BlocksRead:    2,
+		BlocksHit:     4,
 	}, nil
 }
 

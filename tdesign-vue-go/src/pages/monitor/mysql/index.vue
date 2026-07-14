@@ -1,8 +1,8 @@
 <template>
   <div class="mysql-page">
-    <console-page-header title="MySQL 监控" :status-theme="statusTheme" :status-text="statusText" :meta="headerMeta">
+    <console-page-header title="数据库监控" :status-theme="statusTheme" :status-text="statusText" :meta="headerMeta">
       <template #actions>
-        <t-tag theme="primary" variant="light">MySQL {{ mysqlInfo?.version || '-' }}</t-tag>
+        <t-tag theme="primary" variant="light">PostgreSQL {{ mysqlInfo?.version || '-' }}</t-tag>
         <t-tooltip content="刷新" placement="bottom">
           <t-button class="console-page-header__refresh" variant="outline" size="small" shape="square" :loading="loading" @click="loadData">
             <template #icon><t-icon name="refresh" /></template>
@@ -105,7 +105,7 @@
         <t-card :bordered="false" class="monitor-card">
           <template #title>
             <div class="card-title">
-              <h3>MySQL 连接</h3>
+              <h3>数据库连接</h3>
               <p>服务端线程和历史峰值</p>
             </div>
           </template>
@@ -236,7 +236,7 @@ const loadData = async () => {
     mysqlInfo.value = await getMySQLInfo();
     lastUpdatedAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false });
   } catch (error: any) {
-    loadError.value = error.message || '加载 MySQL 监控失败';
+    loadError.value = error.message || '加载数据库监控失败';
     MessagePlugin.error(loadError.value);
   } finally {
     loading.value = false;

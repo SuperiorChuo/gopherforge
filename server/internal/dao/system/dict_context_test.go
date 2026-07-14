@@ -8,7 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -27,7 +27,7 @@ func TestDictDAOGetTypeListContextHonorsCanceledContext(t *testing.T) {
 func TestDictDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedDictNoticeSeedDAOTestDB(t)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `dict_types` WHERE code = ? ORDER BY `dict_types`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "dict_types" WHERE code = $1 ORDER BY "dict_types"."id" LIMIT $2`)).
 		WithArgs("gender", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "code", "status"}).
 			AddRow(7, "Gender", "gender", 1))
@@ -48,9 +48,8 @@ func newInjectedDictNoticeSeedDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock
 	if err != nil {
 		t.Fatalf("open injected sqlmock db: %v", err)
 	}
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open injected gorm sqlmock db: %v", err)

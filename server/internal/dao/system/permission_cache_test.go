@@ -12,7 +12,7 @@ import (
 
 func TestPermissionCacheDAOFindUserIDsByRoleIDsUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedRBACDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT DISTINCT `user_id` FROM `user_roles` WHERE role_id IN (?)")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT DISTINCT "user_id" FROM "user_roles" WHERE role_id IN ($1)`)).
 		WithArgs(uint(9)).
 		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(uint(42)))
 
@@ -27,7 +27,7 @@ func TestPermissionCacheDAOFindUserIDsByRoleIDsUsesInjectedDB(t *testing.T) {
 
 func TestPermissionCacheDAOFindUserIDsByRoleIDs(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT DISTINCT `user_id` FROM `user_roles` WHERE role_id IN (?,?)")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT DISTINCT "user_id" FROM "user_roles" WHERE role_id IN ($1,$2)`)).
 		WithArgs(uint(2), uint(3)).
 		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).
 			AddRow(uint(10)).
@@ -56,7 +56,7 @@ func TestPermissionCacheDAOFindUserIDsByRoleIDsContextHonorsCanceledContext(t *t
 
 func TestPermissionCacheDAOFindRoleIDsByPermissionIDs(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT DISTINCT `role_id` FROM `role_permissions` WHERE permission_id IN (?,?)")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT DISTINCT "role_id" FROM "role_permissions" WHERE permission_id IN ($1,$2)`)).
 		WithArgs(uint(5), uint(6)).
 		WillReturnRows(sqlmock.NewRows([]string{"role_id"}).
 			AddRow(uint(20)).

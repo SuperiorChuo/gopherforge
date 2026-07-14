@@ -27,11 +27,11 @@ func TestChangePasswordContextRejectsRecentlyUsedPassword(t *testing.T) {
 	reusedHash := mustHashPasswordForTest(t, "UsedPass1")
 	changedAt := time.Date(2026, 5, 20, 8, 0, 0, 0, time.UTC)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE `users`.`id` = ? ORDER BY `users`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE "users"."id" = $1 ORDER BY "users"."id" LIMIT $2`)).
 		WithArgs(uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "must_change_password"}).
 			AddRow(uint(7), "alice", currentHash, int8(1), true))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `password_history` WHERE user_id = ? ORDER BY changed_at DESC, id DESC LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "password_history" WHERE user_id = $1 ORDER BY changed_at DESC, id DESC LIMIT $2`)).
 		WithArgs(uint(7), 5).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "password_hash", "changed_at"}).
 			AddRow(uint(1), uint(7), reusedHash, changedAt))
@@ -56,20 +56,20 @@ func TestChangePasswordContextUpdatesPasswordAndHistoryAtomically(t *testing.T) 
 
 	currentHash := mustHashPasswordForTest(t, "CurrentPass1")
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE `users`.`id` = ? ORDER BY `users`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE "users"."id" = $1 ORDER BY "users"."id" LIMIT $2`)).
 		WithArgs(uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "must_change_password"}).
 			AddRow(uint(7), "alice", currentHash, int8(1), true))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `password_history` WHERE user_id = ? ORDER BY changed_at DESC, id DESC LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "password_history" WHERE user_id = $1 ORDER BY changed_at DESC, id DESC LIMIT $2`)).
 		WithArgs(uint(7), 5).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "password_hash", "changed_at"}))
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE `users` SET `must_change_password`=?,`password`=?,`password_changed_at`=?,`updated_at`=? WHERE id = ? AND password = ?")).
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "users" SET "must_change_password"=$1,"password"=$2,"password_changed_at"=$3,"updated_at"=$4 WHERE id = $5 AND password = $6`)).
 		WithArgs(false, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), uint(7), currentHash).
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `password_history` (`user_id`,`password_hash`,`changed_at`,`created_at`) VALUES (?,?,?,?)")).
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "password_history" ("user_id","password_hash","changed_at","created_at") VALUES ($1,$2,$3,$4) RETURNING "id"`)).
 		WithArgs(uint(7), currentHash, sqlmock.AnyArg(), sqlmock.AnyArg()).
-		WillReturnResult(sqlmock.NewResult(1, 1))
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectCommit()
 
 	err := (&svc).ChangePasswordContext(context.Background(), 7, ChangePasswordRequest{
@@ -92,20 +92,20 @@ func TestChangePasswordContextUsesRuntimePasswordHistoryCount(t *testing.T) {
 
 	currentHash := mustHashPasswordForTest(t, "CurrentPass1")
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE `users`.`id` = ? ORDER BY `users`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE "users"."id" = $1 ORDER BY "users"."id" LIMIT $2`)).
 		WithArgs(uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "must_change_password"}).
 			AddRow(uint(7), "alice", currentHash, int8(1), true))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `password_history` WHERE user_id = ? ORDER BY changed_at DESC, id DESC LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "password_history" WHERE user_id = $1 ORDER BY changed_at DESC, id DESC LIMIT $2`)).
 		WithArgs(uint(7), 2).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "password_hash", "changed_at"}))
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE `users` SET `must_change_password`=?,`password`=?,`password_changed_at`=?,`updated_at`=? WHERE id = ? AND password = ?")).
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "users" SET "must_change_password"=$1,"password"=$2,"password_changed_at"=$3,"updated_at"=$4 WHERE id = $5 AND password = $6`)).
 		WithArgs(false, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), uint(7), currentHash).
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `password_history` (`user_id`,`password_hash`,`changed_at`,`created_at`) VALUES (?,?,?,?)")).
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "password_history" ("user_id","password_hash","changed_at","created_at") VALUES ($1,$2,$3,$4) RETURNING "id"`)).
 		WithArgs(uint(7), currentHash, sqlmock.AnyArg(), sqlmock.AnyArg()).
-		WillReturnResult(sqlmock.NewResult(1, 1))
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectCommit()
 
 	svc.policyReader = stubSecurityPolicyReader{policy: runtimeconfig.SecurityPolicy{PasswordHistoryCount: 2}}
@@ -129,12 +129,12 @@ func TestChangePasswordContextReturnsOldPasswordErrorWhenConcurrentUpdateWins(t 
 
 	currentHash := mustHashPasswordForTest(t, "CurrentPass1")
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE `users`.`id` = ? ORDER BY `users`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE "users"."id" = $1 ORDER BY "users"."id" LIMIT $2`)).
 		WithArgs(uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "must_change_password"}).
 			AddRow(uint(7), "alice", currentHash, int8(1), true))
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE `users` SET `must_change_password`=?,`password`=?,`password_changed_at`=?,`updated_at`=? WHERE id = ? AND password = ?")).
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "users" SET "must_change_password"=$1,"password"=$2,"password_changed_at"=$3,"updated_at"=$4 WHERE id = $5 AND password = $6`)).
 		WithArgs(false, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), uint(7), currentHash).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectRollback()
@@ -161,12 +161,12 @@ func TestUserServiceLoginPasswordContextReturnsUpdateErrorWhenExpiredFlagCannotP
 	changedAt := time.Date(2026, 4, 1, 8, 0, 0, 0, time.UTC)
 	updateErr := errors.New("update failed")
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? ORDER BY `users`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE username = $1 ORDER BY "users"."id" LIMIT $2`)).
 		WithArgs("alice", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "must_change_password", "password_changed_at"}).
 			AddRow(uint(7), "alice", currentHash, int8(1), false, changedAt))
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE `users` SET `must_change_password`=?,`updated_at`=? WHERE id = ?")).
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "users" SET "must_change_password"=$1,"updated_at"=$2 WHERE id = $3`)).
 		WithArgs(true, sqlmock.AnyArg(), uint(7)).
 		WillReturnError(updateErr)
 	mock.ExpectRollback()
@@ -189,20 +189,20 @@ func TestUserServiceLoginPasswordContextUsesRuntimePasswordMaxAge(t *testing.T) 
 	currentHash := mustHashPasswordForTest(t, "CurrentPass1")
 	changedAt := time.Now().AddDate(0, 0, -60)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? ORDER BY `users`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE username = $1 ORDER BY "users"."id" LIMIT $2`)).
 		WithArgs("alice", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "must_change_password", "password_changed_at"}).
 			AddRow(uint(7), "alice", currentHash, int8(1), false, changedAt))
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE `users` SET `must_change_password`=?,`updated_at`=? WHERE id = ?")).
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "users" SET "must_change_password"=$1,"updated_at"=$2 WHERE id = $3`)).
 		WithArgs(true, sqlmock.AnyArg(), uint(7)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE `users`.`id` = ? ORDER BY `users`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE "users"."id" = $1 ORDER BY "users"."id" LIMIT $2`)).
 		WithArgs(uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "must_change_password"}).
 			AddRow(uint(7), "alice", currentHash, int8(1), true))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `user_roles` WHERE `user_roles`.`user_id` = ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "user_roles" WHERE "user_roles"."user_id" = $1`)).
 		WithArgs(uint(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"user_id", "role_id"}))
 

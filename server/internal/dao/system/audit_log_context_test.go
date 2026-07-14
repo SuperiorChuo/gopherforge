@@ -8,7 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/model"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -26,8 +26,8 @@ func TestAuditLogDAOListLogsContextHonorsCanceledContext(t *testing.T) {
 
 func TestAuditLogDAOCreateLogContextUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedLogFileDAOTestDB(t)
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `audit_logs`")).
-		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "audit_logs"`)).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 
 	err := NewAuditLogDAO(db).CreateLogContext(context.Background(), &model.AuditLog{
 		Action:     "create",
@@ -46,9 +46,8 @@ func newInjectedLogFileDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	if err != nil {
 		t.Fatalf("open injected sqlmock db: %v", err)
 	}
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{
 		SkipDefaultTransaction: true,
 	})

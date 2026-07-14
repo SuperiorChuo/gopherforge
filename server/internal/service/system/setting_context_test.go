@@ -17,7 +17,7 @@ import (
 
 func TestSettingServiceGetSettingContextMapsNotFound(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `system_settings` WHERE setting_key = ? ORDER BY `system_settings`.`setting_key` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "system_settings" WHERE setting_key = $1 ORDER BY "system_settings"."setting_key" LIMIT $2`)).
 		WithArgs("security.password_policy", 1).
 		WillReturnError(gorm.ErrRecordNotFound)
 
@@ -44,7 +44,7 @@ func TestSettingServiceUpsertSettingContextRejectsInvalidKey(t *testing.T) {
 func TestSettingServiceDeleteSettingContextMapsNotFound(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM `system_settings` WHERE setting_key = ?")).
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "system_settings" WHERE setting_key = $1`)).
 		WithArgs("security.policy").
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectCommit()
@@ -59,7 +59,7 @@ func TestSettingServiceDeleteSettingContextMapsNotFound(t *testing.T) {
 func TestSettingServiceUpsertSecurityPolicyRefreshesRuntimeConfig(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectExec("INSERT INTO `system_settings`").
+	mock.ExpectExec("INSERT INTO \"system_settings\"").
 		WithArgs(runtimeconfig.SecurityPolicySettingKey, sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
@@ -82,7 +82,7 @@ func TestSettingServiceUpsertSecurityPolicyRefreshesRuntimeConfig(t *testing.T) 
 func TestSettingServiceDeleteSecurityPolicyRefreshesRuntimeConfig(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM `system_settings` WHERE setting_key = ?")).
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "system_settings" WHERE setting_key = $1`)).
 		WithArgs(runtimeconfig.SecurityPolicySettingKey).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
@@ -102,7 +102,7 @@ func TestSettingServiceDeleteSecurityPolicyRefreshesRuntimeConfig(t *testing.T) 
 func TestSettingServiceUpsertEmailNotificationRefreshesRuntimeConfig(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectExec("INSERT INTO `system_settings`").
+	mock.ExpectExec("INSERT INTO \"system_settings\"").
 		WithArgs(runtimeconfig.EmailNotificationSettingKey, sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
@@ -162,7 +162,7 @@ func TestSettingServiceUpsertRuntimeConfigPublishesInvalidation(t *testing.T) {
 
 			db, mock := setupSystemUserServiceContextTestDB(t)
 			mock.ExpectBegin()
-			mock.ExpectExec("INSERT INTO `system_settings`").
+			mock.ExpectExec("INSERT INTO \"system_settings\"").
 				WithArgs(tt.key, sqlmock.AnyArg(), sqlmock.AnyArg()).
 				WillReturnResult(sqlmock.NewResult(1, 1))
 			mock.ExpectCommit()
@@ -207,7 +207,7 @@ func TestSettingServiceUpsertRuntimeConfigIgnoresPublishFailure(t *testing.T) {
 
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectExec("INSERT INTO `system_settings`").
+	mock.ExpectExec("INSERT INTO \"system_settings\"").
 		WithArgs(runtimeconfig.SecurityPolicySettingKey, sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()

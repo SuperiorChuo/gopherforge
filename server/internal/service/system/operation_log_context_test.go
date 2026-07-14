@@ -29,7 +29,7 @@ func TestOperationLogServiceGetLogListContextHonorsCanceledContext(t *testing.T)
 
 func TestOperationLogServiceGetLogByIDContextReturnsNotFoundSentinel(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `operation_logs` WHERE `operation_logs`.`id` = ? ORDER BY `operation_logs`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "operation_logs" WHERE "operation_logs"."id" = $1 ORDER BY "operation_logs"."id" LIMIT $2`)).
 		WithArgs(7, 1).
 		WillReturnError(gorm.ErrRecordNotFound)
 

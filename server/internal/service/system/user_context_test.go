@@ -8,7 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	authsvc "github.com/go-admin-kit/server/internal/service/auth"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -31,7 +31,7 @@ func TestUserServiceCreateUserContextHonorsCanceledContext(t *testing.T) {
 func TestUserServiceCreateUserContextReturnsUsernameLookupError(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	lookupErr := errors.New("database lookup failed")
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? ORDER BY `users`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE username = $1 ORDER BY "users"."id" LIMIT $2`)).
 		WithArgs("alice", 1).
 		WillReturnError(lookupErr)
 
@@ -47,7 +47,7 @@ func TestUserServiceCreateUserContextReturnsUsernameLookupError(t *testing.T) {
 
 func TestUserServiceCreateUserContextRejectsWeakPassword(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? ORDER BY `users`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE username = $1 ORDER BY "users"."id" LIMIT $2`)).
 		WithArgs("alice", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password"}))
 
@@ -69,9 +69,8 @@ func setupSystemUserServiceContextTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmoc
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
 	}
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)

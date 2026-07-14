@@ -8,13 +8,13 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func TestRoleDAOGetRoleByCodeUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedRBACDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `roles` WHERE code = ? ORDER BY `roles`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "roles" WHERE code = $1 ORDER BY "roles"."id" LIMIT $2`)).
 		WithArgs("admin", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "code"}).AddRow(uint(7), "Admin", "admin"))
 
@@ -52,9 +52,8 @@ func newInjectedRBACDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 		}
 		_ = sqlDB.Close()
 	})
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)

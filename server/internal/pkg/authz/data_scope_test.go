@@ -8,7 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/model"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -227,15 +227,14 @@ func setupAuthzTestDB(t *testing.T) {
 		t.Fatalf("open sqlmock db: %v", err)
 	}
 
-	mock.ExpectQuery("SELECT .* FROM `departments`").
+	mock.ExpectQuery("SELECT .* FROM \"departments\"").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
 			AddRow(11, 10).
 			AddRow(12, 11).
 			AddRow(99, 98))
 
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)

@@ -25,7 +25,7 @@ func TestNoticeDAOGetListContextHonorsCanceledContext(t *testing.T) {
 func TestNoticeDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedDictNoticeSeedDAOTestDB(t)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `notices` WHERE `notices`.`id` = ? ORDER BY `notices`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "notices" WHERE "notices"."id" = $1 ORDER BY "notices"."id" LIMIT $2`)).
 		WithArgs(uint(9), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "title", "content", "type", "status"}).
 			AddRow(9, "Injected", "from injected db", 1, 1))

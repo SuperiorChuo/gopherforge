@@ -8,18 +8,31 @@ import (
 	"gorm.io/gorm"
 )
 
+// MySQLDAO reads PostgreSQL server statistics. The historical name is kept
+// so the /monitor/mysql API surface stays stable for existing clients.
 type MySQLDAO struct {
 	db *gorm.DB
-}
-
-type MySQLNameValue struct {
-	VariableName string `gorm:"column:Variable_name"`
-	Value        string `gorm:"column:Value"`
 }
 
 type MySQLTableStats struct {
 	TableCount   int64 `gorm:"column:table_count"`
 	DatabaseSize int64 `gorm:"column:database_size"`
+}
+
+type MySQLServerStats struct {
+	UptimeSeconds     int64 `gorm:"column:uptime_seconds"`
+	Connections       int64 `gorm:"column:connections"`
+	ActiveConnections int64 `gorm:"column:active_connections"`
+	MaxConnections    int64 `gorm:"column:max_connections"`
+	Commits           int64 `gorm:"column:commits"`
+	Rollbacks         int64 `gorm:"column:rollbacks"`
+	RowsReturned      int64 `gorm:"column:rows_returned"`
+	RowsInserted      int64 `gorm:"column:rows_inserted"`
+	RowsUpdated       int64 `gorm:"column:rows_updated"`
+	RowsDeleted       int64 `gorm:"column:rows_deleted"`
+	BlocksRead        int64 `gorm:"column:blocks_read"`
+	BlocksHit         int64 `gorm:"column:blocks_hit"`
+	TempBytes         int64 `gorm:"column:temp_bytes"`
 }
 
 func NewMySQLDAO(db *gorm.DB) *MySQLDAO {
@@ -49,36 +62,47 @@ func (d *MySQLDAO) ConnectionStatsContext(ctx context.Context) (sql.DBStats, err
 
 func (d *MySQLDAO) GetVersionContext(ctx context.Context) (string, error) {
 	var version string
-	err := d.dbWithContext(ctx).Raw("SELECT VERSION()").Scan(&version).Error
+	err := d.dbWithContext(ctx).Raw("SHOW server_version").Scan(&version).Error
 	return version, err
 }
 
 func (d *MySQLDAO) GetCurrentDatabaseContext(ctx context.Context) (string, error) {
 	var currentDatabase string
-	err := d.dbWithContext(ctx).Raw("SELECT DATABASE()").Scan(&currentDatabase).Error
+	err := d.dbWithContext(ctx).Raw("SELECT current_database()").Scan(&currentDatabase).Error
 	return currentDatabase, err
 }
 
-func (d *MySQLDAO) GetNameValuesContext(ctx context.Context, query string) (map[string]string, error) {
-	var rows []MySQLNameValue
-	if err := d.dbWithContext(ctx).Raw(query).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-
-	result := make(map[string]string, len(rows))
-	for _, row := range rows {
-		result[row.VariableName] = row.Value
-	}
-	return result, nil
+func (d *MySQLDAO) GetServerStatsContext(ctx context.Context) (MySQLServerStats, error) {
+	var stats MySQLServerStats
+	err := d.dbWithContext(ctx).Raw(
+		`SELECT
+		   EXTRACT(EPOCH FROM (now() - pg_postmaster_start_time()))::bigint AS uptime_seconds,
+		   (SELECT COUNT(*) FROM pg_stat_activity) AS connections,
+		   (SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active') AS active_connections,
+		   current_setting('max_connections')::bigint AS max_connections,
+		   s.xact_commit AS commits,
+		   s.xact_rollback AS rollbacks,
+		   s.tup_returned AS rows_returned,
+		   s.tup_inserted AS rows_inserted,
+		   s.tup_updated AS rows_updated,
+		   s.tup_deleted AS rows_deleted,
+		   s.blks_read AS blocks_read,
+		   s.blks_hit AS blocks_hit,
+		   s.temp_bytes AS temp_bytes
+		 FROM pg_stat_database s
+		 WHERE s.datname = current_database()`,
+	).Scan(&stats).Error
+	return stats, err
 }
 
 func (d *MySQLDAO) GetTableStatsContext(ctx context.Context, dbName string) (MySQLTableStats, error) {
 	var stats MySQLTableStats
 	err := d.dbWithContext(ctx).Raw(
-		`SELECT COUNT(*) AS table_count, COALESCE(SUM(data_length + index_length), 0) AS database_size
-		 FROM information_schema.tables
-		 WHERE table_schema = ?`,
-		dbName,
+		`SELECT
+		   (SELECT COUNT(*) FROM information_schema.tables
+		    WHERE table_catalog = ? AND table_schema NOT IN ('pg_catalog', 'information_schema')) AS table_count,
+		   pg_database_size(?) AS database_size`,
+		dbName, dbName,
 	).Scan(&stats).Error
 	return stats, err
 }

@@ -10,7 +10,7 @@ import (
 
 func TestConsoleRouteDAOListAllOrdersBySortAndKey(t *testing.T) {
 	db, mock := newAuthDAOTestDB(t)
-	mock.ExpectQuery("SELECT \\* FROM `console_routes` ORDER BY sort_order ASC,route_key ASC").
+	mock.ExpectQuery("SELECT \\* FROM \"console_routes\" ORDER BY sort_order ASC,route_key ASC").
 		WillReturnRows(sqlmock.NewRows([]string{"route_key", "path", "name", "component_key"}).
 			AddRow("dashboard", "/dashboard", "Dashboard", "DashboardPage"))
 
@@ -37,7 +37,7 @@ func TestConsoleRouteDAOListAllContextHonorsCanceledContext(t *testing.T) {
 
 func TestConsoleRouteDAOFindRouteKeyByPath(t *testing.T) {
 	db, mock := newAuthDAOTestDB(t)
-	mock.ExpectQuery("SELECT `route_key` FROM `console_routes` WHERE path = \\? LIMIT \\?").
+	mock.ExpectQuery("SELECT \"route_key\" FROM \"console_routes\" WHERE path = \\$\\d+ LIMIT \\$\\d+").
 		WithArgs("/dashboard", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"route_key"}).AddRow("dashboard"))
 
@@ -52,7 +52,7 @@ func TestConsoleRouteDAOFindRouteKeyByPath(t *testing.T) {
 
 func TestConsoleRouteDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newAuthDAOTestDB(t)
-	mock.ExpectQuery("SELECT \\* FROM `console_routes` ORDER BY sort_order ASC,route_key ASC").
+	mock.ExpectQuery("SELECT \\* FROM \"console_routes\" ORDER BY sort_order ASC,route_key ASC").
 		WillReturnRows(sqlmock.NewRows([]string{"route_key", "path", "name", "component_key"}).
 			AddRow("dashboard", "/dashboard", "Dashboard", "DashboardPage"))
 

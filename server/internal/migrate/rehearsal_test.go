@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/go-admin-kit/server/internal/config"
@@ -36,10 +37,10 @@ func TestValidateRehearsalDatabaseName(t *testing.T) {
 		"go-admin-kit",
 		"go_admin;DROP DATABASE production",
 		"../go_admin_kit",
-		"mysql",
+		"postgres",
+		"template0",
+		"template1",
 		"information_schema",
-		"performance_schema",
-		"sys",
 	}
 	for _, name := range invalid {
 		if err := validateRehearsalDatabaseName(name); err == nil {
@@ -48,30 +49,21 @@ func TestValidateRehearsalDatabaseName(t *testing.T) {
 	}
 }
 
-func TestMigrationServerDSNOmitsDatabaseName(t *testing.T) {
+func TestMigrationServerDSNUsesMaintenanceDatabase(t *testing.T) {
 	dsn := migrationServerDSN(config.DatabaseConfig{
-		Driver:   "mysql",
+		Driver:   "postgres",
 		Host:     "127.0.0.1",
-		Port:     3306,
-		User:     "root",
+		Port:     5432,
+		User:     "postgres",
 		Password: "123456",
 		DBName:   "go_admin_kit",
-		Charset:  "utf8mb4",
+		SSLMode:  "disable",
 	})
 
-	if containsDatabasePath(dsn, "/go_admin_kit?") {
+	if strings.Contains(dsn, "dbname=go_admin_kit") {
 		t.Fatalf("server DSN = %q, must omit configured database name", dsn)
 	}
-	if !containsDatabasePath(dsn, "/?") {
-		t.Fatalf("server DSN = %q, want empty database path", dsn)
+	if !strings.Contains(dsn, "dbname=postgres") {
+		t.Fatalf("server DSN = %q, want maintenance database postgres", dsn)
 	}
-}
-
-func containsDatabasePath(dsn, pattern string) bool {
-	for i := 0; i+len(pattern) <= len(dsn); i++ {
-		if dsn[i:i+len(pattern)] == pattern {
-			return true
-		}
-	}
-	return false
 }

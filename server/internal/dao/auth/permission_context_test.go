@@ -22,7 +22,7 @@ func TestPermissionDAOGetUserPermissionsContextHonorsCanceledContext(t *testing.
 
 func TestPermissionDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newAuthDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT permissions.code FROM `users` JOIN user_roles ON users.id = user_roles.user_id JOIN roles ON user_roles.role_id = roles.id JOIN role_permissions ON roles.id = role_permissions.role_id JOIN permissions ON role_permissions.permission_id = permissions.id WHERE users.id = ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT permissions.code FROM "users" JOIN user_roles ON users.id = user_roles.user_id JOIN roles ON user_roles.role_id = roles.id JOIN role_permissions ON roles.id = role_permissions.role_id JOIN permissions ON role_permissions.permission_id = permissions.id WHERE users.id = $1`)).
 		WithArgs(uint(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"code"}).AddRow("dashboard.view"))
 

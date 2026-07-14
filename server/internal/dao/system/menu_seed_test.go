@@ -13,12 +13,12 @@ import (
 func TestMenuSeedDAOInsertDefaultMenusWhenTableIsEmpty(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectQuery("SELECT count\\(\\*\\) FROM `menus`").
+	mock.ExpectQuery("SELECT count\\(\\*\\) FROM \"menus\"").
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
-	mock.ExpectExec("INSERT INTO `menus`").
-		WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectExec("INSERT INTO `menus`").
-		WillReturnResult(sqlmock.NewResult(2, 1))
+	mock.ExpectQuery("INSERT INTO \"menus\"").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	mock.ExpectQuery("INSERT INTO \"menus\"").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(2))
 	mock.ExpectCommit()
 
 	now := time.Date(2026, 5, 20, 12, 0, 0, 0, time.UTC)
@@ -51,7 +51,7 @@ func TestMenuSeedDAOBootstrapDefaultMenusContextHonorsCanceledContext(t *testing
 func TestMenuSeedDAOSkipsWhenMenusExist(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectQuery("SELECT count\\(\\*\\) FROM `menus`").
+	mock.ExpectQuery("SELECT count\\(\\*\\) FROM \"menus\"").
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(3))
 	mock.ExpectCommit()
 
@@ -70,10 +70,10 @@ func TestMenuSeedDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedDictNoticeSeedDAOTestDB(t)
 
 	mock.ExpectBegin()
-	mock.ExpectQuery("SELECT count\\(\\*\\) FROM `menus`").
+	mock.ExpectQuery("SELECT count\\(\\*\\) FROM \"menus\"").
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
-	mock.ExpectExec("INSERT INTO `menus`").
-		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery("INSERT INTO \"menus\"").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectCommit()
 
 	count, err := NewMenuSeedDAO(db).BootstrapDefaultMenusContext(context.Background(), []model.Menu{

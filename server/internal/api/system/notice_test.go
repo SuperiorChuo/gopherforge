@@ -17,7 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/model"
 	systemsvc "github.com/go-admin-kit/server/internal/service/system"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -64,8 +64,8 @@ func TestCreateNoticeEmailFailureDoesNotFailRequest(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db, mock := setupNoticeAPITestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectExec("INSERT INTO `notices`").
-		WillReturnResult(sqlmock.NewResult(42, 1))
+	mock.ExpectQuery("INSERT INTO \"notices\"").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(42))
 	mock.ExpectCommit()
 
 	recorder := httptest.NewRecorder()
@@ -96,10 +96,10 @@ func TestUpdateNoticeStatusEmailFailureDoesNotFailRequest(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db, mock := setupNoticeAPITestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectExec("UPDATE `notices` SET `status`=").
+	mock.ExpectExec("UPDATE \"notices\" SET \"status\"=").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `notices` WHERE `notices`.`id` = ? ORDER BY `notices`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "notices" WHERE "notices"."id" = $1 ORDER BY "notices"."id" LIMIT $2`)).
 		WithArgs(7, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "title", "content", "type", "status"}).
 			AddRow(uint(7), "Maintenance", "Maintenance window tonight", int8(1), int8(1)))
@@ -128,12 +128,12 @@ func TestUpdateNoticeStatusEmailFailureDoesNotFailRequest(t *testing.T) {
 func TestUpdateNoticeSendsEmailWhenNoticeBecomesEnabled(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db, mock := setupNoticeAPITestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `notices` WHERE `notices`.`id` = ? ORDER BY `notices`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "notices" WHERE "notices"."id" = $1 ORDER BY "notices"."id" LIMIT $2`)).
 		WithArgs(7, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "title", "content", "type", "status"}).
 			AddRow(uint(7), "Draft", "Draft content", int8(1), int8(0)))
 	mock.ExpectBegin()
-	mock.ExpectExec("UPDATE `notices` SET").
+	mock.ExpectExec("UPDATE \"notices\" SET").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
@@ -167,8 +167,8 @@ func TestCreateNoticeReturnsBeforeBlockedEmailNotifier(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db, mock := setupNoticeAPITestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectExec("INSERT INTO `notices`").
-		WillReturnResult(sqlmock.NewResult(42, 1))
+	mock.ExpectQuery("INSERT INTO \"notices\"").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(42))
 	mock.ExpectCommit()
 
 	recorder := httptest.NewRecorder()
@@ -257,9 +257,8 @@ func setupNoticeAPITestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
 	}
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)

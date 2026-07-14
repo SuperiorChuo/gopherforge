@@ -55,7 +55,7 @@ func TestPermissionServiceCreatePermissionContextHonorsCanceledContext(t *testin
 func TestPermissionServiceCreatePermissionContextReturnsCodeLookupError(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	lookupErr := errors.New("database lookup failed")
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `permissions` WHERE code = ? ORDER BY `permissions`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "permissions" WHERE code = $1 ORDER BY "permissions"."id" LIMIT $2`)).
 		WithArgs("system:user:list", 1).
 		WillReturnError(lookupErr)
 

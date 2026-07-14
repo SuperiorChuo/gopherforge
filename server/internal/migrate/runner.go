@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/server/internal/config"
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 )
 
@@ -91,7 +91,7 @@ func RunWithConfig(ctx context.Context, dbCfg config.DatabaseConfig, opts Option
 		return fmt.Errorf("set goose dialect: %w", err)
 	}
 
-	db, err := sql.Open(dbCfg.Driver, MigrationDSN(dbCfg))
+	db, err := sql.Open(SQLDriverName(dbCfg.Driver), MigrationDSN(dbCfg))
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -110,38 +110,33 @@ func RunWithConfig(ctx context.Context, dbCfg config.DatabaseConfig, opts Option
 
 func DialectForDriver(driver string) (string, error) {
 	switch strings.ToLower(strings.TrimSpace(driver)) {
-	case "mysql":
-		return "mysql", nil
+	case "postgres", "pgx":
+		return "postgres", nil
 	default:
 		return "", fmt.Errorf("unsupported database driver %q for migrations", driver)
 	}
 }
 
+// SQLDriverName maps the configured driver to the registered database/sql driver.
+func SQLDriverName(driver string) string {
+	switch strings.ToLower(strings.TrimSpace(driver)) {
+	case "postgres", "pgx":
+		return "pgx"
+	default:
+		return driver
+	}
+}
+
 func MigrationDSN(cfg config.DatabaseConfig) string {
-	return ensureMigrationDSNParams(cfg.GetDSN())
+	return ensureDSNParam(cfg.GetDSN(), "connect_timeout", "10")
 }
 
-func ensureMultiStatements(dsn string) string {
-	return ensureDSNParam(dsn, "multiStatements", "true")
-}
-
-func ensureMigrationDSNParams(dsn string) string {
-	dsn = ensureMultiStatements(dsn)
-	dsn = ensureDSNParam(dsn, "timeout", "10s")
-	dsn = ensureDSNParam(dsn, "readTimeout", "30s")
-	dsn = ensureDSNParam(dsn, "writeTimeout", "30s")
-	return dsn
-}
-
+// ensureDSNParam appends a keyword/value pair to a libpq-style DSN if absent.
 func ensureDSNParam(dsn, key, value string) string {
 	if strings.Contains(dsn, key+"=") {
 		return dsn
 	}
-	param := key + "=" + value
-	if strings.Contains(dsn, "?") {
-		return dsn + "&" + param
-	}
-	return dsn + "?" + param
+	return dsn + " " + key + "=" + value
 }
 
 func isSupportedCommand(command string) bool {

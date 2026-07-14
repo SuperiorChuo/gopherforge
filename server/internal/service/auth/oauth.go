@@ -12,8 +12,8 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/cache"
 	"github.com/go-admin-kit/server/internal/pkg/jwt"
 	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
-	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -346,11 +346,11 @@ func normalizeOAuthProvider(provider string) (string, error) {
 }
 
 func mapOAuthBindingCreateError(err error) error {
-	var mysqlErr *mysql.MySQLError
-	if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
-		message := strings.ToLower(mysqlErr.Message)
-		if strings.Contains(message, "uk_oauth_bindings_user_provider") ||
-			strings.Contains(message, "uk_oauth_bindings_provider_user") {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		constraint := strings.ToLower(pgErr.ConstraintName)
+		if strings.Contains(constraint, "uk_oauth_bindings_user_provider") ||
+			strings.Contains(constraint, "uk_oauth_bindings_provider_user") {
 			return ErrOAuthAlreadyBound
 		}
 	}

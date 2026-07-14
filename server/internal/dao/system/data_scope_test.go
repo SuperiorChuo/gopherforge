@@ -10,16 +10,16 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func TestUserDAOGetUserListAppliesDepartmentScope(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `users` WHERE department_id IN (?,?)")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "users" WHERE department_id IN ($1,$2)`)).
 		WithArgs(uint(10), uint(11)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE department_id IN (?,?) ORDER BY created_at DESC LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE department_id IN ($1,$2) ORDER BY created_at DESC LIMIT $3`)).
 		WithArgs(uint(10), uint(11), 10).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
@@ -58,7 +58,7 @@ func TestUserDAOGetUserListContextHonorsCanceledContext(t *testing.T) {
 
 func TestFileDAOGetByIDInScopeAppliesOwnerDepartmentScope(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `files` WHERE id = ? AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?)) ORDER BY `files`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM \"files\" WHERE id = $1 AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($2,$3)) ORDER BY \"files\".\"id\" LIMIT $4")).
 		WithArgs(uint(99), uint(20), uint(21), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
@@ -74,7 +74,7 @@ func TestFileDAOGetByIDInScopeAppliesOwnerDepartmentScope(t *testing.T) {
 
 func TestFileDAOGetByHashInScopeAppliesSelfScope(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `files` WHERE hash = ? AND user_id = ? ORDER BY `files`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE hash = $1 AND user_id = $2 ORDER BY "files"."id" LIMIT $3`)).
 		WithArgs("abc123", uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
@@ -90,9 +90,9 @@ func TestFileDAOGetByHashInScopeAppliesSelfScope(t *testing.T) {
 
 func TestFileDAOGetListAppliesNoScope(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `files` WHERE 1 = 0")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "files" WHERE 1 = 0`)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `files` WHERE 1 = 0 ORDER BY created_at DESC LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE 1 = 0 ORDER BY created_at DESC LIMIT $1`)).
 		WithArgs(10).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
@@ -116,10 +116,10 @@ func TestFileDAOGetListAppliesNoScope(t *testing.T) {
 
 func TestFileDAOGetStatsInScopeAppliesOwnerDepartmentScopeToBothAggregates(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) as count, COALESCE(SUM(file_size), 0) as total_size FROM `files` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) as count, COALESCE(SUM(file_size), 0) as total_size FROM \"files\" WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2))")).
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count", "total_size"}).AddRow(3, 2048))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT file_type, COUNT(*) as count, COALESCE(SUM(file_size), 0) as size FROM `files` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?)) GROUP BY `file_type`")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT file_type, COUNT(*) as count, COALESCE(SUM(file_size), 0) as size FROM \"files\" WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2)) GROUP BY \"file_type\"")).
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"file_type", "count", "size"}).AddRow("image", 2, 1024).AddRow("doc", 1, 1024))
 
@@ -143,10 +143,10 @@ func TestLoginLogDAOGetListAppliesDepartmentScopeAndFilters(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
 	status := int8(1)
 	loginType := int8(2)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `login_logs` WHERE username LIKE ? AND ip LIKE ? AND status = ? AND login_type = ? AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM \"login_logs\" WHERE username LIKE $1 AND ip LIKE $2 AND status = $3 AND login_type = $4 AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($5,$6))")).
 		WithArgs("%alice%", "%10.%", status, loginType, uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `login_logs` WHERE username LIKE ? AND ip LIKE ? AND status = ? AND login_type = ? AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?)) ORDER BY created_at DESC LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM \"login_logs\" WHERE username LIKE $1 AND ip LIKE $2 AND status = $3 AND login_type = $4 AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($5,$6)) ORDER BY created_at DESC LIMIT $7")).
 		WithArgs("%alice%", "%10.%", status, loginType, uint(20), uint(21), 10).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
@@ -172,19 +172,19 @@ func TestLoginLogDAOGetListAppliesDepartmentScopeAndFilters(t *testing.T) {
 
 func TestLoginLogDAOGetStatsInScopeAppliesDepartmentScope(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `login_logs` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM \"login_logs\" WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2))")).
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(5))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `login_logs` WHERE status = 1 AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM \"login_logs\" WHERE status = 1 AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2))")).
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(4))
-	mock.ExpectQuery("(?i)^SELECT COUNT\\(DISTINCT\\(`user_id`\\)\\) FROM `login_logs` WHERE \\(status = 1 AND created_at >= \\?\\) AND user_id IN \\(SELECT `id` FROM `users` WHERE department_id IN \\(\\?,\\?\\)\\)$").
+	mock.ExpectQuery("(?i)^SELECT COUNT\\(DISTINCT\\(\"user_id\"\\)\\) FROM \"login_logs\" WHERE \\(status = 1 AND created_at >= \\$\\d+\\) AND user_id IN \\(SELECT `id` FROM `users` WHERE department_id IN \\(\\$\\d+,\\$\\d+\\)\\)$").
 		WithArgs(sqlmock.AnyArg(), uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(3))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT device, COUNT(*) as count FROM `login_logs` WHERE status = 1 AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?)) GROUP BY `device`")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT device, COUNT(*) as count FROM \"login_logs\" WHERE status = 1 AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2)) GROUP BY \"device\"")).
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"device", "count"}).AddRow("Desktop", 4))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT browser, COUNT(*) as count FROM `login_logs` WHERE status = 1 AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?)) GROUP BY `browser`")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT browser, COUNT(*) as count FROM \"login_logs\" WHERE status = 1 AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2)) GROUP BY \"browser\"")).
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"browser", "count"}).AddRow("Chrome", 4))
 
@@ -204,10 +204,10 @@ func TestLoginLogDAOGetStatsInScopeAppliesDepartmentScope(t *testing.T) {
 
 func TestLoginLogDAOGetLoginTrendInScopeAppliesDepartmentScope(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `login_logs` WHERE (created_at >= ? AND created_at < ?) AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM \"login_logs\" WHERE (created_at >= $1 AND created_at < $2) AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($3,$4))")).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(5))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `login_logs` WHERE (created_at >= ? AND created_at < ? AND status = 1) AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM \"login_logs\" WHERE (created_at >= $1 AND created_at < $2 AND status = 1) AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($3,$4))")).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(4))
 
@@ -226,10 +226,10 @@ func TestLoginLogDAOGetLoginTrendInScopeAppliesDepartmentScope(t *testing.T) {
 
 func TestOperationLogDAOGetLogListAppliesSelfScope(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `operation_logs` WHERE user_id = ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "operation_logs" WHERE user_id = $1`)).
 		WithArgs(uint(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `operation_logs` WHERE user_id = ? ORDER BY created_at DESC LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "operation_logs" WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2`)).
 		WithArgs(uint(7), 10).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
@@ -260,7 +260,7 @@ func TestOperationLogDAOGetLogListAppliesSelfScope(t *testing.T) {
 
 func TestOperationLogDAOGetLogByIDInScopeAppliesDepartmentScope(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `operation_logs` WHERE id = ? AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?)) ORDER BY `operation_logs`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM \"operation_logs\" WHERE id = $1 AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($2,$3)) ORDER BY \"operation_logs\".\"id\" LIMIT $4")).
 		WithArgs(uint(88), uint(20), uint(21), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
@@ -276,16 +276,16 @@ func TestOperationLogDAOGetLogByIDInScopeAppliesDepartmentScope(t *testing.T) {
 
 func TestOperationLogDAOGetLogStatsInScopeAppliesDepartmentScope(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `operation_logs` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM \"operation_logs\" WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2))")).
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(6))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT module, count(*) as count FROM `operation_logs` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?)) GROUP BY `module`")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT module, count(*) as count FROM \"operation_logs\" WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2)) GROUP BY \"module\"")).
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"module", "count"}).AddRow("system", 6))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT method, count(*) as count FROM `operation_logs` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?)) GROUP BY `method`")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT method, count(*) as count FROM \"operation_logs\" WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2)) GROUP BY \"method\"")).
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"method", "count"}).AddRow("GET", 6))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `operation_logs` WHERE status >= 400 AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM \"operation_logs\" WHERE status >= 400 AND user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2))")).
 		WithArgs(uint(20), uint(21)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(2))
 
@@ -306,7 +306,7 @@ func TestOperationLogDAOGetLogStatsInScopeAppliesDepartmentScope(t *testing.T) {
 func TestOperationLogDAODeleteLogsBeforeInScopeAppliesSelfScope(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM `operation_logs` WHERE created_at < ? AND user_id = ?")).
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "operation_logs" WHERE created_at < $1 AND user_id = $2`)).
 		WithArgs(sqlmock.AnyArg(), uint(7)).
 		WillReturnResult(sqlmock.NewResult(0, 3))
 	mock.ExpectCommit()
@@ -335,9 +335,8 @@ func setupSystemDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
 	}
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)

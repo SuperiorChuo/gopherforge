@@ -34,7 +34,7 @@ func TestFileDAOGetListContextHonorsCanceledContext(t *testing.T) {
 
 func TestFileDAOGetByHashContextUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedLogFileDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `files` WHERE hash = ? ORDER BY `files`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE hash = $1 ORDER BY "files"."id" LIMIT $2`)).
 		WithArgs("abc123", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "hash", "file_name", "file_path"}).
 			AddRow(uint(7), "abc123", "report.pdf", "/tmp/report.pdf"))
@@ -52,7 +52,7 @@ func TestFileDAOCountByPathExcludingIDUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedLogFileDAOTestDB(t)
 	dao := NewFileDAO(db)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `files` WHERE storage_type = ? AND file_path = ? AND id <> ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "files" WHERE storage_type = $1 AND file_path = $2 AND id <> $3`)).
 		WithArgs("local", "/uploads/avatar.png", uint(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(2)))
 	filePathCount, err := dao.CountByFilePathExcludingIDContext(context.Background(), "local", "/uploads/avatar.png", 7)
@@ -63,7 +63,7 @@ func TestFileDAOCountByPathExcludingIDUsesInjectedDB(t *testing.T) {
 		t.Fatalf("CountByFilePathExcludingIDContext() count = %d, want 2", filePathCount)
 	}
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `files` WHERE storage_type = ? AND thumbnail_path = ? AND id <> ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "files" WHERE storage_type = $1 AND thumbnail_path = $2 AND id <> $3`)).
 		WithArgs("local", "/uploads/thumbs/avatar.png", uint(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(1)))
 	thumbnailPathCount, err := dao.CountByThumbnailPathExcludingIDContext(context.Background(), "local", "/uploads/thumbs/avatar.png", 7)

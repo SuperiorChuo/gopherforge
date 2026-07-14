@@ -44,6 +44,9 @@ type LoginInfo struct {
 	IP        string
 	UserAgent string
 	Message   string
+	// OccurredAt is when the login happened. Zero means "now"; event
+	// consumers set it so replayed backlogs keep their original times.
+	OccurredAt time.Time
 }
 
 var ErrLoginLogNotFound = errors.New("login log not found")
@@ -63,6 +66,7 @@ func (s *LoginLogService) RecordContext(ctx context.Context, info *LoginInfo) er
 		Browser:   browser,
 		UserAgent: truncateString(info.UserAgent, 500),
 		Message:   info.Message,
+		CreatedAt: info.OccurredAt,
 	}
 
 	return s.logDAO.CreateContext(ctx, log)

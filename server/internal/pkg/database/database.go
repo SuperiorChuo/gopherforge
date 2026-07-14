@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-admin-kit/server/internal/config"
 	"github.com/go-admin-kit/server/internal/pkg/logger"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +20,7 @@ func InitDatabase() error {
 
 	dsn := cfg.GetDSN()
 
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to connect database: %w", err)
 	}

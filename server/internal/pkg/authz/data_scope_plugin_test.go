@@ -7,7 +7,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/model"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -17,7 +17,7 @@ func TestDataScopePluginNoDirectiveNoOps(t *testing.T) {
 	var users []model.User
 	stmt := db.Model(&model.User{}).Find(&users).Statement
 
-	assertDataScopeSQL(t, stmt, "SELECT * FROM `users`", nil)
+	assertDataScopeSQL(t, stmt, "SELECT * FROM \"users\"", nil)
 }
 
 func TestDataScopePluginScopesUserQueries(t *testing.T) {
@@ -30,7 +30,7 @@ func TestDataScopePluginScopesUserQueries(t *testing.T) {
 	var users []model.User
 	stmt := db.WithContext(ctx).Model(&model.User{}).Find(&users).Statement
 
-	assertDataScopeSQL(t, stmt, "SELECT * FROM `users` WHERE department_id IN (?,?)", []any{uint(10), uint(11)})
+	assertDataScopeSQL(t, stmt, "SELECT * FROM \"users\" WHERE department_id IN ($1,$2)", []any{uint(10), uint(11)})
 }
 
 func TestDataScopePluginScopesOwnerQueries(t *testing.T) {
@@ -43,7 +43,7 @@ func TestDataScopePluginScopesOwnerQueries(t *testing.T) {
 	var files []model.File
 	stmt := db.WithContext(ctx).Model(&model.File{}).Find(&files).Statement
 
-	assertDataScopeSQL(t, stmt, "SELECT * FROM `files` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))", []any{uint(20), uint(21)})
+	assertDataScopeSQL(t, stmt, "SELECT * FROM \"files\" WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2))", []any{uint(20), uint(21)})
 }
 
 func TestDataScopePluginDisableDirectiveNoOps(t *testing.T) {
@@ -56,7 +56,7 @@ func TestDataScopePluginDisableDirectiveNoOps(t *testing.T) {
 	var users []model.User
 	stmt := db.WithContext(ctx).Model(&model.User{}).Find(&users).Statement
 
-	assertDataScopeSQL(t, stmt, "SELECT * FROM `users`", nil)
+	assertDataScopeSQL(t, stmt, "SELECT * FROM \"users\"", nil)
 }
 
 func TestDataScopePluginSkipsAliasedTableQueries(t *testing.T) {
@@ -82,7 +82,7 @@ func TestDataScopePluginForceSelfScope(t *testing.T) {
 	var files []model.File
 	stmt := db.WithContext(ctx).Model(&model.File{}).Find(&files).Statement
 
-	assertDataScopeSQL(t, stmt, "SELECT * FROM `files` WHERE user_id = ?", []any{uint(7)})
+	assertDataScopeSQL(t, stmt, "SELECT * FROM \"files\" WHERE user_id = $1", []any{uint(7)})
 }
 
 func TestDataScopePluginOwnerScopeSubqueryDoesNotReenterPlugin(t *testing.T) {
@@ -96,7 +96,7 @@ func TestDataScopePluginOwnerScopeSubqueryDoesNotReenterPlugin(t *testing.T) {
 	stmt := db.WithContext(ctx).Model(&model.File{}).Find(&files).Statement
 
 	gotSQL := stmt.SQL.String()
-	wantSQL := "SELECT * FROM `files` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))"
+	wantSQL := "SELECT * FROM \"files\" WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2))"
 	if gotSQL != wantSQL {
 		t.Fatalf("sql = %q, want %q", gotSQL, wantSQL)
 	}
@@ -116,9 +116,8 @@ func newDataScopePluginDryRunDB(t *testing.T) *gorm.DB {
 		_ = sqlDB.Close()
 	})
 
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{DryRun: true})
 	if err != nil {
 		t.Fatalf("open dry-run db: %v", err)

@@ -36,7 +36,7 @@ cd server
 make migrate-rehearse
 ```
 
-`migration-rehearsal` 会使用当前 MySQL 连接配置创建临时库，执行 `up`、`down-to 0`、再次 `up`，默认结束后删除临时库。数据库名只允许字母、数字和下划线，且会拒绝 `mysql`、`information_schema`、`performance_schema`、`sys` 等系统库名；命令也会拒绝在 `APP_ENV=production` 下运行。
+`migration-rehearsal` 会使用当前 PostgreSQL 连接配置创建临时库，执行 `up`、`down-to 0`、再次 `up`，默认结束后删除临时库。数据库名只允许字母、数字和下划线，且会拒绝 `postgres`、`template0`、`template1`、`information_schema` 等系统库名；命令也会拒绝在 `APP_ENV=production` 下运行。
 
 ## 基线迁移
 
@@ -45,7 +45,7 @@ make migrate-rehearse
 为避免误伤已有本地库，基线迁移的 `Up` 部分必须保持非破坏式：
 
 - 建表使用 `CREATE TABLE IF NOT EXISTS`。
-- 种子数据使用 `INSERT IGNORE INTO`。
+- 种子数据使用 `INSERT ... ON CONFLICT DO NOTHING`。
 - `Up` 部分不包含 `DROP TABLE`。
 
 `Down` 部分会删除基线创建的表，只应在明确需要回滚或重置迁移环境时使用。
@@ -62,10 +62,10 @@ make migrate-create NAME=add_audit_index
 
 ```sql
 -- +goose Up
-ALTER TABLE `audit_logs` ADD INDEX `idx_audit_logs_action` (`action`);
+CREATE INDEX idx_audit_logs_action ON audit_logs (action);
 
 -- +goose Down
-ALTER TABLE `audit_logs` DROP INDEX `idx_audit_logs_action`;
+DROP INDEX idx_audit_logs_action;
 ```
 
 迁移文件应满足：
@@ -73,7 +73,7 @@ ALTER TABLE `audit_logs` DROP INDEX `idx_audit_logs_action`;
 - `Up` 和 `Down` 都能清楚表达变更与回滚路径。
 - 不把本地测试数据写入迁移，只写脚手架必须的基线数据或结构变更。
 - 涉及已有数据变更时，先在本地或预发环境备份数据库并验证回滚路径。
-- 为已有表新增唯一索引时，迁移脚本必须先处理历史重复数据，避免生产库在 `ALTER TABLE ... ADD UNIQUE KEY` 阶段失败；例如 `000008_add_oauth_binding_user_provider_unique.sql` 会先删除同一 `user_id + provider` 下较旧的重复 OAuth 绑定，再增加唯一键。
+- 为已有表新增唯一索引时，迁移脚本必须先处理历史重复数据，避免生产库在 `CREATE UNIQUE INDEX` 阶段失败；例如 `000008_add_oauth_binding_user_provider_unique.sql` 会先删除同一 `user_id + provider` 下较旧的重复 OAuth 绑定，再增加唯一索引。
 
 ## SQL 快照
 

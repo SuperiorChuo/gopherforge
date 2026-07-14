@@ -6,7 +6,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/model"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -22,29 +22,29 @@ func TestApplyUserEntityScopeSQL(t *testing.T) {
 		{
 			name:    "all scope leaves query unrestricted",
 			scope:   UserDataScope{Scope: DataScopeAll},
-			wantSQL: "SELECT * FROM `users`",
+			wantSQL: "SELECT * FROM \"users\"",
 		},
 		{
 			name:     "department scope filters by department ids",
 			scope:    UserDataScope{Scope: DataScopeDepartment, DepartmentIDs: []uint{10, 11}},
-			wantSQL:  "SELECT * FROM `users` WHERE department_id IN (?,?)",
+			wantSQL:  "SELECT * FROM \"users\" WHERE department_id IN ($1,$2)",
 			wantVars: []any{uint(10), uint(11)},
 		},
 		{
 			name:     "self scope filters by user id",
 			scope:    UserDataScope{Scope: DataScopeSelf, UserID: 7},
-			wantSQL:  "SELECT * FROM `users` WHERE id = ?",
+			wantSQL:  "SELECT * FROM \"users\" WHERE id = $1",
 			wantVars: []any{uint(7)},
 		},
 		{
 			name:    "none scope denies rows",
 			scope:   UserDataScope{Scope: DataScopeNone},
-			wantSQL: "SELECT * FROM `users` WHERE 1 = 0",
+			wantSQL: "SELECT * FROM \"users\" WHERE 1 = 0",
 		},
 		{
 			name:    "empty department scope denies rows",
 			scope:   UserDataScope{Scope: DataScopeDepartment},
-			wantSQL: "SELECT * FROM `users` WHERE 1 = 0",
+			wantSQL: "SELECT * FROM \"users\" WHERE 1 = 0",
 		},
 	}
 
@@ -69,19 +69,19 @@ func TestApplyOwnerScopeSQL(t *testing.T) {
 		{
 			name:     "self scope filters by owner id",
 			scope:    UserDataScope{Scope: DataScopeSelf, UserID: 7},
-			wantSQL:  "SELECT * FROM `files` WHERE user_id = ?",
+			wantSQL:  "SELECT * FROM \"files\" WHERE user_id = $1",
 			wantVars: []any{uint(7)},
 		},
 		{
 			name:     "department scope filters through user department subquery",
 			scope:    UserDataScope{Scope: DataScopeDepartment, DepartmentIDs: []uint{20, 21}},
-			wantSQL:  "SELECT * FROM `files` WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN (?,?))",
+			wantSQL:  "SELECT * FROM \"files\" WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2))",
 			wantVars: []any{uint(20), uint(21)},
 		},
 		{
 			name:    "none scope denies rows",
 			scope:   UserDataScope{Scope: DataScopeNone},
-			wantSQL: "SELECT * FROM `files` WHERE 1 = 0",
+			wantSQL: "SELECT * FROM \"files\" WHERE 1 = 0",
 		},
 	}
 
@@ -105,9 +105,8 @@ func newDataScopeDryRunDB(t *testing.T) *gorm.DB {
 		_ = sqlDB.Close()
 	})
 
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{DryRun: true})
 	if err != nil {
 		t.Fatalf("open dry-run db: %v", err)

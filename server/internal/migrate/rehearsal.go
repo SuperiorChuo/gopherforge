@@ -40,7 +40,7 @@ func RunRehearsal(ctx context.Context, opts RehearsalOptions) error {
 
 	dbCfg := config.Cfg.Database
 	logRehearsal(opts, "connecting to database server %s:%d", dbCfg.Host, dbCfg.Port)
-	adminDB, err := sql.Open(dbCfg.Driver, migrationServerDSN(dbCfg))
+	adminDB, err := sql.Open(SQLDriverName(dbCfg.Driver), migrationServerDSN(dbCfg))
 	if err != nil {
 		return fmt.Errorf("open database server: %w", err)
 	}
@@ -59,7 +59,7 @@ func RunRehearsal(ctx context.Context, opts RehearsalOptions) error {
 		defer func() {
 			dropCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			_, _ = adminDB.ExecContext(dropCtx, "DROP DATABASE IF EXISTS `"+opts.Database+"`")
+			_, _ = adminDB.ExecContext(dropCtx, `DROP DATABASE IF EXISTS "`+opts.Database+`"`)
 		}()
 	}
 
@@ -97,18 +97,19 @@ func normalizeRehearsalOptions(opts RehearsalOptions) RehearsalOptions {
 }
 
 func resetRehearsalDatabase(ctx context.Context, db *sql.DB, database string) error {
-	if _, err := db.ExecContext(ctx, "DROP DATABASE IF EXISTS `"+database+"`"); err != nil {
+	if _, err := db.ExecContext(ctx, `DROP DATABASE IF EXISTS "`+database+`"`); err != nil {
 		return fmt.Errorf("drop rehearsal database: %w", err)
 	}
-	if _, err := db.ExecContext(ctx, "CREATE DATABASE `"+database+"` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"); err != nil {
+	if _, err := db.ExecContext(ctx, `CREATE DATABASE "`+database+`" ENCODING 'UTF8'`); err != nil {
 		return fmt.Errorf("create rehearsal database: %w", err)
 	}
 	return nil
 }
 
 func migrationServerDSN(cfg config.DatabaseConfig) string {
-	cfg.DBName = ""
-	return ensureMultiStatements(cfg.GetDSN())
+	// Connect to the maintenance database; PostgreSQL has no "no database" mode.
+	cfg.DBName = "postgres"
+	return cfg.GetDSN()
 }
 
 var safeRehearsalDatabaseName = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
@@ -122,7 +123,7 @@ func validateRehearsalDatabaseName(database string) error {
 		return fmt.Errorf("rehearsal database name %q may only contain letters, digits and underscores", database)
 	}
 	switch strings.ToLower(database) {
-	case "mysql", "information_schema", "performance_schema", "sys":
+	case "postgres", "template0", "template1", "information_schema":
 		return fmt.Errorf("rehearsal database name %q is reserved", database)
 	}
 	return nil

@@ -27,7 +27,7 @@ func TestMenuServiceCreateMenuContextHonorsCanceledParentLookup(t *testing.T) {
 func TestMenuServiceCreateMenuContextReturnsParentLookupError(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	lookupErr := errors.New("database lookup failed")
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `menus` WHERE `menus`.`id` = ? ORDER BY `menus`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "menus" WHERE "menus"."id" = $1 ORDER BY "menus"."id" LIMIT $2`)).
 		WithArgs(1, 1).
 		WillReturnError(lookupErr)
 

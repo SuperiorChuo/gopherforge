@@ -81,49 +81,56 @@ func TestParseOptionsAcceptsCreateCommand(t *testing.T) {
 }
 
 func TestDialectForDriver(t *testing.T) {
-	dialect, err := DialectForDriver("mysql")
-	if err != nil {
-		t.Fatalf("DialectForDriver returned error: %v", err)
-	}
-	if dialect != "mysql" {
-		t.Fatalf("dialect = %q, want mysql", dialect)
+	for _, driver := range []string{"postgres", "pgx"} {
+		dialect, err := DialectForDriver(driver)
+		if err != nil {
+			t.Fatalf("DialectForDriver(%q) returned error: %v", driver, err)
+		}
+		if dialect != "postgres" {
+			t.Fatalf("dialect = %q, want postgres", dialect)
+		}
 	}
 
-	if _, err := DialectForDriver("postgres"); err == nil {
+	if _, err := DialectForDriver("mysql"); err == nil {
 		t.Fatal("DialectForDriver accepted unsupported driver")
 	}
 }
 
-func TestMigrationDSNEnablesMultiStatements(t *testing.T) {
+func TestSQLDriverName(t *testing.T) {
+	for _, driver := range []string{"postgres", "pgx"} {
+		if got := SQLDriverName(driver); got != "pgx" {
+			t.Fatalf("SQLDriverName(%q) = %q, want pgx", driver, got)
+		}
+	}
+}
+
+func TestMigrationDSNAppendsConnectTimeout(t *testing.T) {
 	cfg := config.DatabaseConfig{
-		User:     "root",
+		User:     "postgres",
 		Password: "secret",
 		Host:     "127.0.0.1",
-		Port:     3306,
+		Port:     5432,
 		DBName:   "go_admin_kit",
-		Charset:  "utf8mb4",
+		SSLMode:  "disable",
 	}
 
 	dsn := MigrationDSN(cfg)
-	if !strings.Contains(dsn, "multiStatements=true") {
-		t.Fatalf("dsn = %q, want multiStatements=true", dsn)
+	if !strings.Contains(dsn, "connect_timeout=10") {
+		t.Fatalf("dsn = %q, want connect_timeout=10", dsn)
 	}
-	for _, want := range []string{"timeout=10s", "readTimeout=30s", "writeTimeout=30s"} {
+	for _, want := range []string{"host=127.0.0.1", "port=5432", "user=postgres", "dbname=go_admin_kit", "sslmode=disable", "password=secret"} {
 		if !strings.Contains(dsn, want) {
 			t.Fatalf("dsn = %q, want %s", dsn, want)
 		}
 	}
 }
 
-func TestMigrationDSNDoesNotDuplicateMultiStatements(t *testing.T) {
-	input := "root:secret@tcp(127.0.0.1:3306)/go_admin_kit?charset=utf8mb4&multiStatements=true&timeout=3s"
-	dsn := ensureMigrationDSNParams(input)
+func TestEnsureDSNParamDoesNotDuplicateExistingKey(t *testing.T) {
+	input := "host=127.0.0.1 port=5432 user=postgres dbname=go_admin_kit sslmode=disable connect_timeout=3"
+	dsn := ensureDSNParam(input, "connect_timeout", "10")
 
-	if strings.Count(dsn, "multiStatements=true") != 1 {
-		t.Fatalf("dsn = %q, want one multiStatements=true", dsn)
-	}
-	if strings.Count(dsn, "timeout=") != 1 || !strings.Contains(dsn, "timeout=3s") {
-		t.Fatalf("dsn = %q, want existing timeout preserved", dsn)
+	if strings.Count(dsn, "connect_timeout=") != 1 || !strings.Contains(dsn, "connect_timeout=3") {
+		t.Fatalf("dsn = %q, want existing connect_timeout preserved", dsn)
 	}
 }
 
@@ -179,7 +186,7 @@ func TestBaselineMigrationUpIsNonDestructive(t *testing.T) {
 	if !strings.Contains(up, "CREATE TABLE IF NOT EXISTS") {
 		t.Fatal("baseline migration Up section should create tables idempotently")
 	}
-	if !strings.Contains(up, "INSERT IGNORE INTO") {
+	if !strings.Contains(up, "ON CONFLICT DO NOTHING") {
 		t.Fatal("baseline migration Up section should seed rows idempotently")
 	}
 }
@@ -195,8 +202,8 @@ func TestBaselineMigrationDownDropsEveryCreatedTable(t *testing.T) {
 		t.Fatalf("baseline migration should have one Down section, got %d sections", len(parts))
 	}
 
-	createRe := regexp.MustCompile("CREATE TABLE IF NOT EXISTS `([^`]+)`")
-	dropRe := regexp.MustCompile("DROP TABLE IF EXISTS `([^`]+)`")
+	createRe := regexp.MustCompile(`CREATE TABLE IF NOT EXISTS ([A-Za-z0-9_]+)`)
+	dropRe := regexp.MustCompile(`DROP TABLE IF EXISTS ([A-Za-z0-9_]+)`)
 
 	created := createRe.FindAllStringSubmatch(parts[0], -1)
 	droppedMatches := dropRe.FindAllStringSubmatch(parts[1], -1)
@@ -220,9 +227,9 @@ func TestPermissionDescriptionMigrationExists(t *testing.T) {
 	}
 	sql := strings.ToLower(string(addMigration))
 	for _, want := range []string{
-		"alter table `permissions`",
-		"add column `description`",
-		"drop column `description`",
+		"alter table permissions",
+		"add column description",
+		"drop column description",
 	} {
 		if !strings.Contains(sql, want) {
 			t.Fatalf("incremental migration missing %q", want)
@@ -237,11 +244,11 @@ func TestPasswordPolicyMigrationExists(t *testing.T) {
 	}
 	sql := strings.ToLower(string(addMigration))
 	for _, want := range []string{
-		"alter table `users`",
-		"add column `password_changed_at`",
-		"create table if not exists `password_history`",
-		"drop table if exists `password_history`",
-		"drop column `password_changed_at`",
+		"alter table users",
+		"add column password_changed_at",
+		"create table if not exists password_history",
+		"drop table if exists password_history",
+		"drop column password_changed_at",
 	} {
 		if !strings.Contains(sql, want) {
 			t.Fatalf("password policy migration missing %q", want)
@@ -256,14 +263,14 @@ func TestTOTP2FAMigrationExists(t *testing.T) {
 	}
 	sql := strings.ToLower(string(addMigration))
 	for _, want := range []string{
-		"alter table `users`",
-		"add column `totp_secret`",
-		"add column `totp_enabled`",
-		"create table if not exists `totp_recovery_codes`",
-		"foreign key (`user_id`) references `users` (`id`) on delete cascade",
-		"drop table if exists `totp_recovery_codes`",
-		"drop column `totp_enabled`",
-		"drop column `totp_secret`",
+		"alter table users",
+		"add column totp_secret",
+		"add column totp_enabled",
+		"create table if not exists totp_recovery_codes",
+		"foreign key (user_id) references users (id) on delete cascade",
+		"drop table if exists totp_recovery_codes",
+		"drop column totp_enabled",
+		"drop column totp_secret",
 	} {
 		if !strings.Contains(sql, want) {
 			t.Fatalf("totp migration missing %q", want)
@@ -299,7 +306,7 @@ func TestSensitivePermissionTighteningMigrationExists(t *testing.T) {
 	sql := strings.ToLower(string(addMigration))
 	for _, want := range []string{
 		"system:log:operation:clear",
-		"role_id` = 2",
+		"rp.role_id = 2",
 		"system:setting:update",
 		"system:setting:delete",
 	} {
@@ -316,23 +323,22 @@ func TestRenameWMTablesMigrationExists(t *testing.T) {
 	}
 	sql := strings.ToLower(string(addMigration))
 	for _, want := range []string{
-		"rename table",
-		"`wm_audit_log` to `audit_logs`",
-		"`wm_console_route` to `console_routes`",
-		"`wm_console_session` to `console_sessions`",
-		"`wm_system_setting` to `system_settings`",
-		"`system_settings` to `wm_system_setting`",
-		"`console_sessions` to `wm_console_session`",
-		"`console_routes` to `wm_console_route`",
-		"`audit_logs` to `wm_audit_log`",
-		"rename index `idx_wm_audit_log_created_at` to `idx_audit_logs_created_at`",
-		"rename index `idx_wm_console_route_path` to `idx_console_routes_path`",
-		"rename index `idx_wm_console_session_username` to `idx_console_sessions_username`",
-		"rename index `idx_wm_system_setting_updated_at` to `idx_system_settings_updated_at`",
-		"rename index `idx_system_settings_updated_at` to `idx_wm_system_setting_updated_at`",
-		"rename index `idx_console_sessions_username` to `idx_wm_console_session_username`",
-		"rename index `idx_console_routes_path` to `idx_wm_console_route_path`",
-		"rename index `idx_audit_logs_created_at` to `idx_wm_audit_log_created_at`",
+		"alter table wm_audit_log rename to audit_logs",
+		"alter table wm_console_route rename to console_routes",
+		"alter table wm_console_session rename to console_sessions",
+		"alter table wm_system_setting rename to system_settings",
+		"alter table system_settings rename to wm_system_setting",
+		"alter table console_sessions rename to wm_console_session",
+		"alter table console_routes rename to wm_console_route",
+		"alter table audit_logs rename to wm_audit_log",
+		"alter index idx_wm_audit_log_created_at rename to idx_audit_logs_created_at",
+		"alter index idx_wm_console_route_path rename to idx_console_routes_path",
+		"alter index idx_wm_console_session_username rename to idx_console_sessions_username",
+		"alter index idx_wm_system_setting_updated_at rename to idx_system_settings_updated_at",
+		"alter index idx_system_settings_updated_at rename to idx_wm_system_setting_updated_at",
+		"alter index idx_console_sessions_username rename to idx_wm_console_session_username",
+		"alter index idx_console_routes_path rename to idx_wm_console_route_path",
+		"alter index idx_audit_logs_created_at rename to idx_wm_audit_log_created_at",
 	} {
 		if !strings.Contains(sql, want) {
 			t.Fatalf("table rename migration missing %q", want)
@@ -348,10 +354,9 @@ func TestOAuthBindingUserProviderUniqueMigrationExists(t *testing.T) {
 	sql := strings.ToLower(string(addMigration))
 	for _, want := range []string{
 		"delete older duplicate rows before adding the user/provider unique key",
-		"delete ob from `oauth_bindings` ob",
-		"alter table `oauth_bindings`",
-		"add unique key `uk_oauth_bindings_user_provider` (`user_id`,`provider`)",
-		"drop index `uk_oauth_bindings_user_provider` on `oauth_bindings`",
+		"delete from oauth_bindings ob",
+		"create unique index if not exists uk_oauth_bindings_user_provider on oauth_bindings (user_id, provider)",
+		"drop index if exists uk_oauth_bindings_user_provider",
 	} {
 		if !strings.Contains(sql, want) {
 			t.Fatalf("oauth binding unique migration missing %q", want)

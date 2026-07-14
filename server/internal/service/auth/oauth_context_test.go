@@ -11,7 +11,7 @@ import (
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/jwt"
 	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
-	"github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
@@ -300,9 +300,10 @@ func TestOAuthServiceBindOAuthContextMapsDuplicateCreateToAlreadyBound(t *testin
 	bindings := &stubOAuthBindingStore{
 		getErr:             gorm.ErrRecordNotFound,
 		getUserProviderErr: gorm.ErrRecordNotFound,
-		createErr: &mysql.MySQLError{
-			Number:  1062,
-			Message: "Duplicate entry '42-github' for key 'oauth_bindings.uk_oauth_bindings_user_provider'",
+		createErr: &pgconn.PgError{
+			Code:           "23505",
+			Message:        `duplicate key value violates unique constraint "uk_oauth_bindings_user_provider"`,
+			ConstraintName: "uk_oauth_bindings_user_provider",
 		},
 	}
 	svc := &OAuthService{bindingDAO: bindings, providerClients: map[string]oauthProviderClient{"github": fakeOAuthProviderClient()}}

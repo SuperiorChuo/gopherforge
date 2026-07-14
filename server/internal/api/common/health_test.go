@@ -13,7 +13,7 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/database"
 	internalredis "github.com/go-admin-kit/server/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -105,9 +105,8 @@ func TestHealthAPIWithDatabaseClientUsesInjectedDatabase(t *testing.T) {
 	}
 	mock.ExpectPing()
 
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{DisableAutomaticPing: true})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)
@@ -143,9 +142,8 @@ func setupHealthTestDBPingError(t *testing.T, pingErr error) {
 	}
 	mock.ExpectPing().WillReturnError(pingErr)
 
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{DisableAutomaticPing: true})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)

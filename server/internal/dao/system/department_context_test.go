@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -25,7 +25,7 @@ func TestDepartmentDAOGetTreeContextHonorsCanceledContext(t *testing.T) {
 
 func TestDepartmentDAOGetAllUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedDepartmentMenuDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `departments` ORDER BY parent_id ASC, sort ASC, created_at ASC")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "departments" ORDER BY parent_id ASC, sort ASC, created_at ASC`)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "code"}).AddRow(7, "Engineering", "eng"))
 
 	depts, err := NewDepartmentDAO(db).GetAllContext(context.Background(), nil)
@@ -50,9 +50,8 @@ func newInjectedDepartmentMenuDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock
 		}
 		_ = sqlDB.Close()
 	})
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)

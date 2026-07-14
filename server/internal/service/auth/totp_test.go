@@ -24,7 +24,7 @@ func TestLoginPasswordContextReturnsTOTPChallengeWhenEnabled(t *testing.T) {
 	})
 
 	currentHash := mustHashPasswordForTest(t, "CurrentPass1")
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE username = \\? ORDER BY `users`.`id` LIMIT \\?").
+	mock.ExpectQuery("SELECT \\* FROM \"users\" WHERE username = \\$\\d+ ORDER BY \"users\".\"id\" LIMIT \\$\\d+").
 		WithArgs("alice", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "must_change_password", "totp_enabled"}).
 			AddRow(uint(7), "alice", currentHash, int8(1), false, true))
@@ -72,7 +72,7 @@ func TestVerifyTOTPLoginContextIssuesTokensForValidCode(t *testing.T) {
 		t.Fatalf("GenerateTOTPChallenge() error = %v", err)
 	}
 
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE `users`.`id` = \\? ORDER BY `users`.`id` LIMIT \\?").
+	mock.ExpectQuery("SELECT \\* FROM \"users\" WHERE \"users\".\"id\" = \\$\\d+ ORDER BY \"users\".\"id\" LIMIT \\$\\d+").
 		WithArgs(uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "status", "totp_enabled", "totp_secret"}).
 			AddRow(uint(7), "alice", int8(1), true, secret))
@@ -114,16 +114,16 @@ func TestVerifyTOTPLoginContextAcceptsRecoveryCodeOnce(t *testing.T) {
 		t.Fatalf("GenerateTOTPChallenge() error = %v", err)
 	}
 
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE `users`.`id` = \\? ORDER BY `users`.`id` LIMIT \\?").
+	mock.ExpectQuery("SELECT \\* FROM \"users\" WHERE \"users\".\"id\" = \\$\\d+ ORDER BY \"users\".\"id\" LIMIT \\$\\d+").
 		WithArgs(uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "status", "totp_enabled", "totp_secret"}).
 			AddRow(uint(7), "alice", int8(1), true, "JBSWY3DPEHPK3PXP"))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `totp_recovery_codes` WHERE user_id = ? AND used_at IS NULL ORDER BY id ASC")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "totp_recovery_codes" WHERE user_id = $1 AND used_at IS NULL ORDER BY id ASC`)).
 		WithArgs(uint(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "code_hash", "used_at"}).
 			AddRow(uint(11), uint(7), codeHash, nil))
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE `totp_recovery_codes` SET `used_at`=?,`updated_at`=? WHERE user_id = ? AND id = ? AND used_at IS NULL")).
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "totp_recovery_codes" SET "used_at"=$1,"updated_at"=$2 WHERE user_id = $3 AND id = $4 AND used_at IS NULL`)).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), uint(7), uint(11)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
@@ -156,11 +156,11 @@ func TestVerifyTOTPLoginContextRejectsInvalidRecoveryCodeWithoutMarkingUsed(t *t
 		t.Fatalf("GenerateTOTPChallenge() error = %v", err)
 	}
 
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE `users`.`id` = \\? ORDER BY `users`.`id` LIMIT \\?").
+	mock.ExpectQuery("SELECT \\* FROM \"users\" WHERE \"users\".\"id\" = \\$\\d+ ORDER BY \"users\".\"id\" LIMIT \\$\\d+").
 		WithArgs(uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "status", "totp_enabled", "totp_secret"}).
 			AddRow(uint(7), "alice", int8(1), true, "JBSWY3DPEHPK3PXP"))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `totp_recovery_codes` WHERE user_id = ? AND used_at IS NULL ORDER BY id ASC")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "totp_recovery_codes" WHERE user_id = $1 AND used_at IS NULL ORDER BY id ASC`)).
 		WithArgs(uint(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "code_hash", "used_at"}).
 			AddRow(uint(11), uint(7), codeHash, nil))
@@ -189,7 +189,7 @@ func TestVerifyTOTPLoginContextRejectsInvalidTOTPWithoutRecoveryLookup(t *testin
 		t.Fatalf("GenerateTOTPChallenge() error = %v", err)
 	}
 
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE `users`.`id` = \\? ORDER BY `users`.`id` LIMIT \\?").
+	mock.ExpectQuery("SELECT \\* FROM \"users\" WHERE \"users\".\"id\" = \\$\\d+ ORDER BY \"users\".\"id\" LIMIT \\$\\d+").
 		WithArgs(uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "status", "totp_enabled", "totp_secret"}).
 			AddRow(uint(7), "alice", int8(1), true, "JBSWY3DPEHPK3PXP"))
@@ -212,12 +212,12 @@ func TestGenerateTOTPSetupContextStoresSecretDisabled(t *testing.T) {
 		config.Cfg = oldCfg
 	})
 
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE `users`.`id` = \\? ORDER BY `users`.`id` LIMIT \\?").
+	mock.ExpectQuery("SELECT \\* FROM \"users\" WHERE \"users\".\"id\" = \\$\\d+ ORDER BY \"users\".\"id\" LIMIT \\$\\d+").
 		WithArgs(uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "totp_enabled"}).
 			AddRow(uint(7), "alice", mustHashPasswordForTest(t, "CurrentPass1"), int8(1), false))
 	mock.ExpectBegin()
-	mock.ExpectExec("UPDATE `users` SET `totp_enabled`=\\?,`totp_secret`=\\?,`updated_at`=\\? WHERE id = \\?").
+	mock.ExpectExec("UPDATE \"users\" SET \"totp_enabled\"=\\$\\d+,\"totp_secret\"=\\$\\d+,\"updated_at\"=\\$\\d+ WHERE id = \\$\\d+").
 		WithArgs(false, sqlmock.AnyArg(), sqlmock.AnyArg(), uint(7)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
@@ -243,19 +243,20 @@ func TestEnableTOTPContextReturnsRecoveryCodes(t *testing.T) {
 		t.Fatalf("GenerateCode() error = %v", err)
 	}
 
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE `users`.`id` = \\? ORDER BY `users`.`id` LIMIT \\?").
+	mock.ExpectQuery("SELECT \\* FROM \"users\" WHERE \"users\".\"id\" = \\$\\d+ ORDER BY \"users\".\"id\" LIMIT \\$\\d+").
 		WithArgs(uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "totp_enabled", "totp_secret"}).
 			AddRow(uint(7), "alice", mustHashPasswordForTest(t, "CurrentPass1"), int8(1), false, secret))
 	mock.ExpectBegin()
-	mock.ExpectExec("UPDATE `users` SET `totp_enabled`=\\?,`updated_at`=\\? WHERE id = \\?").
+	mock.ExpectExec("UPDATE \"users\" SET \"totp_enabled\"=\\$\\d+,\"updated_at\"=\\$\\d+ WHERE id = \\$\\d+").
 		WithArgs(true, sqlmock.AnyArg(), uint(7)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM `totp_recovery_codes` WHERE user_id = ?")).
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "totp_recovery_codes" WHERE user_id = $1`)).
 		WithArgs(uint(7)).
 		WillReturnResult(sqlmock.NewResult(0, 8))
-	mock.ExpectExec("INSERT INTO `totp_recovery_codes`").
-		WillReturnResult(sqlmock.NewResult(1, 8))
+	mock.ExpectQuery("INSERT INTO \"totp_recovery_codes\"").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).
+			AddRow(1).AddRow(2).AddRow(3).AddRow(4).AddRow(5).AddRow(6).AddRow(7).AddRow(8))
 	mock.ExpectCommit()
 
 	resp, err := (&svc).EnableTOTPContext(context.Background(), 7, TOTPVerifyRequest{
@@ -285,7 +286,7 @@ func TestEnableTOTPContextRejectsMissingCurrentPassword(t *testing.T) {
 		t.Fatalf("GenerateCode() error = %v", err)
 	}
 
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE `users`.`id` = \\? ORDER BY `users`.`id` LIMIT \\?").
+	mock.ExpectQuery("SELECT \\* FROM \"users\" WHERE \"users\".\"id\" = \\$\\d+ ORDER BY \"users\".\"id\" LIMIT \\$\\d+").
 		WithArgs(uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "totp_enabled", "totp_secret"}).
 			AddRow(uint(7), "alice", mustHashPasswordForTest(t, "CurrentPass1"), int8(1), false, secret))
@@ -306,16 +307,17 @@ func TestRegenerateTOTPRecoveryCodesContextReturnsNewCodes(t *testing.T) {
 		t.Fatalf("GenerateCode() error = %v", err)
 	}
 
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE `users`.`id` = \\? ORDER BY `users`.`id` LIMIT \\?").
+	mock.ExpectQuery("SELECT \\* FROM \"users\" WHERE \"users\".\"id\" = \\$\\d+ ORDER BY \"users\".\"id\" LIMIT \\$\\d+").
 		WithArgs(uint(7), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "totp_enabled", "totp_secret"}).
 			AddRow(uint(7), "alice", mustHashPasswordForTest(t, "CurrentPass1"), int8(1), true, secret))
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM `totp_recovery_codes` WHERE user_id = ?")).
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "totp_recovery_codes" WHERE user_id = $1`)).
 		WithArgs(uint(7)).
 		WillReturnResult(sqlmock.NewResult(0, 8))
-	mock.ExpectExec("INSERT INTO `totp_recovery_codes`").
-		WillReturnResult(sqlmock.NewResult(1, 8))
+	mock.ExpectQuery("INSERT INTO \"totp_recovery_codes\"").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).
+			AddRow(1).AddRow(2).AddRow(3).AddRow(4).AddRow(5).AddRow(6).AddRow(7).AddRow(8))
 	mock.ExpectCommit()
 
 	resp, err := (&svc).RegenerateTOTPRecoveryCodesContext(context.Background(), 7, TOTPVerifyRequest{

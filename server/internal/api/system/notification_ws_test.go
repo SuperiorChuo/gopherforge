@@ -134,7 +134,7 @@ func TestNotificationWebSocketConsumesTicketSendsActiveNoticesAndPublishesTarget
 
 	createdAt := time.Date(2026, 5, 23, 9, 30, 0, 0, time.UTC)
 	db, mock := setupNoticeAPITestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `notices` WHERE status = 1 AND ((start_time IS NULL OR start_time <= NOW())) AND ((end_time IS NULL OR end_time >= NOW())) ORDER BY created_at DESC")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "notices" WHERE status = 1 AND ((start_time IS NULL OR start_time <= NOW())) AND ((end_time IS NULL OR end_time >= NOW())) ORDER BY created_at DESC`)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "title", "content", "type", "status", "created_at", "updated_at"}).
 			AddRow(uint(9), "Maintenance", "Maintenance window tonight", int8(2), int8(1), createdAt, createdAt))
 

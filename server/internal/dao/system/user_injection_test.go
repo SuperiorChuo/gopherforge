@@ -8,18 +8,18 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func TestUserDAOGetUserListUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedSystemUserTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `users`")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "users"`)).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(1))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` ORDER BY created_at DESC LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" ORDER BY created_at DESC LIMIT $1`)).
 		WithArgs(10).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username"}).AddRow(42, "alice"))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `user_roles` WHERE `user_roles`.`user_id` = ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "user_roles" WHERE "user_roles"."user_id" = $1`)).
 		WithArgs(uint(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"user_id", "role_id"}))
 
@@ -51,9 +51,8 @@ func newInjectedSystemUserTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 		}
 		_ = sqlDB.Close()
 	})
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)

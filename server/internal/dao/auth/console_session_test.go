@@ -13,7 +13,7 @@ import (
 func TestConsoleSessionDAOGetBySessionIDContext(t *testing.T) {
 	db, mock := newAuthDAOTestDB(t)
 	now := time.Now().UTC()
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `console_sessions` WHERE session_id = ? ORDER BY `console_sessions`.`session_id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "console_sessions" WHERE session_id = $1 ORDER BY "console_sessions"."session_id" LIMIT $2`)).
 		WithArgs("session-1", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"session_id", "username", "issued_at", "expires_at", "created_at"}).
 			AddRow("session-1", "alice", now, now.Add(time.Hour), now))
@@ -50,7 +50,7 @@ func TestConsoleSessionDAOReadyReflectsInjectedDatabase(t *testing.T) {
 func TestConsoleSessionDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newAuthDAOTestDB(t)
 	now := time.Now().UTC()
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `console_sessions` WHERE session_id = ? ORDER BY `console_sessions`.`session_id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "console_sessions" WHERE session_id = $1 ORDER BY "console_sessions"."session_id" LIMIT $2`)).
 		WithArgs("session-1", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"session_id", "username", "issued_at", "expires_at", "created_at"}).
 			AddRow("session-1", "alice", now, now.Add(time.Hour), now))

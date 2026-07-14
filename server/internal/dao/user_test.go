@@ -7,13 +7,13 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func TestUserDAOGetUserByUsernameUsesSharedQuery(t *testing.T) {
 	db, mock := newDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? ORDER BY `users`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE username = $1 ORDER BY "users"."id" LIMIT $2`)).
 		WithArgs("alice", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username"}).AddRow(42, "alice"))
 
@@ -28,7 +28,7 @@ func TestUserDAOGetUserByUsernameUsesSharedQuery(t *testing.T) {
 
 func TestUserDAOGetUserWithRolesReturnsNotFound(t *testing.T) {
 	db, mock := newDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE `users`.`id` = ? ORDER BY `users`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE "users"."id" = $1 ORDER BY "users"."id" LIMIT $2`)).
 		WithArgs(uint(99), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
@@ -52,7 +52,7 @@ func TestUserDAOGetUserWithRolesContextHonorsCanceledContext(t *testing.T) {
 func TestUserDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newDAOTestDB(t)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? ORDER BY `users`.`id` LIMIT ?")).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE username = $1 ORDER BY "users"."id" LIMIT $2`)).
 		WithArgs("alice", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username"}).AddRow(42, "alice"))
 
@@ -80,9 +80,8 @@ func newDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 		}
 		_ = sqlDB.Close()
 	})
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
 	}), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)

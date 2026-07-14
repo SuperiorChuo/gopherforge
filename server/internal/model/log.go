@@ -49,7 +49,9 @@ type LoginLog struct {
 	UserID    uint      `gorm:"index" json:"user_id"`
 	Username  string    `gorm:"size:50" json:"username"`
 	LoginType int8      `gorm:"default:1" json:"login_type"`
-	Status    int8      `gorm:"default:1" json:"status"`
+	// Status 0 = failed is real data, so no gorm default tag: with one, GORM
+	// drops the zero value from the INSERT and the column default (1) wins.
+	Status int8 `json:"status"`
 	IP        string    `gorm:"size:45" json:"ip"`
 	Location  string    `gorm:"size:100" json:"location"`
 	Device    string    `gorm:"size:100" json:"device"`

@@ -2,12 +2,12 @@ PROJECT_NAME := go-admin-kit
 GO := go
 
 DB_HOST ?= 127.0.0.1
-DB_PORT ?= 3306
-DB_USER ?= root
+DB_PORT ?= 5432
+DB_USER ?= postgres
 DB_PASSWORD ?= 123456
 DB_NAME ?= go_admin_kit
 MIGRATION_REHEARSAL_DB ?= go_admin_kit_migration_rehearsal
-MYSQL_CONTAINER ?= go-admin-kit-mysql
+POSTGRES_CONTAINER ?= go-admin-kit-postgres
 SQL_FILE ?= ./docs/go_admin_kit.sql
 CONFIG_FILE ?= ./configs/config.yaml
 MIGRATION_DIR ?= ./migrations
@@ -23,12 +23,12 @@ OBJECT_STORAGE_SMOKE_SECRET_KEY ?= minioadmin
 OBJECT_STORAGE_SMOKE_USE_SSL ?= false
 OBJECT_STORAGE_SMOKE_PREFIX ?= black8-smoke
 
-ifeq ($(strip $(MYSQL_CONTAINER)),)
-MYSQL_CLI := MYSQL_PWD='$(DB_PASSWORD)' mysql --default-character-set=utf8mb4 -h$(DB_HOST) -P$(DB_PORT) -u$(DB_USER)
-MYSQL_IMPORT := $(MYSQL_CLI)
+ifeq ($(strip $(POSTGRES_CONTAINER)),)
+PSQL_CLI := PGPASSWORD='$(DB_PASSWORD)' psql -h$(DB_HOST) -p$(DB_PORT) -U$(DB_USER)
+PSQL_IMPORT := $(PSQL_CLI)
 else
-MYSQL_CLI := docker exec -e MYSQL_PWD='$(DB_PASSWORD)' $(MYSQL_CONTAINER) mysql --default-character-set=utf8mb4 -h127.0.0.1 -P$(DB_PORT) -u$(DB_USER)
-MYSQL_IMPORT := docker exec -i -e MYSQL_PWD='$(DB_PASSWORD)' $(MYSQL_CONTAINER) mysql --default-character-set=utf8mb4 -h127.0.0.1 -P$(DB_PORT) -u$(DB_USER)
+PSQL_CLI := docker exec -e PGPASSWORD='$(DB_PASSWORD)' $(POSTGRES_CONTAINER) psql -h127.0.0.1 -p$(DB_PORT) -U$(DB_USER)
+PSQL_IMPORT := docker exec -i -e PGPASSWORD='$(DB_PASSWORD)' $(POSTGRES_CONTAINER) psql -h127.0.0.1 -p$(DB_PORT) -U$(DB_USER)
 endif
 
 BUILD_DIR := ./build
@@ -48,18 +48,18 @@ deps:
 .PHONY: db-create
 db-create:
 	@echo "Creating local database $(DB_NAME)..."
-	@$(MYSQL_CLI) -e "CREATE DATABASE IF NOT EXISTS \`$(DB_NAME)\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+	@$(PSQL_CLI) -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$(DB_NAME)'" | grep -q 1 || $(PSQL_CLI) -d postgres -c "CREATE DATABASE \"$(DB_NAME)\" ENCODING 'UTF8';"
 
 .PHONY: db-import
 db-import: db-create
 	@echo "Importing $(SQL_FILE) into $(DB_NAME)..."
-	@$(MYSQL_IMPORT) $(DB_NAME) < $(SQL_FILE)
+	@$(PSQL_IMPORT) -d $(DB_NAME) < $(SQL_FILE)
 	@echo "Database import completed."
 
 .PHONY: db-reset
 db-reset:
 	@echo "Resetting local database $(DB_NAME)..."
-	@$(MYSQL_CLI) -e "DROP DATABASE IF EXISTS \`$(DB_NAME)\`;"
+	@$(PSQL_CLI) -d postgres -c "DROP DATABASE IF EXISTS \"$(DB_NAME)\";"
 	@$(MAKE) db-import
 
 .PHONY: migrate-up
