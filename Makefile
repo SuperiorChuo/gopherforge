@@ -1,26 +1,33 @@
 SHELL := /bin/sh
 
-# 根 Makefile：默认转发微服务；单体用 make mono-*
+# 根 Makefile：微服务 / 单体 / 呼叫媒体
 MICRO := microservices
 MONO := monolith
 
 .PHONY: help
 help:
-	@echo "本仓库含两个独立产品线（互不调用业务）："
-	@echo "  microservices/  微服务版"
-	@echo "  monolith/       单体版"
+	@echo "本仓库 monorepo 产品线（一人维护）："
+	@echo "  microservices/   微服务中台"
+	@echo "  monolith/        单体后台"
+	@echo "  freeswitch-cc/   呼叫媒体（FS，可被中台控制）"
 	@echo ""
 	@echo "微服务：make compose-up | compose-down | test | smoke-api | ..."
 	@echo "单体：  make mono-up | mono-down | mono-test"
-	@echo "详情：cd microservices && make help  /  cd monolith && make help"
+	@echo "呼叫：  make fs-up | fs-down"
+	@echo "详情：cd <目录> && 查看各 README"
 
-.PHONY: mono-up mono-down mono-test
+.PHONY: mono-up mono-down mono-test fs-up fs-down
 mono-up:
 	@$(MAKE) -C $(MONO) compose-up
 mono-down:
 	@$(MAKE) -C $(MONO) compose-down
 mono-test:
 	@$(MAKE) -C $(MONO) test
+
+fs-up:
+	cd freeswitch-cc && docker compose up -d --build
+fs-down:
+	cd freeswitch-cc && docker compose down
 
 .PHONY: compose-up compose-down compose-monitoring dev-backend dev-auth dev-frontend \
 	build-server test lint audit smoke-api e2e-api db-import migrate-up migrate-status \

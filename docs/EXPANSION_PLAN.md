@@ -218,7 +218,7 @@
 | 仓库 | 优先级 | 职责 |
 |------|:------:|------|
 | `*-miniprogram` | P1 | 微信小程序 |
-| `*-freeswitch-cc` | P2 | FreeSWITCH 增强与部署 |
+| `freeswitch-cc/`（本 monorepo 顶层目录） | P2 | FreeSWITCH 增强与部署 |
 | （可选）`*-mobile` | P3 | App |
 
 ---

@@ -1,6 +1,6 @@
 # FreeSWITCH 呼叫中心增强设计（独立项目）
 
-> 状态：设计草案；**FS-M1 骨架已在独立仓落地**：`../go-freeswitch-cc`（与 go-admin-kit 同级目录）  
+> 状态：设计草案；**FS-M1 骨架已在 monorepo 落地**：仓库根目录 `freeswitch-cc/`（一人维护 monorepo；媒体仍独立 compose 部署）  
 > 定位：**媒体面独立仓库**，基于 FreeSWITCH 开源增强；  
 > 与 **Go Admin Kit** 的关系：本仓只做 B 端运营台 + 可选 `cc-adapter`，**不内嵌 FS 二进制**。
 
@@ -23,9 +23,8 @@
 
 **结论**：呼叫中心 = **两个产品** 协同，而不是一个 monorepo 里的一个文件夹。
 
-建议独立仓名（示例，可改）：
-
-- `go-freeswitch-cc` / `fs-admin-kit` / `your-org-freeswitch-cc`
+一人维护时放在 monorepo 顶层目录 **`freeswitch-cc/`**（与 `microservices/`、`monolith/` 并列）。
+进程与 Docker 镜像仍独立，不把 FS 编进业务微服务 binary。
 
 ---
 
@@ -88,7 +87,7 @@
 ## 4. 独立仓建议目录结构
 
 ```text
-freeswitch-cc/                    # 独立 Git 仓库
+freeswitch-cc/                    # monorepo 内媒体子系统
 ├── README.md
 ├── docker-compose.yml            # FS + 控制面 + DB + 可选 Redis
 ├── freeswitch/
@@ -260,7 +259,7 @@ CC_RECORDING_PUBLIC_BASE=https://minio...
 ### 开发
 
 ```bash
-# 在 freeswitch-cc 仓
+# 在 freeswitch-cc 目录
 docker compose up -d
 # FS + control-api + postgres
 ```

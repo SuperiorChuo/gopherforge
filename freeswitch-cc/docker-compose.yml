@@ -1,0 +1,87 @@
+name: go-freeswitch-cc
+
+# 默认：bridge 网络（macOS / Windows Docker Desktop 友好）
+# Linux 若需 host 网络 SIP/RTP：docker compose --profile hostnet up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fscc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fscc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fscc123}
+      POSTGRES_DB: ${POSTGRES_DB:-fs_cc}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - fscc_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - fscc-net
+
+  freeswitch:
+    build:
+      context: ./freeswitch
+    container_name: fscc-freeswitch
+    restart: unless-stopped
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "8021:8021"
+      - "16384-16484:16384-16484/udp"
+    volumes:
+      - ./recordings:/var/lib/freeswitch/recordings
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    networks:
+      - fscc-net
+
+  freeswitch-host:
+    profiles: ["hostnet"]
+    build:
+      context: ./freeswitch
+    container_name: fscc-freeswitch-host
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./recordings:/var/lib/freeswitch/recordings
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+
+  control-api:
+    build:
+      context: ./control-api
+    container_name: fscc-control-api
+    restart: unless-stopped
+    environment:
+      CC_API_PORT: ${CC_API_PORT:-8090}
+      CC_API_TOKEN: ${CC_API_TOKEN:-dev-cc-token-change-me}
+      CC_ESL_HOST: ${CC_ESL_HOST:-freeswitch}
+      CC_ESL_PORT: ${CC_ESL_PORT:-8021}
+      CC_ESL_PASSWORD: ${CC_ESL_PASSWORD:-ClueCon}
+      CC_DB_DSN: postgres://${POSTGRES_USER:-fscc}:${POSTGRES_PASSWORD:-fscc123}@postgres:5432/${POSTGRES_DB:-fs_cc}?sslmode=disable
+      CC_WEBHOOK_URL: ${CC_WEBHOOK_URL:-}
+      CC_WEBHOOK_SECRET: ${CC_WEBHOOK_SECRET:-dev-webhook-secret-change-me}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${CC_API_PORT:-8090}:8090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      freeswitch:
+        condition: service_started
+    networks:
+      - fscc-net
+
+volumes:
+  fscc_pg_data:
+
+networks:
+  fscc-net:
+    name: fscc-net

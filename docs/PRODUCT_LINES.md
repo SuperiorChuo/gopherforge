@@ -6,6 +6,7 @@
 |--------|------|------|
 | 微服务 | `microservices/` | `cd microservices && docker compose up -d --build` 或 `make compose-up` |
 | 单体 | `monolith/` | `cd monolith && docker compose up -d --build` 或 `make mono-up` |
+| 呼叫媒体 | `freeswitch-cc/` | `cd freeswitch-cc && docker compose up -d --build` |
 
 ## 能力对照
 

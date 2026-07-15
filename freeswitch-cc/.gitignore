@@ -1,0 +1,11 @@
+.env
+.DS_Store
+.idea/
+.vscode/
+recordings/*
+!recordings/.gitkeep
+cdr/*
+!cdr/.gitkeep
+control-api/bin/
+*.log
+**/node_modules/

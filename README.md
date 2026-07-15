@@ -1,8 +1,8 @@
 # 🚀 Go Admin Kit
 
 <p align="center">
-  <strong>✨ 企业级后台管理脚手架 · 双产品线 · 开箱即用 ✨</strong><br/>
-  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React + Ant Design &nbsp;·&nbsp; 🧩 微服务 / 单体任选
+  <strong>✨ 企业级后台管理脚手架 · 中台 + 呼叫媒体 · 开箱即用 ✨</strong><br/>
+  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React + Ant Design &nbsp;·&nbsp; 🧩 微服务 / 单体 / FreeSWITCH
 </p>
 
 <p align="center">
@@ -53,7 +53,7 @@
 
 | 亮点 | 说明 |
 |:-----|:-----|
-| 🧩 **双产品线** | 同一仓库提供 **微服务** 与 **单体** 两套可运行交付物，业务互不调用，按团队规模选型。 |
+| 🧩 **多产品线 monorepo** | 同一仓库：`microservices/`、`monolith/`、`freeswitch-cc/`；一人维护，进程仍可分开部署。 |
 | ⚛️ **前端统一** | 两条线均使用 **React + Ant Design**，交互一致，降低学习成本。 |
 | 🐳 **开箱即用** | Docker Compose 一键拉起依赖、网关/服务与前端；内置 RBAC、日志、监控、迁移。 |
 | 🏗️ **工程完备** | CI、OpenAPI、健康检查、Prometheus、可选链路追踪与对象存储。 |
@@ -62,28 +62,29 @@
 
 ---
 
-## 🧭 双产品线一览
+## 🧭 产品线一览
 
 | 产品线 | 目录 | 形态 | 默认入口 |
 |--------|------|------|----------|
 | 🧩 **微服务版** | [`microservices/`](microservices/README.md) | Traefik + 多服务 + React | http://localhost:8000 |
 | 📦 **单体版** | [`monolith/`](monolith/README.md) | 单进程 API + React | http://localhost:3001 |
+| ☎️ **呼叫媒体** | [`freeswitch-cc/`](freeswitch-cc/README.md) | FreeSWITCH + control-api | SIP :5060 · API :8090 |
 
-- 单体 **不调用** 微服务；微服务 **不依赖** 单体。
-- 能力对照与硬规则 👉 [`docs/PRODUCT_LINES.md`](docs/PRODUCT_LINES.md)
-- 公共监控模板 👉 [`platform/`](platform/README.md)
+- 单体 **不调用** 微服务；微服务 **不依赖** 单体业务代码。
+- 呼叫：**中台微服务可控制 FreeSWITCH**；媒体进程在 `freeswitch-cc/` 独立 compose，便于单独升级增强。
+- 能力对照 👉 [`docs/PRODUCT_LINES.md`](docs/PRODUCT_LINES.md) · 呼叫设计 👉 [`docs/design/freeswitch-cc.md`](docs/design/freeswitch-cc.md)
 
 ```text
-                    ┌─────────────────────┐
-                    │   🚀 go-admin-kit   │
-                    └──────────┬──────────┘
-           ┌───────────────────┴───────────────────┐
-           ▼                                       ▼
-   🧩 microservices/                         📦 monolith/
-   网关 · 多服务 · React                      单进程 · React
-   (auth / identity / system / …)            (server + web)
-           │                                       │
-           └──────────── 🚫 业务零调用 ─────────────┘
+                    ┌──────────────────────┐
+                    │   🚀 go-admin-kit    │  一人 monorepo
+                    └──────────┬───────────┘
+       ┌───────────────────────┼───────────────────────┐
+       ▼                       ▼                       ▼
+🧩 microservices/        📦 monolith/            ☎️ freeswitch-cc/
+网关·业务服务·React       单进程·React            FS 媒体 + control-api
+       │                       │                       ▲
+       │     🚫 业务零调用      │                       │
+       └───────────────────────┘              中台 HTTP 控制 / 事件回传
 ```
 
 ---
@@ -220,9 +221,11 @@ go-admin-kit/
 │   ├── web/                       # ⚛️ React + Ant Design（独立副本）
 │   ├── docker-compose.yml
 │   └── README.md
+├── freeswitch-cc/                 # ☎️ 呼叫媒体（FS + control-api，中台可控）
 ├── platform/deploy/               # 🔭 Prometheus / Grafana / OTel
 ├── docs/                          # 📖 工程文档
-│   └── PRODUCT_LINES.md
+│   ├── PRODUCT_LINES.md
+│   └── design/                    # IM / FreeSWITCH 等专项设计
 ├── CONTRIBUTING.md                # 🤝 贡献与提交规范
 ├── AGENTS.md                      # 🤖 人与 AI 协作规范
 └── LOCAL_SETUP.md                 # 💻 本地联调摘要
@@ -455,8 +458,8 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 | 规划项 | 说明 |
 |--------|------|
 | 🎛️ **媒体面** | 基于 **FreeSWITCH** 开源增强：拨号计划、IVR、录音、会议、队列等 |
-| 📦 **独立仓库** | 呼叫媒体栈建议 **单独项目**（如 `fs-cc-kit` / `go-freeswitch-cc`），不塞进本 monorepo |
-| 🔌 **与本仓关系** | Go Admin Kit 只做 **B 端运营台**：坐席、技能组、话单、质检、报表；经 API/Webhook/ESL 网关对接 FS 项目 |
+| 📦 **monorepo 子目录** | 媒体代码在 **`freeswitch-cc/`**（与 micro/mono 并列），compose 独立，不编进业务微服务 |
+| 🔌 **与中台关系** | 中台做 **B 端运营台** + 以后 `cc-adapter`；经 API/Webhook **控制** FS，事件回传话单 |
 | 👤 坐席台 | 签入签出、示忙示闲、软电话状态（UI 在本仓，信令/媒体在 FS 项目） |
 | 📋 话单与录音 | 话单入库、录音索引/回放权限；录音可落 MinIO |
 | 📊 呼叫报表 | 接通率、通话时长、放弃率、坐席效能 |
@@ -500,7 +503,7 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 2) AI 知识库 / 运营助手（已有 ai-service，ROI 最高）
 3) IM + 智能客服工作台（强绑定运营场景）
 4) 小程序作为 C 端触达
-5) 呼叫中心：先立 FreeSWITCH 独立项目，再在本仓接管理台（媒体复杂，宜后置）
+5) 呼叫中心：`freeswitch-cc/` 媒体就绪后，再在 microservices 接管理台 adapter
 6) 多租户与开放平台
 ```
 

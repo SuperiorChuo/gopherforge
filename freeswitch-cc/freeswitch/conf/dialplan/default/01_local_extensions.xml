@@ -1,0 +1,24 @@
+<!-- 内线互拨 + 录音演示 -->
+<include>
+  <extension name="local_extension">
+    <condition field="destination_number" expression="^(100[0-3])$">
+      <action application="export" data="dialed_extension=$1"/>
+      <action application="bind_meta_app" data="1 b s execute_extension::dx XML features"/>
+      <action application="bind_meta_app" data="2 b s record_session::$${recordings_dir}/${caller_id_number}.${strftime(%Y-%m-%d-%H-%M-%S)}.wav"/>
+      <action application="bind_meta_app" data="3 b s execute_extension::cf XML features"/>
+      <action application="set" data="ringback=${us-ring}"/>
+      <action application="set" data="transfer_ringback=$${hold_music}"/>
+      <action application="set" data="call_timeout=30"/>
+      <action application="set" data="hangup_after_bridge=true"/>
+      <action application="set" data="continue_on_fail=true"/>
+      <!-- 录音（M1：双方接通后自动录） -->
+      <action application="set" data="RECORD_STEREO=true"/>
+      <action application="set" data="media_bug_answer_req=true"/>
+      <action application="export" data="execute_on_answer=record_session $${recordings_dir}/${uuid}.wav"/>
+      <action application="bridge" data="user/${dialed_extension}@${domain_name}"/>
+      <action application="answer"/>
+      <action application="sleep" data="1000"/>
+      <action application="playback" data="voicemail/vm-that_was_an_invalid_ext.wav"/>
+    </condition>
+  </extension>
+</include>
