@@ -67,7 +67,7 @@ func TestMenuSeedDAOSkipsWhenMenusExist(t *testing.T) {
 }
 
 func TestMenuSeedDAOUsesInjectedDB(t *testing.T) {
-	db, mock := newInjectedDictNoticeSeedDAOTestDB(t)
+	db, mock := newInjectedSystemDAOTestDB(t)
 
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT count\\(\\*\\) FROM \"menus\"").

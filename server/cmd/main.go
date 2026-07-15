@@ -18,11 +18,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/api"
 	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
-	systemAPI "github.com/go-admin-kit/server/internal/api/system"
 	"github.com/go-admin-kit/server/internal/config"
 	authDAO "github.com/go-admin-kit/server/internal/dao/auth"
 	systemDAO "github.com/go-admin-kit/server/internal/dao/system"
-	"github.com/go-admin-kit/server/internal/events"
 	"github.com/go-admin-kit/server/internal/middleware"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/database"
@@ -158,14 +156,6 @@ func startDepartmentTreeInvalidationListener(ctx context.Context) (*redis.String
 
 func startRuntimeConfigInvalidationListener(ctx context.Context) (*redis.StringSubscriber, error) {
 	return runtimeconfig.StartInvalidationListener(ctx)
-}
-
-func startNotificationRedisBridge(ctx context.Context) error {
-	return systemAPI.StartNotificationRedisBridge(ctx, systemSvc.DefaultNotificationBroadcaster())
-}
-
-func stopNotificationRedisBridge() error {
-	return systemAPI.StopNotificationRedisBridge()
 }
 
 func stopOperationLogProcessor(cancel context.CancelFunc, done <-chan struct{}, timeout time.Duration) error {
@@ -318,27 +308,6 @@ func run(ctx context.Context) error {
 				logger.Warn("runtime config invalidation listener close failed", logger.Err(err))
 			}
 		}()
-	}
-
-	if err := startNotificationRedisBridge(lifecycleCtx); err != nil {
-		logger.Warn("notification redis bridge start failed", logger.Err(err))
-	} else {
-		defer func() {
-			if err := stopNotificationRedisBridge(); err != nil {
-				logger.Warn("notification redis bridge close failed", logger.Err(err))
-			}
-		}()
-	}
-
-	// Consume auth-service login events from NATS JetStream into login_logs.
-	// An empty NATS_URL disables consumption (single-binary deployments).
-	loginLogService := systemSvc.NewLoginLogServiceWithDB(database.DB)
-	authEventConsumer, err := events.StartLoginLogConsumer(lifecycleCtx, config.Cfg.NATS.URL, &loginLogService)
-	if err != nil {
-		logger.Warn("auth event consumer start failed, login logs from auth-service disabled", logger.Err(err))
-	} else if authEventConsumer != nil {
-		defer authEventConsumer.Close()
-		logger.Info("auth event consumer enabled", logger.String("url", config.Cfg.NATS.URL))
 	}
 
 	tracingCfg := config.Cfg.Observability.Tracing

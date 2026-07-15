@@ -23,7 +23,6 @@ var allowedFallbackGlobalReferences = map[string]int{
 	"pkg/jwt/jwt.go|ConsumeTokenID|redis.Client":                         2,
 	"pkg/runtimeconfig/security_policy.go|GetByKeyContext|database.DB":   1,
 	"service/monitor/redis.go|redisClient|redis.Client":                  1,
-	"service/system/online_user.go|redisClient|redis.Client":             1,
 }
 
 func TestDAOServicePkgMiddlewareGlobalFallbacksStayAllowlisted(t *testing.T) {

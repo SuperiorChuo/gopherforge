@@ -142,36 +142,18 @@ jobs:
       - run: go test ./...
       - run: go vet ./...
 
+  # Full-stack smoke: build every compose image, boot the whole stack
+  # (Traefik gateway + 5 microservices + monolith + postgres/redis/nats +
+  # frontend) and drive tests/api-smoke.mjs through the gateway on :8000.
+  # The monolith is losing most of its routes, so direct-connect smoke on
+  # :8081 no longer covers the API surface — only the gateway composition does.
   integration:
     name: Integration Smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs:
       - workspace
       - backend
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_PASSWORD: 123456
-          POSTGRES_DB: go_admin_kit_ci
-          POSTGRES_USER: postgres
-          TZ: Asia/Shanghai
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres -d go_admin_kit_ci"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=20
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=20
     steps:
       - uses: actions/checkout@v6
 
@@ -184,52 +166,89 @@ jobs:
         with:
           node-version: '24'
 
-      - run: go mod download
-        working-directory: server
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Run backend migrations and API smoke
-        shell: bash
+      # Build the six Go images + frontend via buildx bake so layers persist
+      # in the GitHub Actions cache between runs. Tags must match the image
+      # names docker compose derives for build-only services
+      # (<project>-<service>, project pinned to go-admin-kit by the compose
+      # `name:` field) so `up` below reuses the loaded images instead of
+      # rebuilding without cache.
+      - name: Build compose images
+        uses: docker/bake-action@v7
+        with:
+          source: .
+          files: docker-compose.yml
+          load: true
+          provenance: false
+          set: |
+            backend.tags=go-admin-kit-backend:latest
+            backend.cache-from=type=gha,scope=compose-backend
+            backend.cache-to=type=gha,scope=compose-backend,mode=max,ignore-error=true
+            auth-service.tags=go-admin-kit-auth-service:latest
+            auth-service.cache-from=type=gha,scope=compose-auth
+            auth-service.cache-to=type=gha,scope=compose-auth,mode=max,ignore-error=true
+            identity-service.tags=go-admin-kit-identity-service:latest
+            identity-service.cache-from=type=gha,scope=compose-identity
+            identity-service.cache-to=type=gha,scope=compose-identity,mode=max,ignore-error=true
+            system-service.tags=go-admin-kit-system-service:latest
+            system-service.cache-from=type=gha,scope=compose-system
+            system-service.cache-to=type=gha,scope=compose-system,mode=max,ignore-error=true
+            audit-service.tags=go-admin-kit-audit-service:latest
+            audit-service.cache-from=type=gha,scope=compose-audit
+            audit-service.cache-to=type=gha,scope=compose-audit,mode=max,ignore-error=true
+            file-service.tags=go-admin-kit-file-service:latest
+            file-service.cache-from=type=gha,scope=compose-file
+            file-service.cache-to=type=gha,scope=compose-file,mode=max,ignore-error=true
+            frontend.tags=go-admin-kit-frontend:latest
+            frontend.cache-from=type=gha,scope=compose-frontend
+            frontend.cache-to=type=gha,scope=compose-frontend,mode=max,ignore-error=true
+
+      - name: Start postgres, redis and NATS
+        run: docker compose up -d --wait --wait-timeout 180 go-admin-kit-postgres go-admin-kit-redis go-admin-kit-nats
+
+      # Schema and seed data (including the default admin account the smoke
+      # logs in with) both live in the goose migrations. The rehearsal first
+      # exercises up/down/up on a scratch database, then the real compose
+      # database is migrated — same mechanism as the old direct-connect job,
+      # pointed at the compose postgres (localhost:5432, compose defaults).
+      # The backend image re-runs `migrate up` at boot; a no-op by then.
+      - name: Apply migrations and seed data
         working-directory: server
         env:
-          APP_ENV: development
-          APP_PORT: 8081
           DB_HOST: 127.0.0.1
-          DB_PORT: 5432
+          DB_PORT: '5432'
           DB_USER: postgres
-          DB_PASSWORD: 123456
-          DB_NAME: go_admin_kit_ci
+          DB_PASSWORD: '123456'
+          DB_NAME: go_admin_kit
           DB_SSLMODE: disable
-          REDIS_HOST: 127.0.0.1
-          REDIS_PORT: 6379
-          REDIS_PASSWORD: ''
-          REDIS_DB: 0
-          JWT_SECRET: ci-secret-at-least-32-characters-long
-          JWT_REFRESH_TOKEN_ROTATION: 'true'
-          CORS_ALLOW_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
-          CORS_ALLOW_CREDENTIALS: 'true'
-          DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD: 'false'
-          SMOKE_API_BASE_URL: http://127.0.0.1:8081/api/v1
         run: |
+          go mod download
           go run ./cmd/migration-rehearsal -config ./configs/config.yaml -dir ./migrations -database go_admin_kit_ci_migration_rehearsal
           go run ./cmd/migrate -config ./configs/config.yaml -dir ./migrations up
-          nohup go run ./cmd/main.go > /tmp/go-admin-kit-api.log 2>&1 &
-          echo $! > /tmp/go-admin-kit-api.pid
-          trap 'kill "$(cat /tmp/go-admin-kit-api.pid)" 2>/dev/null || true' EXIT
 
-          for i in {1..60}; do
-            if curl -fsS http://127.0.0.1:8081/api/v1/health/ready >/dev/null; then
-              break
-            fi
-            if [ "$i" -eq 60 ]; then
-              cat /tmp/go-admin-kit-api.log
-              exit 1
-            fi
-            sleep 2
-          done
+      - name: Start the full stack behind the Traefik gateway
+        run: docker compose up -d --wait --wait-timeout 300
 
-          cd ..
+      - name: Run API smoke through the gateway
+        env:
+          API_BASE_URL: http://127.0.0.1:8000/api/v1
+        run: |
           npm run test:smoke:unit
-          API_BASE_URL="$SMOKE_API_BASE_URL" npm run smoke:api
+          npm run smoke:api
+
+      - name: Dump compose state and logs
+        if: failure()
+        run: |
+          docker compose ps -a || true
+          docker compose logs --tail=100 || true
+          echo '::group::gateway (Traefik) log incl. access log'
+          docker compose logs --no-log-prefix --tail=300 gateway || true
+          echo '::endgroup::'
+
+      - name: Tear down the stack
+        if: always()
+        run: docker compose down -v --remove-orphans
 
   frontend:
     name: Frontend

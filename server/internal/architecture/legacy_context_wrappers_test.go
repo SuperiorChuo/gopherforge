@@ -28,10 +28,8 @@ var legacyContextWrapperForbiddenPrefixes = []string{
 	"service/monitor/",
 	"service/system/",
 	"pkg/cache/",
-	"pkg/captcha/",
 	"pkg/ipinfo/",
 	"pkg/jwt/",
-	"pkg/upload/",
 	"middleware/",
 }
 
@@ -41,11 +39,10 @@ var legacyContextWrapperForbiddenKeys = map[string]struct{}{
 	"pkg/authz/data_scope.go||InvalidateDepartmentTreeCache|InvalidateDepartmentTreeCacheContext": {},
 }
 
-var allowedLegacyContextBridges = map[string]int{
-	// Record bridges existing gin.Context call sites to RecordContext while
-	// preserving the request context when Gin provides one.
-	"service/system/audit_log.go|AuditLogService|Record|RecordContext": 1,
-}
+// allowedLegacyContextBridges lists non-Context wrappers that may bridge to
+// their Context successors. It is empty now that the audit-log bridge moved to
+// the audit microservice; new entries need an explicit justification.
+var allowedLegacyContextBridges = map[string]int{}
 
 func TestLegacyContextWrappersAreDeprecated(t *testing.T) {
 	var violations []string
@@ -179,11 +176,14 @@ func (s *OtherService) Record() {}
 		t.Fatal("fixture record methods not found")
 	}
 
+	fixtureBridges := map[string]int{
+		"service/system/audit_log.go|AuditLogService|Record|RecordContext": 1,
+	}
 	path := filepath.Join(internalDir, "service", "system", "audit_log.go")
-	if !legacyContextBridgeAllowed(path, auditRecord, "RecordContext", cloneAllowances(allowedLegacyContextBridges)) {
+	if !legacyContextBridgeAllowed(path, auditRecord, "RecordContext", cloneAllowances(fixtureBridges)) {
 		t.Fatal("AuditLogService.Record bridge should be allowlisted")
 	}
-	if legacyContextBridgeAllowed(path, otherRecord, "RecordContext", cloneAllowances(allowedLegacyContextBridges)) {
+	if legacyContextBridgeAllowed(path, otherRecord, "RecordContext", cloneAllowances(fixtureBridges)) {
 		t.Fatal("OtherService.Record bridge should not be allowlisted")
 	}
 }

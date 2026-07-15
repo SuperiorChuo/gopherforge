@@ -6,13 +6,13 @@ import (
 	"testing"
 )
 
-func TestUserServiceUsesEnglishSourceText(t *testing.T) {
-	content, err := os.ReadFile("user.go")
+func TestConsoleSessionServiceUsesEnglishSourceText(t *testing.T) {
+	content, err := os.ReadFile("console_session.go")
 	if err != nil {
-		t.Fatalf("read user.go: %v", err)
+		t.Fatalf("read console_session.go: %v", err)
 	}
 
 	if regexp.MustCompile(`\p{Han}`).Find(content) != nil {
-		t.Fatal("user.go contains non-English source text")
+		t.Fatal("console_session.go contains non-English source text")
 	}
 }

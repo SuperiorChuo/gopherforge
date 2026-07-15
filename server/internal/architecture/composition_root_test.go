@@ -25,29 +25,6 @@ var bareAPIConstructorPattern = regexp.MustCompile(`^New\w*API$`)
 // use the *WithService/*WithServices constructors fed from
 // shared.Dependencies instead of growing this list.
 var allowedBareAPIConstructorCalls = map[string]int{
-	// api/routes.go newSystemAPIs: legacy zero-value branch (deps.DB == nil).
-	"api/routes.go|newSystemAPIs|NewAuditLogAPI":             1,
-	"api/routes.go|newSystemAPIs|NewDepartmentAPI":           1,
-	"api/routes.go|newSystemAPIs|NewDictAPI":                 1,
-	"api/routes.go|newSystemAPIs|NewFileAPI":                 1,
-	"api/routes.go|newSystemAPIs|NewLoginLogAPI":             1,
-	"api/routes.go|newSystemAPIs|NewMenuManagementAPI":       1,
-	"api/routes.go|newSystemAPIs|NewNoticeAPI":               1,
-	"api/routes.go|newSystemAPIs|NewNotificationAPI":         1,
-	"api/routes.go|newSystemAPIs|NewOnlineUserAPI":           1,
-	"api/routes.go|newSystemAPIs|NewOperationLogAPI":         1,
-	"api/routes.go|newSystemAPIs|NewPermissionManagementAPI": 1,
-	"api/routes.go|newSystemAPIs|NewRoleManagementAPI":       1,
-	"api/routes.go|newSystemAPIs|NewSettingAPI":              1,
-	"api/routes.go|newSystemAPIs|NewUserManagementAPI":       1,
-
-	// api/auth/routes.go: legacy zero-value branches (deps.DB == nil) plus
-	// CaptchaAPI, which has no injectable infrastructure.
-	"api/auth/routes.go|newMenuAPIFromDeps|NewMenuAPI":              1,
-	"api/auth/routes.go|newOAuthAPIFromDeps|NewOAuthAPI":            1,
-	"api/auth/routes.go|newUserAPIFromDeps|NewUserAPI":              1,
-	"api/auth/routes.go|RegisterPublicRoutesWithDeps|NewCaptchaAPI": 1,
-
 	// api/monitor/routes.go: ServerAPI reads host metrics only; RedisAPI has a
 	// legacy bare fallback when no Redis client is injected.
 	"api/monitor/routes.go|RegisterProtectedRoutesWithDeps|NewRedisAPI":  1,

@@ -8,8 +8,7 @@ import (
 
 func TestSystemServiceEngineeringFilesUseEnglishSourceText(t *testing.T) {
 	for _, file := range []string{
-		"cache.go",
-		"menu_user.go",
+		"operation_log.go",
 	} {
 		t.Run(file, func(t *testing.T) {
 			content, err := os.ReadFile(file)
