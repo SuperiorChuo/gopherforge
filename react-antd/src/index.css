@@ -1588,6 +1588,224 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
    ============================================================ */
 
 /* ============================================================
+   页面打磨 · 日期选择面板玻璃重制
+   外壳此前已玻璃化,但内部还是原生方块("砖头"):
+   圆形玻璃日格 + 渐变选中 + 液态范围光带 + 玻璃头部/页脚
+   ============================================================ */
+
+/* 弹出动效:与下拉家族同款浮起(替换生硬的默认 slide) */
+.ant-picker-dropdown.ant-slide-up-enter .ant-picker-panel-container,
+.ant-picker-dropdown.ant-slide-up-appear .ant-picker-panel-container,
+.ant-picker-dropdown.ant-slide-down-enter .ant-picker-panel-container,
+.ant-picker-dropdown.ant-slide-down-appear .ant-picker-panel-container {
+  animation: liquid-pop-in 0.26s cubic-bezier(0.22, 1.3, 0.36, 1) both;
+}
+
+/* 面板内部全透明,让外壳的玻璃透镜说话 */
+.ant-picker-dropdown .ant-picker-panel {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* 头部:年月按钮变玻璃胶囊,底部一条渐隐光线 */
+.ant-picker-dropdown .ant-picker-header {
+  border-bottom: none !important;
+  position: relative;
+  padding: 2px 8px;
+}
+
+.ant-picker-dropdown .ant-picker-header::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.28), transparent);
+}
+
+.ant-picker-dropdown .ant-picker-header button {
+  border-radius: 8px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ant-picker-dropdown .ant-picker-header button:hover {
+  background: rgba(99, 102, 241, 0.14);
+  color: #a5b4fc;
+}
+
+.ant-picker-dropdown .ant-picker-header-view {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* 星期行:退为小注释层 */
+.ant-picker-dropdown .ant-picker-content th {
+  color: rgba(148, 163, 184, 0.55) !important;
+  font-size: 11.5px;
+  letter-spacing: 1px;
+  padding-bottom: 4px;
+}
+
+/* 日格:圆角玻璃,hover 衬底 + 微微浮起 */
+.ant-picker-dropdown .ant-picker-cell .ant-picker-cell-inner {
+  border-radius: 9px !important;
+  transition: background 0.13s ease, box-shadow 0.13s ease, transform 0.13s ease;
+}
+
+.ant-picker-dropdown .ant-picker-cell:hover:not(.ant-picker-cell-selected):not(.ant-picker-cell-range-start):not(.ant-picker-cell-range-end) .ant-picker-cell-inner {
+  background: rgba(99, 102, 241, 0.14) !important;
+  transform: translateY(-1px);
+}
+
+/* 今天:细光环,不抢选中态 */
+.ant-picker-dropdown .ant-picker-cell-today .ant-picker-cell-inner::before {
+  border: 1px solid rgba(129, 140, 248, 0.55) !important;
+  border-radius: 9px !important;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.25);
+}
+
+/* 选中/范围端点:渐变玻璃药丸 + 辉光,与主按钮同语言 */
+.ant-picker-dropdown .ant-picker-cell-selected .ant-picker-cell-inner,
+.ant-picker-dropdown .ant-picker-cell-range-start .ant-picker-cell-inner,
+.ant-picker-dropdown .ant-picker-cell-range-end .ant-picker-cell-inner {
+  background: linear-gradient(135deg, #6366f1, #7c3aed) !important;
+  color: #fff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    0 4px 14px rgba(99, 102, 241, 0.45),
+    0 0 20px rgba(124, 58, 237, 0.3) !important;
+}
+
+/* 范围中段:液态光带(半透明靛蓝,像一段被点亮的玻璃槽) */
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-in-range::before,
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-start:not(.ant-picker-cell-range-start-single)::before,
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-end:not(.ant-picker-cell-range-end-single)::before {
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.16), rgba(124, 58, 237, 0.12)) !important;
+}
+
+/* 页脚:顶部渐隐光线;"此刻/今天"链接用主题色 */
+.ant-picker-dropdown .ant-picker-footer {
+  border-top: none !important;
+  position: relative;
+}
+
+.ant-picker-dropdown .ant-picker-footer::before {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.28), transparent);
+}
+
+.ant-picker-dropdown .ant-picker-now-btn {
+  color: #a5b4fc;
+}
+
+/* 时间列:分割线换光线,选中项玻璃胶囊 */
+.ant-picker-dropdown .ant-picker-time-panel {
+  border-inline-start: 1px solid rgba(148, 163, 184, 0.14) !important;
+}
+
+.ant-picker-dropdown .ant-picker-time-panel-column:not(:first-child) {
+  border-inline-start: 1px solid rgba(148, 163, 184, 0.1) !important;
+}
+
+.ant-picker-dropdown .ant-picker-time-panel-cell-inner {
+  border-radius: 7px !important;
+  transition: background 0.13s ease;
+}
+
+.ant-picker-dropdown .ant-picker-time-panel-cell-selected .ant-picker-time-panel-cell-inner {
+  background: rgba(99, 102, 241, 0.22) !important;
+  color: #c7d2fe !important;
+}
+
+/* 双月面板间的分界:渐隐光线替代实线 */
+.ant-picker-dropdown .ant-picker-panels > .ant-picker-panel:not(:last-child) {
+  border-inline-end: 1px solid transparent !important;
+  background-image: linear-gradient(180deg, transparent, rgba(148, 163, 184, 0.2) 30%, rgba(148, 163, 184, 0.2) 70%, transparent) !important;
+  background-position: right center;
+  background-size: 1px 100%;
+  background-repeat: no-repeat;
+}
+
+/* 输入框下的激活条:渐变光条 */
+.ant-picker .ant-picker-active-bar {
+  background: linear-gradient(90deg, #6366f1, #a78bfa) !important;
+  height: 2px !important;
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.55);
+}
+
+/* ---- 亮色主题 ---- */
+[data-theme='light'] .ant-picker-dropdown .ant-picker-header button:hover {
+  background: rgba(37, 99, 235, 0.09);
+  color: #2563eb;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-content th {
+  color: #94a3b8 !important;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell:hover:not(.ant-picker-cell-selected):not(.ant-picker-cell-range-start):not(.ant-picker-cell-range-end) .ant-picker-cell-inner {
+  background: rgba(37, 99, 235, 0.09) !important;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-today .ant-picker-cell-inner::before {
+  border-color: rgba(37, 99, 235, 0.5) !important;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.2);
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-selected .ant-picker-cell-inner,
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-range-start .ant-picker-cell-inner,
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-range-end .ant-picker-cell-inner {
+  background: linear-gradient(135deg, #2563eb, #0ea5e9) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+    0 4px 14px rgba(37, 99, 235, 0.4),
+    0 0 20px rgba(14, 165, 233, 0.25) !important;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-in-range::before,
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-start:not(.ant-picker-cell-range-start-single)::before,
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-end:not(.ant-picker-cell-range-end-single)::before {
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.1), rgba(14, 165, 233, 0.08)) !important;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-now-btn {
+  color: #2563eb;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-time-panel-cell-selected .ant-picker-time-panel-cell-inner {
+  background: rgba(37, 99, 235, 0.12) !important;
+  color: #1d4ed8 !important;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-header::after,
+[data-theme='light'] .ant-picker-dropdown .ant-picker-footer::before {
+  background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.12), transparent);
+}
+
+[data-theme='light'] .ant-picker .ant-picker-active-bar {
+  background: linear-gradient(90deg, #2563eb, #38bdf8) !important;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ant-picker-dropdown.ant-slide-up-enter .ant-picker-panel-container,
+  .ant-picker-dropdown.ant-slide-up-appear .ant-picker-panel-container,
+  .ant-picker-dropdown.ant-slide-down-enter .ant-picker-panel-container,
+  .ant-picker-dropdown.ant-slide-down-appear .ant-picker-panel-container {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
    页面打磨 · 登录趋势图切换防抖
    切换期间旧图雾化保留,新柱从底部生长入场(共享日期的柱平滑变高)
    ============================================================ */
