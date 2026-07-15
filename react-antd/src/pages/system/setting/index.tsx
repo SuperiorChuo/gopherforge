@@ -223,7 +223,7 @@ function JsonSettingCard({ setting, canUpdate, onSaved }: {
   )
 }
 
-function SettingGroupPanel({ group }: { group: string }) {
+function SettingGroupPanel({ group, refreshKey }: { group: string; refreshKey: number }) {
   const [list, setList] = useState<SystemSetting[]>([])
   const [loading, setLoading] = useState(false)
   const { hasPerm } = usePermission()
@@ -241,20 +241,18 @@ function SettingGroupPanel({ group }: { group: string }) {
     }
   }
 
+  // refreshKey 由 Tabs 栏上的刷新按钮驱动(按钮放 tabBarExtraContent,
+  // 不再在面板内占一整行高度)
   useEffect(() => {
     fetchSettings()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [group])
+  }, [group, refreshKey])
 
   const known = list.filter((s) => FIELD_SCHEMAS[s.setting_key])
   const unknown = list.filter((s) => !FIELD_SCHEMAS[s.setting_key])
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <Button icon={<ReloadOutlined />} onClick={fetchSettings} loading={loading}>刷新</Button>
-      </div>
-
       {list.length === 0 && !loading && (
         <Card>
           <GlassEmpty text="该分组暂无设置项" compact />
@@ -284,15 +282,23 @@ function SettingGroupPanel({ group }: { group: string }) {
 }
 
 export default function SettingPage() {
+  // 自增 key 让当前分组面板重新拉取
+  const [refreshKey, setRefreshKey] = useState(0)
+
   return (
     <Tabs
       className="page-tabs"
       defaultActiveKey={GROUPS[0].key}
+      tabBarExtraContent={
+        <Button size="small" icon={<ReloadOutlined />} onClick={() => setRefreshKey((k) => k + 1)}>
+          刷新
+        </Button>
+      }
       items={GROUPS.map((g) => ({
         key: g.key,
         label: g.label,
         icon: g.icon,
-        children: <SettingGroupPanel group={g.key} />,
+        children: <SettingGroupPanel group={g.key} refreshKey={refreshKey} />,
       }))}
     />
   )

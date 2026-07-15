@@ -6555,3 +6555,10 @@ h6.ai-md-heading { font-size: 14px; }
     transform: none;
   }
 }
+
+/* 设置页 Tabs 栏上的刷新按钮:与页签垂直居中 */
+.page-tabs > .ant-tabs-nav .ant-tabs-extra-content {
+  display: flex;
+  align-items: center;
+  padding-bottom: 4px;
+}
