@@ -4201,6 +4201,360 @@ body {
 }
 
 /* ============================================================
+   页面打磨 · 状态胶囊(StatusPill) —— 呼吸点 + 玻璃底
+   取代列表页的纯色 Tag,与 health-pill/kv-pill 同语言但更小号
+   ============================================================ */
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
+  backdrop-filter: blur(6px) saturate(1.3);
+  -webkit-backdrop-filter: blur(6px) saturate(1.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.status-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.status-pill-dot-pulse {
+  animation: live-pulse 2.4s ease-in-out infinite;
+}
+
+.status-pill-success {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.09);
+  border: 1px solid rgba(52, 211, 153, 0.26);
+}
+
+.status-pill-muted {
+  color: rgba(148, 163, 184, 0.85);
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.status-pill-danger {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.09);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.status-pill-info {
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.11);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+}
+
+.status-pill-warning {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.09);
+  border: 1px solid rgba(251, 191, 36, 0.28);
+}
+
+[data-theme='light'] .status-pill {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+[data-theme='light'] .status-pill-success {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.06);
+  border-color: rgba(5, 150, 105, 0.24);
+}
+
+[data-theme='light'] .status-pill-muted {
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.06);
+  border-color: rgba(100, 116, 139, 0.2);
+}
+
+[data-theme='light'] .status-pill-danger {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.05);
+  border-color: rgba(220, 38, 38, 0.24);
+}
+
+[data-theme='light'] .status-pill-info {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.06);
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+[data-theme='light'] .status-pill-warning {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.06);
+  border-color: rgba(217, 119, 6, 0.24);
+}
+
+/* 在线用户单元格:活性点 + 用户名 */
+.online-user-cell {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+/* ============================================================
+   页面打磨 · 空状态(GlassEmpty) —— 玻璃托盘 + 呼吸光晕
+   经 ConfigProvider renderEmpty 注入全站
+   ============================================================ */
+
+.glass-empty {
+  padding: 40px 0 32px;
+  text-align: center;
+}
+
+.glass-empty-compact {
+  padding: 20px 0 16px;
+}
+
+.glass-empty-compact .glass-empty-icon {
+  width: 48px;
+  height: 48px;
+  font-size: 22px;
+  border-radius: 14px;
+}
+
+.glass-empty-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  font-size: 28px;
+  color: rgba(148, 163, 184, 0.55);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px) saturate(1.3);
+  -webkit-backdrop-filter: blur(8px) saturate(1.3);
+}
+
+/* 托盘底下一汪呼吸的光 */
+.glass-empty-icon::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -14px;
+  width: 54px;
+  height: 10px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(99, 102, 241, 0.25), transparent 70%);
+  filter: blur(4px);
+  animation: glass-empty-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes glass-empty-breathe {
+  0%, 100% {
+    opacity: 0.9;
+    transform: translateX(-50%) scaleX(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: translateX(-50%) scaleX(0.75);
+  }
+}
+
+.glass-empty-text {
+  margin-top: 18px;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  color: rgba(148, 163, 184, 0.6);
+}
+
+[data-theme='light'] .glass-empty-icon {
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.9);
+}
+
+[data-theme='light'] .glass-empty-icon::after {
+  background: radial-gradient(ellipse, rgba(37, 99, 235, 0.2), transparent 70%);
+}
+
+[data-theme='light'] .glass-empty-text {
+  color: #94a3b8;
+}
+
+/* ============================================================
+   页面打磨 · 加载态 —— Spin 辉光 + 表格骨架玻璃扫光
+   ============================================================ */
+
+/* Spin 圆点带辉光,加载中也在发光 */
+.ant-spin .ant-spin-dot-item {
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.55);
+}
+
+[data-theme='light'] .ant-spin .ant-spin-dot-item {
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+}
+
+/* 骨架屏:玻璃底 + 更缓的扫光节奏 */
+.ant-skeleton .ant-skeleton-content .ant-skeleton-title,
+.ant-skeleton .ant-skeleton-content .ant-skeleton-paragraph > li,
+.ant-skeleton .ant-skeleton-button,
+.ant-skeleton .ant-skeleton-input,
+.ant-skeleton .ant-skeleton-avatar {
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.08) 25%,
+    rgba(148, 163, 184, 0.16) 40%,
+    rgba(148, 163, 184, 0.08) 55%
+  ) !important;
+  background-size: 400% 100% !important;
+  animation: glass-skeleton-sweep 1.6s ease infinite;
+}
+
+[data-theme='light'] .ant-skeleton .ant-skeleton-content .ant-skeleton-title,
+[data-theme='light'] .ant-skeleton .ant-skeleton-content .ant-skeleton-paragraph > li,
+[data-theme='light'] .ant-skeleton .ant-skeleton-button,
+[data-theme='light'] .ant-skeleton .ant-skeleton-input,
+[data-theme='light'] .ant-skeleton .ant-skeleton-avatar {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.05) 25%,
+    rgba(15, 23, 42, 0.1) 40%,
+    rgba(15, 23, 42, 0.05) 55%
+  ) !important;
+  background-size: 400% 100% !important;
+}
+
+@keyframes glass-skeleton-sweep {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* 表格加载遮罩:玻璃磨砂而不是纯白/纯黑罩 */
+.ant-table-wrapper .ant-spin-blur {
+  opacity: 0.35;
+}
+
+.ant-table-wrapper .ant-spin-container::after {
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+/* ============================================================
+   页面打磨 · 表格行光标接触感
+   行 hover 时左缘亮一条渐变光线,像光标"点"在玻璃行上
+   ============================================================ */
+
+.ant-table-tbody > tr > td:first-child {
+  position: relative;
+}
+
+.ant-table-tbody > tr > td:first-child::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 2.5px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, transparent, rgba(129, 140, 248, 0.85), transparent);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+}
+
+.ant-table-tbody > tr:hover > td:first-child::before {
+  opacity: 1;
+}
+
+[data-theme='light'] .ant-table-tbody > tr > td:first-child::before {
+  background: linear-gradient(180deg, transparent, rgba(37, 99, 235, 0.75), transparent);
+}
+
+/* 操作列链接:hover 玻璃底衬,点击目标更明确 */
+.ant-table-cell .ant-btn-link {
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ant-table-cell .ant-btn-link:not(:disabled):hover {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.ant-table-cell .ant-btn-link.ant-btn-dangerous:not(:disabled):hover {
+  background: rgba(248, 113, 113, 0.1);
+}
+
+[data-theme='light'] .ant-table-cell .ant-btn-link:not(:disabled):hover {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+[data-theme='light'] .ant-table-cell .ant-btn-link.ant-btn-dangerous:not(:disabled):hover {
+  background: rgba(220, 38, 38, 0.07);
+}
+
+/* ============================================================
+   页面打磨 · 侧边栏菜单玻璃细节
+   hover 左缘光线 + 选中项内嵌高光,菜单和表格行同一套光语言
+   ============================================================ */
+
+.app-sider .ant-menu-item {
+  position: relative;
+  overflow: visible;
+}
+
+.app-sider .ant-menu-item::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 22%;
+  bottom: 22%;
+  width: 2.5px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, transparent, rgba(129, 140, 248, 0.9), transparent);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.app-sider .ant-menu-item:hover::before {
+  opacity: 0.55;
+}
+
+.app-sider .ant-menu-item-selected::before {
+  opacity: 1;
+}
+
+[data-theme='light'] .app-sider .ant-menu-item::before {
+  background: linear-gradient(180deg, transparent, rgba(37, 99, 235, 0.85), transparent);
+}
+
+/* 选中项:玻璃上缘高光,和主按钮同语言 */
+.app-sider .ant-menu-dark .ant-menu-item-selected,
+[data-theme='light'] .app-sider .ant-menu-light .ant-menu-item-selected {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+    0 6px 18px rgba(99, 102, 241, 0.35);
+}
+
+[data-theme='light'] .app-sider .ant-menu-light .ant-menu-item-selected {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.08),
+    0 6px 18px rgba(37, 99, 235, 0.3);
+}
+
+/* ============================================================
    页面打磨 · 结果页(403/404/500) —— 液态渐变数字
    ============================================================ */
 

@@ -14,6 +14,7 @@ import TableToolbar from '@/components/TableToolbar'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
+import { EnableStatusPill } from '@/components/StatusPill'
 
 const avatarPalette = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6']
 const roleTagPalette = ['geekblue', 'cyan', 'purple', 'magenta', 'gold']
@@ -176,7 +177,7 @@ export default function UserPage() {
       title: '状态',
       dataIndex: 'status',
       width: 80,
-      render: (v: number) => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? '启用' : '禁用'}</Tag>,
+      render: (v: number) => <EnableStatusPill value={v} />,
     },
     {
       title: '角色',

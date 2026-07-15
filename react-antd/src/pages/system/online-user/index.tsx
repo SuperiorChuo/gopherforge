@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Table, Button, Popconfirm, Card, Badge } from 'antd'
+import { Table, Button, Popconfirm, Card } from 'antd'
 import { message } from '@/utils/feedback'
 import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -46,7 +46,10 @@ export default function OnlineUserPage() {
       dataIndex: 'username',
       width: 180,
       render: (v: string, record) => (
-        <Badge status="processing" text={record.nickname ? `${v}（${record.nickname}）` : v} />
+        <span className="online-user-cell">
+          <span className="live-dot" />
+          {record.nickname ? `${v}（${record.nickname}）` : v}
+        </span>
       ),
     },
     {

@@ -11,6 +11,7 @@ import * as MenuAPI from '@/api/system/menu'
 import TableToolbar from '@/components/TableToolbar'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { usePermission } from '@/hooks/usePermission'
+import { EnableStatusPill } from '@/components/StatusPill'
 
 interface SearchParams {
   keyword?: string
@@ -182,7 +183,7 @@ export default function MenuPage() {
       title: '状态',
       dataIndex: 'status',
       width: 80,
-      render: (v: number) => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? '启用' : '禁用'}</Tag>,
+      render: (v: number) => <EnableStatusPill value={v} />,
     },
     {
       title: '隐藏',

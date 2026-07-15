@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Row, Col, Skeleton, Tag, Tooltip, Empty, Button, Space, Segmented } from 'antd'
+import { Card, Row, Col, Skeleton, Tag, Tooltip, Button, Space, Segmented } from 'antd'
 import {
   UserOutlined,
   TeamOutlined,
@@ -23,6 +23,7 @@ import { getActiveNotices } from '@/api/system/notice'
 import type { Notice } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
 import { useCountUp } from '@/hooks/useCountUp'
+import GlassEmpty from '@/components/GlassEmpty'
 import dayjs from 'dayjs'
 
 function CountUpValue({ value }: { value: number }) {
@@ -238,7 +239,7 @@ export default function DashboardPage() {
             {trend === null ? (
               <Skeleton active paragraph={{ rows: 5 }} />
             ) : !hasTrendData ? (
-              <Empty description="暂无登录数据" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '48px 0' }} />
+              <GlassEmpty text="暂无登录数据" />
             ) : (
               <div className="trend-chart" style={{ gap: trendDays > 15 ? 4 : trendDays > 7 ? 8 : 12 }}>
                 {trendData.map((t, i) => {
@@ -329,7 +330,7 @@ export default function DashboardPage() {
               {notices === null ? (
                 <Skeleton active paragraph={{ rows: 3 }} />
               ) : notices.length === 0 ? (
-                <Empty description="暂无公告" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '24px 0' }} />
+                <GlassEmpty text="暂无公告" compact />
               ) : (
                 notices.slice(0, 5).map((n) => (
                   <div className="dash-notice-item" key={n.id}>

@@ -7,6 +7,7 @@ import zhCN from 'antd/locale/zh_CN'
 import { store } from '@/store'
 import routes from '@/router'
 import FeedbackBridge from '@/utils/feedback'
+import GlassEmpty from '@/components/GlassEmpty'
 import { ThemeContext, THEME_STORAGE_KEY, type ThemeMode } from '@/theme/ThemeContext'
 import 'dayjs/locale/zh-cn'
 
@@ -231,7 +232,11 @@ export default function App() {
   return (
     <Provider store={store}>
       <ThemeContext.Provider value={{ mode, toggle }}>
-        <ConfigProvider locale={zhCN} theme={mode === 'dark' ? darkTheme : lightTheme}>
+        <ConfigProvider
+          locale={zhCN}
+          theme={mode === 'dark' ? darkTheme : lightTheme}
+          renderEmpty={() => <GlassEmpty />}
+        >
           <AntApp>
             <FeedbackBridge />
             <BrowserRouter>

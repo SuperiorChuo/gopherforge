@@ -8,6 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import type { LoginLog } from '@/types'
 import { getLoginLogList, clearLoginLogs, getLoginStats, type LoginLogStats } from '@/api/system/log'
 import TableToolbar from '@/components/TableToolbar'
+import StatusPill from '@/components/StatusPill'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import dayjs from 'dayjs'
@@ -113,10 +114,12 @@ export default function LoginLogPage() {
       width: 90,
       render: (v: number, record) =>
         v === 1 ? (
-          <Tag color="success">成功</Tag>
+          <StatusPill tone="success" label="成功" pulse={false} />
         ) : (
           <Tooltip title={record.message || undefined}>
-            <Tag color="error" style={{ cursor: record.message ? 'help' : undefined }}>失败</Tag>
+            <span style={{ cursor: record.message ? 'help' : undefined }}>
+              <StatusPill tone="danger" label="失败" />
+            </span>
           </Tooltip>
         ),
     },

@@ -11,6 +11,7 @@ import * as DeptAPI from '@/api/system/department'
 import TableToolbar from '@/components/TableToolbar'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
+import { EnableStatusPill } from '@/components/StatusPill'
 import { useUrlParams } from '@/hooks/useUrlParams'
 
 interface SearchParams {
@@ -181,7 +182,7 @@ export default function DepartmentPage() {
       title: '状态',
       dataIndex: 'status',
       width: 80,
-      render: (v: number) => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? '启用' : '禁用'}</Tag>,
+      render: (v: number) => <EnableStatusPill value={v} />,
     },
     { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
     {

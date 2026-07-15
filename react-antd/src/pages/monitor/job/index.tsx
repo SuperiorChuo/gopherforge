@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  Card, InputNumber, Badge,
+  Card, InputNumber,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import { PlusOutlined, ReloadOutlined, ClearOutlined, SearchOutlined } from '@ant-design/icons'
@@ -13,6 +13,7 @@ import {
   getJobHealth, type JobHealth,
 } from '@/api/monitor'
 import TableToolbar from '@/components/TableToolbar'
+import StatusPill from '@/components/StatusPill'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
@@ -194,7 +195,7 @@ export default function JobPage() {
       dataIndex: 'status',
       width: 100,
       render: (v: number) => (
-        <Badge status={v === 1 ? 'processing' : 'default'} text={v === 1 ? '运行中' : '已暂停'} />
+        v === 1 ? <StatusPill tone="success" label="运行中" /> : <StatusPill tone="muted" label="已暂停" />
       ),
     },
     {
