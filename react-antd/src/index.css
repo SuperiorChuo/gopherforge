@@ -1214,6 +1214,105 @@ body {
   }
 }
 
+/* ============================================================
+   页面打磨 · 回到顶部玻璃悬浮钮
+   ============================================================ */
+
+.back-top-btn {
+  position: fixed;
+  right: 28px;
+  bottom: 32px;
+  z-index: 90;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(21, 23, 41, 0.6);
+  color: rgba(203, 213, 225, 0.9);
+  font-size: 17px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 10px 28px rgba(0, 0, 0, 0.4);
+  animation: glass-rise-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.back-top-btn:hover {
+  transform: translateY(-3px);
+  color: #a5b4fc;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 14px 34px rgba(0, 0, 0, 0.45),
+    0 0 24px rgba(99, 102, 241, 0.3);
+}
+
+[data-theme='light'] .back-top-btn {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #475569;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 10px 28px rgba(15, 23, 42, 0.12);
+}
+
+[data-theme='light'] .back-top-btn:hover {
+  color: #2563eb;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 14px 34px rgba(37, 99, 235, 0.18),
+    0 0 24px rgba(37, 99, 235, 0.2);
+}
+
+/* ============================================================
+   页面打磨 · 路由懒加载兜底
+   两块玻璃占位(工具条+内容卡)带扫光,接近成品布局不跳变
+   ============================================================ */
+
+.route-fallback {
+  animation: glass-rise-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.route-fallback-bar,
+.route-fallback-card {
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.05) 25%,
+    rgba(148, 163, 184, 0.1) 40%,
+    rgba(148, 163, 184, 0.05) 55%
+  );
+  background-size: 400% 100%;
+  animation: glass-skeleton-sweep 1.6s ease infinite;
+}
+
+.route-fallback-bar {
+  height: 64px;
+  margin-bottom: 16px;
+}
+
+.route-fallback-card {
+  height: 420px;
+}
+
+[data-theme='light'] .route-fallback-bar,
+[data-theme='light'] .route-fallback-card {
+  border-color: rgba(15, 23, 42, 0.06);
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.03) 25%,
+    rgba(15, 23, 42, 0.07) 40%,
+    rgba(15, 23, 42, 0.03) 55%
+  );
+  background-size: 400% 100%;
+}
+
 .table-count {
   padding: 1px 10px;
   border-radius: 10px;
@@ -1359,6 +1458,19 @@ body {
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+
+/* 列表头像:浮雕受光 + 行 hover 时轻微放大,像玻璃徽章被拿起 */
+.user-cell .ant-avatar {
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    0 3px 10px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ant-table-tbody > tr:hover .user-cell .ant-avatar {
+  transform: scale(1.08);
 }
 
 .user-cell-name {

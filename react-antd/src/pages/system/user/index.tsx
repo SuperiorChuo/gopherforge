@@ -16,7 +16,15 @@ import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import { EnableStatusPill } from '@/components/StatusPill'
 
-const avatarPalette = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6']
+// 渐变头像:同一用户 id 恒定同一渐变,列表里像一排彩色玻璃徽章
+const avatarPalette = [
+  'linear-gradient(135deg, #818cf8, #4f46e5)',
+  'linear-gradient(135deg, #38bdf8, #0284c7)',
+  'linear-gradient(135deg, #34d399, #059669)',
+  'linear-gradient(135deg, #fbbf24, #d97706)',
+  'linear-gradient(135deg, #f472b6, #db2777)',
+  'linear-gradient(135deg, #a78bfa, #7c3aed)',
+]
 const roleTagPalette = ['geekblue', 'cyan', 'purple', 'magenta', 'gold']
 
 interface SearchParams {

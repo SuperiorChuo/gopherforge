@@ -1,12 +1,21 @@
 import { lazy, Suspense, type ComponentType } from 'react'
 import { Navigate, type RouteObject } from 'react-router-dom'
-import { Spin } from 'antd'
 import MainLayout from '@/layouts/MainLayout'
+
+// 路由懒加载兜底:玻璃卡片骨架,比孤零零的 Spin 更接近成品布局
+function RouteFallback() {
+  return (
+    <div className="route-fallback">
+      <div className="route-fallback-bar" />
+      <div className="route-fallback-card" />
+    </div>
+  )
+}
 
 function lazyLoad(factory: () => Promise<{ default: ComponentType }>) {
   const Comp = lazy(factory)
   return (
-    <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', paddingTop: 100 }}><Spin size="large" /></div>}>
+    <Suspense fallback={<RouteFallback />}>
       <Comp />
     </Suspense>
   )

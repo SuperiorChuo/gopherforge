@@ -40,6 +40,7 @@ import {
   SunOutlined,
   MoonOutlined,
   HomeOutlined,
+  VerticalAlignTopOutlined,
 } from '@ant-design/icons'
 import { useAppDispatch, useAppSelector } from '@/hooks/store'
 import { fetchCurrentUser, logout } from '@/store/slices/authSlice'
@@ -175,6 +176,7 @@ export default function MainLayout() {
 
   const [collapsed, setCollapsed] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
+  const [showBackTop, setShowBackTop] = useState(false)
   const [forcePwdSubmitting, setForcePwdSubmitting] = useState(false)
   const [forcePwdForm] = Form.useForm()
   const pathname = location.pathname
@@ -183,6 +185,13 @@ export default function MainLayout() {
     const onFsChange = () => setFullscreen(!!document.fullscreenElement)
     document.addEventListener('fullscreenchange', onFsChange)
     return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
+
+  // 长页滚动后浮出"回到顶部"玻璃钮
+  useEffect(() => {
+    const onScroll = () => setShowBackTop(window.scrollY > 480)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
   const toggleFullscreen = () => {
@@ -463,6 +472,17 @@ export default function MainLayout() {
       </Modal>
 
       <CommandPalette items={paletteItems} />
+
+      {showBackTop && (
+        <button
+          type="button"
+          className="back-top-btn"
+          aria-label="回到顶部"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        >
+          <VerticalAlignTopOutlined />
+        </button>
+      )}
     </Layout>
   )
 }
