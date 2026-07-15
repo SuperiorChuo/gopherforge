@@ -1,6 +1,6 @@
 # IM / 智能客服接入设计（自研）
 
-> 状态：设计草案；**M1 骨架已落地**（`microservices/services/im`）  
+> 状态：设计草案；**M1+M2 已落地**（`microservices/services/im`：内核 + 网页埋码）  
 > 范围：`microservices` 产品线新增 `im-service` + 管理台坐席模块 + **网页埋码 Widget**  
 > 原则：完全自研消息面；与 identity/auth/file/ai 解耦协作；单体线不实现完整 IM。
 
@@ -516,10 +516,10 @@ im:report:view       # 报表（后期）
 
 ### M2 · 埋码
 
-- [ ] widget.js + iframe  
-- [ ] guest session、Origin 白名单  
-- [ ] 站点管理 CRUD  
-- [ ] 图片/文件消息  
+- [x] widget.js + iframe  
+- [x] guest session、parent Origin 白名单  
+- [x] 站点管理（列表/更新 + 埋码片段）  
+- [ ] 图片/文件消息（可并入 M2.1）  
 
 ### M3 · 客服
 

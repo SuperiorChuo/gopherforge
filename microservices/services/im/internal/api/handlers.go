@@ -73,6 +73,19 @@ func (s *Server) requireAgent(c *gin.Context) (*authjwt.AgentClaims, bool) {
 	return claims, true
 }
 
+func parentOrigin(c *gin.Context, bodyOrigin string) string {
+	if bodyOrigin != "" {
+		return bodyOrigin
+	}
+	if v := c.Query("parent_origin"); v != "" {
+		return v
+	}
+	if v := c.GetHeader("X-Parent-Origin"); v != "" {
+		return v
+	}
+	return c.GetHeader("Origin")
+}
+
 // GET /api/v1/im/widget/config?app_key=demo
 func (s *Server) WidgetConfig(c *gin.Context) {
 	appKey := c.Query("app_key")
@@ -84,8 +97,11 @@ func (s *Server) WidgetConfig(c *gin.Context) {
 		Fail(c, http.StatusNotFound, "site not found")
 		return
 	}
-	origin := c.GetHeader("Origin")
-	if origin != "" && !store.OriginAllowed(site.AllowedOrigins, origin) {
+	// iframe 场景 Origin 是 IM 域；用 parent_origin 校验客户站域名
+	origin := parentOrigin(c, "")
+	if origin != "" && origin != "null" && !store.OriginAllowed(site.AllowedOrigins, origin) {
+		// same-host widget demo: allow if origin host is gateway/im itself
+		// still enforce whitelist for true third-party sites
 		Fail(c, http.StatusForbidden, "origin denied")
 		return
 	}
@@ -93,13 +109,26 @@ func (s *Server) WidgetConfig(c *gin.Context) {
 		"app_key":      site.AppKey,
 		"name":         site.Name,
 		"welcome_text": site.WelcomeText,
+		"snippet":      embedSnippet(c, site.AppKey),
 	})
 }
 
+func embedSnippet(c *gin.Context, appKey string) string {
+	// Prefer public gateway host when behind reverse proxy
+	host := c.Request.Host
+	scheme := "http"
+	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	base := scheme + "://" + host
+	return `<script src="` + base + `/im/widget/widget.js" data-app-key="` + appKey + `" async></script>`
+}
+
 type visitorSessionReq struct {
-	AppKey      string `json:"app_key"`
-	GuestKey    string `json:"guest_key"`
-	DisplayName string `json:"display_name"`
+	AppKey       string `json:"app_key"`
+	GuestKey     string `json:"guest_key"`
+	DisplayName  string `json:"display_name"`
+	ParentOrigin string `json:"parent_origin"`
 }
 
 // POST /api/v1/im/visitor/session
@@ -120,8 +149,8 @@ func (s *Server) VisitorSession(c *gin.Context) {
 		Fail(c, http.StatusNotFound, "site not found")
 		return
 	}
-	origin := c.GetHeader("Origin")
-	if origin != "" && !store.OriginAllowed(site.AllowedOrigins, origin) {
+	origin := parentOrigin(c, req.ParentOrigin)
+	if origin != "" && origin != "null" && !store.OriginAllowed(site.AllowedOrigins, origin) {
 		Fail(c, http.StatusForbidden, "origin denied")
 		return
 	}
@@ -337,6 +366,67 @@ func (s *Server) AgentClose(c *gin.Context) {
 	s.AgentHub.Publish(gin.H{"type": "conversation.updated", "payload": conv})
 	s.Hub.Publish(conv.PublicID.String(), gin.H{"type": "conversation.updated", "payload": conv})
 	OK(c, conv)
+}
+
+// GET /api/v1/im/admin/sites
+func (s *Server) AdminListSites(c *gin.Context) {
+	if _, ok := s.requireAgent(c); !ok {
+		return
+	}
+	list, err := s.Store.ListSites()
+	if err != nil {
+		Fail(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	// attach embed snippet per site
+	type row struct {
+		model.Site
+		Snippet string `json:"snippet"`
+	}
+	out := make([]row, 0, len(list))
+	for _, site := range list {
+		out = append(out, row{Site: site, Snippet: embedSnippet(c, site.AppKey)})
+	}
+	OK(c, gin.H{"list": out})
+}
+
+type updateSiteReq struct {
+	Name           *string  `json:"name"`
+	WelcomeText    *string  `json:"welcome_text"`
+	AllowedOrigins []string `json:"allowed_origins"`
+	Status         *int16   `json:"status"`
+}
+
+// PUT /api/v1/im/admin/sites/:id
+func (s *Server) AdminUpdateSite(c *gin.Context) {
+	if _, ok := s.requireAgent(c); !ok {
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		Fail(c, http.StatusBadRequest, "invalid id")
+		return
+	}
+	var req updateSiteReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		Fail(c, http.StatusBadRequest, "invalid body")
+		return
+	}
+	u := store.SiteUpdate{
+		Name:        req.Name,
+		WelcomeText: req.WelcomeText,
+		Status:      req.Status,
+	}
+	if req.AllowedOrigins != nil {
+		raw := store.JSONText(req.AllowedOrigins)
+		u.AllowedOrigins = &raw
+	}
+	site, err := s.Store.UpdateSite(id, u)
+	if err != nil {
+		Fail(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	OK(c, gin.H{"site": site, "snippet": embedSnippet(c, site.AppKey)})
 }
 
 // GET /api/v1/im/health/*

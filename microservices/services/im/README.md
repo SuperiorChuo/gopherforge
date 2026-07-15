@@ -1,33 +1,36 @@
-# im-service（M1 骨架）
+# im-service（M1 + M2）
 
-自研 IM 最小闭环：访客 H5 + 坐席台 + REST/WebSocket + 自动建表。
+自研 IM：访客会话、坐席台、WebSocket，以及 **网页埋码 Widget**。
 
-## 能力（M1）
+## 能力
 
-- 访客会话签发（guest JWT）
-- 创建会话 / 文本消息 / 历史
-- WebSocket 收发与 ack
-- 坐席列表 / 接入 / 结束
-- 演示站点 `app_key=demo` 自动种子
+| 阶段 | 内容 |
+|------|------|
+| M1 | 会话/文本消息 REST、WS、访客 H5、坐席台 `/im/desk` |
+| M2 | `widget.js` + iframe、`parent_origin` 白名单、站点配置与埋码片段 |
+
+## 埋码接入
+
+```html
+<script
+  src="https://你的网关/im/widget/widget.js"
+  data-app-key="demo"
+  async></script>
+```
+
+- 演示页：`/im/widget/demo`
+- 站点配置（需登录）：管理台 `/im/sites`
+- 默认演示 `app_key=demo`（首次启动自动种子）
+
+请把客户站 `Origin` 加入站点「允许来源」，否则 session 会被拒绝。
 
 ## 本地运行
 
 ```bash
-# 需 PostgreSQL（可用 microservices compose 只起库）
-export DB_HOST=127.0.0.1 DB_PASSWORD=123456 DB_NAME=go_admin_kit
-export JWT_SECRET=local-dev-secret-change-me-32-chars
+export DB_HOST=127.0.0.1 DB_PASSWORD=123456 JWT_SECRET=local-dev-secret-change-me-32-chars
 go run ./cmd/main.go
 ```
 
-- 健康：`GET /api/v1/im/health/ready`
-- 访客页：`http://localhost:8088/im/visitor`
-- 网关后：`http://localhost:8000/im/visitor`
-- 坐席台：管理前端 `/im/desk`（需登录）
+Compose 服务 `im-service:8088`，Traefik 前缀 `/api/v1/im`、`/im/`。
 
-## Compose
-
-服务名 `im-service`，端口 `8088`，Traefik：`/api/v1/im`、`/im/*`。
-
-## 设计文档
-
-见仓库 `docs/design/im-service.md`。
+设计文档：`docs/design/im-service.md`。

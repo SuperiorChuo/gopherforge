@@ -242,10 +242,18 @@ export default function ImDeskPage() {
             </Button>
           </div>
           <div style={{ padding: '0 12px 12px', fontSize: 12, opacity: 0.65 }}>
-            访客 H5（经网关）：
+            访客 H5：
             <a href="/im/visitor" target="_blank" rel="noreferrer">
               /im/visitor
             </a>
+            {' · '}
+            埋码演示：
+            <a href="/im/widget/demo" target="_blank" rel="noreferrer">
+              /im/widget/demo
+            </a>
+            {' · '}
+            站点配置：
+            <a href="/im/sites">/im/sites</a>
           </div>
         </Content>
       </Layout>

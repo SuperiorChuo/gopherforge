@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>在线客服</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, sans-serif; color: #0f172a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; height: 100vh; display: flex; flex-direction: column; background: #f8fafc; }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px; color: #fff;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      font-weight: 600; font-size: 15px;
+    }
+    header button {
+      border: 0; background: rgba(255,255,255,.18); color: #fff;
+      width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: 16px;
+    }
+    #log { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .msg { max-width: 82%; padding: 8px 12px; border-radius: 12px; font-size: 14px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+    .me { align-self: flex-end; background: #4f46e5; color: #fff; border-bottom-right-radius: 4px; }
+    .them { align-self: flex-start; background: #e2e8f0; border-bottom-left-radius: 4px; }
+    .sys { align-self: center; color: #64748b; font-size: 12px; background: transparent; }
+    form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #e2e8f0; background: #fff; }
+    input { flex: 1; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+    button.send { border: 0; background: #4f46e5; color: #fff; border-radius: 10px; padding: 0 14px; cursor: pointer; font-weight: 600; }
+    #meta { font-size: 11px; color: #94a3b8; padding: 0 12px 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <span id="title">在线客服</span>
+    <button type="button" id="close" title="关闭">×</button>
+  </header>
+  <div id="log"></div>
+  <div id="meta">连接中…</div>
+  <form id="f">
+    <input id="text" placeholder="输入消息…" autocomplete="off" />
+    <button class="send" type="submit">发送</button>
+  </form>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var APP_KEY = params.get('app_key') || 'demo';
+      var PARENT_ORIGIN = params.get('parent_origin') || '';
+      var API = ''; // same origin as frame (gateway or im-service)
+      var logEl = document.getElementById('log');
+      var meta = document.getElementById('meta');
+      var extraContext = {};
+
+      function add(cls, text) {
+        var d = document.createElement('div');
+        d.className = 'msg ' + cls;
+        d.textContent = text;
+        logEl.appendChild(d);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      function parseContent(content) {
+        try {
+          var o = typeof content === 'string' ? JSON.parse(content) : content;
+          return o.text || JSON.stringify(o);
+        } catch (e) { return String(content); }
+      }
+
+      var guestToken = localStorage.getItem('im_guest_token_' + APP_KEY) || '';
+      var guestKey = localStorage.getItem('im_guest_key_' + APP_KEY) || '';
+      var convId = '';
+      var ws;
+
+      document.getElementById('close').onclick = function () {
+        if (window.parent) {
+          window.parent.postMessage({ type: 'goadmin-im-close' }, PARENT_ORIGIN || '*');
+        }
+      };
+
+      window.addEventListener('message', function (ev) {
+        if (PARENT_ORIGIN && ev.origin !== PARENT_ORIGIN) return;
+        var data = ev.data || {};
+        if (data.type === 'goadmin-im-context') {
+          extraContext = data.context || {};
+        }
+      });
+
+      async function api(path, opts) {
+        opts = opts || {};
+        opts.headers = Object.assign({
+          'Content-Type': 'application/json',
+        }, opts.headers || {});
+        if (PARENT_ORIGIN) opts.headers['X-Parent-Origin'] = PARENT_ORIGIN;
+        var res = await fetch(API + path, opts);
+        return res.json();
+      }
+
+      async function boot() {
+        var cfg = await api('/api/v1/im/widget/config?app_key=' + encodeURIComponent(APP_KEY) +
+          (PARENT_ORIGIN ? '&parent_origin=' + encodeURIComponent(PARENT_ORIGIN) : ''));
+        if (cfg.code !== 200) throw new Error(cfg.message || 'config failed');
+        document.getElementById('title').textContent = (cfg.data && cfg.data.name) || '在线客服';
+
+        var sess = await api('/api/v1/im/visitor/session', {
+          method: 'POST',
+          body: JSON.stringify({
+            app_key: APP_KEY,
+            guest_key: guestKey || undefined,
+            display_name: '网站访客',
+            parent_origin: PARENT_ORIGIN || undefined,
+          }),
+        });
+        if (sess.code !== 200) throw new Error(sess.message || 'session failed');
+        guestToken = sess.data.guest_token;
+        guestKey = sess.data.guest_key;
+        localStorage.setItem('im_guest_token_' + APP_KEY, guestToken);
+        localStorage.setItem('im_guest_key_' + APP_KEY, guestKey);
+        if (sess.data.welcome_text) add('sys', sess.data.welcome_text);
+
+        var pageCtx = Object.assign({ page: PARENT_ORIGIN || location.href, channel: 'web_widget' }, extraContext);
+        if (window.parent && window.parent.__GOADMIN_IM_CONTEXT__) {
+          pageCtx = Object.assign(pageCtx, window.parent.__GOADMIN_IM_CONTEXT__);
+        }
+
+        var conv = await api('/api/v1/im/conversations', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + guestToken },
+          body: JSON.stringify({ channel: 'web_widget', context: pageCtx }),
+        });
+        if (conv.code !== 200) throw new Error(conv.message || 'conv failed');
+        convId = conv.data.public_id;
+        meta.textContent = '会话 ' + convId.slice(0, 8) + '…';
+
+        var hist = await api('/api/v1/im/conversations/' + convId + '/messages', {
+          headers: { Authorization: 'Bearer ' + guestToken },
+        });
+        if (hist.code === 200) {
+          (hist.data.messages || []).forEach(function (m) {
+            add(m.sender_type === 'visitor' ? 'me' : (m.sender_type === 'system' ? 'sys' : 'them'), parseContent(m.content));
+          });
+        }
+
+        var wsBase = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
+        ws = new WebSocket(wsBase + '/im/ws?token=' + encodeURIComponent(guestToken));
+        ws.onopen = function () {
+          ws.send(JSON.stringify({ type: 'conversation.subscribe', payload: { conversation_public_id: convId } }));
+          meta.textContent = '已连接 · ' + convId.slice(0, 8) + '…';
+          if (window.parent) window.parent.postMessage({ type: 'goadmin-im-ready' }, PARENT_ORIGIN || '*');
+        };
+        ws.onmessage = function (ev) {
+          var msg = JSON.parse(ev.data);
+          if (msg.type === 'message.new') {
+            var m = msg.payload.message;
+            if (m.sender_type === 'visitor') return;
+            add(m.sender_type === 'agent' || m.sender_type === 'bot' ? 'them' : 'sys', parseContent(m.content));
+          }
+        };
+        ws.onclose = function () { meta.textContent = '连接断开，请关闭后重开'; };
+      }
+
+      document.getElementById('f').onsubmit = function (e) {
+        e.preventDefault();
+        var input = document.getElementById('text');
+        var text = input.value.trim();
+        if (!text || !convId) return;
+        input.value = '';
+        add('me', text);
+        var client_msg_id = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now());
+        if (ws && ws.readyState === 1) {
+          ws.send(JSON.stringify({
+            type: 'message.send',
+            request_id: client_msg_id,
+            payload: {
+              conversation_public_id: convId,
+              client_msg_id: client_msg_id,
+              msg_type: 'text',
+              content: { text: text },
+            },
+          }));
+        } else {
+          api('/api/v1/im/conversations/' + convId + '/messages', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + guestToken },
+            body: JSON.stringify({ client_msg_id: client_msg_id, msg_type: 'text', content: { text: text } }),
+          });
+        }
+      };
+
+      boot().catch(function (err) {
+        meta.textContent = '启动失败: ' + err.message;
+        console.error(err);
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -47,7 +47,17 @@ func (s *Store) seed() error {
 	if n > 0 {
 		return nil
 	}
-	origins, _ := json.Marshal([]string{"http://localhost:8000", "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8088"})
+	origins, _ := json.Marshal([]string{
+		"http://localhost:8000",
+		"http://127.0.0.1:8000",
+		"http://localhost:3000",
+		"http://127.0.0.1:3000",
+		"http://localhost:8088",
+		"http://127.0.0.1:8088",
+		"http://localhost:5174",
+		"http://127.0.0.1:5174",
+		"null", // file:// demo pages
+	})
 	site := model.Site{
 		AppKey:         "demo",
 		AppSecret:      "demo-secret-change-me",
@@ -277,14 +287,66 @@ func OriginAllowed(allowedJSON, origin string) bool {
 	}
 	var list []string
 	if err := json.Unmarshal([]byte(allowedJSON), &list); err != nil {
+		// tolerate misconfigured legacy rows: deny
 		return false
 	}
+	if len(list) == 0 {
+		return true
+	}
 	for _, o := range list {
-		if strings.EqualFold(strings.TrimSpace(o), strings.TrimSpace(origin)) {
+		o = strings.TrimSpace(o)
+		if o == "*" {
+			return true
+		}
+		if strings.EqualFold(o, strings.TrimSpace(origin)) {
 			return true
 		}
 	}
 	return false
+}
+
+func (s *Store) ListSites() ([]model.Site, error) {
+	var list []model.Site
+	err := s.db.Order("id ASC").Find(&list).Error
+	return list, err
+}
+
+func (s *Store) GetSite(id uint64) (*model.Site, error) {
+	var site model.Site
+	if err := s.db.First(&site, id).Error; err != nil {
+		return nil, err
+	}
+	return &site, nil
+}
+
+type SiteUpdate struct {
+	Name           *string
+	WelcomeText    *string
+	AllowedOrigins *string
+	Status         *int16
+}
+
+func (s *Store) UpdateSite(id uint64, u SiteUpdate) (*model.Site, error) {
+	site, err := s.GetSite(id)
+	if err != nil {
+		return nil, err
+	}
+	if u.Name != nil {
+		site.Name = *u.Name
+	}
+	if u.WelcomeText != nil {
+		site.WelcomeText = *u.WelcomeText
+	}
+	if u.AllowedOrigins != nil {
+		site.AllowedOrigins = *u.AllowedOrigins
+	}
+	if u.Status != nil {
+		site.Status = *u.Status
+	}
+	if err := s.db.Save(site).Error; err != nil {
+		return nil, err
+	}
+	return site, nil
 }
 
 func FmtErr(err error) string {

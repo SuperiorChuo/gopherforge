@@ -55,12 +55,20 @@ func main() {
 	r.POST("/api/v1/im/agent/conversations/:public_id/accept", srv.AgentAccept)
 	r.POST("/api/v1/im/agent/conversations/:public_id/close", srv.AgentClose)
 
+	// admin sites (M2 embed config)
+	r.GET("/api/v1/im/admin/sites", srv.AdminListSites)
+	r.PUT("/api/v1/im/admin/sites/:id", srv.AdminUpdateSite)
+
 	// websocket
 	r.GET("/im/ws", srv.WebSocket)
 
 	// visitor H5 (M1, non-embed)
 	r.StaticFile("/im/visitor", "./web-visitor/index.html")
 	r.Static("/im/visitor/static", "./web-visitor")
+
+	// webpage embed widget (M2)
+	r.Static("/im/widget", "./web-widget")
+	r.StaticFile("/im/widget/demo", "./web-widget/demo.html")
 
 	httpSrv := &http.Server{Addr: ":" + cfg.AppPort, Handler: r}
 	go func() {

@@ -12,6 +12,7 @@ RUN apk add --no-cache tzdata wget \
     && mkdir -p ./logs && chown -R app:app /app
 COPY --from=builder --chown=app:app /app/main .
 COPY --chown=app:app ./web-visitor ./web-visitor
+COPY --chown=app:app ./web-widget ./web-widget
 USER app
 EXPOSE 8088
 CMD ["./main"]

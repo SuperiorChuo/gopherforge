@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>客户网站模拟页 · IM 埋码演示</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
+    main { max-width: 720px; margin: 48px auto; padding: 0 20px; }
+    h1 { font-size: 28px; }
+    .card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 10px 40px rgba(15,23,42,.08); line-height: 1.7; }
+    code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 10px; overflow: auto; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>模拟客户官网</h1>
+    <div class="card">
+      <p>本页用于演示 <strong>网页埋码</strong>。右下角气泡由 <code>widget.js</code> 注入，聊天在 iframe 中，避免污染本站 CSS。</p>
+      <p>请先启动网关或 im-service，再打开本页。整栈网关示例：</p>
+      <pre>&lt;script src="http://localhost:8000/im/widget/widget.js"
+  data-app-key="demo"
+  async&gt;&lt;/script&gt;</pre>
+      <p>坐席请登录管理台打开 <code>/im/desk</code> 接待。</p>
+    </div>
+  </main>
+  <!-- 同源演示：脚本从当前 host 加载 -->
+  <script src="/im/widget/widget.js" data-app-key="demo" async></script>
+  <script>
+    // 可选：注入业务上下文（订单号等）
+    window.addEventListener('load', function () {
+      if (window.GoAdminIM) {
+        window.GoAdminIM.setContext({ page_title: document.title, demo: true });
+      }
+    });
+  </script>
+</body>
+</html>
