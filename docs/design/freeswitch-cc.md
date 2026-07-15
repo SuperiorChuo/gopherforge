@@ -1,6 +1,6 @@
 # FreeSWITCH 呼叫中心增强设计（独立项目）
 
-> 状态：设计草案（先文档，后建仓实现）  
+> 状态：设计草案；**FS-M1 骨架已在独立仓落地**：`../go-freeswitch-cc`（与 go-admin-kit 同级目录）  
 > 定位：**媒体面独立仓库**，基于 FreeSWITCH 开源增强；  
 > 与 **Go Admin Kit** 的关系：本仓只做 B 端运营台 + 可选 `cc-adapter`，**不内嵌 FS 二进制**。
 
@@ -278,12 +278,12 @@ docker compose up -d
 
 ### FreeSWITCH 仓
 
-- [ ] 基础 Docker 镜像与 `docker-compose`  
-- [ ] 内线分机注册示例  
-- [ ] 一条呼入到队列的拨号计划  
-- [ ] 录音 + CDR  
-- [ ] `control-api`：健康检查、坐席状态、Webhook 出站  
-- [ ] `docs/integration-go-admin-kit.md` 对接契约  
+- [x] 基础 Docker 镜像与 `docker-compose`  
+- [x] 内线分机注册示例  
+- [x] 一条呼入到队列的拨号计划（演示 5000）  
+- [x] 录音目录 + control-api CDR 表  
+- [x] `control-api`：健康检查、ESL、Webhook 出站、事件入库  
+- [x] `docs/integration-go-admin-kit.md` 对接契约  
 - [ ] 开源 LICENSE 与模块边界说明（增强哪些、如何配置）
 
 ### Go Admin Kit 仓（后置 PR）
