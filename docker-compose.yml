@@ -116,7 +116,9 @@ services:
       TRACING_ENVIRONMENT: ${TRACING_ENVIRONMENT:-development}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
       TRACING_SAMPLE_RATIO: ${TRACING_SAMPLE_RATIO:-1.0}
-      NATS_URL: nats://go-admin-kit-nats:4222
+      # NATS consumer moved to audit-service; empty disables the monolith's
+      # login-log consumer (same durable name must not be attached twice).
+      NATS_URL: ""
       # Trust the compose network (see networks.ipam) so X-Forwarded-For from
       # the Traefik gateway yields the real client IP in logs and rate limits.
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
@@ -318,6 +320,121 @@ services:
     networks:
       - go-admin-kit-net
 
+  audit-service:
+    build:
+      context: ./services/audit
+      dockerfile: Dockerfile
+    container_name: go-admin-kit-audit
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8085
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      NATS_URL: nats://go-admin-kit-nats:4222
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${AUDIT_SERVICE_PORT:-8085}:8085"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.audit.rule: "Path(`/api/v1/login-logs`) || PathPrefix(`/api/v1/login-logs/`) || Path(`/api/v1/operation-logs`) || PathPrefix(`/api/v1/operation-logs/`) || Path(`/api/v1/logs/audit`)"
+      traefik.http.routers.audit.entrypoints: web
+      traefik.http.routers.audit.priority: "100"
+      traefik.http.services.audit.loadbalancer.server.port: "8085"
+    depends_on:
+      go-admin-kit-postgres:
+        condition: service_healthy
+      go-admin-kit-redis:
+        condition: service_healthy
+      go-admin-kit-nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8085/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  file-service:
+    build:
+      context: ./services/file
+      dockerfile: Dockerfile
+    container_name: go-admin-kit-file
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8086
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      UPLOAD_STORAGE_TYPE: ${UPLOAD_STORAGE_TYPE:-local}
+      UPLOAD_LOCAL_PATH: ${UPLOAD_LOCAL_PATH:-./uploads}
+      UPLOAD_PUBLIC_BASE_URL: ${UPLOAD_PUBLIC_BASE_URL:-/uploads}
+      UPLOAD_LOCAL_URL_PREFIX: ${UPLOAD_LOCAL_URL_PREFIX:-/uploads}
+      UPLOAD_S3_ENDPOINT: ${UPLOAD_S3_ENDPOINT:-}
+      UPLOAD_S3_BUCKET: ${UPLOAD_S3_BUCKET:-}
+      UPLOAD_S3_REGION: ${UPLOAD_S3_REGION:-}
+      UPLOAD_S3_ACCESS_KEY: ${UPLOAD_S3_ACCESS_KEY:-}
+      UPLOAD_S3_SECRET_KEY: ${UPLOAD_S3_SECRET_KEY:-}
+      UPLOAD_S3_USE_SSL: ${UPLOAD_S3_USE_SSL:-true}
+      UPLOAD_MINIO_ENDPOINT: ${UPLOAD_MINIO_ENDPOINT:-go-admin-kit-minio:9000}
+      UPLOAD_MINIO_BUCKET: ${UPLOAD_MINIO_BUCKET:-go-admin-kit}
+      UPLOAD_MINIO_REGION: ${UPLOAD_MINIO_REGION:-us-east-1}
+      UPLOAD_MINIO_ACCESS_KEY: ${UPLOAD_MINIO_ACCESS_KEY:-minioadmin}
+      UPLOAD_MINIO_SECRET_KEY: ${UPLOAD_MINIO_SECRET_KEY:-minioadmin}
+      UPLOAD_MINIO_USE_SSL: ${UPLOAD_MINIO_USE_SSL:-false}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${FILE_SERVICE_PORT:-8086}:8086"
+    volumes:
+      - go_admin_kit_uploads:/app/uploads
+    labels:
+      traefik.enable: "true"
+      # /uploads static subtree moves here from the monolith together with
+      # the file APIs (priority 100 beats the backend's catch-all /uploads).
+      traefik.http.routers.file.rule: "Path(`/api/v1/files`) || PathPrefix(`/api/v1/files/`) || PathPrefix(`/uploads/`)"
+      traefik.http.routers.file.entrypoints: web
+      traefik.http.routers.file.priority: "100"
+      traefik.http.services.file.loadbalancer.server.port: "8086"
+    depends_on:
+      go-admin-kit-postgres:
+        condition: service_healthy
+      go-admin-kit-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8086/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
   go-admin-kit-minio:
     image: minio/minio:latest
     container_name: go-admin-kit-minio
@@ -395,6 +512,10 @@ services:
       identity-service:
         condition: service_started
       system-service:
+        condition: service_started
+      audit-service:
+        condition: service_started
+      file-service:
         condition: service_started
       frontend:
         condition: service_started
@@ -491,6 +612,7 @@ networks:
         - subnet: 172.28.0.0/16
 
 volumes:
+  go_admin_kit_uploads:
   go_admin_kit_postgres_data:
   go_admin_kit_redis_data:
   go_admin_kit_nats_data:

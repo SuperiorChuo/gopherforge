@@ -106,6 +106,42 @@ jobs:
       - run: go test ./...
       - run: go vet ./...
 
+  audit-service:
+    name: Audit Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/audit
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: services/audit/go.sum
+
+      - run: go mod download
+      - run: go test ./...
+      - run: go vet ./...
+
+  file-service:
+    name: File Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/file
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: services/file/go.sum
+
+      - run: go mod download
+      - run: go test ./...
+      - run: go vet ./...
+
   integration:
     name: Integration Smoke
     runs-on: ubuntu-latest
