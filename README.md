@@ -2,21 +2,23 @@
 
 [![CI](https://github.com/SuperiorChuo/go-admin-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/SuperiorChuo/go-admin-kit/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.26.3-00ADD8?logo=go&logoColor=white)](microservices/monitor/go.mod)
+[![Go](https://img.shields.io/badge/Go-1.26.3-00ADD8?logo=go&logoColor=white)](microservices/services/monitor/go.mod)
 [![React](https://img.shields.io/badge/React-Ant%20Design-61DAFB?logo=react&logoColor=white)](microservices/web/package.json)
 
-Go Admin Kit 是一套基于 Go + Gin 与 **React + Ant Design** 的后台管理脚手架仓库。仓库内包含**两个互不调用的独立产品线**：
+基于 **Go + Gin** 与 **React + Ant Design** 的后台管理脚手架。仓库内包含两条**互不调用**的独立产品线，可按场景二选一二次开发：
 
-| 产品线 | 目录 | 状态 |
-|--------|------|------|
-| **微服务版** | [`microservices/`](microservices/README.md) | 可运行（网关 + 多服务） |
-| **单体版** | [`monolith/`](monolith/README.md) | 可运行（单进程 + React） |
+| 产品线 | 目录 | 形态 | 默认入口 |
+|--------|------|------|----------|
+| **微服务版** | [`microservices/`](microservices/README.md) | Traefik 网关 + 多服务 + React | [http://localhost:8000](http://localhost:8000) |
+| **单体版** | [`monolith/`](monolith/README.md) | 单进程 API + React | [http://localhost:3001](http://localhost:3001) |
 
-二者业务零调用；前端技术栈统一为 React Ant Design。公共监控模板见 [`platform/`](platform/README.md)。
+- 前端技术栈统一为 **React + Ant Design**（各线各有一份源码，独立演进）。
+- 业务边界：单体不调用微服务，微服务不依赖单体。详见 [`docs/PRODUCT_LINES.md`](docs/PRODUCT_LINES.md)。
+- 公共监控模板：[`platform/`](platform/README.md)。
+
+---
 
 ## 项目截图
-
-这些截图来自当前项目真实运行页面，覆盖登录、系统概览、系统管理和监控页面。
 
 | 登录页 | 系统概览 |
 | --- | --- |
@@ -26,43 +28,86 @@ Go Admin Kit 是一套基于 Go + Gin 与 **React + Ant Design** 的后台管理
 | --- | --- |
 | ![用户管理](docs/screenshots/users.png) | ![角色管理](docs/screenshots/roles.png) |
 
-| 数据库（PostgreSQL）监控 | Redis 监控 |
+| 数据库监控 | Redis 监控 |
 | --- | --- |
-| ![数据库（PostgreSQL）监控](docs/screenshots/mysql.png) | ![Redis 监控](docs/screenshots/redis.png) |
+| ![数据库监控](docs/screenshots/mysql.png) | ![Redis 监控](docs/screenshots/redis.png) |
 
-## 技术栈（微服务版）
+---
 
-- 后端：Go 1.26.3、Gin、GORM、goose、JWT、Redis、PostgreSQL 16、多微服务 + Traefik 网关 + NATS
-- 前端：React、Vite、TypeScript、Ant Design（`microservices/web`）
-- 工程：Docker Compose、GitHub Actions、OpenAPI 契约、可选 MinIO / Prometheus / Grafana / OTel
+## 功能一览
 
-## 功能清单
+| 能力 | 微服务 | 单体 |
+|------|:------:|:----:|
+| 登录 / JWT 刷新与撤销 / 验证码 / TOTP | ✅ | ✅ |
+| RBAC（用户、角色、权限、部门、菜单） | ✅ | ✅ |
+| 字典、公告、系统设置、在线用户 | ✅ | ✅ |
+| 登录日志 / 操作日志 / 审计日志 | ✅ | ✅ |
+| 文件上传 | ✅ | ✅ |
+| 服务器 / PostgreSQL / Redis / 定时任务监控 | ✅ | ✅ |
+| 健康检查、Prometheus metrics | ✅ | ✅ |
+| Traefik 网关 + ForwardAuth | ✅ | — |
+| NATS 登录事件 | ✅ | — |
+| AI 对话 / 知识库 | ✅ | — |
+| Docker Compose 一键启动 | ✅ | ✅ |
 
-- 登录、刷新 token、退出登录、token 撤销
-- RBAC 权限、角色、菜单、部门和用户管理
-- 字典、通知、文件上传、操作日志、登录日志
-- 在线用户强制下线
-- 任务调度、服务器监控、数据库（PostgreSQL）和 Redis 监控页面
-- 健康检查、Prometheus metrics、请求 ID、审计日志
-- OpenAPI JSON 生成
-- Docker 一键启动依赖、网关、微服务与前端
+---
 
-## 目录结构
+## 技术栈
+
+**后端**
+
+- Go 1.26、Gin、GORM、goose、JWT
+- PostgreSQL 16、Redis
+- 微服务额外：Traefik、NATS；可选 MinIO / Prometheus / Grafana / OpenTelemetry
+
+**前端**
+
+- React、Vite、TypeScript、Ant Design、Redux Toolkit
+
+**工程**
+
+- Docker Compose、GitHub Actions、OpenAPI 契约、全中文提交规范
+
+---
+
+## 仓库结构
 
 ```text
-.
-├── microservices/       # 微服务产品线
-│   ├── services/        # auth identity system audit file ai monitor
-│   ├── web/             # React + Ant Design
+go-admin-kit/
+├── microservices/                 # 微服务产品线
+│   ├── services/
+│   │   ├── auth/                  # 认证、令牌、网关验签
+│   │   ├── identity/              # 用户 / 角色 / 权限 / 部门
+│   │   ├── system/                # 菜单 / 字典 / 公告 / 设置 / 在线用户
+│   │   ├── audit/                 # 日志查询与事件消费
+│   │   ├── file/                  # 文件与 uploads
+│   │   ├── ai/                    # AI 对话与知识库
+│   │   └── monitor/               # 监控、健康、共享迁移、/api 兜底
+│   ├── web/                       # React 前端
+│   ├── docker-compose.yml
+│   ├── go.work
+│   └── README.md
+├── monolith/                      # 单体产品线（与微服务零调用）
+│   ├── server/                    # 完整单进程 API
+│   ├── web/                       # React 前端（独立副本）
 │   ├── docker-compose.yml
 │   └── README.md
-├── monolith/            # 单体产品线（server + web）
-├── platform/            # 公共监控模板
-├── docs/                # 工程文档（含 PRODUCT_LINES.md）
-└── LOCAL_SETUP.md       # 本地联调说明
+├── platform/deploy/               # Prometheus / Grafana / OTel 模板
+├── docs/                          # 工程与安全文档
+│   └── PRODUCT_LINES.md           # 双线能力对照
+├── CONTRIBUTING.md                # 贡献与提交规范
+├── AGENTS.md                      # 人与 AI 协作规范
+└── LOCAL_SETUP.md                 # 本地联调摘要
 ```
 
-## 快速启动
+---
+
+## 快速开始
+
+### 环境要求
+
+- Docker Desktop
+- 可选本地开发：Go 1.26.3+、Node.js 20.19+ / 22.12+（推荐 24）、npm
 
 ### 微服务版
 
@@ -71,8 +116,17 @@ git clone https://github.com/SuperiorChuo/go-admin-kit.git
 cd go-admin-kit/microservices
 cp .env.example .env
 docker compose up -d --build
-# 或仓库根：make compose-up
+# 或在仓库根目录：make compose-up
 ```
+
+| 入口 | 地址 |
+|------|------|
+| 统一网关（推荐） | http://localhost:8000 |
+| 前端直连 | http://localhost:3000 |
+| 健康检查 | http://localhost:8000/api/v1/health/ready |
+| 认证服务调试 | http://localhost:8082 |
+
+网关会将登录等认证路径路由到 `auth-service`，其余 `/api`、`/uploads` 由对应微服务或 `monitor` 承接，并在网关层 ForwardAuth 验签。详情见 [microservices/README.md](microservices/README.md)。
 
 ### 单体版
 
@@ -80,195 +134,143 @@ docker compose up -d --build
 cd go-admin-kit/monolith
 cp .env.example .env
 docker compose up -d --build
-# 或仓库根：make mono-up
-# 前端 http://localhost:3001  API http://localhost:18081
+# 或在仓库根目录：make mono-up
 ```
 
-默认地址：
+| 入口 | 地址 |
+|------|------|
+| 前端 | http://localhost:3001 |
+| API | http://localhost:18081 |
+| 健康检查 | http://localhost:18081/api/v1/health/ready |
 
-- 统一入口（Traefik 网关）：`http://localhost:8000`（页面与 API 都从这里走）
-- 前端直连：`http://localhost:3000`
-- 后端直连：`http://localhost:8081`
-- 认证服务直连：`http://localhost:8082`
-- 健康检查：`http://localhost:8000/api/v1/health/ready`
+单体默认端口与微服务错开，可同机并行。详情见 [monolith/README.md](monolith/README.md)。
 
-推荐通过网关访问。认证相关路径 → auth-service；其余 `/api`、`/uploads` 由对应微服务或 services/monitor 承接；网关 ForwardAuth 统一验签。详情见 [`microservices/README.md`](microservices/README.md)。
+### 默认账号（仅本地开发）
 
-默认管理员账号仅用于本地开发：
+| 用户名 | 密码 |
+|--------|------|
+| `admin` | `admin123` |
 
-- 用户名：`admin`
-- 密码：`admin123`
+生产或共享环境请立即修改密码，并替换 `.env` 中的 `JWT_SECRET`、数据库与中间件密码。
 
-生产或共享环境请立即修改默认密码，并替换 `.env` 中的密钥和服务密码。
+---
 
-## 环境隔离
+## 端口与并行运行
 
-Docker Compose 使用项目专属容器、网络和数据卷，避免和其他项目的数据表混在一起：
+两条产品线默认宿主机端口：
 
-- PostgreSQL 容器：`go-admin-kit-postgres`
-- Redis 容器：`go-admin-kit-redis`
-- PostgreSQL 数据卷：`go_admin_kit_postgres_data`
-- Redis 数据卷：`go_admin_kit_redis_data`
-- 默认数据库：`go_admin_kit`
-- Docker 网络：`go-admin-kit-net`
+| 用途 | 微服务 | 单体 |
+|------|--------|------|
+| 前端 | 3000（网关 8000） | 3001 |
+| API | 经 8000 / 调试 8081+ | 18081 |
+| PostgreSQL | 5432 | 5433 |
+| Redis | 6379 | 6380 |
 
-如果本机已有 PostgreSQL、Redis、MinIO 或其他脚手架容器占用默认宿主机端口，可以先用 `docker ps --format "table {{.Names}}\t{{.Ports}}"` 查找冲突容器。确认不再需要时执行 `docker stop <container-name>` 释放端口；如果需要并行运行多个项目，则在 `.env` 中调整宿主机端口：
+冲突时可在对应目录的 `.env` 中修改 `POSTGRES_PORT`、`REDIS_PORT`、`GATEWAY_PORT`、`BACKEND_PORT`、`FRONTEND_PORT` 等；容器内互通地址不变。
 
-```env
-POSTGRES_PORT=5433
-REDIS_PORT=6380
-MINIO_API_PORT=19000
-MINIO_CONSOLE_PORT=19001
-GATEWAY_PORT=18000
-BACKEND_PORT=18081
-FRONTEND_PORT=13000
+---
+
+## 本地开发（可选）
+
+### 微服务
+
+```bash
+cd microservices
+docker compose up -d go-admin-kit-postgres go-admin-kit-redis go-admin-kit-nats
+# 按需启动服务，例如：
+cd services/auth && go run ./cmd
+cd web && npm ci && npm run dev
 ```
 
-这些变量只改变宿主机映射端口。容器内部仍然通过 `go-admin-kit-postgres:5432`、`go-admin-kit-redis:6379`、`go-admin-kit-minio:9000` 和后端内部 `8081` 通信，不会影响服务间配置。启用 MinIO 时使用 `docker compose --profile storage up -d --build`，如本机 `9000/9001` 已被占用，请同步调整 `MINIO_API_PORT` 和 `MINIO_CONSOLE_PORT`。
+### 单体
 
-Python 辅助工具统一使用 `uv` 和项目内 `.venv`：
-
-```powershell
-uv sync
-uv run python --version
+```bash
+cd monolith
+docker compose up -d go-admin-kit-mono-postgres go-admin-kit-mono-redis
+cd server && go run ./cmd/main.go
+cd web && npm ci && npm run dev
 ```
 
-## 本地开发
+更完整的联调说明见 [LOCAL_SETUP.md](LOCAL_SETUP.md)。
 
-只启动依赖服务：
-
-```powershell
-docker compose up -d go-admin-kit-postgres go-admin-kit-redis
-```
-
-启动后端：
-
-```powershell
-cd microservices/monitor
-go run .\cmd\main.go
-```
-
-启动前端：
-
-```powershell
-cd microservices/web
-npm install
-npm run dev
-```
-
-## 数据库
-
-后端容器会在启动主服务前幂等执行 goose 迁移；首次创建数据卷和后续升级都走同一条迁移路径：
-
-```text
-server/migrations/
-```
-
-如需离线或手动初始化环境，也可以导入基线 SQL（`db-import` 现在通过 `psql` 导入）：
-
-```powershell
-make db-import
-```
-
-后续结构变更使用版本化迁移：
-
-```powershell
-make migrate-status
-make migrate-up
-make migrate-create NAME=add_example_table
-```
-
-迁移说明见 `docs/development/MIGRATIONS.md`，最近一轮脚手架优化状态见 `docs/development/OPTIMIZATION_STATUS.md`。
+---
 
 ## 验证
 
-后端：
+### 微服务
 
-```powershell
-cd microservices/monitor
-go test ./...
-go vet ./...
-```
-
-前端：
-
-```powershell
-cd microservices/web
-npm run test
-npm run build:type
-npm run lint
-npm run stylelint
-npm run build
-npm audit --omit=dev
-```
-
-E2E：
-
-```powershell
-npm run e2e:frontend
-```
-
-完整栈启动后的 API smoke：
-
-```powershell
+```bash
+cd microservices
+(cd services/monitor && go test ./... && go vet ./...)
+(cd web && npm run lint && npm run build)
 npm run test:smoke:unit
-npm run smoke:api
+npm run test:contract
+# 栈启动后：
+API_BASE_URL=http://127.0.0.1:8000/api/v1 npm run smoke:api
 ```
 
-API 契约生成与测试：
+### 单体
+
+```bash
+cd monolith
+(cd server && go test ./... && go vet ./...)
+(cd web && npm run lint && npm run build)
+```
+
+### OpenAPI（微服务）
 
 ```bash
 cd microservices
 npm run api:contract
 git diff --exit-code -- services/monitor/docs/openapi.json
-npm run test:contract
 ```
 
-OpenAPI 漂移时请提交 `microservices/services/monitor/docs/openapi.json`（及如有生成的 `web/src/api/generated/`）。
-
-WebSocket 通知：先用 Bearer 访问 `POST /api/v1/ws/notifications/ticket`，再连 `GET /api/v1/ws/notifications?ticket=...`。网关须透传 Upgrade 相关头。
+---
 
 ## 配置入口
 
-- 微服务环境：`microservices/.env.example`
-- 单体环境：`monolith/.env.example`
-- 微服务迁移 / OpenAPI：`microservices/services/monitor/migrations/`、`.../docs/openapi.json`
-- 单体迁移：`monolith/server/migrations/`
-- 产品线对照：`docs/PRODUCT_LINES.md`
-- 本地代码图谱：`CODE_GRAPH.md`
+| 说明 | 路径 |
+|------|------|
+| 微服务环境变量 | `microservices/.env.example` |
+| 单体环境变量 | `monolith/.env.example` |
+| 微服务迁移 / OpenAPI | `microservices/services/monitor/migrations/`、`.../docs/openapi.json` |
+| 单体迁移 | `monolith/server/migrations/` |
+| 产品线对照 | [`docs/PRODUCT_LINES.md`](docs/PRODUCT_LINES.md) |
+| 安全说明 | [`docs/SECURITY.md`](docs/SECURITY.md) / [`SECURITY.md`](SECURITY.md) |
+
+---
 
 ## 安全提示
 
-生产环境部署前请至少替换：
+上线前请至少替换：
 
 - `JWT_SECRET`
-- PostgreSQL 密码
-- Redis 密码
-- MinIO 密钥
-- Grafana 密码
+- PostgreSQL / Redis / MinIO / Grafana 等密码与密钥
 - 默认管理员密码策略
 - `CORS_ALLOW_ORIGINS`
 
-安全能力说明见 `docs/SECURITY.md`，发布前检查见 `docs/development/READINESS_CHECKLIST.md`，优化完成项和剩余收尾见 `docs/development/OPTIMIZATION_STATUS.md`。
+---
 
 ## 开源协作
 
-- 贡献指南：`CONTRIBUTING.md`（含**全中文提交信息**规范）
-- 协作规范（人与 AI）：`AGENTS.md`
-- 安全策略：`SECURITY.md`
-- 问题反馈：`https://github.com/SuperiorChuo/go-admin-kit/issues`
-- CI：`https://github.com/SuperiorChuo/go-admin-kit/actions`
+- 贡献指南：[CONTRIBUTING.md](CONTRIBUTING.md)（**提交标题与正文须全中文**）
+- 人与 AI 协作规范：[AGENTS.md](AGENTS.md)
+- 问题反馈：https://github.com/SuperiorChuo/go-admin-kit/issues
+- CI：https://github.com/SuperiorChuo/go-admin-kit/actions
 
-发起 PR 前请运行相关验证命令，并在 PR 模板中说明影响范围、配置变化和测试结果。提交标题与正文须使用中文，勿写「中文标题 + 英文正文」。
+发起 PR 前请按改动的产品线运行验证命令，并在模板中说明影响范围。
+
+---
 
 ## 路线图
 
-- 将 Playwright E2E 纳入 GitHub Actions
-- 补充 release notes 和 `v0.1.0` 首个开源版本
-- 梳理更多二次开发示例页面
-- 增加对象存储正式接入示例
-- 补充部署到 Linux、Nginx、HTTPS 的生产指南
+- Playwright E2E 纳入 GitHub Actions
+- 首个正式 release notes / 版本标签
+- 更多二次开发示例
+- 生产部署指南（Linux / Nginx / HTTPS）
+
+---
 
 ## License
 
-本项目基于 [MIT License](LICENSE) 开源。
+[MIT License](LICENSE)
