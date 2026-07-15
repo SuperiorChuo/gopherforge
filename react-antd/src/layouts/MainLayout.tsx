@@ -39,6 +39,7 @@ import {
   SearchOutlined,
   SunOutlined,
   MoonOutlined,
+  HomeOutlined,
 } from '@ant-design/icons'
 import { useAppDispatch, useAppSelector } from '@/hooks/store'
 import { fetchCurrentUser, logout } from '@/store/slices/authSlice'
@@ -305,9 +306,9 @@ export default function MainLayout() {
   const isMonitor = currentPath.startsWith('/monitor/')
 
   const breadcrumbItems = [
-    { title: '首页' },
-    ...(isSystem ? [{ title: '系统管理' }] : []),
-    ...(isMonitor ? [{ title: '运维监控' }] : []),
+    { title: <span><HomeOutlined style={{ marginRight: 4 }} />首页</span> },
+    ...(isSystem ? [{ title: <span><SettingOutlined style={{ marginRight: 4 }} />系统管理</span> }] : []),
+    ...(isMonitor ? [{ title: <span><CloudServerOutlined style={{ marginRight: 4 }} />运维监控</span> }] : []),
     ...(breadcrumbTitle ? [{ title: breadcrumbTitle }] : []),
   ]
 

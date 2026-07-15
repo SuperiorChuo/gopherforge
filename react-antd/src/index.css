@@ -1059,6 +1059,161 @@ body {
   background: linear-gradient(180deg, #818cf8, #4f46e5);
 }
 
+/* 有徽章图标时去掉竖线,改用玻璃徽章 */
+.table-toolbar-title-iconed::before {
+  display: none;
+}
+
+.table-toolbar-badge {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1.5px 0 rgba(0, 0, 0, 0.2),
+    0 6px 16px var(--badge-glow, rgba(79, 70, 229, 0.4)),
+    0 0 24px var(--badge-glow, rgba(79, 70, 229, 0.25));
+}
+
+.table-toolbar-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.table-toolbar-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.table-toolbar-desc {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+  color: rgba(148, 163, 184, 0.7);
+}
+
+[data-theme='light'] .table-toolbar-desc {
+  color: #94a3b8;
+}
+
+/* ============================================================
+   页面打磨 · 仪表盘 hero 高端化
+   信息玻璃芯片 + 轨道公转装饰
+   ============================================================ */
+
+.dash-hero-chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.hero-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(226, 232, 240, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px) saturate(1.3);
+  -webkit-backdrop-filter: blur(8px) saturate(1.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.hero-chip .anticon {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* 亮色主题 hero 是蓝色渐变横幅,芯片保持白玻璃 */
+[data-theme='light'] .hero-chip {
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* 轨道装饰:右侧两圈同心细环,光点沿环公转 */
+.dash-hero-orbit {
+  position: absolute;
+  top: 50%;
+  right: 60px;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.orbit-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+.orbit-ring-1 {
+  width: 150px;
+  height: 150px;
+  animation: orbit-spin 22s linear infinite;
+}
+
+.orbit-ring-2 {
+  width: 230px;
+  height: 230px;
+  animation: orbit-spin 38s linear infinite reverse;
+}
+
+.orbit-dot {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(199, 210, 254, 0.95);
+  box-shadow: 0 0 10px rgba(165, 180, 252, 0.9);
+}
+
+.orbit-dot-2 {
+  width: 4px;
+  height: 4px;
+  top: auto;
+  bottom: -2px;
+  background: rgba(125, 211, 252, 0.9);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+}
+
+@keyframes orbit-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+[data-theme='light'] .orbit-ring {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+@media (max-width: 768px) {
+  .dash-hero-orbit {
+    display: none;
+  }
+}
+
 .table-count {
   padding: 1px 10px;
   border-radius: 10px;

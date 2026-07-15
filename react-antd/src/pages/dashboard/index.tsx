@@ -9,6 +9,8 @@ import {
   WifiOutlined,
   SoundOutlined,
   LineChartOutlined,
+  CalendarOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector } from '@/hooks/store'
@@ -156,12 +158,24 @@ export default function DashboardPage() {
             {greeting}，<em>{userInfo?.nickname || userInfo?.username}</em> 👋
           </div>
           <div className="dash-hero-sub">欢迎回到 Go Admin Kit 管理后台，祝您工作顺利。</div>
-          {lastLogin?.created_at && (
-            <div className="dash-hero-meta">
-              上次登录 {dayjs(lastLogin.created_at).format('YYYY-MM-DD HH:mm')}
-              {lastLogin.ip ? ` · ${lastLogin.ip}` : ''}
-            </div>
-          )}
+          <div className="dash-hero-chips">
+            <span className="hero-chip">
+              <CalendarOutlined />
+              {dayjs().format('YYYY年M月D日')} · {['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dayjs().day()]}
+            </span>
+            {lastLogin?.created_at && (
+              <span className="hero-chip">
+                <HistoryOutlined />
+                上次登录 {dayjs(lastLogin.created_at).format('MM-DD HH:mm')}
+                {lastLogin.ip ? ` · ${lastLogin.ip}` : ''}
+              </span>
+            )}
+          </div>
+        </div>
+        {/* 轨道装饰:两圈细环 + 沿环缓慢公转的光点 */}
+        <div className="dash-hero-orbit" aria-hidden>
+          <span className="orbit-ring orbit-ring-1"><span className="orbit-dot" /></span>
+          <span className="orbit-ring orbit-ring-2"><span className="orbit-dot orbit-dot-2" /></span>
         </div>
         <div className="dash-hero-glow" />
       </div>

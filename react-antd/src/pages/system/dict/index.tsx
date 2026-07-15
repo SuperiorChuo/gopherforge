@@ -4,7 +4,7 @@ import {
   Card, Tabs, InputNumber,
 } from 'antd'
 import { message } from '@/utils/feedback'
-import { PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, ReloadOutlined, DatabaseOutlined, BarsOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { DictType, DictItem } from '@/types'
 import * as DictAPI from '@/api/system/dict'
@@ -430,8 +430,8 @@ export default function DictPage() {
       className="page-tabs"
       defaultActiveKey="type"
       items={[
-        { key: 'type', label: '字典类型', children: <DictTypeCRUD /> },
-        { key: 'item', label: '字典项', children: <DictItemCRUD /> },
+        { key: 'type', label: '字典类型', icon: <DatabaseOutlined />, children: <DictTypeCRUD /> },
+        { key: 'item', label: '字典项', icon: <BarsOutlined />, children: <DictItemCRUD /> },
       ]}
     />
   )

@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import {
-  Tabs, Card, Input, Button, Form, InputNumber, Switch, Select, Collapse, Empty, Tag,
+  Tabs, Card, Input, Button, Form, InputNumber, Switch, Select, Collapse, Tag,
 } from 'antd'
 import { message } from '@/utils/feedback'
-import { SaveOutlined, ReloadOutlined } from '@ant-design/icons'
+import {
+  SaveOutlined, ReloadOutlined, SafetyOutlined, BellOutlined, CloudOutlined, SettingOutlined,
+} from '@ant-design/icons'
+import GlassEmpty from '@/components/GlassEmpty'
 import type { SystemSetting } from '@/types'
 import { getSettingList, upsertSetting } from '@/api/system/setting'
 import { formatDateTime } from '@/utils/format'
@@ -11,10 +14,10 @@ import { usePermission } from '@/hooks/usePermission'
 
 // 后端按 setting_key 前缀过滤分组（LIKE 'group.%'）
 const GROUPS = [
-  { key: 'security', label: '安全设置' },
-  { key: 'notification', label: '通知设置' },
-  { key: 'storage', label: '存储设置' },
-  { key: 'general', label: '通用设置' },
+  { key: 'security', label: '安全设置', icon: <SafetyOutlined /> },
+  { key: 'notification', label: '通知设置', icon: <BellOutlined /> },
+  { key: 'storage', label: '存储设置', icon: <CloudOutlined /> },
+  { key: 'general', label: '通用设置', icon: <SettingOutlined /> },
 ]
 
 interface FieldDef {
@@ -254,7 +257,7 @@ function SettingGroupPanel({ group }: { group: string }) {
 
       {list.length === 0 && !loading && (
         <Card>
-          <Empty description="该分组暂无设置项" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '32px 0' }} />
+          <GlassEmpty text="该分组暂无设置项" compact />
         </Card>
       )}
 
@@ -288,6 +291,7 @@ export default function SettingPage() {
       items={GROUPS.map((g) => ({
         key: g.key,
         label: g.label,
+        icon: g.icon,
         children: <SettingGroupPanel group={g.key} />,
       }))}
     />
