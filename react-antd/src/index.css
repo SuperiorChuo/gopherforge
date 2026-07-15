@@ -1587,6 +1587,32 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
    页面打磨 · 移动端头部收纳
    ============================================================ */
 
+/* ============================================================
+   页面打磨 · 登录趋势图切换防抖
+   切换期间旧图雾化保留,新柱从底部生长入场(共享日期的柱平滑变高)
+   ============================================================ */
+
+.trend-chart {
+  transition: opacity 0.25s ease, filter 0.25s ease;
+}
+
+.trend-chart-switching {
+  opacity: 0.45;
+  filter: blur(1.5px);
+  pointer-events: none;
+}
+
+.trend-bar-area {
+  transform-origin: bottom;
+  animation: trend-bar-grow 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@keyframes trend-bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
 @media (max-width: 640px) {
   .app-header {
     padding: 0 12px !important;
@@ -1948,14 +1974,20 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
   filter: brightness(1.1);
 }
 
+/* 标签行必须定高:内容为空时若塌陷,柱区高度会突变,
+   切换天数或隔行显示日期时所有柱子都会跳(抖动来源) */
 .trend-date {
   margin-top: 8px;
+  height: 17px;
+  line-height: 17px;
   font-size: 12px;
   color: rgba(148, 163, 184, 0.7);
   white-space: nowrap;
 }
 
 .trend-count {
+  height: 17px;
+  line-height: 17px;
   font-size: 12px;
   font-weight: 600;
   color: rgba(203, 213, 225, 0.75);

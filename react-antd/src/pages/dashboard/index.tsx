@@ -50,6 +50,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [trend, setTrend] = useState<LoginTrendItem[] | null>(null)
   const [trendDays, setTrendDays] = useState(7)
+  const [trendFetching, setTrendFetching] = useState(false)
   const [onlineCount, setOnlineCount] = useState<number | null>(null)
   const [notices, setNotices] = useState<Notice[] | null>(null)
   const [lastLogin, setLastLogin] = useState<LoginLog | null>(null)
@@ -82,10 +83,14 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 趋势图随天数切换单独拉取
+  // 趋势图随天数切换单独拉取;切换期间保留旧图并雾化,数据到位后一次成型
   useEffect(() => {
     if (!canTrend) return
-    getLoginTrend(trendDays).then(setTrend).catch(() => setTrend([]))
+    setTrendFetching(true)
+    getLoginTrend(trendDays)
+      .then(setTrend)
+      .catch(() => setTrend([]))
+      .finally(() => setTrendFetching(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trendDays])
 
@@ -250,13 +255,20 @@ export default function DashboardPage() {
             ) : !hasTrendData ? (
               <GlassEmpty text="暂无登录数据" />
             ) : (
-              <div className="trend-chart" style={{ gap: trendDays > 15 ? 4 : trendDays > 7 ? 8 : 12 }}>
+              // 布局参数由已到位的数据长度驱动(而非 trendDays),
+              // 避免切换瞬间旧柱先按新间距挤一次、数据到了再跳一次
+              <div
+                className={`trend-chart ${trendFetching ? 'trend-chart-switching' : ''}`}
+                style={{ gap: trendData.length > 15 ? 4 : trendData.length > 7 ? 8 : 12 }}
+              >
                 {trendData.map((t, i) => {
                   // 柱子多时日期隔行展示，避免标签互相压住
-                  const labelEvery = trendDays > 15 ? 4 : trendDays > 7 ? 2 : 1
+                  const labelEvery = trendData.length > 15 ? 4 : trendData.length > 7 ? 2 : 1
                   return (
                     <div className="trend-col" key={t.date}>
-                      <div className="trend-count">{trendDays <= 7 && t.count > 0 ? t.count : ''}</div>
+                      <div className="trend-count">
+                        {trendData.length <= 7 && t.count > 0 ? t.count : ''}
+                      </div>
                       <Tooltip
                         title={
                           <>
@@ -266,7 +278,7 @@ export default function DashboardPage() {
                           </>
                         }
                       >
-                        <div className="trend-bar-area">
+                        <div className="trend-bar-area" style={{ animationDelay: `${i * 16}ms` }}>
                           {t.failed > 0 && (
                             <div
                               className="trend-bar-failed"
