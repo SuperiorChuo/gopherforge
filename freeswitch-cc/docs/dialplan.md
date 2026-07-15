@@ -25,28 +25,20 @@ Compose 映射到宿主机 `./recordings/`。
 
 ## Compose 网络模式
 
-### Linux（默认）
+### 默认（macOS / Windows / 一般 Linux）
 
 ```bash
 docker compose up -d --build
 ```
 
-`freeswitch` 使用 `network_mode: host`。
+`freeswitch` 使用 **bridge + 端口映射**（5060/8021/RTP）。control-api 默认 `CC_ESL_HOST=freeswitch`。
 
-### macOS / 不便 host 网络
+### Linux 需要 host 网络时（SIP/RTP 更省心）
 
 ```bash
-docker compose stop freeswitch 2>/dev/null
-docker compose --profile bridge up -d --build freeswitch-bridge control-api postgres
+docker compose --profile hostnet up -d --build freeswitch-host
+# control-api 的 CC_ESL_HOST 改为 host.docker.internal 或宿主机可达地址
 ```
-
-并将 `.env` 中：
-
-```env
-CC_ESL_HOST=freeswitch-bridge
-```
-
-（control-api 与 bridge FS 在同一 compose 网络。）
 
 ## ESL
 

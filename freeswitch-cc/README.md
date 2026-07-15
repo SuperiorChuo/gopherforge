@@ -127,6 +127,24 @@ X-CC-Token: <与 .env 中 CC_API_TOKEN 一致>
 
 ---
 
+## 🛠️ 部署与调试
+
+完整步骤（开发 / 生产 / `fs_cli` / 软电话 / 抓包）见：
+
+👉 **[`docs/deploy-and-debug.md`](docs/deploy-and-debug.md)**
+
+一句话：
+
+| 场景 | 怎么做 |
+|------|--------|
+| 本机跑起来 | `make fs-up` 或 `cd freeswitch-cc && docker compose up -d --build` |
+| 看是否正常 | `curl :8090/health` + Token 调 `/ready`、`/v1/esl/status` |
+| 打电话调试 | 软电话注册 1000/1001，互拨；`fs_cli` → `show registrations` |
+| 中台控制 | 中台调 control-api（Token）；事件以后 Webhook 回中台 |
+| 生产 | FS 建议独立机器；ESL/8090/DB **不对公网** |
+
+---
+
 ## 🗺️ 里程碑
 
 | 编号 | 内容 | 状态 |
