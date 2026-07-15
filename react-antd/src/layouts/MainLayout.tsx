@@ -160,6 +160,9 @@ const pathBreadcrumbMap: Record<string, string> = {
   '/monitor/mysql': '数据库监控',
   '/monitor/redis': 'Redis 监控',
   '/monitor/job': '定时任务',
+  // AI 页面菜单由后端 DB 种子下发，这里只补面包屑标题
+  '/ai/assistant': 'AI 助手',
+  '/ai/knowledge': 'AI 知识库',
 }
 
 export default function MainLayout() {

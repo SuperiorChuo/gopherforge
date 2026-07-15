@@ -147,6 +147,29 @@ jobs:
   # frontend) and drive tests/api-smoke.mjs through the gateway on :8000.
   # The monolith is losing most of its routes, so direct-connect smoke on
   # :8081 no longer covers the API surface — only the gateway composition does.
+  ai-service:
+    name: AI Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/ai
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: services/ai/go.sum
+
+      - run: go mod download
+      - run: go test ./...
+      - run: go vet ./...
+
+  # Full-stack smoke: build every compose image, boot the whole stack
+  # (Traefik gateway + 5 microservices + monolith + postgres/redis/nats +
+  # frontend) and drive tests/api-smoke.mjs through the gateway on :8000.
+  # The monolith is losing most of its routes, so direct-connect smoke on
+  # :8081 no longer covers the API surface — only the gateway composition does.
   integration:
     name: Integration Smoke
     runs-on: ubuntu-latest

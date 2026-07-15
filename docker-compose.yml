@@ -435,6 +435,60 @@ services:
     networks:
       - go-admin-kit-net
 
+  ai-service:
+    build:
+      context: ./services/ai
+      dockerfile: Dockerfile
+    container_name: go-admin-kit-ai
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8087
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_CHAT_MODEL: ${AI_CHAT_MODEL:-}
+      AI_EMBED_MODEL: ${AI_EMBED_MODEL:-}
+      AI_EMBED_PROVIDER: ${AI_EMBED_PROVIDER:-}
+      AI_EMBED_BASE_URL: ${AI_EMBED_BASE_URL:-}
+      AI_EMBED_API_KEY: ${AI_EMBED_API_KEY:-}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${AI_SERVICE_PORT:-8087}:8087"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.ai.rule: "PathPrefix(`/api/v1/ai/`)"
+      traefik.http.routers.ai.entrypoints: web
+      traefik.http.routers.ai.priority: "100"
+      traefik.http.services.ai.loadbalancer.server.port: "8087"
+    depends_on:
+      go-admin-kit-postgres:
+        condition: service_healthy
+      go-admin-kit-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8087/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
   go-admin-kit-minio:
     image: minio/minio:latest
     container_name: go-admin-kit-minio
@@ -516,6 +570,8 @@ services:
       audit-service:
         condition: service_started
       file-service:
+        condition: service_started
+      ai-service:
         condition: service_started
       frontend:
         condition: service_started

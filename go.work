@@ -3,6 +3,7 @@ go 1.26.3
 use (
 	./server
 	./services/auth
+	./services/ai
 	./services/audit
 	./services/file
 	./services/identity

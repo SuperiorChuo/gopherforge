@@ -262,3 +262,42 @@ export interface OnlineUser {
   token_id: string
   access_token_expires_at?: string
 }
+
+// ===== AI 服务（ai-service，base /api/v1/ai）=====
+
+export interface AiStatus {
+  configured: boolean
+  provider: string
+  chat_model: string
+  embed_model: string
+  kb_documents: number
+}
+
+export interface AiConversation {
+  id: number
+  title: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface AiChatMessage {
+  id: number
+  role: 'user' | 'assistant'
+  content: string
+  created_at?: string
+}
+
+export interface AiKbDocument {
+  id: number
+  title: string
+  chunk_count: number
+  created_at?: string
+}
+
+export interface AiKbSearchResult {
+  document_id: number
+  title: string
+  chunk_index: number
+  content: string
+  score: number
+}

@@ -55,6 +55,10 @@ const routes: RouteObject[] = [
       { path: 'monitor/redis', element: lazyLoad(() => import('@/pages/monitor/redis')) },
       { path: 'monitor/job', element: lazyLoad(() => import('@/pages/monitor/job')) },
 
+      // AI (ai-service)
+      { path: 'ai/assistant', element: lazyLoad(() => import('@/pages/ai/assistant')) },
+      { path: 'ai/knowledge', element: lazyLoad(() => import('@/pages/ai/knowledge')) },
+
       // Error pages
       { path: '403', element: lazyLoad(() => import('@/pages/result/403')) },
       { path: '404', element: lazyLoad(() => import('@/pages/result/404')) },

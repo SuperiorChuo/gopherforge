@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
 import {
-  Table, Button, Space, Tag, Card, Input, Select, Form, DatePicker, Modal, InputNumber, Tooltip,
+  Table, Button, Space, Tag, Card, Input, Select, Form, DatePicker, Modal, InputNumber, Tooltip, Segmented, Skeleton,
 } from 'antd'
 import { message } from '@/utils/feedback'
-import { SearchOutlined, ReloadOutlined, ClearOutlined } from '@ant-design/icons'
+import { SearchOutlined, ReloadOutlined, ClearOutlined, RobotOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { LoginLog } from '@/types'
 import { getLoginLogList, clearLoginLogs, getLoginStats, type LoginLogStats } from '@/api/system/log'
+import { getLogsInsight } from '@/api/ai'
 import TableToolbar from '@/components/TableToolbar'
 import CountUpValue from '@/components/CountUpValue'
 import StatusPill from '@/components/StatusPill'
+import AiMarkdown from '@/components/AiMarkdown'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import dayjs from 'dayjs'
@@ -37,6 +39,11 @@ export default function LoginLogPage() {
   const [clearOpen, setClearOpen] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [stats, setStats] = useState<LoginLogStats | null>(null)
+  // AI 洞察：报告缓存到弹窗关闭，切换天数重新生成
+  const [insightOpen, setInsightOpen] = useState(false)
+  const [insightDays, setInsightDays] = useState(7)
+  const [insightLoading, setInsightLoading] = useState(false)
+  const [insightReport, setInsightReport] = useState('')
   const [searchForm] = Form.useForm()
   const [clearForm] = Form.useForm()
 
@@ -96,6 +103,24 @@ export default function LoginLogPage() {
     } finally {
       setClearing(false)
     }
+  }
+
+  const runInsight = async (days: number) => {
+    setInsightLoading(true)
+    setInsightReport('')
+    try {
+      const res = await getLogsInsight({ days })
+      setInsightReport(res.report)
+    } catch {
+      // 拦截器已提示，弹窗保留以便重试
+    } finally {
+      setInsightLoading(false)
+    }
+  }
+
+  const openInsight = () => {
+    setInsightOpen(true)
+    runInsight(insightDays)
   }
 
   const columns: ColumnsType<LoginLog> = [
@@ -198,6 +223,9 @@ export default function LoginLogPage() {
           total={total}
           extra={
             <>
+              <Button icon={<RobotOutlined />} onClick={openInsight}>
+                AI 分析
+              </Button>
               <Button
                 danger
                 icon={<ClearOutlined />}
@@ -245,6 +273,44 @@ export default function LoginLogPage() {
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={<span><RobotOutlined style={{ marginRight: 8 }} />登录日志 AI 洞察</span>}
+        open={insightOpen}
+        onCancel={() => setInsightOpen(false)}
+        footer={null}
+        width={720}
+        destroyOnHidden
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0 16px' }}>
+          <span style={{ fontSize: 13, opacity: 0.75 }}>分析范围</span>
+          <Segmented
+            options={[
+              { label: '近 7 天', value: 7 },
+              { label: '近 14 天', value: 14 },
+              { label: '近 30 天', value: 30 },
+            ]}
+            value={insightDays}
+            disabled={insightLoading}
+            onChange={(v) => {
+              const days = v as number
+              setInsightDays(days)
+              runInsight(days)
+            }}
+          />
+        </div>
+        {insightLoading ? (
+          <Skeleton active paragraph={{ rows: 8 }} title={false} />
+        ) : insightReport ? (
+          <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+            <AiMarkdown content={insightReport} />
+          </div>
+        ) : (
+          <div style={{ padding: '24px 0', textAlign: 'center', opacity: 0.6 }}>
+            生成失败，可切换天数重试
+          </div>
+        )}
       </Modal>
     </div>
   )

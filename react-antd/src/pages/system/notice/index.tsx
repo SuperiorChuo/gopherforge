@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  Card, DatePicker, Switch,
+  Card, DatePicker, Switch, Popover,
 } from 'antd'
 import { message } from '@/utils/feedback'
-import { PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, ReloadOutlined, RobotOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Notice } from '@/types'
 import * as NoticeAPI from '@/api/system/notice'
+import { compose as aiCompose } from '@/api/ai'
 import TableToolbar from '@/components/TableToolbar'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
@@ -34,6 +35,10 @@ export default function NoticePage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<Notice | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  // AI 生成：小弹层输入一句话需求，已有内容作为 draft 交给后端润色
+  const [aiOpen, setAiOpen] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiGenerating, setAiGenerating] = useState(false)
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
@@ -67,6 +72,8 @@ export default function NoticePage() {
   const openCreate = () => {
     setEditRecord(null)
     form.resetFields()
+    setAiOpen(false)
+    setAiPrompt('')
     setModalOpen(true)
   }
 
@@ -81,6 +88,8 @@ export default function NoticePage() {
         ? [dayjs(record.start_time), dayjs(record.end_time)]
         : undefined,
     })
+    setAiOpen(false)
+    setAiPrompt('')
     setModalOpen(true)
   }
 
@@ -133,6 +142,27 @@ export default function NoticePage() {
       message.error('操作失败')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleAiGenerate = async () => {
+    const prompt = aiPrompt.trim()
+    if (!prompt) {
+      message.warning('请先输入一句话需求')
+      return
+    }
+    setAiGenerating(true)
+    try {
+      const draft = (form.getFieldValue('content') || '').trim()
+      const res = await aiCompose({ kind: 'notice', prompt, ...(draft ? { draft } : {}) })
+      form.setFieldsValue({ content: res.content })
+      setAiOpen(false)
+      setAiPrompt('')
+      message.success(draft ? 'AI 已润色内容' : 'AI 已生成内容')
+    } catch {
+      // 拦截器已提示
+    } finally {
+      setAiGenerating(false)
     }
   }
 
@@ -250,7 +280,47 @@ export default function NoticePage() {
           <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="content" label="内容" rules={[{ required: true, message: '请输入内容' }]}>
+          <Form.Item
+            name="content"
+            label={
+              <Space size={8}>
+                内容
+                <Popover
+                  open={aiOpen}
+                  onOpenChange={(open) => { if (!aiGenerating) setAiOpen(open) }}
+                  trigger="click"
+                  placement="topLeft"
+                  content={
+                    <div style={{ width: 320 }}>
+                      <Input.TextArea
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        placeholder="一句话描述需求，如：写一则周六凌晨系统停机维护公告"
+                        autoSize={{ minRows: 2, maxRows: 4 }}
+                        disabled={aiGenerating}
+                      />
+                      <div style={{ marginTop: 8, textAlign: 'right' }}>
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<RobotOutlined />}
+                          loading={aiGenerating}
+                          onClick={handleAiGenerate}
+                        >
+                          {(form.getFieldValue('content') || '').trim() ? '润色现有内容' : '生成内容'}
+                        </Button>
+                      </div>
+                    </div>
+                  }
+                >
+                  <Button size="small" icon={<RobotOutlined />} onClick={() => setAiOpen(true)}>
+                    AI 生成
+                  </Button>
+                </Popover>
+              </Space>
+            }
+            rules={[{ required: true, message: '请输入内容' }]}
+          >
             <Input.TextArea rows={5} />
           </Form.Item>
           <Form.Item name="type" label="类型" initialValue={1}>
