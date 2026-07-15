@@ -12,8 +12,9 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
+      // 本地开发默认代理到 Traefik 网关（微服务栈）
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8000',
         changeOrigin: true,
         ws: true,
       },

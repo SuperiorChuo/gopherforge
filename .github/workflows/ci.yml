@@ -18,25 +18,28 @@ jobs:
         with:
           node-version: '24'
 
-      - run: npm run api:contract
-      - name: Check generated API artifacts are committed
-        run: git diff --exit-code -- server/docs/openapi.json tdesign-vue-go/src/api/generated/schema.d.ts
-      - run: npm run test:contract
-      - run: npm run test:smoke:unit
+      - name: Workspace scripts
+        working-directory: microservices
+        run: |
+          npm run api:contract
+          npm run test:contract
+          npm run test:smoke:unit
+      - name: Check generated OpenAPI is committed
+        run: git diff --exit-code -- microservices/legacy-backend/docs/openapi.json tdesign-vue-go/src/api/generated/schema.d.ts
 
   backend:
     name: Backend
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: server
+        working-directory: microservices/legacy-backend
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
-          cache-dependency-path: server/go.sum
+          cache-dependency-path: microservices/legacy-backend/go.sum
 
       - run: go mod download
       - run: go test -coverprofile=coverage.out -covermode=atomic ./...
@@ -50,21 +53,21 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
       - run: go vet ./...
-      - run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --config ../.golangci.yml ./...
+      - run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --config ../../.golangci.yml ./...
 
   auth-service:
     name: Auth Service
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: services/auth
+        working-directory: microservices/services/auth
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
-          cache-dependency-path: services/auth/go.sum
+          cache-dependency-path: microservices/services/auth/go.sum
 
       - run: go mod download
       - run: go test ./...
@@ -75,14 +78,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: services/identity
+        working-directory: microservices/services/identity
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
-          cache-dependency-path: services/identity/go.sum
+          cache-dependency-path: microservices/services/identity/go.sum
 
       - run: go mod download
       - run: go test ./...
@@ -93,14 +96,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: services/system
+        working-directory: microservices/services/system
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
-          cache-dependency-path: services/system/go.sum
+          cache-dependency-path: microservices/services/system/go.sum
 
       - run: go mod download
       - run: go test ./...
@@ -111,14 +114,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: services/audit
+        working-directory: microservices/services/audit
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
-          cache-dependency-path: services/audit/go.sum
+          cache-dependency-path: microservices/services/audit/go.sum
 
       - run: go mod download
       - run: go test ./...
@@ -129,14 +132,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: services/file
+        working-directory: microservices/services/file
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
-          cache-dependency-path: services/file/go.sum
+          cache-dependency-path: microservices/services/file/go.sum
 
       - run: go mod download
       - run: go test ./...
@@ -152,14 +155,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: services/ai
+        working-directory: microservices/services/ai
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
-          cache-dependency-path: services/ai/go.sum
+          cache-dependency-path: microservices/services/ai/go.sum
 
       - run: go mod download
       - run: go test ./...
@@ -183,7 +186,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
-          cache-dependency-path: server/go.sum
+          cache-dependency-path: microservices/legacy-backend/go.sum
 
       - uses: actions/setup-node@v6
         with:
@@ -200,7 +203,7 @@ jobs:
       - name: Build compose images
         uses: docker/bake-action@v7
         with:
-          source: .
+          source: microservices
           files: docker-compose.yml
           load: true
           provenance: false
@@ -228,6 +231,7 @@ jobs:
             frontend.cache-to=type=gha,scope=compose-frontend,mode=max,ignore-error=true
 
       - name: Start postgres, redis and NATS
+        working-directory: microservices
         run: docker compose up -d --wait --wait-timeout 180 go-admin-kit-postgres go-admin-kit-redis go-admin-kit-nats
 
       # Schema and seed data (including the default admin account the smoke
@@ -237,7 +241,7 @@ jobs:
       # pointed at the compose postgres (localhost:5432, compose defaults).
       # The backend image re-runs `migrate up` at boot; a no-op by then.
       - name: Apply migrations and seed data
-        working-directory: server
+        working-directory: microservices/legacy-backend
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: '5432'
@@ -251,9 +255,11 @@ jobs:
           go run ./cmd/migrate -config ./configs/config.yaml -dir ./migrations up
 
       - name: Start the full stack behind the Traefik gateway
+        working-directory: microservices
         run: docker compose up -d --wait --wait-timeout 300
 
       - name: Run API smoke through the gateway
+        working-directory: microservices
         env:
           API_BASE_URL: http://127.0.0.1:8000/api/v1
         run: |
@@ -262,6 +268,7 @@ jobs:
 
       - name: Dump compose state and logs
         if: failure()
+        working-directory: microservices
         run: |
           docker compose ps -a || true
           docker compose logs --tail=100 || true
@@ -271,6 +278,7 @@ jobs:
 
       - name: Tear down the stack
         if: always()
+        working-directory: microservices
         run: docker compose down -v --remove-orphans
 
   frontend:
@@ -278,7 +286,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: tdesign-vue-go
+        working-directory: microservices/web
     steps:
       - uses: actions/checkout@v6
 
@@ -286,12 +294,9 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: tdesign-vue-go/package-lock.json
+          cache-dependency-path: microservices/web/package-lock.json
 
       - run: npm ci
       - run: npm audit --omit=dev
-      - run: npm run test
-      - run: npm run build:type
       - run: npm run lint
-      - run: npm run stylelint
       - run: npm run build

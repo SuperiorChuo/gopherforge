@@ -1,10 +1,10 @@
 go 1.26.3
 
 use (
-	./server
-	./services/auth
+	./legacy-backend
 	./services/ai
 	./services/audit
+	./services/auth
 	./services/file
 	./services/identity
 	./services/system

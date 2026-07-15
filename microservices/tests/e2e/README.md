@@ -3,7 +3,7 @@
 浏览器级 E2E 统一维护在前端应用目录：
 
 ```bash
-cd tdesign-vue-go
+cd web (微服务前端) 或仓库根 tdesign-vue-go（遗留）
 npm run e2e:frontend
 ```
 

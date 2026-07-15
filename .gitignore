@@ -47,3 +47,4 @@ server/.env
 server/configs/config.local.yaml
 server/configs/config.production.yaml
 tdesign-vue-go/.env.local
+dist/

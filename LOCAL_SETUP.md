@@ -1,6 +1,6 @@
 # 本地联调说明
 
-本文档说明如何在本机启动 Go Admin Kit。所有步骤都基于项目根目录 `C:\Users\Administrator\Desktop\go-admin-kit`。
+本文档说明如何在本机启动 **微服务版** Go Admin Kit。工作目录为仓库内的 `microservices/`（与 `monolith/` 独立，互不调用）。
 
 ## 环境要求
 
@@ -13,13 +13,13 @@
 
 ## Docker 一键启动
 
-```powershell
-cd C:\Users\Administrator\Desktop\go-admin-kit
-Copy-Item .env.example .env
+```bash
+cd microservices
+cp .env.example .env
 docker compose up -d --build
 ```
 
-后端容器会在启动主服务前幂等执行 `server/migrations/` 下的 goose 迁移；首次创建数据卷和后续升级都走同一条迁移路径。
+后端容器会在启动主服务前幂等执行 `legacy-backend/migrations/` 下的 goose 迁移；首次创建数据卷和后续升级都走同一条迁移路径。
 
 查看服务：
 

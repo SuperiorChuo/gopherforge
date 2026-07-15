@@ -70,7 +70,7 @@ services:
 
   backend:
     build:
-      context: ./server
+      context: ./legacy-backend
       dockerfile: Dockerfile
     container_name: go-admin-kit-backend
     restart: unless-stopped
@@ -516,7 +516,7 @@ services:
 
   frontend:
     build:
-      context: ./tdesign-vue-go
+      context: ./web
       dockerfile: Dockerfile
     container_name: go-admin-kit-frontend
     restart: unless-stopped
@@ -595,7 +595,7 @@ services:
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
-      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../platform/deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - go_admin_kit_prometheus_data:/prometheus
     depends_on:
       backend:
@@ -618,7 +618,7 @@ services:
       - "${GRAFANA_PORT:-3003}:3000"
     volumes:
       - go_admin_kit_grafana_data:/var/lib/grafana
-      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../platform/deploy/grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
       prometheus:
         condition: service_started
@@ -637,7 +637,7 @@ services:
       - "${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317"
       - "${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318"
     volumes:
-      - ./deploy/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
+      - ../platform/deploy/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
     depends_on:
       jaeger:
         condition: service_started

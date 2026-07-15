@@ -24,7 +24,7 @@
 - [ ] `npm run build`
 - [ ] `npm run e2e:frontend`
 - [ ] `npm run api:contract`
-- [ ] `git diff --exit-code -- server/docs/openapi.json tdesign-vue-go/src/api/generated/schema.d.ts`
+- [ ] `git diff --exit-code -- microservices/legacy-backend/docs/openapi.json tdesign-vue-go/src/api/generated/schema.d.ts（遗留生成物，可选）`
 - [ ] `npm run test:contract`
 - [ ] `npm run smoke:api`
 
@@ -40,7 +40,7 @@
 ## 发布前专项检查
 
 - [ ] 数据库变更已完成 migration rehearsal，并记录目标库或同版本副本的验证结果。
-- [ ] OpenAPI 与前端生成类型无漂移，`server/docs/openapi.json` 和 `tdesign-vue-go/src/api/generated/schema.d.ts` 已随接口变更提交。
+- [ ] OpenAPI 与前端生成类型无漂移，`microservices/legacy-backend/docs/openapi.json` 和 `tdesign-vue-go/src/api/generated/schema.d.ts（遗留生成物，可选）` 已随接口变更提交。
 - [ ] WebSocket 通知已验证 ticket 获取、`GET /api/v1/ws/notifications?ticket=...` 连接、反向代理 upgrade 和 `Origin`/`CORS_ALLOW_ORIGINS` 配置。
 - [ ] 对象存储已完成上传、下载或预览、删除 smoke，并确认 bucket、凭据、公开 URL 和代理路径。
 

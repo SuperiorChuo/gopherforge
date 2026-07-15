@@ -1,117 +1,31 @@
 SHELL := /bin/sh
 
+# 根 Makefile 仅转发到微服务项目。单体见 monolith/（阶段二）。
+MICRO := microservices
+
 .PHONY: help
 help:
-	@echo "Available targets:"
-	@echo "  dev-backend       Start backend locally"
-	@echo "  dev-auth          Start auth-service locally"
-	@echo "  dev-frontend      Start frontend with real API"
-	@echo "  build-server      Build the Go backend server"
-	@echo "  compose-up        Start full stack with Docker Compose"
-	@echo "  compose-down      Stop Docker Compose stack"
-	@echo "  test              Run backend tests and frontend unit/type checks"
-	@echo "  lint              Run backend vet and frontend lint/style/type checks"
-	@echo "  audit             Run frontend production dependency audit"
-	@echo "  smoke-api         Run API smoke tests against a running backend"
-	@echo "  db-import         Import Go Admin Kit SQL into local PostgreSQL"
-	@echo "  migrate-up        Apply database migrations"
-	@echo "  migrate-status    Show database migration status"
-	@echo "  migrate-create    Create a new SQL migration, pass NAME=add_table"
-	@echo "  api-contract      Generate OpenAPI JSON and frontend API types"
-	@echo "  status            Show local service status"
-	@echo "  logs              Tail backend/frontend logs"
+	@echo "本仓库含两个独立产品线（互不调用业务）："
+	@echo "  microservices/  微服务版（当前可运行）"
+	@echo "  monolith/       单体版（规划中）"
+	@echo ""
+	@echo "根目录快捷命令（均进入 microservices/）："
+	@echo "  make compose-up | compose-down | test | smoke-api | migrate-up | api-contract"
+	@echo "  更多：cd microservices && make help"
 
-.PHONY: dev-backend
-dev-backend:
-	cd server && CGO_ENABLED=0 go run ./cmd/main.go
+.PHONY: compose-up compose-down compose-monitoring dev-backend dev-auth dev-frontend \
+	build-server test lint audit smoke-api e2e-api db-import migrate-up migrate-status \
+	migrate-down migrate-redo migrate-reset migrate-create api-contract status logs
 
-.PHONY: dev-auth
-dev-auth:
-	cd services/auth && CGO_ENABLED=0 go run ./cmd
+compose-up compose-down compose-monitoring dev-backend dev-auth dev-frontend \
+build-server test lint smoke-api db-import migrate-up migrate-status \
+migrate-down migrate-create api-contract status logs:
+	@$(MAKE) -C $(MICRO) $@
 
-.PHONY: build-server
-build-server:
-	cd server && $(MAKE) build-server
-
-.PHONY: dev-frontend
-dev-frontend:
-	cd tdesign-vue-go && npm run dev:linux -- --host 127.0.0.1 --port 3000
-
-.PHONY: compose-up
-compose-up:
-	docker compose up -d --build
-
-.PHONY: compose-down
-compose-down:
-	docker compose down
-
-.PHONY: compose-monitoring
-compose-monitoring:
-	docker compose --profile monitoring up -d --build
-
-.PHONY: test
-test:
-	npm run test:smoke:unit
-	cd server && go test ./...
-	cd services/auth && go test ./...
-	cd tdesign-vue-go && npm run test
-	cd tdesign-vue-go && npm run build:type
-
-.PHONY: lint
-lint:
-	cd server && go vet ./...
-	cd services/auth && go vet ./...
-	cd tdesign-vue-go && npm run build:type
-	cd tdesign-vue-go && npm run lint
-	cd tdesign-vue-go && npm run stylelint
-
-.PHONY: audit
 audit:
-	cd tdesign-vue-go && npm audit --omit=dev
+	cd $(MICRO)/web && npm audit --omit=dev
 
-.PHONY: smoke-api
-smoke-api:
-	npm run smoke:api
-
-.PHONY: e2e-api
 e2e-api: smoke-api
 
-.PHONY: db-import
-db-import:
-	cd server && $(MAKE) db-import
-
-.PHONY: migrate-up
-migrate-up:
-	cd server && $(MAKE) migrate-up
-
-.PHONY: migrate-status
-migrate-status:
-	cd server && $(MAKE) migrate-status
-
-.PHONY: migrate-down
-migrate-down:
-	cd server && $(MAKE) migrate-down
-
-.PHONY: migrate-redo
-migrate-redo:
-	cd server && $(MAKE) migrate-redo
-
-.PHONY: migrate-reset
-migrate-reset:
-	cd server && $(MAKE) migrate-reset
-
-.PHONY: migrate-create
-migrate-create:
-	cd server && $(MAKE) migrate-create MIGRATION_NAME=$(or $(NAME),change_name)
-
-.PHONY: api-contract
-api-contract:
-	npm run api:contract
-
-.PHONY: status
-status:
-	@node scripts/dev-status.mjs
-
-.PHONY: logs
-logs:
-	@node scripts/dev-logs.mjs
+migrate-redo migrate-reset:
+	@$(MAKE) -C $(MICRO)/legacy-backend $@
