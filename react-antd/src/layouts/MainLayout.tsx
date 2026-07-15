@@ -391,7 +391,7 @@ export default function MainLayout() {
               {fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
             </span>
             <NotificationBell />
-            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" arrow>
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <div className="app-user">
                 <Avatar
                   size={34}

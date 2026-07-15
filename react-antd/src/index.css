@@ -1313,6 +1313,153 @@ body {
   background-size: 400% 100%;
 }
 
+/* ============================================================
+   页面打磨 · 下拉菜单液态玻璃重制
+   之前底色太实(0.85)透不出玻璃感;按登录卡标准重做:
+   更薄的底 + 更深的透镜 + 四缘受光 + 顶部高光线 + 光感 hover
+   ============================================================ */
+
+.ant-dropdown .ant-dropdown-menu {
+  position: relative;
+  overflow: hidden;
+  padding: 6px !important;
+  border-radius: 14px !important;
+  background: rgba(21, 23, 41, 0.62) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  backdrop-filter: blur(32px) saturate(1.7) brightness(1.06);
+  -webkit-backdrop-filter: blur(32px) saturate(1.7) brightness(1.06);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.12),
+    inset 1px 0 0 rgba(255, 255, 255, 0.05),
+    inset -1px 0 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.03),
+    0 18px 50px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(99, 102, 241, 0.14) !important;
+}
+
+/* 顶部高光线 + 弧面反光罩,和卡片同语言 */
+.ant-dropdown .ant-dropdown-menu::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(129, 140, 248, 0.6), transparent);
+}
+
+.ant-dropdown .ant-dropdown-menu::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(ellipse 130% 55% at 50% -20%, rgba(255, 255, 255, 0.07), transparent 55%);
+}
+
+/* 菜单项:圆角胶囊 + 玻璃色 hover + 左缘光线(全站交互语言) */
+.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item {
+  position: relative;
+  border-radius: 9px !important;
+  padding: 8px 12px !important;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 24%;
+  bottom: 24%;
+  width: 2.5px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, transparent, rgba(129, 140, 248, 0.9), transparent);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-disabled):hover {
+  background: rgba(99, 102, 241, 0.14) !important;
+}
+
+.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-disabled):hover::before {
+  opacity: 1;
+}
+
+/* 危险项(退出登录):红玻璃 hover + 红光线 */
+.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item-danger:hover {
+  background: rgba(248, 113, 113, 0.13) !important;
+}
+
+.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item-danger::before {
+  background: linear-gradient(180deg, transparent, rgba(248, 113, 113, 0.9), transparent);
+}
+
+/* 分割线:渐隐光线,不再是生硬直线 */
+.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item-divider {
+  margin: 5px 8px !important;
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.28), transparent) !important;
+}
+
+/* 用户资料头:淡靛蓝辉光衬底,像玻璃内侧照了一盏灯 */
+.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item:has(.user-drop-head) {
+  background: radial-gradient(ellipse 120% 130% at 50% -30%, rgba(99, 102, 241, 0.14), transparent 65%) !important;
+  border-radius: 10px !important;
+  margin-bottom: 2px;
+}
+
+.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item:has(.user-drop-head)::before {
+  display: none;
+}
+
+/* ---- 亮色主题 ---- */
+[data-theme='light'] .ant-dropdown .ant-dropdown-menu {
+  background: rgba(255, 255, 255, 0.66) !important;
+  border-color: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(36px) saturate(1.9) brightness(1.03);
+  -webkit-backdrop-filter: blur(36px) saturate(1.9) brightness(1.03);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 1),
+    inset 1px 0 0 rgba(255, 255, 255, 0.7),
+    inset -1px 0 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.45),
+    0 18px 50px rgba(37, 99, 235, 0.16),
+    0 0 40px rgba(37, 99, 235, 0.08) !important;
+}
+
+[data-theme='light'] .ant-dropdown .ant-dropdown-menu::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+}
+
+[data-theme='light'] .ant-dropdown .ant-dropdown-menu::after {
+  background: radial-gradient(ellipse 130% 55% at 50% -20%, rgba(255, 255, 255, 0.5), transparent 55%);
+}
+
+[data-theme='light'] .ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-disabled):hover {
+  background: rgba(37, 99, 235, 0.09) !important;
+}
+
+[data-theme='light'] .ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item::before {
+  background: linear-gradient(180deg, transparent, rgba(37, 99, 235, 0.85), transparent);
+}
+
+[data-theme='light'] .ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item-danger:hover {
+  background: rgba(220, 38, 38, 0.08) !important;
+}
+
+[data-theme='light'] .ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item-danger::before {
+  background: linear-gradient(180deg, transparent, rgba(220, 38, 38, 0.85), transparent);
+}
+
+[data-theme='light'] .ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item:has(.user-drop-head) {
+  background: radial-gradient(ellipse 120% 130% at 50% -30%, rgba(37, 99, 235, 0.1), transparent 65%) !important;
+}
+
+[data-theme='light'] .ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item-divider {
+  background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.14), transparent) !important;
+}
+
 .table-count {
   padding: 1px 10px;
   border-radius: 10px;
