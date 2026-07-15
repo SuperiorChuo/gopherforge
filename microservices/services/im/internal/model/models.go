@@ -1,0 +1,68 @@
+package model
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type Site struct {
+	ID             uint64    `gorm:"primaryKey" json:"id"`
+	AppKey         string    `gorm:"size:64;uniqueIndex;not null" json:"app_key"`
+	AppSecret      string    `gorm:"size:128;not null" json:"-"`
+	Name           string    `gorm:"size:128;not null" json:"name"`
+	AllowedOrigins string    `gorm:"type:text" json:"allowed_origins"` // JSON array string
+	WelcomeText    string    `gorm:"type:text" json:"welcome_text"`
+	Status         int16     `gorm:"default:1" json:"status"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+func (Site) TableName() string { return "im_sites" }
+
+type Visitor struct {
+	ID          uint64    `gorm:"primaryKey" json:"id"`
+	SiteID      uint64    `gorm:"uniqueIndex:ux_site_guest;not null" json:"site_id"`
+	GuestKey    string    `gorm:"size:64;uniqueIndex:ux_site_guest;not null" json:"guest_key"`
+	UserID      *uint64   `json:"user_id,omitempty"`
+	DisplayName string    `gorm:"size:128" json:"display_name"`
+	Meta        string    `gorm:"type:text" json:"meta,omitempty"`
+	LastSeenAt  time.Time `json:"last_seen_at"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (Visitor) TableName() string { return "im_visitors" }
+
+type Conversation struct {
+	ID                 uint64     `gorm:"primaryKey" json:"id"`
+	PublicID           uuid.UUID  `gorm:"type:uuid;uniqueIndex;not null" json:"public_id"`
+	SiteID             uint64     `gorm:"index;not null" json:"site_id"`
+	Channel            string     `gorm:"size:32;not null;default:h5" json:"channel"`
+	VisitorID          uint64     `gorm:"index;not null" json:"visitor_id"`
+	AgentUserID        *uint64    `gorm:"index" json:"agent_user_id,omitempty"`
+	Status             string     `gorm:"size:32;index;not null;default:queued" json:"status"`
+	Context            string     `gorm:"type:text" json:"context,omitempty"`
+	QueuedAt           *time.Time `json:"queued_at,omitempty"`
+	AssignedAt         *time.Time `json:"assigned_at,omitempty"`
+	ClosedAt           *time.Time `json:"closed_at,omitempty"`
+	LastMessageAt      *time.Time `json:"last_message_at,omitempty"`
+	LastMessagePreview string     `gorm:"size:256" json:"last_message_preview,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+
+func (Conversation) TableName() string { return "im_conversations" }
+
+type Message struct {
+	ID             uint64    `gorm:"primaryKey" json:"id"`
+	ConversationID uint64    `gorm:"index:idx_conv_seq,priority:1;not null" json:"conversation_id"`
+	ClientMsgID    *string   `gorm:"size:64" json:"client_msg_id,omitempty"`
+	SenderType     string    `gorm:"size:16;not null" json:"sender_type"`
+	SenderID       *uint64   `json:"sender_id,omitempty"`
+	MsgType        string    `gorm:"size:32;not null;default:text" json:"msg_type"`
+	Content        string    `gorm:"type:text;not null" json:"content"` // JSON string
+	Seq            int64     `gorm:"index:idx_conv_seq,priority:2;not null" json:"seq"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+func (Message) TableName() string { return "im_messages" }

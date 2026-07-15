@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>在线客服 · 访客端 (IM M1)</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #0f172a; }
+    body { margin: 0; background: #f1f5f9; }
+    .wrap { max-width: 480px; margin: 24px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(15,23,42,.08); overflow: hidden; display: flex; flex-direction: column; height: 80vh; }
+    header { padding: 14px 16px; background: linear-gradient(135deg,#4f46e5,#7c3aed); color: #fff; font-weight: 600; }
+    #log { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .msg { max-width: 80%; padding: 8px 12px; border-radius: 12px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; }
+    .me { align-self: flex-end; background: #4f46e5; color: #fff; border-bottom-right-radius: 4px; }
+    .them { align-self: flex-start; background: #e2e8f0; border-bottom-left-radius: 4px; }
+    .sys { align-self: center; color: #64748b; font-size: 12px; }
+    form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #e2e8f0; }
+    input { flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; }
+    button { border: 0; background: #4f46e5; color: #fff; border-radius: 8px; padding: 0 16px; cursor: pointer; }
+    .meta { font-size: 12px; color: #94a3b8; padding: 0 16px 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>在线客服（访客 H5 · M1）</header>
+    <div class="meta" id="meta">连接中…</div>
+    <div id="log"></div>
+    <form id="f">
+      <input id="text" placeholder="输入消息…" autocomplete="off" />
+      <button type="submit">发送</button>
+    </form>
+  </div>
+  <script>
+    const API = location.origin.includes('8000') ? '' : (localStorage.getItem('IM_API') || '');
+    const logEl = document.getElementById('log');
+    const meta = document.getElementById('meta');
+    function add(cls, text) {
+      const d = document.createElement('div');
+      d.className = 'msg ' + cls;
+      d.textContent = text;
+      logEl.appendChild(d);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function parseContent(content) {
+      try {
+        const o = typeof content === 'string' ? JSON.parse(content) : content;
+        return o.text || JSON.stringify(o);
+      } catch { return String(content); }
+    }
+
+    let guestToken = localStorage.getItem('im_guest_token') || '';
+    let guestKey = localStorage.getItem('im_guest_key') || '';
+    let convId = '';
+    let ws;
+
+    async function boot() {
+      const sess = await fetch(API + '/api/v1/im/visitor/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app_key: 'demo', guest_key: guestKey || undefined, display_name: '网页访客' }),
+      }).then(r => r.json());
+      if (sess.code !== 0) throw new Error(sess.message || 'session failed');
+      guestToken = sess.data.guest_token;
+      guestKey = sess.data.guest_key;
+      localStorage.setItem('im_guest_token', guestToken);
+      localStorage.setItem('im_guest_key', guestKey);
+      if (sess.data.welcome_text) add('sys', sess.data.welcome_text);
+
+      const conv = await fetch(API + '/api/v1/im/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + guestToken },
+        body: JSON.stringify({ channel: 'h5', context: { page: location.href } }),
+      }).then(r => r.json());
+      if (conv.code !== 0) throw new Error(conv.message || 'conv failed');
+      convId = conv.data.public_id;
+      meta.textContent = '会话 ' + convId.slice(0, 8) + '… · 等待坐席';
+
+      const hist = await fetch(API + '/api/v1/im/conversations/' + convId + '/messages', {
+        headers: { Authorization: 'Bearer ' + guestToken },
+      }).then(r => r.json());
+      if (hist.code === 0) {
+        (hist.data.messages || []).forEach(m => {
+          add(m.sender_type === 'visitor' ? 'me' : 'them', parseContent(m.content));
+        });
+      }
+
+      const wsBase = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
+      ws = new WebSocket(wsBase + '/im/ws?token=' + encodeURIComponent(guestToken));
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'conversation.subscribe', payload: { conversation_public_id: convId } }));
+        meta.textContent = '已连接 · 会话 ' + convId.slice(0, 8) + '…';
+      };
+      ws.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'message.new') {
+          const m = msg.payload.message;
+          if (m.sender_type === 'visitor') return; // already painted on send
+          add(m.sender_type === 'agent' || m.sender_type === 'bot' ? 'them' : 'sys', parseContent(m.content));
+        }
+      };
+      ws.onclose = () => { meta.textContent = '连接断开，刷新重试'; };
+    }
+
+    document.getElementById('f').onsubmit = async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('text');
+      const text = input.value.trim();
+      if (!text || !convId) return;
+      input.value = '';
+      add('me', text);
+      const client_msg_id = crypto.randomUUID();
+      if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({
+          type: 'message.send',
+          request_id: client_msg_id,
+          payload: {
+            conversation_public_id: convId,
+            client_msg_id,
+            msg_type: 'text',
+            content: { text },
+          },
+        }));
+      } else {
+        await fetch(API + '/api/v1/im/conversations/' + convId + '/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + guestToken },
+          body: JSON.stringify({ client_msg_id, msg_type: 'text', content: { text } }),
+        });
+      }
+    };
+
+    boot().catch(err => { meta.textContent = '启动失败: ' + err.message; console.error(err); });
+  </script>
+</body>
+</html>

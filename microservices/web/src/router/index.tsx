@@ -59,6 +59,9 @@ const routes: RouteObject[] = [
       { path: 'ai/assistant', element: lazyLoad(() => import('@/pages/ai/assistant')) },
       { path: 'ai/knowledge', element: lazyLoad(() => import('@/pages/ai/knowledge')) },
 
+      // IM 坐席台 (im-service M1)
+      { path: 'im/desk', element: lazyLoad(() => import('@/pages/im/desk')) },
+
       // Error pages
       { path: '403', element: lazyLoad(() => import('@/pages/result/403')) },
       { path: '404', element: lazyLoad(() => import('@/pages/result/404')) },

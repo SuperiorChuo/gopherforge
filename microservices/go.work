@@ -6,6 +6,7 @@ use (
 	./services/auth
 	./services/file
 	./services/identity
+	./services/im
 	./services/monitor
 	./services/system
 )

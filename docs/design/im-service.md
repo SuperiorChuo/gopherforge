@@ -1,6 +1,6 @@
 # IM / 智能客服接入设计（自研）
 
-> 状态：设计草案（先文档，后实现）  
+> 状态：设计草案；**M1 骨架已落地**（`microservices/services/im`）  
 > 范围：`microservices` 产品线新增 `im-service` + 管理台坐席模块 + **网页埋码 Widget**  
 > 原则：完全自研消息面；与 identity/auth/file/ai 解耦协作；单体线不实现完整 IM。
 
@@ -508,11 +508,11 @@ im:report:view       # 报表（后期）
 
 ### M1 · 内核（约 1～2 周量级，视人力）
 
-- [ ] 表结构 migration  
-- [ ] 会话 + 文本消息 REST  
-- [ ] WebSocket 收发 + ack  
-- [ ] 坐席台最小 UI（列表 + 聊天）  
-- [ ] 访客 H5 页（非埋码）  
+- [x] 表结构 migration（GORM AutoMigrate + 演示站点种子）  
+- [x] 会话 + 文本消息 REST  
+- [x] WebSocket 收发 + ack  
+- [x] 坐席台最小 UI（`/im/desk`）  
+- [x] 访客 H5 页（`/im/visitor`，非埋码）  
 
 ### M2 · 埋码
 
