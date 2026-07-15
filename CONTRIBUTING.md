@@ -123,8 +123,9 @@ Tabs ink bar becomes a glowing gradient strip...
 ## 代码约定
 
 - 后端接口、权限码、菜单种子和 OpenAPI 契约需要同步更新。
-- 微服务前端使用 `microservices/web`（React + Ant Design）；`tdesign-vue-go/` 为遗留，非主路径。
-- 新增数据库结构优先使用 `microservices/legacy-backend/migrations/`（及各服务自有迁移约定），并确认说明同步。
+- 微服务前端：`microservices/web`；单体前端：`monolith/web`（均为 React + Ant Design）。
+- 微服务迁移真源：`microservices/services/monitor/migrations/`；单体：`monolith/server/migrations/`。
+- 产品线边界见 `docs/PRODUCT_LINES.md`。
 - 不提交本地运行数据、日志、上传文件、数据库卷、`.env`、构建产物和密钥。
 - 文档正文默认使用中文；命令、路径、API、配置项和包名可保持原文。
 
@@ -134,10 +135,10 @@ Tabs ink bar becomes a glowing gradient strip...
 
 ```bash
 cd microservices
-cd legacy-backend && go test ./... && go vet ./...
-cd ../services/auth && go test ./...
-cd ../../web && npm run lint && npm run build
-cd .. && npm run test:smoke:unit && npm run test:contract
+(cd services/monitor && go test ./... && go vet ./...)
+(cd services/auth && go test ./...)
+(cd web && npm run lint && npm run build)
+npm run test:smoke:unit && npm run test:contract
 ```
 
 完整栈启动后：

@@ -9,7 +9,7 @@ on:
 
 jobs:
   workspace:
-    name: Workspace
+    name: Micro Workspace
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -18,28 +18,34 @@ jobs:
         with:
           node-version: '24'
 
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: microservices/services/monitor/go.sum
+
       - name: Workspace scripts
         working-directory: microservices
         run: |
           npm run api:contract
           npm run test:contract
           npm run test:smoke:unit
-      - name: Check generated OpenAPI is committed
-        run: git diff --exit-code -- microservices/legacy-backend/docs/openapi.json tdesign-vue-go/src/api/generated/schema.d.ts
 
-  backend:
-    name: Backend
+      - name: Check generated OpenAPI is committed
+        run: git diff --exit-code -- microservices/services/monitor/docs/openapi.json
+
+  monitor-service:
+    name: Monitor Service
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: microservices/legacy-backend
+        working-directory: microservices/services/monitor
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
-          cache-dependency-path: microservices/legacy-backend/go.sum
+          cache-dependency-path: microservices/services/monitor/go.sum
 
       - run: go mod download
       - run: go test -coverprofile=coverage.out -covermode=atomic ./...
@@ -47,13 +53,13 @@ jobs:
         run: |
           go tool cover -func=coverage.out | tee coverage.txt
           {
-            echo "### Go coverage"
+            echo "### Monitor service coverage"
             echo '```'
             cat coverage.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
       - run: go vet ./...
-      - run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --config ../../.golangci.yml ./...
+      - run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --config ../../../.golangci.yml ./...
 
   auth-service:
     name: Auth Service
@@ -63,12 +69,10 @@ jobs:
         working-directory: microservices/services/auth
     steps:
       - uses: actions/checkout@v6
-
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
           cache-dependency-path: microservices/services/auth/go.sum
-
       - run: go mod download
       - run: go test ./...
       - run: go vet ./...
@@ -81,12 +85,10 @@ jobs:
         working-directory: microservices/services/identity
     steps:
       - uses: actions/checkout@v6
-
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
           cache-dependency-path: microservices/services/identity/go.sum
-
       - run: go mod download
       - run: go test ./...
       - run: go vet ./...
@@ -99,12 +101,10 @@ jobs:
         working-directory: microservices/services/system
     steps:
       - uses: actions/checkout@v6
-
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
           cache-dependency-path: microservices/services/system/go.sum
-
       - run: go mod download
       - run: go test ./...
       - run: go vet ./...
@@ -117,12 +117,10 @@ jobs:
         working-directory: microservices/services/audit
     steps:
       - uses: actions/checkout@v6
-
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
           cache-dependency-path: microservices/services/audit/go.sum
-
       - run: go mod download
       - run: go test ./...
       - run: go vet ./...
@@ -135,21 +133,14 @@ jobs:
         working-directory: microservices/services/file
     steps:
       - uses: actions/checkout@v6
-
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
           cache-dependency-path: microservices/services/file/go.sum
-
       - run: go mod download
       - run: go test ./...
       - run: go vet ./...
 
-  # Full-stack smoke: build every compose image, boot the whole stack
-  # (Traefik gateway + 5 microservices + monolith + postgres/redis/nats +
-  # frontend) and drive tests/api-smoke.mjs through the gateway on :8000.
-  # The monolith is losing most of its routes, so direct-connect smoke on
-  # :8081 no longer covers the API surface — only the gateway composition does.
   ai-service:
     name: AI Service
     runs-on: ubuntu-latest
@@ -158,35 +149,80 @@ jobs:
         working-directory: microservices/services/ai
     steps:
       - uses: actions/checkout@v6
-
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
           cache-dependency-path: microservices/services/ai/go.sum
-
       - run: go mod download
       - run: go test ./...
       - run: go vet ./...
 
-  # Full-stack smoke: build every compose image, boot the whole stack
-  # (Traefik gateway + 5 microservices + monolith + postgres/redis/nats +
-  # frontend) and drive tests/api-smoke.mjs through the gateway on :8000.
-  # The monolith is losing most of its routes, so direct-connect smoke on
-  # :8081 no longer covers the API surface — only the gateway composition does.
+  micro-frontend:
+    name: Micro Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microservices/web
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: microservices/web/package-lock.json
+      - run: npm ci
+      - run: npm audit --omit=dev
+      - run: npm run lint
+      - run: npm run build
+
+  monolith-backend:
+    name: Monolith Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: monolith/server
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: monolith/server/go.sum
+      - run: go mod download
+      - run: go test ./...
+      - run: go vet ./...
+
+  monolith-frontend:
+    name: Monolith Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: monolith/web
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: monolith/web/package-lock.json
+      - run: npm ci
+      - run: npm audit --omit=dev
+      - run: npm run lint
+      - run: npm run build
+
   integration:
-    name: Integration Smoke
+    name: Micro Integration Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs:
       - workspace
-      - backend
+      - monitor-service
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.3'
-          cache-dependency-path: microservices/legacy-backend/go.sum
+          cache-dependency-path: microservices/services/monitor/go.sum
 
       - uses: actions/setup-node@v6
         with:
@@ -194,12 +230,6 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      # Build the six Go images + frontend via buildx bake so layers persist
-      # in the GitHub Actions cache between runs. Tags must match the image
-      # names docker compose derives for build-only services
-      # (<project>-<service>, project pinned to go-admin-kit by the compose
-      # `name:` field) so `up` below reuses the loaded images instead of
-      # rebuilding without cache.
       - name: Build compose images
         uses: docker/bake-action@v7
         with:
@@ -208,9 +238,9 @@ jobs:
           load: true
           provenance: false
           set: |
-            backend.tags=go-admin-kit-backend:latest
-            backend.cache-from=type=gha,scope=compose-backend
-            backend.cache-to=type=gha,scope=compose-backend,mode=max,ignore-error=true
+            monitor-service.tags=go-admin-kit-monitor-service:latest
+            monitor-service.cache-from=type=gha,scope=compose-monitor
+            monitor-service.cache-to=type=gha,scope=compose-monitor,mode=max,ignore-error=true
             auth-service.tags=go-admin-kit-auth-service:latest
             auth-service.cache-from=type=gha,scope=compose-auth
             auth-service.cache-to=type=gha,scope=compose-auth,mode=max,ignore-error=true
@@ -234,14 +264,8 @@ jobs:
         working-directory: microservices
         run: docker compose up -d --wait --wait-timeout 180 go-admin-kit-postgres go-admin-kit-redis go-admin-kit-nats
 
-      # Schema and seed data (including the default admin account the smoke
-      # logs in with) both live in the goose migrations. The rehearsal first
-      # exercises up/down/up on a scratch database, then the real compose
-      # database is migrated — same mechanism as the old direct-connect job,
-      # pointed at the compose postgres (localhost:5432, compose defaults).
-      # The backend image re-runs `migrate up` at boot; a no-op by then.
       - name: Apply migrations and seed data
-        working-directory: microservices/legacy-backend
+        working-directory: microservices/services/monitor
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: '5432'
@@ -280,23 +304,3 @@ jobs:
         if: always()
         working-directory: microservices
         run: docker compose down -v --remove-orphans
-
-  frontend:
-    name: Frontend
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: microservices/web
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: npm
-          cache-dependency-path: microservices/web/package-lock.json
-
-      - run: npm ci
-      - run: npm audit --omit=dev
-      - run: npm run lint
-      - run: npm run build

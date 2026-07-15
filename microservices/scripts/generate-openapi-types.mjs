@@ -5,8 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const specPath = path.join(repoRoot, 'legacy-backend', 'docs', 'openapi.json');
-const outputPath = path.join(repoRoot, '..', 'tdesign-vue-go', 'src', 'api', 'generated', 'schema.d.ts');
+const specPath = path.join(repoRoot, 'services', 'monitor', 'docs', 'openapi.json');
+const outputPath = path.join(repoRoot, 'web', 'src', 'api', 'generated', 'schema.d.ts');
 
 const spec = JSON.parse(await readFile(specPath, 'utf8'));
 

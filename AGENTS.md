@@ -86,13 +86,11 @@ Tabs ink bar becomes a glowing gradient strip...
 
 | 路径 | 说明 |
 |------|------|
-| `microservices/` | **当前主交付**：多服务 + 网关 + React 前端 |
-| `microservices/services/*` | auth / identity / system / audit / file / ai |
-| `microservices/legacy-backend/` | 瘦后端兜底（监控等），**不是**完整单体 |
+| `microservices/` | 微服务：多服务 + 网关 + React 前端 |
+| `microservices/services/*` | auth / identity / system / audit / file / ai / **monitor** |
 | `microservices/web/` | React + Ant Design（微服务前端） |
-| `monolith/` | 单体产品线：`server/` + `web/`（与微服务零调用） |
+| `monolith/` | 单体：`server/` + `web/`（与微服务零调用） |
 | `platform/` | 公共监控模板等 |
-| `tdesign-vue-go/` | **遗留** Vue 前端，非主路径 |
-| `docs/` | 工程文档 |
+| `docs/` | 工程文档与 [`PRODUCT_LINES.md`](docs/PRODUCT_LINES.md) |
 
-开发微服务时请在 `microservices/` 下工作；不要让单体目录依赖 `services/*`，也不要在微服务中 import 未来的 `monolith/server`。
+开发时只进入其中一条产品线；禁止跨线业务依赖。

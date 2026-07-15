@@ -68,11 +68,11 @@ services:
     networks:
       - go-admin-kit-net
 
-  backend:
+  monitor-service:
     build:
-      context: ./legacy-backend
+      context: ./services/monitor
       dockerfile: Dockerfile
-    container_name: go-admin-kit-backend
+    container_name: go-admin-kit-monitor
     restart: unless-stopped
     environment:
       APP_ENV: ${APP_ENV:-development}
@@ -127,10 +127,10 @@ services:
       - "${BACKEND_PORT:-8081}:8081"
     labels:
       traefik.enable: "true"
-      traefik.http.routers.backend.rule: "PathPrefix(`/api`) || PathPrefix(`/uploads`)"
-      traefik.http.routers.backend.entrypoints: web
-      traefik.http.routers.backend.middlewares: auth-verify
-      traefik.http.services.backend.loadbalancer.server.port: "8081"
+      traefik.http.routers.monitor.rule: "PathPrefix(`/api`) || PathPrefix(`/uploads`)"
+      traefik.http.routers.monitor.entrypoints: web
+      traefik.http.routers.monitor.middlewares: auth-verify
+      traefik.http.services.monitor.loadbalancer.server.port: "8081"
     depends_on:
       go-admin-kit-postgres:
         condition: service_healthy
@@ -529,7 +529,7 @@ services:
       traefik.http.routers.frontend.priority: "1"
       traefik.http.services.frontend.loadbalancer.server.port: "80"
     depends_on:
-      backend:
+      monitor-service:
         condition: service_started
     networks:
       - go-admin-kit-net
@@ -559,7 +559,7 @@ services:
       # set DOCKER_SOCK=/var/run/docker.sock.raw in .env there. Linux keeps the default.
       - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock:ro
     depends_on:
-      backend:
+      monitor-service:
         condition: service_started
       auth-service:
         condition: service_started
@@ -598,7 +598,7 @@ services:
       - ../platform/deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - go_admin_kit_prometheus_data:/prometheus
     depends_on:
-      backend:
+      monitor-service:
         condition: service_started
     networks:
       - go-admin-kit-net

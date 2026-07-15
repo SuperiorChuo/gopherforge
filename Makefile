@@ -37,4 +37,4 @@ audit:
 e2e-api: smoke-api
 
 migrate-redo migrate-reset:
-	@$(MAKE) -C $(MICRO)/legacy-backend $@
+	@$(MAKE) -C $(MICRO)/services/monitor $@

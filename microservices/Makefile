@@ -7,7 +7,7 @@ help:
 	@echo "  compose-up        启动完整微服务栈"
 	@echo "  compose-down      停止栈"
 	@echo "  compose-monitoring 启动含监控 profile 的栈"
-	@echo "  dev-backend       本地启动 legacy-backend（监控兜底）"
+	@echo "  dev-backend       本地启动 services/monitor（监控兜底）"
 	@echo "  dev-auth          本地启动 auth-service"
 	@echo "  dev-frontend      本地启动 React 前端"
 	@echo "  test              后端与脚本测试"
@@ -29,7 +29,7 @@ compose-monitoring:
 
 .PHONY: dev-backend
 dev-backend:
-	cd legacy-backend && CGO_ENABLED=0 go run ./cmd/main.go
+	cd services/monitor && CGO_ENABLED=0 go run ./cmd/main.go
 
 .PHONY: dev-auth
 dev-auth:
@@ -37,7 +37,7 @@ dev-auth:
 
 .PHONY: build-server
 build-server:
-	cd legacy-backend && $(MAKE) build-server
+	cd services/monitor && $(MAKE) build-server
 
 .PHONY: dev-frontend
 dev-frontend:
@@ -46,13 +46,13 @@ dev-frontend:
 .PHONY: test
 test:
 	npm run test:smoke:unit
-	cd legacy-backend && go test ./...
+	cd services/monitor && go test ./...
 	cd services/auth && go test ./...
 	cd web && npm run build
 
 .PHONY: lint
 lint:
-	cd legacy-backend && go vet ./...
+	cd services/monitor && go vet ./...
 	cd services/auth && go vet ./...
 	cd web && npm run lint
 
@@ -62,23 +62,23 @@ smoke-api:
 
 .PHONY: db-import
 db-import:
-	cd legacy-backend && $(MAKE) db-import
+	cd services/monitor && $(MAKE) db-import
 
 .PHONY: migrate-up
 migrate-up:
-	cd legacy-backend && $(MAKE) migrate-up
+	cd services/monitor && $(MAKE) migrate-up
 
 .PHONY: migrate-status
 migrate-status:
-	cd legacy-backend && $(MAKE) migrate-status
+	cd services/monitor && $(MAKE) migrate-status
 
 .PHONY: migrate-down
 migrate-down:
-	cd legacy-backend && $(MAKE) migrate-down
+	cd services/monitor && $(MAKE) migrate-down
 
 .PHONY: migrate-create
 migrate-create:
-	cd legacy-backend && $(MAKE) migrate-create MIGRATION_NAME=$(or $(NAME),change_name)
+	cd services/monitor && $(MAKE) migrate-create MIGRATION_NAME=$(or $(NAME),change_name)
 
 .PHONY: api-contract
 api-contract:

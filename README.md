@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/SuperiorChuo/go-admin-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/SuperiorChuo/go-admin-kit/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.26.3-00ADD8?logo=go&logoColor=white)](microservices/legacy-backend/go.mod)
+[![Go](https://img.shields.io/badge/Go-1.26.3-00ADD8?logo=go&logoColor=white)](microservices/monitor/go.mod)
 [![React](https://img.shields.io/badge/React-Ant%20Design-61DAFB?logo=react&logoColor=white)](microservices/web/package.json)
 
 Go Admin Kit 是一套基于 Go + Gin 与 **React + Ant Design** 的后台管理脚手架仓库。仓库内包含**两个互不调用的独立产品线**：
@@ -51,16 +51,14 @@ Go Admin Kit 是一套基于 Go + Gin 与 **React + Ant Design** 的后台管理
 
 ```text
 .
-├── microservices/       # ★ 微服务产品线（当前可运行）
-│   ├── services/        # auth / identity / system / audit / file / ai
-│   ├── legacy-backend/  # 瘦后端兜底（监控等，非完整单体）
-│   ├── web/             # React + Ant Design 前端
+├── microservices/       # 微服务产品线
+│   ├── services/        # auth identity system audit file ai monitor
+│   ├── web/             # React + Ant Design
 │   ├── docker-compose.yml
 │   └── README.md
 ├── monolith/            # 单体产品线（server + web）
-├── platform/            # 公共监控等模板
-├── tdesign-vue-go/      # 遗留 Vue 前端（非主路径）
-├── docs/                # 工程文档
+├── platform/            # 公共监控模板
+├── docs/                # 工程文档（含 PRODUCT_LINES.md）
 └── LOCAL_SETUP.md       # 本地联调说明
 ```
 
@@ -94,7 +92,7 @@ docker compose up -d --build
 - 认证服务直连：`http://localhost:8082`
 - 健康检查：`http://localhost:8000/api/v1/health/ready`
 
-推荐通过网关访问。认证相关路径 → auth-service；其余 `/api`、`/uploads` 由对应微服务或 legacy-backend 承接；网关 ForwardAuth 统一验签。详情见 [`microservices/README.md`](microservices/README.md)。
+推荐通过网关访问。认证相关路径 → auth-service；其余 `/api`、`/uploads` 由对应微服务或 services/monitor 承接；网关 ForwardAuth 统一验签。详情见 [`microservices/README.md`](microservices/README.md)。
 
 默认管理员账号仅用于本地开发：
 
@@ -146,7 +144,7 @@ docker compose up -d go-admin-kit-postgres go-admin-kit-redis
 启动后端：
 
 ```powershell
-cd microservices/legacy-backend
+cd microservices/monitor
 go run .\cmd\main.go
 ```
 
@@ -187,7 +185,7 @@ make migrate-create NAME=add_example_table
 后端：
 
 ```powershell
-cd microservices/legacy-backend
+cd microservices/monitor
 go test ./...
 go vet ./...
 ```
@@ -219,24 +217,24 @@ npm run smoke:api
 
 API 契约生成与测试：
 
-```powershell
+```bash
+cd microservices
 npm run api:contract
-git diff --exit-code -- microservices/legacy-backend/docs/openapi.json tdesign-vue-go/src/api/generated/schema.d.ts
+git diff --exit-code -- services/monitor/docs/openapi.json
 npm run test:contract
 ```
 
-如果 `git diff --exit-code` 返回非零，说明 OpenAPI 或前端类型生成物发生漂移，需要提交 `microservices/legacy-backend/docs/openapi.json` 和 `tdesign-vue-go/src/api/generated/schema.d.ts` 的更新。
+OpenAPI 漂移时请提交 `microservices/services/monitor/docs/openapi.json`（及如有生成的 `web/src/api/generated/`）。
 
-WebSocket 通知链路发布前也需要验证：先通过带 `Bearer` token 的 `POST /api/v1/ws/notifications/ticket` 获取一次性 `ticket`，再连接 `GET /api/v1/ws/notifications?ticket=...`。反向代理必须透传 WebSocket upgrade 头，例如 `Upgrade`、`Connection`、`Host`、`X-Forwarded-Proto` 和 `X-Forwarded-For`；生产环境的 `Origin` 必须与后端同源或包含在 `CORS_ALLOW_ORIGINS` 中，`CORS_ALLOW_CREDENTIALS=true` 时不要使用通配 `*`。
+WebSocket 通知：先用 Bearer 访问 `POST /api/v1/ws/notifications/ticket`，再连 `GET /api/v1/ws/notifications?ticket=...`。网关须透传 Upgrade 相关头。
 
 ## 配置入口
 
-- 后端默认配置：`server/configs/config.yaml`
-- 后端示例配置：`server/configs/config.example.yaml`
-- Docker 环境变量：`.env.example`
-- 数据库基线 SQL（手动初始化参考）：`server/docs/go_admin_kit.sql`
-- 数据库迁移：`server/migrations/`
-- OpenAPI 契约：`microservices/legacy-backend/docs/openapi.json`
+- 微服务环境：`microservices/.env.example`
+- 单体环境：`monolith/.env.example`
+- 微服务迁移 / OpenAPI：`microservices/services/monitor/migrations/`、`.../docs/openapi.json`
+- 单体迁移：`monolith/server/migrations/`
+- 产品线对照：`docs/PRODUCT_LINES.md`
 - 本地代码图谱：`CODE_GRAPH.md`
 
 ## 安全提示

@@ -2,7 +2,7 @@
   "name": "go-admin-kit-workspace",
   "private": true,
   "scripts": {
-    "openapi": "cd legacy-backend && go run ./cmd/openapi -output ./docs/openapi.json",
+    "openapi": "cd services/monitor && go run ./cmd/openapi -output ./docs/openapi.json",
     "api:types": "node scripts/generate-openapi-types.mjs",
     "api:contract": "npm run openapi && npm run api:types",
     "test:smoke:unit": "node --test tests/api-smoke-lib.test.mjs",
