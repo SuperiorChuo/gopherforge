@@ -302,4 +302,11 @@ Go Admin Kit **最自然的扩展形态**不是「再做一个大而全单体」
 
 ---
 
+## 附录：专项设计文档
+
+| 文档 | 说明 |
+|------|------|
+| [`design/im-service.md`](design/im-service.md) | 自研 IM / 网页埋码 / 坐席台 |
+| [`design/freeswitch-cc.md`](design/freeswitch-cc.md) | FreeSWITCH 独立呼叫项目与对接 |
+
 *本文档随产品演进更新；实现排期以 Issue / Milestone 为准。*

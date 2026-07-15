@@ -387,7 +387,7 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 
 ## 🛣️ 路线图与产品愿景
 
-> 完整扩展蓝图（服务清单、分层、风险、90 天清单）见 **[`docs/EXPANSION_PLAN.md`](docs/EXPANSION_PLAN.md)**。
+> 完整扩展蓝图见 **[`docs/EXPANSION_PLAN.md`](docs/EXPANSION_PLAN.md)** · IM 设计 **[`docs/design/im-service.md`](docs/design/im-service.md)** · 呼叫 **[`docs/design/freeswitch-cc.md`](docs/design/freeswitch-cc.md)**。
 
 > **定位**：Go Admin Kit 不只是「CRUD 后台模板」，而是面向 **运营中台 / 客服与触达 / AI 增强** 的可扩展底座。  
 > 当前已具备：认证鉴权、RBAC、系统管理、文件、监控，以及微服务线上的 **AI 服务雏形**。  
