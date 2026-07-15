@@ -62,6 +62,7 @@ const routes: RouteObject[] = [
       // IM (im-service)
       { path: 'im/desk', element: lazyLoad(() => import('@/pages/im/desk')) },
       { path: 'im/sites', element: lazyLoad(() => import('@/pages/im/sites')) },
+      { path: 'im/skills', element: lazyLoad(() => import('@/pages/im/skills')) },
 
       // Error pages
       { path: '403', element: lazyLoad(() => import('@/pages/result/403')) },

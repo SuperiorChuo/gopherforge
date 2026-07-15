@@ -14,8 +14,10 @@ type Site struct {
 	AllowedOrigins string    `gorm:"type:text" json:"allowed_origins"` // JSON array string
 	WelcomeText    string    `gorm:"type:text" json:"welcome_text"`
 	Status         int16     `gorm:"default:1" json:"status"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	// DefaultSkillGroupID routes new conversations when visitor does not specify one.
+	DefaultSkillGroupID *uint64 `json:"default_skill_group_id,omitempty"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 func (Site) TableName() string { return "im_sites" }
@@ -33,6 +35,47 @@ type Visitor struct {
 
 func (Visitor) TableName() string { return "im_visitors" }
 
+// SkillGroup routes queue assignment.
+type SkillGroup struct {
+	ID        uint64    `gorm:"primaryKey" json:"id"`
+	Name      string    `gorm:"size:128;not null" json:"name"`
+	Code      string    `gorm:"size:64;uniqueIndex;not null" json:"code"`
+	// Strategy: round_robin | least_load | manual
+	Strategy  string    `gorm:"size:32;not null;default:round_robin" json:"strategy"`
+	Status    int16     `gorm:"default:1" json:"status"`
+	// RRCursor is last assigned agent_user_id for round-robin (best-effort).
+	RRCursor  uint64    `gorm:"default:0" json:"-"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (SkillGroup) TableName() string { return "im_skill_groups" }
+
+// AgentSkill binds a backend user to a skill group.
+type AgentSkill struct {
+	ID            uint64    `gorm:"primaryKey" json:"id"`
+	AgentUserID   uint64    `gorm:"uniqueIndex:ux_agent_skill;index;not null" json:"agent_user_id"`
+	SkillGroupID  uint64    `gorm:"uniqueIndex:ux_agent_skill;index;not null" json:"skill_group_id"`
+	MaxConcurrent int       `gorm:"default:5;not null" json:"max_concurrent"`
+	Status        int16     `gorm:"default:1" json:"status"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+func (AgentSkill) TableName() string { return "im_agent_skills" }
+
+// AgentPresence is PG-backed for M3 (Redis can replace later).
+type AgentPresence struct {
+	AgentUserID  uint64    `gorm:"primaryKey" json:"agent_user_id"`
+	// Status: online | busy | offline
+	Status       string    `gorm:"size:16;not null;default:offline;index" json:"status"`
+	DisplayName  string    `gorm:"size:128" json:"display_name"`
+	LastSeenAt   time.Time `json:"last_seen_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+func (AgentPresence) TableName() string { return "im_agent_presence" }
+
 type Conversation struct {
 	ID                 uint64     `gorm:"primaryKey" json:"id"`
 	PublicID           uuid.UUID  `gorm:"type:uuid;uniqueIndex;not null" json:"public_id"`
@@ -40,8 +83,10 @@ type Conversation struct {
 	Channel            string     `gorm:"size:32;not null;default:h5" json:"channel"`
 	VisitorID          uint64     `gorm:"index;not null" json:"visitor_id"`
 	AgentUserID        *uint64    `gorm:"index" json:"agent_user_id,omitempty"`
+	SkillGroupID       *uint64    `gorm:"index" json:"skill_group_id,omitempty"`
 	Status             string     `gorm:"size:32;index;not null;default:queued" json:"status"`
 	Context            string     `gorm:"type:text" json:"context,omitempty"`
+	CloseReason        string     `gorm:"size:64" json:"close_reason,omitempty"`
 	QueuedAt           *time.Time `json:"queued_at,omitempty"`
 	AssignedAt         *time.Time `json:"assigned_at,omitempty"`
 	ClosedAt           *time.Time `json:"closed_at,omitempty"`

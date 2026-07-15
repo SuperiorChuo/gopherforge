@@ -50,14 +50,28 @@ func main() {
 	r.GET("/api/v1/im/conversations/:public_id/messages", srv.ListMessages)
 	r.POST("/api/v1/im/conversations/:public_id/messages", srv.SendMessage)
 
-	// agent
+	// agent (M1 + M3)
+	r.GET("/api/v1/im/agent/me", srv.AgentMe)
+	r.PUT("/api/v1/im/agent/presence", srv.AgentPresence)
 	r.GET("/api/v1/im/agent/conversations", srv.AgentListConversations)
+	r.GET("/api/v1/im/agent/queue", srv.AgentQueue)
+	r.GET("/api/v1/im/agent/online", srv.AgentOnlineList)
 	r.POST("/api/v1/im/agent/conversations/:public_id/accept", srv.AgentAccept)
+	r.POST("/api/v1/im/agent/conversations/:public_id/transfer", srv.AgentTransfer)
 	r.POST("/api/v1/im/agent/conversations/:public_id/close", srv.AgentClose)
 
 	// admin sites (M2 embed config)
 	r.GET("/api/v1/im/admin/sites", srv.AdminListSites)
 	r.PUT("/api/v1/im/admin/sites/:id", srv.AdminUpdateSite)
+
+	// admin skill groups (M3)
+	r.GET("/api/v1/im/admin/skill-groups", srv.AdminListSkillGroups)
+	r.POST("/api/v1/im/admin/skill-groups", srv.AdminCreateSkillGroup)
+	r.PUT("/api/v1/im/admin/skill-groups/:id", srv.AdminUpdateSkillGroup)
+	r.GET("/api/v1/im/admin/skill-groups/:id/agents", srv.AdminListSkillAgents)
+	r.POST("/api/v1/im/admin/skill-groups/:id/agents", srv.AdminUpsertAgentSkill)
+	r.POST("/api/v1/im/admin/agent-skills", srv.AdminUpsertAgentSkill)
+	r.DELETE("/api/v1/im/admin/agent-skills/:id", srv.AdminDeleteAgentSkill)
 
 	// websocket
 	r.GET("/im/ws", srv.WebSocket)

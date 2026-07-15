@@ -1,6 +1,6 @@
 # IM / 智能客服接入设计（自研）
 
-> 状态：设计草案；**M1+M2 已落地**（`microservices/services/im`：内核 + 网页埋码）  
+> 状态：设计草案；**M1+M2+M3 已落地**（`microservices/services/im`：内核 + 网页埋码 + 技能组/排队/转接）  
 > 范围：`microservices` 产品线新增 `im-service` + 管理台坐席模块 + **网页埋码 Widget**  
 > 原则：完全自研消息面；与 identity/auth/file/ai 解耦协作；单体线不实现完整 IM。
 
@@ -523,9 +523,9 @@ im:report:view       # 报表（后期）
 
 ### M3 · 客服
 
-- [ ] 排队、技能组、分配策略  
-- [ ] 转接、关闭原因  
-- [ ] 坐席 presence  
+- [x] 排队、技能组、分配策略（`round_robin` / `least_load` / `manual`）  
+- [x] 转接、关闭原因  
+- [x] 坐席 presence（PG；后续可换 Redis）  
 
 ### M4 · 智能
 

@@ -96,6 +96,7 @@ export default function ImSitesPage() {
               打开埋码演示页
             </Button>
             <Button href="/im/desk">坐席工作台</Button>
+            <Button href="/im/skills">技能组</Button>
             <Button onClick={() => void load()}>刷新</Button>
           </Space>
         }
