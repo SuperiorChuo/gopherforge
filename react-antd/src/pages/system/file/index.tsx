@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Table, Button, Space, Popconfirm, Card, Input, Form,
   Upload, Tag, Image,
@@ -36,6 +36,9 @@ export default function FilePage() {
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [stats, setStats] = useState<FileAPI.FileStats | null>(null)
+  const [dragging, setDragging] = useState(false)
+  // dragenter/leave 在子元素间反复触发,用深度计数判断是否真的离开页面
+  const dragDepth = useRef(0)
   const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
 
@@ -83,28 +86,54 @@ export default function FilePage() {
     }
   }
 
+  const uploadBatch = async (files: File[]) => {
+    if (!files.length) return
+    setUploading(true)
+    try {
+      if (files.length > 1) {
+        await FileAPI.uploadFiles(files)
+        message.success(`已上传 ${files.length} 个文件`)
+      } else {
+        await FileAPI.uploadFile(files[0])
+        message.success('上传成功')
+      }
+      fetchList(params)
+    } catch {
+      message.error('上传失败')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   // antd 对多选的每个文件各调一次 beforeUpload，以首个文件为代表整批上传一次
   const beforeUpload = (file: File, fileList: File[]) => {
-    if (fileList[0] !== file) return false
-    const doUpload = async () => {
-      setUploading(true)
-      try {
-        if (fileList.length > 1) {
-          await FileAPI.uploadFiles(fileList)
-          message.success(`已上传 ${fileList.length} 个文件`)
-        } else {
-          await FileAPI.uploadFile(file)
-          message.success('上传成功')
-        }
-        fetchList(params)
-      } catch {
-        message.error('上传失败')
-      } finally {
-        setUploading(false)
-      }
-    }
-    doUpload()
+    if (fileList[0] === file) uploadBatch(fileList)
     return false
+  }
+
+  // 整页拖放上传:文件拖入页面任意位置即出现玻璃投放区
+  const canUpload = hasPerm('system:file:upload')
+
+  const onDragEnter = (e: React.DragEvent) => {
+    if (!canUpload || !e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+    dragDepth.current += 1
+    setDragging(true)
+  }
+
+  const onDragLeave = (e: React.DragEvent) => {
+    if (!canUpload) return
+    e.preventDefault()
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragging(false)
+  }
+
+  const onDrop = (e: React.DragEvent) => {
+    if (!canUpload) return
+    e.preventDefault()
+    dragDepth.current = 0
+    setDragging(false)
+    uploadBatch(Array.from(e.dataTransfer.files))
   }
 
   const handleDownload = async (record: FileRecord) => {
@@ -190,7 +219,21 @@ export default function FilePage() {
   ]
 
   return (
-    <div>
+    <div
+      onDragEnter={onDragEnter}
+      onDragOver={(e) => { if (canUpload) e.preventDefault() }}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      {dragging && (
+        <div className="file-drop-veil">
+          <div className="file-drop-panel">
+            <UploadOutlined className="file-drop-icon" />
+            <div className="file-drop-title">松手上传</div>
+            <div className="file-drop-sub">文件将上传到文件管理</div>
+          </div>
+        </div>
+      )}
       {stats && stats.total > 0 && (
         <Card style={{ marginBottom: 16 }} styles={{ body: { padding: '14px 24px' } }}>
           <div className="log-stats-row">
