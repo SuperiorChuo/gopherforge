@@ -262,6 +262,62 @@ services:
     networks:
       - go-admin-kit-net
 
+  system-service:
+    build:
+      context: ./services/system
+      dockerfile: Dockerfile
+    container_name: go-admin-kit-system
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8084
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      EMAIL_NOTIFICATION_ENABLED: ${EMAIL_NOTIFICATION_ENABLED:-false}
+      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-}
+      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
+      EMAIL_SMTP_USERNAME: ${EMAIL_SMTP_USERNAME:-}
+      EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD:-}
+      EMAIL_SENDER: ${EMAIL_SENDER:-}
+      EMAIL_ALERT_RECEIVERS: ${EMAIL_ALERT_RECEIVERS:-}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SYSTEM_SERVICE_PORT:-8084}:8084"
+    labels:
+      traefik.enable: "true"
+      # Same PathPrefix caveat as the auth/identity routers: exact paths use
+      # Path(), subtrees use a trailing-slash PathPrefix(). `/user/menus` is
+      # an exact path so it can't collide with auth's /user/me etc.
+      traefik.http.routers.system.rule: "Path(`/api/v1/menus`) || PathPrefix(`/api/v1/menus/`) || Path(`/api/v1/user/menus`) || Path(`/api/v1/dict-types`) || PathPrefix(`/api/v1/dict-types/`) || Path(`/api/v1/dict-items`) || PathPrefix(`/api/v1/dict-items/`) || Path(`/api/v1/dicts`) || PathPrefix(`/api/v1/dicts/`) || Path(`/api/v1/notices`) || PathPrefix(`/api/v1/notices/`) || Path(`/api/v1/system-settings`) || PathPrefix(`/api/v1/system-settings/`) || Path(`/api/v1/online-users`) || PathPrefix(`/api/v1/online-users/`) || Path(`/api/v1/ws/notifications`) || PathPrefix(`/api/v1/ws/notifications/`)"
+      traefik.http.routers.system.entrypoints: web
+      traefik.http.routers.system.priority: "100"
+      traefik.http.services.system.loadbalancer.server.port: "8084"
+    depends_on:
+      go-admin-kit-postgres:
+        condition: service_healthy
+      go-admin-kit-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8084/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
   go-admin-kit-minio:
     image: minio/minio:latest
     container_name: go-admin-kit-minio
@@ -337,6 +393,8 @@ services:
       auth-service:
         condition: service_started
       identity-service:
+        condition: service_started
+      system-service:
         condition: service_started
       frontend:
         condition: service_started

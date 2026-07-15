@@ -4,4 +4,5 @@ use (
 	./server
 	./services/auth
 	./services/identity
+	./services/system
 )
