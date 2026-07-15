@@ -80,17 +80,19 @@ Tabs ink bar becomes a glowing gradient strip...
 - 不提交密钥、`.env`、本地数据、构建产物、上传文件。
 - 优先小步可审 PR；验证命令见 `CONTRIBUTING.md`。
 
-## 架构速览（双产品线）
+## 架构速览（一人 monorepo）
 
-本仓库是 **monorepo 外壳**，内含两个**互不调用**的产品：
+本仓库是 **单人维护的 monorepo**，内含多条产品线（目录分开、进程可分开部署）：
 
 | 路径 | 说明 |
 |------|------|
-| `microservices/` | 微服务：多服务 + 网关 + React 前端 |
-| `microservices/services/*` | auth / identity / system / audit / file / ai / **monitor** |
+| `microservices/` | 微服务中台：多服务 + 网关 + React |
+| `microservices/services/*` | auth / identity / system / audit / file / ai / im / **monitor** |
 | `microservices/web/` | React + Ant Design（微服务前端） |
-| `monolith/` | 单体：`server/` + `web/`（与微服务零调用） |
+| `monolith/` | 单体：`server/` + `web/`（与微服务业务零调用） |
+| `freeswitch-cc/` | 呼叫媒体：FreeSWITCH + control-api；**中台可控制 FS**，媒体独立 compose |
 | `platform/` | 公共监控模板等 |
 | `docs/` | 工程文档与 [`PRODUCT_LINES.md`](docs/PRODUCT_LINES.md) |
 
-开发时只进入其中一条产品线；禁止跨线业务依赖。
+- 单体 与 微服务：禁止互相依赖业务代码。  
+- 呼叫：允许中台经 HTTP/Webhook **控制** `freeswitch-cc`；不要把 FS 编进业务微服务 binary。
