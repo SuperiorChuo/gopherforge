@@ -118,7 +118,7 @@ function SchemaSettingCard({ setting, canUpdate, onSaved }: {
         </span>
       }
       extra={
-        <span style={{ fontSize: 12, color: 'rgba(148, 163, 184, 0.7)' }}>
+        <span className="card-extra-note">
           更新于 {formatDateTime(setting.updated_at)}
         </span>
       }
@@ -192,7 +192,7 @@ function JsonSettingCard({ setting, canUpdate, onSaved }: {
     <Card
       title={<Tag variant="filled" className="cell-mono">{setting.setting_key}</Tag>}
       extra={
-        <span style={{ fontSize: 12, color: 'rgba(148, 163, 184, 0.7)' }}>
+        <span className="card-extra-note">
           更新于 {formatDateTime(setting.updated_at)}
         </span>
       }

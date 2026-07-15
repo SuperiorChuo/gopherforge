@@ -148,11 +148,11 @@ export default function LoginLogPage() {
             <div className="log-stat-divider" />
             <div className="log-stat">
               <span className="log-stat-label">成功</span>
-              <span className="log-stat-value" style={{ color: '#34d399' }}>{stats.success.toLocaleString()}</span>
+              <span className="log-stat-value log-stat-success">{stats.success.toLocaleString()}</span>
             </div>
             <div className="log-stat">
               <span className="log-stat-label">失败</span>
-              <span className="log-stat-value" style={stats.failed > 0 ? { color: '#f87171' } : undefined}>
+              <span className={`log-stat-value ${stats.failed > 0 ? 'log-stat-danger' : ''}`}>
                 {stats.failed.toLocaleString()}
               </span>
             </div>

@@ -167,7 +167,7 @@ export default function MenuPage() {
       dataIndex: 'title',
       render: (v: string, record) => (
         <span style={{ fontWeight: 500 }}>
-          <MenuOutlined style={{ marginRight: 8, color: 'rgba(129, 140, 248, 0.8)' }} />
+          <MenuOutlined className="tree-title-icon" />
           {v || record.name}
         </span>
       ),

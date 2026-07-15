@@ -165,7 +165,7 @@ export default function DepartmentPage() {
       dataIndex: 'name',
       render: (v: string) => (
         <span style={{ fontWeight: 500 }}>
-          <ApartmentOutlined style={{ marginRight: 8, color: 'rgba(129, 140, 248, 0.8)' }} />
+          <ApartmentOutlined className="tree-title-icon" />
           {v}
         </span>
       ),

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Badge, Popover, Tag, Empty, Tooltip } from 'antd'
+import { Badge, Popover, Tag, Tooltip } from 'antd'
 import { BellOutlined } from '@ant-design/icons'
 import { createNotificationTicket } from '@/api/system/notice'
 import { formatDateTime } from '@/utils/format'
+import GlassEmpty from '@/components/GlassEmpty'
 
 interface NotificationItem {
   id: string
@@ -26,6 +27,7 @@ const typeLabels: Record<string, { text: string; color: string }> = {
 export default function NotificationBell() {
   const [items, setItems] = useState<NotificationItem[]>([])
   const [unread, setUnread] = useState(0)
+  const [ringing, setRinging] = useState(false)
   const [open, setOpen] = useState(false)
 
   const seenRef = useRef<Set<string>>(new Set())
@@ -64,6 +66,8 @@ export default function NotificationBell() {
         setItems((prev) => [msg as NotificationItem, ...prev].slice(0, MAX_ITEMS))
         if (Date.now() > replayUntilRef.current) {
           setUnread((n) => n + 1)
+          // 新通知到达:摇铃一次(动画结束自动摘掉 class 以便下次重放)
+          setRinging(true)
         }
       }
 
@@ -116,7 +120,7 @@ export default function NotificationBell() {
   const content = (
     <div className="notice-bell-panel">
       {items.length === 0 ? (
-        <Empty description="暂无通知" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '24px 0' }} />
+        <GlassEmpty text="暂无通知" compact />
       ) : (
         items.map((n) => {
           const meta = typeLabels[n.type] ?? typeLabels.notice
@@ -149,7 +153,11 @@ export default function NotificationBell() {
       <Tooltip title={open ? '' : '通知'}>
         <span className="app-trigger">
           <Badge count={unread} size="small" offset={[2, -2]}>
-            <BellOutlined style={{ fontSize: 17 }} />
+            <BellOutlined
+              style={{ fontSize: 17 }}
+              className={ringing ? 'bell-ringing' : undefined}
+              onAnimationEnd={() => setRinging(false)}
+            />
           </Badge>
         </span>
       </Tooltip>

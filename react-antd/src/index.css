@@ -2145,6 +2145,183 @@ body {
   color: #2563eb;
 }
 
+/* 统计成功/失败数值(替换页面内联色,亮色主题用深一号) */
+.log-stat-success {
+  color: #34d399;
+}
+
+.log-stat-danger {
+  color: #f87171;
+}
+
+[data-theme='light'] .log-stat-success {
+  color: #059669;
+}
+
+[data-theme='light'] .log-stat-danger {
+  color: #dc2626;
+}
+
+/* 树形表格首列图标(菜单/部门标题列) */
+.tree-title-icon {
+  margin-right: 8px;
+  color: rgba(129, 140, 248, 0.8);
+}
+
+[data-theme='light'] .tree-title-icon {
+  color: rgba(37, 99, 235, 0.75);
+}
+
+/* 卡片右上角的弱说明文字(设置页"更新于...") */
+.card-extra-note {
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.7);
+}
+
+[data-theme='light'] .card-extra-note {
+  color: #94a3b8;
+}
+
+/* ============================================================
+   页面打磨 · 表单控件玻璃化收尾
+   Switch 液滴滑块 / 校验错误提示浮现 / 必填星号呼吸
+   ============================================================ */
+
+/* Switch:开启后轨道渐变流动,手柄是一颗受光的玻璃液滴 */
+.ant-switch {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.ant-switch.ant-switch-checked {
+  background: linear-gradient(100deg, #6366f1 0%, #7c3aed 55%, #6366f1 100%) !important;
+  background-size: 220% 100% !important;
+  animation: liquid-btn-flow 7s linear infinite;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 2px 10px rgba(99, 102, 241, 0.4);
+}
+
+[data-theme='light'] .ant-switch.ant-switch-checked {
+  background: linear-gradient(100deg, #2563eb 0%, #0ea5e9 55%, #2563eb 100%) !important;
+  background-size: 220% 100% !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 2px 10px rgba(37, 99, 235, 0.35);
+}
+
+.ant-switch .ant-switch-handle::before {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* 校验错误:轻微下滑浮现 + 输入框摇头提示 */
+.ant-form-item-explain-error {
+  animation: form-error-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes form-error-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ant-form-item-has-error .ant-input-affix-wrapper,
+.ant-form-item-has-error .ant-input,
+.ant-form-item-has-error .ant-select .ant-select-selector,
+.ant-form-item-has-error .ant-input-number {
+  animation: form-error-shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes form-error-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-3px); }
+  40%, 60% { transform: translateX(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ant-form-item-has-error .ant-input-affix-wrapper,
+  .ant-form-item-has-error .ant-input,
+  .ant-form-item-has-error .ant-select .ant-select-selector,
+  .ant-form-item-has-error .ant-input-number,
+  .ant-form-item-explain-error {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   页面打磨 · 登录页聚焦光波纹
+   输入框聚焦时,一圈光晕从输入框向外扩散一次
+   ============================================================ */
+
+.login-page .ant-input-affix-wrapper-focused,
+.login-page .ant-input-affix-wrapper:focus-within {
+  animation: login-focus-ripple 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes login-focus-ripple {
+  0% {
+    outline: 2px solid rgba(129, 140, 248, 0.55);
+    outline-offset: 0;
+  }
+  100% {
+    outline: 2px solid rgba(129, 140, 248, 0);
+    outline-offset: 14px;
+  }
+}
+
+[data-theme='light'] .login-page .ant-input-affix-wrapper-focused,
+[data-theme='light'] .login-page .ant-input-affix-wrapper:focus-within {
+  animation: login-focus-ripple-light 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes login-focus-ripple-light {
+  0% {
+    outline: 2px solid rgba(59, 130, 246, 0.45);
+    outline-offset: 0;
+  }
+  100% {
+    outline: 2px solid rgba(59, 130, 246, 0);
+    outline-offset: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-page .ant-input-affix-wrapper-focused,
+  .login-page .ant-input-affix-wrapper:focus-within {
+    animation: none !important;
+  }
+}
+
+/* 新通知到达:铃铛以顶部为轴摇一下 */
+.bell-ringing {
+  display: inline-block;
+  transform-origin: 50% 2px;
+  animation: bell-ring 0.9s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes bell-ring {
+  0% { transform: rotate(0); }
+  12% { transform: rotate(16deg); }
+  28% { transform: rotate(-13deg); }
+  44% { transform: rotate(9deg); }
+  60% { transform: rotate(-6deg); }
+  76% { transform: rotate(3deg); }
+  100% { transform: rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bell-ringing {
+    animation: none !important;
+  }
+}
+
 /* 玻璃内嵌槽（恢复码等代码块容器） */
 .glass-well {
   background: rgba(255, 255, 255, 0.04);

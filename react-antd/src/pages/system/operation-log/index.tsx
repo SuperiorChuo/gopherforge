@@ -214,7 +214,7 @@ export default function OperationLogPage() {
             </div>
             <div className="log-stat">
               <span className="log-stat-label">异常请求</span>
-              <span className="log-stat-value" style={{ color: stats.error_count > 0 ? '#f87171' : '#34d399' }}>
+              <span className={`log-stat-value ${stats.error_count > 0 ? 'log-stat-danger' : 'log-stat-success'}`}>
                 {stats.error_count.toLocaleString()}
               </span>
             </div>
