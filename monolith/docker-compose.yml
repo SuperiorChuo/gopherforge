@@ -1,0 +1,111 @@
+name: go-admin-kit-mono
+
+services:
+  go-admin-kit-mono-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: go-admin-kit-mono-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      POSTGRES_DB: ${POSTGRES_DB:-go_admin_kit_mono}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - go_admin_kit_mono_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - go-admin-kit-mono-net
+
+  go-admin-kit-mono-redis:
+    image: redis:7-alpine
+    container_name: go-admin-kit-mono-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - go_admin_kit_mono_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - go-admin-kit-mono-net
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: go-admin-kit-mono-backend
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8081
+      DB_HOST: go-admin-kit-mono-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit_mono}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-mono-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      JWT_REFRESH_TOKEN_ROTATION: ${JWT_REFRESH_TOKEN_ROTATION:-true}
+      UPLOAD_STORAGE_TYPE: ${UPLOAD_STORAGE_TYPE:-local}
+      UPLOAD_LOCAL_PATH: ${UPLOAD_LOCAL_PATH:-./uploads}
+      UPLOAD_PUBLIC_BASE_URL: ${UPLOAD_PUBLIC_BASE_URL:-/uploads}
+      UPLOAD_LOCAL_URL_PREFIX: ${UPLOAD_LOCAL_URL_PREFIX:-/uploads}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:3001,http://127.0.0.1:3001,http://localhost:5174,http://127.0.0.1:5174}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      DEFAULT_ADMIN_WARN_DEFAULT_PASSWORD: ${DEFAULT_ADMIN_WARN_DEFAULT_PASSWORD:-true}
+      DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD: ${DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD:-false}
+      DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME:-admin}
+      METRICS_ENABLED: ${METRICS_ENABLED:-true}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${BACKEND_PORT:-18081}:8081"
+    depends_on:
+      go-admin-kit-mono-postgres:
+        condition: service_healthy
+      go-admin-kit-mono-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - go-admin-kit-mono-net
+
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: go-admin-kit-mono-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3001}:80"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - go-admin-kit-mono-net
+
+volumes:
+  go_admin_kit_mono_postgres_data:
+  go_admin_kit_mono_redis_data:
+
+networks:
+  go-admin-kit-mono-net:
+    name: go-admin-kit-mono-net

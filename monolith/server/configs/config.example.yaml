@@ -1,0 +1,142 @@
+app:
+  name: "go-admin-kit"
+  version: "1.0.0"
+  env: "development"
+  port: 8081
+
+database:
+  driver: "postgres"
+  host: "127.0.0.1"
+  port: 5432
+  user: "postgres"
+  password: "change-me"
+  dbname: "go_admin_kit"
+  sslmode: "disable"
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime_seconds: 300
+  conn_max_idle_time_seconds: 180
+
+redis:
+  host: "127.0.0.1"
+  port: 6379
+  password: ""
+  db: 0
+  pool_size: 100
+
+jwt:
+  secret: "replace-with-at-least-32-random-characters"
+  access_token_expire: 3600
+  refresh_token_expire: 86400
+  refresh_token_rotation: true
+  issuer: "go-admin-kit"
+
+cors:
+  allow_origins:
+    - "http://127.0.0.1:3000"
+    - "http://localhost:3000"
+    - "http://127.0.0.1:3001"
+    - "http://localhost:3001"
+    - "http://127.0.0.1:3002"
+    - "http://localhost:3002"
+  allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
+  allow_headers: ["Origin", "Content-Type", "Authorization", "X-Requested-With", "Accept", "X-Token", "X-Request-ID"]
+  expose_headers: ["Content-Length", "Content-Type", "Authorization", "X-Request-ID"]
+  allow_credentials: true
+  max_age: 12
+
+logger:
+  level: "info"
+  file_path: "./logs/app.log"
+  max_size: 100
+  max_backups: 5
+  max_age: 30
+
+oauth:
+  github:
+    enabled: false
+    client_id: ""
+    client_secret: ""
+    redirect_uri: "http://localhost:8081/api/v1/oauth/github/callback"
+  wechat:
+    enabled: false
+    client_id: ""
+    client_secret: ""
+    redirect_uri: "http://localhost:8081/api/v1/oauth/wechat/callback"
+
+upload:
+  storage_type: "local"
+  local_path: "./uploads"
+  public_base_url: "/uploads"
+  local:
+    path: "./uploads"
+    url_prefix: "/uploads"
+  s3:
+    endpoint: ""
+    bucket: ""
+    region: ""
+    access_key: ""
+    secret_key: ""
+    use_ssl: true
+  minio:
+    endpoint: "127.0.0.1:9000"
+    bucket: "go-admin-kit"
+    region: "us-east-1"
+    access_key: "minioadmin"
+    secret_key: "minioadmin"
+    use_ssl: false
+  max_size: 10
+  allowed_types: [".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".zip", ".rar"]
+  image:
+    max_width: 4096
+    max_height: 4096
+    thumbnail_width: 200
+    thumbnail_height: 200
+
+security:
+  trusted_proxies: ["127.0.0.1"]
+  password_max_age_days: 90
+  password_history_count: 5
+  headers:
+    enabled: true
+    hsts: false
+  rate_limit:
+    enabled: true
+    window_seconds: 1
+    max_requests: 100
+  login_limit:
+    enabled: true
+    window_minutes: 15
+    max_failures: 5
+    lock_minutes: 30
+  default_admin:
+    warn_default_password: true
+    force_change_password: true
+    default_username: "admin"
+
+notification:
+  email:
+    enabled: false
+    smtp_host: ""
+    smtp_port: 25
+    use_tls: false
+    start_tls: false
+    username: ""
+    password: ""
+    sender: ""
+    alert_receiver: ""
+    alert_receivers: []
+    subject_template: ""
+    body_template: ""
+    recipient_groups:
+      notice: []
+
+observability:
+  request_id_header: "X-Request-ID"
+  metrics_enabled: true
+  tracing:
+    enabled: false
+    service_name: "go-admin-kit-api"
+    environment: "development"
+    otlp_endpoint: "127.0.0.1:4317"
+    sample_ratio: 1.0

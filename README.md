@@ -9,8 +9,8 @@ Go Admin Kit 是一套基于 Go + Gin 与 **React + Ant Design** 的后台管理
 
 | 产品线 | 目录 | 状态 |
 |--------|------|------|
-| **微服务版** | [`microservices/`](microservices/README.md) | **当前可运行（主交付）** |
-| **单体版** | [`monolith/`](monolith/README.md) | 规划中，未交付 |
+| **微服务版** | [`microservices/`](microservices/README.md) | 可运行（网关 + 多服务） |
+| **单体版** | [`monolith/`](monolith/README.md) | 可运行（单进程 + React） |
 
 二者业务零调用；前端技术栈统一为 React Ant Design。公共监控模板见 [`platform/`](platform/README.md)。
 
@@ -57,23 +57,34 @@ Go Admin Kit 是一套基于 Go + Gin 与 **React + Ant Design** 的后台管理
 │   ├── web/             # React + Ant Design 前端
 │   ├── docker-compose.yml
 │   └── README.md
-├── monolith/            # 单体产品线（占位，阶段二）
+├── monolith/            # 单体产品线（server + web）
 ├── platform/            # 公共监控等模板
 ├── tdesign-vue-go/      # 遗留 Vue 前端（非主路径）
 ├── docs/                # 工程文档
 └── LOCAL_SETUP.md       # 本地联调说明
 ```
 
-## 快速启动（微服务版）
+## 快速启动
+
+### 微服务版
 
 ```bash
 git clone https://github.com/SuperiorChuo/go-admin-kit.git
 cd go-admin-kit/microservices
 cp .env.example .env
 docker compose up -d --build
+# 或仓库根：make compose-up
 ```
 
-或在仓库根目录：`make compose-up`（转发到 `microservices/`）。
+### 单体版
+
+```bash
+cd go-admin-kit/monolith
+cp .env.example .env
+docker compose up -d --build
+# 或仓库根：make mono-up
+# 前端 http://localhost:3001  API http://localhost:18081
+```
 
 默认地址：
 

@@ -90,7 +90,7 @@ Tabs ink bar becomes a glowing gradient strip...
 | `microservices/services/*` | auth / identity / system / audit / file / ai |
 | `microservices/legacy-backend/` | 瘦后端兜底（监控等），**不是**完整单体 |
 | `microservices/web/` | React + Ant Design（微服务前端） |
-| `monolith/` | 单体产品线（占位，后做；将来自有 server + web） |
+| `monolith/` | 单体产品线：`server/` + `web/`（与微服务零调用） |
 | `platform/` | 公共监控模板等 |
 | `tdesign-vue-go/` | **遗留** Vue 前端，非主路径 |
 | `docs/` | 工程文档 |
