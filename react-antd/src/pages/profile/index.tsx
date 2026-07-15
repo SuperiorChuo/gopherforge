@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
-  Card, Row, Col, Form, Input, Button, Tag,
+  Card, Row, Col, Form, Input, Button,
   Modal, Steps, Space, Avatar, Table,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
   UserOutlined, MailOutlined, PhoneOutlined, HistoryOutlined, SafetyCertificateOutlined,
 } from '@ant-design/icons'
+import StatusPill from '@/components/StatusPill'
 import type { ColumnsType } from 'antd/es/table'
 import { useAppSelector } from '@/hooks/store'
 import {
@@ -31,7 +32,12 @@ const loginLogColumns: ColumnsType<LoginLog> = [
     title: '状态',
     dataIndex: 'status',
     width: 80,
-    render: (v: number) => <Tag color={v === 1 ? 'success' : 'error'}>{v === 1 ? '成功' : '失败'}</Tag>,
+    render: (v: number) =>
+      v === 1 ? (
+        <StatusPill tone="success" label="成功" pulse={false} />
+      ) : (
+        <StatusPill tone="danger" label="失败" />
+      ),
   },
   { title: '浏览器', dataIndex: 'browser', ellipsis: true },
   { title: '系统', dataIndex: 'os', width: 140 },

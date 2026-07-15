@@ -1466,6 +1466,14 @@ body {
   border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
 
+.cmdk-search-icon {
+  color: rgba(148, 163, 184, 0.6);
+}
+
+[data-theme='light'] .cmdk-search-icon {
+  color: #94a3b8;
+}
+
 .cmdk-list {
   max-height: 380px;
   overflow-y: auto;

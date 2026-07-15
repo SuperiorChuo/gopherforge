@@ -363,7 +363,7 @@ export default function OperationLogPage() {
               </Descriptions.Item>
               {detail.user_agent && (
                 <Descriptions.Item label="User-Agent" span={2}>
-                  <span style={{ fontSize: 12, color: 'rgba(148, 163, 184, 0.8)' }}>{detail.user_agent}</span>
+                  <span className="card-extra-note">{detail.user_agent}</span>
                 </Descriptions.Item>
               )}
             </Descriptions>

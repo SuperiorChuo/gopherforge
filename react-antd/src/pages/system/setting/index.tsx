@@ -138,7 +138,7 @@ function SchemaSettingCard({ setting, canUpdate, onSaved }: {
         ))}
         {extraKeys.length > 0 && (
           <Form.Item label="其他字段" tooltip="结构化表单未覆盖的字段，保存时原样保留">
-            <span className="cell-mono" style={{ fontSize: 12, color: 'rgba(148, 163, 184, 0.7)' }}>
+            <span className="cell-mono card-extra-note">
               {extraKeys.join('、')}
             </span>
           </Form.Item>

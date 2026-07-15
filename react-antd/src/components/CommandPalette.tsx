@@ -115,7 +115,7 @@ export default function CommandPalette({ items }: { items: PaletteItem[] }) {
           ref={inputRef}
           size="large"
           variant="borderless"
-          prefix={<SearchOutlined style={{ color: 'rgba(148, 163, 184, 0.6)' }} />}
+          prefix={<SearchOutlined className="cmdk-search-icon" />}
           placeholder="搜索页面，↑↓ 选择，回车跳转…"
           value={query}
           onChange={(e) => {

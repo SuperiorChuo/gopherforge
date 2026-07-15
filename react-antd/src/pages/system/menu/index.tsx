@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
+  Table, Button, Space, Popconfirm, Modal, Form, Input, Select,
   Card, InputNumber, Switch, TreeSelect, Segmented, Row, Col,
 } from 'antd'
 import { message } from '@/utils/feedback'
@@ -11,7 +11,7 @@ import * as MenuAPI from '@/api/system/menu'
 import TableToolbar from '@/components/TableToolbar'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { usePermission } from '@/hooks/usePermission'
-import { EnableStatusPill } from '@/components/StatusPill'
+import StatusPill, { EnableStatusPill } from '@/components/StatusPill'
 
 interface SearchParams {
   keyword?: string
@@ -189,7 +189,12 @@ export default function MenuPage() {
       title: '隐藏',
       dataIndex: 'hidden',
       width: 70,
-      render: (v: number) => (v === 1 ? <Tag color="warning">隐藏</Tag> : <Tag>显示</Tag>),
+      render: (v: number) =>
+        v === 1 ? (
+          <StatusPill tone="warning" label="隐藏" pulse={false} />
+        ) : (
+          <StatusPill tone="muted" label="显示" />
+        ),
     },
     {
       title: '操作',
