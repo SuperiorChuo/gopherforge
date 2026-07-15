@@ -24,14 +24,9 @@ import { getOnlineUserCount } from '@/api/system/online-user'
 import { getActiveNotices } from '@/api/system/notice'
 import type { Notice } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
-import { useCountUp } from '@/hooks/useCountUp'
 import GlassEmpty from '@/components/GlassEmpty'
+import CountUpValue from '@/components/CountUpValue'
 import dayjs from 'dayjs'
-
-function CountUpValue({ value }: { value: number }) {
-  const display = useCountUp(value)
-  return <>{display.toLocaleString()}</>
-}
 
 interface StatCard {
   key: string

@@ -41,6 +41,7 @@ import {
   MoonOutlined,
   HomeOutlined,
   VerticalAlignTopOutlined,
+  ColumnHeightOutlined,
 } from '@ant-design/icons'
 import { useAppDispatch, useAppSelector } from '@/hooks/store'
 import { fetchCurrentUser, logout } from '@/store/slices/authSlice'
@@ -177,6 +178,15 @@ export default function MainLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const [showBackTop, setShowBackTop] = useState(false)
+  // 表格密度:comfortable(默认)/compact,写在 html[data-density] 上由 CSS 消费
+  const [density, setDensity] = useState<'comfortable' | 'compact'>(
+    () => (localStorage.getItem('app_density') === 'compact' ? 'compact' : 'comfortable'),
+  )
+
+  useEffect(() => {
+    document.documentElement.dataset.density = density
+    localStorage.setItem('app_density', density)
+  }, [density])
   const [forcePwdSubmitting, setForcePwdSubmitting] = useState(false)
   const [forcePwdForm] = Form.useForm()
   const pathname = location.pathname
@@ -386,6 +396,13 @@ export default function MainLayout() {
               title={mode === 'dark' ? '切换为白蓝亮色' : '切换为深空暗色'}
             >
               {mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+            </span>
+            <span
+              className="app-trigger"
+              onClick={() => setDensity((d) => (d === 'compact' ? 'comfortable' : 'compact'))}
+              title={density === 'compact' ? '切换为舒适密度' : '切换为紧凑密度'}
+            >
+              <ColumnHeightOutlined />
             </span>
             <span className="app-trigger" onClick={toggleFullscreen} title={fullscreen ? '退出全屏' : '全屏'}>
               {fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}

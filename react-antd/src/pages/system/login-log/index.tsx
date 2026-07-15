@@ -8,6 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import type { LoginLog } from '@/types'
 import { getLoginLogList, clearLoginLogs, getLoginStats, type LoginLogStats } from '@/api/system/log'
 import TableToolbar from '@/components/TableToolbar'
+import CountUpValue from '@/components/CountUpValue'
 import StatusPill from '@/components/StatusPill'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
@@ -143,23 +144,23 @@ export default function LoginLogPage() {
           <div className="log-stats-row">
             <div className="log-stat">
               <span className="log-stat-label">近 7 天登录</span>
-              <span className="log-stat-value">{stats.total.toLocaleString()}</span>
+              <span className="log-stat-value"><CountUpValue value={stats.total} /></span>
             </div>
             <div className="log-stat-divider" />
             <div className="log-stat">
               <span className="log-stat-label">成功</span>
-              <span className="log-stat-value log-stat-success">{stats.success.toLocaleString()}</span>
+              <span className="log-stat-value log-stat-success"><CountUpValue value={stats.success} /></span>
             </div>
             <div className="log-stat">
               <span className="log-stat-label">失败</span>
               <span className={`log-stat-value ${stats.failed > 0 ? 'log-stat-danger' : ''}`}>
-                {stats.failed.toLocaleString()}
+                <CountUpValue value={stats.failed} />
               </span>
             </div>
             <div className="log-stat-divider" />
             <div className="log-stat">
               <span className="log-stat-label">今日活跃用户</span>
-              <span className="log-stat-value log-stat-accent">{stats.today_users.toLocaleString()}</span>
+              <span className="log-stat-value log-stat-accent"><CountUpValue value={stats.today_users} /></span>
             </div>
           </div>
         </Card>

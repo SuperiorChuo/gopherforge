@@ -1566,6 +1566,49 @@ body {
   background: linear-gradient(180deg, transparent, rgba(37, 99, 235, 0.85), transparent);
 }
 
+/* ============================================================
+   页面打磨 · 表格密度切换(头部按钮,html[data-density] 驱动)
+   ============================================================ */
+
+html[data-density='compact'] .ant-table-tbody > tr > td {
+  padding-block: 7px !important;
+  font-size: 13px;
+}
+
+html[data-density='compact'] .ant-table-thead > tr > th {
+  padding-block: 8px !important;
+}
+
+html[data-density='compact'] .ant-table-wrapper .ant-pagination {
+  margin-top: 14px !important;
+}
+
+/* ============================================================
+   页面打磨 · 移动端头部收纳
+   ============================================================ */
+
+@media (max-width: 640px) {
+  .app-header {
+    padding: 0 12px !important;
+  }
+
+  /* 窄屏收起低频操作:搜索提示/密度/全屏,保留核心导航 */
+  .app-search-hint,
+  .app-user-name,
+  .ant-breadcrumb {
+    display: none;
+  }
+
+  .app-content {
+    margin: 12px;
+  }
+
+  .back-top-btn {
+    right: 16px;
+    bottom: 20px;
+  }
+}
+
 .table-count {
   padding: 1px 10px;
   border-radius: 10px;

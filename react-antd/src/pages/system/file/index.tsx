@@ -9,6 +9,7 @@ import type { ColumnsType } from 'antd/es/table'
 import type { FileRecord } from '@/types'
 import * as FileAPI from '@/api/system/file'
 import TableToolbar from '@/components/TableToolbar'
+import CountUpValue from '@/components/CountUpValue'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
@@ -239,7 +240,7 @@ export default function FilePage() {
           <div className="log-stats-row">
             <div className="log-stat">
               <span className="log-stat-label">文件总数</span>
-              <span className="log-stat-value">{stats.total.toLocaleString()}</span>
+              <span className="log-stat-value"><CountUpValue value={stats.total} /></span>
             </div>
             <div className="log-stat">
               <span className="log-stat-label">占用空间</span>

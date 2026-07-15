@@ -12,6 +12,7 @@ import {
   getOperationLogStats, type OperationLogStats,
 } from '@/api/system/log'
 import TableToolbar from '@/components/TableToolbar'
+import CountUpValue from '@/components/CountUpValue'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
@@ -210,12 +211,12 @@ export default function OperationLogPage() {
           <div className="log-stats-row">
             <div className="log-stat">
               <span className="log-stat-label">近 7 天操作</span>
-              <span className="log-stat-value">{stats.total.toLocaleString()}</span>
+              <span className="log-stat-value"><CountUpValue value={stats.total} /></span>
             </div>
             <div className="log-stat">
               <span className="log-stat-label">异常请求</span>
               <span className={`log-stat-value ${stats.error_count > 0 ? 'log-stat-danger' : 'log-stat-success'}`}>
-                {stats.error_count.toLocaleString()}
+                <CountUpValue value={stats.error_count} />
               </span>
             </div>
             {Object.keys(stats.by_method ?? {}).length > 0 && (
