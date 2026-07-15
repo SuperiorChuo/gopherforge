@@ -39,7 +39,7 @@ DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD=true
 - 反向代理已配置 HTTPS、HSTS 和可信代理地址。
 - 生产日志不输出密码、token、secret 或用户隐私字段。
 
-更多安全能力和发布前检查见：
+更多安全能力说明见：
 
 - `docs/SECURITY.md`
-- `docs/development/READINESS_CHECKLIST.md`
+- 上线前请替换默认密钥与管理员密码（见 README「安全提示」）

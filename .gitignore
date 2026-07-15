@@ -2,49 +2,44 @@
 .DS_Store
 .idea/
 .vscode/
+.claude/
+*.swp
+*~
 
-# Backend artifacts
-server/build/
-server/main
-server/coverage.out
-server/coverage.txt
-server/logs/
-server/uploads/
-
-# Frontend artifacts
-tdesign-vue-go/node_modules/
-tdesign-vue-go/dist/
-tdesign-vue-go/_site/
-tdesign-vue-go/coverage/
-tdesign-vue-go/playwright-report/
-tdesign-vue-go/test-results/
-
-# Project-local Python tooling
-.venv/
-.uv-cache/
-
-# Project-local code graph tooling
-.codegraph/
-.codegraph-tools/
-
-# Python worker artifacts
-external-services/douyin-python-worker/.venv/
-external-services/douyin-python-worker/.worker/
-external-services/douyin-python-worker/**/__pycache__/
-external-services/douyin-python-worker/.pytest_cache/
-
-# Local deploy staging artifacts (built binaries + config copied for scp)
-/dist/
-
-# react-antd is npm-managed (package-lock.json is tracked, CI runs npm ci)
-react-antd/pnpm-lock.yaml
-
-# Local env overrides
+# Local env
 .env
 .env.local
 *.local
-server/.env
-server/configs/config.local.yaml
-server/configs/config.production.yaml
-tdesign-vue-go/.env.local
-dist/
+**/.env
+!**/.env.example
+
+# Go
+**/coverage.out
+**/coverage.txt
+**/logs/
+**/uploads/
+**/build/
+*.exe
+*.test
+
+# Frontend
+**/node_modules/
+**/dist/
+**/_site/
+**/playwright-report/
+**/test-results/
+**/.vite/
+
+# Python / tooling (local)
+.venv/
+.uv-cache/
+__pycache__/
+.pytest_cache/
+.codegraph/
+.codegraph-tools/
+
+# Deploy staging binaries
+/dist/
+
+# OS junk
+Thumbs.db

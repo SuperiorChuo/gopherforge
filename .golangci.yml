@@ -17,5 +17,6 @@ linters:
       locale: US
   exclusions:
     paths:
-      - server/logs
-      - tdesign-vue-go
+      - '**/logs'
+      - '**/node_modules'
+      - '**/dist'

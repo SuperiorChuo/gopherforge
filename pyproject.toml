@@ -1,9 +1,0 @@
-[project]
-name = "go-admin-kit-tooling"
-version = "0.1.0"
-description = "Project-local Python tooling environment for Go Admin Kit."
-requires-python = ">=3.12"
-dependencies = []
-
-[tool.uv]
-package = false
