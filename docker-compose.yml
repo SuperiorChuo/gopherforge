@@ -117,6 +117,9 @@ services:
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
       TRACING_SAMPLE_RATIO: ${TRACING_SAMPLE_RATIO:-1.0}
       NATS_URL: nats://go-admin-kit-nats:4222
+      # Trust the compose network (see networks.ipam) so X-Forwarded-For from
+      # the Traefik gateway yields the real client IP in logs and rate limits.
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "${BACKEND_PORT:-8081}:8081"
@@ -176,6 +179,9 @@ services:
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
       CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
       NATS_URL: nats://go-admin-kit-nats:4222
+      # Same trusted-proxy range as backend; login events and login-limit
+      # keys must see the real client IP, not the gateway's.
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "${AUTH_SERVICE_PORT:-8082}:8082"
@@ -200,6 +206,55 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  identity-service:
+    build:
+      context: ./services/identity
+      dockerfile: Dockerfile
+    container_name: go-admin-kit-identity
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8083
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${IDENTITY_SERVICE_PORT:-8083}:8083"
+    labels:
+      traefik.enable: "true"
+      # Same PathPrefix caveat as the auth router: exact paths use Path(),
+      # subtrees use a trailing-slash PathPrefix(). `/user/...` (singular,
+      # monolith + auth-service) must NOT match `/users`.
+      traefik.http.routers.identity.rule: "Path(`/api/v1/users`) || PathPrefix(`/api/v1/users/`) || Path(`/api/v1/roles`) || PathPrefix(`/api/v1/roles/`) || Path(`/api/v1/permissions`) || PathPrefix(`/api/v1/permissions/`) || Path(`/api/v1/departments`) || PathPrefix(`/api/v1/departments/`)"
+      traefik.http.routers.identity.entrypoints: web
+      traefik.http.routers.identity.priority: "100"
+      traefik.http.services.identity.loadbalancer.server.port: "8083"
+    depends_on:
+      go-admin-kit-postgres:
+        condition: service_healthy
+      go-admin-kit-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8083/api/v1/health/ready >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -266,6 +321,8 @@ services:
       - --ping=true
       - --accesslog=true
       - --log.level=INFO
+      # Dashboard/API for inspecting routers; the host port below binds it to
+      # loopback only. Remove both lines if you don't want it at all.
       - --api.insecure=true
     ports:
       - "${GATEWAY_PORT:-8000}:80"
@@ -278,6 +335,8 @@ services:
       backend:
         condition: service_started
       auth-service:
+        condition: service_started
+      identity-service:
         condition: service_started
       frontend:
         condition: service_started
