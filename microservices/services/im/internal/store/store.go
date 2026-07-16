@@ -84,6 +84,13 @@ func (s *Store) seed() error {
 				Where("app_key = ? AND default_skill_group_id IS NULL", "demo").
 				Update("default_skill_group_id", defaultSG.ID).Error
 		}
+		// M4: one-shot enable bot for demo when column was just added (false + empty prompt)
+		_ = s.db.Exec(`
+			UPDATE im_sites SET bot_enabled = true
+			WHERE app_key = 'demo' AND bot_enabled = false
+			  AND (bot_system_prompt IS NULL OR bot_system_prompt = '')
+			  AND welcome_text LIKE '%在线客服%'
+		`).Error
 		return nil
 	}
 	origins, _ := json.Marshal([]string{
@@ -102,8 +109,9 @@ func (s *Store) seed() error {
 		AppSecret:      "demo-secret-change-me",
 		Name:           "演示站点",
 		AllowedOrigins: string(origins),
-		WelcomeText:    "您好，我是在线客服，请问有什么可以帮您？",
+		WelcomeText:    "您好，我是智能客服助手。可直接提问，或回复「转人工」接入坐席。",
 		Status:         1,
+		BotEnabled:     true,
 	}
 	if defaultSG != nil {
 		site.DefaultSkillGroupID = &defaultSG.ID
@@ -142,6 +150,8 @@ type SiteUpdate struct {
 	AllowedOrigins      *string
 	Status              *int16
 	DefaultSkillGroupID *uint64
+	BotEnabled          *bool
+	BotSystemPrompt     *string
 }
 
 func (s *Store) UpdateSite(id uint64, u SiteUpdate) (*model.Site, error) {
@@ -167,6 +177,12 @@ func (s *Store) UpdateSite(id uint64, u SiteUpdate) (*model.Site, error) {
 		} else {
 			site.DefaultSkillGroupID = u.DefaultSkillGroupID
 		}
+	}
+	if u.BotEnabled != nil {
+		site.BotEnabled = *u.BotEnabled
+	}
+	if u.BotSystemPrompt != nil {
+		site.BotSystemPrompt = *u.BotSystemPrompt
 	}
 	if err := s.db.Save(site).Error; err != nil {
 		return nil, err
@@ -419,17 +435,25 @@ func (s *Store) CountAssignedForAgent(agentUserID uint64) (int64, error) {
 
 // ---------- Conversations ----------
 
-func (s *Store) CreateConversation(siteID, visitorID uint64, channel, contextJSON string, skillGroupID *uint64) (*model.Conversation, error) {
+// CreateConversation starts bot_serving when botEnabled, otherwise queued (+ auto assign).
+func (s *Store) CreateConversation(siteID, visitorID uint64, channel, contextJSON string, skillGroupID *uint64, botEnabled bool) (*model.Conversation, error) {
 	now := time.Now()
+	status := "queued"
+	var queuedAt *time.Time
+	if botEnabled {
+		status = "bot_serving"
+	} else {
+		queuedAt = &now
+	}
 	c := model.Conversation{
 		PublicID:     uuid.New(),
 		SiteID:       siteID,
 		Channel:      channel,
 		VisitorID:    visitorID,
 		SkillGroupID: skillGroupID,
-		Status:       "queued",
+		Status:       status,
 		Context:      contextJSON,
-		QueuedAt:     &now,
+		QueuedAt:     queuedAt,
 	}
 	if c.Channel == "" {
 		c.Channel = "h5"
@@ -437,8 +461,11 @@ func (s *Store) CreateConversation(siteID, visitorID uint64, channel, contextJSO
 	if err := s.db.Create(&c).Error; err != nil {
 		return nil, err
 	}
-	// best-effort auto assign
-	_ = s.TryAutoAssign(&c)
+	if status == "queued" {
+		_ = s.TryAutoAssign(&c)
+	} else {
+		_ = s.AppendSystemEvent(c.ID, "bot_started", map[string]any{"status": "bot_serving"})
+	}
 	return &c, nil
 }
 
@@ -454,7 +481,7 @@ func (s *Store) GetConversationByPublicID(publicID string) (*model.Conversation,
 	return &c, nil
 }
 
-// ListAgentConversations scope: all | mine | queue
+// ListAgentConversations scope: all | mine | queue | bot
 func (s *Store) ListAgentConversations(agentUserID uint64, scope string, skillGroupID uint64, limit int) ([]model.Conversation, error) {
 	if limit <= 0 {
 		limit = 50
@@ -468,10 +495,12 @@ func (s *Store) ListAgentConversations(agentUserID uint64, scope string, skillGr
 		if skillGroupID > 0 {
 			q = q.Where("skill_group_id = ?", skillGroupID)
 		}
+	case "bot":
+		q = q.Where("status = ?", "bot_serving")
 	default: // all open
-		q = q.Where("status IN ?", []string{"queued", "assigned"})
+		q = q.Where("status IN ?", []string{"queued", "assigned", "bot_serving"})
 		if skillGroupID > 0 {
-			q = q.Where("(skill_group_id = ? OR skill_group_id IS NULL)", skillGroupID)
+			q = q.Where("(skill_group_id = ? OR skill_group_id IS NULL OR status = 'bot_serving')", skillGroupID)
 		}
 	}
 	var list []model.Conversation
@@ -479,6 +508,35 @@ func (s *Store) ListAgentConversations(agentUserID uint64, scope string, skillGr
 		Limit(limit).
 		Find(&list).Error
 	return list, err
+}
+
+// TransferToHuman moves bot_serving → queued (then auto assign).
+func (s *Store) TransferToHuman(c *model.Conversation, reason string) error {
+	if c.Status == "closed" {
+		return errors.New("conversation already closed")
+	}
+	if c.Status == "assigned" {
+		return errors.New("already with agent")
+	}
+	now := time.Now()
+	c.Status = "queued"
+	c.QueuedAt = &now
+	c.AgentUserID = nil
+	c.AssignedAt = nil
+	if err := s.db.Save(c).Error; err != nil {
+		return err
+	}
+	if reason == "" {
+		reason = "visitor"
+	}
+	_ = s.AppendSystemEvent(c.ID, "transfer_human", map[string]any{"reason": reason})
+	_ = s.TryAutoAssign(c)
+	return nil
+}
+
+func (s *Store) SaveSummary(c *model.Conversation, summary string) error {
+	c.Summary = summary
+	return s.db.Model(c).Update("summary", summary).Error
 }
 
 func (s *Store) AssignConversation(c *model.Conversation, agentUserID uint64) error {
@@ -670,7 +728,7 @@ func (s *Store) AppendSystemEvent(conversationID uint64, event string, payload m
 	return s.CreateMessage(msg)
 }
 
-func (s *Store) EnsureOpenConversation(siteID, visitorID uint64, channel, contextJSON string, skillGroupID *uint64) (*model.Conversation, error) {
+func (s *Store) EnsureOpenConversation(siteID, visitorID uint64, channel, contextJSON string, skillGroupID *uint64, botEnabled bool) (*model.Conversation, error) {
 	var c model.Conversation
 	err := s.db.Where("visitor_id = ? AND status IN ?", visitorID, []string{"queued", "assigned", "created", "bot_serving"}).
 		Order("id DESC").First(&c).Error
@@ -680,7 +738,7 @@ func (s *Store) EnsureOpenConversation(siteID, visitorID uint64, channel, contex
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
-	return s.CreateConversation(siteID, visitorID, channel, contextJSON, skillGroupID)
+	return s.CreateConversation(siteID, visitorID, channel, contextJSON, skillGroupID, botEnabled)
 }
 
 // ---------- Messages ----------

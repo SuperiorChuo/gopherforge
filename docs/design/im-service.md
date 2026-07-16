@@ -1,6 +1,6 @@
 # IM / 智能客服接入设计（自研）
 
-> 状态：设计草案；**M1+M2+M3 已落地**（`microservices/services/im`：内核 + 网页埋码 + 技能组/排队/转接）  
+> 状态：设计草案；**M1～M4 已落地**（`microservices/services/im`：内核 + 埋码 + 技能组/排队/转接 + 机器人预答/转人工/小结）  
 > 范围：`microservices` 产品线新增 `im-service` + 管理台坐席模块 + **网页埋码 Widget**  
 > 原则：完全自研消息面；与 identity/auth/file/ai 解耦协作；单体线不实现完整 IM。
 
@@ -529,8 +529,8 @@ im:report:view       # 报表（后期）
 
 ### M4 · 智能
 
-- [ ] 对接 ai-service  
-- [ ] 转人工、会话小结  
+- [x] 对接 AI（OpenAI 兼容 `/v1/chat/completions`，与 ai-service 同协议；无 Key 时 stub）  
+- [x] 转人工（按钮 + 关键词）、会话小结  
 
 ---
 

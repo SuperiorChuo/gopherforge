@@ -8,6 +8,7 @@ export type ImConversation = {
   agent_user_id?: number
   skill_group_id?: number
   close_reason?: string
+  summary?: string
   last_message_preview?: string
   last_message_at?: string
   created_at: string
@@ -73,7 +74,7 @@ export function setAgentPresence(status: string, displayName?: string) {
   }) as Promise<ImPresence>
 }
 
-export function listAgentConversations(scope: 'all' | 'mine' | 'queue' = 'all', skillGroupId?: number) {
+export function listAgentConversations(scope: 'all' | 'mine' | 'queue' | 'bot' = 'all', skillGroupId?: number) {
   return request.get('/api/v1/im/agent/conversations', {
     params: {
       scope,
@@ -106,6 +107,19 @@ export function transferConversation(
 export function closeConversation(publicId: string, reason?: string) {
   return request.post(`/api/v1/im/agent/conversations/${publicId}/close`, {
     reason: reason || 'agent',
+  }) as Promise<ImConversation>
+}
+
+export function summarizeConversation(publicId: string) {
+  return request.post(`/api/v1/im/agent/conversations/${publicId}/summary`) as Promise<{
+    summary: string
+    conversation: ImConversation
+  }>
+}
+
+export function transferHuman(publicId: string, reason?: string) {
+  return request.post(`/api/v1/im/conversations/${publicId}/transfer_human`, {
+    reason: reason || 'visitor',
   }) as Promise<ImConversation>
 }
 

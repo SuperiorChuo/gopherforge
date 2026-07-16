@@ -3,37 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>在线客服 · 访客端 (IM M1)</title>
+  <title>在线客服 · 访客端 (IM M4)</title>
   <style>
     :root { font-family: system-ui, sans-serif; color: #0f172a; }
     body { margin: 0; background: #f1f5f9; }
     .wrap { max-width: 480px; margin: 24px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(15,23,42,.08); overflow: hidden; display: flex; flex-direction: column; height: 80vh; }
-    header { padding: 14px 16px; background: linear-gradient(135deg,#4f46e5,#7c3aed); color: #fff; font-weight: 600; }
+    header { padding: 14px 16px; background: linear-gradient(135deg,#4f46e5,#7c3aed); color: #fff; font-weight: 600; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    header button { border: 0; background: rgba(255,255,255,.2); color: #fff; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 12px; }
     #log { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
     .msg { max-width: 80%; padding: 8px 12px; border-radius: 12px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; }
     .me { align-self: flex-end; background: #4f46e5; color: #fff; border-bottom-right-radius: 4px; }
     .them { align-self: flex-start; background: #e2e8f0; border-bottom-left-radius: 4px; }
+    .bot { align-self: flex-start; background: #ede9fe; border-bottom-left-radius: 4px; }
     .sys { align-self: center; color: #64748b; font-size: 12px; }
     form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #e2e8f0; }
     input { flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; }
-    button { border: 0; background: #4f46e5; color: #fff; border-radius: 8px; padding: 0 16px; cursor: pointer; }
+    button.send { border: 0; background: #4f46e5; color: #fff; border-radius: 8px; padding: 0 16px; cursor: pointer; }
     .meta { font-size: 12px; color: #94a3b8; padding: 0 16px 8px; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <header>在线客服（访客 H5 · M1）</header>
+    <header>
+      <span>在线客服（访客 · M4）</span>
+      <button type="button" id="human">转人工</button>
+    </header>
     <div class="meta" id="meta">连接中…</div>
     <div id="log"></div>
     <form id="f">
-      <input id="text" placeholder="输入消息…" autocomplete="off" />
-      <button type="submit">发送</button>
+      <input id="text" placeholder="输入消息…（可说「转人工」）" autocomplete="off" />
+      <button class="send" type="submit">发送</button>
     </form>
   </div>
   <script>
     const API = location.origin.includes('8000') ? '' : (localStorage.getItem('IM_API') || '');
     const logEl = document.getElementById('log');
     const meta = document.getElementById('meta');
+    function ok(code) { return code === 200 || code === 0; }
     function add(cls, text) {
       const d = document.createElement('div');
       d.className = 'msg ' + cls;
@@ -44,8 +50,15 @@
     function parseContent(content) {
       try {
         const o = typeof content === 'string' ? JSON.parse(content) : content;
+        if (o.event) return '[系统] ' + o.event;
         return o.text || JSON.stringify(o);
       } catch { return String(content); }
+    }
+    function bubbleClass(sender) {
+      if (sender === 'visitor') return 'me';
+      if (sender === 'bot') return 'bot';
+      if (sender === 'system') return 'sys';
+      return 'them';
     }
 
     let guestToken = localStorage.getItem('im_guest_token') || '';
@@ -53,13 +66,29 @@
     let convId = '';
     let ws;
 
+    async function transferHuman() {
+      if (!convId || !guestToken) return;
+      try {
+        const r = await fetch(API + '/api/v1/im/conversations/' + convId + '/transfer_human', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + guestToken },
+          body: JSON.stringify({ reason: 'visitor' }),
+        }).then(x => x.json());
+        if (!ok(r.code)) throw new Error(r.message || 'transfer failed');
+        meta.textContent = '已转人工 · 排队中…';
+        add('sys', '已请求转人工');
+      } catch (e) {
+        add('sys', '转人工失败: ' + e.message);
+      }
+    }
+
     async function boot() {
       const sess = await fetch(API + '/api/v1/im/visitor/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ app_key: 'demo', guest_key: guestKey || undefined, display_name: '网页访客' }),
       }).then(r => r.json());
-      if (sess.code !== 0) throw new Error(sess.message || 'session failed');
+      if (!ok(sess.code)) throw new Error(sess.message || 'session failed');
       guestToken = sess.data.guest_token;
       guestKey = sess.data.guest_key;
       localStorage.setItem('im_guest_token', guestToken);
@@ -71,16 +100,17 @@
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + guestToken },
         body: JSON.stringify({ channel: 'h5', context: { page: location.href } }),
       }).then(r => r.json());
-      if (conv.code !== 0) throw new Error(conv.message || 'conv failed');
+      if (!ok(conv.code)) throw new Error(conv.message || 'conv failed');
       convId = conv.data.public_id;
-      meta.textContent = '会话 ' + convId.slice(0, 8) + '… · 等待坐席';
+      const st = conv.data.status || '';
+      meta.textContent = '会话 ' + convId.slice(0, 8) + '… · ' + st;
 
       const hist = await fetch(API + '/api/v1/im/conversations/' + convId + '/messages', {
         headers: { Authorization: 'Bearer ' + guestToken },
       }).then(r => r.json());
-      if (hist.code === 0) {
+      if (ok(hist.code)) {
         (hist.data.messages || []).forEach(m => {
-          add(m.sender_type === 'visitor' ? 'me' : 'them', parseContent(m.content));
+          add(bubbleClass(m.sender_type), parseContent(m.content));
         });
       }
 
@@ -88,19 +118,23 @@
       ws = new WebSocket(wsBase + '/im/ws?token=' + encodeURIComponent(guestToken));
       ws.onopen = () => {
         ws.send(JSON.stringify({ type: 'conversation.subscribe', payload: { conversation_public_id: convId } }));
-        meta.textContent = '已连接 · 会话 ' + convId.slice(0, 8) + '…';
+        meta.textContent = '已连接 · ' + convId.slice(0, 8) + '… · ' + st;
       };
       ws.onmessage = (ev) => {
         const msg = JSON.parse(ev.data);
         if (msg.type === 'message.new') {
           const m = msg.payload.message;
-          if (m.sender_type === 'visitor') return; // already painted on send
-          add(m.sender_type === 'agent' || m.sender_type === 'bot' ? 'them' : 'sys', parseContent(m.content));
+          if (m.sender_type === 'visitor') return;
+          add(bubbleClass(m.sender_type), parseContent(m.content));
+        }
+        if (msg.type === 'conversation.updated' && msg.payload) {
+          meta.textContent = '会话 ' + convId.slice(0, 8) + '… · ' + (msg.payload.status || '');
         }
       };
       ws.onclose = () => { meta.textContent = '连接断开，刷新重试'; };
     }
 
+    document.getElementById('human').onclick = () => void transferHuman();
     document.getElementById('f').onsubmit = async (e) => {
       e.preventDefault();
       const input = document.getElementById('text');

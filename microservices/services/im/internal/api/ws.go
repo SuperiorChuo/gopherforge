@@ -219,6 +219,14 @@ func (s *Server) WebSocket(c *gin.Context) {
 				"request_id": msg.RequestID,
 				"payload":    gin.H{"client_msg_id": p.ClientMsgID, "seq": m.Seq, "id": m.ID},
 			})
+			// M4 bot path (same as HTTP send)
+			if senderType == "visitor" && conv2 != nil {
+				text := ""
+				if t, ok := p.Content["text"].(string); ok {
+					text = t
+				}
+				s.afterVisitorMessage(conv2, text)
+			}
 		}
 	}
 }

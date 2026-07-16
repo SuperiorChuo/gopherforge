@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/im/internal/api"
+	"github.com/go-admin-kit/services/im/internal/bot"
 	"github.com/go-admin-kit/services/im/internal/config"
 	"github.com/go-admin-kit/services/im/internal/hub"
 	"github.com/go-admin-kit/services/im/internal/store"
@@ -27,11 +28,24 @@ func main() {
 		log.Fatalf("db: %v", err)
 	}
 
+	botClient := bot.NewClient(bot.Config{
+		Enabled:      cfg.AIEnabled,
+		BaseURL:      cfg.AIBaseURL,
+		APIKey:       cfg.AIAPIKey,
+		Model:        cfg.AIModel,
+		Timeout:      cfg.AITimeout,
+		SystemPrompt: cfg.AISystemPrompt,
+	})
+	log.Printf("im bot provider=%s ai_enabled=%v", botClient.Name(), cfg.AIEnabled)
+
 	srv := &api.Server{
-		Store:    st,
-		Hub:      hub.New(),
-		AgentHub: hub.NewAgentHub(),
-		Secret:   cfg.JWTSecret,
+		Store:           st,
+		Hub:             hub.New(),
+		AgentHub:        hub.NewAgentHub(),
+		Secret:          cfg.JWTSecret,
+		Bot:             botClient,
+		BotSystemPrompt: cfg.AISystemPrompt,
+		AIEnabled:       cfg.AIEnabled,
 	}
 
 	r := gin.New()
@@ -49,8 +63,9 @@ func main() {
 	r.POST("/api/v1/im/conversations", srv.CreateConversation)
 	r.GET("/api/v1/im/conversations/:public_id/messages", srv.ListMessages)
 	r.POST("/api/v1/im/conversations/:public_id/messages", srv.SendMessage)
+	r.POST("/api/v1/im/conversations/:public_id/transfer_human", srv.TransferHuman)
 
-	// agent (M1 + M3)
+	// agent (M1 + M3 + M4)
 	r.GET("/api/v1/im/agent/me", srv.AgentMe)
 	r.PUT("/api/v1/im/agent/presence", srv.AgentPresence)
 	r.GET("/api/v1/im/agent/conversations", srv.AgentListConversations)
@@ -59,6 +74,7 @@ func main() {
 	r.POST("/api/v1/im/agent/conversations/:public_id/accept", srv.AgentAccept)
 	r.POST("/api/v1/im/agent/conversations/:public_id/transfer", srv.AgentTransfer)
 	r.POST("/api/v1/im/agent/conversations/:public_id/close", srv.AgentClose)
+	r.POST("/api/v1/im/agent/conversations/:public_id/summary", srv.AgentSummary)
 
 	// admin sites (M2 embed config)
 	r.GET("/api/v1/im/admin/sites", srv.AdminListSites)

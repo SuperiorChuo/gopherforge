@@ -1,6 +1,6 @@
-# im-service（M1 + M2 + M3）
+# im-service（M1～M4）
 
-自研 IM：访客会话、坐席台、WebSocket、网页埋码 Widget，以及 **技能组 / 排队 / 转接**。
+自研 IM：访客会话、坐席台、WebSocket、网页埋码、技能组排队，以及 **机器人预答 / 转人工 / 会话小结**。
 
 ## 能力
 
@@ -8,19 +8,31 @@
 |------|------|
 | M1 | 会话/文本消息 REST、WS、访客 H5、坐席台 `/im/desk` |
 | M2 | `widget.js` + iframe、`parent_origin` 白名单、站点配置与埋码片段 |
-| M3 | 技能组、坐席 presence、排队分配（round_robin / least_load / manual）、转接、关闭原因 |
+| M3 | 技能组、坐席 presence、排队分配、转接、关闭原因 |
+| M4 | 机器人预答（OpenAI 兼容或本地 stub）、转人工、会话小结 |
 
-### M3 要点
+### M4 要点
 
 | 能力 | 说明 |
 |------|------|
-| 技能组 | `/im/skills` 管理；表 `im_skill_groups` / `im_agent_skills` |
-| 坐席状态 | `online` / `busy` / `offline`（PG 表 `im_agent_presence`） |
-| 自动分配 | 访客建会话后，对启用策略的技能组尝试分配在线坐席 |
-| 转接 | 指定坐席，或退回排队（可改技能组） |
-| 队列视图 | 坐席台 scope：`all` / `mine` / `queue` |
+| `bot_serving` | 站点 `bot_enabled=true` 且 `AI_ENABLED=true` 时新建会话先机器人接待 |
+| 回复 | 访客消息异步调用 bot；`sender_type=bot` |
+| 转人工 | 按钮 / 关键词「转人工」→ `queued` → 技能组自动分配 |
+| 小结 | 坐席台「小结」或 `POST .../summary` |
+| 降级 | 无 `AI_API_KEY` 时用本地 stub 规则回复；AI 失败提示转人工 |
 
-种子数据：技能组 `default`（默认客服组）+ 演示站点 `app_key=demo`。
+### 环境变量（AI）
+
+| 变量 | 默认 | 说明 |
+|------|------|------|
+| `AI_ENABLED` | `true` | 总开关；false 时新建会话直接排队 |
+| `AI_BASE_URL` / `OPENAI_BASE_URL` | `https://api.openai.com` | OpenAI 兼容基址 |
+| `AI_API_KEY` / `OPENAI_API_KEY` | 空 | 有则走真实模型，无则 stub |
+| `AI_MODEL` | `gpt-4o-mini` | 模型名 |
+| `AI_SYSTEM_PROMPT` | 内置中文客服提示 | 可被站点 `bot_system_prompt` 覆盖 |
+| `AI_TIMEOUT_SEC` | `45` | 调用超时 |
+
+与 `ai-service` 同协议（`/v1/chat/completions`），可共用同一网关/Key；IM 进程内直连，不经 SSE 坐席会话。
 
 ## 埋码接入
 
@@ -32,15 +44,16 @@
 ```
 
 - 演示页：`/im/widget/demo`
-- 站点配置（需登录）：管理台 `/im/sites`
-- 默认演示 `app_key=demo`（首次启动自动种子）
-
-请把客户站 `Origin` 加入站点「允许来源」，否则 session 会被拒绝。
+- 站点配置：`/im/sites`（含机器人开关）
+- 技能组：`/im/skills`
+- 坐席台：`/im/desk`
 
 ## 本地运行
 
 ```bash
 export DB_HOST=127.0.0.1 DB_PASSWORD=123456 JWT_SECRET=local-dev-secret-change-me-32-chars
+# 可选真实模型：
+# export AI_API_KEY=sk-... AI_BASE_URL=https://api.openai.com AI_MODEL=gpt-4o-mini
 go run ./cmd/main.go
 ```
 

@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -8,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/im/internal/authjwt"
+	"github.com/go-admin-kit/services/im/internal/bot"
 	"github.com/go-admin-kit/services/im/internal/hub"
 	"github.com/go-admin-kit/services/im/internal/model"
 	"github.com/go-admin-kit/services/im/internal/store"
@@ -19,6 +22,10 @@ type Server struct {
 	Hub      *hub.Hub
 	AgentHub *hub.AgentHub
 	Secret   string
+	// Bot is optional AI / stub client (M4).
+	Bot            bot.Client
+	BotSystemPrompt string
+	AIEnabled      bool
 }
 
 func OK(c *gin.Context, data any) {
@@ -107,6 +114,7 @@ func (s *Server) WidgetConfig(c *gin.Context) {
 		"app_key":      site.AppKey,
 		"name":         site.Name,
 		"welcome_text": site.WelcomeText,
+		"bot_enabled":  site.BotEnabled,
 		"snippet":      embedSnippet(c, site.AppKey),
 	})
 }
@@ -188,23 +196,28 @@ func (s *Server) CreateConversation(c *gin.Context) {
 	_ = c.ShouldBindJSON(&req)
 	ctxJSON := store.JSONText(req.Context)
 
+	site, siteErr := s.Store.GetSite(guest.SiteID)
 	var skillID *uint64
-	if req.SkillGroupID != nil && *req.SkillGroupID > 0 {
-		skillID = req.SkillGroupID
-	} else if req.SkillGroupCode != "" {
-		if sg, err := s.Store.GetSkillGroupByCode(req.SkillGroupCode); err == nil {
-			skillID = &sg.ID
+	botOn := false
+	if siteErr == nil {
+		botOn = site.BotEnabled && s.AIEnabled
+		if req.SkillGroupID != nil && *req.SkillGroupID > 0 {
+			skillID = req.SkillGroupID
+		} else if req.SkillGroupCode != "" {
+			if sg, err := s.Store.GetSkillGroupByCode(req.SkillGroupCode); err == nil {
+				skillID = &sg.ID
+			}
+		} else if site.DefaultSkillGroupID != nil {
+			skillID = site.DefaultSkillGroupID
 		}
-	} else if site, err := s.Store.GetSite(guest.SiteID); err == nil && site.DefaultSkillGroupID != nil {
-		skillID = site.DefaultSkillGroupID
 	}
 
-	conv, err := s.Store.EnsureOpenConversation(guest.SiteID, guest.VisitorID, req.Channel, ctxJSON, skillID)
+	conv, err := s.Store.EnsureOpenConversation(guest.SiteID, guest.VisitorID, req.Channel, ctxJSON, skillID, botOn)
 	if err != nil {
 		Fail(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-	// refresh after possible auto-assign
+	// refresh after possible auto-assign / system event
 	if refreshed, err := s.Store.GetConversationByPublicID(conv.PublicID.String()); err == nil {
 		conv = refreshed
 	}
@@ -314,6 +327,15 @@ func (s *Server) SendMessage(c *gin.Context) {
 	}
 	s.Hub.Publish(publicID, payload)
 	s.AgentHub.Publish(gin.H{"type": "conversation.updated", "payload": conv})
+
+	// M4: bot reply / transfer intent after visitor message
+	if senderType == "visitor" && conv != nil {
+		text := ""
+		if t, ok := req.Content["text"].(string); ok {
+			text = t
+		}
+		s.afterVisitorMessage(conv, text)
+	}
 	OK(c, msg)
 }
 
@@ -628,6 +650,8 @@ type updateSiteReq struct {
 	AllowedOrigins      []string `json:"allowed_origins"`
 	Status              *int16   `json:"status"`
 	DefaultSkillGroupID *uint64  `json:"default_skill_group_id"`
+	BotEnabled          *bool    `json:"bot_enabled"`
+	BotSystemPrompt     *string  `json:"bot_system_prompt"`
 }
 
 // PUT /api/v1/im/admin/sites/:id
@@ -650,6 +674,8 @@ func (s *Server) AdminUpdateSite(c *gin.Context) {
 		WelcomeText:         req.WelcomeText,
 		Status:              req.Status,
 		DefaultSkillGroupID: req.DefaultSkillGroupID,
+		BotEnabled:          req.BotEnabled,
+		BotSystemPrompt:     req.BotSystemPrompt,
 	}
 	if req.AllowedOrigins != nil {
 		raw := store.JSONText(req.AllowedOrigins)
@@ -661,6 +687,225 @@ func (s *Server) AdminUpdateSite(c *gin.Context) {
 		return
 	}
 	OK(c, gin.H{"site": site, "snippet": embedSnippet(c, site.AppKey)})
+}
+
+// ---------- M4 bot / transfer human / summary ----------
+
+type transferHumanReq struct {
+	Reason string `json:"reason"`
+}
+
+// POST /api/v1/im/conversations/:public_id/transfer_human
+func (s *Server) TransferHuman(c *gin.Context) {
+	guest, ok := s.requireGuest(c)
+	if !ok {
+		return
+	}
+	conv, err := s.Store.GetConversationByPublicID(c.Param("public_id"))
+	if err != nil {
+		Fail(c, http.StatusNotFound, "conversation not found")
+		return
+	}
+	if conv.VisitorID != guest.VisitorID {
+		Fail(c, http.StatusForbidden, "not your conversation")
+		return
+	}
+	var req transferHumanReq
+	_ = c.ShouldBindJSON(&req)
+	reason := req.Reason
+	if reason == "" {
+		reason = "visitor"
+	}
+	if err := s.Store.TransferToHuman(conv, reason); err != nil {
+		Fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	if refreshed, err := s.Store.GetConversationByPublicID(conv.PublicID.String()); err == nil {
+		conv = refreshed
+	}
+	// notify visitor + agents
+	s.Hub.Publish(conv.PublicID.String(), gin.H{"type": "conversation.updated", "payload": conv})
+	s.AgentHub.Publish(gin.H{"type": "conversation.updated", "payload": conv})
+	s.AgentHub.Publish(gin.H{"type": "queue.updated", "payload": gin.H{}})
+	// push a short bot/system note to visitor
+	note := &model.Message{
+		ConversationID: conv.ID,
+		SenderType:     "bot",
+		MsgType:        "text",
+		Content:        store.JSONText(map[string]any{"text": "已为您转接人工客服，请稍候…"}),
+	}
+	if err := s.Store.CreateMessage(note); err == nil {
+		s.Hub.Publish(conv.PublicID.String(), gin.H{
+			"type": "message.new",
+			"payload": gin.H{
+				"message":                note,
+				"conversation_public_id": conv.PublicID.String(),
+			},
+		})
+	}
+	OK(c, conv)
+}
+
+// POST /api/v1/im/agent/conversations/:public_id/summary
+func (s *Server) AgentSummary(c *gin.Context) {
+	if _, ok := s.requireAgent(c); !ok {
+		return
+	}
+	conv, err := s.Store.GetConversationByPublicID(c.Param("public_id"))
+	if err != nil {
+		Fail(c, http.StatusNotFound, "conversation not found")
+		return
+	}
+	summary, err := s.generateSummary(c.Request.Context(), conv)
+	if err != nil {
+		Fail(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := s.Store.SaveSummary(conv, summary); err != nil {
+		Fail(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	_ = s.Store.AppendSystemEvent(conv.ID, "summary", map[string]any{"summary": summary})
+	if refreshed, err := s.Store.GetConversationByPublicID(conv.PublicID.String()); err == nil {
+		conv = refreshed
+	}
+	s.AgentHub.Publish(gin.H{"type": "conversation.updated", "payload": conv})
+	OK(c, gin.H{"summary": summary, "conversation": conv})
+}
+
+// afterVisitorMessage runs transfer-intent check and bot reply (async).
+func (s *Server) afterVisitorMessage(conv *model.Conversation, text string) {
+	if conv == nil || conv.Status != "bot_serving" {
+		return
+	}
+	// copy public id for goroutine
+	publicID := conv.PublicID.String()
+	convID := conv.ID
+	siteID := conv.SiteID
+	go func() {
+		// re-fetch latest
+		c, err := s.Store.GetConversationByPublicID(publicID)
+		if err != nil || c.Status != "bot_serving" {
+			return
+		}
+		if bot.WantsHuman(text) {
+			if err := s.Store.TransferToHuman(c, "keyword"); err != nil {
+				return
+			}
+			if refreshed, err := s.Store.GetConversationByPublicID(publicID); err == nil {
+				c = refreshed
+			}
+			s.Hub.Publish(publicID, gin.H{"type": "conversation.updated", "payload": c})
+			s.AgentHub.Publish(gin.H{"type": "conversation.updated", "payload": c})
+			s.AgentHub.Publish(gin.H{"type": "queue.updated", "payload": gin.H{}})
+			note := &model.Message{
+				ConversationID: convID,
+				SenderType:     "bot",
+				MsgType:        "text",
+				Content:        store.JSONText(map[string]any{"text": "好的，正在为您转接人工客服，请稍候…"}),
+			}
+			if err := s.Store.CreateMessage(note); err == nil {
+				s.Hub.Publish(publicID, gin.H{
+					"type": "message.new",
+					"payload": gin.H{"message": note, "conversation_public_id": publicID},
+				})
+			}
+			return
+		}
+		if s.Bot == nil {
+			return
+		}
+		reply, err := s.botReply(context.Background(), siteID, convID, publicID)
+		if err != nil {
+			log.Printf("im bot reply: %v", err)
+			// degrade: offer human
+			reply = "抱歉，智能助手暂时无法回答。您可以回复「转人工」接入坐席。"
+		}
+		// skip if visitor transferred while model was running
+		if latest, err := s.Store.GetConversationByPublicID(publicID); err != nil || latest.Status != "bot_serving" {
+			return
+		}
+		msg := &model.Message{
+			ConversationID: convID,
+			SenderType:     "bot",
+			MsgType:        "text",
+			Content:        store.JSONText(map[string]any{"text": reply}),
+		}
+		if err := s.Store.CreateMessage(msg); err != nil {
+			log.Printf("im bot save: %v", err)
+			return
+		}
+		s.Hub.Publish(publicID, gin.H{
+			"type": "message.new",
+			"payload": gin.H{"message": msg, "conversation_public_id": publicID},
+		})
+		if refreshed, err := s.Store.GetConversationByPublicID(publicID); err == nil {
+			s.AgentHub.Publish(gin.H{"type": "conversation.updated", "payload": refreshed})
+		}
+	}()
+}
+
+func (s *Server) botReply(ctx context.Context, siteID, convID uint64, publicID string) (string, error) {
+	system := s.BotSystemPrompt
+	if site, err := s.Store.GetSite(siteID); err == nil && strings.TrimSpace(site.BotSystemPrompt) != "" {
+		system = site.BotSystemPrompt
+	}
+	msgs, err := s.Store.ListMessages(convID, 0, 30)
+	if err != nil {
+		return "", err
+	}
+	history := make([]bot.Message, 0, len(msgs))
+	for _, m := range msgs {
+		if m.MsgType == "event" {
+			continue
+		}
+		text := bot.ExtractText(m.Content)
+		if text == "" {
+			continue
+		}
+		role := m.SenderType
+		switch role {
+		case "visitor":
+			role = "user"
+		case "bot", "agent":
+			role = "assistant"
+		default:
+			continue
+		}
+		history = append(history, bot.Message{Role: role, Content: text})
+	}
+	ctx, cancel := context.WithTimeout(ctx, 50*time.Second)
+	defer cancel()
+	return s.Bot.Complete(ctx, system, history)
+}
+
+func (s *Server) generateSummary(ctx context.Context, conv *model.Conversation) (string, error) {
+	if s.Bot == nil {
+		return "", nil
+	}
+	msgs, err := s.Store.ListMessages(conv.ID, 0, 50)
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	b.WriteString("请用中文写一段简短客服会话小结（3～6 句），含：访客诉求、处理过程、结果/待办。\n\n对话：\n")
+	for _, m := range msgs {
+		if m.MsgType == "event" {
+			continue
+		}
+		text := bot.ExtractText(m.Content)
+		if text == "" {
+			continue
+		}
+		b.WriteString(m.SenderType)
+		b.WriteString(": ")
+		b.WriteString(text)
+		b.WriteString("\n")
+	}
+	history := []bot.Message{{Role: "user", Content: b.String()}}
+	ctx, cancel := context.WithTimeout(ctx, 50*time.Second)
+	defer cancel()
+	return s.Bot.Complete(ctx, "你是客服质检助手，只输出小结正文。", history)
 }
 
 // ---------- Admin skill groups (M3) ----------

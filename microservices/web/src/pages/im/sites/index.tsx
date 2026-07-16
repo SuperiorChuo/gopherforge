@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Form, Input, Space, Table, Tag, Typography, message as antMessage } from 'antd'
+import { Button, Card, Form, Input, Space, Switch, Table, Tag, Typography, message as antMessage } from 'antd'
 import { message } from '@/utils/feedback'
 import request from '@/utils/request'
 
@@ -10,6 +10,8 @@ type SiteRow = {
   welcome_text: string
   allowed_origins: string
   status: number
+  bot_enabled?: boolean
+  bot_system_prompt?: string
   snippet?: string
 }
 
@@ -58,6 +60,8 @@ export default function ImSitesPage() {
       name: row.name,
       welcome_text: row.welcome_text,
       allowed_origins: parseOrigins(row.allowed_origins),
+      bot_enabled: row.bot_enabled !== false,
+      bot_system_prompt: row.bot_system_prompt || '',
     })
   }
 
@@ -69,6 +73,8 @@ export default function ImSitesPage() {
         name: values.name,
         welcome_text: values.welcome_text,
         allowed_origins: toOriginsJSON(values.allowed_origins || ''),
+        bot_enabled: !!values.bot_enabled,
+        bot_system_prompt: values.bot_system_prompt || '',
       })
       message.success('已保存')
       setEditing(null)
@@ -121,6 +127,12 @@ export default function ImSitesPage() {
               render: (v: number) => (v === 1 ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
             },
             {
+              title: '机器人',
+              dataIndex: 'bot_enabled',
+              width: 90,
+              render: (v: boolean) => (v ? <Tag color="purple">开</Tag> : <Tag>关</Tag>),
+            },
+            {
               title: '操作',
               width: 220,
               render: (_, row) => (
@@ -151,6 +163,12 @@ export default function ImSitesPage() {
             </Form.Item>
             <Form.Item name="welcome_text" label="欢迎语">
               <Input.TextArea rows={3} />
+            </Form.Item>
+            <Form.Item name="bot_enabled" label="启用机器人预答 (M4)" valuePropName="checked">
+              <Switch checkedChildren="开" unCheckedChildren="关" />
+            </Form.Item>
+            <Form.Item name="bot_system_prompt" label="机器人 System Prompt（可选）" extra="留空则用服务默认提示词">
+              <Input.TextArea rows={3} placeholder="你是企业在线客服助手…" />
             </Form.Item>
             <Form.Item
               name="allowed_origins"

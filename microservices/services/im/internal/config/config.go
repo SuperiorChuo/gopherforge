@@ -4,22 +4,32 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
-	AppPort    string
-	AppEnv     string
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	DBSSLMode  string
-	JWTSecret  string
+	AppPort     string
+	AppEnv      string
+	DBHost      string
+	DBPort      string
+	DBUser      string
+	DBPassword  string
+	DBName      string
+	DBSSLMode   string
+	JWTSecret   string
 	CORSOrigins []string
+
+	// AI / bot (M4) — OpenAI-compatible; empty key uses local stub.
+	AIEnabled      bool
+	AIBaseURL      string
+	AIAPIKey       string
+	AIModel        string
+	AISystemPrompt string
+	AITimeout      time.Duration
 }
 
 func Load() Config {
+	timeoutSec := EnvInt("AI_TIMEOUT_SEC", 45)
 	return Config{
 		AppPort:     getenv("APP_PORT", "8088"),
 		AppEnv:      getenv("APP_ENV", "development"),
@@ -31,6 +41,14 @@ func Load() Config {
 		DBSSLMode:   getenv("DB_SSLMODE", "disable"),
 		JWTSecret:   getenv("JWT_SECRET", "local-dev-secret-change-me-32-chars"),
 		CORSOrigins: splitCSV(getenv("CORS_ALLOW_ORIGINS", "http://localhost:8000,http://localhost:3000,http://127.0.0.1:3000")),
+
+		// Default enabled so bot_serving path works with stub offline.
+		AIEnabled:      EnvBool("AI_ENABLED", true),
+		AIBaseURL:      getenv("AI_BASE_URL", getenv("OPENAI_BASE_URL", "https://api.openai.com")),
+		AIAPIKey:       getenv("AI_API_KEY", getenv("OPENAI_API_KEY", "")),
+		AIModel:        getenv("AI_MODEL", getenv("OPENAI_MODEL", "gpt-4o-mini")),
+		AISystemPrompt: getenv("AI_SYSTEM_PROMPT", ""),
+		AITimeout:      time.Duration(timeoutSec) * time.Second,
 	}
 }
 
@@ -73,4 +91,19 @@ func EnvInt(k string, def int) int {
 		return def
 	}
 	return n
+}
+
+func EnvBool(k string, def bool) bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv(k)))
+	if v == "" {
+		return def
+	}
+	switch v {
+	case "1", "true", "yes", "on", "y":
+		return true
+	case "0", "false", "no", "off", "n":
+		return false
+	default:
+		return def
+	}
 }

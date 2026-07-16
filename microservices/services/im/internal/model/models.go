@@ -14,6 +14,10 @@ type Site struct {
 	AllowedOrigins string    `gorm:"type:text" json:"allowed_origins"` // JSON array string
 	WelcomeText    string    `gorm:"type:text" json:"welcome_text"`
 	Status         int16     `gorm:"default:1" json:"status"`
+	// BotEnabled: new conversations start in bot_serving when true (M4).
+	BotEnabled bool `gorm:"default:true" json:"bot_enabled"`
+	// BotSystemPrompt optional site-level system prompt for AI bot.
+	BotSystemPrompt string `gorm:"type:text" json:"bot_system_prompt,omitempty"`
 	// DefaultSkillGroupID routes new conversations when visitor does not specify one.
 	DefaultSkillGroupID *uint64 `json:"default_skill_group_id,omitempty"`
 	CreatedAt           time.Time `json:"created_at"`
@@ -87,6 +91,8 @@ type Conversation struct {
 	Status             string     `gorm:"size:32;index;not null;default:queued" json:"status"`
 	Context            string     `gorm:"type:text" json:"context,omitempty"`
 	CloseReason        string     `gorm:"size:64" json:"close_reason,omitempty"`
+	// Summary is AI/rule session summary (M4).
+	Summary            string     `gorm:"type:text" json:"summary,omitempty"`
 	QueuedAt           *time.Time `json:"queued_at,omitempty"`
 	AssignedAt         *time.Time `json:"assigned_at,omitempty"`
 	ClosedAt           *time.Time `json:"closed_at,omitempty"`

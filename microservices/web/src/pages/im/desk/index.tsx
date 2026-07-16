@@ -25,6 +25,7 @@ import {
   listSkillGroups,
   sendAgentMessage,
   setAgentPresence,
+  summarizeConversation,
   transferConversation,
   type ImConversation,
   type ImMessage,
@@ -49,6 +50,7 @@ function parseContent(content: string) {
 function statusColor(s: string) {
   if (s === 'queued') return 'orange'
   if (s === 'assigned') return 'blue'
+  if (s === 'bot_serving') return 'purple'
   if (s === 'closed') return 'default'
   return 'default'
 }
@@ -59,7 +61,7 @@ function presenceColor(s: string) {
   return 'default'
 }
 
-type Scope = 'all' | 'mine' | 'queue'
+type Scope = 'all' | 'mine' | 'queue' | 'bot'
 
 export default function ImDeskPage() {
   const [list, setList] = useState<ImConversation[]>([])
@@ -271,6 +273,21 @@ export default function ImDeskPage() {
     }
   }
 
+  async function onSummary() {
+    if (!active) return
+    setLoading(true)
+    try {
+      const data = await summarizeConversation(active.public_id)
+      setActive(data.conversation)
+      message.success('小结已生成')
+      await loadMessages(data.conversation)
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '小结失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function onSend() {
     if (!active || !text.trim()) return
     const body = text.trim()
@@ -292,7 +309,7 @@ export default function ImDeskPage() {
 
   return (
     <Card
-      title="智能客服 · 坐席工作台 (IM M3)"
+      title="智能客服 · 坐席工作台 (IM M4)"
       extra={
         <Space wrap>
           <Text type="secondary">我的状态</Text>
@@ -324,6 +341,7 @@ export default function ImDeskPage() {
                 { label: '全部', value: 'all' },
                 { label: '我的', value: 'mine' },
                 { label: '排队', value: 'queue' },
+                { label: '机器人', value: 'bot' },
               ]}
             />
             <Select
@@ -394,6 +412,11 @@ export default function ImDeskPage() {
               <Button disabled={!active || active.status === 'closed'} loading={loading} onClick={() => void openTransfer()}>
                 转接
               </Button>
+              <Tooltip title="调用 AI/本地机器人生成会话小结">
+                <Button disabled={!active} loading={loading} onClick={() => void onSummary()}>
+                  小结
+                </Button>
+              </Tooltip>
               <Select
                 size="small"
                 style={{ width: 120 }}
@@ -413,6 +436,22 @@ export default function ImDeskPage() {
           </div>
           <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {!active && <Empty description="从左侧选择会话，或打开访客页发起咨询" />}
+            {active?.summary ? (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: 'rgba(124,58,237,.08)',
+                  fontSize: 13,
+                  border: '1px solid rgba(124,58,237,.2)',
+                }}
+              >
+                <Text strong type="secondary">
+                  会话小结 ·{' '}
+                </Text>
+                {active.summary}
+              </div>
+            ) : null}
             {messages.map((m) => (
               <div
                 key={m.id}
@@ -425,9 +464,11 @@ export default function ImDeskPage() {
                   background:
                     m.sender_type === 'agent'
                       ? 'rgba(99,102,241,.9)'
-                      : m.sender_type === 'system'
-                        ? 'rgba(0,0,0,.04)'
-                        : 'rgba(0,0,0,.06)',
+                      : m.sender_type === 'bot'
+                        ? 'rgba(124,58,237,.12)'
+                        : m.sender_type === 'system'
+                          ? 'rgba(0,0,0,.04)'
+                          : 'rgba(0,0,0,.06)',
                   color: m.sender_type === 'agent' ? '#fff' : undefined,
                   fontSize: m.sender_type === 'system' ? 12 : undefined,
                 }}
@@ -452,7 +493,7 @@ export default function ImDeskPage() {
             </Button>
           </div>
           <div style={{ padding: '0 12px 12px', fontSize: 12, opacity: 0.65 }}>
-            提示：上线后会按技能组策略自动接单（round_robin / least_load）。转接可指定坐席或退回排队。 ·{' '}
+            提示：机器人接待中可点「小结」；访客「转人工」后进入排队。坐席上线后按技能组自动接单。 ·{' '}
             <a href="/im/visitor" target="_blank" rel="noreferrer">
               访客 H5
             </a>
