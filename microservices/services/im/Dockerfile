@@ -11,7 +11,7 @@ FROM alpine:3.20
 WORKDIR /app
 RUN apk add --no-cache tzdata wget \
     && addgroup -S app && adduser -S app -G app \
-    && mkdir -p ./logs && chown -R app:app /app
+    && mkdir -p ./logs ./uploads && chown -R app:app /app
 COPY --from=builder --chown=app:app /app/main .
 COPY --chown=app:app ./web-visitor ./web-visitor
 COPY --chown=app:app ./web-widget ./web-widget

@@ -333,7 +333,7 @@ services:
       # Same PathPrefix caveat as the auth/identity routers: exact paths use
       # Path(), subtrees use a trailing-slash PathPrefix(). `/user/menus` is
       # an exact path so it can't collide with auth's /user/me etc.
-      traefik.http.routers.system.rule: "Path(`/api/v1/menus`) || PathPrefix(`/api/v1/menus/`) || Path(`/api/v1/user/menus`) || Path(`/api/v1/dict-types`) || PathPrefix(`/api/v1/dict-types/`) || Path(`/api/v1/dict-items`) || PathPrefix(`/api/v1/dict-items/`) || Path(`/api/v1/dicts`) || PathPrefix(`/api/v1/dicts/`) || Path(`/api/v1/notices`) || PathPrefix(`/api/v1/notices/`) || Path(`/api/v1/system-settings`) || PathPrefix(`/api/v1/system-settings/`) || Path(`/api/v1/online-users`) || PathPrefix(`/api/v1/online-users/`) || Path(`/api/v1/ws/notifications`) || PathPrefix(`/api/v1/ws/notifications/`)"
+      traefik.http.routers.system.rule: "Path(`/api/v1/menus`) || PathPrefix(`/api/v1/menus/`) || Path(`/api/v1/user/menus`) || Path(`/api/v1/dict-types`) || PathPrefix(`/api/v1/dict-types/`) || Path(`/api/v1/dict-items`) || PathPrefix(`/api/v1/dict-items/`) || Path(`/api/v1/dicts`) || PathPrefix(`/api/v1/dicts/`) || Path(`/api/v1/notices`) || PathPrefix(`/api/v1/notices/`) || Path(`/api/v1/system-settings`) || PathPrefix(`/api/v1/system-settings/`) || Path(`/api/v1/online-users`) || PathPrefix(`/api/v1/online-users/`) || Path(`/api/v1/ws/notifications`) || PathPrefix(`/api/v1/ws/notifications/`) || Path(`/api/v1/system/weather`)"
       traefik.http.routers.system.entrypoints: web
       traefik.http.routers.system.priority: "100"
       traefik.http.services.system.loadbalancer.server.port: "8084"
@@ -571,6 +571,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000}
       TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - im_uploads:/app/uploads
     ports:
       - "${IM_SERVICE_PORT:-8088}:8088"
     labels:
@@ -751,6 +753,7 @@ networks:
         - subnet: 172.28.0.0/16
 
 volumes:
+  im_uploads:
   go_admin_kit_uploads:
   go_admin_kit_postgres_data:
   go_admin_kit_redis_data:

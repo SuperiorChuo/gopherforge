@@ -13,7 +13,9 @@ import {
   Tag,
   Typography,
   Tooltip,
+  Upload,
 } from 'antd'
+import { PaperClipOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
 import {
   acceptConversation,
@@ -23,10 +25,12 @@ import {
   listMessages,
   listOnlineAgents,
   listSkillGroups,
+  sendAgentAttachment,
   sendAgentMessage,
   setAgentPresence,
   summarizeConversation,
   transferConversation,
+  uploadImAttachment,
   type ImConversation,
   type ImMessage,
   type ImPresence,
@@ -37,10 +41,32 @@ import { getToken } from '@/utils/request'
 const { Sider, Content } = Layout
 const { Text } = Typography
 
-function parseContent(content: string) {
+function formatBytes(n?: number) {
+  if (!n || n <= 0) return ''
+  if (n < 1024) return `${n}B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)}KB`
+  return `${(n / 1024 / 1024).toFixed(1)}MB`
+}
+
+function renderContent(content: string) {
   try {
     const o = JSON.parse(content)
     if (o.event) return `[系统] ${o.event}${o.note ? ` · ${o.note}` : ''}`
+    if (o.url) {
+      const isImage = /\.(jpe?g|png|gif|webp)$/i.test(o.url)
+      if (isImage) {
+        return (
+          <a href={o.url} target="_blank" rel="noreferrer">
+            <img src={o.url} alt={o.name || '图片'} style={{ maxWidth: 220, maxHeight: 180, borderRadius: 8, display: 'block' }} />
+          </a>
+        )
+      }
+      return (
+        <a href={o.url} target="_blank" rel="noreferrer" download={o.name}>
+          📎 {o.name || '附件'}{o.size ? ` (${formatBytes(o.size)})` : ''}
+        </a>
+      )
+    }
     return o.text || content
   } catch {
     return content
@@ -305,6 +331,18 @@ export default function ImDeskPage() {
     }
   }
 
+  async function onPickFile(file: File) {
+    if (!active) return false
+    try {
+      const att = await uploadImAttachment(file)
+      const m = await sendAgentAttachment(active.public_id, att, crypto.randomUUID())
+      setMessages((prev) => [...prev, m])
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '上传失败')
+    }
+    return false
+  }
+
   const sgName = (id?: number) => skillGroups.find((g) => g.id === id)?.name || (id ? `#${id}` : '—')
 
   return (
@@ -476,11 +514,19 @@ export default function ImDeskPage() {
                 <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 4 }}>
                   {m.sender_type} · #{m.seq}
                 </div>
-                <div>{parseContent(m.content)}</div>
+                <div>{renderContent(m.content)}</div>
               </div>
             ))}
           </div>
           <div style={{ padding: 12, borderTop: '1px solid rgba(0,0,0,.06)', display: 'flex', gap: 8 }}>
+            <Upload
+              showUploadList={false}
+              beforeUpload={(f) => onPickFile(f as unknown as File)}
+              accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.mp4,.mp3"
+              disabled={!active || active.status === 'closed'}
+            >
+              <Button icon={<PaperClipOutlined />} disabled={!active || active.status === 'closed'} title="发送图片/文件（≤10MB）" />
+            </Upload>
             <Input
               value={text}
               disabled={!active || active.status === 'closed'}

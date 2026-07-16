@@ -28,6 +28,8 @@ type Server struct {
 	Bot            bot.Client
 	BotSystemPrompt string
 	AIEnabled      bool
+	// UploadDir is local storage for IM attachments (M2.1).
+	UploadDir string
 }
 
 func OK(c *gin.Context, data any) {
@@ -838,6 +840,10 @@ func (s *Server) AgentSummary(c *gin.Context) {
 // afterVisitorMessage runs transfer-intent check and bot reply (async).
 func (s *Server) afterVisitorMessage(conv *model.Conversation, text string) {
 	if conv == nil || conv.Status != "bot_serving" {
+		return
+	}
+	// 图片/文件等非文本消息不触发机器人（模型只支持文本）
+	if strings.TrimSpace(text) == "" {
 		return
 	}
 	// copy public id for goroutine

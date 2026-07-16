@@ -137,6 +137,31 @@ export function sendAgentMessage(publicId: string, text: string, clientMsgId: st
   }) as Promise<ImMessage>
 }
 
+export interface ImAttachment {
+  url: string
+  name: string
+  size: number
+  mime: string
+  msg_type: 'image' | 'file'
+}
+
+// 附件先上传拿 URL，再作为 image/file 消息发送
+export function uploadImAttachment(file: File) {
+  const fd = new FormData()
+  fd.append('file', file)
+  return request.post('/api/v1/im/attachments', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }) as Promise<ImAttachment>
+}
+
+export function sendAgentAttachment(publicId: string, att: ImAttachment, clientMsgId: string) {
+  return request.post(`/api/v1/im/conversations/${publicId}/messages`, {
+    client_msg_id: clientMsgId,
+    msg_type: att.msg_type,
+    content: { url: att.url, name: att.name, size: att.size, mime: att.mime },
+  }) as Promise<ImMessage>
+}
+
 // skill groups admin
 export function listSkillGroups() {
   return request.get('/api/v1/im/admin/skill-groups') as Promise<{ list: ImSkillGroup[] }>

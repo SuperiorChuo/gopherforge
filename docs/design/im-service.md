@@ -520,7 +520,7 @@ im:report:view       # 报表（后期）
 - [x] widget.js + iframe  
 - [x] guest session、parent Origin 白名单  
 - [x] 站点管理（列表/更新 + 埋码片段）  
-- [ ] 图片/文件消息（可并入 M2.1）  
+- [x] 图片/文件消息（M2.1：`/api/v1/im/attachments` 本地存储 + 三端渲染）  
 
 ### M3 · 客服
 

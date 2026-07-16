@@ -18,6 +18,7 @@ type Config struct {
 	DBSSLMode   string
 	JWTSecret   string
 	CORSOrigins []string
+	UploadDir   string
 
 	// AI / bot (M4) — OpenAI-compatible; empty key uses local stub.
 	AIEnabled      bool
@@ -40,6 +41,7 @@ func Load() Config {
 		DBName:      getenv("DB_NAME", "go_admin_kit"),
 		DBSSLMode:   getenv("DB_SSLMODE", "disable"),
 		JWTSecret:   getenv("JWT_SECRET", "local-dev-secret-change-me-32-chars"),
+		UploadDir:   getenv("IM_UPLOAD_DIR", "./uploads"),
 		CORSOrigins: splitCSV(getenv("CORS_ALLOW_ORIGINS", "http://localhost:8000,http://localhost:3000,http://127.0.0.1:3000")),
 
 		// Default enabled so bot_serving path works with stub offline.

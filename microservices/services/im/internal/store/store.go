@@ -886,7 +886,27 @@ func previewFromContent(content string) string {
 	if t, ok := m["text"].(string); ok {
 		return truncate(t, 200)
 	}
+	if u, ok := m["url"].(string); ok {
+		name, _ := m["name"].(string)
+		if isImageURL(u) {
+			return "[图片]"
+		}
+		if name != "" {
+			return "[文件] " + truncate(name, 60)
+		}
+		return "[文件]"
+	}
 	return "[消息]"
+}
+
+func isImageURL(u string) bool {
+	u = strings.ToLower(u)
+	for _, ext := range []string{".jpg", ".jpeg", ".png", ".gif", ".webp"} {
+		if strings.HasSuffix(u, ext) {
+			return true
+		}
+	}
+	return false
 }
 
 func truncate(s string, n int) string {

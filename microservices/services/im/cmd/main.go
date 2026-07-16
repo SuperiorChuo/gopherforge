@@ -14,6 +14,7 @@ import (
 	"github.com/go-admin-kit/services/im/internal/bot"
 	"github.com/go-admin-kit/services/im/internal/config"
 	"github.com/go-admin-kit/services/im/internal/hub"
+	"github.com/go-admin-kit/services/im/internal/settings"
 	"github.com/go-admin-kit/services/im/internal/store"
 )
 
@@ -28,13 +29,23 @@ func main() {
 		log.Fatalf("db: %v", err)
 	}
 
-	botClient := bot.NewClient(bot.Config{
+	// 控制台「系统设置 → AI 服务」(ai.provider) 覆盖环境变量，30s TTL 内热生效。
+	aiSettings := settings.NewAIProviderReader(st.DB(), 30*time.Second)
+	botClient := bot.NewDynamic(bot.Config{
 		Enabled:      cfg.AIEnabled,
 		BaseURL:      cfg.AIBaseURL,
 		APIKey:       cfg.AIAPIKey,
 		Model:        cfg.AIModel,
 		Timeout:      cfg.AITimeout,
 		SystemPrompt: cfg.AISystemPrompt,
+	}, func(ctx context.Context) bot.Overrides {
+		s := aiSettings.Get(ctx)
+		return bot.Overrides{
+			Provider:  s.Provider,
+			BaseURL:   s.BaseURL,
+			APIKey:    s.APIKey,
+			ChatModel: s.ChatModel,
+		}
 	})
 	log.Printf("im bot provider=%s ai_enabled=%v", botClient.Name(), cfg.AIEnabled)
 
@@ -46,6 +57,7 @@ func main() {
 		Bot:             botClient,
 		BotSystemPrompt: cfg.AISystemPrompt,
 		AIEnabled:       cfg.AIEnabled,
+		UploadDir:       cfg.UploadDir,
 	}
 
 	r := gin.New()
@@ -63,6 +75,7 @@ func main() {
 	r.POST("/api/v1/im/conversations", srv.CreateConversation)
 	r.GET("/api/v1/im/conversations/:public_id/messages", srv.ListMessages)
 	r.POST("/api/v1/im/conversations/:public_id/messages", srv.SendMessage)
+	r.POST("/api/v1/im/attachments", srv.UploadAttachment)
 	r.POST("/api/v1/im/conversations/:public_id/transfer_human", srv.TransferHuman)
 
 	// agent (M1 + M3 + M4)
@@ -99,6 +112,8 @@ func main() {
 	// webpage embed widget (M2)
 	// Gin 不允许 /im/widget/*filepath 与精确路径共存，demo 页直接走 /im/widget/demo.html
 	r.Static("/im/widget", "./web-widget")
+	// 附件静态托管（文件名为 UUID，不可枚举）
+	r.Static("/im/uploads", cfg.UploadDir)
 
 	httpSrv := &http.Server{Addr: ":" + cfg.AppPort, Handler: r}
 	go func() {

@@ -10,6 +10,7 @@
 |------|------|
 | M1 | 会话/文本消息 REST、WS、访客 H5、坐席台 `/im/desk` |
 | M2 | `widget.js` + iframe、`parent_origin` 白名单、站点配置与埋码片段 |
+| M2.1 | 图片/文件消息：`POST /api/v1/im/attachments` 上传（≤10MB），坐席台/widget/H5 三端收发 |
 | M3 | 技能组、坐席 presence、排队分配、转接、关闭原因 |
 | M4 | 机器人预答（OpenAI 兼容或本地 stub）、转人工、会话小结 |
 
@@ -22,6 +23,13 @@
 | 转人工 | 按钮 / 关键词「转人工」→ `queued` → 技能组自动分配 |
 | 小结 | 坐席台「小结」或 `POST .../summary` |
 | 降级 | 无 `AI_API_KEY` 时用本地 stub 规则回复；AI 失败提示转人工 |
+
+### AI 配置来源（优先级从高到低）
+
+1. 控制台「系统设置 → AI 服务」（`system_settings` 表 `ai.provider` 行）：
+   base_url / api_key / chat_model 逐字段覆盖环境变量，**30s 内热生效**；
+   选 Anthropic 时 IM 忽略整组覆盖（bot 只支持 OpenAI 兼容协议）
+2. 下方环境变量
 
 ### 环境变量（AI）
 

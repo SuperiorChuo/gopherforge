@@ -31,6 +31,8 @@
     <div class="meta" id="meta">连接中…</div>
     <div id="log"></div>
     <form id="f">
+      <input id="file" type="file" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.mp4,.mp3" style="display:none" />
+      <button class="send" type="button" id="attach" title="发送图片/文件" style="background:#e2e8f0;color:#0f172a">📎</button>
       <input id="text" placeholder="输入消息…（可说「转人工」）" autocomplete="off" />
       <button class="send" type="submit">发送</button>
     </form>
@@ -46,13 +48,32 @@
       d.textContent = text;
       logEl.appendChild(d);
       logEl.scrollTop = logEl.scrollHeight;
+      return d;
     }
-    function parseContent(content) {
-      try {
-        const o = typeof content === 'string' ? JSON.parse(content) : content;
-        if (o.event) return '[系统] ' + o.event;
-        return o.text || JSON.stringify(o);
-      } catch { return String(content); }
+    function isImageURL(u) { return /\.(jpe?g|png|gif|webp)$/i.test(u || ''); }
+    function addRich(cls, content) {
+      let o = null;
+      try { o = typeof content === 'string' ? JSON.parse(content) : content; } catch { /* plain */ }
+      if (o && o.url) {
+        const d = add(cls, '');
+        if (isImageURL(o.url)) {
+          const a = document.createElement('a');
+          a.href = o.url; a.target = '_blank'; a.rel = 'noreferrer';
+          const img = document.createElement('img');
+          img.src = o.url; img.alt = o.name || '图片';
+          img.style.cssText = 'max-width:200px;max-height:160px;border-radius:8px;display:block';
+          a.appendChild(img); d.appendChild(a);
+        } else {
+          const link = document.createElement('a');
+          link.href = o.url; link.target = '_blank'; link.rel = 'noreferrer';
+          link.textContent = '📎 ' + (o.name || '附件');
+          d.appendChild(link);
+        }
+        logEl.scrollTop = logEl.scrollHeight;
+        return;
+      }
+      if (o && o.event) { add(cls, '[系统] ' + o.event); return; }
+      add(cls, (o && o.text) || String(content));
     }
     function bubbleClass(sender) {
       if (sender === 'visitor') return 'me';
@@ -110,7 +131,7 @@
       }).then(r => r.json());
       if (ok(hist.code)) {
         (hist.data.messages || []).forEach(m => {
-          add(bubbleClass(m.sender_type), parseContent(m.content));
+          addRich(bubbleClass(m.sender_type), m.content);
         });
       }
 
@@ -125,7 +146,7 @@
         if (msg.type === 'message.new') {
           const m = msg.payload.message;
           if (m.sender_type === 'visitor') return;
-          add(bubbleClass(m.sender_type), parseContent(m.content));
+          addRich(bubbleClass(m.sender_type), m.content);
         }
         if (msg.type === 'conversation.updated' && msg.payload) {
           meta.textContent = '会话 ' + convId.slice(0, 8) + '… · ' + (msg.payload.status || '');
@@ -133,6 +154,38 @@
       };
       ws.onclose = () => { meta.textContent = '连接断开，刷新重试'; };
     }
+
+    document.getElementById('attach').onclick = () => {
+      if (!convId || !guestToken) return;
+      document.getElementById('file').click();
+    };
+    document.getElementById('file').onchange = async function () {
+      const f = this.files && this.files[0];
+      this.value = '';
+      if (!f || !convId || !guestToken) return;
+      if (f.size > 10 * 1024 * 1024) { add('sys', '文件不能超过 10MB'); return; }
+      const fd = new FormData();
+      fd.append('file', f);
+      try {
+        const r = await fetch(API + '/api/v1/im/attachments', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + guestToken },
+          body: fd,
+        }).then(x => x.json());
+        if (!ok(r.code)) { add('sys', r.message || '上传失败'); return; }
+        const att = r.data;
+        addRich('me', { url: att.url, name: att.name });
+        await fetch(API + '/api/v1/im/conversations/' + convId + '/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + guestToken },
+          body: JSON.stringify({
+            client_msg_id: crypto.randomUUID(),
+            msg_type: att.msg_type,
+            content: { url: att.url, name: att.name, size: att.size, mime: att.mime },
+          }),
+        });
+      } catch { add('sys', '上传失败'); }
+    };
 
     document.getElementById('human').onclick = () => void transferHuman();
     document.getElementById('f').onsubmit = async (e) => {
