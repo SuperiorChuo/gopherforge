@@ -140,6 +140,12 @@ func (s *SettingService) refreshRuntimeConfigIfNeeded(ctx context.Context, key s
 		refreshCtx, cancel := runtimeConfigInvalidationContext(ctx)
 		defer cancel()
 		_ = runtimeconfig.PublishInvalidation(refreshCtx, key)
+	case runtimeconfig.WeatherProviderSettingKey:
+		// 天气配置由本服务消费：先刷本进程缓存，再广播给其他副本。
+		refreshCtx, cancel := runtimeConfigInvalidationContext(ctx)
+		defer cancel()
+		_ = runtimeconfig.DefaultWeatherReader().Refresh(refreshCtx)
+		_ = runtimeconfig.PublishInvalidation(refreshCtx, key)
 	}
 }
 

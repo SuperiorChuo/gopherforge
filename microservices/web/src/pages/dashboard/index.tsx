@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Row, Col, Skeleton, Tag, Tooltip, Button, Space, Segmented } from 'antd'
+import { Card, Row, Col, Skeleton, Tag, Tooltip, Button, Space } from 'antd'
 import {
   UserOutlined,
   TeamOutlined,
@@ -22,6 +22,7 @@ import { getLoginTrend, getLastLogin, type LoginTrendItem } from '@/api/system/l
 import type { LoginLog } from '@/types'
 import { getOnlineUserCount } from '@/api/system/online-user'
 import { getActiveNotices } from '@/api/system/notice'
+import { getLiveWeather, type LiveWeather } from '@/api/system/weather'
 import type { Notice } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
 import GlassEmpty from '@/components/GlassEmpty'
@@ -42,6 +43,41 @@ interface StatCard {
 
 const noticeTypeLabels: Record<number, string> = { 1: '通知', 2: '公告' }
 
+// 高德天气现象文本 → 表情（按关键字匹配，未命中回退 🌤️；夜间晴/多云换月亮）
+function weatherEmoji(text: string, hour: number): string {
+  const night = hour >= 19 || hour < 6
+  if (/雷/.test(text)) return '⛈️'
+  if (/雪/.test(text)) return '❄️'
+  if (/雨/.test(text)) return '🌧️'
+  if (/雾|霾|浮尘|扬沙|沙尘/.test(text)) return '🌫️'
+  if (/阴/.test(text)) return '☁️'
+  if (/云/.test(text)) return night ? '☁️' : '🌤️'
+  if (/晴/.test(text)) return night ? '🌙' : '☀️'
+  return '🌤️'
+}
+
+const WEATHER_CACHE_KEY = 'dash-weather-cache'
+const WEATHER_CACHE_TTL = 30 * 60 * 1000
+
+// localStorage 缓存：页面往返 dashboard 不重复请求；失败静默（返回 null 则不渲染 chip）
+async function loadWeather(): Promise<LiveWeather | null> {
+  try {
+    const cached = localStorage.getItem(WEATHER_CACHE_KEY)
+    if (cached) {
+      const { data, ts } = JSON.parse(cached) as { data: LiveWeather; ts: number }
+      if (Date.now() - ts < WEATHER_CACHE_TTL && data?.weather) return data
+    }
+  } catch { /* 缓存损坏视为无缓存 */ }
+  try {
+    const data = await getLiveWeather()
+    if (!data?.weather) return null
+    localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }))
+    return data
+  } catch {
+    return null
+  }
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate()
   const { userInfo } = useAppSelector((s) => s.auth)
@@ -54,6 +90,7 @@ export default function DashboardPage() {
   const [onlineCount, setOnlineCount] = useState<number | null>(null)
   const [notices, setNotices] = useState<Notice[] | null>(null)
   const [lastLogin, setLastLogin] = useState<LoginLog | null>(null)
+  const [weather, setWeather] = useState<LiveWeather | null>(null)
 
   const canUsers = hasPerm('system:user:list')
   const canRoles = hasPerm('system:role:list')
@@ -79,6 +116,7 @@ export default function DashboardPage() {
     }
     getActiveNotices().then(setNotices).catch(() => setNotices([]))
     getLastLogin().then(setLastLogin).catch(() => setLastLogin(null))
+    loadWeather().then(setWeather)
     // 权限在进入布局前已加载完成，挂载时值即最终值
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -151,18 +189,32 @@ export default function DashboardPage() {
   const hasTrendData = trendData.some((t) => t.count > 0)
 
   return (
-    <div>
-      <div className="dash-hero">
+    <div className="dash-page">
+      <div className="dash-hero liquid-dash is-alive">
+        <div className="liquid-sheen" aria-hidden="true">
+          <i />
+          <i />
+        </div>
         <div className="dash-hero-content">
           <div className="dash-hero-greeting">
-            {greeting}，<em>{userInfo?.nickname || userInfo?.username}</em> 👋
+            {greeting}，<em>{userInfo?.nickname || userInfo?.username}</em>
           </div>
-          <div className="dash-hero-sub">欢迎回到 Go Admin Kit 管理后台，祝您工作顺利。</div>
+          <div className="dash-hero-sub">欢迎回到 Go Admin Kit · 以工程之美，驱动今日工作</div>
           <div className="dash-hero-chips">
             <span className="hero-chip">
               <CalendarOutlined />
               {dayjs().format('YYYY年M月D日')} · {['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dayjs().day()]}
             </span>
+            {weather?.weather && (
+              <span className="hero-chip">
+                <span aria-hidden>{weatherEmoji(weather.weather, hour)}</span>
+                {weather.city ? `${weather.city} · ` : ''}
+                {weather.weather}
+                {weather.temperature != null && weather.temperature !== ''
+                  ? ` ${weather.temperature}°C`
+                  : ''}
+              </span>
+            )}
             {lastLogin?.created_at && (
               <span className="hero-chip">
                 <HistoryOutlined />
@@ -184,12 +236,16 @@ export default function DashboardPage() {
         {allCards.filter((c) => c.visible).map((c, i) => (
           <Col xs={24} sm={12} lg={6} key={c.key}>
             <Card
-              className="stat-card glass-rise"
+              className="stat-card glass-rise liquid-dash-stat is-alive"
               hoverable
               styles={{ body: { padding: 20 } }}
               style={{ '--tint': c.tint, '--i': i } as React.CSSProperties}
               onClick={() => navigate(c.path)}
             >
+              <div className="liquid-sheen" aria-hidden="true">
+                <i />
+                <i />
+              </div>
               <div className="stat-card-row">
                 <div>
                   <div className="stat-card-title">{c.title}</div>
@@ -218,6 +274,7 @@ export default function DashboardPage() {
         {canTrend && (
         <Col xs={24} lg={16}>
           <Card
+            className="liquid-dash-panel is-alive"
             title={
               <span>
                 <LineChartOutlined className="card-title-icon" />
@@ -225,17 +282,20 @@ export default function DashboardPage() {
               </span>
             }
             extra={
-              <Space size={16}>
-                <Segmented
-                  size="small"
-                  value={trendDays}
-                  onChange={(v) => setTrendDays(v as number)}
-                  options={[
-                    { label: '7天', value: 7 },
-                    { label: '15天', value: 15 },
-                    { label: '30天', value: 30 },
-                  ]}
-                />
+              <Space size={12} wrap className="trend-card-extra">
+                <div className="trend-days" role="group" aria-label="登录趋势天数">
+                  {([7, 15, 30] as const).map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={`trend-days-btn${trendDays === d ? ' is-active' : ''}`}
+                      aria-pressed={trendDays === d}
+                      onClick={() => setTrendDays(d)}
+                    >
+                      {d} 天
+                    </button>
+                  ))}
+                </div>
                 <div className="trend-legend">
                   <span>
                     <span className="trend-legend-dot trend-legend-dot-success" />
@@ -250,6 +310,10 @@ export default function DashboardPage() {
             }
             style={{ height: '100%' }}
           >
+            <div className="liquid-sheen" aria-hidden="true">
+              <i />
+              <i />
+            </div>
             {trend === null ? (
               <Skeleton active paragraph={{ rows: 5 }} />
             ) : !hasTrendData ? (
@@ -307,12 +371,16 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20, height: '100%' }}>
             {canOnline && (
             <Card
-              className="stat-card"
+              className="stat-card liquid-dash-stat is-alive"
               hoverable
               onClick={() => navigate('/system/online-user')}
               styles={{ body: { padding: 20 } }}
               style={{ '--tint': 'rgba(14, 165, 233, 0.13)' } as React.CSSProperties}
             >
+              <div className="liquid-sheen" aria-hidden="true">
+                <i />
+                <i />
+              </div>
               <div className="stat-card-row">
                 <div>
                   <div className="stat-card-title">
@@ -334,6 +402,7 @@ export default function DashboardPage() {
             )}
 
             <Card
+              className="liquid-dash-panel is-alive"
               title={
                 <span>
                   <SoundOutlined className="card-title-icon-warn" />
@@ -348,6 +417,10 @@ export default function DashboardPage() {
               style={{ flex: 1 }}
               styles={{ body: { padding: '8px 16px' } }}
             >
+              <div className="liquid-sheen" aria-hidden="true">
+                <i />
+                <i />
+              </div>
               {notices === null ? (
                 <Skeleton active paragraph={{ rows: 3 }} />
               ) : notices.length === 0 ? (

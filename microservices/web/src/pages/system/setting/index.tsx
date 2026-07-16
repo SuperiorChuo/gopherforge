@@ -5,7 +5,7 @@ import {
 import { message } from '@/utils/feedback'
 import {
   SaveOutlined, ReloadOutlined, SafetyOutlined, BellOutlined, CloudOutlined, SettingOutlined,
-  RobotOutlined,
+  RobotOutlined, EnvironmentOutlined,
 } from '@ant-design/icons'
 import GlassEmpty from '@/components/GlassEmpty'
 import type { SystemSetting } from '@/types'
@@ -18,6 +18,7 @@ const GROUPS = [
   { key: 'security', label: '安全设置', icon: <SafetyOutlined /> },
   { key: 'notification', label: '通知设置', icon: <BellOutlined /> },
   { key: 'ai', label: 'AI 服务', icon: <RobotOutlined /> },
+  { key: 'weather', label: '天气服务', icon: <EnvironmentOutlined /> },
   { key: 'storage', label: '存储设置', icon: <CloudOutlined /> },
   { key: 'general', label: '通用设置', icon: <SettingOutlined /> },
 ]
@@ -25,6 +26,7 @@ const GROUPS = [
 // 已知键即使 DB 里还没有行也渲染表单，保存即创建（upsert）
 const GROUP_DEFAULT_KEYS: Record<string, string[]> = {
   ai: ['ai.provider'],
+  weather: ['weather.provider'],
 }
 
 interface FieldDef {
@@ -65,6 +67,14 @@ const FIELD_SCHEMAS: Record<string, { title: string; fields: FieldDef[] }> = {
       { key: 'api_key', label: 'API Key', type: 'password', tooltip: '留空沿用环境变量 AI_API_KEY；保存后热生效，无需重启' },
       { key: 'chat_model', label: '对话模型', type: 'string', placeholder: '如 deepseek-chat / gpt-4o-mini' },
       { key: 'embed_model', label: '向量模型', type: 'string', placeholder: '如 text-embedding-3-small，知识库检索用' },
+    ],
+  },
+  'weather.provider': {
+    title: '天气服务（仪表盘天气）',
+    fields: [
+      { key: 'amap_key', label: '高德 Web 服务 Key', type: 'password', tooltip: '高德开放平台申请「Web 服务」类型 Key，IP 定位与天气共用；保存后热生效' },
+      { key: 'default_city', label: '默认城市 adcode', type: 'string', placeholder: '如 440300（深圳），内网/定位失败时使用', tooltip: '内网访问时浏览器 IP 无法定位，将回退到该城市' },
+      { key: 'cache_minutes', label: '天气缓存（分钟）', type: 'number', min: 1, placeholder: '默认 30' },
     ],
   },
   'notification.email': {

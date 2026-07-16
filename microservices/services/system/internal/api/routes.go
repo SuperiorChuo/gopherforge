@@ -31,6 +31,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	settingAPI := system.NewSettingAPI()
 	onlineUserAPI := system.NewOnlineUserAPI()
 	notificationAPI := system.NewNotificationAPI()
+	weatherAPI := system.NewWeatherAPI()
 	if deps.DB != nil {
 		menuMgmtAPI = system.NewMenuManagementAPIWithService(systemsvc.NewMenuServiceWithDB(deps.DB))
 		menuUserAPI = system.NewMenuAPIWithService(systemsvc.NewMenuUserServiceWithDB(deps.DB))
@@ -58,6 +59,9 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		protected.POST("/ws/notifications/ticket", notificationAPI.CreateTicket)
 
 		protected.GET("/user/menus", menuUserAPI.GetUserMenus)
+
+		// 仪表盘天气 chip：登录即可见，不设权限点
+		protected.GET("/system/weather", weatherAPI.GetLiveWeather)
 
 		protected.GET("/menus", middleware.PermissionMiddleware("system:menu:list"), menuMgmtAPI.GetMenuList)
 		protected.GET("/menus/tree", middleware.PermissionMiddleware("system:menu:list"), menuMgmtAPI.GetMenuTree)
