@@ -14,6 +14,7 @@ help:
 	@echo "微服务：make compose-up | compose-down | test | smoke-api | ..."
 	@echo "单体：  make mono-up | mono-down | mono-test"
 	@echo "呼叫：  make fs-up | fs-down"
+	@echo "远程：  make remote-sync | remote-bootstrap  （见 docs/remote-dev.md）"
 	@echo "详情：cd <目录> && 查看各 README"
 
 .PHONY: mono-up mono-down mono-test fs-up fs-down
@@ -45,3 +46,11 @@ e2e-api: smoke-api
 
 migrate-redo migrate-reset:
 	@$(MAKE) -C $(MICRO)/services/monitor $@
+
+.PHONY: remote-sync remote-bootstrap remote-logs
+remote-sync:
+	./scripts/dev-sync.sh once
+remote-bootstrap:
+	./scripts/remote-bootstrap.sh
+remote-logs:
+	ssh -i $$HOME/.ssh/id_ed25519 -o IdentitiesOnly=yes root@192.168.220.109 "journalctl -u gak-mono-api-dev -u gak-ms-web-dev -f"
