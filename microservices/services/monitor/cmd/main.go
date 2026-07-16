@@ -272,12 +272,6 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	if menuResult, err := systemSvc.BootstrapDefaultMenusContext(ctx, database.DB); err != nil {
-		return fmt.Errorf("default menu bootstrap failed: %w", err)
-	} else if menuResult.Menus > 0 {
-		logger.Info("default menus bootstrapped", logger.Int("menus", menuResult.Menus))
-	}
-
 	logger.Info("initializing redis")
 	if err := redis.InitRedis(); err != nil {
 		return fmt.Errorf("redis initialization failed: %w", err)

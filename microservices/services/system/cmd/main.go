@@ -224,6 +224,13 @@ func run(ctx context.Context) error {
 	lifecycleCtx, cancelLifecycle := context.WithCancel(ctx)
 	defer cancelLifecycle()
 
+	// system 服务是菜单数据的 owner，独占默认菜单播种（按 ID 补插缺失行）。
+	if menuResult, err := systemsvc.BootstrapDefaultMenusContext(ctx, database.DB); err != nil {
+		return fmt.Errorf("default menu bootstrap failed: %w", err)
+	} else if menuResult.Menus > 0 {
+		logger.Info("default menus bootstrapped", logger.Int("menus", menuResult.Menus))
+	}
+
 	// Persist operation logs for the admin CRUD this service now owns.
 	operationLogService := systemsvc.NewOperationLogServiceWithDB(database.DB)
 	operationLogDone := middleware.StartOperationLogProcessor(lifecycleCtx, &operationLogService)
