@@ -41,8 +41,8 @@ func TestOperationLogDAOGetLogListContextHonorsCanceledContext(t *testing.T) {
 
 func TestOperationLogDAOGetLogByIDContextUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedLogFileDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "operation_logs" WHERE "operation_logs"."id" = $1 ORDER BY "operation_logs"."id" LIMIT $2`)).
-		WithArgs(uint(11), 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "operation_logs" WHERE tenant_id = $1 AND id = $2 ORDER BY "operation_logs"."id" LIMIT $3`)).
+		WithArgs(uint(1), uint(11), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "module"}).AddRow(uint(11), "system"))
 
 	log, err := NewOperationLogDAO(db).GetLogByIDContext(context.Background(), 11)

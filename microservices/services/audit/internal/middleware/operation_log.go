@@ -143,7 +143,18 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 		module := getModule(fullPath)
 		action := getAction(c.Request.Method, fullPath)
 
+		var tenantID uint
+		if tid, ok := c.Get("tenant_id"); ok {
+			if v, ok := tid.(uint); ok {
+				tenantID = v
+			}
+		}
+		if tenantID == 0 {
+			tenantID = 1
+		}
+
 		log := &model.OperationLog{
+			TenantID:     tenantID,
 			UserID:       userID,
 			Username:     username,
 			ActorType:    actor.ActorType,

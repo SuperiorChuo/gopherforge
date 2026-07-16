@@ -58,7 +58,7 @@ func (a *OAuthAPI) GithubCallback(c *gin.Context) {
 	}
 
 	if !resp.RequiresTOTP {
-		publishLoginSuccess(c, resp.User.ID, resp.User.Username, events.LoginTypeOAuthGithub)
+		publishLoginSuccess(c, resp.User.ID, resp.User.Username, events.LoginTypeOAuthGithub, resp.User.TenantID)
 	}
 	response.SuccessWithMessage(c, "login success", resp)
 }
@@ -85,7 +85,7 @@ func (a *OAuthAPI) WechatCallback(c *gin.Context) {
 	}
 
 	if !resp.RequiresTOTP {
-		publishLoginSuccess(c, resp.User.ID, resp.User.Username, events.LoginTypeOAuthWechat)
+		publishLoginSuccess(c, resp.User.ID, resp.User.Username, events.LoginTypeOAuthWechat, resp.User.TenantID)
 	}
 	response.SuccessWithMessage(c, "login success", resp)
 }

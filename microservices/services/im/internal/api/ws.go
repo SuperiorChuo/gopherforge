@@ -41,15 +41,18 @@ func (s *Server) WebSocket(c *gin.Context) {
 	}
 
 	var (
-		isGuest   bool
-		visitorID uint64
-		agentID   uint64
+		isGuest    bool
+		visitorID  uint64
+		agentID    uint64
+		agentTenant uint64
 	)
 	if g, err := authjwt.ParseGuest(s.Secret, token); err == nil {
 		isGuest = true
 		visitorID = g.VisitorID
 	} else if a, err := authjwt.ParseAgent(s.Secret, token); err == nil {
 		agentID = a.UserID
+		// Prefer gateway header when WS is proxied; else JWT claim (default 1).
+		agentTenant = resolveAgentTenantID(c, a.TenantID)
 	} else {
 		Fail(c, http.StatusUnauthorized, "invalid token")
 		return
@@ -154,6 +157,10 @@ func (s *Server) WebSocket(c *gin.Context) {
 				writeJSON(gin.H{"type": "error", "payload": gin.H{"message": "forbidden"}})
 				continue
 			}
+			if !isGuest && conv.TenantID != 0 && conv.TenantID != agentTenant {
+				writeJSON(gin.H{"type": "error", "payload": gin.H{"message": "forbidden"}})
+				continue
+			}
 			ch := s.Hub.Subscribe(p.ConversationPublicID)
 			pid := p.ConversationPublicID
 			addSub(ch, func() { s.Hub.Unsubscribe(pid, ch) })
@@ -182,6 +189,10 @@ func (s *Server) WebSocket(c *gin.Context) {
 				senderType = "visitor"
 				senderID = visitorID
 			} else {
+				if conv.TenantID != 0 && conv.TenantID != agentTenant {
+					writeJSON(gin.H{"type": "error", "request_id": msg.RequestID, "payload": gin.H{"message": "forbidden"}})
+					continue
+				}
 				senderType = "agent"
 				senderID = agentID
 				if conv.Status == "queued" || conv.AgentUserID == nil {

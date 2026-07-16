@@ -33,12 +33,12 @@ func TestFileServiceUploadContextPersistsImageDimensions(t *testing.T) {
 	content := systemFixtureBase64(t, "iVBORw0KGgoAAAANSUhEUgAAAAIAAAADCAYAAAC56t6BAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAiSURBVBhXY9CImvbfJmrafwaNvGn/bfJAjKZp/22apv0HAKfrDT/onk38AAAAAElFTkSuQmCC")
 	hash := systemMD5Hex(content)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE hash = $1 ORDER BY "files"."id" LIMIT $2`)).
-		WithArgs(hash, 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE tenant_id = $1 AND hash = $2 ORDER BY "files"."id" LIMIT $3`)).
+		WithArgs(uint(1), hash, 1).
 		WillReturnError(gorm.ErrRecordNotFound)
 	mock.ExpectBegin()
-	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "files" ("user_id","file_name","file_path","file_size","image_width","image_height","thumbnail_path","thumbnail_url","thumbnail_width","thumbnail_height","file_type","mime_type","extension","storage_type","url","hash","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING "id"`)).
-		WithArgs(uint(42), "avatar.png", sqlmock.AnyArg(), int64(len(content)), 2, 3, sqlmock.AnyArg(), sqlmock.AnyArg(), 2, 3, "image", "image/png", ".png", "local", sqlmock.AnyArg(), hash, sqlmock.AnyArg(), sqlmock.AnyArg()).
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "files" ("tenant_id","user_id","file_name","file_path","file_size","image_width","image_height","thumbnail_path","thumbnail_url","thumbnail_width","thumbnail_height","file_type","mime_type","extension","storage_type","url","hash","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING "id"`)).
+		WithArgs(uint(1), uint(42), "avatar.png", sqlmock.AnyArg(), int64(len(content)), 2, 3, sqlmock.AnyArg(), sqlmock.AnyArg(), 2, 3, "image", "image/png", ".png", "local", sqlmock.AnyArg(), hash, sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(7))
 	mock.ExpectCommit()
 
@@ -60,15 +60,15 @@ func TestFileServiceUploadContextReusesExistingImageDimensionsForDuplicateHash(t
 	content := systemFixtureBase64(t, "iVBORw0KGgoAAAANSUhEUgAAAAIAAAADCAYAAAC56t6BAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAiSURBVBhXY9CImvbfJmrafwaNvGn/bfJAjKZp/22apv0HAKfrDT/onk38AAAAAElFTkSuQmCC")
 	hash := systemMD5Hex(content)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE hash = $1 ORDER BY "files"."id" LIMIT $2`)).
-		WithArgs(hash, 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE tenant_id = $1 AND hash = $2 ORDER BY "files"."id" LIMIT $3`)).
+		WithArgs(uint(1), hash, 1).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "user_id", "file_name", "file_path", "file_size", "image_width", "image_height",
 			"file_type", "mime_type", "extension", "storage_type", "url", "hash",
 		}).AddRow(uint(7), uint(9), "stored.png", "2026/05/23/stored.png", int64(123), 640, 480, "image", "image/png", ".png", "local", "/files/stored.png", hash))
 	mock.ExpectBegin()
-	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "files" ("user_id","file_name","file_path","file_size","image_width","image_height","thumbnail_path","thumbnail_url","thumbnail_width","thumbnail_height","file_type","mime_type","extension","storage_type","url","hash","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING "id"`)).
-		WithArgs(uint(42), "avatar.png", "2026/05/23/stored.png", int64(123), 640, 480, "", "", 0, 0, "image", "image/png", ".png", "local", "/files/stored.png", hash, sqlmock.AnyArg(), sqlmock.AnyArg()).
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "files" ("tenant_id","user_id","file_name","file_path","file_size","image_width","image_height","thumbnail_path","thumbnail_url","thumbnail_width","thumbnail_height","file_type","mime_type","extension","storage_type","url","hash","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING "id"`)).
+		WithArgs(uint(1), uint(42), "avatar.png", "2026/05/23/stored.png", int64(123), 640, 480, "", "", 0, 0, "image", "image/png", ".png", "local", "/files/stored.png", hash, sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(8))
 	mock.ExpectCommit()
 
@@ -90,12 +90,12 @@ func TestFileServiceUploadContextPersistsThumbnailFields(t *testing.T) {
 	content := systemPNG(t, 400, 200)
 	hash := systemMD5Hex(content)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE hash = $1 ORDER BY "files"."id" LIMIT $2`)).
-		WithArgs(hash, 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE tenant_id = $1 AND hash = $2 ORDER BY "files"."id" LIMIT $3`)).
+		WithArgs(uint(1), hash, 1).
 		WillReturnError(gorm.ErrRecordNotFound)
 	mock.ExpectBegin()
-	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "files" ("user_id","file_name","file_path","file_size","image_width","image_height","thumbnail_path","thumbnail_url","thumbnail_width","thumbnail_height","file_type","mime_type","extension","storage_type","url","hash","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING "id"`)).
-		WithArgs(uint(42), "avatar.png", sqlmock.AnyArg(), int64(len(content)), 400, 200, sqlmock.AnyArg(), sqlmock.AnyArg(), 100, 50, "image", "image/png", ".png", "local", sqlmock.AnyArg(), hash, sqlmock.AnyArg(), sqlmock.AnyArg()).
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "files" ("tenant_id","user_id","file_name","file_path","file_size","image_width","image_height","thumbnail_path","thumbnail_url","thumbnail_width","thumbnail_height","file_type","mime_type","extension","storage_type","url","hash","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING "id"`)).
+		WithArgs(uint(1), uint(42), "avatar.png", sqlmock.AnyArg(), int64(len(content)), 400, 200, sqlmock.AnyArg(), sqlmock.AnyArg(), 100, 50, "image", "image/png", ".png", "local", sqlmock.AnyArg(), hash, sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(7))
 	mock.ExpectCommit()
 
@@ -123,8 +123,8 @@ func TestFileServiceUploadContextReusesExistingThumbnailFieldsForDuplicateHash(t
 	content := systemPNG(t, 400, 200)
 	hash := systemMD5Hex(content)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE hash = $1 ORDER BY "files"."id" LIMIT $2`)).
-		WithArgs(hash, 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE tenant_id = $1 AND hash = $2 ORDER BY "files"."id" LIMIT $3`)).
+		WithArgs(uint(1), hash, 1).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "user_id", "file_name", "file_path", "file_size", "image_width", "image_height",
 			"thumbnail_path", "thumbnail_url", "thumbnail_width", "thumbnail_height",
@@ -133,8 +133,8 @@ func TestFileServiceUploadContextReusesExistingThumbnailFieldsForDuplicateHash(t
 			"2026/05/23/thumbs/stored_120x90.png", "/files/2026/05/23/thumbs/stored_120x90.png", 120, 90,
 			"image", "image/png", ".png", "local", "/files/stored.png", hash))
 	mock.ExpectBegin()
-	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "files" ("user_id","file_name","file_path","file_size","image_width","image_height","thumbnail_path","thumbnail_url","thumbnail_width","thumbnail_height","file_type","mime_type","extension","storage_type","url","hash","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING "id"`)).
-		WithArgs(uint(42), "avatar.png", "2026/05/23/stored.png", int64(123), 640, 480,
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "files" ("tenant_id","user_id","file_name","file_path","file_size","image_width","image_height","thumbnail_path","thumbnail_url","thumbnail_width","thumbnail_height","file_type","mime_type","extension","storage_type","url","hash","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING "id"`)).
+		WithArgs(uint(1), uint(42), "avatar.png", "2026/05/23/stored.png", int64(123), 640, 480,
 			"2026/05/23/thumbs/stored_120x90.png", "/files/2026/05/23/thumbs/stored_120x90.png", 120, 90,
 			"image", "image/png", ".png", "local", "/files/stored.png", hash, sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(8))
@@ -168,8 +168,8 @@ func TestFileServiceDeleteFileContextDeletesThumbnailBestEffort(t *testing.T) {
 		t.Fatalf("write thumbnail: %v", err)
 	}
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE id = $1 ORDER BY "files"."id" LIMIT $2`)).
-		WithArgs(7, 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE tenant_id = $1 AND id = $2 ORDER BY "files"."id" LIMIT $3`)).
+		WithArgs(uint(1), 7, 1).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "user_id", "file_name", "file_path", "thumbnail_path", "storage_type",
 		}).AddRow(uint(7), uint(42), "avatar.png", originalPath, thumbnailPath, "local"))
@@ -180,8 +180,8 @@ func TestFileServiceDeleteFileContextDeletesThumbnailBestEffort(t *testing.T) {
 		WithArgs("local", thumbnailPath, uint(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(0)))
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "files" WHERE "files"."id" = $1`)).
-		WithArgs(uint(7)).
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "files" WHERE tenant_id = $1 AND "files"."id" = $2`)).
+		WithArgs(uint(1), uint(7)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
@@ -216,8 +216,8 @@ func TestFileServiceDeleteFileContextKeepsSharedOriginalAndThumbnail(t *testing.
 		t.Fatalf("write thumbnail: %v", err)
 	}
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE id = $1 ORDER BY "files"."id" LIMIT $2`)).
-		WithArgs(7, 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE tenant_id = $1 AND id = $2 ORDER BY "files"."id" LIMIT $3`)).
+		WithArgs(uint(1), 7, 1).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "user_id", "file_name", "file_path", "thumbnail_path", "storage_type",
 		}).AddRow(uint(7), uint(42), "avatar.png", originalPath, thumbnailPath, "local"))
@@ -228,8 +228,8 @@ func TestFileServiceDeleteFileContextKeepsSharedOriginalAndThumbnail(t *testing.
 		WithArgs("local", thumbnailPath, uint(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(1)))
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "files" WHERE "files"."id" = $1`)).
-		WithArgs(uint(7)).
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "files" WHERE tenant_id = $1 AND "files"."id" = $2`)).
+		WithArgs(uint(1), uint(7)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
@@ -269,8 +269,8 @@ func TestFileServiceGetFileListContextHonorsCanceledContext(t *testing.T) {
 
 func TestFileServiceGetFileByIDInScopeContextReturnsNotFoundSentinel(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE id = $1 ORDER BY "files"."id" LIMIT $2`)).
-		WithArgs(7, 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE tenant_id = $1 AND id = $2 ORDER BY "files"."id" LIMIT $3`)).
+		WithArgs(uint(1), 7, 1).
 		WillReturnError(gorm.ErrRecordNotFound)
 
 	_, err := NewFileServiceWithDB(db).GetFileByIDInScopeContext(context.Background(), 7, authz.UserDataScope{
@@ -284,8 +284,8 @@ func TestFileServiceGetFileByIDInScopeContextReturnsNotFoundSentinel(t *testing.
 func TestFileServiceDeleteFileContextReturnsLookupError(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	lookupErr := errors.New("database lookup failed")
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE id = $1 ORDER BY "files"."id" LIMIT $2`)).
-		WithArgs(7, 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE tenant_id = $1 AND id = $2 ORDER BY "files"."id" LIMIT $3`)).
+		WithArgs(uint(1), 7, 1).
 		WillReturnError(lookupErr)
 
 	err := NewFileServiceWithDB(db).DeleteFileContext(context.Background(), 7, 1, authz.UserDataScope{

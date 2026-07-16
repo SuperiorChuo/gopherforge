@@ -43,9 +43,9 @@ func setupAIDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 
 func TestConversationDAOGetForUserContextScopesByUser(t *testing.T) {
 	db, mock := setupAIDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "ai_conversations" WHERE id = $1 AND user_id = $2 ORDER BY "ai_conversations"."id" LIMIT $3`)).
-		WithArgs(uint(7), uint(3), 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "title"}).AddRow(uint(7), uint(3), "hello"))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "ai_conversations" WHERE id = $1 AND user_id = $2 AND tenant_id = $3 ORDER BY "ai_conversations"."id" LIMIT $4`)).
+		WithArgs(uint(7), uint(3), uint(1), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "tenant_id", "user_id", "title"}).AddRow(uint(7), uint(1), uint(3), "hello"))
 
 	conversation, err := NewConversationDAO(db).GetForUserContext(context.Background(), 7, 3)
 	if err != nil {
@@ -58,8 +58,8 @@ func TestConversationDAOGetForUserContextScopesByUser(t *testing.T) {
 
 func TestConversationDAODeleteForUserContextReturnsNotFound(t *testing.T) {
 	db, mock := setupAIDAOTestDB(t)
-	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "ai_conversations" WHERE id = $1 AND user_id = $2`)).
-		WithArgs(uint(7), uint(3)).
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "ai_conversations" WHERE id = $1 AND user_id = $2 AND tenant_id = $3`)).
+		WithArgs(uint(7), uint(3), uint(1)).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	err := NewConversationDAO(db).DeleteForUserContext(context.Background(), 7, 3)
@@ -120,7 +120,7 @@ func TestDocumentDAOInsertChunkContextEncodesVectorLiteral(t *testing.T) {
 func TestDocumentDAOSearchChunksContextOrdersByCosineDistance(t *testing.T) {
 	db, mock := setupAIDAOTestDB(t)
 	mock.ExpectQuery(regexp.QuoteMeta(`ORDER BY c.embedding <=> $1::vector`)).
-		WithArgs("[1,0]", 5).
+		WithArgs("[1,0]", uint(1), 5).
 		WillReturnRows(sqlmock.NewRows([]string{"document_id", "title", "chunk_index", "content", "score"}).
 			AddRow(uint(2), "doc", 0, "match", 0.92))
 
@@ -135,8 +135,8 @@ func TestDocumentDAOSearchChunksContextOrdersByCosineDistance(t *testing.T) {
 
 func TestDocumentDAODeleteContextReturnsNotFound(t *testing.T) {
 	db, mock := setupAIDAOTestDB(t)
-	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "ai_documents" WHERE id = $1`)).
-		WithArgs(uint(4)).
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "ai_documents" WHERE id = $1 AND tenant_id = $2`)).
+		WithArgs(uint(4), uint(1)).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	err := NewDocumentDAO(db).DeleteContext(context.Background(), 4)

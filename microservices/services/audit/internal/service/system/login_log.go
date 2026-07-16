@@ -11,6 +11,7 @@ import (
 	"github.com/go-admin-kit/services/audit/internal/pkg/authz"
 	"github.com/go-admin-kit/services/audit/internal/pkg/ipinfo"
 	"github.com/go-admin-kit/services/audit/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/audit/internal/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -37,13 +38,16 @@ type LoginLogListRequest struct {
 }
 
 type LoginInfo struct {
-	UserID    uint
-	Username  string
-	LoginType int8
-	Status    int8
-	IP        string
-	UserAgent string
-	Message   string
+	UserID uint
+	// TenantID scopes the login log row. Zero means resolve from context
+	// (default tenant 1) at record time — used by NATS events that carry it.
+	TenantID   uint
+	Username   string
+	LoginType  int8
+	Status     int8
+	IP         string
+	UserAgent  string
+	Message    string
 	// OccurredAt is when the login happened. Zero means "now"; event
 	// consumers set it so replayed backlogs keep their original times.
 	OccurredAt time.Time
@@ -55,6 +59,7 @@ func (s *LoginLogService) RecordContext(ctx context.Context, info *LoginInfo) er
 	device, os, browser := parseUserAgent(info.UserAgent)
 
 	log := &model.LoginLog{
+		TenantID:  tenant.EnsureID(ctx, info.TenantID),
 		UserID:    info.UserID,
 		Username:  info.Username,
 		LoginType: info.LoginType,

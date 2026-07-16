@@ -42,7 +42,7 @@ func (a *UserAPI) LoginConsole(c *gin.Context) {
 	if err != nil {
 		middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 		a.recordConsoleAuthAudit(c, "auth.login.failed", req.Username, nil, authSvc.ConsoleAuthAttemptSnapshot(consoleAuthRequestMetadata(c), req.Username, "FAILED", "invalid_credentials"))
-		publishLoginFailed(c, req.Username, "invalid_credentials")
+		publishLoginFailed(c, req.Username, "invalid_credentials", 1)
 		response.Unauthorized(c, "Invalid console username or password")
 		return
 	}
@@ -78,7 +78,7 @@ func (a *UserAPI) VerifyConsoleTOTPLogin(c *gin.Context) {
 	if err != nil {
 		middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 		a.recordConsoleAuthAudit(c, "auth.login.failed", consoleTOTPChallengeUsername(req.ChallengeID), nil, authSvc.ConsoleAuthAttemptSnapshot(consoleAuthRequestMetadata(c), consoleTOTPChallengeUsername(req.ChallengeID), "FAILED", "invalid_totp"))
-		publishLoginFailed(c, consoleTOTPChallengeUsername(req.ChallengeID), "invalid_totp")
+		publishLoginFailed(c, consoleTOTPChallengeUsername(req.ChallengeID), "invalid_totp", 1)
 		writeAuthServiceError(c, "failed to verify console totp login", err)
 		return
 	}
@@ -99,7 +99,7 @@ func (a *UserAPI) writeConsoleLoginSession(c *gin.Context, loginResp *authSvc.Lo
 	setConsoleSessionCookie(c, loginResp.AccessToken, session.TTLSec)
 	a.recordOnlineUser(c, loginResp.AccessToken)
 	a.recordConsoleAuthAudit(c, "auth.login.success", loginResp.User.Username, nil, authSvc.ConsoleLoginSuccessSnapshot(consoleAuthRequestMetadata(c), sessionRecord, session.TTLSec))
-	publishLoginSuccess(c, loginResp.User.ID, loginResp.User.Username, events.LoginTypeConsole)
+	publishLoginSuccess(c, loginResp.User.ID, loginResp.User.Username, events.LoginTypeConsole, loginResp.User.TenantID)
 	response.Success(c, session)
 }
 

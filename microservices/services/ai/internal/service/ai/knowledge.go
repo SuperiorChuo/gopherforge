@@ -13,6 +13,7 @@ import (
 	aidao "github.com/go-admin-kit/services/ai/internal/dao/ai"
 	"github.com/go-admin-kit/services/ai/internal/model"
 	"github.com/go-admin-kit/services/ai/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/ai/internal/pkg/tenant"
 )
 
 // ErrDocumentNotFound reports a missing knowledge-base document.
@@ -55,6 +56,7 @@ type CreateDocumentResult struct {
 func (s *KnowledgeService) CreateDocument(ctx context.Context, title, content string, uploaderID uint) (*CreateDocumentResult, error) {
 	now := time.Now()
 	document := &model.AIDocument{
+		TenantID:   tenant.FromContextOrDefault(ctx),
 		Title:      title,
 		Content:    content,
 		UploaderID: uploaderID,
@@ -109,7 +111,19 @@ func (s *KnowledgeService) CountDocuments(ctx context.Context) (int64, error) {
 	return s.documents.CountContext(ctx)
 }
 
-// DeleteDocument removes a document and its chunks.
+// GetDocument loads one knowledge-base document within the tenant.
+func (s *KnowledgeService) GetDocument(ctx context.Context, id uint) (*model.AIDocument, error) {
+	document, err := s.documents.GetContext(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrDocumentNotFound
+		}
+		return nil, err
+	}
+	return document, nil
+}
+
+// DeleteDocument removes a document and its chunks within the tenant.
 func (s *KnowledgeService) DeleteDocument(ctx context.Context, id uint) error {
 	err := s.documents.DeleteContext(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {

@@ -36,6 +36,7 @@ const publishTimeout = 2 * time.Second
 type LoginSuccessEvent struct {
 	UserID    uint   `json:"user_id"`
 	Username  string `json:"username"`
+	TenantID  uint   `json:"tenant_id"`
 	IP        string `json:"ip"`
 	UserAgent string `json:"user_agent"`
 	LoginType string `json:"login_type"`
@@ -45,6 +46,7 @@ type LoginSuccessEvent struct {
 // LoginFailedEvent is published on subject auth.login.failed.
 type LoginFailedEvent struct {
 	Username  string `json:"username"`
+	TenantID  uint   `json:"tenant_id"`
 	IP        string `json:"ip"`
 	UserAgent string `json:"user_agent"`
 	Reason    string `json:"reason"`

@@ -5,7 +5,8 @@ import "time"
 // AIConversation is one chat thread owned by a console user.
 type AIConversation struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	UserID    uint      `gorm:"index" json:"user_id"`
+	TenantID  uint      `gorm:"not null;default:1;index;index:idx_ai_conversations_tenant_user,priority:1" json:"tenant_id"`
+	UserID    uint      `gorm:"index;index:idx_ai_conversations_tenant_user,priority:2" json:"user_id"`
 	Title     string    `gorm:"size:200" json:"title"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -33,6 +34,7 @@ func (AIMessage) TableName() string {
 // AIDocument is one knowledge-base document.
 type AIDocument struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
+	TenantID   uint      `gorm:"not null;default:1;index" json:"tenant_id"`
 	Title      string    `gorm:"size:200" json:"title"`
 	Content    string    `gorm:"type:text" json:"content"`
 	UploaderID uint      `json:"uploader_id"`

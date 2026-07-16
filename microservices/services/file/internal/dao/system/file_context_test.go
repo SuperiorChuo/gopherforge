@@ -34,8 +34,8 @@ func TestFileDAOGetListContextHonorsCanceledContext(t *testing.T) {
 
 func TestFileDAOGetByHashContextUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedLogFileDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE hash = $1 ORDER BY "files"."id" LIMIT $2`)).
-		WithArgs("abc123", 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE tenant_id = $1 AND hash = $2 ORDER BY "files"."id" LIMIT $3`)).
+		WithArgs(uint(1), "abc123", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "hash", "file_name", "file_path"}).
 			AddRow(uint(7), "abc123", "report.pdf", "/tmp/report.pdf"))
 

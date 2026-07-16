@@ -5,6 +5,7 @@ import "time"
 // OperationLog stores request-level operation audit data.
 type OperationLog struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
+	TenantID     uint      `gorm:"not null;default:1;index" json:"tenant_id"`
 	UserID       uint      `gorm:"index" json:"user_id"`
 	Username     string    `gorm:"size:50" json:"username"`
 	ActorType    string    `gorm:"size:64;default:operator;index" json:"actor_type"`
@@ -46,6 +47,7 @@ func (AuditLog) TableName() string {
 // LoginLog stores authentication attempt records.
 type LoginLog struct {
 	ID        uint   `gorm:"primaryKey" json:"id"`
+	TenantID  uint   `gorm:"not null;default:1;index" json:"tenant_id"`
 	UserID    uint   `gorm:"index" json:"user_id"`
 	Username  string `gorm:"size:50" json:"username"`
 	LoginType int8   `gorm:"default:1" json:"login_type"`

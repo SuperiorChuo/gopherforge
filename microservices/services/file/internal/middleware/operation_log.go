@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/file/internal/model"
+	"github.com/go-admin-kit/services/file/internal/pkg/tenant"
 )
 
 // Operation module mapping.
@@ -143,7 +144,18 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 		module := getModule(fullPath)
 		action := getAction(c.Request.Method, fullPath)
 
+		var tenantID uint
+		if tid, ok := c.Get("tenant_id"); ok {
+			if v, ok := tid.(uint); ok {
+				tenantID = v
+			}
+		}
+		if tenantID == 0 {
+			tenantID = tenant.IDFromContext(c.Request.Context())
+		}
+
 		log := &model.OperationLog{
+			TenantID:     tenantID,
 			UserID:       userID,
 			Username:     username,
 			ActorType:    actor.ActorType,

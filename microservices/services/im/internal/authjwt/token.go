@@ -24,7 +24,16 @@ type GuestClaims struct {
 type AgentClaims struct {
 	UserID   uint64 `json:"user_id"`
 	Username string `json:"username"`
+	TenantID uint64 `json:"tenant_id"`
 	jwt.RegisteredClaims
+}
+
+// NormalizeTenantID maps zero/empty tenant to default tenant (id=1).
+func NormalizeTenantID(id uint64) uint64 {
+	if id == 0 {
+		return 1
+	}
+	return id
 }
 
 func MintGuest(secret string, visitorID, siteID uint64, guestKey string, ttl time.Duration) (string, error) {
@@ -74,5 +83,6 @@ func ParseAgent(secret, token string) (*AgentClaims, error) {
 	if !ok || !t.Valid || c.UserID == 0 {
 		return nil, errors.New("invalid agent token")
 	}
+	c.TenantID = NormalizeTenantID(c.TenantID)
 	return c, nil
 }

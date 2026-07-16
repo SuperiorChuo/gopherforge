@@ -8,6 +8,7 @@ import (
 
 type Site struct {
 	ID             uint64    `gorm:"primaryKey" json:"id"`
+	TenantID       uint64    `gorm:"not null;default:1;index" json:"tenant_id"`
 	AppKey         string    `gorm:"size:64;uniqueIndex;not null" json:"app_key"`
 	AppSecret      string    `gorm:"size:128;not null" json:"-"`
 	Name           string    `gorm:"size:128;not null" json:"name"`
@@ -41,12 +42,13 @@ func (Visitor) TableName() string { return "im_visitors" }
 
 // SkillGroup routes queue assignment.
 type SkillGroup struct {
-	ID        uint64    `gorm:"primaryKey" json:"id"`
-	Name      string    `gorm:"size:128;not null" json:"name"`
-	Code      string    `gorm:"size:64;uniqueIndex;not null" json:"code"`
+	ID       uint64 `gorm:"primaryKey" json:"id"`
+	TenantID uint64 `gorm:"not null;default:1;uniqueIndex:ux_im_skill_groups_tenant_code,priority:1;index" json:"tenant_id"`
+	Name     string `gorm:"size:128;not null" json:"name"`
+	Code     string `gorm:"size:64;uniqueIndex:ux_im_skill_groups_tenant_code,priority:2;not null" json:"code"`
 	// Strategy: round_robin | least_load | manual
-	Strategy  string    `gorm:"size:32;not null;default:round_robin" json:"strategy"`
-	Status    int16     `gorm:"default:1" json:"status"`
+	Strategy string `gorm:"size:32;not null;default:round_robin" json:"strategy"`
+	Status   int16  `gorm:"default:1" json:"status"`
 	// RRCursor is last assigned agent_user_id for round-robin (best-effort).
 	RRCursor  uint64    `gorm:"default:0" json:"-"`
 	CreatedAt time.Time `json:"created_at"`
@@ -83,12 +85,13 @@ func (AgentPresence) TableName() string { return "im_agent_presence" }
 type Conversation struct {
 	ID                 uint64     `gorm:"primaryKey" json:"id"`
 	PublicID           uuid.UUID  `gorm:"type:uuid;uniqueIndex;not null" json:"public_id"`
+	TenantID           uint64     `gorm:"not null;default:1;index:idx_im_conversations_tenant_status,priority:1;index" json:"tenant_id"`
 	SiteID             uint64     `gorm:"index;not null" json:"site_id"`
 	Channel            string     `gorm:"size:32;not null;default:h5" json:"channel"`
 	VisitorID          uint64     `gorm:"index;not null" json:"visitor_id"`
 	AgentUserID        *uint64    `gorm:"index" json:"agent_user_id,omitempty"`
 	SkillGroupID       *uint64    `gorm:"index" json:"skill_group_id,omitempty"`
-	Status             string     `gorm:"size:32;index;not null;default:queued" json:"status"`
+	Status             string     `gorm:"size:32;index:idx_im_conversations_tenant_status,priority:2;index;not null;default:queued" json:"status"`
 	Context            string     `gorm:"type:text" json:"context,omitempty"`
 	CloseReason        string     `gorm:"size:64" json:"close_reason,omitempty"`
 	// Summary is AI/rule session summary (M4).

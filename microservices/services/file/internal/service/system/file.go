@@ -12,6 +12,7 @@ import (
 	"github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/authz"
 	"github.com/go-admin-kit/services/file/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/file/internal/pkg/tenant"
 	"github.com/go-admin-kit/services/file/internal/pkg/upload"
 	"gorm.io/gorm"
 )
@@ -69,6 +70,8 @@ func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHea
 		return nil, err
 	}
 
+	tenantID := tenant.IDFromContext(ctx)
+
 	existingFile, err := s.fileDAO.GetByHashContext(ctx, info.Hash)
 	if err == nil && existingFile != nil {
 		_ = s.uploader.DeleteContext(ctx, info.FilePath)
@@ -76,6 +79,7 @@ func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHea
 			_ = s.uploader.DeleteContext(ctx, info.ThumbnailPath)
 		}
 		newFile := &model.File{
+			TenantID:        tenantID,
 			UserID:          userID,
 			FileName:        info.FileName,
 			FilePath:        existingFile.FilePath,
@@ -107,6 +111,7 @@ func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHea
 	}
 
 	fileRecord := &model.File{
+		TenantID:        tenantID,
 		UserID:          userID,
 		FileName:        info.FileName,
 		FilePath:        info.FilePath,

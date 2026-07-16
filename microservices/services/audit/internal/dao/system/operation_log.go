@@ -9,6 +9,7 @@ import (
 	"github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/audit/internal/pkg/authz"
 	"github.com/go-admin-kit/services/audit/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/audit/internal/pkg/tenant"
 )
 
 type OperationLogDAO struct {
@@ -27,18 +28,22 @@ func (d *OperationLogDAO) dbWithContext(ctx context.Context) *gorm.DB {
 }
 
 func (d *OperationLogDAO) CreateLogContext(ctx context.Context, log *model.OperationLog) error {
+	if log != nil {
+		log.TenantID = tenant.EnsureID(ctx, log.TenantID)
+	}
 	return d.dbWithContext(ctx).Create(log).Error
 }
 
 func (d *OperationLogDAO) GetLogByIDContext(ctx context.Context, id uint) (*model.OperationLog, error) {
 	var log model.OperationLog
-	result := d.dbWithContext(authz.DisableDataScope(ctx)).First(&log, id)
+	query := tenant.ApplyFilter(d.dbWithContext(authz.DisableDataScope(ctx)).Model(&model.OperationLog{}), ctx)
+	result := query.Where("id = ?", id).First(&log)
 	return &log, result.Error
 }
 
 func (d *OperationLogDAO) GetLogByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*model.OperationLog, error) {
 	var log model.OperationLog
-	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.OperationLog{})
+	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.OperationLog{}), ctx)
 	result := query.Where("id = ?", id).First(&log)
 	return &log, result.Error
 }
@@ -55,7 +60,7 @@ func (d *OperationLogDAO) GetLogListContext(
 	var logs []model.OperationLog
 	var total int64
 
-	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.OperationLog{})
+	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.OperationLog{}), ctx)
 	query = applyOperationLogFilters(query, userID, username, actorType, actorID, requestID, method, path, module, action, status, startTime, endTime)
 
 	if err := query.Count(&total).Error; err != nil {
@@ -111,12 +116,13 @@ func applyOperationLogFilters(
 }
 
 func (d *OperationLogDAO) DeleteLogsBeforeContext(ctx context.Context, before time.Time) (int64, error) {
-	result := d.dbWithContext(ctx).Where("created_at < ?", before).Delete(&model.OperationLog{})
+	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.OperationLog{}), ctx)
+	result := query.Where("created_at < ?", before).Delete(&model.OperationLog{})
 	return result.RowsAffected, result.Error
 }
 
 func (d *OperationLogDAO) DeleteLogsBeforeInScopeContext(ctx context.Context, before time.Time, dataScope authz.UserDataScope) (int64, error) {
-	query := d.dbWithContext(ctx).Model(&model.OperationLog{}).Where("created_at < ?", before)
+	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.OperationLog{}), ctx).Where("created_at < ?", before)
 	query = authz.ApplyOwnerScope(query, dataScope, "user_id")
 	result := query.Delete(&model.OperationLog{})
 	return result.RowsAffected, result.Error
@@ -132,8 +138,11 @@ func (d *OperationLogDAO) GetLogStatsInScopeContext(ctx context.Context, startTi
 
 func (d *OperationLogDAO) getLogStatsContext(ctx context.Context, startTime, endTime *time.Time) (*LogStats, error) {
 	stats := &LogStats{ByModule: map[string]int64{}, ByMethod: map[string]int64{}}
+	base := func() *gorm.DB {
+		return tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.OperationLog{}), ctx)
+	}
 
-	query := applyTimeRange(d.dbWithContext(ctx).Model(&model.OperationLog{}), startTime, endTime)
+	query := applyTimeRange(base(), startTime, endTime)
 	if err := query.Count(&stats.Total).Error; err != nil {
 		return nil, err
 	}
@@ -142,7 +151,7 @@ func (d *OperationLogDAO) getLogStatsContext(ctx context.Context, startTime, end
 		Module string `json:"module"`
 		Count  int64  `json:"count"`
 	}
-	if err := applyTimeRange(d.dbWithContext(ctx).Model(&model.OperationLog{}), startTime, endTime).
+	if err := applyTimeRange(base(), startTime, endTime).
 		Select("module, count(*) as count").
 		Group("module").
 		Find(&moduleStats).Error; err != nil {
@@ -156,7 +165,7 @@ func (d *OperationLogDAO) getLogStatsContext(ctx context.Context, startTime, end
 		Method string `json:"method"`
 		Count  int64  `json:"count"`
 	}
-	if err := applyTimeRange(d.dbWithContext(ctx).Model(&model.OperationLog{}), startTime, endTime).
+	if err := applyTimeRange(base(), startTime, endTime).
 		Select("method, count(*) as count").
 		Group("method").
 		Find(&methodStats).Error; err != nil {
@@ -166,7 +175,7 @@ func (d *OperationLogDAO) getLogStatsContext(ctx context.Context, startTime, end
 		stats.ByMethod[s.Method] = s.Count
 	}
 
-	if err := applyTimeRange(d.dbWithContext(ctx).Model(&model.OperationLog{}), startTime, endTime).
+	if err := applyTimeRange(base(), startTime, endTime).
 		Where("status >= 400").
 		Count(&stats.ErrorCount).Error; err != nil {
 		return nil, err

@@ -49,14 +49,21 @@ func (s *Store) migrate() error {
 }
 
 func (s *Store) seed() error {
-	// default skill group
+	// default skill group for tenant 1 only (global seed)
+	const seedTenant uint64 = 1
+	// backfill missing tenant_id before uniqueness checks (older rows may still have 0)
+	_ = s.db.Model(&model.Site{}).Where("tenant_id = ?", 0).Update("tenant_id", seedTenant).Error
+	_ = s.db.Model(&model.SkillGroup{}).Where("tenant_id = ?", 0).Update("tenant_id", seedTenant).Error
+	_ = s.db.Model(&model.Conversation{}).Where("tenant_id = ?", 0).Update("tenant_id", seedTenant).Error
+
 	var sgCount int64
-	if err := s.db.Model(&model.SkillGroup{}).Count(&sgCount).Error; err != nil {
+	if err := s.db.Model(&model.SkillGroup{}).Where("tenant_id = ?", seedTenant).Count(&sgCount).Error; err != nil {
 		return err
 	}
 	var defaultSG *model.SkillGroup
 	if sgCount == 0 {
 		sg := model.SkillGroup{
+			TenantID: seedTenant,
 			Name:     "默认客服组",
 			Code:     "default",
 			Strategy: "round_robin",
@@ -68,7 +75,7 @@ func (s *Store) seed() error {
 		defaultSG = &sg
 	} else {
 		var sg model.SkillGroup
-		if err := s.db.Where("code = ?", "default").First(&sg).Error; err == nil {
+		if err := s.db.Where("tenant_id = ? AND code = ?", seedTenant, "default").First(&sg).Error; err == nil {
 			defaultSG = &sg
 		}
 	}
@@ -105,6 +112,7 @@ func (s *Store) seed() error {
 		"null", // file:// demo pages
 	})
 	site := model.Site{
+		TenantID:       seedTenant,
 		AppKey:         "demo",
 		AppSecret:      "demo-secret-change-me",
 		Name:           "演示站点",
@@ -130,15 +138,28 @@ func (s *Store) GetSiteByAppKey(appKey string) (*model.Site, error) {
 	return &site, nil
 }
 
-func (s *Store) ListSites() ([]model.Site, error) {
+func (s *Store) ListSites(tenantID uint64) ([]model.Site, error) {
 	var list []model.Site
-	err := s.db.Order("id ASC").Find(&list).Error
+	q := s.db.Order("id ASC")
+	if tenantID > 0 {
+		q = q.Where("tenant_id = ?", tenantID)
+	}
+	err := q.Find(&list).Error
 	return list, err
 }
 
 func (s *Store) GetSite(id uint64) (*model.Site, error) {
 	var site model.Site
 	if err := s.db.First(&site, id).Error; err != nil {
+		return nil, err
+	}
+	return &site, nil
+}
+
+// GetSiteForTenant returns a site only when it belongs to tenantID.
+func (s *Store) GetSiteForTenant(id, tenantID uint64) (*model.Site, error) {
+	var site model.Site
+	if err := s.db.Where("id = ? AND tenant_id = ?", id, tenantID).First(&site).Error; err != nil {
 		return nil, err
 	}
 	return &site, nil
@@ -154,8 +175,8 @@ type SiteUpdate struct {
 	BotSystemPrompt     *string
 }
 
-func (s *Store) UpdateSite(id uint64, u SiteUpdate) (*model.Site, error) {
-	site, err := s.GetSite(id)
+func (s *Store) UpdateSite(id, tenantID uint64, u SiteUpdate) (*model.Site, error) {
+	site, err := s.GetSiteForTenant(id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -175,6 +196,10 @@ func (s *Store) UpdateSite(id uint64, u SiteUpdate) (*model.Site, error) {
 		if *u.DefaultSkillGroupID == 0 {
 			site.DefaultSkillGroupID = nil
 		} else {
+			// skill group must belong to same tenant
+			if _, err := s.GetSkillGroupForTenant(*u.DefaultSkillGroupID, tenantID); err != nil {
+				return nil, errors.New("default skill group not found in tenant")
+			}
 			site.DefaultSkillGroupID = u.DefaultSkillGroupID
 		}
 	}
@@ -234,9 +259,13 @@ func (s *Store) GetVisitor(id uint64) (*model.Visitor, error) {
 
 // ---------- Skill groups ----------
 
-func (s *Store) ListSkillGroups() ([]model.SkillGroup, error) {
+func (s *Store) ListSkillGroups(tenantID uint64) ([]model.SkillGroup, error) {
 	var list []model.SkillGroup
-	err := s.db.Order("id ASC").Find(&list).Error
+	q := s.db.Order("id ASC")
+	if tenantID > 0 {
+		q = q.Where("tenant_id = ?", tenantID)
+	}
+	err := q.Find(&list).Error
 	return list, err
 }
 
@@ -248,15 +277,25 @@ func (s *Store) GetSkillGroup(id uint64) (*model.SkillGroup, error) {
 	return &g, nil
 }
 
-func (s *Store) GetSkillGroupByCode(code string) (*model.SkillGroup, error) {
+// GetSkillGroupForTenant returns a skill group only when it belongs to tenantID.
+func (s *Store) GetSkillGroupForTenant(id, tenantID uint64) (*model.SkillGroup, error) {
 	var g model.SkillGroup
-	if err := s.db.Where("code = ? AND status = 1", code).First(&g).Error; err != nil {
+	if err := s.db.Where("id = ? AND tenant_id = ?", id, tenantID).First(&g).Error; err != nil {
+		return nil, err
+	}
+	return &g, nil
+}
+
+func (s *Store) GetSkillGroupByCode(tenantID uint64, code string) (*model.SkillGroup, error) {
+	var g model.SkillGroup
+	if err := s.db.Where("tenant_id = ? AND code = ? AND status = 1", tenantID, code).First(&g).Error; err != nil {
 		return nil, err
 	}
 	return &g, nil
 }
 
 type SkillGroupInput struct {
+	TenantID uint64
 	Name     string
 	Code     string
 	Strategy string
@@ -273,7 +312,21 @@ func (s *Store) CreateSkillGroup(in SkillGroupInput) (*model.SkillGroup, error) 
 	if in.Status == 0 {
 		in.Status = 1
 	}
+	if in.TenantID == 0 {
+		in.TenantID = 1
+	}
+	// tenant-scoped code uniqueness
+	var n int64
+	if err := s.db.Model(&model.SkillGroup{}).
+		Where("tenant_id = ? AND code = ?", in.TenantID, in.Code).
+		Count(&n).Error; err != nil {
+		return nil, err
+	}
+	if n > 0 {
+		return nil, errors.New("skill group code already exists in tenant")
+	}
 	g := model.SkillGroup{
+		TenantID: in.TenantID,
 		Name:     in.Name,
 		Code:     in.Code,
 		Strategy: in.Strategy,
@@ -285,15 +338,24 @@ func (s *Store) CreateSkillGroup(in SkillGroupInput) (*model.SkillGroup, error) 
 	return &g, nil
 }
 
-func (s *Store) UpdateSkillGroup(id uint64, in SkillGroupInput) (*model.SkillGroup, error) {
-	g, err := s.GetSkillGroup(id)
+func (s *Store) UpdateSkillGroup(id, tenantID uint64, in SkillGroupInput) (*model.SkillGroup, error) {
+	g, err := s.GetSkillGroupForTenant(id, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	if in.Name != "" {
 		g.Name = in.Name
 	}
-	if in.Code != "" {
+	if in.Code != "" && in.Code != g.Code {
+		var n int64
+		if err := s.db.Model(&model.SkillGroup{}).
+			Where("tenant_id = ? AND code = ? AND id <> ?", tenantID, in.Code, id).
+			Count(&n).Error; err != nil {
+			return nil, err
+		}
+		if n > 0 {
+			return nil, errors.New("skill group code already exists in tenant")
+		}
 		g.Code = in.Code
 	}
 	if in.Strategy != "" {
@@ -436,7 +498,8 @@ func (s *Store) CountAssignedForAgent(agentUserID uint64) (int64, error) {
 // ---------- Conversations ----------
 
 // CreateConversation starts bot_serving when botEnabled, otherwise queued (+ auto assign).
-func (s *Store) CreateConversation(siteID, visitorID uint64, channel, contextJSON string, skillGroupID *uint64, botEnabled bool) (*model.Conversation, error) {
+// tenantID is inherited from the site; zero is normalized to 1.
+func (s *Store) CreateConversation(tenantID, siteID, visitorID uint64, channel, contextJSON string, skillGroupID *uint64, botEnabled bool) (*model.Conversation, error) {
 	now := time.Now()
 	status := "queued"
 	var queuedAt *time.Time
@@ -445,8 +508,12 @@ func (s *Store) CreateConversation(siteID, visitorID uint64, channel, contextJSO
 	} else {
 		queuedAt = &now
 	}
+	if tenantID == 0 {
+		tenantID = 1
+	}
 	c := model.Conversation{
 		PublicID:     uuid.New(),
+		TenantID:     tenantID,
 		SiteID:       siteID,
 		Channel:      channel,
 		VisitorID:    visitorID,
@@ -481,12 +548,15 @@ func (s *Store) GetConversationByPublicID(publicID string) (*model.Conversation,
 	return &c, nil
 }
 
-// ListAgentConversations scope: all | mine | queue | bot
-func (s *Store) ListAgentConversations(agentUserID uint64, scope string, skillGroupID uint64, limit int) ([]model.Conversation, error) {
+// ListAgentConversations scope: all | mine | queue | bot. Always filtered by tenantID.
+func (s *Store) ListAgentConversations(tenantID, agentUserID uint64, scope string, skillGroupID uint64, limit int) ([]model.Conversation, error) {
 	if limit <= 0 {
 		limit = 50
 	}
-	q := s.db.Model(&model.Conversation{})
+	if tenantID == 0 {
+		tenantID = 1
+	}
+	q := s.db.Model(&model.Conversation{}).Where("tenant_id = ?", tenantID)
 	switch scope {
 	case "mine":
 		q = q.Where("status = ? AND agent_user_id = ?", "assigned", agentUserID)
@@ -728,7 +798,7 @@ func (s *Store) AppendSystemEvent(conversationID uint64, event string, payload m
 	return s.CreateMessage(msg)
 }
 
-func (s *Store) EnsureOpenConversation(siteID, visitorID uint64, channel, contextJSON string, skillGroupID *uint64, botEnabled bool) (*model.Conversation, error) {
+func (s *Store) EnsureOpenConversation(tenantID, siteID, visitorID uint64, channel, contextJSON string, skillGroupID *uint64, botEnabled bool) (*model.Conversation, error) {
 	var c model.Conversation
 	err := s.db.Where("visitor_id = ? AND status IN ?", visitorID, []string{"queued", "assigned", "created", "bot_serving"}).
 		Order("id DESC").First(&c).Error
@@ -738,7 +808,7 @@ func (s *Store) EnsureOpenConversation(siteID, visitorID uint64, channel, contex
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
-	return s.CreateConversation(siteID, visitorID, channel, contextJSON, skillGroupID, botEnabled)
+	return s.CreateConversation(tenantID, siteID, visitorID, channel, contextJSON, skillGroupID, botEnabled)
 }
 
 // ---------- Messages ----------

@@ -5,6 +5,7 @@ import "time"
 // File stores uploaded file metadata.
 type File struct {
 	ID              uint      `gorm:"primaryKey" json:"id"`
+	TenantID        uint      `gorm:"not null;default:1;index" json:"tenant_id"`
 	UserID          uint      `gorm:"index" json:"user_id"`
 	FileName        string    `gorm:"size:255;not null" json:"file_name"`
 	FilePath        string    `gorm:"size:500;not null" json:"file_path"`

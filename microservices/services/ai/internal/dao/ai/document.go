@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-admin-kit/services/ai/internal/model"
 	"github.com/go-admin-kit/services/ai/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/ai/internal/pkg/tenant"
 )
 
 // DocumentDAO persists knowledge-base documents and their embedded chunks.
@@ -35,20 +36,31 @@ func (d *DocumentDAO) CreateContext(ctx context.Context, document *model.AIDocum
 	return d.dbWithContext(ctx).Create(document).Error
 }
 
-// UpdateChunkCountContext stores the final chunk count of a document.
+// GetContext loads one document within the tenant.
+func (d *DocumentDAO) GetContext(ctx context.Context, id uint) (*model.AIDocument, error) {
+	var document model.AIDocument
+	result := d.dbWithContext(ctx).
+		Where("id = ? AND tenant_id = ?", id, tenant.FromContextOrDefault(ctx)).
+		First(&document)
+	return &document, result.Error
+}
+
+// UpdateChunkCountContext stores the final chunk count of a document within
+// the tenant.
 func (d *DocumentDAO) UpdateChunkCountContext(ctx context.Context, documentID uint, chunkCount int) error {
 	return d.dbWithContext(ctx).
 		Model(&model.AIDocument{}).
-		Where("id = ?", documentID).
+		Where("id = ? AND tenant_id = ?", documentID, tenant.FromContextOrDefault(ctx)).
 		Update("chunk_count", chunkCount).Error
 }
 
-// ListContext returns one page of documents, newest first.
+// ListContext returns one page of documents for the tenant, newest first.
 func (d *DocumentDAO) ListContext(ctx context.Context, req pagination.PageRequest) ([]model.AIDocument, int64, error) {
 	var documents []model.AIDocument
 	var total int64
 
-	query := d.dbWithContext(ctx).Model(&model.AIDocument{})
+	query := d.dbWithContext(ctx).Model(&model.AIDocument{}).
+		Where("tenant_id = ?", tenant.FromContextOrDefault(ctx))
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -60,16 +72,21 @@ func (d *DocumentDAO) ListContext(ctx context.Context, req pagination.PageReques
 	return documents, total, result.Error
 }
 
-// CountContext returns the number of stored documents.
+// CountContext returns the number of stored documents for the tenant.
 func (d *DocumentDAO) CountContext(ctx context.Context) (int64, error) {
 	var total int64
-	err := d.dbWithContext(ctx).Model(&model.AIDocument{}).Count(&total).Error
+	err := d.dbWithContext(ctx).Model(&model.AIDocument{}).
+		Where("tenant_id = ?", tenant.FromContextOrDefault(ctx)).
+		Count(&total).Error
 	return total, err
 }
 
-// DeleteContext deletes a document; chunks cascade at the database level.
+// DeleteContext deletes a document within the tenant; chunks cascade at the
+// database level.
 func (d *DocumentDAO) DeleteContext(ctx context.Context, id uint) error {
-	result := d.dbWithContext(ctx).Where("id = ?", id).Delete(&model.AIDocument{})
+	result := d.dbWithContext(ctx).
+		Where("id = ? AND tenant_id = ?", id, tenant.FromContextOrDefault(ctx)).
+		Delete(&model.AIDocument{})
 	if result.Error != nil {
 		return result.Error
 	}
@@ -103,9 +120,9 @@ type ChunkMatch struct {
 	Score      float64 `json:"score"`
 }
 
-// SearchChunksContext runs an exact cosine similarity scan over all embedded
-// chunks and returns the topK closest matches. Score is 1 - cosine distance,
-// so higher is more similar.
+// SearchChunksContext runs an exact cosine similarity scan over the tenant's
+// embedded chunks and returns the topK closest matches. Score is 1 - cosine
+// distance, so higher is more similar.
 func (d *DocumentDAO) SearchChunksContext(ctx context.Context, embedding []float32, topK int) ([]ChunkMatch, error) {
 	if topK <= 0 {
 		topK = 5
@@ -116,10 +133,10 @@ func (d *DocumentDAO) SearchChunksContext(ctx context.Context, embedding []float
 		        1 - (c.embedding <=> $1::vector) AS score
 		 FROM ai_document_chunks c
 		 JOIN ai_documents d ON d.id = c.document_id
-		 WHERE c.embedding IS NOT NULL
+		 WHERE c.embedding IS NOT NULL AND d.tenant_id = $2
 		 ORDER BY c.embedding <=> $1::vector
-		 LIMIT $2`,
-		EncodeVector(embedding), topK,
+		 LIMIT $3`,
+		EncodeVector(embedding), tenant.FromContextOrDefault(ctx), topK,
 	).Scan(&matches).Error
 	return matches, err
 }

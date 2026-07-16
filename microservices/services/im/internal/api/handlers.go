@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	"github.com/go-admin-kit/services/im/internal/model"
 	"github.com/go-admin-kit/services/im/internal/store"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Server struct {
@@ -31,6 +33,10 @@ type Server struct {
 func OK(c *gin.Context, data any) {
 	// 与脚手架前端约定：业务成功 code == 200
 	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "ok", "data": data})
+}
+
+func errorsIsNotFound(err error) bool {
+	return err != nil && errors.Is(err, gorm.ErrRecordNotFound)
 }
 
 func Fail(c *gin.Context, httpCode int, msg string) {
@@ -59,12 +65,26 @@ func (s *Server) requireGuest(c *gin.Context) (*authjwt.GuestClaims, bool) {
 	return claims, true
 }
 
+// resolveAgentTenantID prefers X-Auth-Tenant-ID (gateway), then JWT claim, else default 1.
+func resolveAgentTenantID(c *gin.Context, jwtTenant uint64) uint64 {
+	if h := c.GetHeader("X-Auth-Tenant-ID"); h != "" {
+		if n, err := strconv.ParseUint(h, 10, 64); err == nil && n > 0 {
+			return n
+		}
+	}
+	return authjwt.NormalizeTenantID(jwtTenant)
+}
+
 func (s *Server) requireAgent(c *gin.Context) (*authjwt.AgentClaims, bool) {
 	// Prefer gateway header if present
 	if uid := c.GetHeader("X-Auth-User-ID"); uid != "" {
 		id, err := strconv.ParseUint(uid, 10, 64)
 		if err == nil && id > 0 {
-			return &authjwt.AgentClaims{UserID: id, Username: c.GetHeader("X-Auth-Username")}, true
+			return &authjwt.AgentClaims{
+				UserID:   id,
+				Username: c.GetHeader("X-Auth-Username"),
+				TenantID: resolveAgentTenantID(c, 0),
+			}, true
 		}
 	}
 	tok := bearer(c)
@@ -77,6 +97,7 @@ func (s *Server) requireAgent(c *gin.Context) (*authjwt.AgentClaims, bool) {
 		Fail(c, http.StatusUnauthorized, "invalid agent token")
 		return nil, false
 	}
+	claims.TenantID = resolveAgentTenantID(c, claims.TenantID)
 	return claims, true
 }
 
@@ -199,12 +220,17 @@ func (s *Server) CreateConversation(c *gin.Context) {
 	site, siteErr := s.Store.GetSite(guest.SiteID)
 	var skillID *uint64
 	botOn := false
+	tenantID := uint64(1)
 	if siteErr == nil {
+		tenantID = authjwt.NormalizeTenantID(site.TenantID)
 		botOn = site.BotEnabled && s.AIEnabled
 		if req.SkillGroupID != nil && *req.SkillGroupID > 0 {
-			skillID = req.SkillGroupID
+			// only accept skill groups in the site's tenant
+			if sg, err := s.Store.GetSkillGroupForTenant(*req.SkillGroupID, tenantID); err == nil {
+				skillID = &sg.ID
+			}
 		} else if req.SkillGroupCode != "" {
-			if sg, err := s.Store.GetSkillGroupByCode(req.SkillGroupCode); err == nil {
+			if sg, err := s.Store.GetSkillGroupByCode(tenantID, req.SkillGroupCode); err == nil {
 				skillID = &sg.ID
 			}
 		} else if site.DefaultSkillGroupID != nil {
@@ -212,7 +238,8 @@ func (s *Server) CreateConversation(c *gin.Context) {
 		}
 	}
 
-	conv, err := s.Store.EnsureOpenConversation(guest.SiteID, guest.VisitorID, req.Channel, ctxJSON, skillID, botOn)
+	// conversation.tenant_id inherits from site.tenant_id
+	conv, err := s.Store.EnsureOpenConversation(tenantID, guest.SiteID, guest.VisitorID, req.Channel, ctxJSON, skillID, botOn)
 	if err != nil {
 		Fail(c, http.StatusInternalServerError, err.Error())
 		return
@@ -288,6 +315,10 @@ func (s *Server) SendMessage(c *gin.Context) {
 		if !ok {
 			return
 		}
+		if conv.TenantID != 0 && conv.TenantID != agent.TenantID {
+			Fail(c, http.StatusForbidden, "conversation not in your tenant")
+			return
+		}
 		senderType = "agent"
 		senderID = agent.UserID
 		if conv.Status == "queued" || conv.AgentUserID == nil {
@@ -350,10 +381,28 @@ func (s *Server) canAccessConversation(c *gin.Context, conv *model.Conversation)
 			return true
 		}
 	}
-	if _, ok := s.requireAgent(c); ok {
+	if agent, ok := s.requireAgent(c); ok {
+		if conv.TenantID != 0 && conv.TenantID != agent.TenantID {
+			Fail(c, http.StatusForbidden, "conversation not in your tenant")
+			return false
+		}
 		return true
 	}
 	return false
+}
+
+// requireAgentConversation loads a conversation and ensures it belongs to the agent tenant.
+func (s *Server) requireAgentConversation(c *gin.Context, agent *authjwt.AgentClaims) (*model.Conversation, bool) {
+	conv, err := s.Store.GetConversationByPublicID(c.Param("public_id"))
+	if err != nil {
+		Fail(c, http.StatusNotFound, "conversation not found")
+		return nil, false
+	}
+	if conv.TenantID != 0 && conv.TenantID != agent.TenantID {
+		Fail(c, http.StatusNotFound, "conversation not found")
+		return nil, false
+	}
+	return conv, true
 }
 
 // ---------- Agent (M3) ----------
@@ -367,7 +416,7 @@ func (s *Server) AgentMe(c *gin.Context) {
 	presence, _ := s.Store.GetPresence(agent.UserID)
 	skills, _ := s.Store.ListAgentSkills(0, agent.UserID)
 	load, _ := s.Store.CountAssignedForAgent(agent.UserID)
-	groups, _ := s.Store.ListSkillGroups()
+	groups, _ := s.Store.ListSkillGroups(agent.TenantID)
 	groupMap := map[uint64]model.SkillGroup{}
 	for _, g := range groups {
 		groupMap[g.ID] = g
@@ -382,12 +431,16 @@ func (s *Server) AgentMe(c *gin.Context) {
 		if g, ok := groupMap[sk.SkillGroupID]; ok {
 			gg := g
 			v.SkillGroup = &gg
+		} else {
+			// skill binding to other-tenant group: omit from agent view
+			continue
 		}
 		views = append(views, v)
 	}
 	OK(c, gin.H{
 		"user_id":          agent.UserID,
 		"username":         agent.Username,
+		"tenant_id":        agent.TenantID,
 		"presence":         presence,
 		"skills":           views,
 		"assigned_count":   load,
@@ -423,12 +476,12 @@ func (s *Server) AgentPresence(c *gin.Context) {
 	s.AgentHub.Publish(gin.H{"type": "presence.updated", "payload": p})
 	// when going online, try assign queued items for this agent's skill groups
 	if p.Status == "online" {
-		s.tryAssignQueuedForAgent(agent.UserID)
+		s.tryAssignQueuedForAgent(agent.TenantID, agent.UserID)
 	}
 	OK(c, p)
 }
 
-func (s *Server) tryAssignQueuedForAgent(agentUserID uint64) {
+func (s *Server) tryAssignQueuedForAgent(tenantID, agentUserID uint64) {
 	skills, err := s.Store.ListAgentSkills(0, agentUserID)
 	if err != nil {
 		return
@@ -437,7 +490,11 @@ func (s *Server) tryAssignQueuedForAgent(agentUserID uint64) {
 		if sk.Status != 1 {
 			continue
 		}
-		list, err := s.Store.ListAgentConversations(0, "queue", sk.SkillGroupID, 20)
+		// only process skill groups in the agent's tenant
+		if sg, err := s.Store.GetSkillGroupForTenant(sk.SkillGroupID, tenantID); err != nil || sg == nil {
+			continue
+		}
+		list, err := s.Store.ListAgentConversations(tenantID, 0, "queue", sk.SkillGroupID, 20)
 		if err != nil {
 			continue
 		}
@@ -459,21 +516,22 @@ func (s *Server) AgentListConversations(c *gin.Context) {
 	}
 	scope := c.DefaultQuery("scope", "all")
 	sgID, _ := strconv.ParseUint(c.DefaultQuery("skill_group_id", "0"), 10, 64)
-	list, err := s.Store.ListAgentConversations(agent.UserID, scope, sgID, 100)
+	list, err := s.Store.ListAgentConversations(agent.TenantID, agent.UserID, scope, sgID, 100)
 	if err != nil {
 		Fail(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-	OK(c, gin.H{"list": list, "scope": scope})
+	OK(c, gin.H{"list": list, "scope": scope, "tenant_id": agent.TenantID})
 }
 
 // GET /api/v1/im/agent/queue — queued only + counts
 func (s *Server) AgentQueue(c *gin.Context) {
-	if _, ok := s.requireAgent(c); !ok {
+	agent, ok := s.requireAgent(c)
+	if !ok {
 		return
 	}
 	sgID, _ := strconv.ParseUint(c.DefaultQuery("skill_group_id", "0"), 10, 64)
-	list, err := s.Store.ListAgentConversations(0, "queue", sgID, 100)
+	list, err := s.Store.ListAgentConversations(agent.TenantID, 0, "queue", sgID, 100)
 	if err != nil {
 		Fail(c, http.StatusInternalServerError, err.Error())
 		return
@@ -484,6 +542,7 @@ func (s *Server) AgentQueue(c *gin.Context) {
 		"queue_size":     len(list),
 		"online_agents":  online,
 		"skill_group_id": sgID,
+		"tenant_id":      agent.TenantID,
 	})
 }
 
@@ -515,9 +574,8 @@ func (s *Server) AgentAccept(c *gin.Context) {
 	if !ok {
 		return
 	}
-	conv, err := s.Store.GetConversationByPublicID(c.Param("public_id"))
-	if err != nil {
-		Fail(c, http.StatusNotFound, "conversation not found")
+	conv, ok := s.requireAgentConversation(c, agent)
+	if !ok {
 		return
 	}
 	if conv.Status == "closed" {
@@ -556,9 +614,8 @@ func (s *Server) AgentTransfer(c *gin.Context) {
 	if !ok {
 		return
 	}
-	conv, err := s.Store.GetConversationByPublicID(c.Param("public_id"))
-	if err != nil {
-		Fail(c, http.StatusNotFound, "conversation not found")
+	conv, ok := s.requireAgentConversation(c, agent)
+	if !ok {
 		return
 	}
 	var req transferReq
@@ -593,9 +650,8 @@ func (s *Server) AgentClose(c *gin.Context) {
 	if !ok {
 		return
 	}
-	conv, err := s.Store.GetConversationByPublicID(c.Param("public_id"))
-	if err != nil {
-		Fail(c, http.StatusNotFound, "conversation not found")
+	conv, ok := s.requireAgentConversation(c, agent)
+	if !ok {
 		return
 	}
 	var req closeReq
@@ -624,10 +680,11 @@ func (s *Server) AgentClose(c *gin.Context) {
 
 // GET /api/v1/im/admin/sites
 func (s *Server) AdminListSites(c *gin.Context) {
-	if _, ok := s.requireAgent(c); !ok {
+	agent, ok := s.requireAgent(c)
+	if !ok {
 		return
 	}
-	list, err := s.Store.ListSites()
+	list, err := s.Store.ListSites(agent.TenantID)
 	if err != nil {
 		Fail(c, http.StatusInternalServerError, err.Error())
 		return
@@ -641,7 +698,7 @@ func (s *Server) AdminListSites(c *gin.Context) {
 	for _, site := range list {
 		out = append(out, row{Site: site, Snippet: embedSnippet(c, site.AppKey)})
 	}
-	OK(c, gin.H{"list": out})
+	OK(c, gin.H{"list": out, "tenant_id": agent.TenantID})
 }
 
 type updateSiteReq struct {
@@ -656,7 +713,8 @@ type updateSiteReq struct {
 
 // PUT /api/v1/im/admin/sites/:id
 func (s *Server) AdminUpdateSite(c *gin.Context) {
-	if _, ok := s.requireAgent(c); !ok {
+	agent, ok := s.requireAgent(c)
+	if !ok {
 		return
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -681,9 +739,13 @@ func (s *Server) AdminUpdateSite(c *gin.Context) {
 		raw := store.JSONText(req.AllowedOrigins)
 		u.AllowedOrigins = &raw
 	}
-	site, err := s.Store.UpdateSite(id, u)
+	site, err := s.Store.UpdateSite(id, agent.TenantID, u)
 	if err != nil {
-		Fail(c, http.StatusInternalServerError, err.Error())
+		if errorsIsNotFound(err) {
+			Fail(c, http.StatusNotFound, "site not found")
+			return
+		}
+		Fail(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	OK(c, gin.H{"site": site, "snippet": embedSnippet(c, site.AppKey)})
@@ -748,12 +810,12 @@ func (s *Server) TransferHuman(c *gin.Context) {
 
 // POST /api/v1/im/agent/conversations/:public_id/summary
 func (s *Server) AgentSummary(c *gin.Context) {
-	if _, ok := s.requireAgent(c); !ok {
+	agent, ok := s.requireAgent(c)
+	if !ok {
 		return
 	}
-	conv, err := s.Store.GetConversationByPublicID(c.Param("public_id"))
-	if err != nil {
-		Fail(c, http.StatusNotFound, "conversation not found")
+	conv, ok := s.requireAgentConversation(c, agent)
+	if !ok {
 		return
 	}
 	summary, err := s.generateSummary(c.Request.Context(), conv)
@@ -912,10 +974,11 @@ func (s *Server) generateSummary(ctx context.Context, conv *model.Conversation) 
 
 // GET /api/v1/im/admin/skill-groups
 func (s *Server) AdminListSkillGroups(c *gin.Context) {
-	if _, ok := s.requireAgent(c); !ok {
+	agent, ok := s.requireAgent(c)
+	if !ok {
 		return
 	}
-	list, err := s.Store.ListSkillGroups()
+	list, err := s.Store.ListSkillGroups(agent.TenantID)
 	if err != nil {
 		Fail(c, http.StatusInternalServerError, err.Error())
 		return
@@ -930,7 +993,7 @@ func (s *Server) AdminListSkillGroups(c *gin.Context) {
 		skills, _ := s.Store.ListAgentSkills(g.ID, 0)
 		out = append(out, row{SkillGroup: g, AgentCount: len(skills)})
 	}
-	OK(c, gin.H{"list": out})
+	OK(c, gin.H{"list": out, "tenant_id": agent.TenantID})
 }
 
 type skillGroupReq struct {
@@ -942,7 +1005,8 @@ type skillGroupReq struct {
 
 // POST /api/v1/im/admin/skill-groups
 func (s *Server) AdminCreateSkillGroup(c *gin.Context) {
-	if _, ok := s.requireAgent(c); !ok {
+	agent, ok := s.requireAgent(c)
+	if !ok {
 		return
 	}
 	var req skillGroupReq
@@ -951,7 +1015,11 @@ func (s *Server) AdminCreateSkillGroup(c *gin.Context) {
 		return
 	}
 	g, err := s.Store.CreateSkillGroup(store.SkillGroupInput{
-		Name: req.Name, Code: req.Code, Strategy: req.Strategy, Status: req.Status,
+		TenantID: agent.TenantID,
+		Name:     req.Name,
+		Code:     req.Code,
+		Strategy: req.Strategy,
+		Status:   req.Status,
 	})
 	if err != nil {
 		Fail(c, http.StatusBadRequest, err.Error())
@@ -962,7 +1030,8 @@ func (s *Server) AdminCreateSkillGroup(c *gin.Context) {
 
 // PUT /api/v1/im/admin/skill-groups/:id
 func (s *Server) AdminUpdateSkillGroup(c *gin.Context) {
-	if _, ok := s.requireAgent(c); !ok {
+	agent, ok := s.requireAgent(c)
+	if !ok {
 		return
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -975,10 +1044,14 @@ func (s *Server) AdminUpdateSkillGroup(c *gin.Context) {
 		Fail(c, http.StatusBadRequest, "invalid body")
 		return
 	}
-	g, err := s.Store.UpdateSkillGroup(id, store.SkillGroupInput{
+	g, err := s.Store.UpdateSkillGroup(id, agent.TenantID, store.SkillGroupInput{
 		Name: req.Name, Code: req.Code, Strategy: req.Strategy, Status: req.Status,
 	})
 	if err != nil {
+		if errorsIsNotFound(err) {
+			Fail(c, http.StatusNotFound, "skill group not found")
+			return
+		}
 		Fail(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -987,12 +1060,17 @@ func (s *Server) AdminUpdateSkillGroup(c *gin.Context) {
 
 // GET /api/v1/im/admin/skill-groups/:id/agents
 func (s *Server) AdminListSkillAgents(c *gin.Context) {
-	if _, ok := s.requireAgent(c); !ok {
+	agent, ok := s.requireAgent(c)
+	if !ok {
 		return
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
 		Fail(c, http.StatusBadRequest, "invalid id")
+		return
+	}
+	if _, err := s.Store.GetSkillGroupForTenant(id, agent.TenantID); err != nil {
+		Fail(c, http.StatusNotFound, "skill group not found")
 		return
 	}
 	list, err := s.Store.ListAgentSkills(id, 0)
@@ -1023,7 +1101,8 @@ type agentSkillReq struct {
 
 // POST /api/v1/im/admin/agent-skills
 func (s *Server) AdminUpsertAgentSkill(c *gin.Context) {
-	if _, ok := s.requireAgent(c); !ok {
+	agent, ok := s.requireAgent(c)
+	if !ok {
 		return
 	}
 	var req agentSkillReq
@@ -1036,6 +1115,10 @@ func (s *Server) AdminUpsertAgentSkill(c *gin.Context) {
 		if pid := c.Param("id"); pid != "" {
 			req.SkillGroupID, _ = strconv.ParseUint(pid, 10, 64)
 		}
+	}
+	if _, err := s.Store.GetSkillGroupForTenant(req.SkillGroupID, agent.TenantID); err != nil {
+		Fail(c, http.StatusNotFound, "skill group not found")
+		return
 	}
 	row, err := s.Store.UpsertAgentSkill(req.AgentUserID, req.SkillGroupID, req.MaxConcurrent, req.Status)
 	if err != nil {

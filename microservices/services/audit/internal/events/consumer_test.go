@@ -22,6 +22,9 @@ func TestBuildLoginInfoSuccess(t *testing.T) {
 	if info.UserID != 42 || info.Username != "admin" {
 		t.Fatalf("unexpected identity: %+v", info)
 	}
+	if info.TenantID != 1 {
+		t.Fatalf("expected default tenant_id=1 when event omits it, got %d", info.TenantID)
+	}
 	if info.Status != loginStatusSuccess {
 		t.Fatalf("expected success status, got %d", info.Status)
 	}
@@ -34,6 +37,23 @@ func TestBuildLoginInfoSuccess(t *testing.T) {
 	want := time.Date(2026, 7, 14, 10, 30, 0, 0, time.FixedZone("", 8*3600))
 	if !info.OccurredAt.Equal(want) {
 		t.Fatalf("expected occurred at %v, got %v", want, info.OccurredAt)
+	}
+}
+
+func TestBuildLoginInfoCarriesTenantID(t *testing.T) {
+	payload := []byte(`{
+		"user_id": 7,
+		"tenant_id": 3,
+		"username": "bob",
+		"login_type": "account",
+		"timestamp": "2026-07-14T10:30:00Z"
+	}`)
+	info, err := buildLoginInfo(SubjectLoginSuccess, payload)
+	if err != nil {
+		t.Fatalf("buildLoginInfo returned error: %v", err)
+	}
+	if info.TenantID != 3 {
+		t.Fatalf("expected tenant_id=3, got %d", info.TenantID)
 	}
 }
 

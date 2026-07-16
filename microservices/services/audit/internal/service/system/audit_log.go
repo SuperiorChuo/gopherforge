@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	dao "github.com/go-admin-kit/services/audit/internal/dao/system"
 	"github.com/go-admin-kit/services/audit/internal/model"
+	"github.com/go-admin-kit/services/audit/internal/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -173,7 +174,12 @@ func buildAuditLog(c *gin.Context, req AuditRecordRequest) *model.AuditLog {
 		actorID = value
 	}
 
+	var reqCtx context.Context
+	if c != nil && c.Request != nil {
+		reqCtx = c.Request.Context()
+	}
 	log := &model.AuditLog{
+		TenantID:   resolveAuditTenantID(c, reqCtx),
 		ActorType:  actorType,
 		ActorID:    actorID,
 		Action:     req.Action,
@@ -185,6 +191,24 @@ func buildAuditLog(c *gin.Context, req AuditRecordRequest) *model.AuditLog {
 	}
 	normalizeAuditRecord(log)
 	return log
+}
+
+func resolveAuditTenantID(c *gin.Context, ctx context.Context) uint {
+	if c != nil {
+		if v, ok := c.Get("tenant_id"); ok {
+			switch tid := v.(type) {
+			case uint:
+				if tid > 0 {
+					return tid
+				}
+			case uint64:
+				if tid > 0 {
+					return uint(tid)
+				}
+			}
+		}
+	}
+	return tenant.FromContextOrDefault(ctx)
 }
 
 func resolveAuditActor(c *gin.Context) (string, string) {

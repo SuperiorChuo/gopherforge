@@ -16,6 +16,7 @@ import (
 	aidao "github.com/go-admin-kit/services/ai/internal/dao/ai"
 	"github.com/go-admin-kit/services/ai/internal/model"
 	"github.com/go-admin-kit/services/ai/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/ai/internal/pkg/tenant"
 )
 
 // ErrConversationNotFound reports a missing or foreign conversation.
@@ -146,6 +147,7 @@ func (s *ChatService) resolveConversation(ctx context.Context, req ChatRequest) 
 
 	now := time.Now()
 	conversation := &model.AIConversation{
+		TenantID:  tenant.FromContextOrDefault(ctx),
 		UserID:    req.UserID,
 		Title:     truncateRunes(strings.TrimSpace(req.Message), conversationTitleMaxRunes),
 		CreatedAt: now,

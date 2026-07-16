@@ -9,6 +9,7 @@ import (
 	"github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/authz"
 	"github.com/go-admin-kit/services/file/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/file/internal/pkg/tenant"
 )
 
 type OperationLogDAO struct {
@@ -27,6 +28,9 @@ func (d *OperationLogDAO) dbWithContext(ctx context.Context) *gorm.DB {
 }
 
 func (d *OperationLogDAO) CreateLogContext(ctx context.Context, log *model.OperationLog) error {
+	if log != nil && log.TenantID == 0 {
+		log.TenantID = tenant.IDFromContext(ctx)
+	}
 	return d.dbWithContext(ctx).Create(log).Error
 }
 

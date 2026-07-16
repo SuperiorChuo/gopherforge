@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/go-admin-kit/services/audit/internal/model"
+	"github.com/go-admin-kit/services/audit/internal/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -72,6 +73,9 @@ type AuditLogBreakdownSummary struct {
 }
 
 func (d *AuditLogDAO) CreateLogContext(ctx context.Context, log *model.AuditLog) error {
+	if log != nil {
+		log.TenantID = tenant.EnsureID(ctx, log.TenantID)
+	}
 	return d.dbWithContext(ctx).Create(log).Error
 }
 
@@ -81,7 +85,10 @@ func (d *AuditLogDAO) ListLogsContext(ctx context.Context, req AuditLogListQuery
 	}
 
 	var result AuditLogListResult
-	baseQuery := applyAuditBaseFilters(d.dbWithContext(ctx).Model(&model.AuditLog{}), req)
+	baseQuery := applyAuditBaseFilters(
+		tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.AuditLog{}), ctx),
+		req,
+	)
 	listQuery := applyAuditViewFilter(baseQuery.Session(&gorm.Session{}), req.View)
 
 	if err := listQuery.Count(&result.Pagination.Total).Error; err != nil {

@@ -92,7 +92,7 @@ func (a *UserAPI) Login(c *gin.Context) {
 		if policy.LoginLimitEnabled {
 			middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 		}
-		publishLoginFailed(c, req.Username, err.Error())
+		publishLoginFailed(c, req.Username, err.Error(), 1)
 		writeAuthServiceError(c, "login failed", err)
 		return
 	}
@@ -150,7 +150,7 @@ func (a *UserAPI) Login(c *gin.Context) {
 		TOTPChallengeID: resp.TOTPChallengeID,
 	}
 
-	publishLoginSuccess(c, resp.User.ID, resp.User.Username, events.LoginTypeAccount)
+	publishLoginSuccess(c, resp.User.ID, resp.User.Username, events.LoginTypeAccount, resp.User.TenantID)
 
 	targetUserID := resp.User.ID
 	response.SuccessWithMessageMasked(c, "login success", loginResp, sharedapi.ShouldMask(resp.User.ID, &targetUserID, nil))
@@ -181,7 +181,7 @@ func (a *UserAPI) VerifyTOTPLogin(c *gin.Context) {
 		if policy.LoginLimitEnabled {
 			middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 		}
-		publishLoginFailed(c, consoleTOTPChallengeUsername(req.ChallengeID), err.Error())
+		publishLoginFailed(c, consoleTOTPChallengeUsername(req.ChallengeID), err.Error(), 1)
 		writeAuthServiceError(c, "failed to verify totp login", err)
 		return
 	}
@@ -189,7 +189,7 @@ func (a *UserAPI) VerifyTOTPLogin(c *gin.Context) {
 		middleware.ClearLoginLimitContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 	}
 
-	publishLoginSuccess(c, resp.User.ID, resp.User.Username, events.LoginTypeTOTP)
+	publishLoginSuccess(c, resp.User.ID, resp.User.Username, events.LoginTypeTOTP, resp.User.TenantID)
 
 	permissions := a.userService.GetUserPermissions(&resp.User)
 	loginResp := LoginResponseData{

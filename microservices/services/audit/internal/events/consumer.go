@@ -55,8 +55,10 @@ const (
 )
 
 // loginEvent is the superset of the auth-service success/failed payloads.
+// TenantID is optional (older publishers omit it); zero falls back to default tenant 1.
 type loginEvent struct {
 	UserID    uint   `json:"user_id"`
+	TenantID  uint   `json:"tenant_id"`
 	Username  string `json:"username"`
 	IP        string `json:"ip"`
 	UserAgent string `json:"user_agent"`
@@ -206,8 +208,13 @@ func buildLoginInfo(subject string, data []byte) (*systemsvc.LoginInfo, error) {
 		return nil, fmt.Errorf("unmarshal %s: %w", subject, err)
 	}
 
+	tenantID := event.TenantID
+	if tenantID == 0 {
+		tenantID = 1
+	}
 	info := &systemsvc.LoginInfo{
 		UserID:     event.UserID,
+		TenantID:   tenantID,
 		Username:   event.Username,
 		LoginType:  loginTypeCode(event.LoginType),
 		IP:         event.IP,
