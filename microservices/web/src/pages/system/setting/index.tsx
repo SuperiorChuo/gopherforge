@@ -5,6 +5,7 @@ import {
 import { message } from '@/utils/feedback'
 import {
   SaveOutlined, ReloadOutlined, SafetyOutlined, BellOutlined, CloudOutlined, SettingOutlined,
+  RobotOutlined,
 } from '@ant-design/icons'
 import GlassEmpty from '@/components/GlassEmpty'
 import type { SystemSetting } from '@/types'
@@ -16,16 +17,24 @@ import { usePermission } from '@/hooks/usePermission'
 const GROUPS = [
   { key: 'security', label: '安全设置', icon: <SafetyOutlined /> },
   { key: 'notification', label: '通知设置', icon: <BellOutlined /> },
+  { key: 'ai', label: 'AI 服务', icon: <RobotOutlined /> },
   { key: 'storage', label: '存储设置', icon: <CloudOutlined /> },
   { key: 'general', label: '通用设置', icon: <SettingOutlined /> },
 ]
 
+// 已知键即使 DB 里还没有行也渲染表单，保存即创建（upsert）
+const GROUP_DEFAULT_KEYS: Record<string, string[]> = {
+  ai: ['ai.provider'],
+}
+
 interface FieldDef {
   key: string
   label: string
-  type: 'number' | 'string' | 'boolean' | 'emails' | 'textarea'
+  type: 'number' | 'string' | 'boolean' | 'emails' | 'textarea' | 'password' | 'select'
   tooltip?: string
   min?: number
+  options?: { label: string; value: string }[]
+  placeholder?: string
 }
 
 // 已知设置键的字段结构（与 server/internal/pkg/runtimeconfig 消费的字段一一对应）
@@ -39,6 +48,23 @@ const FIELD_SCHEMAS: Record<string, { title: string; fields: FieldDef[] }> = {
       { key: 'login_limit_window_minutes', label: '失败统计窗口（分钟）', type: 'number', min: 1 },
       { key: 'login_limit_lock_minutes', label: '锁定时长（分钟）', type: 'number', min: 1 },
       { key: 'rate_limit_rps', label: '接口限流（请求/秒）', type: 'number', min: 1 },
+    ],
+  },
+  'ai.provider': {
+    title: 'AI 模型服务',
+    fields: [
+      {
+        key: 'provider', label: '服务商', type: 'select',
+        options: [
+          { label: 'OpenAI 兼容（DeepSeek/Qwen/Ollama 等）', value: 'openai' },
+          { label: 'Anthropic', value: 'anthropic' },
+        ],
+        tooltip: '留空沿用环境变量 AI_PROVIDER',
+      },
+      { key: 'base_url', label: '接口地址 Base URL', type: 'string', placeholder: '如 https://api.deepseek.com/v1，留空用官方地址或环境变量' },
+      { key: 'api_key', label: 'API Key', type: 'password', tooltip: '留空沿用环境变量 AI_API_KEY；保存后热生效，无需重启' },
+      { key: 'chat_model', label: '对话模型', type: 'string', placeholder: '如 deepseek-chat / gpt-4o-mini' },
+      { key: 'embed_model', label: '向量模型', type: 'string', placeholder: '如 text-embedding-3-small，知识库检索用' },
     ],
   },
   'notification.email': {
@@ -74,8 +100,12 @@ function renderField(f: FieldDef) {
       )
     case 'textarea':
       return <Input.TextArea rows={4} style={{ maxWidth: 520 }} />
+    case 'password':
+      return <Input.Password style={{ maxWidth: 520 }} placeholder={f.placeholder} autoComplete="new-password" />
+    case 'select':
+      return <Select style={{ maxWidth: 520 }} options={f.options} allowClear placeholder={f.placeholder} />
     default:
-      return <Input style={{ maxWidth: 520 }} />
+      return <Input style={{ maxWidth: 520 }} placeholder={f.placeholder} />
   }
 }
 
@@ -96,9 +126,13 @@ function SchemaSettingCard({ setting, canUpdate, onSaved }: {
   const handleSave = async () => {
     const values = await form.validateFields().catch(() => null)
     if (!values) return
+    // Select allowClear 清空后是 undefined，JSON 序列化会丢字段导致旧值残留，统一写空串
+    const normalized = Object.fromEntries(
+      Object.entries(values).map(([k, v]) => [k, v === undefined || v === null ? '' : v]),
+    )
     setSaving(true)
     try {
-      await upsertSetting(setting.setting_key, { ...(setting.value_json ?? {}), ...values })
+      await upsertSetting(setting.setting_key, { ...(setting.value_json ?? {}), ...normalized })
       message.success('保存成功')
       onSaved()
     } catch {
@@ -122,7 +156,7 @@ function SchemaSettingCard({ setting, canUpdate, onSaved }: {
       }
       extra={
         <span className="card-extra-note">
-          更新于 {formatDateTime(setting.updated_at)}
+          {setting.updated_at ? `更新于 ${formatDateTime(setting.updated_at)}` : '尚未保存，使用环境变量默认值'}
         </span>
       }
       style={{ marginBottom: 16 }}
@@ -248,12 +282,18 @@ function SettingGroupPanel({ group, refreshKey }: { group: string; refreshKey: n
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [group, refreshKey])
 
-  const known = list.filter((s) => FIELD_SCHEMAS[s.setting_key])
-  const unknown = list.filter((s) => !FIELD_SCHEMAS[s.setting_key])
+  // DB 里还没有行的已知键补一张空表单卡片，保存即创建
+  const missingDefaults = (GROUP_DEFAULT_KEYS[group] ?? [])
+    .filter((key) => !list.some((s) => s.setting_key === key))
+    .map((key): SystemSetting => ({ setting_key: key, value_json: {}, updated_at: '' }))
+  const merged = [...list, ...missingDefaults]
+
+  const known = merged.filter((s) => FIELD_SCHEMAS[s.setting_key])
+  const unknown = merged.filter((s) => !FIELD_SCHEMAS[s.setting_key])
 
   return (
     <div>
-      {list.length === 0 && !loading && (
+      {merged.length === 0 && !loading && (
         <Card>
           <GlassEmpty text="该分组暂无设置项" compact />
         </Card>

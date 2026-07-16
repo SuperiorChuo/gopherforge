@@ -10,6 +10,10 @@ import (
 // invalidations published by either service refresh both processes.
 const RuntimeConfigInvalidationChannel = "go_admin_kit:runtime_config:invalidate"
 
+// AIProviderSettingKey is consumed by the AI service; the system service only
+// publishes invalidations for it when the console edits the setting.
+const AIProviderSettingKey = "ai.provider"
+
 func PublishInvalidation(ctx context.Context, key string) error {
 	if !isRuntimeConfigInvalidationKey(key) {
 		return nil
@@ -38,5 +42,5 @@ func StartInvalidationListener(ctx context.Context) (*redisstore.StringSubscribe
 }
 
 func isRuntimeConfigInvalidationKey(key string) bool {
-	return key == SecurityPolicySettingKey
+	return key == SecurityPolicySettingKey || key == AIProviderSettingKey
 }

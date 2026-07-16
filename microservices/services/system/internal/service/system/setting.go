@@ -135,6 +135,11 @@ func (s *SettingService) refreshRuntimeConfigIfNeeded(ctx context.Context, key s
 		defer cancel()
 		_ = invalidator.Refresh(refreshCtx)
 		_ = runtimeconfig.PublishInvalidation(refreshCtx, key)
+	case runtimeconfig.AIProviderSettingKey:
+		// AI 配置由 ai-service 消费，这里只负责把变更广播出去。
+		refreshCtx, cancel := runtimeConfigInvalidationContext(ctx)
+		defer cancel()
+		_ = runtimeconfig.PublishInvalidation(refreshCtx, key)
 	}
 }
 

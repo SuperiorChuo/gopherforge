@@ -207,6 +207,7 @@ func run(ctx context.Context) error {
 		DataScope:   authz.NewDatabaseDataScopeStore(database.DB),
 	})
 	runtimeconfig.SetSecurityPolicyStore(systemDAO.NewSettingDAO(database.DB))
+	runtimeconfig.SetAIProviderStore(systemDAO.NewSettingDAO(database.DB))
 	defer func() {
 		if err := database.Close(); err != nil {
 			logger.Error("database close failed", logger.Err(err))
@@ -293,32 +294,48 @@ func run(ctx context.Context) error {
 	router.Use(middleware.ErrorHandler())
 	setupCORS(router)
 
-	// Assemble the AI provider stack. An empty AI_API_KEY keeps the service
+	// Assemble the AI provider stack. Settings resolve per request from the
+	// ai.provider system setting layered over AI_* env vars, so console edits
+	// apply without a restart. An unconfigured provider keeps the service
 	// running (health checks included) while AI endpoints return 503.
-	aiCfg := config.Cfg.AI
-	providers := aiclient.NewProviders(aiclient.Options{
-		Provider:      aiCfg.Provider,
-		BaseURL:       aiCfg.BaseURL,
-		APIKey:        aiCfg.APIKey,
-		ChatModel:     aiCfg.ChatModel,
-		EmbedModel:    aiCfg.EmbedModel,
-		EmbedProvider: aiCfg.EmbedProvider,
-		EmbedBaseURL:  aiCfg.EmbedBaseURL,
-		EmbedAPIKey:   aiCfg.EmbedAPIKey,
-	})
+	aiSettingsReader := runtimeconfig.DefaultAIProviderReader()
+	if err := aiSettingsReader.Refresh(ctx); err != nil {
+		logger.Warn("AI provider settings warmup failed", logger.Err(err))
+	}
+	resolveAIOptions := func(ctx context.Context) aiclient.Options {
+		s := aiSettingsReader.AIProviderSettings(ctx)
+		return aiclient.Options{
+			Provider:      s.Provider,
+			BaseURL:       s.BaseURL,
+			APIKey:        s.APIKey,
+			ChatModel:     s.ChatModel,
+			EmbedModel:    s.EmbedModel,
+			EmbedProvider: s.EmbedProvider,
+			EmbedBaseURL:  s.EmbedBaseURL,
+			EmbedAPIKey:   s.EmbedAPIKey,
+		}
+	}
+	providers := aiclient.NewDynamicProviders(resolveAIOptions)
 	handler := aihandler.NewHandler(
-		aihandler.Config{
-			Configured: aiCfg.Configured(),
-			Provider:   providers.Chat.Name(),
-			ChatModel:  aiCfg.ChatModel,
-			EmbedModel: aiCfg.EmbedModel,
+		func(ctx context.Context) aihandler.StatusInfo {
+			s := aiSettingsReader.AIProviderSettings(ctx)
+			providerName := s.Provider
+			if providerName != "anthropic" {
+				providerName = "openai" // factory 对未知/空名回落 OpenAI 兼容客户端
+			}
+			return aihandler.StatusInfo{
+				Configured: s.Configured(),
+				Provider:   providerName,
+				ChatModel:  s.ChatModel,
+				EmbedModel: s.EmbedModel,
+			}
 		},
 		aisvc.NewChatServiceWithDB(database.DB, providers),
 		aisvc.NewKnowledgeServiceWithDB(database.DB, providers),
 		aisvc.NewInsightServiceWithDB(database.DB, providers),
 	)
-	if !aiCfg.Configured() {
-		logger.Warn("AI provider is not configured; AI endpoints return 503 until AI_API_KEY is set")
+	if !aiSettingsReader.AIProviderSettings(ctx).Configured() {
+		logger.Warn("AI provider is not configured; AI endpoints return 503 until an API key is set in system settings or AI_API_KEY")
 	}
 	api.SetupRoutesWithDeps(router, sharedapi.Dependencies{DB: database.DB, Redis: redis.Client}, handler)
 

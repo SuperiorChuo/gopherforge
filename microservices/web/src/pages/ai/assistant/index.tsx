@@ -183,7 +183,13 @@ export default function AiAssistantPage() {
           showIcon
           style={{ marginBottom: 12 }}
           message="AI 服务未配置"
-          description="未检测到可用的模型凭证，请在服务端配置 AI_API_KEY 后重启 ai-service。"
+          description={
+            <span>
+              未检测到可用的模型凭证。管理员可在
+              <a href="/system/setting"> 系统设置 → AI 服务 </a>
+              中填写 API Key，保存后即时生效（无需重启）。
+            </span>
+          }
         />
       )}
 
