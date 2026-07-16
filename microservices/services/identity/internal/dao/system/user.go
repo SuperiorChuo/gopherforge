@@ -38,6 +38,11 @@ func (d *UserDAO) GetUserListContext(ctx context.Context, req pagination.PageReq
 
 	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.User{})
 
+	// Multi-tenant isolation: always scope by actor tenant when present.
+	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+		query = query.Where("tenant_id = ?", tid)
+	}
+
 	if keyword != "" {
 		query = query.Where("username LIKE ? OR nickname LIKE ? OR email LIKE ? OR phone LIKE ?",
 			"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")

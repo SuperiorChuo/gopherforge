@@ -34,6 +34,8 @@ type LoginRequest struct {
 	Password    string `json:"password" binding:"required"`
 	CaptchaID   string `json:"captcha_id" binding:"required"`
 	CaptchaCode string `json:"captcha_code" binding:"required"`
+	// TenantCode selects SaaS tenant; empty means "default".
+	TenantCode string `json:"tenant_code"`
 }
 
 // LoginResponse is the login response payload.
@@ -110,20 +112,45 @@ func (s *UserService) LoginContext(ctx context.Context, req LoginRequest) (*Logi
 		return nil, ErrInvalidCaptcha
 	}
 
-	return s.LoginPasswordContext(ctx, req.Username, req.Password)
+	return s.LoginPasswordWithTenantContext(ctx, req.Username, req.Password, req.TenantCode, 0)
 }
 
 func (s *UserService) LoginPasswordContext(ctx context.Context, username, password string) (*LoginResponse, error) {
-	return s.LoginPasswordWithAccessTTLContext(ctx, username, password, 0)
+	return s.LoginPasswordWithTenantContext(ctx, username, password, "", 0)
 }
 
 func (s *UserService) LoginPasswordWithAccessTTLContext(ctx context.Context, username, password string, accessTTL time.Duration) (*LoginResponse, error) {
-	user, err := s.userDAO.GetUserByUsernameContext(ctx, username)
+	return s.LoginPasswordWithTenantContext(ctx, username, password, "", accessTTL)
+}
+
+func (s *UserService) LoginPasswordWithTenantContext(ctx context.Context, username, password, tenantCode string, accessTTL time.Duration) (*LoginResponse, error) {
+	if tenantCode == "" {
+		tenantCode = "default"
+	}
+	tenant, err := s.userDAO.GetTenantByCodeContext(ctx, tenantCode)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, err
 		}
-		return nil, ErrInvalidCredentials
+		// Fallback: pre-migration DBs without tenants table still log into default user lookup
+		if tenantCode != "default" {
+			return nil, ErrInvalidCredentials
+		}
+		tenant = &model.Tenant{ID: 1, Code: "default", Status: 1}
+	}
+
+	user, err := s.userDAO.GetUserByTenantUsernameContext(ctx, tenant.ID, username)
+	if err != nil {
+		// Compatibility: if tenant_id column missing/unfilled, try global username for default tenant only
+		if tenant.ID == 1 {
+			user, err = s.userDAO.GetUserByUsernameLegacyContext(ctx, username)
+		}
+		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return nil, err
+			}
+			return nil, ErrInvalidCredentials
+		}
 	}
 
 	if user.Status != 1 {
@@ -151,8 +178,12 @@ func (s *UserService) LoginPasswordWithAccessTTLContext(ctx context.Context, use
 	if passwordChangeRequired {
 		user.MustChangePassword = true
 	}
+	tenantID := user.TenantID
+	if tenantID == 0 {
+		tenantID = tenant.ID
+	}
 	if user.TOTPEnabled {
-		challengeID, err := jwt.GenerateTOTPChallenge(user.ID, user.Username, 5*time.Minute)
+		challengeID, err := jwt.GenerateTOTPChallengeWithTenant(user.ID, user.Username, tenantID, 5*time.Minute)
 		if err != nil {
 			return nil, err
 		}
@@ -163,7 +194,7 @@ func (s *UserService) LoginPasswordWithAccessTTLContext(ctx context.Context, use
 		}, nil
 	}
 
-	accessToken, refreshToken, err := jwt.GenerateTokenWithAccessTTL(user.ID, user.Username, accessTTL)
+	accessToken, refreshToken, err := jwt.GenerateTokenWithTenantAndAccessTTL(user.ID, user.Username, tenantID, accessTTL)
 	if err != nil {
 		return nil, err
 	}

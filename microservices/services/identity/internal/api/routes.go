@@ -27,16 +27,25 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	roleMgmtAPI := system.NewRoleManagementAPI()
 	permissionMgmtAPI := system.NewPermissionManagementAPI()
 	departmentAPI := system.NewDepartmentAPI()
+	var tenantAPI *system.TenantAPI
 	if deps.DB != nil {
 		userMgmtAPI = system.NewUserManagementAPIWithService(systemsvc.NewUserServiceWithDB(deps.DB))
 		roleMgmtAPI = system.NewRoleManagementAPIWithService(systemsvc.NewRoleServiceWithDB(deps.DB))
 		permissionMgmtAPI = system.NewPermissionManagementAPIWithService(systemsvc.NewPermissionServiceWithDB(deps.DB))
 		departmentAPI = system.NewDepartmentAPIWithService(systemsvc.NewDepartmentServiceWithDB(deps.DB))
+		tenantAPI = system.NewTenantAPIWithService(systemsvc.NewTenantServiceWithDB(deps.DB))
 	}
 
 	protected := api.Group("/")
 	protected.Use(middleware.AuthMiddleware(), middleware.OperationLogger())
 	{
+		if tenantAPI != nil {
+			protected.GET("/tenants", middleware.PermissionMiddleware("system:tenant:list"), tenantAPI.GetTenantList)
+			protected.POST("/tenants", middleware.PermissionMiddleware("system:tenant:create"), tenantAPI.CreateTenant)
+			protected.GET("/tenants/:id", middleware.PermissionMiddleware("system:tenant:detail"), tenantAPI.GetTenant)
+			protected.PUT("/tenants/:id", middleware.PermissionMiddleware("system:tenant:update"), tenantAPI.UpdateTenant)
+		}
+
 		protected.GET("/users", middleware.PermissionMiddleware("system:user:list"), userMgmtAPI.GetUserList)
 		protected.POST("/users", middleware.PermissionMiddleware("system:user:create"), userMgmtAPI.CreateUser)
 		protected.GET("/users/:id", middleware.PermissionMiddleware("system:user:detail"), userMgmtAPI.GetUser)

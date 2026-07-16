@@ -48,6 +48,7 @@ const routes: RouteObject[] = [
       { path: 'system/notice', element: lazyLoad(() => import('@/pages/system/notice')) },
       { path: 'system/online-user', element: lazyLoad(() => import('@/pages/system/online-user')) },
       { path: 'system/setting', element: lazyLoad(() => import('@/pages/system/setting')) },
+      { path: 'system/tenant', element: lazyLoad(() => import('@/pages/system/tenant')) },
 
       // Monitor
       { path: 'monitor/server', element: lazyLoad(() => import('@/pages/monitor/server')) },

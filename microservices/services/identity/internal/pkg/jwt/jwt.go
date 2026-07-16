@@ -48,8 +48,17 @@ type redisTokenBlacklistStore struct{}
 type Claims struct {
 	UserID    uint   `json:"user_id"`
 	Username  string `json:"username"`
+	TenantID  uint   `json:"tenant_id"`
 	TokenType string `json:"token_type"`
 	jwtlib.RegisteredClaims
+}
+
+// NormalizeTenantID maps zero/empty tenant to default tenant (id=1).
+func NormalizeTenantID(id uint) uint {
+	if id == 0 {
+		return 1
+	}
+	return id
 }
 
 // SetTokenBlacklistStore replaces the package-level blacklist store and returns a restore function.
@@ -72,12 +81,23 @@ func SetTokenBlacklistStore(store TokenBlacklistStore) func() {
 
 func GenerateToken(userID uint, username string) (accessToken, refreshToken string, err error) {
 	cfg := config.Cfg.JWT
-	return GenerateTokenWithAccessTTL(userID, username, time.Duration(cfg.AccessTokenExpire)*time.Second)
+	return GenerateTokenWithTenantAndAccessTTL(userID, username, 1, time.Duration(cfg.AccessTokenExpire)*time.Second)
 }
 
 func GenerateTokenWithAccessTTL(userID uint, username string, accessTTL time.Duration) (accessToken, refreshToken string, err error) {
+	return GenerateTokenWithTenantAndAccessTTL(userID, username, 1, accessTTL)
+}
+
+// GenerateTokenWithTenant mints access+refresh for a tenant-scoped user.
+func GenerateTokenWithTenant(userID uint, username string, tenantID uint) (accessToken, refreshToken string, err error) {
+	cfg := config.Cfg.JWT
+	return GenerateTokenWithTenantAndAccessTTL(userID, username, tenantID, time.Duration(cfg.AccessTokenExpire)*time.Second)
+}
+
+func GenerateTokenWithTenantAndAccessTTL(userID uint, username string, tenantID uint, accessTTL time.Duration) (accessToken, refreshToken string, err error) {
 	cfg := config.Cfg.JWT
 	now := time.Now()
+	tenantID = NormalizeTenantID(tenantID)
 	if accessTTL <= 0 {
 		accessTTL = time.Duration(cfg.AccessTokenExpire) * time.Second
 	}
@@ -85,6 +105,7 @@ func GenerateTokenWithAccessTTL(userID uint, username string, accessTTL time.Dur
 	accessClaims := Claims{
 		UserID:    userID,
 		Username:  username,
+		TenantID:  tenantID,
 		TokenType: AccessTokenType,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			ExpiresAt: jwtlib.NewNumericDate(now.Add(accessTTL)),
@@ -104,6 +125,7 @@ func GenerateTokenWithAccessTTL(userID uint, username string, accessTTL time.Dur
 	refreshClaims := Claims{
 		UserID:    userID,
 		Username:  username,
+		TenantID:  tenantID,
 		TokenType: RefreshTokenType,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			ExpiresAt: jwtlib.NewNumericDate(now.Add(time.Duration(cfg.RefreshTokenExpire) * time.Second)),
@@ -124,16 +146,21 @@ func GenerateTokenWithAccessTTL(userID uint, username string, accessTTL time.Dur
 }
 
 func GenerateTOTPChallenge(userID uint, username string, ttl time.Duration) (string, error) {
-	return generateSinglePurposeToken(userID, username, TOTPChallengeTokenType, ttl, 5*time.Minute)
+	return GenerateTOTPChallengeWithTenant(userID, username, 1, ttl)
+}
+
+func GenerateTOTPChallengeWithTenant(userID uint, username string, tenantID uint, ttl time.Duration) (string, error) {
+	return generateSinglePurposeToken(userID, username, tenantID, TOTPChallengeTokenType, ttl, 5*time.Minute)
 }
 
 func GenerateWebSocketTicket(userID uint, username string, ttl time.Duration) (string, error) {
-	return generateSinglePurposeToken(userID, username, WebSocketTicketTokenType, ttl, time.Minute)
+	return generateSinglePurposeToken(userID, username, 1, WebSocketTicketTokenType, ttl, time.Minute)
 }
 
-func generateSinglePurposeToken(userID uint, username, tokenType string, ttl, defaultTTL time.Duration) (string, error) {
+func generateSinglePurposeToken(userID uint, username string, tenantID uint, tokenType string, ttl, defaultTTL time.Duration) (string, error) {
 	cfg := config.Cfg.JWT
 	now := time.Now()
+	tenantID = NormalizeTenantID(tenantID)
 	if ttl <= 0 {
 		ttl = defaultTTL
 	}
@@ -141,6 +168,7 @@ func generateSinglePurposeToken(userID uint, username, tokenType string, ttl, de
 	claims := Claims{
 		UserID:    userID,
 		Username:  username,
+		TenantID:  tenantID,
 		TokenType: tokenType,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			ExpiresAt: jwtlib.NewNumericDate(now.Add(ttl)),
@@ -244,6 +272,7 @@ func refreshTokenWithBase(ctx context.Context, refreshToken string) (accessToken
 	newAccessClaims := Claims{
 		UserID:    claims.UserID,
 		Username:  claims.Username,
+		TenantID:  NormalizeTenantID(claims.TenantID),
 		TokenType: AccessTokenType,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			ExpiresAt: jwtlib.NewNumericDate(now.Add(time.Duration(cfg.AccessTokenExpire) * time.Second)),
@@ -268,6 +297,7 @@ func refreshTokenWithBase(ctx context.Context, refreshToken string) (accessToken
 	newRefreshClaims := Claims{
 		UserID:    claims.UserID,
 		Username:  claims.Username,
+		TenantID:  NormalizeTenantID(claims.TenantID),
 		TokenType: RefreshTokenType,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			ExpiresAt: jwtlib.NewNumericDate(now.Add(time.Duration(cfg.RefreshTokenExpire) * time.Second)),

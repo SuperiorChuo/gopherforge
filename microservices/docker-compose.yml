@@ -198,7 +198,7 @@ services:
       traefik.http.routers.auth.priority: "100"
       traefik.http.services.auth.loadbalancer.server.port: "8082"
       traefik.http.middlewares.auth-verify.forwardauth.address: "http://go-admin-kit-auth:8082/internal/verify"
-      traefik.http.middlewares.auth-verify.forwardauth.authResponseHeaders: "X-Auth-User-ID,X-Auth-Username"
+      traefik.http.middlewares.auth-verify.forwardauth.authResponseHeaders: "X-Auth-User-ID,X-Auth-Username,X-Auth-Tenant-ID"
     depends_on:
       go-admin-kit-postgres:
         condition: service_healthy

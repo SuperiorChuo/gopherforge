@@ -5,8 +5,9 @@ import "time"
 // Role stores RBAC role metadata and data-scope settings.
 type Role struct {
 	ID                     uint                      `gorm:"primaryKey" json:"id"`
+	TenantID               uint                      `gorm:"not null;default:1;uniqueIndex:ux_roles_tenant_code,priority:1;index" json:"tenant_id"`
 	Name                   string                    `gorm:"size:50;not null" json:"name"`
-	Code                   string                    `gorm:"size:50;not null;uniqueIndex" json:"code"`
+	Code                   string                    `gorm:"size:50;not null;uniqueIndex:ux_roles_tenant_code,priority:2" json:"code"`
 	Description            string                    `gorm:"size:255" json:"description"`
 	DataScope              string                    `gorm:"size:32;not null;default:self;index" json:"data_scope"`
 	DataScopeDepartmentIDs []uint                    `gorm:"-" json:"data_scope_department_ids,omitempty"`

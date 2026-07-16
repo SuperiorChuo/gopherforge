@@ -98,8 +98,13 @@ func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserReque
 		return nil, errors.New("password hashing failed")
 	}
 
+	tenantID := uint(1)
+	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+		tenantID = tid
+	}
 	now := time.Now()
 	user := &model.User{
+		TenantID:          tenantID,
 		Username:          req.Username,
 		Password:          string(hashedPassword),
 		Nickname:          req.Nickname,

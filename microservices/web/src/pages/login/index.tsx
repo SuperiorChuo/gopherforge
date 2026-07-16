@@ -10,6 +10,7 @@ import {
   ThunderboltOutlined,
   SafetyCertificateOutlined,
   RadarChartOutlined,
+  CloudOutlined,
 } from '@ant-design/icons'
 import { useAppDispatch, useAppSelector } from '@/hooks/store'
 import { login } from '@/store/slices/authSlice'
@@ -47,7 +48,12 @@ export default function LoginPage() {
     refreshCaptcha()
   }, [refreshCaptcha])
 
-  const onFinish = async (values: { username: string; password: string; captcha_code: string }) => {
+  const onFinish = async (values: {
+    username: string
+    password: string
+    captcha_code: string
+    tenant_code?: string
+  }) => {
     setError(null)
     try {
       const result = await dispatch(
@@ -56,6 +62,7 @@ export default function LoginPage() {
           password: values.password,
           captcha_id: captchaId,
           captcha_code: values.captcha_code,
+          tenant_code: values.tenant_code?.trim() || undefined,
         }),
       ).unwrap()
       if (result.require_totp && result.totp_challenge_id) {
@@ -160,6 +167,9 @@ export default function LoginPage() {
                 size="large"
                 style={{ marginTop: 28 }}
               >
+                <Form.Item name="tenant_code">
+                  <Input prefix={<CloudOutlined />} placeholder="租户 Code（可选，默认 default）" />
+                </Form.Item>
                 <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
                   <Input prefix={<UserOutlined />} placeholder="用户名" />
                 </Form.Item>

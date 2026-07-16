@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -10,6 +11,9 @@ import (
 	"github.com/go-admin-kit/services/audit/internal/pkg/jwt"
 	"github.com/go-admin-kit/services/audit/internal/pkg/response"
 )
+
+// TenantIDContextKey stores the authenticated tenant id in context.Context.
+const TenantIDContextKey = "tenant_id"
 
 // AuthMiddleware validates an access token and stores the actor in the request context.
 func AuthMiddleware() gin.HandlerFunc {
@@ -74,8 +78,19 @@ func AuthMiddleware() gin.HandlerFunc {
 			}
 		}
 
+		tenantID := jwt.NormalizeTenantID(claims.TenantID)
+		// Prefer gateway-propagated tenant when present (ForwardAuth).
+		if h := c.GetHeader("X-Auth-Tenant-ID"); h != "" {
+			if n, err := strconv.ParseUint(h, 10, 64); err == nil && n > 0 {
+				tenantID = uint(n)
+			}
+		}
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
+		c.Set("tenant_id", tenantID)
+		// Propagate tenant into request context for DAOs/services.
+		ctx := context.WithValue(c.Request.Context(), TenantIDContextKey, tenantID)
+		c.Request = c.Request.WithContext(ctx)
 		SetAuditActor(c, DefaultAuditActorType, claims.Username)
 
 		c.Next()

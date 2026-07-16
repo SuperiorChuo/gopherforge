@@ -3,6 +3,8 @@ export interface LoginRequest {
   password: string
   captcha_id: string
   captcha_code: string
+  /** SaaS tenant code; empty defaults to "default" on server */
+  tenant_code?: string
 }
 
 export interface CaptchaResponse {
@@ -28,6 +30,7 @@ export interface VerifyTOTPLoginRequest {
 
 export interface UserInfo {
   id?: number
+  tenant_id?: number
   username: string
   nickname?: string
   email?: string
@@ -40,6 +43,17 @@ export interface UserInfo {
   totp_enabled?: boolean
   department_id?: number
   created_at?: string
+}
+
+export interface TenantInfo {
+  id: number
+  code: string
+  name: string
+  status: number
+  plan: string
+  max_users: number
+  created_at?: string
+  updated_at?: string
 }
 
 export interface RoleInfo {

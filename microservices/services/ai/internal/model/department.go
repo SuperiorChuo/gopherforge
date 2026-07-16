@@ -5,8 +5,9 @@ import "time"
 // Department stores organization hierarchy data.
 type Department struct {
 	ID        uint         `gorm:"primaryKey" json:"id"`
+	TenantID  uint         `gorm:"not null;default:1;uniqueIndex:ux_depts_tenant_code,priority:1;index" json:"tenant_id"`
 	Name      string       `gorm:"size:100;not null" json:"name"`
-	Code      string       `gorm:"size:50;uniqueIndex" json:"code"`
+	Code      string       `gorm:"size:50;uniqueIndex:ux_depts_tenant_code,priority:2" json:"code"`
 	ParentID  uint         `gorm:"default:0;index" json:"parent_id"`
 	Leader    string       `gorm:"size:50" json:"leader"`
 	Phone     string       `gorm:"size:20" json:"phone"`

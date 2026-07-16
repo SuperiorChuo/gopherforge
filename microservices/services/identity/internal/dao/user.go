@@ -23,8 +23,12 @@ func (d *UserDAO) dbWithContext(ctx context.Context) *gorm.DB {
 }
 
 func (d *UserDAO) GetUserByUsernameContext(ctx context.Context, username string) (*model.User, error) {
+	q := d.dbWithContext(ctx).Where("username = ?", username)
+	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+		q = q.Where("tenant_id = ?", tid)
+	}
 	var user model.User
-	result := d.dbWithContext(ctx).Where("username = ?", username).First(&user)
+	result := q.First(&user)
 	return &user, result.Error
 }
 

@@ -211,7 +211,7 @@
 | `ticket-service` | P1 | 工单 |
 | `notify-service` | P1 | 短信/邮件/订阅消息统一出口 |
 | `cc-adapter` | P2 | 对接 FreeSWITCH 独立项目 |
-| `tenant-service` | P3 | 多租户（若做 SaaS） |
+| `tenant-service` | P3 | 多租户（**M1 先挂 identity**：`tenants` 表 + JWT `tenant_id`，见 `docs/design/multi-tenant.md`） |
 
 ### 独立仓库（推荐）
 

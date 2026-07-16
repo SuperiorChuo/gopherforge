@@ -5,11 +5,12 @@ import "time"
 // User stores account identity and profile fields.
 type User struct {
 	ID                 uint       `gorm:"primaryKey" json:"id"`
-	Username           string     `gorm:"size:50;not null;uniqueIndex" json:"username"`
+	TenantID           uint       `gorm:"not null;default:1;uniqueIndex:ux_users_tenant_username,priority:1;index" json:"tenant_id"`
+	Username           string     `gorm:"size:50;not null;uniqueIndex:ux_users_tenant_username,priority:2" json:"username"`
 	Password           string     `gorm:"size:255;not null" json:"-"`
 	Nickname           string     `gorm:"size:50" json:"nickname"`
-	Email              string     `gorm:"size:100;uniqueIndex" json:"email"`
-	Phone              string     `gorm:"size:20;uniqueIndex" json:"phone"`
+	Email              string     `gorm:"size:100" json:"email"`
+	Phone              string     `gorm:"size:20" json:"phone"`
 	Avatar             string     `gorm:"size:255" json:"avatar"`
 	DepartmentID       uint       `gorm:"default:0;index" json:"department_id"`
 	MustChangePassword bool       `gorm:"default:false" json:"must_change_password"`

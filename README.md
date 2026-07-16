@@ -488,7 +488,7 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 
 | 规划项 | 说明 |
 |--------|------|
-| 🏢 多租户 / SaaS | 租户隔离、套餐与配额 |
+| 🏢 多租户 / SaaS | M1：共享库 + `tenant_id`、登录 `tenant_code`、租户 CRUD（见 `docs/design/multi-tenant.md`） |
 | 🔌 插件市场 | 域服务按插件启用（AI / IM / CC …） |
 | 📊 数据看板 | 客服效能、AI 采纳率、渠道转化 |
 | 🌍 国际化 i18n | 管理端多语言 |

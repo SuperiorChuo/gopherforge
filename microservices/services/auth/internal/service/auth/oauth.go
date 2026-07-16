@@ -255,7 +255,11 @@ func (s *OAuthService) buildOAuthLoginResponseContext(ctx context.Context, user 
 		}, nil
 	}
 
-	accessToken, refreshToken, err := jwt.GenerateToken(user.ID, user.Username)
+	tenantID := user.TenantID
+	if tenantID == 0 {
+		tenantID = 1
+	}
+	accessToken, refreshToken, err := jwt.GenerateTokenWithTenant(user.ID, user.Username, tenantID)
 	if err != nil {
 		return nil, err
 	}
