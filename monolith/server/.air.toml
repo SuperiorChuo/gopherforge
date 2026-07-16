@@ -1,0 +1,20 @@
+# air 热重载：服务器 systemd(gak-mono-api-dev) 使用
+# 代码由 scripts/dev-sync.sh 从本地推送
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/gak-mono-api-dev ./cmd"
+  bin = "tmp/gak-mono-api-dev"
+  include_ext = ["go", "yaml", "yml"]
+  exclude_dir = ["tmp", ".cache", "uploads", "migrations", "scripts", "docs", "resources", "logs"]
+  exclude_regex = ["_test\\.go"]
+  delay = 300
+  kill_delay = "3s"
+  send_interrupt = true
+
+[log]
+  main_only = true
+
+[misc]
+  clean_on_exit = true

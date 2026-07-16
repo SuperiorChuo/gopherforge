@@ -1,0 +1,15 @@
+[Unit]
+Description=go-admin-kit microservices web dev (vite HMR)
+After=network.target
+
+[Service]
+WorkingDirectory=/www/go-admin-kit/src/microservices/web
+Environment=PATH=/usr/local/node22/bin:/usr/local/node/bin:/usr/local/bin:/usr/bin:/bin
+# 代理到服务器上已有网关（旧 stack）或 monorepo 网关；默认走现网 18100
+Environment=VITE_DEV_API_TARGET=http://127.0.0.1:18100
+ExecStart=/usr/local/bin/pnpm run dev:lan
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

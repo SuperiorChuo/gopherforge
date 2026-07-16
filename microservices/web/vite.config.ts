@@ -10,11 +10,17 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5174,
+    port: Number(process.env.VITE_DEV_PORT || 5174),
+    host: true,
     proxy: {
-      // 本地开发默认代理到 Traefik 网关（微服务栈）
+      // 本地默认 8000；远程 dev:lan 可通过 VITE_DEV_API_TARGET 指到网关
       '/api': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_DEV_API_TARGET || 'http://localhost:8000',
+        changeOrigin: true,
+        ws: true,
+      },
+      '/im': {
+        target: process.env.VITE_DEV_API_TARGET || 'http://localhost:8000',
         changeOrigin: true,
         ws: true,
       },

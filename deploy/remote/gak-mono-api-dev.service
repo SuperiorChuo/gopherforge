@@ -1,0 +1,23 @@
+[Unit]
+Description=go-admin-kit monolith API dev (air hot-reload)
+After=network.target
+
+[Service]
+WorkingDirectory=/www/go-admin-kit/src/monolith/server
+EnvironmentFile=-/www/go-admin-kit/src/monolith/server/configs/.env.remote
+# systemd 无 HOME 时 Go 找不到 module cache
+Environment=HOME=/root
+Environment=GOPATH=/root/go
+Environment=GOMODCACHE=/root/go/pkg/mod
+Environment=GOCACHE=/root/.cache/go-build
+Environment=PATH=/usr/local/go/bin:/root/go/bin:/usr/local/bin:/usr/bin:/bin
+Environment=GOPROXY=https://goproxy.cn,direct
+Environment=APP_ENV=development
+# 避开已占用的 8081/18081
+Environment=APP_PORT=18201
+ExecStart=/root/go/bin/air -c .air.toml
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
