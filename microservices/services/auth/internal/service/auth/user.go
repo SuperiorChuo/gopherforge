@@ -12,7 +12,7 @@ import (
 	"github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
-	"github.com/go-admin-kit/services/shared/pkg/captcha"
+	"github.com/go-admin-kit/services/auth/internal/pkg/captcha"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )

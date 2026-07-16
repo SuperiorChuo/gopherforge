@@ -5,11 +5,13 @@ WORKDIR /app
 ENV GOPROXY=https://goproxy.cn,direct
 ENV GOSUMDB=sum.golang.google.cn
 
-COPY go.mod go.sum ./
+# 构建上下文是 microservices/services：shared 拷到 /shared，命中 go.mod 的 replace ../shared（/app/../shared）
+COPY shared/ /shared/
+COPY file/go.mod file/go.sum ./
 
 RUN go mod download && go mod tidy
 
-COPY . .
+COPY file/ .
 
 RUN go build -trimpath -o main ./cmd/main.go
 
