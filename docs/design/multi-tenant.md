@@ -1,8 +1,9 @@
 # 多租户 SaaS 底座设计
 
-> 状态：**M1～M4 已落地**（共享库 + 行级隔离 + 平台运营 + 配额 + 登录租户解析）  
+> 状态：**实验特性 🧪** · M1～M4 已落地（共享库 + 行级隔离 + 平台运营 + 配额 + 登录租户解析）  
 > 范围：微服务线 `microservices/`；单体线本期不同步完整租户模型  
-> 原则：信任 JWT / ForwardAuth 中的 `tenant_id`，不信任客户端自报租户
+> 原则：信任 JWT / ForwardAuth 中的 `tenant_id`，不信任客户端自报租户  
+> **发版**：不纳入近期 `v0.1.0` 承诺范围；表结构 / API 可能随迭代调整
 
 相关：[`../EXPANSION_PLAN.md`](../EXPANSION_PLAN.md) Phase 5 · [`../PRODUCT_LINES.md`](../PRODUCT_LINES.md)
 

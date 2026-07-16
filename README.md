@@ -396,6 +396,16 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 > 当前已具备：认证鉴权、RBAC、系统管理、文件、监控，以及微服务线上的 **AI 服务雏形**。  
 > 下列能力将以 **可插拔域服务** 方式演进——优先挂在 `microservices/`，单体线保持精简或按需同步核心能力。
 
+### 成熟度（当前策略）
+
+| 层级 | 模块 | 说明 |
+|------|------|------|
+| **稳定底座** | 登录鉴权、RBAC、系统管理、文件、审计、监控、网关 | 日常脚手架主体；发版前仍需 Changelog / E2E / 生产文档 |
+| **实验特性 🧪** | **IM 智能客服**、**多租户 SaaS**、**FreeSWITCH 媒体目录** | 已可本地演示与迭代，**API/表结构可能变**；不承诺生产就绪 |
+| **发版状态** | **暂不发 `v0.1.0`** | 功能继续做；正式 tag 等 Phase 0 质量项齐了再打 |
+
+实验特性文档：[`docs/design/im-service.md`](docs/design/im-service.md) · [`docs/design/multi-tenant.md`](docs/design/multi-tenant.md) · [`docs/design/freeswitch-cc.md`](docs/design/freeswitch-cc.md)。
+
 ### 🎯 为什么这些方向合适？
 
 | 方向 | 是否契合 | 理由 |
@@ -417,7 +427,7 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 - [x] 微服务拆分：auth / identity / system / audit / file / ai / monitor
 - [x] React + Ant Design 统一前端
 - [x] Traefik 网关、ForwardAuth、NATS 事件
-- [ ] 正式 Release（`v0.1.0`）+ Changelog
+- [ ] 正式 Release（`v0.1.0`）+ Changelog  ← **有意延后**；实验特性（IM / 多租户）先演进
 - [ ] Playwright E2E 纳入 GitHub Actions
 - [ ] 生产部署指南（Linux / Nginx / HTTPS）
 - [ ] 更多二次开发示例页与最佳实践文档

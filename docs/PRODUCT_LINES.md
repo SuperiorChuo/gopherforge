@@ -22,6 +22,9 @@
 | Traefik 网关 + ForwardAuth | ✅ | ❌ |
 | NATS 登录事件 | ✅ | ❌（不需要） |
 | AI 对话 / 知识库 | ✅ ai-service + web | ❌（前端 stub，不启服务） |
+| IM / 智能客服 | 🧪 实验：`im-service`（可演示，非生产承诺） | ❌ |
+| 多租户 SaaS | 🧪 实验：`tenant_id` + 租户管理（可演示，非生产承诺） | ❌ |
+| 呼叫媒体 FreeSWITCH | 🧪 实验：`freeswitch-cc/` 独立 compose | ❌ |
 | 前端技术栈 | React + Ant Design | React + Ant Design |
 | 默认前端端口 | 3000 / 网关 8000 | 3001 |
 | 默认 API 端口 | 经 8000 | 18081 |
@@ -44,6 +47,7 @@
 | audit-service | `services/audit` | 日志查询与登录事件消费 |
 | file-service | `services/file` | 文件与 uploads |
 | ai-service | `services/ai` | 对话、知识库、日志洞察 |
+| im-service | `services/im` | 🧪 实验：会话、坐席、埋码 Widget、机器人预答 |
 | monitor-service | `services/monitor` | 监控、健康、metrics、**共享 goose 迁移**、网关 `/api` 兜底 |
 
 ## 迁移真源
