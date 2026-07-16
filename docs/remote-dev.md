@@ -52,9 +52,14 @@ ssh root@192.168.220.109 "cd /www/go-admin-kit/src/microservices/web && pnpm i &
 ./scripts/remote-ms-deploy.sh
 # 或只重建某个服务：
 ssh root@192.168.220.109 "cd /www/go-admin-kit/src/microservices && docker compose up -d --build identity-service"
+
+# 前端改完必须重建静态 13100（用户默认验收入口）：
+ssh root@192.168.220.109 "cd /www/go-admin-kit/src/microservices && export COMPOSE_PROJECT_NAME=go-admin-kit && docker compose up -d --build frontend"
 ```
 
 免密：`~/.ssh/id_ed25519`。**不要把 root 密码写进仓库。**
+
+> **协作约定（强制）**：改完会影响远端效果的代码后，AI / 开发者须按 `AGENTS.md`「远程热更新部署」一节推送并重建，不要只改本地。
 
 ## 访问
 

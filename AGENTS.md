@@ -80,6 +80,60 @@ Tabs ink bar becomes a glowing gradient strip...
 - 不提交密钥、`.env`、本地数据、构建产物、上传文件。
 - 优先小步可审 PR；验证命令见 `CONTRIBUTING.md`。
 
+## 远程热更新部署（强制）
+
+> 内网开发机 `192.168.220.109`。详细说明见 [`docs/remote-dev.md`](docs/remote-dev.md)。  
+> **策略：只部署 monorepo 微服务，不部署单体。**
+
+### 总原则
+
+1. **凡改动了会影响远端运行效果的代码，任务收尾前必须热更新部署**，不要只改本地就结束。
+2. 纯文档 / 仅 `AGENTS.md` 规范 / 用户明确说「不要部署」时，可跳过。
+3. 部署后应用一两句中文说明访问入口与是否成功（如 13100/13200/18100）。
+
+### 标准流程（按改动面选）
+
+| 改动范围 | 必须执行 |
+| --- | --- |
+| 任意需上机的代码 | `./scripts/dev-sync.sh once` |
+| `microservices/web/**` 前端 | 同步后 **重建静态前端**（用户主入口 **13100**）：见下方命令 |
+| 单微服务 Go 代码 | 同步后重建对应服务：`docker compose up -d --build <service>` |
+| 多服务 / compose / 网关 / 环境变量 | `./scripts/remote-ms-deploy.sh` 或按服务逐个 `--build` |
+| 仅文档/规范 | 可不部署 |
+
+### 推荐命令（本机仓库根目录）
+
+```bash
+# 1) 始终先推源码
+./scripts/dev-sync.sh once
+
+# 2a) 微服务前端 → 静态 13100（用户默认看这个）
+ssh -i "$HOME/.ssh/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes root@192.168.220.109 \
+  'cd /www/go-admin-kit/src/microservices && export COMPOSE_PROJECT_NAME=go-admin-kit && docker compose up -d --build frontend'
+
+# 2b) 单后端服务示例（identity）
+ssh -i "$HOME/.ssh/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes root@192.168.220.109 \
+  'cd /www/go-admin-kit/src/microservices && export COMPOSE_PROJECT_NAME=go-admin-kit && docker compose up -d --build identity-service'
+
+# 2c) 全量微服务栈
+./scripts/remote-ms-deploy.sh
+```
+
+### 访问入口
+
+| URL | 用途 |
+| --- | --- |
+| http://192.168.220.109:13100 | **静态前端（默认验收）** |
+| http://192.168.220.109:13200 | Vite HMR（dev-sync 后源码热更；`gak-ms-web-dev`） |
+| http://192.168.220.109:18100 | Traefik 网关（API + 路由） |
+
+### AI 执行注意
+
+- SSH 密钥默认 `~/.ssh/id_ed25519`，目标 `root@192.168.220.109`；**不要把密码写进仓库或对话日志。**
+- `docker compose up -d --build frontend` 可能数分钟，需足够超时；完成后 `curl` 或 `docker compose ps` 确认。
+- 前端改完：**13100 必须重建**，不要只靠 13200 就当作「已部署」。
+- 部署失败时说明原因并重试；网络不在内网时告知用户，勿假装已上线。
+
 ## 架构速览（一人 monorepo）
 
 本仓库是 **单人维护的 monorepo**，内含多条产品线（目录分开、进程可分开部署）：
