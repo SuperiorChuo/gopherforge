@@ -98,7 +98,7 @@ export default function ImSitesPage() {
         title="智能客服 · 埋码站点 (IM M2)"
         extra={
           <Space>
-            <Button href="/im/widget/demo" target="_blank">
+            <Button href="/im/widget/demo.html" target="_blank">
               打开埋码演示页
             </Button>
             <Button href="/im/desk">坐席工作台</Button>

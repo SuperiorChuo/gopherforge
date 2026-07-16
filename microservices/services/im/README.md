@@ -45,7 +45,7 @@
   async></script>
 ```
 
-- 演示页：`/im/widget/demo`
+- 演示页：`/im/widget/demo.html`
 - 站点配置：`/im/sites`（含机器人开关）
 - 技能组：`/im/skills`
 - 坐席台：`/im/desk`

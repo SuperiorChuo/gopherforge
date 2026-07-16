@@ -42,6 +42,8 @@ import {
   HomeOutlined,
   VerticalAlignTopOutlined,
   ColumnHeightOutlined,
+  RobotOutlined,
+  BookOutlined,
 } from '@ant-design/icons'
 import { useAppDispatch, useAppSelector } from '@/hooks/store'
 import { fetchCurrentUser, logout } from '@/store/slices/authSlice'
@@ -109,6 +111,15 @@ const MENU_DEFS: MenuDef[] = [
       { label: '定时任务', key: '/monitor/job', icon: <ScheduleOutlined /> },
     ],
   },
+  {
+    label: 'AI 智能',
+    key: 'ai',
+    icon: <RobotOutlined />,
+    children: [
+      { label: 'AI 助手', key: '/ai/assistant', icon: <RobotOutlined /> },
+      { label: 'AI 知识库', key: '/ai/knowledge', icon: <BookOutlined /> },
+    ],
+  },
 ]
 
 function buildMenuItems(defs: MenuDef[], hasPerm: (code?: string) => boolean): MenuItem2[] {
@@ -169,10 +180,12 @@ export default function MainLayout() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const location = useLocation()
-  const { userInfo, loading } = useAppSelector((s) => s.auth)
-  const { hasPerm } = usePermission()
+  const { userInfo, loading, permissions } = useAppSelector((s) => s.auth)
+  const { hasPerm, isSuperAdmin } = usePermission()
   const { mode, toggle: toggleTheme } = useThemeMode()
   const token = getToken()
+  // super_admin 可不依赖 permissions 列表；普通用户需要 permissions 才渲染侧栏
+  const authReady = !!userInfo && (isSuperAdmin || permissions.length > 0 || !Object.keys(ROUTE_PERMISSIONS).length)
 
   const menuItems = useMemo(() => buildMenuItems(MENU_DEFS, hasPerm), [hasPerm])
   const paletteItems = useMemo(() => buildPaletteItems(MENU_DEFS, hasPerm), [hasPerm])
@@ -237,10 +250,11 @@ export default function MainLayout() {
       navigate('/login', { replace: true })
       return
     }
-    if (!userInfo) {
+    // 有 token 但用户/权限未就绪时拉取；避免 login 只写了 userInfo、permissions 仍为空
+    if (!authReady) {
       dispatch(fetchCurrentUser())
     }
-  }, [token, userInfo, dispatch, navigate])
+  }, [token, authReady, dispatch, navigate])
 
   if (!token) return null
 

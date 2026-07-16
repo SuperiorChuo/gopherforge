@@ -67,7 +67,12 @@ const authSlice = createSlice({
         state.loading = false
         if (action.payload.access_token) state.token = action.payload.access_token
         if (action.payload.refresh_token) state.refreshToken = action.payload.refresh_token
-        if (action.payload.user) state.userInfo = action.payload.user
+        // 登录响应里的 user 已含 roles/permissions；必须同步 permissions，
+        // 否则侧栏按权限过滤时会得到空菜单（fetchCurrentUser 在已有 userInfo 时会被跳过）。
+        if (action.payload.user) {
+          state.userInfo = action.payload.user
+          state.permissions = action.payload.user.permissions || []
+        }
       })
       .addCase(login.rejected, (state) => { state.loading = false })
       .addCase(fetchCurrentUser.fulfilled, (state, action) => {

@@ -2,10 +2,12 @@
 FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
+ENV GOPROXY=https://goproxy.cn,direct
+ENV GOSUMDB=sum.golang.google.cn
 
 COPY go.mod go.sum ./
 
-RUN go mod download
+RUN go mod download && go mod tidy
 
 COPY . .
 
@@ -27,6 +29,9 @@ COPY --from=builder --chown=app:app /app/migrate .
 COPY --chown=app:app ./configs ./configs
 COPY --chown=app:app ./migrations ./migrations
 COPY --chown=app:app ./resources ./resources
+# 仓库/rsync 常排除 configs/config.yaml；compose 靠环境变量覆盖密钥
+RUN if [ ! -f ./configs/config.yaml ]; then cp ./configs/config.example.yaml ./configs/config.yaml; fi \
+    && chown app:app ./configs/config.yaml
 
 USER app
 

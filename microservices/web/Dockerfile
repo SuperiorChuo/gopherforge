@@ -5,7 +5,9 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci
+# 内网服务器构建用国内 npm 镜像
+RUN npm config set registry https://registry.npmmirror.com \
+    && if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 COPY . .
 

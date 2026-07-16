@@ -498,7 +498,7 @@ export default function ImDeskPage() {
               访客 H5
             </a>
             {' · '}
-            <a href="/im/widget/demo" target="_blank" rel="noreferrer">
+            <a href="/im/widget/demo.html" target="_blank" rel="noreferrer">
               埋码演示
             </a>
           </div>

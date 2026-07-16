@@ -97,8 +97,8 @@ func main() {
 	r.Static("/im/visitor/static", "./web-visitor")
 
 	// webpage embed widget (M2)
+	// Gin 不允许 /im/widget/*filepath 与精确路径共存，demo 页直接走 /im/widget/demo.html
 	r.Static("/im/widget", "./web-widget")
-	r.StaticFile("/im/widget/demo", "./web-widget/demo.html")
 
 	httpSrv := &http.Server{Addr: ":" + cfg.AppPort, Handler: r}
 	go func() {

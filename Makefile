@@ -47,10 +47,11 @@ e2e-api: smoke-api
 migrate-redo migrate-reset:
 	@$(MAKE) -C $(MICRO)/services/monitor $@
 
-.PHONY: remote-sync remote-bootstrap remote-logs
+.PHONY: remote-sync remote-ms-deploy remote-logs
 remote-sync:
 	./scripts/dev-sync.sh once
-remote-bootstrap:
-	./scripts/remote-bootstrap.sh
+# 用 monorepo 微服务替换服务器旧栈（不部署单体）
+remote-ms-deploy:
+	./scripts/remote-ms-deploy.sh
 remote-logs:
-	ssh -i $$HOME/.ssh/id_ed25519 -o IdentitiesOnly=yes root@192.168.220.109 "journalctl -u gak-mono-api-dev -u gak-ms-web-dev -f"
+	ssh -i $$HOME/.ssh/id_ed25519 -o IdentitiesOnly=yes root@192.168.220.109 "cd /www/go-admin-kit/src/microservices && docker compose logs -f --tail=100"

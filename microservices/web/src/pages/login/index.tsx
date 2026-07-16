@@ -13,7 +13,7 @@ import {
   CloudOutlined,
 } from '@ant-design/icons'
 import { useAppDispatch, useAppSelector } from '@/hooks/store'
-import { login } from '@/store/slices/authSlice'
+import { fetchCurrentUser, login } from '@/store/slices/authSlice'
 import { getCaptcha } from '@/api/auth'
 import { setTokens } from '@/utils/request'
 
@@ -87,6 +87,12 @@ export default function LoginPage() {
         setChallengeId(result.totp_challenge_id)
         setTotpStep(true)
         return
+      }
+      // 再拉一次 /user/me + /user/menus，保证侧栏权限与后端菜单一致
+      try {
+        await dispatch(fetchCurrentUser()).unwrap()
+      } catch {
+        // 登录已成功，拉取失败时仍进入系统（login 响应里已有 user）
       }
       message.success('登录成功')
       navigate('/dashboard', { replace: true })
