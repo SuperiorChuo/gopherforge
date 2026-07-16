@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/auth/internal/pkg/mask"
+	"github.com/go-admin-kit/services/shared/pkg/mask"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 )
 
