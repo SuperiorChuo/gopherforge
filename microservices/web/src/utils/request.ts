@@ -10,6 +10,18 @@ import { message } from './feedback'
 
 const TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
+/** Platform admin act-as tenant (M4); honored only when JWT platform_admin=true */
+const ACT_TENANT_KEY = 'act_tenant_id'
+
+export const getActTenantId = () => localStorage.getItem(ACT_TENANT_KEY)
+export const setActTenantId = (id: string | number | null) => {
+  if (id === null || id === undefined || id === '') {
+    localStorage.removeItem(ACT_TENANT_KEY)
+    return
+  }
+  localStorage.setItem(ACT_TENANT_KEY, String(id))
+}
+export const clearActTenantId = () => localStorage.removeItem(ACT_TENANT_KEY)
 
 // 允许单个请求关闭全局错误提示（如仪表盘的可选模块，无权限时静默降级）
 declare module 'axios' {
@@ -49,6 +61,10 @@ instance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = getToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  const actTenant = getActTenantId()
+  if (actTenant) {
+    config.headers['X-Act-Tenant-ID'] = actTenant
   }
   return config
 })

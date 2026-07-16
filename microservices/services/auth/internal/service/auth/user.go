@@ -194,7 +194,9 @@ func (s *UserService) LoginPasswordWithTenantContext(ctx context.Context, userna
 		}, nil
 	}
 
-	accessToken, refreshToken, err := jwt.GenerateTokenWithTenantAndAccessTTL(user.ID, user.Username, tenantID, accessTTL)
+	accessToken, refreshToken, err := jwt.GenerateTokenWithTenantPlatformAndAccessTTL(
+		user.ID, user.Username, tenantID, user.IsPlatformAdmin, accessTTL,
+	)
 	if err != nil {
 		return nil, err
 	}

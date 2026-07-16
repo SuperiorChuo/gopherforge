@@ -17,12 +17,16 @@ import (
 
 // UserService manages users for the system module.
 type UserService struct {
-	userDAO systemdao.UserDAO
+	userDAO   systemdao.UserDAO
+	tenantDAO *systemdao.TenantDAO
 }
 
 // NewUserServiceWithDB builds a UserService backed by an injected database handle.
 func NewUserServiceWithDB(db *gorm.DB) UserService {
-	return UserService{userDAO: *systemdao.NewUserDAO(db)}
+	return UserService{
+		userDAO:   *systemdao.NewUserDAO(db),
+		tenantDAO: systemdao.NewTenantDAO(db),
+	}
 }
 
 type UserListRequest struct {
@@ -59,6 +63,7 @@ var (
 	ErrUserNotFound          = errors.New("user not found")
 	ErrRoleNotInTenant       = errors.New("role does not belong to current tenant")
 	ErrDepartmentNotInTenant = errors.New("department does not belong to current tenant")
+	ErrTenantUserQuota       = errors.New("tenant user quota exceeded")
 )
 
 func (s *UserService) GetUserByIDContext(ctx context.Context, id uint) (*model.User, error) {
@@ -122,6 +127,9 @@ func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserReque
 	}
 
 	tenantID := tenant.Normalize(tenant.FromContext(ctx))
+	if err := s.enforceUserQuota(ctx, tenantID); err != nil {
+		return nil, err
+	}
 	if req.DepartmentID > 0 {
 		if err := s.userDAO.AssertDepartmentInTenantContext(ctx, req.DepartmentID, tenantID); err != nil {
 			if errors.Is(err, systemdao.ErrDepartmentNotInTenant) {
@@ -238,6 +246,33 @@ func assertSameTenant(ctx context.Context, resourceTenantID uint) error {
 	}
 	if actor != resourceTenantID {
 		return ErrUserNotFound
+	}
+	return nil
+}
+
+func (s *UserService) enforceUserQuota(ctx context.Context, tenantID uint) error {
+	if s.tenantDAO == nil {
+		return nil
+	}
+	// Platform-wide quota read bypasses actor tenant row filter.
+	qctx := tenant.DisableScope(ctx)
+	t, err := s.tenantDAO.GetByIDContext(qctx, tenantID)
+	if err != nil {
+		// No tenants table / missing row → skip enforcement (single-tenant legacy)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+	if t.MaxUsers <= 0 {
+		return nil
+	}
+	n, err := s.tenantDAO.CountUsersContext(qctx, tenantID)
+	if err != nil {
+		return err
+	}
+	if n >= t.MaxUsers {
+		return ErrTenantUserQuota
 	}
 	return nil
 }

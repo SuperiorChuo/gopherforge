@@ -6,6 +6,7 @@ import "time"
 type User struct {
 	ID                 uint       `gorm:"primaryKey" json:"id"`
 	TenantID           uint       `gorm:"not null;default:1;uniqueIndex:ux_users_tenant_username,priority:1;index" json:"tenant_id"`
+	IsPlatformAdmin    bool       `gorm:"default:false" json:"is_platform_admin"`
 	Username           string     `gorm:"size:50;not null;uniqueIndex:ux_users_tenant_username,priority:2" json:"username"`
 	Password           string     `gorm:"size:255;not null" json:"-"`
 	Nickname           string     `gorm:"size:50" json:"nickname"`

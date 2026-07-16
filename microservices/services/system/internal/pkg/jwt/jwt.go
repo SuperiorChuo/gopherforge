@@ -46,10 +46,11 @@ var (
 type redisTokenBlacklistStore struct{}
 
 type Claims struct {
-	UserID    uint   `json:"user_id"`
-	Username  string `json:"username"`
-	TenantID  uint   `json:"tenant_id"`
-	TokenType string `json:"token_type"`
+	UserID         uint   `json:"user_id"`
+	Username       string `json:"username"`
+	TenantID       uint   `json:"tenant_id"`
+	PlatformAdmin  bool   `json:"platform_admin"`
+	TokenType      string `json:"token_type"`
 	jwtlib.RegisteredClaims
 }
 
@@ -95,6 +96,11 @@ func GenerateTokenWithTenant(userID uint, username string, tenantID uint) (acces
 }
 
 func GenerateTokenWithTenantAndAccessTTL(userID uint, username string, tenantID uint, accessTTL time.Duration) (accessToken, refreshToken string, err error) {
+	return GenerateTokenWithTenantPlatformAndAccessTTL(userID, username, tenantID, false, accessTTL)
+}
+
+// GenerateTokenWithTenantPlatformAndAccessTTL mints tokens including platform operator flag (M4).
+func GenerateTokenWithTenantPlatformAndAccessTTL(userID uint, username string, tenantID uint, platformAdmin bool, accessTTL time.Duration) (accessToken, refreshToken string, err error) {
 	cfg := config.Cfg.JWT
 	now := time.Now()
 	tenantID = NormalizeTenantID(tenantID)
@@ -103,10 +109,11 @@ func GenerateTokenWithTenantAndAccessTTL(userID uint, username string, tenantID 
 	}
 
 	accessClaims := Claims{
-		UserID:    userID,
-		Username:  username,
-		TenantID:  tenantID,
-		TokenType: AccessTokenType,
+		UserID:        userID,
+		Username:      username,
+		TenantID:      tenantID,
+		PlatformAdmin: platformAdmin,
+		TokenType:     AccessTokenType,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			ExpiresAt: jwtlib.NewNumericDate(now.Add(accessTTL)),
 			IssuedAt:  jwtlib.NewNumericDate(now),
@@ -123,10 +130,11 @@ func GenerateTokenWithTenantAndAccessTTL(userID uint, username string, tenantID 
 	}
 
 	refreshClaims := Claims{
-		UserID:    userID,
-		Username:  username,
-		TenantID:  tenantID,
-		TokenType: RefreshTokenType,
+		UserID:        userID,
+		Username:      username,
+		TenantID:      tenantID,
+		PlatformAdmin: platformAdmin,
+		TokenType:     RefreshTokenType,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			ExpiresAt: jwtlib.NewNumericDate(now.Add(time.Duration(cfg.RefreshTokenExpire) * time.Second)),
 			IssuedAt:  jwtlib.NewNumericDate(now),
@@ -166,10 +174,11 @@ func generateSinglePurposeToken(userID uint, username string, tenantID uint, tok
 	}
 
 	claims := Claims{
-		UserID:    userID,
-		Username:  username,
-		TenantID:  tenantID,
-		TokenType: tokenType,
+		UserID:        userID,
+		Username:      username,
+		TenantID:      tenantID,
+		PlatformAdmin: false,
+		TokenType:     tokenType,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			ExpiresAt: jwtlib.NewNumericDate(now.Add(ttl)),
 			IssuedAt:  jwtlib.NewNumericDate(now),
@@ -270,10 +279,11 @@ func refreshTokenWithBase(ctx context.Context, refreshToken string) (accessToken
 
 	now := time.Now()
 	newAccessClaims := Claims{
-		UserID:    claims.UserID,
-		Username:  claims.Username,
-		TenantID:  NormalizeTenantID(claims.TenantID),
-		TokenType: AccessTokenType,
+		UserID:        claims.UserID,
+		Username:      claims.Username,
+		TenantID:      NormalizeTenantID(claims.TenantID),
+		PlatformAdmin: claims.PlatformAdmin,
+		TokenType:     AccessTokenType,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			ExpiresAt: jwtlib.NewNumericDate(now.Add(time.Duration(cfg.AccessTokenExpire) * time.Second)),
 			IssuedAt:  jwtlib.NewNumericDate(now),
@@ -295,10 +305,11 @@ func refreshTokenWithBase(ctx context.Context, refreshToken string) (accessToken
 
 	now = time.Now()
 	newRefreshClaims := Claims{
-		UserID:    claims.UserID,
-		Username:  claims.Username,
-		TenantID:  NormalizeTenantID(claims.TenantID),
-		TokenType: RefreshTokenType,
+		UserID:        claims.UserID,
+		Username:      claims.Username,
+		TenantID:      NormalizeTenantID(claims.TenantID),
+		PlatformAdmin: claims.PlatformAdmin,
+		TokenType:     RefreshTokenType,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			ExpiresAt: jwtlib.NewNumericDate(now.Add(time.Duration(cfg.RefreshTokenExpire) * time.Second)),
 			IssuedAt:  jwtlib.NewNumericDate(now),

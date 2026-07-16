@@ -204,7 +204,9 @@ func (s *UserService) VerifyTOTPLoginWithAccessTTLContext(ctx context.Context, r
 	if tenantID == 0 {
 		tenantID = jwt.NormalizeTenantID(claims.TenantID)
 	}
-	accessToken, refreshToken, err := jwt.GenerateTokenWithTenantAndAccessTTL(user.ID, user.Username, tenantID, accessTTL)
+	accessToken, refreshToken, err := jwt.GenerateTokenWithTenantPlatformAndAccessTTL(
+		user.ID, user.Username, tenantID, user.IsPlatformAdmin, accessTTL,
+	)
 	if err != nil {
 		return nil, err
 	}

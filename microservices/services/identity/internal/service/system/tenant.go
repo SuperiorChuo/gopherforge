@@ -46,6 +46,18 @@ type CreateTenantRequest struct {
 	Status   int8   `json:"status"`
 }
 
+// PlanDefaultMaxUsers returns a soft default quota when max_users is 0 on create.
+func PlanDefaultMaxUsers(plan string) int64 {
+	switch strings.ToLower(strings.TrimSpace(plan)) {
+	case "pro":
+		return 50
+	case "enterprise":
+		return 0 // unlimited
+	default: // free
+		return 10
+	}
+}
+
 type UpdateTenantRequest struct {
 	Name     *string `json:"name"`
 	Plan     *string `json:"plan"`
@@ -94,12 +106,17 @@ func (s *TenantService) Create(ctx context.Context, req CreateTenantRequest) (*m
 	if plan == "" {
 		plan = "free"
 	}
+	maxUsers := req.MaxUsers
+	if maxUsers == 0 && plan != "enterprise" {
+		// 0 means "use plan default" on create (enterprise stays unlimited).
+		maxUsers = PlanDefaultMaxUsers(plan)
+	}
 	t := &model.Tenant{
 		Code:     code,
 		Name:     name,
 		Status:   status,
 		Plan:     plan,
-		MaxUsers: req.MaxUsers,
+		MaxUsers: maxUsers,
 	}
 	if err := s.dao.CreateContext(ctx, t); err != nil {
 		return nil, err

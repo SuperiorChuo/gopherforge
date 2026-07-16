@@ -85,11 +85,25 @@ func AuthMiddleware() gin.HandlerFunc {
 				tenantID = uint(n)
 			}
 		}
+		platformAdmin := claims.PlatformAdmin
+		if h := c.GetHeader("X-Auth-Platform-Admin"); h == "1" || strings.EqualFold(h, "true") {
+			platformAdmin = true
+		}
+		// Platform operators may act-as another tenant via X-Act-Tenant-ID (M4).
+		if platformAdmin {
+			if h := c.GetHeader("X-Act-Tenant-ID"); h != "" {
+				if n, err := strconv.ParseUint(h, 10, 64); err == nil && n > 0 {
+					tenantID = uint(n)
+				}
+			}
+		}
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
 		c.Set("tenant_id", tenantID)
+		c.Set("platform_admin", platformAdmin)
 		// Propagate tenant into request context for DAOs/services.
 		ctx := context.WithValue(c.Request.Context(), TenantIDContextKey, tenantID)
+		ctx = context.WithValue(ctx, "platform_admin", platformAdmin)
 		c.Request = c.Request.WithContext(ctx)
 		SetAuditActor(c, DefaultAuditActorType, claims.Username)
 

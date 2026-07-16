@@ -259,7 +259,9 @@ func (s *OAuthService) buildOAuthLoginResponseContext(ctx context.Context, user 
 	if tenantID == 0 {
 		tenantID = 1
 	}
-	accessToken, refreshToken, err := jwt.GenerateTokenWithTenant(user.ID, user.Username, tenantID)
+	accessToken, refreshToken, err := jwt.GenerateTokenWithTenantPlatformAndAccessTTL(
+		user.ID, user.Username, tenantID, user.IsPlatformAdmin, 0,
+	)
 	if err != nil {
 		return nil, err
 	}

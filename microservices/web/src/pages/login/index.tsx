@@ -48,6 +48,24 @@ export default function LoginPage() {
     refreshCaptcha()
   }, [refreshCaptcha])
 
+  // M4: prefill tenant from ?tenant= or subdomain (acme.localhost → acme)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const q = params.get('tenant') || params.get('tenant_code')
+    if (q) {
+      form.setFieldValue('tenant_code', q)
+      return
+    }
+    const host = window.location.hostname.toLowerCase()
+    const parts = host.split('.')
+    if (parts.length >= 2) {
+      const label = parts[0]
+      if (label && !['www', 'api', 'app', 'admin', 'localhost'].includes(label) && !/^\d+$/.test(label)) {
+        form.setFieldValue('tenant_code', label)
+      }
+    }
+  }, [form])
+
   const onFinish = async (values: {
     username: string
     password: string

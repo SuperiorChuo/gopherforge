@@ -31,6 +31,7 @@ export interface VerifyTOTPLoginRequest {
 export interface UserInfo {
   id?: number
   tenant_id?: number
+  is_platform_admin?: boolean
   username: string
   nickname?: string
   email?: string

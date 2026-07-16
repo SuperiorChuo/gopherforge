@@ -1,6 +1,6 @@
 # 多租户 SaaS 底座设计
 
-> 状态：**M1 落地中**（共享库 + `tenant_id` 行级隔离）  
+> 状态：**M1～M4 已落地**（共享库 + 行级隔离 + 平台运营 + 配额 + 登录租户解析）  
 > 范围：微服务线 `microservices/`；单体线本期不同步完整租户模型  
 > 原则：信任 JWT / ForwardAuth 中的 `tenant_id`，不信任客户端自报租户
 
@@ -104,7 +104,7 @@ Refresh / TOTP / WS ticket 均透传 `tenant_id`。
 | **M1** | 本文：表 + JWT + 登录 + 租户 CRUD + 用户列表隔离 |
 | **M2** | ✅ 角色/部门强制租户；创建用户绑 tenant；GORM 租户插件；分配角色/部门跨租户拒绝 |
 | **M3** | ✅ file / audit 日志 / AI / IM 补 `tenant_id` 与读写隔离；登录事件携带 tenant |
-| **M4** | 子域名 / 独立登录页；platform_admin；计费对接；配额强制 |
+| **M4** | ✅ 子域名/`?tenant=` 登录解析；`is_platform_admin` + `X-Act-Tenant-ID`；`max_users` 配额；套餐默认配额 |
 
 ---
 
@@ -123,3 +123,4 @@ Refresh / TOTP / WS ticket 均透传 `tenant_id`。
 | 2026-07-16 | M1 初稿并实现 |
 | 2026-07-16 | M2：GORM tenant 插件 + 角色/部门/用户边界加固 |
 | 2026-07-16 | M3：file/audit/AI/IM 域表 tenant_id + 服务内隔离 |
+| 2026-07-16 | M4：platform_admin、配额、Host/?tenant 登录、前端切换租户 |

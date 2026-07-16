@@ -17,9 +17,10 @@ import (
 
 // Response headers copied upstream by Traefik on successful verification.
 const (
-	HeaderUserID   = "X-Auth-User-ID"
-	HeaderUsername = "X-Auth-Username"
-	HeaderTenantID = "X-Auth-Tenant-ID"
+	HeaderUserID        = "X-Auth-User-ID"
+	HeaderUsername      = "X-Auth-Username"
+	HeaderTenantID      = "X-Auth-Tenant-ID"
+	HeaderPlatformAdmin = "X-Auth-Platform-Admin"
 )
 
 // Handler verifies bearer tokens and console session cookies with the exact
@@ -95,5 +96,10 @@ func (h *Handler) Verify(c *gin.Context) {
 	c.Header(HeaderUserID, strconv.FormatUint(uint64(claims.UserID), 10))
 	c.Header(HeaderUsername, claims.Username)
 	c.Header(HeaderTenantID, strconv.FormatUint(uint64(jwt.NormalizeTenantID(claims.TenantID)), 10))
+	if claims.PlatformAdmin {
+		c.Header(HeaderPlatformAdmin, "1")
+	} else {
+		c.Header(HeaderPlatformAdmin, "0")
+	}
 	c.Status(http.StatusOK)
 }

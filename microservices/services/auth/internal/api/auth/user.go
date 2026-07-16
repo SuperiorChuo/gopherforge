@@ -75,6 +75,10 @@ func (a *UserAPI) Login(c *gin.Context) {
 		response.BadRequest(c, invalidRequestBodyMessage)
 		return
 	}
+	// M4: resolve tenant from body, then Host subdomain (acme.example.com → acme).
+	if strings.TrimSpace(req.TenantCode) == "" {
+		req.TenantCode = tenantCodeFromHost(c.Request.Host)
+	}
 
 	policy := runtimeconfig.DefaultSecurityPolicyReader().SecurityPolicy(c.Request.Context())
 	loginLimitCfg := middleware.LoginLimitConfigFromPolicy(policy)
@@ -506,4 +510,39 @@ func logAuthOnlineUserError(message string, err error) {
 		return
 	}
 	logger.Error(message, logger.Err(err))
+}
+
+// tenantCodeFromHost extracts optional tenant slug from Host.
+// Examples: acme.localhost:3000 → acme; acme.example.com → acme; localhost → "".
+func tenantCodeFromHost(host string) string {
+	host = strings.TrimSpace(strings.ToLower(host))
+	if host == "" {
+		return ""
+	}
+	if i := strings.Index(host, ":"); i >= 0 {
+		host = host[:i]
+	}
+	// strip brackets for ipv6
+	host = strings.Trim(host, "[]")
+	parts := strings.Split(host, ".")
+	if len(parts) < 2 {
+		return ""
+	}
+	label := parts[0]
+	switch label {
+	case "", "www", "api", "app", "admin", "localhost", "127":
+		return ""
+	}
+	// skip pure numeric first labels (IPs)
+	allDigit := true
+	for _, r := range label {
+		if r < '0' || r > '9' {
+			allDigit = false
+			break
+		}
+	}
+	if allDigit {
+		return ""
+	}
+	return label
 }
