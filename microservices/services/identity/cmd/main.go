@@ -28,6 +28,7 @@ import (
 	"github.com/go-admin-kit/services/identity/internal/pkg/observability"
 	"github.com/go-admin-kit/services/identity/internal/pkg/redis"
 	"github.com/go-admin-kit/services/identity/internal/pkg/runtimeconfig"
+	tenantscope "github.com/go-admin-kit/services/identity/internal/pkg/tenant"
 	authsvc "github.com/go-admin-kit/services/identity/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/identity/internal/service/system"
 )
@@ -191,6 +192,9 @@ func run(ctx context.Context) error {
 	}
 	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {
 		return fmt.Errorf("data scope plugin registration failed: %w", err)
+	}
+	if err := tenantscope.Register(database.DB); err != nil {
+		return fmt.Errorf("tenant scope plugin registration failed: %w", err)
 	}
 	consoleSessionService := authsvc.NewConsoleSessionServiceWithDB(database.DB)
 	middleware.SetAuthMiddlewareDependencies(middleware.AuthMiddlewareDependencies{

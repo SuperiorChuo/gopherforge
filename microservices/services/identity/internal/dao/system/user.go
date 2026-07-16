@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 
@@ -38,9 +39,9 @@ func (d *UserDAO) GetUserListContext(ctx context.Context, req pagination.PageReq
 
 	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.User{})
 
-	// Multi-tenant isolation: always scope by actor tenant when present.
+	// Multi-tenant isolation (explicit; GORM tenant plugin also applies when registered).
 	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
-		query = query.Where("tenant_id = ?", tid)
+		query = query.Where("users.tenant_id = ?", tid)
 	}
 
 	if keyword != "" {
@@ -104,3 +105,64 @@ func (d *UserDAO) AssignRolesContext(ctx context.Context, userID uint, roleIDs [
 		return nil
 	})
 }
+
+// AssertRolesInTenantContext ensures every role id belongs to tenantID.
+func (d *UserDAO) AssertRolesInTenantContext(ctx context.Context, roleIDs []uint, tenantID uint) error {
+	if len(roleIDs) == 0 {
+		return nil
+	}
+	if tenantID == 0 {
+		tenantID = 1
+	}
+	seen := make(map[uint]struct{}, len(roleIDs))
+	uniq := make([]uint, 0, len(roleIDs))
+	for _, id := range roleIDs {
+		if id == 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniq = append(uniq, id)
+	}
+	if len(uniq) == 0 {
+		return nil
+	}
+	var count int64
+	if err := d.dbWithContext(ctx).Model(&model.Role{}).
+		Where("tenant_id = ? AND id IN ?", tenantID, uniq).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if int(count) != len(uniq) {
+		return ErrRoleNotInTenant
+	}
+	return nil
+}
+
+// AssertDepartmentInTenantContext ensures department belongs to tenant.
+func (d *UserDAO) AssertDepartmentInTenantContext(ctx context.Context, departmentID, tenantID uint) error {
+	if departmentID == 0 {
+		return nil
+	}
+	if tenantID == 0 {
+		tenantID = 1
+	}
+	var count int64
+	if err := d.dbWithContext(ctx).Model(&model.Department{}).
+		Where("id = ? AND tenant_id = ?", departmentID, tenantID).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrDepartmentNotInTenant
+	}
+	return nil
+}
+
+// Tenant boundary errors (M2).
+var (
+	ErrRoleNotInTenant       = errors.New("role does not belong to current tenant")
+	ErrDepartmentNotInTenant = errors.New("department does not belong to current tenant")
+)

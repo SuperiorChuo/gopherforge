@@ -45,8 +45,12 @@ func (d *UserDAO) GetUserWithRolesContext(ctx context.Context, id uint) (*model.
 }
 
 func (d *UserDAO) GetUserByEmailContext(ctx context.Context, email string) (*model.User, error) {
+	q := d.dbWithContext(ctx).Where("email = ?", email)
+	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+		q = q.Where("tenant_id = ?", tid)
+	}
 	var user model.User
-	result := d.dbWithContext(ctx).Where("email = ?", email).First(&user)
+	result := q.First(&user)
 	return &user, result.Error
 }
 

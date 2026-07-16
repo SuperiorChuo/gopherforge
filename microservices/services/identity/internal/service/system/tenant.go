@@ -9,6 +9,7 @@ import (
 	"github.com/go-admin-kit/services/identity/internal/dao/system"
 	"github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/identity/internal/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -53,10 +54,13 @@ type UpdateTenantRequest struct {
 }
 
 func (s *TenantService) List(ctx context.Context, req TenantListRequest) ([]model.Tenant, int64, error) {
+	// Platform-wide catalog: disable row tenant plugin (tenants table has no tenant_id).
+	ctx = tenant.DisableScope(ctx)
 	return s.dao.ListContext(ctx, req.PageRequest, req.Keyword, req.Status)
 }
 
 func (s *TenantService) Get(ctx context.Context, id uint) (*model.Tenant, error) {
+	ctx = tenant.DisableScope(ctx)
 	t, err := s.dao.GetByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -68,6 +72,7 @@ func (s *TenantService) Get(ctx context.Context, id uint) (*model.Tenant, error)
 }
 
 func (s *TenantService) Create(ctx context.Context, req CreateTenantRequest) (*model.Tenant, error) {
+	ctx = tenant.DisableScope(ctx)
 	code := strings.ToLower(strings.TrimSpace(req.Code))
 	name := strings.TrimSpace(req.Name)
 	if !tenantCodeRe.MatchString(code) {
@@ -103,6 +108,7 @@ func (s *TenantService) Create(ctx context.Context, req CreateTenantRequest) (*m
 }
 
 func (s *TenantService) Update(ctx context.Context, id uint, req UpdateTenantRequest) (*model.Tenant, error) {
+	ctx = tenant.DisableScope(ctx)
 	t, err := s.Get(ctx, id)
 	if err != nil {
 		return nil, err
@@ -135,5 +141,7 @@ func (s *TenantService) Update(ctx context.Context, id uint, req UpdateTenantReq
 }
 
 func (s *TenantService) UserCount(ctx context.Context, tenantID uint) (int64, error) {
+	// Count users of another tenant requires bypassing the actor tenant filter.
+	ctx = tenant.DisableScope(ctx)
 	return s.dao.CountUsersContext(ctx, tenantID)
 }

@@ -102,7 +102,7 @@ Refresh / TOTP / WS ticket 均透传 `tenant_id`。
 | 阶段 | 内容 |
 |------|------|
 | **M1** | 本文：表 + JWT + 登录 + 租户 CRUD + 用户列表隔离 |
-| **M2** | 角色/部门强制租户；创建用户绑 tenant；GORM 全局插件 |
+| **M2** | ✅ 角色/部门强制租户；创建用户绑 tenant；GORM 租户插件；分配角色/部门跨租户拒绝 |
 | **M3** | file/audit/AI/IM 补 `tenant_id`；配额与 plan |
 | **M4** | 子域名 / 独立登录页；platform_admin；计费对接 |
 
@@ -121,3 +121,4 @@ Refresh / TOTP / WS ticket 均透传 `tenant_id`。
 | 日期 | 说明 |
 |------|------|
 | 2026-07-16 | M1 初稿并实现 |
+| 2026-07-16 | M2：GORM tenant 插件 + 角色/部门/用户边界加固 |

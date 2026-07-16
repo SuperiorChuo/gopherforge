@@ -39,7 +39,11 @@ func (d *RoleDAO) GetRoleByIDContext(ctx context.Context, id uint) (*model.Role,
 
 func (d *RoleDAO) GetRoleByCodeContext(ctx context.Context, code string) (*model.Role, error) {
 	var role model.Role
-	result := d.dbWithContext(ctx).Where("code = ?", code).First(&role)
+	q := d.dbWithContext(ctx).Where("code = ?", code)
+	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+		q = q.Where("tenant_id = ?", tid)
+	}
+	result := q.First(&role)
 	return &role, result.Error
 }
 
@@ -48,6 +52,9 @@ func (d *RoleDAO) GetRoleListContext(ctx context.Context, req pagination.PageReq
 	var total int64
 
 	query := d.dbWithContext(ctx).Model(&model.Role{})
+	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+		query = query.Where("roles.tenant_id = ?", tid)
+	}
 	if keyword != "" {
 		query = query.Where("name LIKE ? OR code LIKE ? OR description LIKE ?",
 			"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
@@ -69,7 +76,11 @@ func (d *RoleDAO) GetRoleListContext(ctx context.Context, req pagination.PageReq
 
 func (d *RoleDAO) GetAllRolesContext(ctx context.Context) ([]model.Role, error) {
 	var roles []model.Role
-	result := d.dbWithContext(ctx).
+	q := d.dbWithContext(ctx).Model(&model.Role{})
+	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+		q = q.Where("roles.tenant_id = ?", tid)
+	}
+	result := q.
 		Preload("DataScopeDepartments").
 		Order("created_at ASC").
 		Find(&roles)

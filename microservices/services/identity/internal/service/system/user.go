@@ -9,6 +9,7 @@ import (
 	"github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
 	"github.com/go-admin-kit/services/identity/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/identity/internal/pkg/tenant"
 	authsvc "github.com/go-admin-kit/services/identity/internal/service/auth"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -56,14 +57,36 @@ var (
 	ErrUsernameAlreadyExists = errors.New("username already exists")
 	ErrEmailAlreadyExists    = errors.New("email already exists")
 	ErrUserNotFound          = errors.New("user not found")
+	ErrRoleNotInTenant       = errors.New("role does not belong to current tenant")
+	ErrDepartmentNotInTenant = errors.New("department does not belong to current tenant")
 )
 
 func (s *UserService) GetUserByIDContext(ctx context.Context, id uint) (*model.User, error) {
-	return s.userDAO.GetUserByIDContext(ctx, id)
+	user, err := s.userDAO.GetUserByIDContext(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	if err := assertSameTenant(ctx, user.TenantID); err != nil {
+		return nil, ErrUserNotFound
+	}
+	return user, nil
 }
 
 func (s *UserService) GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error) {
-	return s.userDAO.GetUserWithRolesContext(ctx, id)
+	user, err := s.userDAO.GetUserWithRolesContext(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	if err := assertSameTenant(ctx, user.TenantID); err != nil {
+		return nil, ErrUserNotFound
+	}
+	return user, nil
 }
 
 func (s *UserService) GetUserListContext(ctx context.Context, req UserListRequest) ([]model.User, int64, error) {
@@ -98,9 +121,14 @@ func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserReque
 		return nil, errors.New("password hashing failed")
 	}
 
-	tenantID := uint(1)
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
-		tenantID = tid
+	tenantID := tenant.Normalize(tenant.FromContext(ctx))
+	if req.DepartmentID > 0 {
+		if err := s.userDAO.AssertDepartmentInTenantContext(ctx, req.DepartmentID, tenantID); err != nil {
+			if errors.Is(err, systemdao.ErrDepartmentNotInTenant) {
+				return nil, ErrDepartmentNotInTenant
+			}
+			return nil, err
+		}
 	}
 	now := time.Now()
 	user := &model.User{
@@ -127,7 +155,7 @@ func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserReque
 }
 
 func (s *UserService) UpdateUserContext(ctx context.Context, id uint, req UpdateUserRequest) (*model.User, error) {
-	user, err := s.userDAO.GetUserByIDContext(ctx, id)
+	user, err := s.GetUserByIDContext(ctx, id)
 	if err != nil {
 		if isContextError(err) {
 			return nil, err
@@ -164,15 +192,21 @@ func (s *UserService) UpdateUserContext(ctx context.Context, id uint, req Update
 }
 
 func (s *UserService) DeleteUserContext(ctx context.Context, id uint) error {
+	if _, err := s.GetUserByIDContext(ctx, id); err != nil {
+		return err
+	}
 	return s.userDAO.DeleteUserContext(ctx, id)
 }
 
 func (s *UserService) UpdateUserStatusContext(ctx context.Context, id uint, status int8) error {
+	if _, err := s.GetUserByIDContext(ctx, id); err != nil {
+		return err
+	}
 	return s.userDAO.UpdateUserStatusContext(ctx, id, status)
 }
 
 func (s *UserService) AssignRolesContext(ctx context.Context, userID uint, req AssignRolesRequest) error {
-	_, err := s.userDAO.GetUserByIDContext(ctx, userID)
+	user, err := s.GetUserByIDContext(ctx, userID)
 	if err != nil {
 		if isContextError(err) {
 			return err
@@ -180,11 +214,32 @@ func (s *UserService) AssignRolesContext(ctx context.Context, userID uint, req A
 		return ErrUserNotFound
 	}
 
+	if err := s.userDAO.AssertRolesInTenantContext(ctx, req.RoleIDs, user.TenantID); err != nil {
+		if errors.Is(err, systemdao.ErrRoleNotInTenant) {
+			return ErrRoleNotInTenant
+		}
+		return err
+	}
+
 	if err := s.userDAO.AssignRolesContext(ctx, userID, req.RoleIDs); err != nil {
 		return err
 	}
 
 	return InvalidatePermissionCacheForUsersContext(ctx, userID)
+}
+
+func assertSameTenant(ctx context.Context, resourceTenantID uint) error {
+	actor := tenant.FromContext(ctx)
+	if actor == 0 {
+		return nil // no tenant in context (internal jobs); allow
+	}
+	if resourceTenantID == 0 {
+		resourceTenantID = 1
+	}
+	if actor != resourceTenantID {
+		return ErrUserNotFound
+	}
+	return nil
 }
 
 func isContextError(err error) bool {

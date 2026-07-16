@@ -29,6 +29,8 @@ func writeSystemUserServiceError(c *gin.Context, operation string, err error) {
 		response.BadRequestWithCode(c, response.ErrorCodeEmailAlreadyExists, systemsvc.ErrEmailAlreadyExists.Error())
 	case errors.Is(err, systemsvc.ErrUserNotFound):
 		response.NotFoundWithCode(c, response.ErrorCodeUserNotFound, systemsvc.ErrUserNotFound.Error())
+	case errors.Is(err, systemsvc.ErrRoleNotInTenant), errors.Is(err, systemsvc.ErrDepartmentNotInTenant):
+		response.BadRequest(c, err.Error())
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		internalServerError(c, operation, err)
 	default:

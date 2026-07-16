@@ -10,6 +10,7 @@ import (
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
 	"github.com/go-admin-kit/services/identity/internal/pkg/logger"
 	"github.com/go-admin-kit/services/identity/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/identity/internal/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -136,6 +137,7 @@ func (s *DepartmentService) CreateContext(ctx context.Context, req CreateDepartm
 	}
 
 	dept := &model.Department{
+		TenantID: tenant.Normalize(tenant.FromContext(ctx)),
 		Name:     req.Name,
 		Code:     req.Code,
 		ParentID: req.ParentID,

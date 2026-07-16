@@ -8,6 +8,7 @@ import (
 	"github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
 	"github.com/go-admin-kit/services/identity/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/identity/internal/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -89,7 +90,9 @@ func (s *RoleService) CreateRoleContext(ctx context.Context, req CreateRoleReque
 		return nil, err
 	}
 
+	tenantID := tenant.Normalize(tenant.FromContext(ctx))
 	role := &model.Role{
+		TenantID:               tenantID,
 		Name:                   req.Name,
 		Code:                   req.Code,
 		Description:            req.Description,
