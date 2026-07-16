@@ -68,6 +68,31 @@ services:
     networks:
       - go-admin-kit-net
 
+  # 一次性迁移 job：复用 monitor 镜像跑 goose up 后退出。
+  # 把迁移从 monitor 常驻进程中剥离，迁移失败不再拖垮监控/健康检查，
+  # 各业务服务通过 depends_on service_completed_successfully 等它完成。
+  migrate:
+    build:
+      context: ./services/monitor
+      dockerfile: Dockerfile
+    image: go-admin-kit-monitor-service
+    container_name: go-admin-kit-migrate
+    restart: "no"
+    command: ["./migrate", "-config", "./configs/config.yaml", "-dir", "./migrations", "up"]
+    environment:
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      TZ: ${TZ:-Asia/Shanghai}
+    depends_on:
+      go-admin-kit-postgres:
+        condition: service_healthy
+    networks:
+      - go-admin-kit-net
+
   monitor-service:
     build:
       context: ./services/monitor
@@ -132,6 +157,8 @@ services:
       traefik.http.routers.monitor.middlewares: auth-verify
       traefik.http.services.monitor.loadbalancer.server.port: "8081"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       go-admin-kit-postgres:
         condition: service_healthy
       go-admin-kit-redis:
@@ -149,8 +176,8 @@ services:
 
   auth-service:
     build:
-      context: ./services/auth
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: auth/Dockerfile
     container_name: go-admin-kit-auth
     restart: unless-stopped
     environment:
@@ -200,6 +227,8 @@ services:
       traefik.http.middlewares.auth-verify.forwardauth.address: "http://go-admin-kit-auth:8082/internal/verify"
       traefik.http.middlewares.auth-verify.forwardauth.authResponseHeaders: "X-Auth-User-ID,X-Auth-Username,X-Auth-Tenant-ID,X-Auth-Platform-Admin"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       go-admin-kit-postgres:
         condition: service_healthy
       go-admin-kit-redis:
@@ -217,8 +246,8 @@ services:
 
   identity-service:
     build:
-      context: ./services/identity
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: identity/Dockerfile
     container_name: go-admin-kit-identity
     restart: unless-stopped
     environment:
@@ -251,6 +280,8 @@ services:
       traefik.http.routers.identity.priority: "100"
       traefik.http.services.identity.loadbalancer.server.port: "8083"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       go-admin-kit-postgres:
         condition: service_healthy
       go-admin-kit-redis:
@@ -266,8 +297,8 @@ services:
 
   system-service:
     build:
-      context: ./services/system
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: system/Dockerfile
     container_name: go-admin-kit-system
     restart: unless-stopped
     environment:
@@ -307,6 +338,8 @@ services:
       traefik.http.routers.system.priority: "100"
       traefik.http.services.system.loadbalancer.server.port: "8084"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       go-admin-kit-postgres:
         condition: service_healthy
       go-admin-kit-redis:
@@ -322,8 +355,8 @@ services:
 
   audit-service:
     build:
-      context: ./services/audit
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: audit/Dockerfile
     container_name: go-admin-kit-audit
     restart: unless-stopped
     environment:
@@ -354,6 +387,8 @@ services:
       traefik.http.routers.audit.priority: "100"
       traefik.http.services.audit.loadbalancer.server.port: "8085"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       go-admin-kit-postgres:
         condition: service_healthy
       go-admin-kit-redis:
@@ -371,8 +406,8 @@ services:
 
   file-service:
     build:
-      context: ./services/file
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: file/Dockerfile
     container_name: go-admin-kit-file
     restart: unless-stopped
     environment:
@@ -422,6 +457,8 @@ services:
       traefik.http.routers.file.priority: "100"
       traefik.http.services.file.loadbalancer.server.port: "8086"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       go-admin-kit-postgres:
         condition: service_healthy
       go-admin-kit-redis:
@@ -437,8 +474,8 @@ services:
 
   ai-service:
     build:
-      context: ./services/ai
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: ai/Dockerfile
     container_name: go-admin-kit-ai
     restart: unless-stopped
     environment:
@@ -476,6 +513,8 @@ services:
       traefik.http.routers.ai.priority: "100"
       traefik.http.services.ai.loadbalancer.server.port: "8087"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       go-admin-kit-postgres:
         condition: service_healthy
       go-admin-kit-redis:
@@ -542,6 +581,8 @@ services:
       traefik.http.routers.im.priority: "100"
       traefik.http.services.im.loadbalancer.server.port: "8088"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       go-admin-kit-postgres:
         condition: service_healthy
     healthcheck:

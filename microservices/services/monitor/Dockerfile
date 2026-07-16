@@ -37,4 +37,5 @@ USER app
 
 EXPOSE 8081
 
-CMD ["sh", "-c", "./migrate -config ./configs/config.yaml -dir ./migrations up && ./main"]
+# 迁移由 compose 的一次性 migrate 服务执行（同一镜像跑 ./migrate up）
+CMD ["./main"]
