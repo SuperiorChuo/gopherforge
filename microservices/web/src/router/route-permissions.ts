@@ -14,6 +14,7 @@ export const ROUTE_PERMISSIONS: Record<string, string> = {
   '/system/audit-log': 'system:log:audit',
   '/system/online-user': 'system:online-user:list',
   '/system/setting': 'system:setting:list',
+  '/system/tenant': 'system:tenant:list',
   '/monitor/server': 'system:monitor:server',
   '/monitor/mysql': 'system:monitor:mysql',
   '/monitor/redis': 'system:monitor:redis',

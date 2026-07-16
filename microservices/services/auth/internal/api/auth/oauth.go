@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/auth/internal/events"
-	"github.com/go-admin-kit/services/auth/internal/pkg/response"
 	authsvc "github.com/go-admin-kit/services/auth/internal/service/auth"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 type oauthService interface {

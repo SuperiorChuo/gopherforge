@@ -42,6 +42,9 @@ var defaultMenuSeed = []model.Menu{
 	{ID: 19, Name: "online-user", Title: "在线用户", Icon: "user-list", Path: "/system/online-user", Component: "system/online-user/index", ParentID: 10, Sort: 9, Status: 1, Hidden: 0, Permission: "system:online-user:list"},
 	{ID: 20, Name: "operation-log", Title: "操作日志", Icon: "time", Path: "/system/operation-log", Component: "system/operation-log/index", ParentID: 10, Sort: 10, Status: 1, Hidden: 0, Permission: "system:log:operation"},
 	{ID: 21, Name: "login-log", Title: "登录日志", Icon: "time", Path: "/system/login-log", Component: "system/login-log/index", ParentID: 10, Sort: 11, Status: 1, Hidden: 0, Permission: "system:log:login"},
+	{ID: 22, Name: "audit-log", Title: "审计日志", Icon: "secured", Path: "/system/audit-log", Component: "system/audit-log/index", ParentID: 10, Sort: 12, Status: 1, Hidden: 0, Permission: "system:log:audit"},
+	{ID: 23, Name: "setting", Title: "系统设置", Icon: "setting", Path: "/system/setting", Component: "system/setting/index", ParentID: 10, Sort: 13, Status: 1, Hidden: 0, Permission: "system:setting:list"},
+	{ID: 24, Name: "tenant", Title: "租户管理", Icon: "team", Path: "/system/tenant", Component: "system/tenant/index", ParentID: 10, Sort: 14, Status: 1, Hidden: 0, Permission: "system:tenant:list"},
 
 	{ID: 30, Name: "monitor", Title: "系统监控", Icon: "chart-analytics", Path: "/monitor", Component: "Layout", ParentID: 0, Sort: 2, Status: 1, Hidden: 0},
 	{ID: 31, Name: "monitor-job", Title: "定时任务", Icon: "time", Path: "/monitor/job", Component: "monitor/job/index", ParentID: 30, Sort: 1, Status: 1, Hidden: 0, Permission: "system:job:list"},
@@ -51,4 +54,14 @@ var defaultMenuSeed = []model.Menu{
 
 	{ID: 40, Name: "profile", Title: "个人中心", Icon: "user-circle", Path: "/profile", Component: "Layout", ParentID: 0, Sort: 99, Status: 1, Hidden: 1},
 	{ID: 41, Name: "profile-index", Title: "个人中心", Icon: "user", Path: "/profile/index", Component: "profile/index", ParentID: 40, Sort: 1, Status: 1, Hidden: 0},
+
+	// AI/IM 页面无独立权限码，登录即可见（与路由行为一致）
+	{ID: 50, Name: "ai", Title: "AI 智能", Icon: "robot", Path: "/ai", Component: "Layout", ParentID: 0, Sort: 3, Status: 1, Hidden: 0},
+	{ID: 51, Name: "ai-assistant", Title: "AI 助手", Icon: "robot", Path: "/ai/assistant", Component: "ai/assistant/index", ParentID: 50, Sort: 1, Status: 1, Hidden: 0},
+	{ID: 52, Name: "ai-knowledge", Title: "AI 知识库", Icon: "book", Path: "/ai/knowledge", Component: "ai/knowledge/index", ParentID: 50, Sort: 2, Status: 1, Hidden: 0},
+
+	{ID: 60, Name: "im", Title: "智能客服", Icon: "message", Path: "/im", Component: "Layout", ParentID: 0, Sort: 4, Status: 1, Hidden: 0},
+	{ID: 61, Name: "im-desk", Title: "坐席工作台", Icon: "message", Path: "/im/desk", Component: "im/desk/index", ParentID: 60, Sort: 1, Status: 1, Hidden: 0},
+	{ID: 62, Name: "im-sites", Title: "埋码站点", Icon: "global", Path: "/im/sites", Component: "im/sites/index", ParentID: 60, Sort: 2, Status: 1, Hidden: 0},
+	{ID: 63, Name: "im-skills", Title: "技能组", Icon: "team", Path: "/im/skills", Component: "im/skills/index", ParentID: 60, Sort: 3, Status: 1, Hidden: 0},
 }

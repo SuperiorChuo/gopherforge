@@ -12,8 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/file/internal/config"
 	"github.com/go-admin-kit/services/file/internal/pkg/authz"
-	"github.com/go-admin-kit/services/file/internal/pkg/response"
 	"github.com/go-admin-kit/services/file/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 // FileAPI handles file management endpoints.

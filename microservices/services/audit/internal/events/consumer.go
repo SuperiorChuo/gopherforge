@@ -18,8 +18,8 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/go-admin-kit/services/audit/internal/pkg/logger"
 	systemsvc "github.com/go-admin-kit/services/audit/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 )
 
 // Stream and subject names mirror services/auth/internal/events.

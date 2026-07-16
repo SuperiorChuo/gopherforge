@@ -10,9 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/file/internal/config"
-	"github.com/go-admin-kit/services/file/internal/pkg/consoleauth"
 	jwtpkg "github.com/go-admin-kit/services/file/internal/pkg/jwt"
-	"github.com/go-admin-kit/services/file/internal/pkg/response"
+	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 	jwtlib "github.com/golang-jwt/jwt/v5"
 )
 

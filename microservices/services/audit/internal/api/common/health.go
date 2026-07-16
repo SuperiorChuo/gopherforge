@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/audit/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/audit/internal/pkg/redis"
-	"github.com/go-admin-kit/services/audit/internal/pkg/response"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 	goredis "github.com/redis/go-redis/v9"
 )
 

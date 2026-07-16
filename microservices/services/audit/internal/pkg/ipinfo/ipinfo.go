@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-admin-kit/services/audit/internal/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 )
 
 // IPInfo is an IP geolocation response.

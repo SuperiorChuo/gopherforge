@@ -90,21 +90,19 @@ export interface UpdateProfileRequest {
   phone?: string
 }
 
+// /user/menus 返回的菜单树节点（后端 model.Menu 的 JSON 形状）
 export interface MenuItem {
-  id?: number
-  route_key: string
-  path: string
+  id: number
   name: string
-  component_key?: string
-  redirect?: string
-  parent_key?: string
-  sort_order?: number
-  hidden?: boolean
-  public?: boolean
-  enabled?: boolean
-  permissions?: string[]
-  roles?: string[]
-  meta?: Record<string, unknown>
+  title: string
+  icon?: string
+  path: string
+  component?: string
+  parent_id: number
+  sort: number
+  status: number
+  hidden?: number
+  permission?: string
   children?: MenuItem[]
 }
 

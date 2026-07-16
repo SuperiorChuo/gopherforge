@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/identity/internal/pkg/pagination"
-	"github.com/go-admin-kit/services/identity/internal/pkg/response"
 	systemsvc "github.com/go-admin-kit/services/identity/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 // TenantAPI exposes tenant CRUD for platform operators.

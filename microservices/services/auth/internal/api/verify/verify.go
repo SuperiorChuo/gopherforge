@@ -10,9 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
-	"github.com/go-admin-kit/services/auth/internal/pkg/consoleauth"
 	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
-	"github.com/go-admin-kit/services/auth/internal/pkg/response"
+	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 // Response headers copied upstream by Traefik on successful verification.

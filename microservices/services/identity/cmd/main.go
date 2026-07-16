@@ -24,13 +24,13 @@ import (
 	"github.com/go-admin-kit/services/identity/internal/middleware"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
 	"github.com/go-admin-kit/services/identity/internal/pkg/database"
-	"github.com/go-admin-kit/services/identity/internal/pkg/logger"
 	"github.com/go-admin-kit/services/identity/internal/pkg/observability"
 	"github.com/go-admin-kit/services/identity/internal/pkg/redis"
 	"github.com/go-admin-kit/services/identity/internal/pkg/runtimeconfig"
 	tenantscope "github.com/go-admin-kit/services/identity/internal/pkg/tenant"
 	authsvc "github.com/go-admin-kit/services/identity/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/identity/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 )
 
 func setupCORS(router *gin.Engine) {

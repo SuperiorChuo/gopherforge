@@ -6,10 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/go-admin-kit/services/ai/internal/pkg/logger"
 	"github.com/go-admin-kit/services/ai/internal/pkg/pagination"
-	"github.com/go-admin-kit/services/ai/internal/pkg/response"
 	aisvc "github.com/go-admin-kit/services/ai/internal/service/ai"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 // documentRequest is the POST /ai/kb/documents body.

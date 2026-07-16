@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 	sharedapi "github.com/go-admin-kit/services/system/internal/api/shared"
-	"github.com/go-admin-kit/services/system/internal/pkg/logger"
-	"github.com/go-admin-kit/services/system/internal/pkg/response"
 	authsvc "github.com/go-admin-kit/services/system/internal/service/auth"
 	"github.com/go-admin-kit/services/system/internal/service/system"
 )

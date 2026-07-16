@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-admin-kit/services/identity/internal/config"
-	"github.com/go-admin-kit/services/identity/internal/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

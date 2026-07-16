@@ -2,7 +2,7 @@ package system
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/system/internal/pkg/response"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 	system "github.com/go-admin-kit/services/system/internal/service/system"
 )
 

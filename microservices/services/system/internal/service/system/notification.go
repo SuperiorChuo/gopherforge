@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/system/internal/model"
-	"github.com/go-admin-kit/services/system/internal/pkg/logger"
 	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
 	"github.com/google/uuid"
 )

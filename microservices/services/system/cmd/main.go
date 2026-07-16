@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/system/internal/api"
 	sharedapi "github.com/go-admin-kit/services/system/internal/api/shared"
 	systemAPI "github.com/go-admin-kit/services/system/internal/api/system"
@@ -25,7 +26,6 @@ import (
 	"github.com/go-admin-kit/services/system/internal/middleware"
 	"github.com/go-admin-kit/services/system/internal/pkg/authz"
 	"github.com/go-admin-kit/services/system/internal/pkg/database"
-	"github.com/go-admin-kit/services/system/internal/pkg/logger"
 	"github.com/go-admin-kit/services/system/internal/pkg/observability"
 	"github.com/go-admin-kit/services/system/internal/pkg/redis"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"

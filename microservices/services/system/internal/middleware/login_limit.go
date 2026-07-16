@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/system/internal/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
-	"github.com/go-admin-kit/services/system/internal/pkg/response"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
 	goredis "github.com/redis/go-redis/v9"
 )

@@ -5,9 +5,9 @@ import (
 	"errors"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/audit/internal/pkg/logger"
-	"github.com/go-admin-kit/services/audit/internal/pkg/response"
 	systemsvc "github.com/go-admin-kit/services/audit/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 func internalServerError(c *gin.Context, message string, err error) {

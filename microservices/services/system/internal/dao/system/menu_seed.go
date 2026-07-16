@@ -26,15 +26,21 @@ func (d *MenuSeedDAO) BootstrapDefaultMenusContext(ctx context.Context, seed []m
 
 	created := 0
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var count int64
-		if err := tx.Model(&model.Menu{}).Count(&count).Error; err != nil {
+		// 按 ID 补插缺失的种子菜单：存量库升级时也能拿到新增菜单，
+		// 同时不覆盖管理员对已有菜单的修改。
+		var existingIDs []uint
+		if err := tx.Model(&model.Menu{}).Pluck("id", &existingIDs).Error; err != nil {
 			return err
 		}
-		if count > 0 {
-			return nil
+		existing := make(map[uint]bool, len(existingIDs))
+		for _, id := range existingIDs {
+			existing[id] = true
 		}
 
 		for _, item := range seed {
+			if existing[item.ID] {
+				continue
+			}
 			item.CreatedAt = now
 			item.UpdatedAt = now
 			if err := tx.Create(&item).Error; err != nil {

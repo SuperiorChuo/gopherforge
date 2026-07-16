@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	resp "github.com/go-admin-kit/services/system/internal/pkg/response"
+	resp "github.com/go-admin-kit/services/shared/pkg/response"
 	service "github.com/go-admin-kit/services/system/internal/service/system"
 )
 

@@ -41,13 +41,13 @@ type LoginInfo struct {
 	UserID uint
 	// TenantID scopes the login log row. Zero means resolve from context
 	// (default tenant 1) at record time — used by NATS events that carry it.
-	TenantID   uint
-	Username   string
-	LoginType  int8
-	Status     int8
-	IP         string
-	UserAgent  string
-	Message    string
+	TenantID  uint
+	Username  string
+	LoginType int8
+	Status    int8
+	IP        string
+	UserAgent string
+	Message   string
 	// OccurredAt is when the login happened. Zero means "now"; event
 	// consumers set it so replayed backlogs keep their original times.
 	OccurredAt time.Time

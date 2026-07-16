@@ -2,8 +2,8 @@ package system
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/audit/internal/pkg/response"
 	service "github.com/go-admin-kit/services/audit/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 // AuditLogAPI exposes independent business audit logs.

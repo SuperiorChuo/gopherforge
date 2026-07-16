@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/ai/internal/pkg/errors"
-	"github.com/go-admin-kit/services/ai/internal/pkg/logger"
-	"github.com/go-admin-kit/services/ai/internal/pkg/response"
+	"github.com/go-admin-kit/services/shared/pkg/errors"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 // ErrorHandler converts Gin errors into API responses.

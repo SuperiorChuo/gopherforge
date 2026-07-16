@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/ai/internal/pkg/logger"
-	"github.com/go-admin-kit/services/ai/internal/pkg/mask"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/mask"
 )
 
 // Response is the standard API response shape.

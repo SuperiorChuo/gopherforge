@@ -5,8 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
-	"github.com/go-admin-kit/services/identity/internal/pkg/response"
 	"github.com/go-admin-kit/services/identity/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 // UserManagementAPI handles user management endpoints.

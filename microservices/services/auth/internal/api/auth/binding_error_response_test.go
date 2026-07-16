@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/auth/internal/pkg/response"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 func TestBindErrorsDoNotExposeDecoderMessages(t *testing.T) {

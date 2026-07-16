@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/system/internal/config"
-	"github.com/go-admin-kit/services/system/internal/pkg/logger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

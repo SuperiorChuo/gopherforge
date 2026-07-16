@@ -4,8 +4,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/identity/internal/pkg/response"
 	"github.com/go-admin-kit/services/identity/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 // PermissionManagementAPI handles permission management endpoints.

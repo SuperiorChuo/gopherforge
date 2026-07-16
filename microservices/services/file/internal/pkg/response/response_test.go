@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	applogger "github.com/go-admin-kit/services/file/internal/pkg/logger"
+	applogger "github.com/go-admin-kit/services/shared/pkg/logger"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 )

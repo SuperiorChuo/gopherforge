@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/services/auth/internal/pkg/logger"
 	"github.com/go-admin-kit/services/auth/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 )

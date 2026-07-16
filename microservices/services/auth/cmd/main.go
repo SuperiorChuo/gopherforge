@@ -24,11 +24,11 @@ import (
 	"github.com/go-admin-kit/services/auth/internal/events"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
 	"github.com/go-admin-kit/services/auth/internal/pkg/database"
-	"github.com/go-admin-kit/services/auth/internal/pkg/logger"
 	"github.com/go-admin-kit/services/auth/internal/pkg/observability"
 	"github.com/go-admin-kit/services/auth/internal/pkg/redis"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	authsvc "github.com/go-admin-kit/services/auth/internal/service/auth"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 )
 
 func setupCORS(router *gin.Engine) {

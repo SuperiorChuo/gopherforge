@@ -44,7 +44,11 @@ import {
   ColumnHeightOutlined,
   RobotOutlined,
   BookOutlined,
+  MessageOutlined,
+  GlobalOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons'
+import type { MenuItem as ApiMenuItem } from '@/types'
 import { useAppDispatch, useAppSelector } from '@/hooks/store'
 import { fetchCurrentUser, logout } from '@/store/slices/authSlice'
 import { getToken } from '@/utils/request'
@@ -74,15 +78,66 @@ interface MenuDef {
   label: string
   key: string
   icon: React.ReactNode
+  perm?: string
   children?: MenuDef[]
 }
 
-// 叶子节点的权限码统一取 ROUTE_PERMISSIONS，保证菜单可见性和路由守卫一致
+// 后端菜单 icon 字段（字符串）→ antd 图标
+const ICON_MAP: Record<string, React.ReactNode> = {
+  dashboard: <DashboardOutlined />,
+  setting: <SettingOutlined />,
+  user: <UserOutlined />,
+  'user-safety': <TeamOutlined />,
+  secured: <SafetyOutlined />,
+  menu: <MenuOutlined />,
+  'root-list': <ApartmentOutlined />,
+  file: <FileOutlined />,
+  'data-base': <DatabaseOutlined />,
+  notification: <NotificationOutlined />,
+  'user-list': <MonitorOutlined />,
+  time: <ScheduleOutlined />,
+  'chart-analytics': <CloudServerOutlined />,
+  server: <CloudServerOutlined />,
+  data: <BarsOutlined />,
+  'user-circle': <UserOutlined />,
+  team: <TeamOutlined />,
+  robot: <RobotOutlined />,
+  book: <BookOutlined />,
+  message: <MessageOutlined />,
+  global: <GlobalOutlined />,
+}
+
+function iconOf(name?: string): React.ReactNode {
+  return (name && ICON_MAP[name]) || <AppstoreOutlined />
+}
+
+// /user/menus 树 → 侧栏定义。后端已按权限过滤，这里只做展示映射。
+function apiMenusToDefs(menus: ApiMenuItem[], topLevel = true): MenuDef[] {
+  return [...menus]
+    .filter((m) => m.hidden !== 1)
+    .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+    .map((m): MenuDef | null => {
+      const kids = m.children?.length ? apiMenusToDefs(m.children, false) : []
+      const isContainer = (m.children?.length ?? 0) > 0 || m.component === 'Layout'
+      if (isContainer) {
+        if (kids.length === 0) return null
+        // 单子项容器折叠为叶子（如"仪表盘"Layout + 唯一 index 页），跳容器自身路径
+        if (kids.length === 1 && topLevel) {
+          return { label: m.title, key: m.path, icon: iconOf(m.icon), perm: kids[0].perm }
+        }
+        return { label: m.title, key: m.path, icon: iconOf(m.icon), children: kids }
+      }
+      return { label: m.title, key: m.path, icon: iconOf(m.icon), perm: m.permission || undefined }
+    })
+    .filter((d): d is MenuDef => d !== null)
+}
+
+// 后端菜单为空（未播种/请求失败）时的静态兜底，与路由表保持一致
 const MENU_DEFS: MenuDef[] = [
   { label: '仪表盘', key: '/dashboard', icon: <DashboardOutlined /> },
   {
     label: '系统管理',
-    key: 'system',
+    key: '/system',
     icon: <SettingOutlined />,
     children: [
       { label: '用户管理', key: '/system/user', icon: <UserOutlined /> },
@@ -98,11 +153,12 @@ const MENU_DEFS: MenuDef[] = [
       { label: '审计日志', key: '/system/audit-log', icon: <SafetyOutlined /> },
       { label: '在线用户', key: '/system/online-user', icon: <MonitorOutlined /> },
       { label: '系统设置', key: '/system/setting', icon: <SettingOutlined /> },
+      { label: '租户管理', key: '/system/tenant', icon: <TeamOutlined /> },
     ],
   },
   {
     label: '运维监控',
-    key: 'monitor',
+    key: '/monitor',
     icon: <CloudServerOutlined />,
     children: [
       { label: '服务器监控', key: '/monitor/server', icon: <CloudServerOutlined /> },
@@ -113,14 +169,29 @@ const MENU_DEFS: MenuDef[] = [
   },
   {
     label: 'AI 智能',
-    key: 'ai',
+    key: '/ai',
     icon: <RobotOutlined />,
     children: [
       { label: 'AI 助手', key: '/ai/assistant', icon: <RobotOutlined /> },
       { label: 'AI 知识库', key: '/ai/knowledge', icon: <BookOutlined /> },
     ],
   },
+  {
+    label: '智能客服',
+    key: '/im',
+    icon: <MessageOutlined />,
+    children: [
+      { label: '坐席工作台', key: '/im/desk', icon: <MessageOutlined /> },
+      { label: '埋码站点', key: '/im/sites', icon: <GlobalOutlined /> },
+      { label: '技能组', key: '/im/skills', icon: <TeamOutlined /> },
+    ],
+  },
 ]
+
+// 叶子可见性：菜单自带权限码优先，否则回落到路由权限表；两者都无则登录即可见
+function leafVisible(d: MenuDef, hasPerm: (code?: string) => boolean): boolean {
+  return hasPerm(d.perm ?? ROUTE_PERMISSIONS[d.key])
+}
 
 function buildMenuItems(defs: MenuDef[], hasPerm: (code?: string) => boolean): MenuItem2[] {
   return defs
@@ -129,7 +200,7 @@ function buildMenuItems(defs: MenuDef[], hasPerm: (code?: string) => boolean): M
         const children = buildMenuItems(d.children, hasPerm)
         return children.length > 0 ? makeItem(d.label, d.key, d.icon, children) : null
       }
-      return hasPerm(ROUTE_PERMISSIONS[d.key]) ? makeItem(d.label, d.key, d.icon) : null
+      return leafVisible(d, hasPerm) ? makeItem(d.label, d.key, d.icon) : null
     })
     .filter((item): item is MenuItem2 => item !== null)
 }
@@ -141,7 +212,7 @@ function buildPaletteItems(defs: MenuDef[], hasPerm: (code?: string) => boolean)
     nodes.forEach((d) => {
       if (d.children) {
         walk(d.children, d.label)
-      } else if (hasPerm(ROUTE_PERMISSIONS[d.key])) {
+      } else if (leafVisible(d, hasPerm)) {
         result.push({ label: d.label, path: d.key, group, icon: d.icon })
       }
     })
@@ -167,28 +238,44 @@ const pathBreadcrumbMap: Record<string, string> = {
   '/system/audit-log': '审计日志',
   '/system/online-user': '在线用户',
   '/system/setting': '系统设置',
+  '/system/tenant': '租户管理',
   '/monitor/server': '服务器监控',
   '/monitor/mysql': '数据库监控',
   '/monitor/redis': 'Redis 监控',
   '/monitor/job': '定时任务',
-  // AI 页面菜单由后端 DB 种子下发，这里只补面包屑标题
   '/ai/assistant': 'AI 助手',
   '/ai/knowledge': 'AI 知识库',
+  '/im/desk': '坐席工作台',
+  '/im/sites': '埋码站点',
+  '/im/skills': '技能组',
+}
+
+// 分组 key（含前导 /）→ 面包屑上的分组名和图标
+const GROUP_META: Record<string, { label: string; icon: React.ReactNode }> = {
+  '/system': { label: '系统管理', icon: <SettingOutlined /> },
+  '/monitor': { label: '运维监控', icon: <CloudServerOutlined /> },
+  '/ai': { label: 'AI 智能', icon: <RobotOutlined /> },
+  '/im': { label: '智能客服', icon: <MessageOutlined /> },
 }
 
 export default function MainLayout() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const location = useLocation()
-  const { userInfo, loading, permissions } = useAppSelector((s) => s.auth)
+  const { userInfo, loading, permissions, menus } = useAppSelector((s) => s.auth)
   const { hasPerm, isSuperAdmin } = usePermission()
   const { mode, toggle: toggleTheme } = useThemeMode()
   const token = getToken()
   // super_admin 可不依赖 permissions 列表；普通用户需要 permissions 才渲染侧栏
   const authReady = !!userInfo && (isSuperAdmin || permissions.length > 0 || !Object.keys(ROUTE_PERMISSIONS).length)
 
-  const menuItems = useMemo(() => buildMenuItems(MENU_DEFS, hasPerm), [hasPerm])
-  const paletteItems = useMemo(() => buildPaletteItems(MENU_DEFS, hasPerm), [hasPerm])
+  // 侧栏以后端 /user/menus 为准（菜单管理页的增删改即时生效）；为空时回落到静态定义
+  const menuDefs = useMemo(() => {
+    const dynamic = apiMenusToDefs(menus)
+    return dynamic.length > 0 ? dynamic : MENU_DEFS
+  }, [menus])
+  const menuItems = useMemo(() => buildMenuItems(menuDefs, hasPerm), [menuDefs, hasPerm])
+  const paletteItems = useMemo(() => buildPaletteItems(menuDefs, hasPerm), [menuDefs, hasPerm])
   const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
 
   const [collapsed, setCollapsed] = useState(false)
@@ -229,17 +316,19 @@ export default function MainLayout() {
       })
     }
   }
-  const [openKeys, setOpenKeys] = useState<string[]>(() =>
-    pathname.startsWith('/system/') ? ['system'] : pathname.startsWith('/monitor/') ? ['monitor'] : [],
-  )
+  // 分组 key 即父级路径：/system/user → /system
+  const groupOf = (p: string) => {
+    const seg = p.split('/')[1]
+    return seg && GROUP_META[`/${seg}`] ? `/${seg}` : null
+  }
+  const [openKeys, setOpenKeys] = useState<string[]>(() => {
+    const g = groupOf(pathname)
+    return g ? [g] : []
+  })
 
   // 直达子路由（面包屑/外部跳转）时自动展开所属分组
   useEffect(() => {
-    const group = pathname.startsWith('/system/')
-      ? 'system'
-      : pathname.startsWith('/monitor/')
-        ? 'monitor'
-        : null
+    const group = groupOf(pathname)
     if (group) {
       setOpenKeys((keys) => (keys.includes(group) ? keys : [...keys, group]))
     }
@@ -338,13 +427,14 @@ export default function MainLayout() {
     return <Navigate to="/403" replace />
   }
   const breadcrumbTitle = pathBreadcrumbMap[currentPath] || ''
-  const isSystem = currentPath.startsWith('/system/')
-  const isMonitor = currentPath.startsWith('/monitor/')
+  const groupKey = groupOf(currentPath)
+  const groupMeta = groupKey ? GROUP_META[groupKey] : null
 
   const breadcrumbItems = [
     { title: <span><HomeOutlined style={{ marginRight: 4 }} />首页</span> },
-    ...(isSystem ? [{ title: <span><SettingOutlined style={{ marginRight: 4 }} />系统管理</span> }] : []),
-    ...(isMonitor ? [{ title: <span><CloudServerOutlined style={{ marginRight: 4 }} />运维监控</span> }] : []),
+    ...(groupMeta
+      ? [{ title: <span>{groupMeta.icon}<span style={{ marginLeft: 4 }}>{groupMeta.label}</span></span> }]
+      : []),
     ...(breadcrumbTitle ? [{ title: breadcrumbTitle }] : []),
   ]
 

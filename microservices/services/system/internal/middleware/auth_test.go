@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 	"github.com/go-admin-kit/services/system/internal/config"
-	"github.com/go-admin-kit/services/system/internal/pkg/consoleauth"
 	jwtpkg "github.com/go-admin-kit/services/system/internal/pkg/jwt"
-	"github.com/go-admin-kit/services/system/internal/pkg/response"
 	jwtlib "github.com/golang-jwt/jwt/v5"
 )
 

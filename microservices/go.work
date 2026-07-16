@@ -1,6 +1,7 @@
 go 1.26.3
 
 use (
+	./shared
 	./services/ai
 	./services/audit
 	./services/auth

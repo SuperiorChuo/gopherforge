@@ -8,9 +8,9 @@ import (
 	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
 	"github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
-	"github.com/go-admin-kit/services/identity/internal/pkg/logger"
 	"github.com/go-admin-kit/services/identity/internal/pkg/pagination"
 	"github.com/go-admin-kit/services/identity/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"gorm.io/gorm"
 )
 

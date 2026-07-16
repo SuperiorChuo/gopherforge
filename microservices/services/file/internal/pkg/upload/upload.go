@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/file/internal/config"
-	"github.com/go-admin-kit/services/file/internal/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 	xdraw "golang.org/x/image/draw"
 )
 

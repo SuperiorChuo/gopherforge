@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-admin-kit/services/auth/internal/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/nats-io/nats.go"
 )
 

@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/go-admin-kit/services/ai/internal/config"
-	"github.com/go-admin-kit/services/ai/internal/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/redis/go-redis/v9"
 )
 

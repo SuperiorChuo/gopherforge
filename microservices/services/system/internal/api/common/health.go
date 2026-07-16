@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 	"github.com/go-admin-kit/services/system/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
-	"github.com/go-admin-kit/services/system/internal/pkg/response"
 	goredis "github.com/redis/go-redis/v9"
 )
 

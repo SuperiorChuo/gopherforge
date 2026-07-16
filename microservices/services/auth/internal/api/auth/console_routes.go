@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/auth/internal/pkg/response"
 	authSvc "github.com/go-admin-kit/services/auth/internal/service/auth"
 	systemSvc "github.com/go-admin-kit/services/auth/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 func (a *UserAPI) ListConsoleRoutes(c *gin.Context) {

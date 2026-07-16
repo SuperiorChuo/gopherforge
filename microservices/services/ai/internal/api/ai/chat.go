@@ -9,8 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	aiclient "github.com/go-admin-kit/services/ai/internal/ai"
-	"github.com/go-admin-kit/services/ai/internal/pkg/response"
 	aisvc "github.com/go-admin-kit/services/ai/internal/service/ai"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 // chatRequest is the POST /ai/chat body.

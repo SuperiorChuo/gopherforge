@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/ai/internal/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 )
 
 // RequestLogger writes structured request logs.
