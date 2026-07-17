@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -25,9 +26,9 @@ type Server struct {
 	AgentHub *hub.AgentHub
 	Secret   string
 	// Bot is optional AI / stub client (M4).
-	Bot            bot.Client
+	Bot             bot.Client
 	BotSystemPrompt string
-	AIEnabled      bool
+	AIEnabled       bool
 	// UploadDir is local storage for IM attachments (M2.1).
 	UploadDir string
 }
@@ -103,6 +104,26 @@ func (s *Server) requireAgent(c *gin.Context) (*authjwt.AgentClaims, bool) {
 	return claims, true
 }
 
+// sameHostOrigin reports whether origin points at the host serving this
+// request (demo page and self-hosted embeds); those never need whitelisting.
+func sameHostOrigin(c *gin.Context, origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	return strings.EqualFold(u.Host, c.Request.Host)
+}
+
+func originDenied(c *gin.Context, allowedJSON, origin string) bool {
+	if origin == "" || origin == "null" {
+		return false
+	}
+	if sameHostOrigin(c, origin) {
+		return false
+	}
+	return !store.OriginAllowed(allowedJSON, origin)
+}
+
 func parentOrigin(c *gin.Context, bodyOrigin string) string {
 	if bodyOrigin != "" {
 		return bodyOrigin
@@ -129,7 +150,7 @@ func (s *Server) WidgetConfig(c *gin.Context) {
 	}
 	// iframe 场景 Origin 是 IM 域；用 parent_origin 校验客户站域名
 	origin := parentOrigin(c, "")
-	if origin != "" && origin != "null" && !store.OriginAllowed(site.AllowedOrigins, origin) {
+	if originDenied(c, site.AllowedOrigins, origin) {
 		Fail(c, http.StatusForbidden, "origin denied")
 		return
 	}
@@ -179,7 +200,7 @@ func (s *Server) VisitorSession(c *gin.Context) {
 		return
 	}
 	origin := parentOrigin(c, req.ParentOrigin)
-	if origin != "" && origin != "null" && !store.OriginAllowed(site.AllowedOrigins, origin) {
+	if originDenied(c, site.AllowedOrigins, origin) {
 		Fail(c, http.StatusForbidden, "origin denied")
 		return
 	}
@@ -347,6 +368,11 @@ func (s *Server) SendMessage(c *gin.Context) {
 	}
 	if err := s.Store.CreateMessage(msg); err != nil {
 		Fail(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	// 幂等重放：直接返回首次落库的消息，不重播事件、不再触发 bot
+	if msg.Replayed {
+		OK(c, msg)
 		return
 	}
 	// refresh conv preview
@@ -874,7 +900,7 @@ func (s *Server) afterVisitorMessage(conv *model.Conversation, text string) {
 			}
 			if err := s.Store.CreateMessage(note); err == nil {
 				s.Hub.Publish(publicID, gin.H{
-					"type": "message.new",
+					"type":    "message.new",
 					"payload": gin.H{"message": note, "conversation_public_id": publicID},
 				})
 			}
@@ -904,7 +930,7 @@ func (s *Server) afterVisitorMessage(conv *model.Conversation, text string) {
 			return
 		}
 		s.Hub.Publish(publicID, gin.H{
-			"type": "message.new",
+			"type":    "message.new",
 			"payload": gin.H{"message": msg, "conversation_public_id": publicID},
 		})
 		if refreshed, err := s.Store.GetConversationByPublicID(publicID); err == nil {

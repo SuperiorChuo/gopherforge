@@ -24,6 +24,11 @@ func Open(dsn string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	return NewWithDB(db)
+}
+
+// NewWithDB wraps an existing gorm.DB (tests inject sqlite in-memory).
+func NewWithDB(db *gorm.DB) (*Store, error) {
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {
 		return nil, err
@@ -710,10 +715,10 @@ func (s *Store) TryAutoAssign(c *model.Conversation) error {
 
 	// filter online/busy agents under max concurrent
 	type candidate struct {
-		UserID   uint64
-		Load     int64
-		Max      int
-		Status   string
+		UserID uint64
+		Load   int64
+		Max    int
+		Status string
 	}
 	var cands []candidate
 	for _, sk := range skills {
@@ -813,28 +818,33 @@ func (s *Store) EnsureOpenConversation(tenantID, siteID, visitorID uint64, chann
 
 // ---------- Messages ----------
 
-func (s *Store) NextSeq(conversationID uint64) (int64, error) {
-	var maxSeq *int64
-	err := s.db.Model(&model.Message{}).
-		Select("MAX(seq)").
-		Where("conversation_id = ?", conversationID).
-		Scan(&maxSeq).Error
-	if err != nil {
-		return 0, err
-	}
-	if maxSeq == nil {
-		return 1, nil
-	}
-	return *maxSeq + 1, nil
-}
-
 func (s *Store) CreateMessage(m *model.Message) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		seq, err := nextSeqTx(tx, m.ConversationID)
+		// lock conversation row to serialize seq + client_msg_id dedup
+		var c model.Conversation
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&c, m.ConversationID).Error; err != nil {
+			return err
+		}
+		// 幂等：widget 重试/断线重发同一 client_msg_id 时返回首次落库的消息，
+		// 不再自增 seq、不再刷会话预览
+		if m.ClientMsgID != nil && *m.ClientMsgID != "" {
+			var prev model.Message
+			err := tx.Where("conversation_id = ? AND sender_type = ? AND client_msg_id = ?",
+				m.ConversationID, m.SenderType, *m.ClientMsgID).First(&prev).Error
+			if err == nil {
+				*m = prev
+				m.Replayed = true
+				return nil
+			}
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+		seq, err := maxSeqTx(tx, m.ConversationID)
 		if err != nil {
 			return err
 		}
-		m.Seq = seq
+		m.Seq = seq + 1
 		if err := tx.Create(m).Error; err != nil {
 			return err
 		}
@@ -862,20 +872,17 @@ func eventName(content string) string {
 	return "事件"
 }
 
-func nextSeqTx(tx *gorm.DB, conversationID uint64) (int64, error) {
-	// lock conversation row to serialize seq
-	var c model.Conversation
-	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&c, conversationID).Error; err != nil {
-		return 0, err
-	}
+// maxSeqTx returns the current max seq (0 when empty); caller must hold the
+// conversation row lock.
+func maxSeqTx(tx *gorm.DB, conversationID uint64) (int64, error) {
 	var maxSeq *int64
 	if err := tx.Model(&model.Message{}).Select("MAX(seq)").Where("conversation_id = ?", conversationID).Scan(&maxSeq).Error; err != nil {
 		return 0, err
 	}
 	if maxSeq == nil {
-		return 1, nil
+		return 0, nil
 	}
-	return *maxSeq + 1, nil
+	return *maxSeq, nil
 }
 
 func previewFromContent(content string) string {

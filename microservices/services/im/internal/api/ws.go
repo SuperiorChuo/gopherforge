@@ -41,9 +41,9 @@ func (s *Server) WebSocket(c *gin.Context) {
 	}
 
 	var (
-		isGuest    bool
-		visitorID  uint64
-		agentID    uint64
+		isGuest     bool
+		visitorID   uint64
+		agentID     uint64
 		agentTenant uint64
 	)
 	if g, err := authjwt.ParseGuest(s.Secret, token); err == nil {
@@ -213,6 +213,15 @@ func (s *Server) WebSocket(c *gin.Context) {
 			}
 			if err := s.Store.CreateMessage(m); err != nil {
 				writeJSON(gin.H{"type": "error", "request_id": msg.RequestID, "payload": gin.H{"message": err.Error()}})
+				continue
+			}
+			// 幂等重放：只回 ack（同 seq/id），不重播事件、不再触发 bot
+			if m.Replayed {
+				writeJSON(gin.H{
+					"type":       "message.ack",
+					"request_id": msg.RequestID,
+					"payload":    gin.H{"client_msg_id": p.ClientMsgID, "seq": m.Seq, "id": m.ID},
+				})
 				continue
 			}
 			conv2, _ := s.Store.GetConversationByPublicID(p.ConversationPublicID)
