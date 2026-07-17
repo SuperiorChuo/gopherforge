@@ -186,6 +186,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .page-fade-in,
   .login-shell,
+  .login-error,
   .space-result-card {
     animation: none !important;
   }
@@ -8101,6 +8102,43 @@ h6.ai-md-heading { font-size: 14px; }
   color: rgba(254, 226, 226, 0.95);
   font-size: 13px;
   line-height: 1.5;
+  /* 进场下滑 + 尾段轻微横向摇晃，重复出错时靠 key 重挂载再次触发 */
+  animation: login-error-in 0.38s var(--ease-out) both;
+}
+
+@keyframes login-error-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+  70% {
+    transform: translateX(-4px);
+  }
+  85% {
+    transform: translateX(3px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* Caps Lock 提示：占用 Form.Item 既有下边距，尽量不产生布局位移 */
+.login-caps-hint {
+  margin: -16px 0 8px;
+  font-size: 12px;
+  color: #fbbf24;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  animation: login-error-in 0.3s var(--ease-out) both;
+}
+
+[data-theme='light'] .login-caps-hint {
+  color: #d97706;
 }
 
 .login-error-text {

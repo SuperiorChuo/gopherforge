@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Form, Input, Button, Spin } from 'antd'
 import type { InputRef } from 'antd'
@@ -17,6 +17,7 @@ import {
   CheckOutlined,
   SunOutlined,
   MoonOutlined,
+  WarningOutlined,
 } from '@ant-design/icons'
 import { useAppDispatch, useAppSelector } from '@/hooks/store'
 import { fetchCurrentUser, login } from '@/store/slices/authSlice'
@@ -32,11 +33,14 @@ export default function LoginPage() {
   const [form] = Form.useForm()
   const [totpForm] = Form.useForm()
   const [error, setError] = useState<string | null>(null)
+  // 同一条错误重复出现时靠 nonce 重挂载横幅，重新触发摇晃动画
+  const [errorNonce, setErrorNonce] = useState(0)
   const [totpStep, setTotpStep] = useState(false)
   const [challengeId, setChallengeId] = useState<string | null>(null)
   const [totpLoading, setTotpLoading] = useState(false)
   const [tenantOpen, setTenantOpen] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [capsLock, setCapsLock] = useState(false)
 
   const [captchaImg, setCaptchaImg] = useState('')
   const [captchaId, setCaptchaId] = useState('')
@@ -44,8 +48,19 @@ export default function LoginPage() {
   const [captchaFlash, setCaptchaFlash] = useState(false)
 
   const usernameRef = useRef<InputRef>(null)
+  const captchaRef = useRef<InputRef>(null)
   const totpRef = useRef<InputRef>(null)
   const totpSubmitting = useRef(false)
+
+  const showError = useCallback((msg: string) => {
+    setError(msg)
+    setErrorNonce((n) => n + 1)
+  }, [])
+
+  // Caps Lock 开着打密码时给出警示
+  const onPasswordKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    setCapsLock(e.getModifierState?.('CapsLock') ?? false)
+  }
 
   /** 成功微过渡：按钮 ✓ + 卡片轻收，再跳转 */
   const finishWithSuccess = useCallback(() => {
@@ -65,12 +80,12 @@ export default function LoginPage() {
       setCaptchaImg(res.image.startsWith('data:') ? res.image : `data:image/png;base64,${res.image}`)
       form.setFieldValue('captcha_code', '')
     } catch {
-      setError('验证码加载失败，请点击刷新')
+      showError('验证码加载失败，请点击刷新')
     } finally {
       setCaptchaLoading(false)
       window.setTimeout(() => setCaptchaFlash(false), 450)
     }
-  }, [form])
+  }, [form, showError])
 
   useEffect(() => {
     refreshCaptcha()
@@ -143,8 +158,10 @@ export default function LoginPage() {
       finishWithSuccess()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '用户名或密码错误'
-      setError(msg)
+      showError(msg)
       refreshCaptcha()
+      // 失败后把焦点送回验证码框，重试免鼠标
+      window.setTimeout(() => captchaRef.current?.focus(), 80)
     }
   }
 
@@ -161,7 +178,7 @@ export default function LoginPage() {
       }
       finishWithSuccess()
     } catch {
-      setError('验证码不正确，请重试')
+      showError('验证码不正确，请重试')
       totpForm.setFieldValue('code', '')
       window.setTimeout(() => totpRef.current?.focus(), 40)
       setTotpLoading(false)
@@ -262,7 +279,7 @@ export default function LoginPage() {
             )}
 
             {error && (
-              <div className="login-error" role="alert">
+              <div className="login-error" role="alert" key={errorNonce}>
                 <span className="login-error-text">{error}</span>
                 <button
                   type="button"
@@ -322,8 +339,17 @@ export default function LoginPage() {
                     placeholder="密码"
                     aria-label="密码"
                     autoComplete="current-password"
+                    onKeyDown={onPasswordKey}
+                    onKeyUp={onPasswordKey}
+                    onBlur={() => setCapsLock(false)}
                   />
                 </Form.Item>
+                {capsLock && (
+                  <div className="login-caps-hint" role="status">
+                    <WarningOutlined />
+                    大写锁定已开启
+                  </div>
+                )}
                 <div className="login-captcha-row">
                   <Form.Item
                     name="captcha_code"
@@ -331,6 +357,7 @@ export default function LoginPage() {
                     className="login-captcha-field"
                   >
                     <Input
+                      ref={captchaRef}
                       prefix={<SafetyOutlined />}
                       placeholder="验证码"
                       maxLength={6}
