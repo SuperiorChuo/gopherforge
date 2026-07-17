@@ -4,11 +4,15 @@ import {
   Card, Tabs, InputNumber,
 } from 'antd'
 import { message } from '@/utils/feedback'
-import { PlusOutlined, SearchOutlined, ReloadOutlined, DatabaseOutlined, BarsOutlined } from '@ant-design/icons'
+import {
+  PlusOutlined, SearchOutlined, ReloadOutlined, DatabaseOutlined, BarsOutlined,
+  EditOutlined, DeleteOutlined,
+} from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { DictType, DictItem } from '@/types'
 import * as DictAPI from '@/api/system/dict'
 import TableToolbar from '@/components/TableToolbar'
+import GlassEmpty from '@/components/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import { EnableStatusPill } from '@/components/StatusPill'
@@ -122,13 +126,13 @@ function DictTypeCRUD() {
       title: '操作',
       width: 140,
       render: (_, record) => (
-        <Space>
+        <Space size={0} className="table-actions">
           {hasPerm('system:dict:update') && (
-            <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
           )}
           {hasPerm('system:dict:delete') && (
             <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger>删除</Button>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
             </Popconfirm>
           )}
         </Space>
@@ -137,11 +141,11 @@ function DictTypeCRUD() {
   ]
 
   return (
-    <div>
-      <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch}>
+    <div className="page-list dict-type-page">
+      <Card className="list-filter-card" bordered={false}>
+        <Form form={searchForm} layout="inline" className="list-filter-form" onFinish={handleSearch}>
           <Form.Item name="keyword">
-            <Input placeholder="名称/编码" prefix={<SearchOutlined />} allowClear />
+            <Input placeholder="搜索名称 / 编码" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
           <Form.Item name="status">
             <Select placeholder="状态" style={{ width: 100 }} allowClear>
@@ -149,7 +153,7 @@ function DictTypeCRUD() {
               <Select.Option value={0}>禁用</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item>
+          <Form.Item className="list-filter-actions">
             <Space>
               <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
               <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
@@ -157,29 +161,32 @@ function DictTypeCRUD() {
           </Form.Item>
         </Form>
       </Card>
-      <Card>
+      <Card className="list-main-card" bordered={false}>
         <TableToolbar
           title="字典类型"
           total={total}
           extra={
-            <>
+            <Space wrap>
               <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
               {hasPerm('system:dict:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增字典类型</Button>
               )}
-            </>
+            </Space>
           }
         />
         <Table
           rowKey="id"
+          className="list-table"
           columns={columns}
           dataSource={list}
           loading={loading}
+          locale={{ emptyText: <GlassEmpty text="暂无字典类型" compact /> }}
           pagination={{
             total,
             current: params.page,
             pageSize: params.page_size,
             showSizeChanger: true,
+            showQuickJumper: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
@@ -324,13 +331,13 @@ function DictItemCRUD() {
       title: '操作',
       width: 140,
       render: (_, record) => (
-        <Space>
+        <Space size={0} className="table-actions">
           {hasPerm('system:dict:update') && (
-            <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
           )}
           {hasPerm('system:dict:delete') && (
             <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger>删除</Button>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
             </Popconfirm>
           )}
         </Space>
@@ -339,15 +346,17 @@ function DictItemCRUD() {
   ]
 
   return (
-    <div>
-      <Card style={{ marginBottom: 16 }}>
+    <div className="page-list dict-item-page">
+      <Card className="list-filter-card" bordered={false}>
         <Space>
           <span>选择字典类型：</span>
           <Select
-            style={{ width: 200 }}
+            style={{ width: 240 }}
             value={selectedTypeId}
             onChange={(v) => { setSelectedTypeId(v); setParams({ page: 1, page_size: 10 }) }}
             placeholder="请选择字典类型"
+            showSearch
+            optionFilterProp="children"
           >
             {dictTypes.map((t) => (
               <Select.Option key={t.id} value={t.id}>{t.name} ({t.code})</Select.Option>
@@ -355,12 +364,12 @@ function DictItemCRUD() {
           </Select>
         </Space>
       </Card>
-      <Card>
+      <Card className="list-main-card" bordered={false}>
         <TableToolbar
           title="字典项"
           total={total}
           extra={
-            <>
+            <Space wrap>
               <Button
                 icon={<ReloadOutlined />}
                 onClick={() => selectedTypeId && fetchItems(selectedTypeId, params)}
@@ -373,19 +382,22 @@ function DictItemCRUD() {
                   新增字典项
                 </Button>
               )}
-            </>
+            </Space>
           }
         />
         <Table
           rowKey="id"
+          className="list-table"
           columns={columns}
           dataSource={list}
           loading={loading}
+          locale={{ emptyText: <GlassEmpty text="该类型下暂无字典项" compact /> }}
           pagination={{
             total,
             current: params.page,
             pageSize: params.page_size,
             showSizeChanger: true,
+            showQuickJumper: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}

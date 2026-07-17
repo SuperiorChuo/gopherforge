@@ -4,11 +4,15 @@ import {
   Card, InputNumber, Switch, TreeSelect, Segmented, Row, Col,
 } from 'antd'
 import { message } from '@/utils/feedback'
-import { PlusOutlined, SearchOutlined, ReloadOutlined, MenuOutlined } from '@ant-design/icons'
+import {
+  PlusOutlined, SearchOutlined, ReloadOutlined, MenuOutlined,
+  EditOutlined, DeleteOutlined,
+} from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Menu } from '@/types'
 import * as MenuAPI from '@/api/system/menu'
 import TableToolbar from '@/components/TableToolbar'
+import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { usePermission } from '@/hooks/usePermission'
 import StatusPill, { EnableStatusPill } from '@/components/StatusPill'
@@ -200,13 +204,13 @@ export default function MenuPage() {
       title: '操作',
       width: 140,
       render: (_, record) => (
-        <Space>
+        <Space size={0} className="table-actions">
           {hasPerm('system:menu:update') && (
-            <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
           )}
           {hasPerm('system:menu:delete') && (
             <Popconfirm title="确认删除该菜单?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger>删除</Button>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
             </Popconfirm>
           )}
         </Space>
@@ -217,11 +221,17 @@ export default function MenuPage() {
   const isTree = view === 'tree'
 
   return (
-    <div>
-      <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch} initialValues={params}>
+    <div className="page-list menu-page">
+      <Card className="list-filter-card" bordered={false}>
+        <Form
+          form={searchForm}
+          layout="inline"
+          className="list-filter-form"
+          onFinish={handleSearch}
+          initialValues={params}
+        >
           <Form.Item name="keyword">
-            <Input placeholder="名称/路径" prefix={<SearchOutlined />} allowClear />
+            <Input placeholder="搜索名称 / 路径" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
           <Form.Item name="status">
             <Select placeholder="状态" style={{ width: 100 }} allowClear>
@@ -229,7 +239,7 @@ export default function MenuPage() {
               <Select.Option value={0}>禁用</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item>
+          <Form.Item className="list-filter-actions">
             <Space>
               <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
               <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
@@ -248,24 +258,26 @@ export default function MenuPage() {
         </Form>
       </Card>
 
-      <Card>
+      <Card className="list-main-card" bordered={false}>
         <TableToolbar
           title="菜单结构"
           total={isTree ? countTree(tree) : total}
           extra={
-            <>
+            <Space wrap>
               <Button icon={<ReloadOutlined />} onClick={refresh}>刷新</Button>
               {hasPerm('system:menu:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增菜单</Button>
               )}
-            </>
+            </Space>
           }
         />
         <Table
           rowKey="id"
+          className="list-table"
           columns={columns}
           dataSource={isTree ? tree : list}
           loading={loading}
+          locale={{ emptyText: <GlassEmpty text="暂无菜单" compact /> }}
           expandable={isTree ? { defaultExpandAllRows: true } : undefined}
           pagination={
             isTree
@@ -275,6 +287,7 @@ export default function MenuPage() {
                   current: params.page,
                   pageSize: params.page_size,
                   showSizeChanger: true,
+                  showQuickJumper: true,
                   showTotal: (t) => `共 ${t} 条`,
                   onChange: (page, page_size) => setParams({ ...params, page, page_size }),
                 }

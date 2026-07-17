@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Table, Button, Popconfirm, Card } from 'antd'
 import { message } from '@/utils/feedback'
-import { ReloadOutlined } from '@ant-design/icons'
+import { ReloadOutlined, DisconnectOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { OnlineUser } from '@/types'
 import { getOnlineUserList, kickUser } from '@/api/system/online-user'
 import TableToolbar from '@/components/TableToolbar'
+import GlassEmpty from '@/components/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 
@@ -28,6 +29,11 @@ export default function OnlineUserPage() {
 
   useEffect(() => {
     fetchList()
+    // 在线会话有实时语义，静默轮询避免表格 loading 闪烁
+    const timer = setInterval(() => {
+      getOnlineUserList().then(setList).catch(() => {})
+    }, 30000)
+    return () => clearInterval(timer)
   }, [])
 
   const handleKick = async (tokenId: string) => {
@@ -62,15 +68,17 @@ export default function OnlineUserPage() {
       title: 'IP / 位置',
       dataIndex: 'ip',
       width: 180,
-      render: (v: string, record) => (
-        <span className="cell-mono">{[v, record.location].filter(Boolean).join(' · ') || '-'}</span>
-      ),
+      render: (v: string, record) => {
+        const text = [v, record.location].filter(Boolean).join(' · ')
+        return text ? <span className="cell-mono">{text}</span> : <span className="cell-muted">—</span>
+      },
     },
     {
       title: '浏览器 / 系统',
       dataIndex: 'browser',
       width: 180,
-      render: (v: string, record) => [v, record.os].filter(Boolean).join(' / ') || '-',
+      render: (v: string, record) =>
+        [v, record.os].filter(Boolean).join(' / ') || <span className="cell-muted">—</span>,
     },
     {
       title: '登录时间',
@@ -95,30 +103,40 @@ export default function OnlineUserPage() {
             title="确认踢出该用户?"
             onConfirm={() => handleKick(record.token_id)}
           >
-            <Button type="link" size="small" danger>踢出</Button>
+            <Button type="link" size="small" danger icon={<DisconnectOutlined />}>踢出</Button>
           </Popconfirm>
         ),
     },
   ]
 
   return (
-    <Card>
-      <TableToolbar
-        title="在线用户"
-        total={list.length}
-        extra={
-          <Button icon={<ReloadOutlined />} onClick={fetchList} loading={loading}>
-            刷新
-          </Button>
-        }
-      />
-      <Table
-        rowKey="token_id"
-        columns={columns}
-        dataSource={list}
-        loading={loading}
-        pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }}
-      />
-    </Card>
+    <div className="page-list online-user-page">
+      <Card className="list-main-card" bordered={false}>
+        <TableToolbar
+          title="在线用户"
+          total={list.length}
+          extra={
+            <>
+              <span className="auto-refresh-hint">
+                <span className="live-dot" />
+                每 30 秒自动刷新
+              </span>
+              <Button icon={<ReloadOutlined />} onClick={fetchList} loading={loading}>
+                刷新
+              </Button>
+            </>
+          }
+        />
+        <Table
+          rowKey="token_id"
+          className="list-table"
+          columns={columns}
+          dataSource={list}
+          loading={loading}
+          locale={{ emptyText: <GlassEmpty text="当前没有在线会话" compact /> }}
+          pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }}
+        />
+      </Card>
+    </div>
   )
 }

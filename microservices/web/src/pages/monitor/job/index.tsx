@@ -4,7 +4,10 @@ import {
   Card, InputNumber,
 } from 'antd'
 import { message } from '@/utils/feedback'
-import { PlusOutlined, ReloadOutlined, ClearOutlined, SearchOutlined } from '@ant-design/icons'
+import {
+  PlusOutlined, ReloadOutlined, ClearOutlined, SearchOutlined,
+  EditOutlined, DeleteOutlined, PlayCircleOutlined, PauseCircleOutlined, ThunderboltOutlined,
+} from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { ScheduledJob } from '@/types'
 import {
@@ -14,6 +17,7 @@ import {
 } from '@/api/monitor'
 import TableToolbar from '@/components/TableToolbar'
 import StatusPill from '@/components/StatusPill'
+import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
@@ -209,23 +213,23 @@ export default function JobPage() {
       title: '操作',
       width: 240,
       render: (_, record) => (
-        <Space>
+        <Space size={0} className="table-actions">
           {hasPerm('system:job:update') && (
-            <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
           )}
           {hasPerm('system:job:run') && (
             record.status === 0 ? (
-              <Button type="link" size="small" onClick={() => handleStart(record.id)}>启动</Button>
+              <Button type="link" size="small" icon={<PlayCircleOutlined />} onClick={() => handleStart(record.id)}>启动</Button>
             ) : (
-              <Button type="link" size="small" onClick={() => handleStop(record.id)}>停止</Button>
+              <Button type="link" size="small" icon={<PauseCircleOutlined />} onClick={() => handleStop(record.id)}>停止</Button>
             )
           )}
           {hasPerm('system:job:run') && (
-            <Button type="link" size="small" onClick={() => handleRun(record.id)}>立即执行</Button>
+            <Button type="link" size="small" icon={<ThunderboltOutlined />} onClick={() => handleRun(record.id)}>立即执行</Button>
           )}
           {hasPerm('system:job:delete') && (
             <Popconfirm title="确认删除该任务?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger>删除</Button>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
             </Popconfirm>
           )}
         </Space>
@@ -234,11 +238,17 @@ export default function JobPage() {
   ]
 
   return (
-    <div>
-      <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch} initialValues={params}>
+    <div className="page-list job-page">
+      <Card className="list-filter-card" bordered={false}>
+        <Form
+          form={searchForm}
+          layout="inline"
+          className="list-filter-form"
+          onFinish={handleSearch}
+          initialValues={params}
+        >
           <Form.Item name="name">
-            <Input placeholder="任务名称" prefix={<SearchOutlined />} allowClear />
+            <Input placeholder="搜索任务名称" prefix={<SearchOutlined />} allowClear style={{ width: 220 }} />
           </Form.Item>
           <Form.Item name="status">
             <Select placeholder="状态" style={{ width: 110 }} allowClear>
@@ -246,7 +256,7 @@ export default function JobPage() {
               <Select.Option value={0}>已暂停</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item>
+          <Form.Item className="list-filter-actions">
             <Space>
               <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
               <Button icon={<ReloadOutlined />} onClick={handleSearchReset}>重置</Button>
@@ -269,12 +279,12 @@ export default function JobPage() {
         </Form>
       </Card>
 
-      <Card>
+      <Card className="list-main-card" bordered={false}>
         <TableToolbar
           title="定时任务"
           total={total}
           extra={
-            <>
+            <Space wrap>
               {hasPerm('system:job:run') && (
                 <Button
                   icon={<ClearOutlined />}
@@ -287,19 +297,22 @@ export default function JobPage() {
               {hasPerm('system:job:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增任务</Button>
               )}
-            </>
+            </Space>
           }
         />
         <Table
           rowKey="id"
+          className="list-table"
           columns={columns}
           dataSource={list}
           loading={loading}
+          locale={{ emptyText: <GlassEmpty text="暂无定时任务" compact /> }}
           pagination={{
             total,
             current: params.page,
             pageSize: params.page_size,
             showSizeChanger: true,
+            showQuickJumper: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
