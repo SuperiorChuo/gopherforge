@@ -186,6 +186,10 @@ func (s *Server) WebSocket(c *gin.Context) {
 					writeJSON(gin.H{"type": "error", "request_id": msg.RequestID, "payload": gin.H{"message": "forbidden"}})
 					continue
 				}
+				if !s.allowVisitorWS(visitorID) {
+					writeJSON(gin.H{"type": "error", "request_id": msg.RequestID, "payload": gin.H{"message": "rate limited"}})
+					continue
+				}
 				senderType = "visitor"
 				senderID = visitorID
 			} else {
@@ -223,6 +227,10 @@ func (s *Server) WebSocket(c *gin.Context) {
 					"payload":    gin.H{"client_msg_id": p.ClientMsgID, "seq": m.Seq, "id": m.ID},
 				})
 				continue
+			}
+			// 发消息隐含已读之前的所有消息
+			if _, err := s.Store.MarkRead(conv, senderType, m.Seq); err == nil {
+				s.publishRead(conv, senderType, m.Seq)
 			}
 			conv2, _ := s.Store.GetConversationByPublicID(p.ConversationPublicID)
 			outMsg := gin.H{

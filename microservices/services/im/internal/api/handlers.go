@@ -31,6 +31,8 @@ type Server struct {
 	AIEnabled       bool
 	// UploadDir is local storage for IM attachments (M2.1).
 	UploadDir string
+	// Limits throttles public embed endpoints; nil disables (unit tests).
+	Limits *Limits
 }
 
 func OK(c *gin.Context, data any) {
@@ -375,6 +377,10 @@ func (s *Server) SendMessage(c *gin.Context) {
 		OK(c, msg)
 		return
 	}
+	// 发消息隐含已读之前的所有消息
+	if _, err := s.Store.MarkRead(conv, senderType, msg.Seq); err == nil {
+		s.publishRead(conv, senderType, msg.Seq)
+	}
 	// refresh conv preview
 	conv, _ = s.Store.GetConversationByPublicID(publicID)
 	payload := gin.H{
@@ -431,6 +437,70 @@ func (s *Server) requireAgentConversation(c *gin.Context, agent *authjwt.AgentCl
 		return nil, false
 	}
 	return conv, true
+}
+
+// ---------- Read cursors ----------
+
+type markReadReq struct {
+	Seq int64 `json:"seq"` // <=0 → up to latest
+}
+
+// publishRead notifies both sides so "已读" markers update live.
+func (s *Server) publishRead(conv *model.Conversation, reader string, seq int64) {
+	payload := gin.H{
+		"conversation_public_id": conv.PublicID.String(),
+		"reader":                 reader,
+		"seq":                    seq,
+	}
+	s.Hub.Publish(conv.PublicID.String(), gin.H{"type": "conversation.read", "payload": payload})
+	s.AgentHub.Publish(gin.H{"type": "conversation.read", "payload": payload})
+}
+
+// POST /api/v1/im/conversations/:public_id/read  (visitor)
+func (s *Server) VisitorMarkRead(c *gin.Context) {
+	guest, ok := s.requireGuest(c)
+	if !ok {
+		return
+	}
+	conv, err := s.Store.GetConversationByPublicID(c.Param("public_id"))
+	if err != nil {
+		Fail(c, http.StatusNotFound, "conversation not found")
+		return
+	}
+	if conv.VisitorID != guest.VisitorID {
+		Fail(c, http.StatusForbidden, "not your conversation")
+		return
+	}
+	var req markReadReq
+	_ = c.ShouldBindJSON(&req)
+	seq, err := s.Store.MarkRead(conv, "visitor", req.Seq)
+	if err != nil {
+		Fail(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	s.publishRead(conv, "visitor", seq)
+	OK(c, gin.H{"reader": "visitor", "seq": seq})
+}
+
+// POST /api/v1/im/agent/conversations/:public_id/read
+func (s *Server) AgentMarkRead(c *gin.Context) {
+	agent, ok := s.requireAgent(c)
+	if !ok {
+		return
+	}
+	conv, ok := s.requireAgentConversation(c, agent)
+	if !ok {
+		return
+	}
+	var req markReadReq
+	_ = c.ShouldBindJSON(&req)
+	seq, err := s.Store.MarkRead(conv, "agent", req.Seq)
+	if err != nil {
+		Fail(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	s.publishRead(conv, "agent", seq)
+	OK(c, gin.H{"reader": "agent", "seq": seq})
 }
 
 // ---------- Agent (M3) ----------
@@ -549,7 +619,20 @@ func (s *Server) AgentListConversations(c *gin.Context) {
 		Fail(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-	OK(c, gin.H{"list": list, "scope": scope, "tenant_id": agent.TenantID})
+	ids := make([]uint64, 0, len(list))
+	for _, cv := range list {
+		ids = append(ids, cv.ID)
+	}
+	unread, _ := s.Store.AgentUnreadCounts(ids)
+	type row struct {
+		model.Conversation
+		UnreadCount int64 `json:"unread_count"`
+	}
+	rows := make([]row, 0, len(list))
+	for _, cv := range list {
+		rows = append(rows, row{Conversation: cv, UnreadCount: unread[cv.ID]})
+	}
+	OK(c, gin.H{"list": rows, "scope": scope, "tenant_id": agent.TenantID})
 }
 
 // GET /api/v1/im/agent/queue — queued only + counts

@@ -11,14 +11,15 @@ func (s *Server) RegisterRoutes(r *gin.Engine) {
 	r.GET("/api/v1/im/health/live", s.HealthLive)
 	r.GET("/api/v1/im/health/ready", s.HealthReady)
 
-	// visitor / widget
+	// visitor / widget (public embed surface → rate limited)
 	r.GET("/api/v1/im/widget/config", s.WidgetConfig)
-	r.POST("/api/v1/im/visitor/session", s.VisitorSession)
-	r.POST("/api/v1/im/conversations", s.CreateConversation)
+	r.POST("/api/v1/im/visitor/session", s.limitSession(), s.VisitorSession)
+	r.POST("/api/v1/im/conversations", s.limitWrites(), s.CreateConversation)
 	r.GET("/api/v1/im/conversations/:public_id/messages", s.ListMessages)
-	r.POST("/api/v1/im/conversations/:public_id/messages", s.SendMessage)
-	r.POST("/api/v1/im/attachments", s.UploadAttachment)
-	r.POST("/api/v1/im/conversations/:public_id/transfer_human", s.TransferHuman)
+	r.POST("/api/v1/im/conversations/:public_id/messages", s.limitWrites(), s.SendMessage)
+	r.POST("/api/v1/im/attachments", s.limitUploads(), s.UploadAttachment)
+	r.POST("/api/v1/im/conversations/:public_id/transfer_human", s.limitWrites(), s.TransferHuman)
+	r.POST("/api/v1/im/conversations/:public_id/read", s.limitWrites(), s.VisitorMarkRead)
 
 	// agent (M1 + M3 + M4)
 	r.GET("/api/v1/im/agent/me", s.AgentMe)
@@ -30,6 +31,7 @@ func (s *Server) RegisterRoutes(r *gin.Engine) {
 	r.POST("/api/v1/im/agent/conversations/:public_id/transfer", s.AgentTransfer)
 	r.POST("/api/v1/im/agent/conversations/:public_id/close", s.AgentClose)
 	r.POST("/api/v1/im/agent/conversations/:public_id/summary", s.AgentSummary)
+	r.POST("/api/v1/im/agent/conversations/:public_id/read", s.AgentMarkRead)
 
 	// admin sites (M2 embed config)
 	r.GET("/api/v1/im/admin/sites", s.AdminListSites)

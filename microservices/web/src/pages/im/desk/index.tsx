@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  Badge,
   Button,
   Card,
-  Empty,
   Input,
   Layout,
   List,
@@ -17,6 +17,8 @@ import {
 } from 'antd'
 import { PaperClipOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
+import GlassEmpty from '@/components/GlassEmpty'
+import StatusPill, { type StatusTone } from '@/components/StatusPill'
 import {
   acceptConversation,
   closeConversation,
@@ -25,6 +27,7 @@ import {
   listMessages,
   listOnlineAgents,
   listSkillGroups,
+  markAgentRead,
   sendAgentAttachment,
   sendAgentMessage,
   setAgentPresence,
@@ -81,10 +84,10 @@ function statusColor(s: string) {
   return 'default'
 }
 
-function presenceColor(s: string) {
-  if (s === 'online') return 'green'
-  if (s === 'busy') return 'gold'
-  return 'default'
+const PRESENCE_PILL: Record<string, { tone: StatusTone; label: string }> = {
+  online: { tone: 'success', label: '在线' },
+  busy: { tone: 'warning', label: '示忙' },
+  offline: { tone: 'muted', label: '离线' },
 }
 
 type Scope = 'all' | 'mine' | 'queue' | 'bot'
@@ -151,6 +154,15 @@ export default function ImDeskPage() {
     }
   }, [])
 
+  // 打开会话 / 有新消息进来时视为已读（服务端游标单调，重复调用无害）
+  const markRead = useCallback(async (publicId: string) => {
+    try {
+      await markAgentRead(publicId)
+    } catch {
+      /* 已读失败不打扰坐席 */
+    }
+  }, [])
+
   useEffect(() => {
     void refreshMe()
   }, [refreshMe])
@@ -170,19 +182,25 @@ export default function ImDeskPage() {
     ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(ev.data)
-        if (msg.type === 'conversation.updated' || msg.type === 'queue.updated' || msg.type === 'presence.updated') {
+        if (
+          msg.type === 'conversation.updated' ||
+          msg.type === 'queue.updated' ||
+          msg.type === 'presence.updated' ||
+          msg.type === 'conversation.read'
+        ) {
           void refreshList()
         }
         if (msg.type === 'message.new' && active && msg.payload?.conversation_public_id === active.public_id) {
           const m = msg.payload.message as ImMessage
           setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]))
+          if (m.sender_type !== 'agent') void markRead(active.public_id)
         }
       } catch {
         /* ignore */
       }
     }
     return () => ws.close()
-  }, [active, refreshList])
+  }, [active, refreshList, markRead])
 
   useEffect(() => {
     if (!active) return
@@ -208,6 +226,16 @@ export default function ImDeskPage() {
         if (msg.type === 'conversation.updated' && msg.payload?.public_id === active.public_id) {
           setActive(msg.payload as ImConversation)
         }
+        if (msg.type === 'conversation.read' && msg.payload?.conversation_public_id === active.public_id) {
+          const { reader, seq } = msg.payload as { reader: string; seq: number }
+          setActive((prev) =>
+            prev
+              ? reader === 'visitor'
+                ? { ...prev, visitor_last_read_seq: seq }
+                : { ...prev, agent_last_read_seq: seq }
+              : prev,
+          )
+        }
       } catch {
         /* ignore */
       }
@@ -224,6 +252,8 @@ export default function ImDeskPage() {
   async function onSelect(item: ImConversation) {
     setActive(item)
     await loadMessages(item)
+    await markRead(item.public_id)
+    void refreshList()
   }
 
   async function onPresenceChange(status: string) {
@@ -347,7 +377,8 @@ export default function ImDeskPage() {
 
   return (
     <Card
-      title="智能客服 · 坐席工作台 (IM M4)"
+      className="im-desk-card"
+      title="智能客服 · 坐席工作台"
       extra={
         <Space wrap>
           <Text type="secondary">我的状态</Text>
@@ -360,8 +391,11 @@ export default function ImDeskPage() {
               { label: '离线', value: 'offline' },
             ]}
           />
-          <Tag color={presenceColor(presence)}>{presence}</Tag>
-          <Tag color="orange">排队 {queueSize}</Tag>
+          <StatusPill
+            tone={(PRESENCE_PILL[presence] ?? PRESENCE_PILL.offline).tone}
+            label={(PRESENCE_PILL[presence] ?? PRESENCE_PILL.offline).label}
+          />
+          <Tag variant="filled" color={queueSize > 0 ? 'orange' : 'default'}>排队 {queueSize}</Tag>
           <Button href="/im/skills">技能组</Button>
           <Button href="/im/sites">站点</Button>
         </Space>
@@ -369,7 +403,7 @@ export default function ImDeskPage() {
       styles={{ body: { padding: 0 } }}
     >
       <Layout style={{ minHeight: 560, background: 'transparent' }}>
-        <Sider width={320} theme="light" style={{ borderRight: '1px solid rgba(0,0,0,.06)' }}>
+        <Sider width={320} className="im-desk-sider">
           <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <Segmented
               block
@@ -396,27 +430,24 @@ export default function ImDeskPage() {
           </div>
           <List
             dataSource={list}
-            locale={{ emptyText: <Empty description="暂无会话" /> }}
+            locale={{ emptyText: <GlassEmpty text="暂无会话" compact /> }}
             renderItem={(item) => (
               <List.Item
-                style={{
-                  cursor: 'pointer',
-                  padding: '10px 16px',
-                  background: active?.public_id === item.public_id ? 'rgba(99,102,241,.08)' : undefined,
-                }}
+                className={`im-conv-li${active?.public_id === item.public_id ? ' is-active' : ''}`}
                 onClick={() => void onSelect(item)}
               >
                 <List.Item.Meta
                   title={
                     <Space wrap size={4}>
-                      <Text code>{item.public_id.slice(0, 8)}</Text>
-                      <Tag color={statusColor(item.status)}>{item.status}</Tag>
+                      <span className="cell-mono im-conv-id">{item.public_id.slice(0, 8)}</span>
+                      <Tag variant="filled" color={statusColor(item.status)}>{item.status}</Tag>
                       {item.skill_group_id ? (
-                        <Tag>{sgName(item.skill_group_id)}</Tag>
+                        <Tag variant="filled">{sgName(item.skill_group_id)}</Tag>
                       ) : null}
                       {item.agent_user_id && item.agent_user_id === myUserId ? (
-                        <Tag color="purple">我</Tag>
+                        <Tag variant="filled" color="purple">我</Tag>
                       ) : null}
+                      <Badge count={item.unread_count || 0} size="small" />
                     </Space>
                   }
                   description={item.last_message_preview || '（尚无消息）'}
@@ -426,16 +457,7 @@ export default function ImDeskPage() {
           />
         </Sider>
         <Content style={{ display: 'flex', flexDirection: 'column' }}>
-          <div
-            style={{
-              padding: '12px 16px',
-              borderBottom: '1px solid rgba(0,0,0,.06)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 8,
-            }}
-          >
+          <div className="im-desk-head">
             <Text strong>{title}</Text>
             <Space wrap>
               <Tooltip title="从队列手动接入">
@@ -472,18 +494,10 @@ export default function ImDeskPage() {
               </Button>
             </Space>
           </div>
-          <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {!active && <Empty description="从左侧选择会话，或打开访客页发起咨询" />}
+          <div className="im-desk-msgs">
+            {!active && <GlassEmpty text="从左侧选择会话，或打开访客页发起咨询" />}
             {active?.summary ? (
-              <div
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  background: 'rgba(124,58,237,.08)',
-                  fontSize: 13,
-                  border: '1px solid rgba(124,58,237,.2)',
-                }}
-              >
+              <div className="im-desk-summary">
                 <Text strong type="secondary">
                   会话小结 ·{' '}
                 </Text>
@@ -491,34 +505,22 @@ export default function ImDeskPage() {
               </div>
             ) : null}
             {messages.map((m) => (
-              <div
-                key={m.id}
-                style={{
-                  alignSelf:
-                    m.sender_type === 'agent' ? 'flex-end' : m.sender_type === 'system' ? 'center' : 'flex-start',
-                  maxWidth: m.sender_type === 'system' ? '90%' : '70%',
-                  padding: '8px 12px',
-                  borderRadius: 12,
-                  background:
-                    m.sender_type === 'agent'
-                      ? 'rgba(99,102,241,.9)'
-                      : m.sender_type === 'bot'
-                        ? 'rgba(124,58,237,.12)'
-                        : m.sender_type === 'system'
-                          ? 'rgba(0,0,0,.04)'
-                          : 'rgba(0,0,0,.06)',
-                  color: m.sender_type === 'agent' ? '#fff' : undefined,
-                  fontSize: m.sender_type === 'system' ? 12 : undefined,
-                }}
-              >
-                <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 4 }}>
+              <div key={m.id} className={`im-msg im-msg-${m.sender_type}`}>
+                <div className="im-msg-meta">
                   {m.sender_type} · #{m.seq}
                 </div>
                 <div>{renderContent(m.content)}</div>
+                {m.sender_type === 'agent' ? (
+                  <div
+                    className={`im-msg-read${(active?.visitor_last_read_seq ?? 0) >= m.seq ? ' is-read' : ''}`}
+                  >
+                    {(active?.visitor_last_read_seq ?? 0) >= m.seq ? '已读' : '未读'}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
-          <div style={{ padding: 12, borderTop: '1px solid rgba(0,0,0,.06)', display: 'flex', gap: 8 }}>
+          <div className="im-desk-input">
             <Upload
               showUploadList={false}
               beforeUpload={(f) => onPickFile(f as unknown as File)}
@@ -538,7 +540,7 @@ export default function ImDeskPage() {
               发送
             </Button>
           </div>
-          <div style={{ padding: '0 12px 12px', fontSize: 12, opacity: 0.65 }}>
+          <div className="im-desk-hint">
             提示：机器人接待中可点「小结」；访客「转人工」后进入排队。坐席上线后按技能组自动接单。 ·{' '}
             <a href="/im/visitor" target="_blank" rel="noreferrer">
               访客 H5

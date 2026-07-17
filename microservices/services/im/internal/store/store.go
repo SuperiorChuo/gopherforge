@@ -925,6 +925,77 @@ func truncate(s string, n int) string {
 	return string(r[:n])
 }
 
+// MarkRead advances a read cursor monotonically. reader is "agent" or
+// "visitor"; seq <= 0 means "up to the latest message". Returns the
+// effective cursor after the call.
+func (s *Store) MarkRead(c *model.Conversation, reader string, seq int64) (int64, error) {
+	var col string
+	var cur int64
+	switch reader {
+	case "agent":
+		col, cur = "agent_last_read_seq", c.AgentLastReadSeq
+	case "visitor":
+		col, cur = "visitor_last_read_seq", c.VisitorLastReadSeq
+	default:
+		return 0, errors.New("reader must be agent|visitor")
+	}
+	if seq <= 0 {
+		var maxSeq *int64
+		if err := s.db.Model(&model.Message{}).Select("MAX(seq)").
+			Where("conversation_id = ?", c.ID).Scan(&maxSeq).Error; err != nil {
+			return 0, err
+		}
+		if maxSeq == nil {
+			return cur, nil
+		}
+		seq = *maxSeq
+	}
+	if seq <= cur {
+		return cur, nil
+	}
+	// WHERE guard keeps it monotonic under concurrent marks
+	if err := s.db.Model(&model.Conversation{}).
+		Where("id = ? AND "+col+" < ?", c.ID, seq).
+		Update(col, seq).Error; err != nil {
+		return 0, err
+	}
+	if reader == "agent" {
+		c.AgentLastReadSeq = seq
+	} else {
+		c.VisitorLastReadSeq = seq
+	}
+	return seq, nil
+}
+
+// AgentUnreadCounts returns per-conversation counts of visitor text/media
+// messages past the agent read cursor (events excluded).
+func (s *Store) AgentUnreadCounts(conversationIDs []uint64) (map[uint64]int64, error) {
+	out := make(map[uint64]int64, len(conversationIDs))
+	if len(conversationIDs) == 0 {
+		return out, nil
+	}
+	type row struct {
+		ConversationID uint64
+		N              int64
+	}
+	var rows []row
+	err := s.db.Model(&model.Message{}).
+		Select("im_messages.conversation_id AS conversation_id, COUNT(*) AS n").
+		Joins("JOIN im_conversations c ON c.id = im_messages.conversation_id").
+		Where("im_messages.conversation_id IN ?", conversationIDs).
+		Where("im_messages.sender_type = ? AND im_messages.msg_type <> ?", "visitor", "event").
+		Where("im_messages.seq > c.agent_last_read_seq").
+		Group("im_messages.conversation_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		out[r.ConversationID] = r.N
+	}
+	return out, nil
+}
+
 func (s *Store) ListMessages(conversationID uint64, afterSeq int64, limit int) ([]model.Message, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50

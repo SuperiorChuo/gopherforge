@@ -12,6 +12,9 @@ export type ImConversation = {
   last_message_preview?: string
   last_message_at?: string
   created_at: string
+  agent_last_read_seq?: number
+  visitor_last_read_seq?: number
+  unread_count?: number
 }
 
 export type ImMessage = {
@@ -108,6 +111,13 @@ export function closeConversation(publicId: string, reason?: string) {
   return request.post(`/api/v1/im/agent/conversations/${publicId}/close`, {
     reason: reason || 'agent',
   }) as Promise<ImConversation>
+}
+
+// 坐席标记已读；seq 省略则读到最新
+export function markAgentRead(publicId: string, seq?: number) {
+  return request.post(`/api/v1/im/agent/conversations/${publicId}/read`, {
+    seq: seq || 0,
+  }) as Promise<{ reader: string; seq: number }>
 }
 
 export function summarizeConversation(publicId: string) {

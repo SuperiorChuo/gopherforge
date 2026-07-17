@@ -101,8 +101,11 @@ type Conversation struct {
 	ClosedAt           *time.Time `json:"closed_at,omitempty"`
 	LastMessageAt      *time.Time `json:"last_message_at,omitempty"`
 	LastMessagePreview string     `gorm:"size:256" json:"last_message_preview,omitempty"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
+	// Read cursors: last message seq each side has seen (0 = nothing).
+	AgentLastReadSeq   int64     `gorm:"not null;default:0" json:"agent_last_read_seq"`
+	VisitorLastReadSeq int64     `gorm:"not null;default:0" json:"visitor_last_read_seq"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 func (Conversation) TableName() string { return "im_conversations" }

@@ -133,6 +133,7 @@
         (hist.data.messages || []).forEach(m => {
           addRich(bubbleClass(m.sender_type), m.content);
         });
+        markReadUpTo(0);
       }
 
       const wsBase = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
@@ -147,12 +148,23 @@
           const m = msg.payload.message;
           if (m.sender_type === 'visitor') return;
           addRich(bubbleClass(m.sender_type), m.content);
+          markReadUpTo(m.seq);
         }
         if (msg.type === 'conversation.updated' && msg.payload) {
           meta.textContent = '会话 ' + convId.slice(0, 8) + '… · ' + (msg.payload.status || '');
         }
       };
       ws.onclose = () => { meta.textContent = '连接断开，刷新重试'; };
+    }
+
+    // 页面开着即视为已读（服务端游标单调，重复无害）
+    function markReadUpTo(seq) {
+      if (!convId || !guestToken) return;
+      fetch(API + '/api/v1/im/conversations/' + convId + '/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + guestToken },
+        body: JSON.stringify({ seq: seq || 0 }),
+      }).catch(() => {});
     }
 
     document.getElementById('attach').onclick = () => {

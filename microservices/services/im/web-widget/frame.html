@@ -85,9 +85,38 @@
             d.appendChild(link);
           }
           logEl.scrollTop = logEl.scrollHeight;
-          return;
+          return d;
         }
-        add(cls, (o && o.text) || String(content));
+        return add(cls, (o && o.text) || String(content));
+      }
+
+      // —— 已读回执：跟踪自己最后一条消息 + 坐席读游标 ——
+      var agentReadSeq = 0, lastMineSeq = 0, lastMineEl = null, readMark = null;
+      function noteMine(el, seq) {
+        if (el) lastMineEl = el;
+        if (seq && seq > lastMineSeq) lastMineSeq = seq;
+        updateReadMark();
+      }
+      function updateReadMark() {
+        if (!lastMineEl || !lastMineSeq) return;
+        if (agentReadSeq >= lastMineSeq) {
+          if (!readMark) {
+            readMark = document.createElement('div');
+            readMark.style.cssText = 'align-self:flex-end;font-size:11px;color:#94a3b8';
+            readMark.textContent = '已读';
+          }
+          if (readMark !== lastMineEl.nextSibling) logEl.insertBefore(readMark, lastMineEl.nextSibling);
+        } else if (readMark && readMark.parentNode) {
+          readMark.parentNode.removeChild(readMark);
+        }
+      }
+      function markReadUpTo(seq) {
+        if (!convId || !guestToken) return;
+        api('/api/v1/im/conversations/' + convId + '/read', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + guestToken },
+          body: JSON.stringify({ seq: seq || 0 }),
+        }).catch(function () {});
       }
 
       var guestToken = localStorage.getItem('im_guest_token_' + APP_KEY) || '';
@@ -182,9 +211,12 @@
           headers: { Authorization: 'Bearer ' + guestToken },
         });
         if (hist.code === 200) {
+          agentReadSeq = (hist.data.conversation && hist.data.conversation.agent_last_read_seq) || 0;
           (hist.data.messages || []).forEach(function (m) {
-            addRich(bubbleClass(m.sender_type), m.content);
+            var el = addRich(bubbleClass(m.sender_type), m.content);
+            if (m.sender_type === 'visitor') noteMine(el, m.seq);
           });
+          markReadUpTo(0); // 打开面板即读到最新
         }
 
         var wsBase = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
@@ -200,6 +232,14 @@
             var m = msg.payload.message;
             if (m.sender_type === 'visitor') return;
             addRich(bubbleClass(m.sender_type), m.content);
+            markReadUpTo(m.seq); // 面板开着即已读
+          }
+          if (msg.type === 'message.ack' && msg.payload && msg.payload.seq) {
+            noteMine(null, msg.payload.seq);
+          }
+          if (msg.type === 'conversation.read' && msg.payload && msg.payload.reader === 'agent') {
+            agentReadSeq = Math.max(agentReadSeq, msg.payload.seq || 0);
+            updateReadMark();
           }
           if (msg.type === 'conversation.updated' && msg.payload && msg.payload.status) {
             meta.textContent = '会话 ' + convId.slice(0, 8) + '… · ' + msg.payload.status;
@@ -226,7 +266,8 @@
         }).then(function (r) { return r.json(); }).then(function (r) {
           if (r.code !== 200) { add('sys', r.message || '上传失败'); return; }
           var att = r.data;
-          addRich('me', { url: att.url, name: att.name });
+          var el = addRich('me', { url: att.url, name: att.name });
+          noteMine(el, 0);
           api('/api/v1/im/conversations/' + convId + '/messages', {
             method: 'POST',
             headers: { Authorization: 'Bearer ' + guestToken },
@@ -235,6 +276,8 @@
               msg_type: att.msg_type,
               content: { url: att.url, name: att.name, size: att.size, mime: att.mime },
             }),
+          }).then(function (r2) {
+            if (r2.code === 200 && r2.data && r2.data.seq) noteMine(null, r2.data.seq);
           });
         }).catch(function () { add('sys', '上传失败'); });
       };
@@ -245,7 +288,7 @@
         var text = input.value.trim();
         if (!text || !convId) return;
         input.value = '';
-        add('me', text);
+        noteMine(add('me', text), 0);
         var client_msg_id = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now());
         if (ws && ws.readyState === 1) {
           ws.send(JSON.stringify({
@@ -263,6 +306,8 @@
             method: 'POST',
             headers: { Authorization: 'Bearer ' + guestToken },
             body: JSON.stringify({ client_msg_id: client_msg_id, msg_type: 'text', content: { text: text } }),
+          }).then(function (r2) {
+            if (r2.code === 200 && r2.data && r2.data.seq) noteMine(null, r2.data.seq);
           });
         }
       };

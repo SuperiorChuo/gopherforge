@@ -58,6 +58,7 @@ func main() {
 		BotSystemPrompt: cfg.AISystemPrompt,
 		AIEnabled:       cfg.AIEnabled,
 		UploadDir:       cfg.UploadDir,
+		Limits:          api.DefaultLimits(),
 	}
 
 	r := gin.New()
