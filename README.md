@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/screenshots/wechat-group.jpg" alt="go-admin-kit 微信交流群二维码" width="420" />
+</p>
+
 # 🚀 Go Admin Kit
 
 <p align="center">
@@ -91,19 +95,16 @@
 
 ## 🖼️ 项目截图
 
-| 🔐 登录页 | 📊 系统概览 |
-| --- | --- |
-| ![登录页](docs/screenshots/login.png) | ![系统概览](docs/screenshots/dashboard.png) |
+| 页面 | 🌌 深空暗色 | ☁️ 白蓝亮色 |
+| --- | --- | --- |
+| 🔐 登录页 | ![深空暗色登录页](docs/screenshots/login.png) | ![白蓝亮色登录页](docs/screenshots/login-light.png) |
+| 📊 系统概览 | ![深空暗色系统概览](docs/screenshots/dashboard.png) | ![白蓝亮色系统概览](docs/screenshots/dashboard-light.png) |
+| 👥 用户管理 | ![深空暗色用户管理](docs/screenshots/users.png) | ![白蓝亮色用户管理](docs/screenshots/users-light.png) |
+| 🛡️ 角色管理 | ![深空暗色角色管理](docs/screenshots/roles.png) | ![白蓝亮色角色管理](docs/screenshots/roles-light.png) |
+| 🐘 数据库监控 | ![深空暗色数据库监控](docs/screenshots/mysql.png) | ![白蓝亮色数据库监控](docs/screenshots/mysql-light.png) |
+| 🔴 Redis 监控 | ![深空暗色 Redis 监控](docs/screenshots/redis.png) | ![白蓝亮色 Redis 监控](docs/screenshots/redis-light.png) |
 
-| 👥 用户管理 | 🛡️ 角色管理 |
-| --- | --- |
-| ![用户管理](docs/screenshots/users.png) | ![角色管理](docs/screenshots/roles.png) |
-
-| 🐘 数据库监控 | 🔴 Redis 监控 |
-| --- | --- |
-| ![数据库监控](docs/screenshots/mysql.png) | ![Redis 监控](docs/screenshots/redis.png) |
-
-> 截图来自真实运行界面。UI 大改后可用本机截图覆盖 `docs/screenshots/*.png`。
+> 截图来自微服务真实运行界面，统一使用桌面视口。
 
 ---
 
