@@ -12,8 +12,14 @@ import (
 	"github.com/go-admin-kit/server/internal/pkg/response"
 )
 
+// ctxKey is a private type so context keys cannot collide (SA1029).
+type ctxKey string
+
 // TenantIDContextKey stores the authenticated tenant id in context.Context.
-const TenantIDContextKey = "tenant_id"
+const TenantIDContextKey ctxKey = "tenant_id"
+
+// platformAdminContextKey stores the platform-admin flag in context.Context.
+const platformAdminContextKey ctxKey = "platform_admin"
 
 // AuthMiddleware validates an access token and stores the actor in the request context.
 func AuthMiddleware() gin.HandlerFunc {
@@ -103,7 +109,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Set("platform_admin", platformAdmin)
 		// Propagate tenant into request context for DAOs/services.
 		ctx := context.WithValue(c.Request.Context(), TenantIDContextKey, tenantID)
-		ctx = context.WithValue(ctx, "platform_admin", platformAdmin)
+		ctx = context.WithValue(ctx, platformAdminContextKey, platformAdmin)
 		c.Request = c.Request.WithContext(ctx)
 		SetAuditActor(c, DefaultAuditActorType, claims.Username)
 

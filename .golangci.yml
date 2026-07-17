@@ -16,7 +16,8 @@ linters:
     misspell:
       locale: US
   exclusions:
+    # paths 是 Go 正则而非 glob，`**` 会直接让 lint 报配置错误退出
     paths:
-      - '**/logs'
-      - '**/node_modules'
-      - '**/dist'
+      - '(^|/)logs($|/)'
+      - '(^|/)node_modules($|/)'
+      - '(^|/)dist($|/)'
