@@ -70,10 +70,10 @@ function createCaptchaFixture(code, options = {}) {
     rgba[offset + 3] = 255;
   }
 
-  let left = 12;
+  let left = 10;
   for (const ch of code) {
-    drawFixtureGlyph(rgba, width, left, 8, ch);
-    left += 26;
+    drawFixtureGlyph(rgba, width, left, 7, ch);
+    left += 27;
   }
   if (options.drawNoise) {
     for (let x = 0; x < width; x += 9) {

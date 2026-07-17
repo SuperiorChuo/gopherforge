@@ -2,9 +2,9 @@ import { inflateSync } from 'node:zlib';
 
 const CAPTCHA_WIDTH = 120;
 const CAPTCHA_HEIGHT = 42;
-const CAPTCHA_LEFT = 12;
-const CAPTCHA_TOP = 8;
-const CAPTCHA_STEP = 26;
+const CAPTCHA_LEFT = 10;
+const CAPTCHA_TOP = 7;
+const CAPTCHA_STEP = 27;
 const CAPTCHA_LENGTH = 4;
 
 const textCaptchaGlyphs = new Map([
@@ -131,7 +131,8 @@ function matchCaptchaGlyph(pattern) {
 }
 
 function isCaptchaForegroundPixel({ r, g, b, a }) {
-  return a > 200 && r < 80 && g < 120 && b < 200;
+  // 字形主色为 indigo(55,70,180) / violet(88,60,190)；阴影与微尘 alpha 低
+  return a > 200 && r < 100 && g < 120 && b < 200;
 }
 
 function captchaGlyphBlockHasForeground(png, left, top) {
