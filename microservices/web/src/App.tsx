@@ -144,7 +144,7 @@ type ViewTransitionDocument = Document & {
 }
 
 // 指针高光:把鼠标在卡片内的坐标写进 --lgx/--lgy,
-// index.css 里 .ant-card::after 的反光光点跟着游走
+// index.css 里 .ant-card::after / .login-shell 的反光光点跟着游走
 function useGlassPointerLight() {
   useEffect(() => {
     let raf = 0
@@ -152,6 +152,7 @@ function useGlassPointerLight() {
     const clear = () => {
       lit?.style.removeProperty('--lgx')
       lit?.style.removeProperty('--lgy')
+      lit?.classList.remove('is-pointer-lit')
       lit = null
     }
     let last: PointerEvent | null = null
@@ -162,12 +163,16 @@ function useGlassPointerLight() {
         raf = 0
         const ev = last
         if (!ev) return
-        const el = ev.target instanceof Element ? ev.target.closest<HTMLElement>('.ant-card') : null
+        const el =
+          ev.target instanceof Element
+            ? ev.target.closest<HTMLElement>('.ant-card, .login-shell')
+            : null
         if (lit && lit !== el) clear()
         if (el) {
           const rect = el.getBoundingClientRect()
           el.style.setProperty('--lgx', `${Math.round(ev.clientX - rect.left)}px`)
           el.style.setProperty('--lgy', `${Math.round(ev.clientY - rect.top)}px`)
+          el.classList.add('is-pointer-lit')
           lit = el
         }
       })

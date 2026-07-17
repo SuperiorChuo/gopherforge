@@ -11,6 +11,7 @@ import {
   LineChartOutlined,
   CalendarOutlined,
   HistoryOutlined,
+  EnvironmentOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector } from '@/hooks/store'
@@ -43,23 +44,233 @@ interface StatCard {
 
 const noticeTypeLabels: Record<number, string> = { 1: '通知', 2: '公告' }
 
-// 高德天气现象文本 → 表情（按关键字匹配，未命中回退 🌤️；夜间晴/多云换月亮）
-function weatherEmoji(text: string, hour: number): string {
+/** 天气语义色：驱动玻璃卡色晕 / 图标主题 / 氛围粒子 */
+type WeatherKind = 'sunny' | 'night' | 'cloudy' | 'overcast' | 'rain' | 'thunder' | 'snow' | 'fog'
+
+function weatherKind(text: string, hour: number): WeatherKind {
   const night = hour >= 19 || hour < 6
-  if (/雷/.test(text)) return '⛈️'
-  if (/雪/.test(text)) return '❄️'
-  if (/雨/.test(text)) return '🌧️'
-  if (/雾|霾|浮尘|扬沙|沙尘/.test(text)) return '🌫️'
-  if (/阴/.test(text)) return '☁️'
-  if (/云/.test(text)) return night ? '☁️' : '🌤️'
-  if (/晴/.test(text)) return night ? '🌙' : '☀️'
-  return '🌤️'
+  if (/雷/.test(text)) return 'thunder'
+  if (/雪|冰雹/.test(text)) return 'snow'
+  if (/雨|阵雨|毛毛雨|小雨|中雨|大雨|暴雨/.test(text)) return 'rain'
+  if (/雾|霾|浮尘|扬沙|沙尘/.test(text)) return 'fog'
+  if (/阴/.test(text)) return 'overcast'
+  if (/云|多云/.test(text)) return night ? 'night' : 'cloudy'
+  if (/晴/.test(text)) return night ? 'night' : 'sunny'
+  return night ? 'night' : 'cloudy'
 }
 
-const WEATHER_CACHE_KEY = 'dash-weather-cache'
+/** 高德风力等级文本 → 粗估风速 m/s（体感公式用） */
+function windPowerToMs(power?: string): number {
+  if (!power) return 1.5
+  const m = power.match(/(\d+(?:\.\d+)?)/)
+  const level = m ? Number(m[1]) : 2
+  // 蒲福风级近似中值
+  const table = [0.2, 1.5, 3.3, 5.4, 7.9, 10.7, 13.8, 17.1, 20.7, 24.4, 28.4, 32.6]
+  if (level <= 0) return table[0]
+  if (level >= table.length) return table[table.length - 1]
+  return table[Math.round(level)] ?? 3
+}
+
+/** 澳大利亚表观温度（体感）近似，单位 °C；算不出则返回 null */
+function feelsLikeC(tempStr?: string, humidityStr?: string, windPower?: string): number | null {
+  const t = Number(tempStr)
+  const rh = Number(humidityStr)
+  if (!Number.isFinite(t) || !Number.isFinite(rh)) return null
+  const ws = windPowerToMs(windPower)
+  const e = (rh / 100) * 6.105 * Math.exp((17.27 * t) / (237.7 + t))
+  const at = t + 0.33 * e - 0.7 * ws - 4.0
+  return Math.round(at)
+}
+
+/** 矢量天气标：比 emoji 更精致，随 kind 换形态 */
+function WeatherGlyph({ kind }: { kind: WeatherKind }) {
+  const common = {
+    viewBox: '0 0 64 64',
+    width: 48,
+    height: 48,
+    fill: 'none',
+    xmlns: 'http://www.w3.org/2000/svg',
+    'aria-hidden': true as const,
+  }
+  switch (kind) {
+    case 'sunny':
+      return (
+        <svg {...common} className="wx-glyph wx-glyph-sun">
+          <circle className="wx-sun-core" cx="32" cy="32" r="11" fill="url(#wg-sun)" />
+          <g className="wx-sun-rays" stroke="url(#wg-sun-ray)" strokeWidth="2.2" strokeLinecap="round" opacity="0.95">
+            <path d="M32 6v7M32 51v7M6 32h7M51 32h7M13.5 13.5l5 5M45.5 45.5l5 5M13.5 50.5l5-5M45.5 18.5l5-5" />
+          </g>
+          <defs>
+            <radialGradient id="wg-sun" cx="40%" cy="35%" r="65%">
+              <stop offset="0%" stopColor="#fef9c3" />
+              <stop offset="55%" stopColor="#fbbf24" />
+              <stop offset="100%" stopColor="#f59e0b" />
+            </radialGradient>
+            <linearGradient id="wg-sun-ray" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#fde68a" />
+              <stop offset="100%" stopColor="#fbbf24" />
+            </linearGradient>
+          </defs>
+        </svg>
+      )
+    case 'night':
+      return (
+        <svg {...common} className="wx-glyph wx-glyph-moon">
+          <path
+            d="M40 12c-1.2 3.4-1.2 7.2.2 10.6 2.4 5.8 8 9.8 14.3 10.4-2.2 8.6-10 14.8-19.2 14.8-11 0-20-9-20-20 0-9.2 6.2-17 14.7-19.3 1.4 5.8 5.2 10.6 10 13.5z"
+            fill="url(#wg-moon)"
+          />
+          <circle className="wx-star" cx="48" cy="16" r="1.4" fill="#e0e7ff" opacity="0.9" />
+          <circle className="wx-star" cx="54" cy="28" r="1" fill="#c7d2fe" opacity="0.75" />
+          <circle className="wx-star" cx="44" cy="8" r="0.9" fill="#a5b4fc" opacity="0.7" />
+          <defs>
+            <linearGradient id="wg-moon" x1="0.2" y1="0" x2="0.9" y2="1">
+              <stop offset="0%" stopColor="#e0e7ff" />
+              <stop offset="55%" stopColor="#a5b4fc" />
+              <stop offset="100%" stopColor="#6366f1" />
+            </linearGradient>
+          </defs>
+        </svg>
+      )
+    case 'rain':
+    case 'thunder':
+      return (
+        <svg {...common} className={`wx-glyph wx-glyph-${kind}`}>
+          <path
+            d="M22 40c-6 0-11-4.5-11-10.2C11 24 15.5 19.5 21 19c1.6-5.5 6.7-9.5 12.7-9.5 6.6 0 12.1 4.6 13.4 10.8 5.2.6 9.2 4.9 9.2 10.1 0 5.6-4.6 10.1-10.3 10.1H22z"
+            fill="url(#wg-cloud)"
+          />
+          {kind === 'thunder' ? (
+            <path className="wx-bolt" d="M33 38l-4 10h5l-2 10 10-14h-5l3-6z" fill="#fde047" stroke="#fbbf24" strokeWidth="0.5" />
+          ) : (
+            <g className="wx-drops" stroke="#7dd3fc" strokeWidth="2.2" strokeLinecap="round">
+              <path d="M24 46v8M32 44v10M40 46v8" opacity="0.9" />
+            </g>
+          )}
+          <defs>
+            <linearGradient id="wg-cloud" x1="0" y1="0" x2="0.5" y2="1">
+              <stop offset="0%" stopColor="#e2e8f0" />
+              <stop offset="100%" stopColor="#94a3b8" />
+            </linearGradient>
+          </defs>
+        </svg>
+      )
+    case 'snow':
+      return (
+        <svg {...common} className="wx-glyph wx-glyph-snow">
+          <path
+            d="M22 38c-6 0-11-4.5-11-10.2C11 22 15.5 17.5 21 17c1.6-5.5 6.7-9.5 12.7-9.5 6.6 0 12.1 4.6 13.4 10.8 5.2.6 9.2 4.9 9.2 10.1 0 5.6-4.6 10.1-10.3 10.1H22z"
+            fill="url(#wg-cloud-snow)"
+          />
+          <g className="wx-flakes" fill="#e0f2fe" opacity="0.95">
+            <circle cx="24" cy="48" r="1.6" />
+            <circle cx="33" cy="52" r="1.4" />
+            <circle cx="40" cy="47" r="1.5" />
+            <circle cx="28" cy="54" r="1.1" />
+          </g>
+          <defs>
+            <linearGradient id="wg-cloud-snow" x1="0" y1="0" x2="0.5" y2="1">
+              <stop offset="0%" stopColor="#f1f5f9" />
+              <stop offset="100%" stopColor="#cbd5e1" />
+            </linearGradient>
+          </defs>
+        </svg>
+      )
+    case 'fog':
+      return (
+        <svg {...common} className="wx-glyph wx-glyph-fog">
+          <g className="wx-mist" stroke="url(#wg-fog)" strokeWidth="3" strokeLinecap="round" opacity="0.85">
+            <path d="M14 24h36M12 32h40M16 40h32M18 48h28" />
+          </g>
+          <defs>
+            <linearGradient id="wg-fog" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.3" />
+              <stop offset="50%" stopColor="#e2e8f0" />
+              <stop offset="100%" stopColor="#94a3b8" stopOpacity="0.3" />
+            </linearGradient>
+          </defs>
+        </svg>
+      )
+    case 'overcast':
+      return (
+        <svg {...common} className="wx-glyph wx-glyph-overcast">
+          <path
+            d="M18 42c-6.5 0-12-5-12-11.2C6 25 11 20 17 19.4 18.8 13 24.6 8.5 31.5 8.5c7.4 0 13.6 5.2 15 12.1 5.8.7 10.3 5.5 10.3 11.3 0 6.3-5.2 11.4-11.6 11.4H18z"
+            fill="url(#wg-overcast)"
+          />
+          <defs>
+            <linearGradient id="wg-overcast" x1="0.2" y1="0" x2="0.7" y2="1">
+              <stop offset="0%" stopColor="#cbd5e1" />
+              <stop offset="100%" stopColor="#64748b" />
+            </linearGradient>
+          </defs>
+        </svg>
+      )
+    default: // cloudy
+      return (
+        <svg {...common} className="wx-glyph wx-glyph-cloudy">
+          <circle className="wx-part-sun" cx="42" cy="22" r="8" fill="url(#wg-part-sun)" opacity="0.95" />
+          <path
+            d="M20 44c-5.8 0-10.5-4.4-10.5-9.8C9.5 28.8 13.8 24.5 19 24c1.5-5.2 6.3-9 12-9 6.2 0 11.4 4.3 12.6 10.2 4.9.6 8.7 4.6 8.7 9.5 0 5.3-4.4 9.6-9.8 9.6H20z"
+            fill="url(#wg-part-cloud)"
+          />
+          <defs>
+            <radialGradient id="wg-part-sun" cx="40%" cy="35%" r="65%">
+              <stop offset="0%" stopColor="#fef08a" />
+              <stop offset="100%" stopColor="#f59e0b" />
+            </radialGradient>
+            <linearGradient id="wg-part-cloud" x1="0" y1="0" x2="0.5" y2="1">
+              <stop offset="0%" stopColor="#f8fafc" />
+              <stop offset="100%" stopColor="#94a3b8" />
+            </linearGradient>
+          </defs>
+        </svg>
+      )
+  }
+}
+
+/** 卡内氛围层：雨丝/雪花/星点/雾带，纯装饰 */
+function WeatherAtmosphere({ kind }: { kind: WeatherKind }) {
+  if (kind === 'rain' || kind === 'thunder') {
+    return (
+      <div className="dash-weather-fx is-rain" aria-hidden>
+        {Array.from({ length: 10 }, (_, i) => (
+          <i key={i} style={{ '--d': i } as React.CSSProperties} />
+        ))}
+      </div>
+    )
+  }
+  if (kind === 'snow') {
+    return (
+      <div className="dash-weather-fx is-snow" aria-hidden>
+        {Array.from({ length: 8 }, (_, i) => (
+          <i key={i} style={{ '--d': i } as React.CSSProperties} />
+        ))}
+      </div>
+    )
+  }
+  if (kind === 'night') {
+    return (
+      <div className="dash-weather-fx is-night" aria-hidden>
+        {Array.from({ length: 6 }, (_, i) => (
+          <i key={i} style={{ '--d': i } as React.CSSProperties} />
+        ))}
+      </div>
+    )
+  }
+  if (kind === 'fog') {
+    return <div className="dash-weather-fx is-fog" aria-hidden><i /><i /></div>
+  }
+  if (kind === 'sunny') {
+    return <div className="dash-weather-fx is-sunny" aria-hidden><i /></div>
+  }
+  return null
+}
+
+const WEATHER_CACHE_KEY = 'dash-weather-cache-v2'
 const WEATHER_CACHE_TTL = 30 * 60 * 1000
 
-// localStorage 缓存：页面往返 dashboard 不重复请求；失败静默（返回 null 则不渲染 chip）
+// localStorage 缓存：页面往返 dashboard 不重复请求；失败静默（返回 null 则不渲染）
 async function loadWeather(): Promise<LiveWeather | null> {
   try {
     const cached = localStorage.getItem(WEATHER_CACHE_KEY)
@@ -136,6 +347,20 @@ export default function DashboardPage() {
   const hour = now.getHours()
   const greeting =
     hour < 6 ? '凌晨好' : hour < 12 ? '上午好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好'
+  const wKind = weather?.weather ? weatherKind(weather.weather, hour) : null
+  const windLabel =
+    weather?.wind_dir || weather?.wind_power
+      ? [weather.wind_dir, weather.wind_power ? `${weather.wind_power}级` : '']
+          .filter(Boolean)
+          .join(' ')
+      : ''
+  const feels = weather
+    ? feelsLikeC(weather.temperature, weather.humidity, weather.wind_power)
+    : null
+  const tempRange =
+    weather?.temp_high && weather?.temp_low
+      ? `${weather.temp_low}° / ${weather.temp_high}°`
+      : ''
 
   const allCards: Array<StatCard & { visible: boolean }> = [
     {
@@ -190,41 +415,100 @@ export default function DashboardPage() {
 
   return (
     <div className="dash-page">
-      <div className="dash-hero liquid-dash is-alive">
+      <div className={`dash-hero liquid-dash is-alive${wKind ? ` has-weather weather-${wKind}` : ''}`}>
         <div className="liquid-sheen" aria-hidden="true">
           <i />
           <i />
         </div>
-        <div className="dash-hero-content">
-          <div className="dash-hero-greeting">
-            {greeting}，<em>{userInfo?.nickname || userInfo?.username}</em>
-          </div>
-          <div className="dash-hero-sub">欢迎回到 Go Admin Kit · 以工程之美，驱动今日工作</div>
-          <div className="dash-hero-chips">
-            <span className="hero-chip">
-              <CalendarOutlined />
-              {dayjs().format('YYYY年M月D日')} · {['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dayjs().day()]}
-            </span>
-            {weather?.weather && (
+        <div className="dash-hero-main">
+          <div className="dash-hero-content">
+            <div className="dash-hero-greeting">
+              {greeting}，<em>{userInfo?.nickname || userInfo?.username}</em>
+            </div>
+            <div className="dash-hero-sub">欢迎回到 Go Admin Kit · 以工程之美，驱动今日工作</div>
+            <div className="dash-hero-chips">
               <span className="hero-chip">
-                <span aria-hidden>{weatherEmoji(weather.weather, hour)}</span>
-                {weather.city ? `${weather.city} · ` : ''}
-                {weather.weather}
-                {weather.temperature != null && weather.temperature !== ''
-                  ? ` ${weather.temperature}°C`
-                  : ''}
+                <CalendarOutlined />
+                {dayjs().format('YYYY年M月D日')} · {['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dayjs().day()]}
               </span>
-            )}
-            {lastLogin?.created_at && (
-              <span className="hero-chip">
-                <HistoryOutlined />
-                上次登录 {dayjs(lastLogin.created_at).format('MM-DD HH:mm')}
-                {lastLogin.ip ? ` · ${lastLogin.ip}` : ''}
-              </span>
-            )}
+              {lastLogin?.created_at && (
+                <span className="hero-chip">
+                  <HistoryOutlined />
+                  上次登录 {dayjs(lastLogin.created_at).format('MM-DD HH:mm')}
+                  {lastLogin.ip ? ` · ${lastLogin.ip}` : ''}
+                </span>
+              )}
+            </div>
           </div>
+
+          {weather?.weather && wKind && (
+            <div
+              className={`dash-weather is-${wKind}`}
+              title={
+                weather.report_time
+                  ? `观测时间 ${dayjs(weather.report_time).format('MM-DD HH:mm')}`
+                  : undefined
+              }
+            >
+              <WeatherAtmosphere kind={wKind} />
+              <div className="dash-weather-glow" aria-hidden />
+              <div className="dash-weather-sheen" aria-hidden />
+
+              <div className="dash-weather-head">
+                <div className="dash-weather-icon">
+                  <WeatherGlyph kind={wKind} />
+                </div>
+                <div className="dash-weather-head-text">
+                  <div className="dash-weather-city">
+                    <EnvironmentOutlined />
+                    {weather.city || '本地'}
+                  </div>
+                  <div className="dash-weather-cond">{weather.weather}</div>
+                </div>
+              </div>
+
+              <div className="dash-weather-temp-row">
+                <span className="dash-weather-temp">
+                  {weather.temperature != null && weather.temperature !== ''
+                    ? weather.temperature
+                    : '—'}
+                  <sup>°</sup>
+                </span>
+                <div className="dash-weather-side">
+                  {feels != null && (
+                    <span className="dash-weather-feel">体感 {feels}°</span>
+                  )}
+                  {tempRange && (
+                    <span className="dash-weather-range">{tempRange}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="dash-weather-stats">
+                {weather.humidity != null && weather.humidity !== '' && (
+                  <div className="wx-stat">
+                    <em>湿度</em>
+                    <b>{weather.humidity}%</b>
+                  </div>
+                )}
+                {windLabel && (
+                  <div className="wx-stat">
+                    <em>风力</em>
+                    <b>{windLabel}</b>
+                  </div>
+                )}
+                {weather.report_time && (
+                  <div className="wx-stat">
+                    <em>更新</em>
+                    <b>{dayjs(weather.report_time).format('HH:mm')}</b>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-        {/* 轨道装饰:两圈细环 + 沿环缓慢公转的光点 */}
+
+        {/* 轨道装饰:两圈细环 + 沿环轨道公转的光点 */}
         <div className="dash-hero-orbit" aria-hidden>
           <span className="orbit-ring orbit-ring-1"><span className="orbit-dot" /></span>
           <span className="orbit-ring orbit-ring-2"><span className="orbit-dot orbit-dot-2" /></span>

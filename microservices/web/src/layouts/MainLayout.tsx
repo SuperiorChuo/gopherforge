@@ -279,6 +279,7 @@ export default function MainLayout() {
   const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
 
   const [collapsed, setCollapsed] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const [showBackTop, setShowBackTop] = useState(false)
   // 表格密度:comfortable(默认)/compact,写在 html[data-density] 上由 CSS 消费
@@ -376,24 +377,24 @@ export default function MainLayout() {
     }
   }
 
+  const roleText =
+    userInfo.roles && userInfo.roles.length > 0
+      ? userInfo.roles.map((r) => r.name).join(' · ')
+      : ''
+
   const userMenuItems: MenuProps['items'] = [
     {
       key: 'userinfo',
       disabled: true,
-      style: { cursor: 'default', padding: 0 },
+      className: 'user-drop-info-item',
+      style: { cursor: 'default', height: 'auto', lineHeight: 'inherit' },
       label: (
         <div className="user-drop-head">
           <div className="user-drop-name">{userInfo.nickname || userInfo.username}</div>
           <div className="user-drop-meta">
             {userInfo.email || userInfo.username}
+            {roleText ? ` · ${roleText}` : ''}
           </div>
-          {userInfo.roles && userInfo.roles.length > 0 && (
-            <div className="user-drop-roles">
-              {userInfo.roles.map((r) => (
-                <span key={r.id} className="user-drop-role">{r.name}</span>
-              ))}
-            </div>
-          )}
         </div>
       ),
     },
@@ -431,23 +432,61 @@ export default function MainLayout() {
   const groupMeta = groupKey ? GROUP_META[groupKey] : null
 
   const breadcrumbItems = [
-    { title: <span><HomeOutlined style={{ marginRight: 4 }} />首页</span> },
+    {
+      title: (
+        <button
+          type="button"
+          className="app-bc-link"
+          onClick={() => navigate('/dashboard')}
+          title="回到仪表盘"
+        >
+          <HomeOutlined />
+          <span>首页</span>
+        </button>
+      ),
+    },
     ...(groupMeta
-      ? [{ title: <span>{groupMeta.icon}<span style={{ marginLeft: 4 }}>{groupMeta.label}</span></span> }]
+      ? [
+          {
+            title: (
+              <span className="app-bc-mid">
+                {groupMeta.icon}
+                <span>{groupMeta.label}</span>
+              </span>
+            ),
+          },
+        ]
       : []),
-    ...(breadcrumbTitle ? [{ title: breadcrumbTitle }] : []),
+    ...(breadcrumbTitle
+      ? [
+          {
+            title: <span className="app-bc-current">{breadcrumbTitle}</span>,
+          },
+        ]
+      : []),
   ]
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className={`app-shell${isMobile ? ' is-mobile' : ''}${!collapsed && isMobile ? ' is-sider-open' : ''}`} hasSider>
+      {isMobile && !collapsed && (
+        <div
+          className="app-sider-mask"
+          aria-hidden
+          onClick={() => setCollapsed(true)}
+        />
+      )}
       <Sider
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
         trigger={null}
         width={224}
+        collapsedWidth={isMobile ? 0 : 80}
         breakpoint="lg"
-        onBreakpoint={(broken) => setCollapsed(broken)}
+        onBreakpoint={(broken) => {
+          setIsMobile(broken)
+          setCollapsed(broken)
+        }}
         className="app-sider"
       >
         <div className="app-logo">
@@ -463,13 +502,16 @@ export default function MainLayout() {
             selectedKeys={[currentPath]}
             {...(collapsed ? {} : { openKeys, onOpenChange: setOpenKeys })}
             items={menuItems}
-            onClick={({ key }) => navigate(key)}
+            onClick={({ key }) => {
+              navigate(key)
+              if (isMobile) setCollapsed(true)
+            }}
             style={{ borderRight: 0, background: 'transparent' }}
           />
         </div>
       </Sider>
 
-      <Layout>
+      <Layout className="app-main">
         <Header className="app-header">
           <Space size={16}>
             <span
@@ -478,7 +520,11 @@ export default function MainLayout() {
             >
               {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             </span>
-            <Breadcrumb items={breadcrumbItems} />
+            <Breadcrumb
+              className="app-breadcrumb"
+              separator={<span className="app-bc-sep">/</span>}
+              items={breadcrumbItems}
+            />
           </Space>
 
           <Space size={8}>
@@ -515,7 +561,12 @@ export default function MainLayout() {
               {fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
             </span>
             <NotificationBell />
-            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+            <Dropdown
+              placement="bottomRight"
+              trigger={['click']}
+              rootClassName="user-drop-popup"
+              menu={{ items: userMenuItems, className: 'user-drop-menu' }}
+            >
               <div className="app-user">
                 <Avatar
                   size={34}

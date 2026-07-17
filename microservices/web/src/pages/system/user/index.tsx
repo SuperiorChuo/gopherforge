@@ -1,22 +1,24 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  Card, Row, Col, Avatar,
+  Card, Row, Col, Avatar, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
-import { PlusOutlined, SearchOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons'
+import {
+  PlusOutlined, SearchOutlined, ReloadOutlined, UserOutlined, EditOutlined, DeleteOutlined,
+} from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { SystemUser, SystemRole, Department } from '@/types'
 import * as UserAPI from '@/api/system/user'
 import { getRoleList } from '@/api/system/role'
 import { getDepartmentList } from '@/api/system/department'
 import TableToolbar from '@/components/TableToolbar'
+import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import { EnableStatusPill } from '@/components/StatusPill'
 
-// 渐变头像:同一用户 id 恒定同一渐变,列表里像一排彩色玻璃徽章
 const avatarPalette = [
   'linear-gradient(135deg, #818cf8, #4f46e5)',
   'linear-gradient(135deg, #38bdf8, #0284c7)',
@@ -47,6 +49,12 @@ export default function UserPage() {
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
+
+  const deptNameMap = useMemo(() => {
+    const m = new Map<number, string>()
+    depts.forEach((d) => m.set(d.id, d.name))
+    return m
+  }, [depts])
 
   const fetchList = async (p: SearchParams) => {
     setLoading(true)
@@ -116,7 +124,6 @@ export default function UserPage() {
     try {
       await UserAPI.deleteUser(id)
       message.success('删除成功')
-      // 删除的是当前页最后一条时回退一页，避免落在空页
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
@@ -135,7 +142,6 @@ export default function UserPage() {
       const { role_ids, ...rest } = values
       if (editRecord) {
         await UserAPI.updateUser(editRecord.id, rest)
-        // 后端的用户更新接口不含状态字段，状态走独立接口
         if (typeof rest.status === 'number' && rest.status !== editRecord.status) {
           await UserAPI.updateUserStatus(editRecord.id, rest.status)
         }
@@ -160,55 +166,100 @@ export default function UserPage() {
   }
 
   const columns: ColumnsType<SystemUser> = [
-    { title: 'ID', dataIndex: 'id', width: 60 },
     {
       title: '用户',
       dataIndex: 'username',
+      width: 220,
       render: (_, record) => (
         <div className="user-cell">
           <Avatar
-            size={36}
+            size={40}
             icon={<UserOutlined />}
             style={{ background: avatarPalette[record.id % avatarPalette.length], flexShrink: 0 }}
           >
             {(record.nickname || record.username)?.slice(0, 1).toUpperCase()}
           </Avatar>
-          <div>
+          <div className="user-cell-text">
             <div className="user-cell-name">{record.username}</div>
-            {record.nickname && <div className="user-cell-sub">{record.nickname}</div>}
+            <div className="user-cell-sub">
+              {record.nickname || <span className="cell-muted">未设置昵称</span>}
+            </div>
           </div>
         </div>
       ),
     },
-    { title: '邮箱', dataIndex: 'email' },
+    {
+      title: '联系方式',
+      key: 'contact',
+      ellipsis: true,
+      render: (_, record) => (
+        <div className="user-contact">
+          <div className="user-contact-main">
+            {record.email || <span className="cell-muted">—</span>}
+          </div>
+          {record.phone && <div className="user-contact-sub">{record.phone}</div>}
+        </div>
+      ),
+    },
+    {
+      title: '部门',
+      dataIndex: 'department_id',
+      width: 120,
+      ellipsis: true,
+      render: (id?: number) =>
+        id && deptNameMap.get(id) ? (
+          deptNameMap.get(id)
+        ) : (
+          <span className="cell-muted">—</span>
+        ),
+    },
     {
       title: '状态',
       dataIndex: 'status',
-      width: 80,
+      width: 96,
       render: (v: number) => <EnableStatusPill value={v} />,
     },
     {
       title: '角色',
       dataIndex: 'roles',
       render: (roles: SystemUser['roles']) =>
-        roles?.map((r, i) => (
-          <Tag key={r.id} color={roleTagPalette[i % roleTagPalette.length]} variant="filled">
-            {r.code}
-          </Tag>
-        )),
+        roles && roles.length > 0 ? (
+          <Space size={[4, 4]} wrap>
+            {roles.map((r, i) => (
+              <Tag key={r.id} color={roleTagPalette[i % roleTagPalette.length]} variant="filled">
+                {r.name || r.code}
+              </Tag>
+            ))}
+          </Space>
+        ) : (
+          <span className="cell-muted">未分配</span>
+        ),
     },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      width: 168,
+      className: 'cell-time',
+      render: formatDateTime,
+    },
     {
       title: '操作',
-      width: 140,
+      width: 132,
+      fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <Space size={0} className="table-actions">
           {hasPerm('system:user:update') && (
-            <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
+            <Tooltip title="编辑">
+              <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
+                编辑
+              </Button>
+            </Tooltip>
           )}
           {hasPerm('system:user:delete') && (
-            <Popconfirm title="确认删除该用户?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger>删除</Button>
+            <Popconfirm title="确认删除该用户？" description="删除后不可恢复" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
             </Popconfirm>
           )}
         </Space>
@@ -217,50 +268,78 @@ export default function UserPage() {
   ]
 
   return (
-    <div>
-      <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch} initialValues={params}>
+    <div className="page-list user-page">
+      <Card className="list-filter-card" bordered={false}>
+        <Form
+          form={searchForm}
+          layout="inline"
+          className="list-filter-form"
+          onFinish={handleSearch}
+          initialValues={params}
+        >
           <Form.Item name="keyword">
-            <Input placeholder="用户名/邮箱" prefix={<SearchOutlined />} allowClear />
+            <Input
+              placeholder="搜索用户名 / 邮箱 / 手机"
+              prefix={<SearchOutlined />}
+              allowClear
+              style={{ width: 260 }}
+            />
           </Form.Item>
           <Form.Item name="status">
-            <Select placeholder="状态" style={{ width: 100 }} allowClear>
-              <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
-            </Select>
+            <Select
+              placeholder="全部状态"
+              style={{ width: 128 }}
+              allowClear
+              options={[
+                { label: '启用', value: 1 },
+                { label: '禁用', value: 0 },
+              ]}
+            />
           </Form.Item>
-          <Form.Item>
+          <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
+                查询
+              </Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>
+                重置
+              </Button>
             </Space>
           </Form.Item>
         </Form>
       </Card>
 
-      <Card>
+      <Card className="list-main-card" bordered={false}>
         <TableToolbar
           title="用户列表"
           total={total}
           extra={
-            <>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+            <Space wrap>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>
+                刷新
+              </Button>
               {hasPerm('system:user:create') && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增用户</Button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                  新增用户
+                </Button>
               )}
-            </>
+            </Space>
           }
         />
         <Table
           rowKey="id"
+          className="list-table"
           columns={columns}
           dataSource={list}
           loading={loading}
+          scroll={{ x: 980 }}
+          locale={{ emptyText: <GlassEmpty text="暂无用户" compact /> }}
           pagination={{
             total,
             current: params.page,
             pageSize: params.page_size,
             showSizeChanger: true,
+            showQuickJumper: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
@@ -268,6 +347,7 @@ export default function UserPage() {
       </Card>
 
       <Modal
+        className="user-form-modal"
         title={editRecord ? '编辑用户' : '新增用户'}
         open={modalOpen}
         onOk={handleSubmit}
@@ -275,17 +355,18 @@ export default function UserPage() {
         confirmLoading={submitting}
         destroyOnHidden
         width={560}
+        okText={editRecord ? '保存' : '创建'}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={form} layout="vertical" className="user-form" style={{ marginTop: 8 }}>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
-                <Input disabled={!!editRecord} />
+                <Input disabled={!!editRecord} placeholder="登录账号" autoComplete="off" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item name="nickname" label="昵称">
-                <Input />
+                <Input placeholder="显示名称" />
               </Form.Item>
             </Col>
           </Row>
@@ -296,16 +377,15 @@ export default function UserPage() {
                 label="邮箱"
                 rules={[
                   { type: 'email', message: '邮箱格式不正确' },
-                  // 后端更新接口要求邮箱必填且合法
                   ...(editRecord ? [{ required: true, message: '请输入邮箱' }] : []),
                 ]}
               >
-                <Input />
+                <Input placeholder="name@example.com" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item name="phone" label="手机号">
-                <Input />
+                <Input placeholder="可选" />
               </Form.Item>
             </Col>
           </Row>
@@ -318,16 +398,18 @@ export default function UserPage() {
                 { min: 6, message: '密码至少 6 位' },
               ]}
             >
-              <Input.Password />
+              <Input.Password placeholder="至少 6 位" autoComplete="new-password" />
             </Form.Item>
           )}
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="status" label="状态" initialValue={1}>
-                <Select>
-                  <Select.Option value={1}>启用</Select.Option>
-                  <Select.Option value={0}>禁用</Select.Option>
-                </Select>
+                <Select
+                  options={[
+                    { label: '启用', value: 1 },
+                    { label: '禁用', value: 0 },
+                  ]}
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -340,22 +422,20 @@ export default function UserPage() {
                   allowClear
                   showSearch
                   placeholder="请选择部门"
-                  optionFilterProp="children"
+                  optionFilterProp="label"
                   disabled={!!editRecord}
-                >
-                  {depts.map((d) => (
-                    <Select.Option key={d.id} value={d.id}>{d.name}</Select.Option>
-                  ))}
-                </Select>
+                  options={depts.map((d) => ({ label: d.name, value: d.id }))}
+                />
               </Form.Item>
             </Col>
           </Row>
           <Form.Item name="role_ids" label="角色">
-            <Select mode="multiple" placeholder="请选择角色" optionFilterProp="children">
-              {roles.map((r) => (
-                <Select.Option key={r.id} value={r.id}>{r.name}</Select.Option>
-              ))}
-            </Select>
+            <Select
+              mode="multiple"
+              placeholder="请选择角色"
+              optionFilterProp="label"
+              options={roles.map((r) => ({ label: r.name, value: r.id }))}
+            />
           </Form.Item>
         </Form>
       </Modal>
