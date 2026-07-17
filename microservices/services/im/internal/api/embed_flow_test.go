@@ -14,6 +14,7 @@ import (
 	"github.com/go-admin-kit/services/im/internal/authjwt"
 	"github.com/go-admin-kit/services/im/internal/bot"
 	"github.com/go-admin-kit/services/im/internal/hub"
+	"github.com/go-admin-kit/services/im/internal/storage"
 	"github.com/go-admin-kit/services/im/internal/store"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -59,11 +60,11 @@ func newTestRouterWithServer(t *testing.T) (*gin.Engine, *Server) {
 		t.Fatalf("store: %v", err)
 	}
 	srv := &Server{
-		Store:     st,
-		Hub:       hub.New(),
-		AgentHub:  hub.NewAgentHub(),
-		Secret:    testSecret,
-		UploadDir: t.TempDir(),
+		Store:    st,
+		Hub:      hub.New(),
+		AgentHub: hub.NewAgentHub(),
+		Secret:   testSecret,
+		Storage:  storage.NewLocal(t.TempDir()),
 	}
 	r := gin.New()
 	srv.RegisterRoutes(r)

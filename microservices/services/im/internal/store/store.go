@@ -1009,6 +1009,95 @@ func (s *Store) ListMessages(conversationID uint64, afterSeq int64, limit int) (
 	return list, err
 }
 
+// ---------- Retention ----------
+
+// PurgeResult reports one retention sweep.
+type PurgeResult struct {
+	Conversations  int64
+	Messages       int64
+	AttachmentKeys []string
+}
+
+// PurgeExpired hard-deletes conversations closed longer than retention ago,
+// with their messages. Attachment object keys (/im/uploads/<key> URLs found
+// in message content) are collected for the caller to delete from storage.
+// Batched so a huge backlog cannot hold a transaction for minutes.
+func (s *Store) PurgeExpired(retention time.Duration, batch int) (*PurgeResult, error) {
+	if retention <= 0 {
+		return &PurgeResult{}, nil
+	}
+	if batch <= 0 {
+		batch = 500
+	}
+	cutoff := time.Now().Add(-retention)
+	res := &PurgeResult{}
+
+	for {
+		var convs []model.Conversation
+		err := s.db.Select("id").
+			Where("status = ? AND closed_at IS NOT NULL AND closed_at < ?", "closed", cutoff).
+			Limit(batch).Find(&convs).Error
+		if err != nil {
+			return res, err
+		}
+		if len(convs) == 0 {
+			return res, nil
+		}
+		ids := make([]uint64, len(convs))
+		for i, c := range convs {
+			ids[i] = c.ID
+		}
+
+		// collect attachment keys before rows disappear
+		var contents []string
+		if err := s.db.Model(&model.Message{}).
+			Where("conversation_id IN ? AND msg_type IN ?", ids, []string{"image", "file"}).
+			Pluck("content", &contents).Error; err != nil {
+			return res, err
+		}
+		for _, raw := range contents {
+			if key := attachmentKeyFromContent(raw); key != "" {
+				res.AttachmentKeys = append(res.AttachmentKeys, key)
+			}
+		}
+
+		err = s.db.Transaction(func(tx *gorm.DB) error {
+			del := tx.Where("conversation_id IN ?", ids).Delete(&model.Message{})
+			if del.Error != nil {
+				return del.Error
+			}
+			res.Messages += del.RowsAffected
+			del = tx.Where("id IN ?", ids).Delete(&model.Conversation{})
+			if del.Error != nil {
+				return del.Error
+			}
+			res.Conversations += del.RowsAffected
+			return nil
+		})
+		if err != nil {
+			return res, err
+		}
+		if len(convs) < batch {
+			return res, nil
+		}
+	}
+}
+
+// attachmentKeyFromContent extracts the storage key from an attachment
+// message content ({"url":"/im/uploads/<key>", ...}).
+func attachmentKeyFromContent(raw string) string {
+	var m map[string]any
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		return ""
+	}
+	u, _ := m["url"].(string)
+	const prefix = "/im/uploads/"
+	if !strings.HasPrefix(u, prefix) {
+		return ""
+	}
+	return strings.TrimPrefix(u, prefix)
+}
+
 // ---------- helpers ----------
 
 func JSONText(v any) string {

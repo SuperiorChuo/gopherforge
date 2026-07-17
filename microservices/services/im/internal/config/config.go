@@ -20,6 +20,22 @@ type Config struct {
 	CORSOrigins []string
 	UploadDir   string
 
+	// Attachment storage: "local" (default) or "minio".
+	// MinIO settings reuse the stack-wide UPLOAD_MINIO_* variables.
+	StorageType    string
+	MinIOEndpoint  string
+	MinIOAccessKey string
+	MinIOSecretKey string
+	MinIOBucket    string
+	MinIOUseSSL    bool
+
+	// NATSURL enables cross-instance WS fan-out; empty = in-process only.
+	NATSURL string
+
+	// RetentionDays hard-deletes closed conversations (with messages and
+	// attachment objects) this many days after close. 0 keeps forever.
+	RetentionDays int
+
 	// AI / bot (M4) — OpenAI-compatible; empty key uses local stub.
 	AIEnabled      bool
 	AIBaseURL      string
@@ -32,17 +48,28 @@ type Config struct {
 func Load() Config {
 	timeoutSec := EnvInt("AI_TIMEOUT_SEC", 45)
 	return Config{
-		AppPort:     getenv("APP_PORT", "8088"),
-		AppEnv:      getenv("APP_ENV", "development"),
-		DBHost:      getenv("DB_HOST", "127.0.0.1"),
-		DBPort:      getenv("DB_PORT", "5432"),
-		DBUser:      getenv("DB_USER", "postgres"),
-		DBPassword:  getenv("DB_PASSWORD", "123456"),
-		DBName:      getenv("DB_NAME", "go_admin_kit"),
-		DBSSLMode:   getenv("DB_SSLMODE", "disable"),
-		JWTSecret:   getenv("JWT_SECRET", "local-dev-secret-change-me-32-chars"),
-		UploadDir:   getenv("IM_UPLOAD_DIR", "./uploads"),
-		CORSOrigins: splitCSV(getenv("CORS_ALLOW_ORIGINS", "http://localhost:8000,http://localhost:3000,http://127.0.0.1:3000")),
+		AppPort:    getenv("APP_PORT", "8088"),
+		AppEnv:     getenv("APP_ENV", "development"),
+		DBHost:     getenv("DB_HOST", "127.0.0.1"),
+		DBPort:     getenv("DB_PORT", "5432"),
+		DBUser:     getenv("DB_USER", "postgres"),
+		DBPassword: getenv("DB_PASSWORD", "123456"),
+		DBName:     getenv("DB_NAME", "go_admin_kit"),
+		DBSSLMode:  getenv("DB_SSLMODE", "disable"),
+		JWTSecret:  getenv("JWT_SECRET", "local-dev-secret-change-me-32-chars"),
+		UploadDir:  getenv("IM_UPLOAD_DIR", "./uploads"),
+
+		StorageType:    strings.ToLower(getenv("IM_STORAGE_TYPE", "local")),
+		MinIOEndpoint:  getenv("UPLOAD_MINIO_ENDPOINT", ""),
+		MinIOAccessKey: getenv("UPLOAD_MINIO_ACCESS_KEY", ""),
+		MinIOSecretKey: getenv("UPLOAD_MINIO_SECRET_KEY", ""),
+		MinIOBucket:    getenv("UPLOAD_MINIO_BUCKET", "go-admin-kit"),
+		MinIOUseSSL:    EnvBool("UPLOAD_MINIO_USE_SSL", false),
+
+		NATSURL: getenv("NATS_URL", ""),
+
+		RetentionDays: EnvInt("IM_RETENTION_DAYS", 180),
+		CORSOrigins:   splitCSV(getenv("CORS_ALLOW_ORIGINS", "http://localhost:8000,http://localhost:3000,http://127.0.0.1:3000")),
 
 		// Default enabled so bot_serving path works with stub offline.
 		AIEnabled:      EnvBool("AI_ENABLED", true),

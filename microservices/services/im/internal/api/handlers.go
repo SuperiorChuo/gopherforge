@@ -15,6 +15,7 @@ import (
 	"github.com/go-admin-kit/services/im/internal/bot"
 	"github.com/go-admin-kit/services/im/internal/hub"
 	"github.com/go-admin-kit/services/im/internal/model"
+	"github.com/go-admin-kit/services/im/internal/storage"
 	"github.com/go-admin-kit/services/im/internal/store"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -29,7 +30,10 @@ type Server struct {
 	Bot             bot.Client
 	BotSystemPrompt string
 	AIEnabled       bool
-	// UploadDir is local storage for IM attachments (M2.1).
+	// Storage holds attachment objects (MinIO in the stack, local in dev).
+	Storage storage.Store
+	// UploadDir is the legacy local dir, kept as read fallback for files
+	// uploaded before object storage.
 	UploadDir string
 	// Limits throttles public embed endpoints; nil disables (unit tests).
 	Limits *Limits

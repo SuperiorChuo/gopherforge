@@ -48,4 +48,7 @@ func (s *Server) RegisterRoutes(r *gin.Engine) {
 
 	// websocket
 	r.GET("/im/ws", s.WebSocket)
+
+	// attachment download (object storage with legacy-disk fallback)
+	r.GET("/im/uploads/*key", s.ServeAttachment)
 }

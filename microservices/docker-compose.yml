@@ -571,6 +571,17 @@ services:
       JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000}
       TZ: ${TZ:-Asia/Shanghai}
+      # WS 跨实例广播（单实例也安全；空值退回进程内直投）
+      NATS_URL: nats://go-admin-kit-nats:4222
+      # 关闭会话保留天数，超期硬删消息与附件（0=永久）
+      IM_RETENTION_DAYS: ${IM_RETENTION_DAYS:-180}
+      # 附件走 MinIO（im/ 前缀共享 bucket）；本地卷保留作旧文件回源
+      IM_STORAGE_TYPE: ${IM_STORAGE_TYPE:-minio}
+      UPLOAD_MINIO_ENDPOINT: ${UPLOAD_MINIO_ENDPOINT:-go-admin-kit-minio:9000}
+      UPLOAD_MINIO_BUCKET: ${UPLOAD_MINIO_BUCKET:-go-admin-kit}
+      UPLOAD_MINIO_ACCESS_KEY: ${UPLOAD_MINIO_ACCESS_KEY:-minioadmin}
+      UPLOAD_MINIO_SECRET_KEY: ${UPLOAD_MINIO_SECRET_KEY:-minioadmin}
+      UPLOAD_MINIO_USE_SSL: ${UPLOAD_MINIO_USE_SSL:-false}
     volumes:
       - im_uploads:/app/uploads
     ports:

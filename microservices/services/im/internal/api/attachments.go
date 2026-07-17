@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,12 +11,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/im/internal/authjwt"
+	"github.com/go-admin-kit/services/im/internal/storage"
 	"github.com/google/uuid"
 )
 
-// Attachment upload (M2.1): visitors and agents share one endpoint; files
-// land on local disk under UploadDir and are served by the /im/uploads
-// static route. Filenames are random UUIDs so URLs are not guessable.
+// Attachment upload (M2.1 → M5 storage): visitors and agents share one
+// endpoint; objects go to Server.Storage (MinIO in the stack, local disk in
+// dev) under key "<yyyymm>/<uuid><ext>" and are served back via
+// /im/uploads/<key>. Filenames are random UUIDs so URLs are not guessable.
 
 const (
 	attachmentMaxBytes = 10 << 20 // 10 MB
@@ -70,24 +73,55 @@ func (s *Server) UploadAttachment(c *gin.Context) {
 		return
 	}
 
-	subdir := time.Now().Format("200601")
-	dir := filepath.Join(s.UploadDir, subdir)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		Fail(c, http.StatusInternalServerError, "storage unavailable")
+	key := time.Now().Format("200601") + "/" + uuid.NewString() + ext
+	src, err := fh.Open()
+	if err != nil {
+		Fail(c, http.StatusBadRequest, "unreadable file")
 		return
 	}
-	name := uuid.NewString() + ext
-	dst := filepath.Join(dir, name)
-	if err := c.SaveUploadedFile(fh, dst); err != nil {
-		Fail(c, http.StatusInternalServerError, "save failed")
+	defer src.Close()
+	if err := s.Storage.Save(c.Request.Context(), key, src, fh.Size, fh.Header.Get("Content-Type")); err != nil {
+		Fail(c, http.StatusInternalServerError, "storage unavailable")
 		return
 	}
 
 	OK(c, gin.H{
-		"url":      "/im/uploads/" + subdir + "/" + name,
+		"url":      "/im/uploads/" + key,
 		"name":     fh.Filename,
 		"size":     fh.Size,
 		"mime":     fh.Header.Get("Content-Type"),
 		"msg_type": msgType,
+	})
+}
+
+// ServeAttachment handles GET /im/uploads/*key: streams from Storage, then
+// falls back to the legacy local dir (pre-MinIO files on the im_uploads
+// volume).
+func (s *Server) ServeAttachment(c *gin.Context) {
+	key, err := storage.CleanKey(c.Param("key"))
+	if err != nil {
+		Fail(c, http.StatusBadRequest, "bad path")
+		return
+	}
+	body, size, contentType, err := s.Storage.Open(c.Request.Context(), key)
+	if err != nil && s.UploadDir != "" && s.Storage.Type() != "local" {
+		// legacy fallback: files uploaded before object storage
+		p := filepath.Join(s.UploadDir, filepath.FromSlash(key))
+		if info, statErr := os.Stat(p); statErr == nil && !info.IsDir() {
+			c.File(p)
+			return
+		}
+	}
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			Fail(c, http.StatusNotFound, "not found")
+			return
+		}
+		Fail(c, http.StatusInternalServerError, "storage unavailable")
+		return
+	}
+	defer body.Close()
+	c.DataFromReader(http.StatusOK, size, contentType, body, map[string]string{
+		"Cache-Control": "public, max-age=31536000, immutable", // UUID 文件名内容不变
 	})
 }
