@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Card, Descriptions, Button, Row, Col, Progress, Space, Tag } from 'antd'
+import { Card, Descriptions, Button, Row, Col, Progress, Space, Spin, Tag } from 'antd'
 import {
   ReloadOutlined,
   ThunderboltOutlined,
@@ -21,10 +21,11 @@ interface MiniStat {
 
 export default function RedisMonitorPage() {
   const [data, setData] = useState<Record<string, unknown>>({})
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
   const fetchData = useCallback(async () => {
-    setLoading(true)
+    setRefreshing(true)
     try {
       const res = await getRedisInfo()
       setData(res)
@@ -32,6 +33,7 @@ export default function RedisMonitorPage() {
       // ignore
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }, [])
 
@@ -88,6 +90,7 @@ export default function RedisMonitorPage() {
   ]
 
   return (
+    <Spin spinning={loading}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <Space>
@@ -95,7 +98,7 @@ export default function RedisMonitorPage() {
             <span className="live-dot" />
             每 10 秒自动刷新
           </span>
-          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>
             刷新
           </Button>
         </Space>
@@ -190,5 +193,6 @@ export default function RedisMonitorPage() {
         </Col>
       </Row>
     </div>
+    </Spin>
   )
 }

@@ -6147,7 +6147,8 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
   transition: opacity 0.4s ease;
 }
 
-.monitor-gauge-card:hover .monitor-gauge-halo::before {
+.monitor-gauge-card:hover .monitor-gauge-halo::before,
+.glass-rise:hover .monitor-gauge-halo::before {
   opacity: 0.3;
 }
 

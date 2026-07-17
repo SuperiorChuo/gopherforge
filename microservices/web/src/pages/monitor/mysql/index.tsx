@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Card, Descriptions, Button, Row, Col, Progress, Space } from 'antd'
+import { Card, Descriptions, Button, Row, Col, Space, Spin } from 'antd'
 import {
   ReloadOutlined,
   DatabaseOutlined,
@@ -9,13 +9,15 @@ import {
 } from '@ant-design/icons'
 import { getMySQLInfo } from '@/api/monitor'
 import { formatBytes, formatDuration } from '@/utils/format'
+import MonitorGaugeCard from '@/components/MonitorGaugeCard'
 
 export default function MySQLMonitorPage() {
   const [data, setData] = useState<Record<string, unknown>>({})
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
   const fetchData = useCallback(async () => {
-    setLoading(true)
+    setRefreshing(true)
     try {
       const res = await getMySQLInfo()
       setData(res)
@@ -23,6 +25,7 @@ export default function MySQLMonitorPage() {
       // ignore
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }, [])
 
@@ -53,11 +56,11 @@ export default function MySQLMonitorPage() {
     { label: 'DELETE', value: Number(query?.deletes ?? 0).toLocaleString(), color: '#f87171', lightColor: '#dc2626' },
   ]
 
-  const connLevel = connUsage > 80 ? '#f87171' : connUsage > 60 ? '#fbbf24' : '#818cf8'
-  const connTint =
-    connUsage > 80 ? 'rgba(248, 113, 113, 0.14)' : connUsage > 60 ? 'rgba(251, 191, 36, 0.12)' : 'rgba(99, 102, 241, 0.12)'
+  // 连接数比 CPU 类指标更敏感，用 80/60 阈值分档
+  const connLevel = connUsage > 80 ? 'high' : connUsage > 60 ? 'mid' : 'low'
 
   return (
+    <Spin spinning={loading}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <Space>
@@ -65,7 +68,7 @@ export default function MySQLMonitorPage() {
             <span className="live-dot" />
             每 10 秒自动刷新
           </span>
-          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>
             刷新
           </Button>
         </Space>
@@ -73,31 +76,14 @@ export default function MySQLMonitorPage() {
 
       <Row gutter={[20, 20]}>
         <Col xs={24} lg={8}>
-          <Card
-            className="monitor-gauge-card stat-card glass-rise"
-            style={{ '--tint': connTint, '--i': 0 } as React.CSSProperties}
-          >
-            <div className="monitor-gauge-head">
-              <span className="monitor-gauge-icon" style={{ color: connLevel }}>
-                <ApiOutlined />
-              </span>
-              <span className="monitor-gauge-title">连接使用率</span>
-            </div>
-            <div className="monitor-gauge-body">
-              <div className="monitor-gauge-halo" style={{ '--halo': connLevel } as React.CSSProperties}>
-                <Progress
-                  type="dashboard"
-                  percent={Math.round(connUsage)}
-                  strokeColor={connLevel}
-                  size={140}
-                  format={(p) => <span className="monitor-gauge-value">{p}%</span>}
-                />
-              </div>
-            </div>
-            <div className="monitor-gauge-foot">
-              连接 {threads} / {maxConns || '-'} · 运行中 {threadsRunning}
-            </div>
-          </Card>
+          <MonitorGaugeCard
+            title="连接使用率"
+            icon={<ApiOutlined />}
+            percent={connUsage}
+            index={0}
+            level={connLevel}
+            footer={<>连接 {threads} / {maxConns || '-'} · 运行中 {threadsRunning}</>}
+          />
         </Col>
 
         <Col xs={24} lg={8}>
@@ -227,5 +213,6 @@ export default function MySQLMonitorPage() {
         </Col>
       </Row>
     </div>
+    </Spin>
   )
 }
