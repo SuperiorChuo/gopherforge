@@ -12,8 +12,10 @@ import TableToolbar from '@/components/TableToolbar'
 import CountUpValue from '@/components/CountUpValue'
 import StatusPill from '@/components/StatusPill'
 import AiMarkdown from '@/components/AiMarkdown'
+import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
+import { usePermission } from '@/hooks/usePermission'
 import dayjs from 'dayjs'
 
 const { RangePicker } = DatePicker
@@ -46,6 +48,7 @@ export default function LoginLogPage() {
   const [insightReport, setInsightReport] = useState('')
   const [searchForm] = Form.useForm()
   const [clearForm] = Form.useForm()
+  const { hasPerm } = usePermission()
 
   useEffect(() => {
     getLoginStats().then(setStats).catch(() => setStats(null))
@@ -130,9 +133,10 @@ export default function LoginLogPage() {
       title: 'IP / 位置',
       dataIndex: 'ip',
       width: 200,
-      render: (v: string, record) => (
-        <span className="cell-mono">{[v, record.location].filter(Boolean).join(' · ') || '-'}</span>
-      ),
+      render: (v: string, record) => {
+        const text = [v, record.location].filter(Boolean).join(' · ')
+        return text ? <span className="cell-mono">{text}</span> : <span className="cell-muted">—</span>
+      },
     },
     {
       title: '状态',
@@ -163,9 +167,9 @@ export default function LoginLogPage() {
   ]
 
   return (
-    <div>
+    <div className="page-list login-log-page">
       {stats && (
-        <Card style={{ marginBottom: 16 }} styles={{ body: { padding: '14px 24px' } }}>
+        <Card className="list-filter-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
           <div className="log-stats-row">
             <div className="log-stat">
               <span className="log-stat-label">近 7 天登录</span>
@@ -191,10 +195,16 @@ export default function LoginLogPage() {
         </Card>
       )}
 
-      <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch} initialValues={params}>
+      <Card className="list-filter-card" bordered={false}>
+        <Form
+          form={searchForm}
+          layout="inline"
+          className="list-filter-form"
+          onFinish={handleSearch}
+          initialValues={params}
+        >
           <Form.Item name="username">
-            <Input placeholder="用户名" prefix={<SearchOutlined />} allowClear />
+            <Input placeholder="搜索用户名" prefix={<SearchOutlined />} allowClear style={{ width: 200 }} />
           </Form.Item>
           <Form.Item name="ip">
             <Input placeholder="IP" allowClear style={{ width: 140 }} />
@@ -208,7 +218,7 @@ export default function LoginLogPage() {
           <Form.Item name="dateRange">
             <RangePicker showTime format="YYYY-MM-DD HH:mm:ss" />
           </Form.Item>
-          <Form.Item>
+          <Form.Item className="list-filter-actions">
             <Space>
               <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
               <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
@@ -217,36 +227,41 @@ export default function LoginLogPage() {
         </Form>
       </Card>
 
-      <Card>
+      <Card className="list-main-card" bordered={false}>
         <TableToolbar
           title="登录日志"
           total={total}
           extra={
-            <>
+            <Space wrap>
               <Button icon={<RobotOutlined />} onClick={openInsight}>
                 AI 分析
               </Button>
-              <Button
-                danger
-                icon={<ClearOutlined />}
-                onClick={() => { clearForm.resetFields(); setClearOpen(true) }}
-              >
-                清理日志
-              </Button>
+              {hasPerm('system:log:login') && (
+                <Button
+                  danger
+                  icon={<ClearOutlined />}
+                  onClick={() => { clearForm.resetFields(); setClearOpen(true) }}
+                >
+                  清理日志
+                </Button>
+              )}
               <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
-            </>
+            </Space>
           }
         />
         <Table
           rowKey="id"
+          className="list-table"
           columns={columns}
           dataSource={list}
           loading={loading}
+          locale={{ emptyText: <GlassEmpty text="暂无登录记录" compact /> }}
           pagination={{
             total,
             current: params.page,
             pageSize: params.page_size,
             showSizeChanger: true,
+            showQuickJumper: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}

@@ -2921,6 +2921,19 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
   font-size: 13px;
 }
 
+/* 耗时语义色（操作日志等），浅色主题在 light 覆盖块加深 */
+.latency-high {
+  color: #f87171;
+}
+
+.latency-mid {
+  color: #fbbf24;
+}
+
+.latency-low {
+  color: rgba(148, 163, 184, 0.85);
+}
+
 .table-actions .ant-btn-link {
   padding-inline: 6px;
 }
@@ -3050,6 +3063,18 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
 
 [data-theme='light'] .cell-muted {
   color: #94a3b8;
+}
+
+[data-theme='light'] .latency-high {
+  color: #dc2626;
+}
+
+[data-theme='light'] .latency-mid {
+  color: #d97706;
+}
+
+[data-theme='light'] .latency-low {
+  color: #64748b;
 }
 
 @media (max-width: 768px) {

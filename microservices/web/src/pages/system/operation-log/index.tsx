@@ -13,6 +13,7 @@ import {
 } from '@/api/system/log'
 import TableToolbar from '@/components/TableToolbar'
 import CountUpValue from '@/components/CountUpValue'
+import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
@@ -49,6 +50,10 @@ function tryPrettyJson(raw: string): string {
   } catch {
     return raw
   }
+}
+
+function latencyClass(ms: number): string {
+  return ms > 1000 ? 'latency-high' : ms > 300 ? 'latency-mid' : 'latency-low'
 }
 
 export default function OperationLogPage() {
@@ -178,14 +183,9 @@ export default function OperationLogPage() {
       width: 90,
       render: (v?: number) =>
         typeof v === 'number' ? (
-          <span
-            className="cell-mono"
-            style={{ color: v > 1000 ? '#f87171' : v > 300 ? '#fbbf24' : 'rgba(148, 163, 184, 0.85)' }}
-          >
-            {v}ms
-          </span>
+          <span className={`cell-mono ${latencyClass(v)}`}>{v}ms</span>
         ) : (
-          '-'
+          <span className="cell-muted">—</span>
         ),
     },
     { title: '时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
@@ -205,9 +205,9 @@ export default function OperationLogPage() {
     .slice(0, 4)
 
   return (
-    <div>
+    <div className="page-list operation-log-page">
       {stats && (
-        <Card style={{ marginBottom: 16 }} styles={{ body: { padding: '14px 24px' } }}>
+        <Card className="list-filter-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
           <div className="log-stats-row">
             <div className="log-stat">
               <span className="log-stat-label">近 7 天操作</span>
@@ -251,10 +251,16 @@ export default function OperationLogPage() {
         </Card>
       )}
 
-      <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch} initialValues={params}>
+      <Card className="list-filter-card" bordered={false}>
+        <Form
+          form={searchForm}
+          layout="inline"
+          className="list-filter-form"
+          onFinish={handleSearch}
+          initialValues={params}
+        >
           <Form.Item name="username">
-            <Input placeholder="用户名" prefix={<SearchOutlined />} allowClear />
+            <Input placeholder="搜索用户名" prefix={<SearchOutlined />} allowClear style={{ width: 200 }} />
           </Form.Item>
           <Form.Item name="method">
             <Select placeholder="方法" style={{ width: 90 }} allowClear>
@@ -272,7 +278,7 @@ export default function OperationLogPage() {
           <Form.Item name="dateRange">
             <RangePicker showTime format="YYYY-MM-DD HH:mm:ss" />
           </Form.Item>
-          <Form.Item>
+          <Form.Item className="list-filter-actions">
             <Space>
               <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
               <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
@@ -281,12 +287,12 @@ export default function OperationLogPage() {
         </Form>
       </Card>
 
-      <Card>
+      <Card className="list-main-card" bordered={false}>
         <TableToolbar
           title="操作日志"
           total={total}
           extra={
-            <>
+            <Space wrap>
               {hasPerm('system:log:operation:clear') && (
                 <Button
                   danger
@@ -300,19 +306,22 @@ export default function OperationLogPage() {
                 导出 CSV
               </Button>
               <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
-            </>
+            </Space>
           }
         />
         <Table
           rowKey="id"
+          className="list-table"
           columns={columns}
           dataSource={list}
           loading={loading}
+          locale={{ emptyText: <GlassEmpty text="暂无操作记录" compact /> }}
           pagination={{
             total,
             current: params.page,
             pageSize: params.page_size,
             showSizeChanger: true,
+            showQuickJumper: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
@@ -337,10 +346,7 @@ export default function OperationLogPage() {
               </Descriptions.Item>
               <Descriptions.Item label="耗时">
                 {typeof detail.latency === 'number' ? (
-                  <span
-                    className="cell-mono"
-                    style={{ color: detail.latency > 1000 ? '#f87171' : detail.latency > 300 ? '#fbbf24' : undefined }}
-                  >
+                  <span className={`cell-mono ${latencyClass(detail.latency)}`}>
                     {detail.latency}ms
                   </span>
                 ) : (
