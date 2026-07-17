@@ -118,8 +118,8 @@ export default function AiKnowledgePage() {
   ]
 
   return (
-    <div>
-      <Card>
+    <div className="page-list ai-knowledge-page">
+      <Card className="list-main-card" bordered={false}>
         <TableToolbar
           title="知识库文档"
           total={total}
@@ -128,7 +128,7 @@ export default function AiKnowledgePage() {
           glow="rgba(124, 58, 237, 0.4)"
           description="AI 助手的检索增强语料，文档入库后自动向量化"
           extra={
-            <>
+            <Space wrap>
               <Button
                 icon={<SearchOutlined />}
                 onClick={() => {
@@ -147,19 +147,22 @@ export default function AiKnowledgePage() {
               >
                 上传文档
               </Button>
-            </>
+            </Space>
           }
         />
         <Table
           rowKey="id"
+          className="list-table"
           columns={columns}
           dataSource={list}
           loading={loading}
+          locale={{ emptyText: <GlassEmpty text="知识库为空，先上传一篇文档" compact /> }}
           pagination={{
             total,
             current: params.page,
             pageSize: params.page_size,
             showSizeChanger: true,
+            showQuickJumper: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}

@@ -6,12 +6,14 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Select,
   Space,
   Table,
   Tag,
   Typography,
 } from 'antd'
+import { ReloadOutlined, TeamOutlined, PlusOutlined, EditOutlined, UserSwitchOutlined, DeleteOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
 import {
   createSkillGroup,
@@ -23,6 +25,9 @@ import {
   type ImAgentSkill,
   type ImSkillGroup,
 } from '@/api/im'
+import TableToolbar from '@/components/TableToolbar'
+import GlassEmpty from '@/components/GlassEmpty'
+import StatusPill from '@/components/StatusPill'
 
 const strategyOptions = [
   { label: '轮询 round_robin', value: 'round_robin' },
@@ -149,19 +154,25 @@ export default function ImSkillsPage() {
   }
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card
-        title="智能客服 · 技能组 (IM M3)"
-        extra={
-          <Space>
-            <Button href="/im/desk">坐席工作台</Button>
-            <Button type="primary" onClick={() => setCreateOpen(true)}>
-              新建技能组
-            </Button>
-            <Button onClick={() => void load()}>刷新</Button>
-          </Space>
-        }
-      >
+    <div className="page-list im-skills-page">
+      <Card className="list-main-card" bordered={false}>
+        <TableToolbar
+          title="技能组"
+          total={list.length}
+          icon={<TeamOutlined />}
+          gradient="linear-gradient(135deg, #a78bfa, #7c3aed)"
+          glow="rgba(124, 58, 237, 0.4)"
+          description="客服排队路由的技能分组与坐席绑定"
+          extra={
+            <Space wrap>
+              <Button href="/im/desk">坐席工作台</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => void load()}>刷新</Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+                新建技能组
+              </Button>
+            </Space>
+          }
+        />
         <Typography.Paragraph type="secondary">
           技能组用于排队路由。策略：<code>round_robin</code> 轮询、
           <code>least_load</code> 最少会话数、
@@ -170,24 +181,32 @@ export default function ImSkillsPage() {
         </Typography.Paragraph>
         <Table
           rowKey="id"
+          className="list-table"
           loading={loading}
           dataSource={list}
           pagination={false}
+          locale={{ emptyText: <GlassEmpty text="暂无技能组" compact /> }}
           columns={[
             { title: 'ID', dataIndex: 'id', width: 70 },
             { title: '名称', dataIndex: 'name' },
-            { title: 'Code', dataIndex: 'code', width: 120 },
+            {
+              title: 'Code',
+              dataIndex: 'code',
+              width: 140,
+              render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
+            },
             {
               title: '策略',
               dataIndex: 'strategy',
               width: 140,
-              render: (v: string) => <Tag>{v}</Tag>,
+              render: (v: string) => <Tag variant="filled" color="geekblue" className="cell-mono">{v}</Tag>,
             },
             {
               title: '状态',
               dataIndex: 'status',
-              width: 90,
-              render: (v: number) => (v === 1 ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
+              width: 100,
+              render: (v: number) =>
+                v === 1 ? <StatusPill tone="success" label="启用" /> : <StatusPill tone="muted" label="停用" />,
             },
             {
               title: '坐席数',
@@ -196,13 +215,13 @@ export default function ImSkillsPage() {
             },
             {
               title: '操作',
-              width: 220,
+              width: 200,
               render: (_, row) => (
-                <Space>
-                  <Button size="small" onClick={() => openEdit(row)}>
+                <Space size={0} className="table-actions">
+                  <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(row)}>
                     编辑
                   </Button>
-                  <Button size="small" type="primary" onClick={() => void openAgents(row)}>
+                  <Button type="link" size="small" icon={<UserSwitchOutlined />} onClick={() => void openAgents(row)}>
                     坐席
                   </Button>
                 </Space>
@@ -274,6 +293,7 @@ export default function ImSkillsPage() {
           dataSource={agents}
           pagination={false}
           size="small"
+          locale={{ emptyText: <GlassEmpty text="尚未绑定坐席" compact /> }}
           columns={[
             { title: '绑定 ID', dataIndex: 'id', width: 80 },
             { title: '用户 ID', dataIndex: 'agent_user_id', width: 100 },
@@ -281,16 +301,18 @@ export default function ImSkillsPage() {
             {
               title: '状态',
               dataIndex: 'status',
-              width: 80,
-              render: (v: number) => (v === 1 ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
+              width: 90,
+              render: (v: number) =>
+                v === 1 ? <StatusPill tone="success" label="启用" pulse={false} /> : <StatusPill tone="muted" label="停用" />,
             },
             {
               title: '在线',
-              width: 100,
+              width: 110,
               render: (_, row) => {
                 const st = row.presence?.status || 'offline'
-                const color = st === 'online' ? 'green' : st === 'busy' ? 'gold' : 'default'
-                return <Tag color={color}>{st}</Tag>
+                if (st === 'online') return <StatusPill tone="success" label="online" />
+                if (st === 'busy') return <StatusPill tone="warning" label="busy" pulse={false} />
+                return <StatusPill tone="muted" label="offline" />
               },
             },
             {
@@ -302,14 +324,16 @@ export default function ImSkillsPage() {
               title: '操作',
               width: 90,
               render: (_, row) => (
-                <Button size="small" danger onClick={() => void onRemoveAgent(row.id)}>
-                  移除
-                </Button>
+                <Popconfirm title="确认将该坐席移出技能组?" onConfirm={() => void onRemoveAgent(row.id)}>
+                  <Button size="small" danger icon={<DeleteOutlined />}>
+                    移除
+                  </Button>
+                </Popconfirm>
               ),
             },
           ]}
         />
       </Modal>
-    </Space>
+    </div>
   )
 }

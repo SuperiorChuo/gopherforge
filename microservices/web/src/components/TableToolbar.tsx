@@ -3,6 +3,7 @@ import {
   UserOutlined, TeamOutlined, SafetyOutlined, MenuOutlined, ApartmentOutlined,
   DatabaseOutlined, FileOutlined, NotificationOutlined, LoginOutlined,
   FileTextOutlined, AuditOutlined, WifiOutlined, ScheduleOutlined, BarsOutlined,
+  ClusterOutlined,
 } from '@ant-design/icons'
 
 interface ToolbarPreset {
@@ -98,6 +99,12 @@ const PRESETS: Record<string, ToolbarPreset> = {
     gradient: 'linear-gradient(135deg, #34d399, #059669)',
     glow: 'rgba(5, 150, 105, 0.4)',
     description: 'Cron 调度任务与执行日志',
+  },
+  租户管理: {
+    icon: <ClusterOutlined />,
+    gradient: 'linear-gradient(135deg, #fb7185, #e11d48)',
+    glow: 'rgba(225, 29, 72, 0.4)',
+    description: '多租户隔离、套餐与用户配额',
   },
 }
 
