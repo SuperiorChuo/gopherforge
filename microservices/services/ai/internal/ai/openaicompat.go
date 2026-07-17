@@ -29,6 +29,8 @@ type OpenAICompatProvider struct {
 // baseURL defaults to the official OpenAI endpoint.
 func NewOpenAICompatProvider(baseURL, apiKey, chatModel, embedModel string) *OpenAICompatProvider {
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	// 容忍 OpenAI SDK 惯例的 /v1 结尾（下面自己拼 /v1/...，保留会变成 /v1/v1 打 404）
+	baseURL = strings.TrimSuffix(baseURL, "/v1")
 	if baseURL == "" {
 		baseURL = defaultOpenAIBaseURL
 	}

@@ -40,7 +40,7 @@ func (c Config) WithDefaults() Config {
 	if c.BaseURL == "" {
 		c.BaseURL = "https://api.openai.com"
 	}
-	c.BaseURL = strings.TrimRight(c.BaseURL, "/")
+	c.BaseURL = NormalizeBaseURL(c.BaseURL)
 	if c.Model == "" {
 		c.Model = "gpt-4o-mini"
 	}
@@ -51,6 +51,13 @@ func (c Config) WithDefaults() Config {
 		c.SystemPrompt = defaultSystemPrompt
 	}
 	return c
+}
+
+// NormalizeBaseURL tolerates the OpenAI-SDK convention of a trailing /v1
+// (we append /v1/chat/completions ourselves; keeping it would 404 as /v1/v1).
+func NormalizeBaseURL(s string) string {
+	s = strings.TrimRight(strings.TrimSpace(s), "/")
+	return strings.TrimSuffix(s, "/v1")
 }
 
 const defaultSystemPrompt = `你是企业在线客服助手，回答简洁、礼貌、可用中文。

@@ -80,19 +80,20 @@ func (r *AIProviderReader) load(ctx context.Context) (AIProvider, error) {
 	if r.db == nil {
 		return AIProvider{}, errors.New("db not initialized")
 	}
-	var raw []byte
+	// json 列扫成 string（gorm Raw().Scan 对 []byte 会按整型切片处理而报错）
+	var raw string
 	err := r.db.WithContext(ctx).
 		Raw("SELECT value_json FROM system_settings WHERE setting_key = ?", AIProviderSettingKey).
 		Scan(&raw).Error
 	if err != nil {
 		return AIProvider{}, err
 	}
-	if len(raw) == 0 {
+	if raw == "" {
 		// 行不存在：合法状态，返回零值让调用方回落环境变量
 		return AIProvider{}, nil
 	}
 	var settings AIProvider
-	if err := json.Unmarshal(raw, &settings); err != nil {
+	if err := json.Unmarshal([]byte(raw), &settings); err != nil {
 		return AIProvider{}, err
 	}
 	settings.Provider = strings.ToLower(strings.TrimSpace(settings.Provider))

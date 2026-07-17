@@ -78,7 +78,7 @@ func (d *Dynamic) effectiveConfig(ctx context.Context) Config {
 		return cfg
 	}
 	if o.BaseURL != "" {
-		cfg.BaseURL = strings.TrimRight(o.BaseURL, "/")
+		cfg.BaseURL = NormalizeBaseURL(o.BaseURL)
 	}
 	if o.APIKey != "" {
 		cfg.APIKey = o.APIKey

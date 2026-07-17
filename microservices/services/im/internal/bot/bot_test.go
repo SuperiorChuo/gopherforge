@@ -34,3 +34,19 @@ func TestExtractText(t *testing.T) {
 		t.Fatal("extract")
 	}
 }
+
+func TestNormalizeBaseURL(t *testing.T) {
+	cases := map[string]string{
+		"https://api.openai.com":    "https://api.openai.com",
+		"https://api.openai.com/":   "https://api.openai.com",
+		"https://v-api.de5.net/v1":  "https://v-api.de5.net",
+		"https://v-api.de5.net/v1/": "https://v-api.de5.net",
+		" https://host/api/v1 ":     "https://host/api",
+		"https://host/v1x":          "https://host/v1x",
+	}
+	for in, want := range cases {
+		if got := NormalizeBaseURL(in); got != want {
+			t.Fatalf("NormalizeBaseURL(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
