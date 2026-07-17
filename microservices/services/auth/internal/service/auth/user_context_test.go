@@ -26,8 +26,8 @@ func TestUserServiceLoginPasswordContextHonorsCanceledContext(t *testing.T) {
 func TestUserServiceRegisterContextReturnsUsernameLookupError(t *testing.T) {
 	db, mock := setupAuthServiceContextTestDB(t)
 	lookupErr := errors.New("database lookup failed")
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE username = $1 ORDER BY "users"."id" LIMIT $2`)).
-		WithArgs("alice", 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE tenant_id = $1 AND username = $2 ORDER BY "users"."id" LIMIT $3`)).
+		WithArgs(uint(1), "alice", 1).
 		WillReturnError(lookupErr)
 
 	svc := NewUserServiceWithDB(db)

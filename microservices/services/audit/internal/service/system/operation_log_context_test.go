@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/services/audit/internal/pkg/authz"
 	"github.com/go-admin-kit/services/audit/internal/pkg/pagination"
 	"gorm.io/gorm"
@@ -29,8 +30,8 @@ func TestOperationLogServiceGetLogListContextHonorsCanceledContext(t *testing.T)
 
 func TestOperationLogServiceGetLogByIDContextReturnsNotFoundSentinel(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "operation_logs" WHERE "operation_logs"."id" = $1 ORDER BY "operation_logs"."id" LIMIT $2`)).
-		WithArgs(7, 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "operation_logs" WHERE tenant_id = $1 AND id = $2 ORDER BY "operation_logs"."id" LIMIT $3`)).
+		WithArgs(sqlmock.AnyArg(), 7, 1).
 		WillReturnError(gorm.ErrRecordNotFound)
 
 	svc := NewOperationLogServiceWithDB(db)

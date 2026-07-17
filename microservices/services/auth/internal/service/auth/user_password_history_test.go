@@ -161,8 +161,8 @@ func TestUserServiceLoginPasswordContextReturnsUpdateErrorWhenExpiredFlagCannotP
 	changedAt := time.Date(2026, 4, 1, 8, 0, 0, 0, time.UTC)
 	updateErr := errors.New("update failed")
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE username = $1 ORDER BY "users"."id" LIMIT $2`)).
-		WithArgs("alice", 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE tenant_id = $1 AND username = $2 ORDER BY "users"."id" LIMIT $3`)).
+		WithArgs(uint(1), "alice", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "must_change_password", "password_changed_at"}).
 			AddRow(uint(7), "alice", currentHash, int8(1), false, changedAt))
 	mock.ExpectBegin()
@@ -189,8 +189,8 @@ func TestUserServiceLoginPasswordContextUsesRuntimePasswordMaxAge(t *testing.T) 
 	currentHash := mustHashPasswordForTest(t, "CurrentPass1")
 	changedAt := time.Now().AddDate(0, 0, -60)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE username = $1 ORDER BY "users"."id" LIMIT $2`)).
-		WithArgs("alice", 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE tenant_id = $1 AND username = $2 ORDER BY "users"."id" LIMIT $3`)).
+		WithArgs(uint(1), "alice", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "status", "must_change_password", "password_changed_at"}).
 			AddRow(uint(7), "alice", currentHash, int8(1), false, changedAt))
 	mock.ExpectBegin()

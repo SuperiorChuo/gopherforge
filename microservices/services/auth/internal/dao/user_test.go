@@ -13,8 +13,8 @@ import (
 
 func TestUserDAOGetUserByUsernameUsesSharedQuery(t *testing.T) {
 	db, mock := newDAOTestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE username = $1 ORDER BY "users"."id" LIMIT $2`)).
-		WithArgs("alice", 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE tenant_id = $1 AND username = $2 ORDER BY "users"."id" LIMIT $3`)).
+		WithArgs(uint(1), "alice", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username"}).AddRow(42, "alice"))
 
 	user, err := NewUserDAO(db).GetUserByUsernameContext(context.Background(), "alice")
@@ -52,8 +52,8 @@ func TestUserDAOGetUserWithRolesContextHonorsCanceledContext(t *testing.T) {
 func TestUserDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newDAOTestDB(t)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE username = $1 ORDER BY "users"."id" LIMIT $2`)).
-		WithArgs("alice", 1).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE tenant_id = $1 AND username = $2 ORDER BY "users"."id" LIMIT $3`)).
+		WithArgs(uint(1), "alice", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username"}).AddRow(42, "alice"))
 
 	user, err := NewUserDAO(db).GetUserByUsernameContext(context.Background(), "alice")
