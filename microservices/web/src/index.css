@@ -1465,8 +1465,7 @@ body {
     0 10px 22px rgba(0, 0, 0, 0.2);
 }
 
-.dash-weather-icon svg {
-  display: block;
+.dash-weather-icon .wx-real {
   filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.28));
 }
 
@@ -1605,47 +1604,275 @@ body {
   line-height: 1.25;
 }
 
-/* 图标层细动效（好看优先、克制） */
-.wx-glyph-sun .wx-sun-rays {
-  transform-origin: 32px 32px;
-  animation: wx-sun-spin 22s linear infinite;
-}
-
-.wx-glyph-sun .wx-sun-core {
-  animation: wx-sun-core-glow 3.6s ease-in-out infinite;
-}
-
-.wx-glyph-moon {
+/* ===== 写实天体图标：分层渐变 + 辉光合成，取代描边图形 ===== */
+.wx-real {
+  position: relative;
+  width: 48px;
+  height: 48px;
   animation: wx-soft-float 5.5s ease-in-out infinite;
 }
 
-.wx-glyph-moon .wx-star {
-  animation: wx-twinkle 2.8s ease-in-out infinite;
+.wx-real > i,
+.wx-real > span {
+  position: absolute;
+  display: block;
 }
 
-.wx-glyph-rain,
-.wx-glyph-thunder,
-.wx-glyph-snow,
-.wx-glyph-cloudy,
-.wx-glyph-overcast {
-  animation: wx-soft-float 4.6s ease-in-out infinite;
+/* —— 太阳：等离子球体（受光面/边缘暗化）+ 日冕呼吸 + 缓转光辉 —— */
+.wx-sun-ball {
+  width: 28px;
+  height: 28px;
+  left: 10px;
+  top: 10px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 36% 32%,
+    #fffdf4 0%,
+    #ffefad 20%,
+    #ffd257 46%,
+    #ffa62b 72%,
+    #f97316 90%,
+    #ea580c 100%
+  );
+  box-shadow:
+    inset -3px -4px 8px rgba(194, 65, 12, 0.5),
+    inset 2px 3px 6px rgba(255, 255, 240, 0.75),
+    0 0 8px rgba(255, 208, 96, 0.95),
+    0 0 20px rgba(255, 160, 40, 0.6),
+    0 0 36px rgba(255, 120, 20, 0.35);
 }
 
-.wx-glyph-thunder .wx-bolt {
+.wx-sun-corona {
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 200, 90, 0.55) 0%, rgba(255, 150, 50, 0.22) 45%, transparent 72%);
+  filter: blur(5px);
+  animation: wx-corona-breathe 4.5s ease-in-out infinite;
+}
+
+.wx-sun-flare {
+  inset: -5px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 8deg,
+    rgba(255, 214, 130, 0.5) 0deg 7deg,
+    transparent 7deg 45deg
+  );
+  -webkit-mask: radial-gradient(circle, transparent 30%, #000 44%, transparent 76%);
+  mask: radial-gradient(circle, transparent 30%, #000 44%, transparent 76%);
+  filter: blur(2px);
+  opacity: 0.8;
+  animation: wx-flare-spin 28s linear infinite;
+}
+
+/* —— 月亮：陨石坑 + 明暗界线 + 月晕 —— */
+.wx-moon-ball {
+  width: 30px;
+  height: 30px;
+  left: 9px;
+  top: 9px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 66% 34%, rgba(96, 106, 134, 0.55) 0 3.4px, rgba(240, 244, 252, 0.3) 3.8px 4.6px, transparent 5.4px),
+    radial-gradient(circle at 38% 60%, rgba(96, 106, 134, 0.45) 0 4.4px, rgba(240, 244, 252, 0.22) 4.9px 5.8px, transparent 6.6px),
+    radial-gradient(circle at 60% 72%, rgba(96, 106, 134, 0.38) 0 2.4px, transparent 3.4px),
+    radial-gradient(circle at 26% 32%, rgba(96, 106, 134, 0.32) 0 2px, transparent 3px),
+    radial-gradient(circle at 80% 56%, rgba(96, 106, 134, 0.3) 0 1.6px, transparent 2.6px),
+    radial-gradient(circle at 34% 30%, #ffffff 0%, #eef2f9 28%, #cdd6e6 56%, #a3aec7 80%, #7a86a3 100%);
+  box-shadow:
+    inset -5px -4px 9px rgba(18, 22, 48, 0.55),
+    inset 2px 2px 5px rgba(255, 255, 255, 0.65),
+    0 0 10px rgba(190, 205, 255, 0.5),
+    0 0 26px rgba(140, 160, 255, 0.28);
+}
+
+.wx-moon-glow {
+  inset: -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(190, 205, 255, 0.4), rgba(150, 170, 255, 0.12) 55%, transparent 76%);
+  filter: blur(5px);
+  animation: wx-corona-breathe 6s ease-in-out infinite;
+}
+
+/* —— 云：体积团（顶部受光、底部环境光遮蔽） —— */
+.wx-cloud {
+  width: 38px;
+  height: 15px;
+  left: 5px;
+  bottom: 9px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fbfdff 0%, #dfe7f2 55%, #c2cddd 100%);
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.9),
+    inset 0 -4px 6px rgba(130, 145, 170, 0.45),
+    0 5px 10px rgba(10, 14, 34, 0.35);
+}
+
+.wx-cloud::before,
+.wx-cloud::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, #ffffff 0%, #eef3fa 46%, #ccd6e4 88%);
+  box-shadow: inset 0 -3px 5px rgba(130, 145, 170, 0.35);
+}
+
+.wx-cloud::before {
+  width: 17px;
+  height: 17px;
+  left: 5px;
+  top: -9px;
+}
+
+.wx-cloud::after {
+  width: 13px;
+  height: 13px;
+  right: 6px;
+  top: -6px;
+}
+
+/* 多云：小太阳藏在云后 */
+.wx-real-cloudy .wx-sun-ball {
+  width: 18px;
+  height: 18px;
+  left: auto;
+  right: 6px;
+  top: 6px;
+}
+
+.wx-real-cloudy .wx-sun-corona {
+  inset: 0 -1px auto auto;
+  width: 30px;
+  height: 30px;
+}
+
+/* 雪云：比雨云更亮更冷 */
+.wx-real-snow .wx-cloud-storm {
+  filter: brightness(1.15) saturate(0.7);
+}
+
+/* 阴天：后层暗云 + 前层主云，整体压灰 */
+.wx-cloud-back {
+  width: 30px;
+  height: 12px;
+  left: auto;
+  right: 3px;
+  bottom: 22px;
+  filter: brightness(0.72) saturate(0.8);
+  opacity: 0.9;
+}
+
+.wx-real-overcast .wx-cloud-front,
+.wx-cloud-storm {
+  filter: brightness(0.85);
+}
+
+/* 雨/雷云：铁灰蓝，底部更沉 */
+.wx-cloud-storm {
+  background: linear-gradient(180deg, #dbe3ee 0%, #9fadc4 55%, #6d7d99 100%);
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.55),
+    inset 0 -5px 7px rgba(45, 58, 84, 0.6),
+    0 5px 10px rgba(8, 12, 30, 0.45);
+  bottom: 15px;
+}
+
+.wx-cloud-storm::before,
+.wx-cloud-storm::after {
+  background: radial-gradient(circle at 35% 28%, #e8edf5 0%, #b9c4d6 50%, #8494ad 90%);
+  box-shadow: inset 0 -3px 5px rgba(45, 58, 84, 0.5);
+}
+
+/* 雨滴：云下三道细流 */
+.wx-drips {
+  inset: 0;
+}
+
+.wx-drips i {
+  position: absolute;
+  width: 2px;
+  height: 7px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, rgba(125, 211, 252, 0.05), #7dd3fc);
+  animation: wx-drip 1.5s linear infinite;
+}
+
+.wx-drips i:nth-child(1) { left: 14px; animation-delay: 0s; }
+.wx-drips i:nth-child(2) { left: 23px; animation-delay: 0.5s; }
+.wx-drips i:nth-child(3) { left: 32px; animation-delay: 1s; }
+
+@keyframes wx-drip {
+  0% { transform: translateY(32px); opacity: 0; }
+  18% { opacity: 0.95; }
+  78% { opacity: 0.85; }
+  100% { transform: translateY(46px); opacity: 0; }
+}
+
+/* 闪电：发光聚合物 */
+.wx-bolt-real {
+  left: 19px;
+  top: 27px;
+  width: 12px;
+  height: 17px;
+  background: linear-gradient(190deg, #fef3c7, #fbbf24 60%, #f59e0b);
+  clip-path: polygon(45% 0, 100% 0, 60% 42%, 88% 42%, 22% 100%, 42% 52%, 12% 52%);
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.9));
   animation: wx-bolt-flash 3.8s ease-in-out infinite;
 }
 
-.wx-glyph-fog .wx-mist {
-  animation: wx-mist-shift 6s ease-in-out infinite alternate;
+/* 雪花：云下缓落微摆 */
+.wx-flakes-real {
+  inset: 0;
 }
 
-@keyframes wx-sun-spin {
+.wx-flakes-real i {
+  position: absolute;
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff, #dbeafe 80%);
+  box-shadow: 0 0 4px rgba(219, 234, 254, 0.9);
+  animation: wx-flake-fall 2.6s ease-in-out infinite;
+}
+
+.wx-flakes-real i:nth-child(1) { left: 14px; animation-delay: 0s; }
+.wx-flakes-real i:nth-child(2) { left: 23px; animation-delay: 0.9s; }
+.wx-flakes-real i:nth-child(3) { left: 31px; animation-delay: 1.7s; }
+
+@keyframes wx-flake-fall {
+  0% { transform: translateY(32px) translateX(0); opacity: 0; }
+  20% { opacity: 0.95; }
+  60% { transform: translateY(40px) translateX(2px); }
+  100% { transform: translateY(47px) translateX(-1px); opacity: 0; }
+}
+
+/* 雾：三层漂移的柔光带 */
+.wx-fog-band {
+  left: 4px;
+  width: 40px;
+  height: 7px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, transparent, rgba(226, 232, 240, 0.85) 30%, rgba(203, 213, 225, 0.95) 60%, transparent);
+  filter: blur(1.5px);
+  animation: wx-fog-drift 5.5s ease-in-out infinite alternate;
+}
+
+.wx-fog-band:nth-child(1) { top: 12px; }
+.wx-fog-band:nth-child(2) { top: 22px; animation-delay: 0.8s; opacity: 0.85; }
+.wx-fog-band:nth-child(3) { top: 32px; animation-delay: 1.6s; opacity: 0.7; }
+
+@keyframes wx-fog-drift {
+  from { transform: translateX(-2px); }
+  to { transform: translateX(3px); }
+}
+
+@keyframes wx-corona-breathe {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes wx-flare-spin {
   to { transform: rotate(360deg); }
-}
-
-@keyframes wx-sun-core-glow {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.12); }
 }
 
 @keyframes wx-soft-float {
@@ -1654,15 +1881,10 @@ body {
 }
 
 @keyframes wx-bolt-flash {
-  0%, 88%, 100% { opacity: 0.75; filter: brightness(1); }
-  90% { opacity: 1; filter: brightness(1.5); }
+  0%, 88%, 100% { opacity: 0.75; filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.9)) brightness(1); }
+  90% { opacity: 1; filter: drop-shadow(0 0 10px rgba(251, 191, 36, 1)) brightness(1.5); }
   93% { opacity: 0.55; }
-  96% { opacity: 1; filter: brightness(1.35); }
-}
-
-@keyframes wx-mist-shift {
-  from { opacity: 0.7; transform: translateX(-1px); }
-  to { opacity: 1; transform: translateX(2px); }
+  96% { opacity: 1; filter: drop-shadow(0 0 9px rgba(251, 191, 36, 1)) brightness(1.35); }
 }
 
 /* 天气语义色晕 */

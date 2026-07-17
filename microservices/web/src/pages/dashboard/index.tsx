@@ -82,149 +82,67 @@ function feelsLikeC(tempStr?: string, humidityStr?: string, windPower?: string):
   return Math.round(at)
 }
 
-/** 矢量天气标：比 emoji 更精致，随 kind 换形态 */
+/** 写实天体图标：CSS 分层渐变合成（等离子太阳/陨石坑月球/体积云），比描边图形更真实 */
 function WeatherGlyph({ kind }: { kind: WeatherKind }) {
-  const common = {
-    viewBox: '0 0 64 64',
-    width: 48,
-    height: 48,
-    fill: 'none',
-    xmlns: 'http://www.w3.org/2000/svg',
-    'aria-hidden': true as const,
-  }
   switch (kind) {
     case 'sunny':
       return (
-        <svg {...common} className="wx-glyph wx-glyph-sun">
-          <circle className="wx-sun-core" cx="32" cy="32" r="11" fill="url(#wg-sun)" />
-          <g className="wx-sun-rays" stroke="url(#wg-sun-ray)" strokeWidth="2.2" strokeLinecap="round" opacity="0.95">
-            <path d="M32 6v7M32 51v7M6 32h7M51 32h7M13.5 13.5l5 5M45.5 45.5l5 5M13.5 50.5l5-5M45.5 18.5l5-5" />
-          </g>
-          <defs>
-            <radialGradient id="wg-sun" cx="40%" cy="35%" r="65%">
-              <stop offset="0%" stopColor="#fef9c3" />
-              <stop offset="55%" stopColor="#fbbf24" />
-              <stop offset="100%" stopColor="#f59e0b" />
-            </radialGradient>
-            <linearGradient id="wg-sun-ray" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#fde68a" />
-              <stop offset="100%" stopColor="#fbbf24" />
-            </linearGradient>
-          </defs>
-        </svg>
+        <div className="wx-real wx-real-sunny" aria-hidden>
+          <i className="wx-sun-corona" />
+          <i className="wx-sun-flare" />
+          <i className="wx-sun-ball" />
+        </div>
       )
     case 'night':
       return (
-        <svg {...common} className="wx-glyph wx-glyph-moon">
-          <path
-            d="M40 12c-1.2 3.4-1.2 7.2.2 10.6 2.4 5.8 8 9.8 14.3 10.4-2.2 8.6-10 14.8-19.2 14.8-11 0-20-9-20-20 0-9.2 6.2-17 14.7-19.3 1.4 5.8 5.2 10.6 10 13.5z"
-            fill="url(#wg-moon)"
-          />
-          <circle className="wx-star" cx="48" cy="16" r="1.4" fill="#e0e7ff" opacity="0.9" />
-          <circle className="wx-star" cx="54" cy="28" r="1" fill="#c7d2fe" opacity="0.75" />
-          <circle className="wx-star" cx="44" cy="8" r="0.9" fill="#a5b4fc" opacity="0.7" />
-          <defs>
-            <linearGradient id="wg-moon" x1="0.2" y1="0" x2="0.9" y2="1">
-              <stop offset="0%" stopColor="#e0e7ff" />
-              <stop offset="55%" stopColor="#a5b4fc" />
-              <stop offset="100%" stopColor="#6366f1" />
-            </linearGradient>
-          </defs>
-        </svg>
+        <div className="wx-real wx-real-night" aria-hidden>
+          <i className="wx-moon-glow" />
+          <i className="wx-moon-ball" />
+        </div>
       )
     case 'rain':
+      return (
+        <div className="wx-real wx-real-rain" aria-hidden>
+          <span className="wx-drips"><i /><i /><i /></span>
+          <i className="wx-cloud wx-cloud-storm" />
+        </div>
+      )
     case 'thunder':
       return (
-        <svg {...common} className={`wx-glyph wx-glyph-${kind}`}>
-          <path
-            d="M22 40c-6 0-11-4.5-11-10.2C11 24 15.5 19.5 21 19c1.6-5.5 6.7-9.5 12.7-9.5 6.6 0 12.1 4.6 13.4 10.8 5.2.6 9.2 4.9 9.2 10.1 0 5.6-4.6 10.1-10.3 10.1H22z"
-            fill="url(#wg-cloud)"
-          />
-          {kind === 'thunder' ? (
-            <path className="wx-bolt" d="M33 38l-4 10h5l-2 10 10-14h-5l3-6z" fill="#fde047" stroke="#fbbf24" strokeWidth="0.5" />
-          ) : (
-            <g className="wx-drops" stroke="#7dd3fc" strokeWidth="2.2" strokeLinecap="round">
-              <path d="M24 46v8M32 44v10M40 46v8" opacity="0.9" />
-            </g>
-          )}
-          <defs>
-            <linearGradient id="wg-cloud" x1="0" y1="0" x2="0.5" y2="1">
-              <stop offset="0%" stopColor="#e2e8f0" />
-              <stop offset="100%" stopColor="#94a3b8" />
-            </linearGradient>
-          </defs>
-        </svg>
+        <div className="wx-real wx-real-thunder" aria-hidden>
+          <i className="wx-bolt-real" />
+          <i className="wx-cloud wx-cloud-storm" />
+        </div>
       )
     case 'snow':
       return (
-        <svg {...common} className="wx-glyph wx-glyph-snow">
-          <path
-            d="M22 38c-6 0-11-4.5-11-10.2C11 22 15.5 17.5 21 17c1.6-5.5 6.7-9.5 12.7-9.5 6.6 0 12.1 4.6 13.4 10.8 5.2.6 9.2 4.9 9.2 10.1 0 5.6-4.6 10.1-10.3 10.1H22z"
-            fill="url(#wg-cloud-snow)"
-          />
-          <g className="wx-flakes" fill="#e0f2fe" opacity="0.95">
-            <circle cx="24" cy="48" r="1.6" />
-            <circle cx="33" cy="52" r="1.4" />
-            <circle cx="40" cy="47" r="1.5" />
-            <circle cx="28" cy="54" r="1.1" />
-          </g>
-          <defs>
-            <linearGradient id="wg-cloud-snow" x1="0" y1="0" x2="0.5" y2="1">
-              <stop offset="0%" stopColor="#f1f5f9" />
-              <stop offset="100%" stopColor="#cbd5e1" />
-            </linearGradient>
-          </defs>
-        </svg>
+        <div className="wx-real wx-real-snow" aria-hidden>
+          <span className="wx-flakes-real"><i /><i /><i /></span>
+          <i className="wx-cloud wx-cloud-storm" />
+        </div>
       )
     case 'fog':
       return (
-        <svg {...common} className="wx-glyph wx-glyph-fog">
-          <g className="wx-mist" stroke="url(#wg-fog)" strokeWidth="3" strokeLinecap="round" opacity="0.85">
-            <path d="M14 24h36M12 32h40M16 40h32M18 48h28" />
-          </g>
-          <defs>
-            <linearGradient id="wg-fog" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.3" />
-              <stop offset="50%" stopColor="#e2e8f0" />
-              <stop offset="100%" stopColor="#94a3b8" stopOpacity="0.3" />
-            </linearGradient>
-          </defs>
-        </svg>
+        <div className="wx-real wx-real-fog" aria-hidden>
+          <i className="wx-fog-band" />
+          <i className="wx-fog-band" />
+          <i className="wx-fog-band" />
+        </div>
       )
     case 'overcast':
       return (
-        <svg {...common} className="wx-glyph wx-glyph-overcast">
-          <path
-            d="M18 42c-6.5 0-12-5-12-11.2C6 25 11 20 17 19.4 18.8 13 24.6 8.5 31.5 8.5c7.4 0 13.6 5.2 15 12.1 5.8.7 10.3 5.5 10.3 11.3 0 6.3-5.2 11.4-11.6 11.4H18z"
-            fill="url(#wg-overcast)"
-          />
-          <defs>
-            <linearGradient id="wg-overcast" x1="0.2" y1="0" x2="0.7" y2="1">
-              <stop offset="0%" stopColor="#cbd5e1" />
-              <stop offset="100%" stopColor="#64748b" />
-            </linearGradient>
-          </defs>
-        </svg>
+        <div className="wx-real wx-real-overcast" aria-hidden>
+          <i className="wx-cloud wx-cloud-back" />
+          <i className="wx-cloud wx-cloud-front" />
+        </div>
       )
-    default: // cloudy
+    default: // cloudy：小太阳半藏云后
       return (
-        <svg {...common} className="wx-glyph wx-glyph-cloudy">
-          <circle className="wx-part-sun" cx="42" cy="22" r="8" fill="url(#wg-part-sun)" opacity="0.95" />
-          <path
-            d="M20 44c-5.8 0-10.5-4.4-10.5-9.8C9.5 28.8 13.8 24.5 19 24c1.5-5.2 6.3-9 12-9 6.2 0 11.4 4.3 12.6 10.2 4.9.6 8.7 4.6 8.7 9.5 0 5.3-4.4 9.6-9.8 9.6H20z"
-            fill="url(#wg-part-cloud)"
-          />
-          <defs>
-            <radialGradient id="wg-part-sun" cx="40%" cy="35%" r="65%">
-              <stop offset="0%" stopColor="#fef08a" />
-              <stop offset="100%" stopColor="#f59e0b" />
-            </radialGradient>
-            <linearGradient id="wg-part-cloud" x1="0" y1="0" x2="0.5" y2="1">
-              <stop offset="0%" stopColor="#f8fafc" />
-              <stop offset="100%" stopColor="#94a3b8" />
-            </linearGradient>
-          </defs>
-        </svg>
+        <div className="wx-real wx-real-cloudy" aria-hidden>
+          <i className="wx-sun-corona" />
+          <i className="wx-sun-ball" />
+          <i className="wx-cloud wx-cloud-front" />
+        </div>
       )
   }
 }
