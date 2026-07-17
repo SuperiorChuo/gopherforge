@@ -4,12 +4,16 @@ import {
   Card, DatePicker, Switch, Popover,
 } from 'antd'
 import { message } from '@/utils/feedback'
-import { PlusOutlined, SearchOutlined, ReloadOutlined, RobotOutlined } from '@ant-design/icons'
+import {
+  PlusOutlined, SearchOutlined, ReloadOutlined, RobotOutlined,
+  EditOutlined, DeleteOutlined,
+} from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Notice } from '@/types'
 import * as NoticeAPI from '@/api/system/notice'
 import { compose as aiCompose } from '@/api/ai'
 import TableToolbar from '@/components/TableToolbar'
+import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
@@ -173,7 +177,7 @@ export default function NoticePage() {
       title: '类型',
       dataIndex: 'type',
       width: 80,
-      render: (v: number) => <Tag color={v === 1 ? 'blue' : 'orange'}>{typeLabels[v] ?? v}</Tag>,
+      render: (v: number) => <Tag variant="filled" color={v === 1 ? 'blue' : 'orange'}>{typeLabels[v] ?? v}</Tag>,
     },
     {
       title: '状态',
@@ -196,13 +200,13 @@ export default function NoticePage() {
       title: '操作',
       width: 140,
       render: (_, record) => (
-        <Space>
+        <Space size={0} className="table-actions">
           {hasPerm('system:notice:update') && (
-            <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
           )}
           {hasPerm('system:notice:delete') && (
             <Popconfirm title="确认删除该通知?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger>删除</Button>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
             </Popconfirm>
           )}
         </Space>
@@ -211,11 +215,17 @@ export default function NoticePage() {
   ]
 
   return (
-    <div>
-      <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch} initialValues={params}>
+    <div className="page-list notice-page">
+      <Card className="list-filter-card" bordered={false}>
+        <Form
+          form={searchForm}
+          layout="inline"
+          className="list-filter-form"
+          onFinish={handleSearch}
+          initialValues={params}
+        >
           <Form.Item name="keyword">
-            <Input placeholder="标题" prefix={<SearchOutlined />} allowClear />
+            <Input placeholder="搜索标题" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
           <Form.Item name="type">
             <Select placeholder="类型" style={{ width: 100 }} allowClear>
@@ -229,7 +239,7 @@ export default function NoticePage() {
               <Select.Option value={0}>禁用</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item>
+          <Form.Item className="list-filter-actions">
             <Space>
               <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
               <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
@@ -238,29 +248,32 @@ export default function NoticePage() {
         </Form>
       </Card>
 
-      <Card>
+      <Card className="list-main-card" bordered={false}>
         <TableToolbar
           title="通知公告"
           total={total}
           extra={
-            <>
+            <Space wrap>
               <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
               {hasPerm('system:notice:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增通知</Button>
               )}
-            </>
+            </Space>
           }
         />
         <Table
           rowKey="id"
+          className="list-table"
           columns={columns}
           dataSource={list}
           loading={loading}
+          locale={{ emptyText: <GlassEmpty text="暂无通知公告" compact /> }}
           pagination={{
             total,
             current: params.page,
             pageSize: params.page_size,
             showSizeChanger: true,
+            showQuickJumper: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}

@@ -7,6 +7,7 @@ import { SearchOutlined, ReloadOutlined, EyeOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getAuditLogList, type AuditLog, type AuditLogListResult } from '@/api/system/audit-log'
 import TableToolbar from '@/components/TableToolbar'
+import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 
@@ -107,11 +108,17 @@ export default function AuditLogPage() {
   ]
 
   return (
-    <div>
-      <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch} initialValues={params}>
+    <div className="page-list audit-log-page">
+      <Card className="list-filter-card" bordered={false}>
+        <Form
+          form={searchForm}
+          layout="inline"
+          className="list-filter-form"
+          onFinish={handleSearch}
+          initialValues={params}
+        >
           <Form.Item name="keyword">
-            <Input placeholder="关键字" prefix={<SearchOutlined />} allowClear />
+            <Input placeholder="搜索关键字" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
           <Form.Item name="action">
             <Select placeholder="动作" style={{ width: 180 }} allowClear showSearch>
@@ -127,7 +134,7 @@ export default function AuditLogPage() {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item>
+          <Form.Item className="list-filter-actions">
             <Space>
               <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
               <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
@@ -136,7 +143,7 @@ export default function AuditLogPage() {
         </Form>
       </Card>
 
-      <Card>
+      <Card className="list-main-card" bordered={false}>
         <TableToolbar
           title="审计日志"
           total={total}
@@ -144,14 +151,17 @@ export default function AuditLogPage() {
         />
         <Table
           rowKey="id"
+          className="list-table"
           columns={columns}
           dataSource={list}
           loading={loading}
+          locale={{ emptyText: <GlassEmpty text="暂无审计记录" compact /> }}
           pagination={{
             total,
             current: params.page,
             pageSize: params.page_size,
             showSizeChanger: true,
+            showQuickJumper: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}

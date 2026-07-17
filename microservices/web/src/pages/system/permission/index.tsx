@@ -4,11 +4,15 @@ import {
   Card,
 } from 'antd'
 import { message } from '@/utils/feedback'
-import { PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
+import {
+  PlusOutlined, SearchOutlined, ReloadOutlined,
+  EditOutlined, DeleteOutlined,
+} from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Permission } from '@/types'
 import * as PermAPI from '@/api/system/permission'
 import TableToolbar from '@/components/TableToolbar'
+import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
@@ -124,20 +128,20 @@ export default function PermissionPage() {
       title: '类型',
       dataIndex: 'type',
       width: 80,
-      render: (v: number) => <Tag color={typeColors[v]}>{typeLabels[v] ?? v}</Tag>,
+      render: (v: number) => <Tag variant="filled" color={typeColors[v]}>{typeLabels[v] ?? v}</Tag>,
     },
     { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
     {
       title: '操作',
       width: 140,
       render: (_, record) => (
-        <Space>
+        <Space size={0} className="table-actions">
           {hasPerm('system:permission:update') && (
-            <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
           )}
           {hasPerm('system:permission:delete') && (
             <Popconfirm title="确认删除该权限?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger>删除</Button>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
             </Popconfirm>
           )}
         </Space>
@@ -146,13 +150,19 @@ export default function PermissionPage() {
   ]
 
   return (
-    <div>
-      <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch} initialValues={params}>
+    <div className="page-list permission-page">
+      <Card className="list-filter-card" bordered={false}>
+        <Form
+          form={searchForm}
+          layout="inline"
+          className="list-filter-form"
+          onFinish={handleSearch}
+          initialValues={params}
+        >
           <Form.Item name="keyword">
-            <Input placeholder="名称/编码" prefix={<SearchOutlined />} allowClear />
+            <Input placeholder="搜索名称 / 编码" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
-          <Form.Item>
+          <Form.Item className="list-filter-actions">
             <Space>
               <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
               <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
@@ -161,29 +171,32 @@ export default function PermissionPage() {
         </Form>
       </Card>
 
-      <Card>
+      <Card className="list-main-card" bordered={false}>
         <TableToolbar
           title="权限列表"
           total={total}
           extra={
-            <>
+            <Space wrap>
               <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
               {hasPerm('system:permission:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增权限</Button>
               )}
-            </>
+            </Space>
           }
         />
         <Table
           rowKey="id"
+          className="list-table"
           columns={columns}
           dataSource={list}
           loading={loading}
+          locale={{ emptyText: <GlassEmpty text="暂无权限" compact /> }}
           pagination={{
             total,
             current: params.page,
             pageSize: params.page_size,
             showSizeChanger: true,
+            showQuickJumper: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
