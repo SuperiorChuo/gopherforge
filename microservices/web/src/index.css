@@ -1,6 +1,12 @@
 :root {
   --app-bg: #0a0b14;
   --sider-gradient: linear-gradient(180deg, #0e1020 0%, #090a12 100%);
+  /* 动效/玻璃参数：新增样式一律用变量，存量代码顺手改到时再替换 */
+  --dur-fast: 0.18s;
+  --dur-mid: 0.3s;
+  --dur-slow: 0.55s;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --blur-glass: blur(18px) saturate(1.35);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

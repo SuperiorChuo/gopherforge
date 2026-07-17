@@ -26,7 +26,7 @@ const loginLogColumns: ColumnsType<LoginLog> = [
     title: 'IP',
     dataIndex: 'ip',
     width: 140,
-    render: (v: string) => <span className="cell-mono">{v || '-'}</span>,
+    render: (v: string) => (v ? <span className="cell-mono">{v}</span> : <span className="cell-muted">—</span>),
   },
   {
     title: '状态',
