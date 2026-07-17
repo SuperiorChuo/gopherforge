@@ -27,10 +27,9 @@ func RefreshByKey(ctx context.Context, key string) error {
 		return DefaultSecurityPolicyReader().Refresh(ctx)
 	case WeatherProviderSettingKey:
 		return DefaultWeatherReader().Refresh(ctx)
+	case EmailNotificationSettingKey:
+		return DefaultEmailNotificationReader().Refresh(ctx)
 	default:
-		// The monolith also refreshes the email notification reader here; the
-		// auth service does not consume email notification settings, so other
-		// keys are ignored.
 		return nil
 	}
 }
@@ -44,5 +43,6 @@ func StartInvalidationListener(ctx context.Context) (*redisstore.StringSubscribe
 }
 
 func isRuntimeConfigInvalidationKey(key string) bool {
-	return key == SecurityPolicySettingKey || key == AIProviderSettingKey || key == WeatherProviderSettingKey
+	return key == SecurityPolicySettingKey || key == AIProviderSettingKey ||
+		key == WeatherProviderSettingKey || key == EmailNotificationSettingKey
 }
