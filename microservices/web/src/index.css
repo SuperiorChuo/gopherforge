@@ -7302,6 +7302,200 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
   -webkit-backdrop-filter: blur(10px) saturate(1.2);
 }
 
+/* ===== IM 坐席工作台 ===== */
+.im-desk-sider {
+  background: transparent !important;
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.im-conv-li.ant-list-item {
+  cursor: pointer;
+  padding: 10px 16px;
+  border-inline-start: 2px solid transparent;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+
+.im-conv-li:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.im-conv-li.is-active {
+  background: rgba(99, 102, 241, 0.1);
+  border-inline-start-color: #818cf8;
+}
+
+.im-conv-id {
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.im-desk-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.im-desk-msgs {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 320px;
+}
+
+/* 气泡基线 = 访客（左侧玻璃），agent/bot/system 各自覆盖 */
+.im-msg {
+  align-self: flex-start;
+  max-width: 70%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border-top-left-radius: 4px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: rgba(226, 232, 240, 0.92);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  animation: ai-msg-in var(--dur-mid) var(--ease-out) both;
+}
+
+.im-msg-agent {
+  align-self: flex-end;
+  color: #eef2ff;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.55), rgba(79, 70, 229, 0.45));
+  border-color: rgba(129, 140, 248, 0.4);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 4px;
+}
+
+.im-msg-bot {
+  background: rgba(124, 58, 237, 0.14);
+  border-color: rgba(167, 139, 250, 0.3);
+}
+
+.im-msg-system {
+  align-self: center;
+  max-width: 90%;
+  font-size: 12px;
+  text-align: center;
+  color: rgba(148, 163, 184, 0.8);
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px dashed rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.im-msg-meta {
+  font-size: 11px;
+  opacity: 0.65;
+  margin-bottom: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.im-msg-read {
+  font-size: 11px;
+  opacity: 0.75;
+  margin-top: 2px;
+  text-align: right;
+}
+
+.im-msg-read.is-read {
+  color: #86efac;
+}
+
+.im-desk-summary {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: rgba(226, 232, 240, 0.9);
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(167, 139, 250, 0.28);
+}
+
+.im-desk-input {
+  padding: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+}
+
+.im-desk-hint {
+  padding: 0 12px 12px;
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.65);
+}
+
+/* 亮色主题 */
+[data-theme='light'] .im-desk-sider {
+  border-right-color: rgba(15, 23, 42, 0.07);
+}
+
+[data-theme='light'] .im-conv-li:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+[data-theme='light'] .im-conv-li.is-active {
+  background: rgba(59, 130, 246, 0.09);
+  border-inline-start-color: #2563eb;
+}
+
+[data-theme='light'] .im-conv-id {
+  color: #64748b;
+}
+
+[data-theme='light'] .im-desk-head,
+[data-theme='light'] .im-desk-input {
+  border-color: rgba(15, 23, 42, 0.07);
+}
+
+[data-theme='light'] .im-msg {
+  color: #1e293b;
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme='light'] .im-msg-agent {
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  border-color: rgba(79, 70, 229, 0.5);
+}
+
+[data-theme='light'] .im-msg-bot {
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.25);
+}
+
+[data-theme='light'] .im-msg-system {
+  color: #64748b;
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.15);
+}
+
+[data-theme='light'] .im-msg-read.is-read {
+  color: #16a34a;
+}
+
+[data-theme='light'] .im-desk-summary {
+  color: #1e293b;
+  background: rgba(124, 58, 237, 0.07);
+  border-color: rgba(124, 58, 237, 0.2);
+}
+
+[data-theme='light'] .im-desk-hint {
+  color: #94a3b8;
+}
+
 /* 轻量 Markdown 渲染 */
 .ai-md {
   word-break: break-word;
