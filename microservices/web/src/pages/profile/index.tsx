@@ -8,6 +8,7 @@ import {
   UserOutlined, MailOutlined, PhoneOutlined, HistoryOutlined, SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import StatusPill from '@/components/StatusPill'
+import GlassEmpty from '@/components/GlassEmpty'
 import type { ColumnsType } from 'antd/es/table'
 import { useAppSelector } from '@/hooks/store'
 import {
@@ -200,10 +201,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <div>
+    <div className="page-list profile-page">
       <div className="profile-hero">
         <div className="profile-hero-avatar-ring">
-          <Avatar size={72} icon={<UserOutlined />} className="profile-hero-avatar" />
+          <Avatar size={72} src={userInfo?.avatar || undefined} icon={<UserOutlined />} className="profile-hero-avatar" />
         </div>
         <div className="profile-hero-info">
           <div className="profile-hero-name">
@@ -218,12 +219,12 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <Row gutter={16}>
+      <Row gutter={[16, 14]}>
         <Col xs={24} lg={12}>
           <Card
             title="个人信息"
             className="glass-rise"
-            style={{ marginBottom: 16, '--i': 0 } as React.CSSProperties}
+            style={{ height: '100%', '--i': 0 } as React.CSSProperties}
           >
             <Form
               form={profileForm}
@@ -256,7 +257,7 @@ export default function ProfilePage() {
           <Card
             title="修改密码"
             className="glass-rise"
-            style={{ marginBottom: 16, '--i': 1 } as React.CSSProperties}
+            style={{ height: '100%', '--i': 1 } as React.CSSProperties}
           >
             <Form form={pwdForm} layout="vertical">
               <Form.Item name="old_password" label="当前密码" rules={[{ required: true, message: '请输入当前密码' }]}>
@@ -296,14 +297,16 @@ export default function ProfilePage() {
       <Card
         title={<span><HistoryOutlined className="card-title-icon" />最近登录记录</span>}
         className="glass-rise"
-        style={{ marginBottom: 16, '--i': 2 } as React.CSSProperties}
+        style={{ '--i': 2 } as React.CSSProperties}
       >
         <Table
           rowKey="id"
           size="small"
+          className="list-table"
           columns={loginLogColumns}
           dataSource={myLogs}
           loading={logsLoading}
+          locale={{ emptyText: <GlassEmpty text="暂无登录记录" compact /> }}
           pagination={false}
         />
       </Card>
@@ -391,7 +394,7 @@ export default function ProfilePage() {
                 label="验证码"
                 rules={[{ required: true, message: '请输入 6 位验证码' }]}
               >
-                <Input maxLength={6} placeholder="请输入 Authenticator 中的 6 位验证码" />
+                <Input maxLength={6} inputMode="numeric" placeholder="请输入 Authenticator 中的 6 位验证码" />
               </Form.Item>
               <Form.Item>
                 <Space>
@@ -420,7 +423,7 @@ export default function ProfilePage() {
             label="TOTP 验证码"
             rules={[{ required: true, message: '请输入验证码' }]}
           >
-            <Input maxLength={6} />
+            <Input maxLength={6} inputMode="numeric" />
           </Form.Item>
           <Form.Item
             name="current_password"
@@ -448,7 +451,7 @@ export default function ProfilePage() {
             label="TOTP 验证码"
             rules={[{ required: true, message: '请输入验证码' }]}
           >
-            <Input maxLength={6} />
+            <Input maxLength={6} inputMode="numeric" />
           </Form.Item>
           <Form.Item
             name="current_password"

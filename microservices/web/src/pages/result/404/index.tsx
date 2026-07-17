@@ -9,6 +9,7 @@ export default function Page404() {
       code="404"
       title="页面走丢了"
       description="您访问的页面不存在或已被移除，请检查地址是否正确。"
+      detail={<span className="cell-mono">{window.location.pathname}</span>}
       actions={
         <>
           <Button onClick={() => navigate(-1)}>返回上页</Button>

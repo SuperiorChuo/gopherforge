@@ -187,7 +187,8 @@ body {
   .page-fade-in,
   .login-shell,
   .login-error,
-  .space-result-card {
+  .space-result-card,
+  .space-result-code {
     animation: none !important;
   }
   .login-aurora,
@@ -925,6 +926,42 @@ body {
   background-clip: text;
   color: transparent;
   text-shadow: none;
+  /* 数字缓慢漂浮 + 辉光呼吸，呼应深空主题 */
+  animation: space-code-drift 7s ease-in-out infinite;
+}
+
+@keyframes space-code-drift {
+  0%,
+  100% {
+    transform: translateY(0);
+    filter: drop-shadow(0 6px 18px rgba(99, 102, 241, 0.22));
+  }
+  50% {
+    transform: translateY(-6px);
+    filter: drop-shadow(0 14px 30px rgba(99, 102, 241, 0.4));
+  }
+}
+
+/* 补充信息胶囊（如 404 显示出错路径） */
+.space-result-detail {
+  margin-top: 10px;
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  color: rgba(148, 163, 184, 0.85);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-theme='light'] .space-result-detail {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.1);
+  color: #64748b;
 }
 
 .space-result-title {
