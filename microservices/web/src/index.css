@@ -1448,25 +1448,21 @@ body {
   min-width: 0;
 }
 
+/* 天体不再关进玻璃小方框：裸浮在卡片上并放大，更像真实天体而非应用图标 */
 .dash-weather-icon {
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   display: grid;
   place-items: center;
-  border-radius: 16px;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05));
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 10px 22px rgba(0, 0, 0, 0.2);
+  transform: scale(1.3);
+  transform-origin: center;
 }
 
 .dash-weather-icon .wx-real {
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.28));
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
 }
 
 .dash-weather-head-text {
