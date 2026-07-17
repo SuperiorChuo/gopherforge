@@ -92,9 +92,9 @@ func NewOpenAI(cfg Config) *OpenAI {
 func (o *OpenAI) Name() string { return "openai_compat" }
 
 type openAIReq struct {
-	Model    string        `json:"model"`
-	Messages []openAIMsg   `json:"messages"`
-	Stream   bool          `json:"stream"`
+	Model    string      `json:"model"`
+	Messages []openAIMsg `json:"messages"`
+	Stream   bool        `json:"stream"`
 }
 
 type openAIMsg struct {
