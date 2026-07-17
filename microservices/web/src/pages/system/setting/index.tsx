@@ -169,7 +169,6 @@ function SchemaSettingCard({ setting, canUpdate, onSaved }: {
           {setting.updated_at ? `更新于 ${formatDateTime(setting.updated_at)}` : '尚未保存，使用环境变量默认值'}
         </span>
       }
-      style={{ marginBottom: 16 }}
     >
       <Form form={form} labelCol={{ span: 7 }} wrapperCol={{ span: 17 }} style={{ maxWidth: 760 }}>
         {schema.fields.map((f) => (
@@ -243,13 +242,13 @@ function JsonSettingCard({ setting, canUpdate, onSaved }: {
           更新于 {formatDateTime(setting.updated_at)}
         </span>
       }
-      style={{ marginBottom: 16 }}
     >
       <Input.TextArea
         rows={6}
         value={raw}
         onChange={(e) => setRaw(e.target.value)}
-        style={{ fontFamily: 'monospace', fontSize: 12 }}
+        className="cell-mono"
+        style={{ fontSize: 12 }}
         readOnly={!canUpdate}
       />
       {canUpdate && (
@@ -302,7 +301,7 @@ function SettingGroupPanel({ group, refreshKey }: { group: string; refreshKey: n
   const unknown = merged.filter((s) => !FIELD_SCHEMAS[s.setting_key])
 
   return (
-    <div>
+    <div className="page-list setting-group-panel">
       {merged.length === 0 && !loading && (
         <Card>
           <GlassEmpty text="该分组暂无设置项" compact />
@@ -320,9 +319,13 @@ function SettingGroupPanel({ group, refreshKey }: { group: string; refreshKey: n
             {
               key: 'raw',
               label: `其他设置项（JSON 编辑，${unknown.length} 个）`,
-              children: unknown.map((s) => (
-                <JsonSettingCard key={s.setting_key} setting={s} canUpdate={canUpdate} onSaved={fetchSettings} />
-              )),
+              children: (
+                <div className="page-list">
+                  {unknown.map((s) => (
+                    <JsonSettingCard key={s.setting_key} setting={s} canUpdate={canUpdate} onSaved={fetchSettings} />
+                  ))}
+                </div>
+              ),
             },
           ]}
         />

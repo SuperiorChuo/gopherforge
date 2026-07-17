@@ -7244,6 +7244,64 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
   flex: 1;
 }
 
+/* ===== 聊天页打磨：消息进场、活跃会话侧条、欢迎图标浮动 ===== */
+.ai-msg-row {
+  animation: ai-msg-in var(--dur-mid) var(--ease-out) both;
+}
+
+@keyframes ai-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 活跃会话左侧极光条 */
+.ai-conv-item {
+  position: relative;
+}
+
+.ai-conv-item::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #818cf8, #38bdf8);
+  opacity: 0;
+  transition: opacity var(--dur-fast) ease;
+}
+
+.ai-conv-item-active::before {
+  opacity: 1;
+}
+
+/* 欢迎图标缓慢浮动，主题无关 */
+.ai-msg-welcome-icon {
+  animation: ai-welcome-float 5s ease-in-out infinite;
+}
+
+@keyframes ai-welcome-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.ai-input-bar {
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+}
+
 /* 轻量 Markdown 渲染 */
 .ai-md {
   word-break: break-word;
