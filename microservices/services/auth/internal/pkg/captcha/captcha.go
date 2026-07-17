@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/draw"
 	"image/png"
+	"math"
 	"math/big"
 	"strings"
 	"time"
@@ -91,16 +91,62 @@ func generateTextCaptchaCode() (string, error) {
 
 func renderTextCaptchaPNG(code string) (string, error) {
 	img := image.NewRGBA(image.Rect(0, 0, textCaptchaWidth, textCaptchaHeight))
-	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{245, 248, 255, 255}}, image.Point{}, draw.Src)
 
-	// Draw deterministic block glyphs. They are intentionally simple for the local console.
-	x := 12
-	for _, ch := range code {
-		drawBlockGlyph(img, x, 8, byte(ch))
-		x += 26
+	// 柔和白蓝玻璃底（与登录页液态玻璃配色一致）
+	for y := 0; y < textCaptchaHeight; y++ {
+		for x := 0; x < textCaptchaWidth; x++ {
+			// 横向微渐变 + 竖直提亮
+			t := float64(x) / float64(textCaptchaWidth-1)
+			v := float64(y) / float64(textCaptchaHeight-1)
+			r := uint8(232 + 12*(1-t) + 8*(1-v))
+			g := uint8(236 + 10*(1-t) + 6*(1-v))
+			b := uint8(250 - 6*t + 4*(1-v))
+			img.SetRGBA(x, y, color.RGBA{r, g, b, 255})
+		}
 	}
-	for x := 0; x < textCaptchaWidth; x += 9 {
-		img.Set(x, (x*7)%textCaptchaHeight, color.RGBA{120, 150, 210, 120})
+
+	// 极淡干扰弧（非硬噪点）
+	drawSoftArc(img, 18, 22, 48, color.RGBA{129, 140, 248, 55})
+	drawSoftArc(img, 70, 28, 36, color.RGBA{167, 139, 250, 45})
+	// 稀疏微尘
+	for i := 0; i < 28; i++ {
+		n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(int64(textCaptchaWidth*textCaptchaHeight)))
+		if err != nil {
+			break
+		}
+		px := int(n.Int64()) % textCaptchaWidth
+		py := int(n.Int64()) / textCaptchaWidth
+		if py >= textCaptchaHeight {
+			continue
+		}
+		img.SetRGBA(px, py, color.RGBA{99, 102, 241, 40})
+	}
+
+	// 圆角方块字形 + 轻微阴影
+	x := 10
+	for i, ch := range code {
+		// 字符色在 indigo / violet 间轻变
+		fg := color.RGBA{55, 70, 180, 255}
+		if i%2 == 1 {
+			fg = color.RGBA{88, 60, 190, 255}
+		}
+		drawBlockGlyph(img, x, 7, byte(ch), fg)
+		x += 27
+	}
+
+	// 顶缘高光一条（玻璃感）
+	for x := 4; x < textCaptchaWidth-4; x++ {
+		boost := 40
+		if x < 12 || x > textCaptchaWidth-12 {
+			boost = 18
+		}
+		c := img.RGBAAt(x, 1)
+		img.SetRGBA(x, 1, color.RGBA{
+			min255(int(c.R) + boost),
+			min255(int(c.G) + boost),
+			min255(int(c.B) + boost),
+			255,
+		})
 	}
 
 	var buffer bytes.Buffer
@@ -110,16 +156,84 @@ func renderTextCaptchaPNG(code string) (string, error) {
 	return base64.StdEncoding.EncodeToString(buffer.Bytes()), nil
 }
 
-func drawBlockGlyph(img *image.RGBA, left, top int, ch byte) {
+func min255(v int) uint8 {
+	if v > 255 {
+		return 255
+	}
+	if v < 0 {
+		return 0
+	}
+	return uint8(v)
+}
+
+func drawSoftArc(img *image.RGBA, cx, cy, radius int, c color.RGBA) {
+	for deg := 20; deg < 160; deg += 2 {
+		rad := float64(deg) * math.Pi / 180
+		x := cx + int(float64(radius)*math.Cos(rad))
+		y := cy + int(float64(radius)*0.45*math.Sin(rad))
+		if x < 0 || y < 0 || x >= textCaptchaWidth || y >= textCaptchaHeight {
+			continue
+		}
+		for dy := 0; dy < 2; dy++ {
+			for dx := 0; dx < 2; dx++ {
+				xx, yy := x+dx, y+dy
+				if xx < textCaptchaWidth && yy < textCaptchaHeight {
+					blendPixel(img, xx, yy, c)
+				}
+			}
+		}
+	}
+}
+
+func blendPixel(img *image.RGBA, x, y int, overlay color.RGBA) {
+	base := img.RGBAAt(x, y)
+	oa := float64(overlay.A) / 255
+	inv := 1 - oa
+	img.SetRGBA(x, y, color.RGBA{
+		uint8(float64(base.R)*inv + float64(overlay.R)*oa),
+		uint8(float64(base.G)*inv + float64(overlay.G)*oa),
+		uint8(float64(base.B)*inv + float64(overlay.B)*oa),
+		255,
+	})
+}
+
+func drawBlockGlyph(img *image.RGBA, left, top int, ch byte, fg color.RGBA) {
 	pattern := glyphPattern(ch)
-	fg := color.RGBA{30, 70, 160, 255}
+	// 软阴影
+	shadow := color.RGBA{99, 102, 241, 50}
 	for row, bits := range pattern {
 		for col := 0; col < 5; col++ {
 			if bits&(1<<(4-col)) == 0 {
 				continue
 			}
-			rect := image.Rect(left+col*4, top+row*4, left+col*4+3, top+row*4+3)
-			draw.Draw(img, rect, &image.Uniform{fg}, image.Point{}, draw.Src)
+			// shadow offset
+			for sy := 0; sy < 3; sy++ {
+				for sx := 0; sx < 3; sx++ {
+					xx := left + col*4 + sx + 1
+					yy := top + row*4 + sy + 1
+					if xx >= 0 && yy >= 0 && xx < textCaptchaWidth && yy < textCaptchaHeight {
+						blendPixel(img, xx, yy, shadow)
+					}
+				}
+			}
+			// 主色 3x3 块（圆角感：四角略淡）
+			for sy := 0; sy < 3; sy++ {
+				for sx := 0; sx < 3; sx++ {
+					xx := left + col*4 + sx
+					yy := top + row*4 + sy
+					if xx < 0 || yy < 0 || xx >= textCaptchaWidth || yy >= textCaptchaHeight {
+						continue
+					}
+					c := fg
+					// 四角降不透明，略抗锯齿
+					if (sx == 0 || sx == 2) && (sy == 0 || sy == 2) {
+						c.A = 200
+						blendPixel(img, xx, yy, c)
+					} else {
+						img.SetRGBA(xx, yy, c)
+					}
+				}
+			}
 		}
 	}
 }

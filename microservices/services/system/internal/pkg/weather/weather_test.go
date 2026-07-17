@@ -24,6 +24,18 @@ func newAmapStub(t *testing.T, ipCalls, weatherCalls *atomic.Int32) *httptest.Se
 	})
 	mux.HandleFunc("/v3/weather/weatherInfo", func(w http.ResponseWriter, r *http.Request) {
 		weatherCalls.Add(1)
+		// base → lives；all → forecasts（今日高低）
+		if r.URL.Query().Get("extensions") == "all" {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status": "1",
+				"forecasts": []map[string]any{{
+					"casts": []map[string]string{{
+						"daytemp": "31", "nighttemp": "24",
+					}},
+				}},
+			})
+			return
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"status": "1",
 			"lives": []map[string]string{{
@@ -62,6 +74,9 @@ func TestLiveByIPPrivateAddressFallsBackToDefaultCity(t *testing.T) {
 	if live.City != "深圳市" || live.Weather != "多云" || live.Temperature != "28" {
 		t.Fatalf("unexpected live payload: %+v", live)
 	}
+	if live.TempHigh != "31" || live.TempLow != "24" {
+		t.Fatalf("temp range = %s/%s, want 31/24", live.TempHigh, live.TempLow)
+	}
 }
 
 func TestLiveByIPPrivateAddressWithoutDefaultCityFails(t *testing.T) {
@@ -85,8 +100,9 @@ func TestLiveByIPCachesWeatherPerCity(t *testing.T) {
 			t.Fatalf("LiveByIP() error = %v", err)
 		}
 	}
-	if got := weatherCalls.Load(); got != 1 {
-		t.Fatalf("weather API calls = %d, want 1 (cache hit expected)", got)
+	// 首次 miss：实况 base + 预报 all 各 1 次；后续走内存缓存不再打上游
+	if got := weatherCalls.Load(); got != 2 {
+		t.Fatalf("weather API calls = %d, want 2 (base+all once, then cache)", got)
 	}
 	if got := ipCalls.Load(); got != 1 {
 		t.Fatalf("ip API calls = %d, want 1 (ip cache hit expected)", got)

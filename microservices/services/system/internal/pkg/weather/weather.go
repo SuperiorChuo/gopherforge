@@ -69,6 +69,10 @@ type Live struct {
 	WindDir     string `json:"wind_dir"`
 	WindPower   string `json:"wind_power"`
 	ReportTime  string `json:"report_time"`
+	// TempHigh / TempLow come from 高德预报当天的 daytemp / nighttemp；
+	// 取 max/min 作为展示用高低，拉取失败时留空，前端降级隐藏。
+	TempHigh string `json:"temp_high,omitempty"`
+	TempLow  string `json:"temp_low,omitempty"`
 }
 
 // SettingsReader yields the current provider settings (DB over env).
@@ -236,7 +240,7 @@ func (s *Service) fetchLive(ctx context.Context, key, city string) (*Live, error
 	if l.Province != "" && l.Province != l.City {
 		cityName = l.City
 	}
-	return &Live{
+	live := &Live{
 		City:        cityName,
 		Adcode:      l.Adcode,
 		Weather:     l.Weather,
@@ -245,7 +249,53 @@ func (s *Service) fetchLive(ctx context.Context, key, city string) (*Live, error
 		WindDir:     l.WindDir,
 		WindPower:   l.WindPower,
 		ReportTime:  l.ReportTime,
-	}, nil
+	}
+	// 预报高低是装饰字段：失败不影响主实况
+	if high, low, ok := s.fetchTodayRange(ctx, key, city); ok {
+		live.TempHigh = high
+		live.TempLow = low
+	}
+	return live, nil
+}
+
+// fetchTodayRange pulls 高德预报（extensions=all）当天 daytemp/nighttemp。
+func (s *Service) fetchTodayRange(ctx context.Context, key, city string) (high, low string, ok bool) {
+	q := url.Values{"key": {key}, "city": {city}, "extensions": {"all"}, "output": {"JSON"}}
+	var resp struct {
+		Status    string `json:"status"`
+		Forecasts []struct {
+			Casts []struct {
+				DayTemp   string `json:"daytemp"`
+				NightTemp string `json:"nighttemp"`
+			} `json:"casts"`
+		} `json:"forecasts"`
+	}
+	if err := s.getJSON(ctx, "/v3/weather/weatherInfo?"+q.Encode(), &resp); err != nil {
+		return "", "", false
+	}
+	if resp.Status != "1" || len(resp.Forecasts) == 0 || len(resp.Forecasts[0].Casts) == 0 {
+		return "", "", false
+	}
+	c := resp.Forecasts[0].Casts[0]
+	if c.DayTemp == "" || c.NightTemp == "" {
+		return "", "", false
+	}
+	// day/night 未必 day>night（高原昼夜反差），统一成 高/低
+	if dayN, err1 := parseTemp(c.DayTemp); err1 == nil {
+		if nightN, err2 := parseTemp(c.NightTemp); err2 == nil {
+			if dayN >= nightN {
+				return c.DayTemp, c.NightTemp, true
+			}
+			return c.NightTemp, c.DayTemp, true
+		}
+	}
+	return c.DayTemp, c.NightTemp, true
+}
+
+func parseTemp(s string) (float64, error) {
+	var n float64
+	_, err := fmt.Sscanf(strings.TrimSpace(s), "%f", &n)
+	return n, err
 }
 
 func (s *Service) getJSON(ctx context.Context, path string, out any) error {
