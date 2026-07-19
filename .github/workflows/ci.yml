@@ -1,0 +1,277 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  workspace:
+    name: Micro Workspace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: microservices/services/monitor/go.sum
+
+      - name: Workspace scripts
+        working-directory: microservices
+        run: |
+          npm run api:contract
+          npm run test:contract
+          npm run test:smoke:unit
+
+      - name: Check generated OpenAPI is committed
+        run: git diff --exit-code -- microservices/services/monitor/docs/openapi.json
+
+  monitor-service:
+    name: Monitor Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microservices/services/monitor
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: microservices/services/monitor/go.sum
+
+      - run: go mod download
+      - run: go test -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Summarize Go coverage
+        run: |
+          go tool cover -func=coverage.out | tee coverage.txt
+          {
+            echo "### Monitor service coverage"
+            echo '```'
+            cat coverage.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - run: go vet ./...
+      - run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --config ../../../.golangci.yml ./...
+
+  auth-service:
+    name: Auth Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microservices/services/auth
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: microservices/services/auth/go.sum
+      - run: go mod download
+      - run: go test ./...
+      - run: go vet ./...
+
+  identity-service:
+    name: Identity Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microservices/services/identity
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: microservices/services/identity/go.sum
+      - run: go mod download
+      - run: go test ./...
+      - run: go vet ./...
+
+  system-service:
+    name: System Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microservices/services/system
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: microservices/services/system/go.sum
+      - run: go mod download
+      - run: go test ./...
+      - run: go vet ./...
+
+  audit-service:
+    name: Audit Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microservices/services/audit
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: microservices/services/audit/go.sum
+      - run: go mod download
+      - run: go test ./...
+      - run: go vet ./...
+
+  file-service:
+    name: File Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microservices/services/file
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: microservices/services/file/go.sum
+      - run: go mod download
+      - run: go test ./...
+      - run: go vet ./...
+
+  micro-frontend:
+    name: Micro Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microservices/web
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: microservices/web/package-lock.json
+      - run: npm ci
+      - run: npm audit --omit=dev
+      - run: npm run lint
+      - run: npm run build
+
+  integration:
+    name: Micro Integration Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs:
+      - workspace
+      - monitor-service
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: microservices/services/monitor/go.sum
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build compose images
+        uses: docker/bake-action@v7
+        with:
+          source: microservices
+          files: docker-compose.yml
+          load: true
+          provenance: false
+          set: |
+            monitor-service.tags=go-admin-kit-monitor-service:latest
+            monitor-service.cache-from=type=gha,scope=compose-monitor
+            monitor-service.cache-to=type=gha,scope=compose-monitor,mode=max,ignore-error=true
+            auth-service.tags=go-admin-kit-auth-service:latest
+            auth-service.cache-from=type=gha,scope=compose-auth
+            auth-service.cache-to=type=gha,scope=compose-auth,mode=max,ignore-error=true
+            identity-service.tags=go-admin-kit-identity-service:latest
+            identity-service.cache-from=type=gha,scope=compose-identity
+            identity-service.cache-to=type=gha,scope=compose-identity,mode=max,ignore-error=true
+            system-service.tags=go-admin-kit-system-service:latest
+            system-service.cache-from=type=gha,scope=compose-system
+            system-service.cache-to=type=gha,scope=compose-system,mode=max,ignore-error=true
+            audit-service.tags=go-admin-kit-audit-service:latest
+            audit-service.cache-from=type=gha,scope=compose-audit
+            audit-service.cache-to=type=gha,scope=compose-audit,mode=max,ignore-error=true
+            file-service.tags=go-admin-kit-file-service:latest
+            file-service.cache-from=type=gha,scope=compose-file
+            file-service.cache-to=type=gha,scope=compose-file,mode=max,ignore-error=true
+            frontend.tags=go-admin-kit-frontend:latest
+            frontend.cache-from=type=gha,scope=compose-frontend
+            frontend.cache-to=type=gha,scope=compose-frontend,mode=max,ignore-error=true
+
+      - name: Start postgres, redis and NATS
+        working-directory: microservices
+        run: docker compose up -d --wait --wait-timeout 180 go-admin-kit-postgres go-admin-kit-redis go-admin-kit-nats
+
+      - name: Apply migrations and seed data
+        working-directory: microservices/services/monitor
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: '5432'
+          DB_USER: postgres
+          DB_PASSWORD: '123456'
+          DB_NAME: go_admin_kit
+          DB_SSLMODE: disable
+        run: |
+          go mod download
+          go run ./cmd/migration-rehearsal -config ./configs/config.yaml -dir ./migrations -database go_admin_kit_ci_migration_rehearsal
+          go run ./cmd/migrate -config ./configs/config.yaml -dir ./migrations up
+
+      - name: Start the full stack behind the Traefik gateway
+        working-directory: microservices
+        run: docker compose up -d --wait --wait-timeout 300
+
+      - name: Run API smoke through the gateway
+        working-directory: microservices
+        env:
+          API_BASE_URL: http://127.0.0.1:8000/api/v1
+        run: |
+          npm run test:smoke:unit
+          npm run smoke:api
+
+      - name: Install web deps and Playwright
+        working-directory: microservices/web
+        run: |
+          npm ci
+          npm run test:e2e:install
+
+      - name: Run Playwright E2E through the gateway
+        working-directory: microservices/web
+        env:
+          E2E_BASE_URL: http://127.0.0.1:8000
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: microservices/web/playwright-report
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Dump compose state and logs
+        if: failure()
+        working-directory: microservices
+        run: |
+          docker compose ps -a || true
+          docker compose logs --tail=100 || true
+          echo '::group::gateway (Traefik) log incl. access log'
+          docker compose logs --no-log-prefix --tail=300 gateway || true
+          echo '::endgroup::'
+
+      - name: Tear down the stack
+        if: always()
+        working-directory: microservices
+        run: docker compose down -v --remove-orphans

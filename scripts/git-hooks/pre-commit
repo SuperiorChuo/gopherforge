@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# 提交前敏感信息扫描：阻止把真实密钥 / .env / 私钥 提交到 git。
+# 安装：scripts/install-git-hooks.sh（设 core.hooksPath=scripts/git-hooks）。
+# 绕过（确认误报时）：git commit --no-verify
+#
+# 注意：不用 pipefail（会与 grep -q 的提前退出 + echo SIGPIPE 冲突导致漏判）；
+# 变量凡紧跟中文都用 ${var} 包住（非 UTF-8 locale 下 $var 会把中文字节吞进变量名）。
+set -eu
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged_files" ] && exit 0
+
+fail=0
+report() { echo "🚫 pre-commit 拦截：$1"; fail=1; }
+
+# 1) 禁止提交真实 .env（.env.example 允许）。
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  case "$f" in
+    *.env|.env|*.env.local)
+      report "疑似真实环境文件被暂存: ${f} (应只提交 .env.example)" ;;
+  esac
+done <<EOF
+$staged_files
+EOF
+
+# 只扫本次新增行（+ 开头），减少误报。
+added=$(git diff --cached --diff-filter=ACM -U0 -- $staged_files 2>/dev/null | grep -E '^\+' | grep -vE '^\+\+\+' || true)
+
+# 2) 已知真实密钥格式（每行一个正则）。
+patterns='sk-[A-Za-z0-9]{20,}
+sk-ant-[A-Za-z0-9_-]{20,}
+AIza[A-Za-z0-9_-]{30,}
+gh[pousr]_[A-Za-z0-9]{30,}
+xox[baprs]-[A-Za-z0-9-]{10,}
+AKIA[0-9A-Z]{16}
+BEGIN [A-Z ]*PRIVATE KEY'
+while IFS= read -r p; do
+  [ -z "$p" ] && continue
+  m=$(printf '%s\n' "$added" | grep -nE -e "$p" || true)
+  if [ -n "$m" ]; then
+    report "匹配到疑似密钥格式 (${p})"
+  fi
+done <<EOF
+$patterns
+EOF
+
+# 3) amap_key / api_key / secret / password / token 被赋成非占位真实值。
+#    放行：占位符、空串、env 引用 ${...}、dev 默认（123456/minioadmin 等）。
+assign=$(printf '%s\n' "$added" | grep -iE '(amap_key|api_key|apikey|client_secret|secret_key|access_key|password|token)["'"'"' ]*[:=]' || true)
+if [ -n "$assign" ]; then
+  suspicious=$(printf '%s\n' "$assign" \
+    | grep -ivE 'your[-_]|example|placeholder|xxx|changeme|<[^>]+>|\$\{|=[[:space:]]*""|:[[:space:]]*""|123456|minioadmin|local-dev|test|stub|env-key|db-key' \
+    | grep -oiE '(amap_key|api_key|apikey|client_secret|secret_key|access_key|password|token)["'"'"' ]*[:=][[:space:]]*["'"'"'][A-Za-z0-9_.-]{16,}["'"'"']' \
+    || true)
+  if [ -n "$suspicious" ]; then
+    report "疑似真实密钥赋值: $(printf '%s\n' "$suspicious" | head -1)"
+  fi
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo ""
+  echo "如确认是误报: git commit --no-verify 跳过本次检查。"
+  echo "密钥应放服务器 .env / system_settings, 不要进 git。"
+  exit 1
+fi
+exit 0

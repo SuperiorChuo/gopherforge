@@ -1,0 +1,41 @@
+name: 功能建议
+description: 提出新能力、改进建议或路线图讨论
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 背景和问题
+      description: 这个建议想解决什么开发或使用问题？
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+      description: 请描述你期待的行为、页面、接口或配置方式。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 备选方案
+      description: 是否考虑过其他实现方式？
+  - type: dropdown
+    id: area
+    attributes:
+      label: 影响范围
+      options:
+        - 后端
+        - 前端
+        - Docker 或部署
+        - 文档
+        - 测试或 CI
+        - 其他
+  - type: textarea
+    id: extra
+    attributes:
+      label: 其他信息
+      description: 可以补充截图、示例接口、相关链接或兼容性要求。

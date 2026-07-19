@@ -1,0 +1,63 @@
+name: Bug 报告
+description: 报告可复现的问题或回归
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请尽量提供稳定复现步骤，避免粘贴真实密钥、账号或生产数据。
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题描述
+      description: 简要说明发生了什么。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 请按步骤列出如何复现。
+      placeholder: |
+        1. 启动服务
+        2. 登录后台
+        3. 进入某个页面
+        4. 触发问题
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本或提交
+      placeholder: main / commit SHA / release tag
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境信息
+      description: 请填写操作系统、Go、Node.js、Docker、浏览器版本等。
+      placeholder: |
+        OS:
+        Go:
+        Node.js:
+        Docker:
+        Browser:
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图
+      description: 请先脱敏，再粘贴关键日志或拖入截图。
+      render: shell

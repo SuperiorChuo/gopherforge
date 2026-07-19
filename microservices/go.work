@@ -1,0 +1,11 @@
+go 1.26.3
+
+use (
+	./services/shared
+	./services/audit
+	./services/auth
+	./services/file
+	./services/identity
+	./services/monitor
+	./services/system
+)

@@ -1,0 +1,665 @@
+name: go-admin-kit
+
+services:
+  go-admin-kit-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: go-admin-kit-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      POSTGRES_DB: ${POSTGRES_DB:-go_admin_kit}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - go_admin_kit_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - go-admin-kit-net
+
+  go-admin-kit-redis:
+    image: redis:7-alpine
+    container_name: go-admin-kit-redis
+    restart: unless-stopped
+    command: >
+      sh -c 'if [ -n "$$REDIS_PASSWORD" ]; then
+        redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD";
+      else
+        redis-server --appendonly yes;
+      fi'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - go_admin_kit_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "if [ -n \"$${REDIS_PASSWORD}\" ]; then redis-cli -a \"$${REDIS_PASSWORD}\" ping; else redis-cli ping; fi"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - go-admin-kit-net
+
+  go-admin-kit-nats:
+    image: nats:2.10-alpine
+    container_name: go-admin-kit-nats
+    restart: unless-stopped
+    command:
+      - --jetstream
+      - --store_dir=/data
+      - --http_port=8222
+    ports:
+      - "${NATS_PORT:-4222}:4222"
+    volumes:
+      - go_admin_kit_nats_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8222/healthz >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - go-admin-kit-net
+
+  # 一次性迁移 job：复用 monitor 镜像跑 goose up 后退出。
+  # 把迁移从 monitor 常驻进程中剥离，迁移失败不再拖垮监控/健康检查，
+  # 各业务服务通过 depends_on service_completed_successfully 等它完成。
+  migrate:
+    build:
+      context: ./services/monitor
+      dockerfile: Dockerfile
+    image: go-admin-kit-monitor-service
+    container_name: go-admin-kit-migrate
+    restart: "no"
+    command: ["./migrate", "-config", "./configs/config.yaml", "-dir", "./migrations", "up"]
+    environment:
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      TZ: ${TZ:-Asia/Shanghai}
+    depends_on:
+      go-admin-kit-postgres:
+        condition: service_healthy
+    networks:
+      - go-admin-kit-net
+
+  monitor-service:
+    build:
+      context: ./services/monitor
+      dockerfile: Dockerfile
+    container_name: go-admin-kit-monitor
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8081
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      JWT_REFRESH_TOKEN_ROTATION: ${JWT_REFRESH_TOKEN_ROTATION:-true}
+      UPLOAD_STORAGE_TYPE: ${UPLOAD_STORAGE_TYPE:-local}
+      UPLOAD_LOCAL_PATH: ${UPLOAD_LOCAL_PATH:-./uploads}
+      UPLOAD_PUBLIC_BASE_URL: ${UPLOAD_PUBLIC_BASE_URL:-/uploads}
+      UPLOAD_LOCAL_URL_PREFIX: ${UPLOAD_LOCAL_URL_PREFIX:-/uploads}
+      UPLOAD_S3_ENDPOINT: ${UPLOAD_S3_ENDPOINT:-}
+      UPLOAD_S3_BUCKET: ${UPLOAD_S3_BUCKET:-}
+      UPLOAD_S3_REGION: ${UPLOAD_S3_REGION:-}
+      UPLOAD_S3_ACCESS_KEY: ${UPLOAD_S3_ACCESS_KEY:-}
+      UPLOAD_S3_SECRET_KEY: ${UPLOAD_S3_SECRET_KEY:-}
+      UPLOAD_S3_USE_SSL: ${UPLOAD_S3_USE_SSL:-true}
+      UPLOAD_MINIO_ENDPOINT: ${UPLOAD_MINIO_ENDPOINT:-go-admin-kit-minio:9000}
+      UPLOAD_MINIO_BUCKET: ${UPLOAD_MINIO_BUCKET:-go-admin-kit}
+      UPLOAD_MINIO_REGION: ${UPLOAD_MINIO_REGION:-us-east-1}
+      UPLOAD_MINIO_ACCESS_KEY: ${UPLOAD_MINIO_ACCESS_KEY:-minioadmin}
+      UPLOAD_MINIO_SECRET_KEY: ${UPLOAD_MINIO_SECRET_KEY:-minioadmin}
+      UPLOAD_MINIO_USE_SSL: ${UPLOAD_MINIO_USE_SSL:-false}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      DEFAULT_ADMIN_WARN_DEFAULT_PASSWORD: ${DEFAULT_ADMIN_WARN_DEFAULT_PASSWORD:-true}
+      DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD: ${DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD:-false}
+      DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME:-admin}
+      METRICS_ENABLED: ${METRICS_ENABLED:-true}
+      TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_ENVIRONMENT: ${TRACING_ENVIRONMENT:-development}
+      TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
+      TRACING_SAMPLE_RATIO: ${TRACING_SAMPLE_RATIO:-1.0}
+      # NATS consumer moved to audit-service; empty disables the monolith's
+      # login-log consumer (same durable name must not be attached twice).
+      NATS_URL: ""
+      # Trust the compose network (see networks.ipam) so X-Forwarded-For from
+      # the Traefik gateway yields the real client IP in logs and rate limits.
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      # 服务信任网关注入的 X-Auth-* 头，绝不能被网关以外的来源直连：
+      # 默认只绑 loopback（宿主机上调试用），公网/内网入口一律走 gateway。
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${BACKEND_PORT:-8081}:8081"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.monitor.rule: "PathPrefix(`/api`) || PathPrefix(`/uploads`)"
+      traefik.http.routers.monitor.entrypoints: web
+      traefik.http.routers.monitor.middlewares: auth-verify
+      traefik.http.services.monitor.loadbalancer.server.port: "8081"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      go-admin-kit-postgres:
+        condition: service_healthy
+      go-admin-kit-redis:
+        condition: service_healthy
+      go-admin-kit-nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  auth-service:
+    build:
+      context: ./services
+      dockerfile: auth/Dockerfile
+    container_name: go-admin-kit-auth
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8082
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      JWT_REFRESH_TOKEN_ROTATION: ${JWT_REFRESH_TOKEN_ROTATION:-true}
+      PASSWORD_MAX_AGE_DAYS: ${PASSWORD_MAX_AGE_DAYS:-90}
+      PASSWORD_HISTORY_COUNT: ${PASSWORD_HISTORY_COUNT:-5}
+      GITHUB_OAUTH_ENABLED: ${GITHUB_OAUTH_ENABLED:-false}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_REDIRECT_URI: ${GITHUB_REDIRECT_URI:-http://localhost:8000/api/v1/oauth/github/callback}
+      WECHAT_OAUTH_ENABLED: ${WECHAT_OAUTH_ENABLED:-false}
+      WECHAT_CLIENT_ID: ${WECHAT_CLIENT_ID:-}
+      WECHAT_CLIENT_SECRET: ${WECHAT_CLIENT_SECRET:-}
+      WECHAT_REDIRECT_URI: ${WECHAT_REDIRECT_URI:-http://localhost:8000/api/v1/oauth/wechat/callback}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      NATS_URL: nats://go-admin-kit-nats:4222
+      # Same trusted-proxy range as backend; login events and login-limit
+      # keys must see the real client IP, not the gateway's.
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${AUTH_SERVICE_PORT:-8082}:8082"
+    labels:
+      traefik.enable: "true"
+      # PathPrefix is a raw string prefix, not segment-aligned: `/api/v1/login`
+      # would also capture `/api/v1/login-logs` and `/api/v1/user/me` would
+      # capture `/api/v1/user/menus` (both monolith routes). Exact-path routes
+      # use Path(); only true subtrees use PathPrefix() with a trailing slash.
+      traefik.http.routers.auth.rule: "Path(`/api/v1/login`) || PathPrefix(`/api/v1/login/`) || Path(`/api/v1/register`) || Path(`/api/v1/refresh`) || Path(`/api/v1/logout`) || Path(`/api/v1/captcha`) || PathPrefix(`/api/v1/captcha/`) || PathPrefix(`/api/v1/oauth/`) || PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/console-routes`) || PathPrefix(`/api/v1/console-routes/`) || Path(`/api/v1/user/me`) || Path(`/api/v1/user/profile`) || Path(`/api/v1/user/password`) || PathPrefix(`/api/v1/user/2fa/`)"
+      traefik.http.routers.auth.entrypoints: web
+      traefik.http.routers.auth.priority: "100"
+      traefik.http.services.auth.loadbalancer.server.port: "8082"
+      traefik.http.middlewares.auth-verify.forwardauth.address: "http://go-admin-kit-auth:8082/internal/verify"
+      traefik.http.middlewares.auth-verify.forwardauth.authResponseHeaders: "X-Auth-User-ID,X-Auth-Username,X-Auth-Tenant-ID,X-Auth-Platform-Admin"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      go-admin-kit-postgres:
+        condition: service_healthy
+      go-admin-kit-redis:
+        condition: service_healthy
+      go-admin-kit-nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  identity-service:
+    build:
+      context: ./services
+      dockerfile: identity/Dockerfile
+    container_name: go-admin-kit-identity
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8083
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${IDENTITY_SERVICE_PORT:-8083}:8083"
+    labels:
+      traefik.enable: "true"
+      # Same PathPrefix caveat as the auth router: exact paths use Path(),
+      # subtrees use a trailing-slash PathPrefix(). `/user/...` (singular,
+      # monolith + auth-service) must NOT match `/users`.
+      traefik.http.routers.identity.rule: "Path(`/api/v1/users`) || PathPrefix(`/api/v1/users/`) || Path(`/api/v1/roles`) || PathPrefix(`/api/v1/roles/`) || Path(`/api/v1/permissions`) || PathPrefix(`/api/v1/permissions/`) || Path(`/api/v1/departments`) || PathPrefix(`/api/v1/departments/`) || Path(`/api/v1/tenants`) || PathPrefix(`/api/v1/tenants/`)"
+      traefik.http.routers.identity.entrypoints: web
+      traefik.http.routers.identity.priority: "100"
+      traefik.http.services.identity.loadbalancer.server.port: "8083"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      go-admin-kit-postgres:
+        condition: service_healthy
+      go-admin-kit-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8083/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  system-service:
+    build:
+      context: ./services
+      dockerfile: system/Dockerfile
+    container_name: go-admin-kit-system
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8084
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      EMAIL_NOTIFICATION_ENABLED: ${EMAIL_NOTIFICATION_ENABLED:-false}
+      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-}
+      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
+      EMAIL_SMTP_USERNAME: ${EMAIL_SMTP_USERNAME:-}
+      EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD:-}
+      EMAIL_SENDER: ${EMAIL_SENDER:-}
+      EMAIL_ALERT_RECEIVERS: ${EMAIL_ALERT_RECEIVERS:-}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${SYSTEM_SERVICE_PORT:-8084}:8084"
+    labels:
+      traefik.enable: "true"
+      # Same PathPrefix caveat as the auth/identity routers: exact paths use
+      # Path(), subtrees use a trailing-slash PathPrefix(). `/user/menus` is
+      # an exact path so it can't collide with auth's /user/me etc.
+      traefik.http.routers.system.rule: "Path(`/api/v1/menus`) || PathPrefix(`/api/v1/menus/`) || Path(`/api/v1/user/menus`) || Path(`/api/v1/dict-types`) || PathPrefix(`/api/v1/dict-types/`) || Path(`/api/v1/dict-items`) || PathPrefix(`/api/v1/dict-items/`) || Path(`/api/v1/dicts`) || PathPrefix(`/api/v1/dicts/`) || Path(`/api/v1/notices`) || PathPrefix(`/api/v1/notices/`) || Path(`/api/v1/system-settings`) || PathPrefix(`/api/v1/system-settings/`) || Path(`/api/v1/online-users`) || PathPrefix(`/api/v1/online-users/`) || Path(`/api/v1/ws/notifications`) || PathPrefix(`/api/v1/ws/notifications/`) || Path(`/api/v1/system/weather`)"
+      traefik.http.routers.system.entrypoints: web
+      traefik.http.routers.system.priority: "100"
+      traefik.http.services.system.loadbalancer.server.port: "8084"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      go-admin-kit-postgres:
+        condition: service_healthy
+      go-admin-kit-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8084/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  audit-service:
+    build:
+      context: ./services
+      dockerfile: audit/Dockerfile
+    container_name: go-admin-kit-audit
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8085
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      NATS_URL: nats://go-admin-kit-nats:4222
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${AUDIT_SERVICE_PORT:-8085}:8085"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.audit.rule: "Path(`/api/v1/login-logs`) || PathPrefix(`/api/v1/login-logs/`) || Path(`/api/v1/operation-logs`) || PathPrefix(`/api/v1/operation-logs/`) || Path(`/api/v1/logs/audit`)"
+      traefik.http.routers.audit.entrypoints: web
+      traefik.http.routers.audit.priority: "100"
+      traefik.http.services.audit.loadbalancer.server.port: "8085"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      go-admin-kit-postgres:
+        condition: service_healthy
+      go-admin-kit-redis:
+        condition: service_healthy
+      go-admin-kit-nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8085/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  file-service:
+    build:
+      context: ./services
+      dockerfile: file/Dockerfile
+    container_name: go-admin-kit-file
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8086
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      UPLOAD_STORAGE_TYPE: ${UPLOAD_STORAGE_TYPE:-local}
+      UPLOAD_LOCAL_PATH: ${UPLOAD_LOCAL_PATH:-./uploads}
+      UPLOAD_PUBLIC_BASE_URL: ${UPLOAD_PUBLIC_BASE_URL:-/uploads}
+      UPLOAD_LOCAL_URL_PREFIX: ${UPLOAD_LOCAL_URL_PREFIX:-/uploads}
+      UPLOAD_S3_ENDPOINT: ${UPLOAD_S3_ENDPOINT:-}
+      UPLOAD_S3_BUCKET: ${UPLOAD_S3_BUCKET:-}
+      UPLOAD_S3_REGION: ${UPLOAD_S3_REGION:-}
+      UPLOAD_S3_ACCESS_KEY: ${UPLOAD_S3_ACCESS_KEY:-}
+      UPLOAD_S3_SECRET_KEY: ${UPLOAD_S3_SECRET_KEY:-}
+      UPLOAD_S3_USE_SSL: ${UPLOAD_S3_USE_SSL:-true}
+      UPLOAD_MINIO_ENDPOINT: ${UPLOAD_MINIO_ENDPOINT:-go-admin-kit-minio:9000}
+      UPLOAD_MINIO_BUCKET: ${UPLOAD_MINIO_BUCKET:-go-admin-kit}
+      UPLOAD_MINIO_REGION: ${UPLOAD_MINIO_REGION:-us-east-1}
+      UPLOAD_MINIO_ACCESS_KEY: ${UPLOAD_MINIO_ACCESS_KEY:-minioadmin}
+      UPLOAD_MINIO_SECRET_KEY: ${UPLOAD_MINIO_SECRET_KEY:-minioadmin}
+      UPLOAD_MINIO_USE_SSL: ${UPLOAD_MINIO_USE_SSL:-false}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${FILE_SERVICE_PORT:-8086}:8086"
+    volumes:
+      - go_admin_kit_uploads:/app/uploads
+    labels:
+      traefik.enable: "true"
+      # /uploads static subtree moves here from the monolith together with
+      # the file APIs (priority 100 beats the backend's catch-all /uploads).
+      traefik.http.routers.file.rule: "Path(`/api/v1/files`) || PathPrefix(`/api/v1/files/`) || PathPrefix(`/uploads/`)"
+      traefik.http.routers.file.entrypoints: web
+      traefik.http.routers.file.priority: "100"
+      traefik.http.services.file.loadbalancer.server.port: "8086"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      go-admin-kit-postgres:
+        condition: service_healthy
+      go-admin-kit-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8086/api/v1/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  go-admin-kit-minio:
+    image: minio/minio:latest
+    container_name: go-admin-kit-minio
+    restart: unless-stopped
+    profiles:
+      - storage
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - go_admin_kit_minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - go-admin-kit-net
+
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: go-admin-kit-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.frontend.rule: "PathPrefix(`/`)"
+      traefik.http.routers.frontend.entrypoints: web
+      traefik.http.routers.frontend.priority: "1"
+      traefik.http.services.frontend.loadbalancer.server.port: "80"
+    depends_on:
+      monitor-service:
+        condition: service_started
+    networks:
+      - go-admin-kit-net
+
+  gateway:
+    # v3.6+ negotiates the Docker API version; older Traefik pins 1.24, which
+    # current Docker daemons reject ("client version 1.24 is too old").
+    image: traefik:v3.6
+    container_name: go-admin-kit-gateway
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=go-admin-kit-net
+      - --entrypoints.web.address=:80
+      - --ping=true
+      - --accesslog=true
+      - --log.level=INFO
+      # Dashboard/API for inspecting routers; the host port below binds it to
+      # loopback only. Remove both lines if you don't want it at all.
+      - --api.insecure=true
+    ports:
+      - "${GATEWAY_PORT:-8000}:80"
+      - "127.0.0.1:8090:8080"
+    volumes:
+      # Docker Desktop for Mac denies container access to /var/run/docker.sock;
+      # set DOCKER_SOCK=/var/run/docker.sock.raw in .env there. Linux keeps the default.
+      - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock:ro
+    depends_on:
+      monitor-service:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      identity-service:
+        condition: service_started
+      system-service:
+        condition: service_started
+      audit-service:
+        condition: service_started
+      file-service:
+        condition: service_started
+      frontend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - go-admin-kit-net
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: go-admin-kit-prometheus
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ../platform/deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - go_admin_kit_prometheus_data:/prometheus
+    depends_on:
+      monitor-service:
+        condition: service_started
+    networks:
+      - go-admin-kit-net
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: go-admin-kit-grafana
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # 管理后台 iframe 嵌入看板：允许匿名 Viewer 只读 + 放开 X-Frame 限制。
+      # Grafana 只在内网端口暴露，匿名仅 Viewer 角色，可接受；公网部署需收紧。
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${GRAFANA_PORT:-3003}:3000"
+    volumes:
+      - go_admin_kit_grafana_data:/var/lib/grafana
+      - ../platform/deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      prometheus:
+        condition: service_started
+    networks:
+      - go-admin-kit-net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    container_name: go-admin-kit-otel-collector
+    restart: unless-stopped
+    profiles:
+      - tracing
+    command:
+      - --config=/etc/otelcol/config.yaml
+    ports:
+      - "${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317"
+      - "${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318"
+    volumes:
+      - ../platform/deploy/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      jaeger:
+        condition: service_started
+    networks:
+      - go-admin-kit-net
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: go-admin-kit-jaeger
+    restart: unless-stopped
+    profiles:
+      - tracing
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"
+    networks:
+      - go-admin-kit-net
+
+networks:
+  go-admin-kit-net:
+    name: go-admin-kit-net
+    ipam:
+      config:
+        # Pinned so TRUSTED_PROXIES can whitelist the gateway; keep in sync
+        # with the TRUSTED_PROXIES env on backend and auth-service.
+        - subnet: 172.28.0.0/16
+
+volumes:
+  go_admin_kit_uploads:
+  go_admin_kit_postgres_data:
+  go_admin_kit_redis_data:
+  go_admin_kit_nats_data:
+  go_admin_kit_minio_data:
+  go_admin_kit_prometheus_data:
+  go_admin_kit_grafana_data:

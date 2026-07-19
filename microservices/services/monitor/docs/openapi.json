@@ -1,0 +1,1597 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Go Admin Kit API",
+    "version": "dev"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8081"
+    }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "common"
+        ],
+        "summary": "GET /api/v1/health",
+        "operationId": "getApiV1Health",
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/check": {
+      "get": {
+        "tags": [
+          "common"
+        ],
+        "summary": "GET /api/v1/health/check",
+        "operationId": "getApiV1HealthCheck",
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/live": {
+      "get": {
+        "tags": [
+          "common"
+        ],
+        "summary": "GET /api/v1/health/live",
+        "operationId": "getApiV1HealthLive",
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "tags": [
+          "common"
+        ],
+        "summary": "GET /api/v1/health/ready",
+        "operationId": "getApiV1HealthReady",
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ip/info": {
+      "get": {
+        "tags": [
+          "common"
+        ],
+        "summary": "GET /api/v1/ip/info",
+        "operationId": "getApiV1IpInfo",
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ip/location": {
+      "get": {
+        "tags": [
+          "common"
+        ],
+        "summary": "GET /api/v1/ip/location",
+        "operationId": "getApiV1IpLocation",
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ip/me": {
+      "get": {
+        "tags": [
+          "common"
+        ],
+        "summary": "GET /api/v1/ip/me",
+        "operationId": "getApiV1IpMe",
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics": {
+      "get": {
+        "tags": [
+          "common"
+        ],
+        "summary": "GET /api/v1/metrics",
+        "operationId": "getApiV1Metrics",
+        "responses": {
+          "200": {
+            "description": "Prometheus metrics text",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics/json": {
+      "get": {
+        "tags": [
+          "common"
+        ],
+        "summary": "GET /api/v1/metrics/json",
+        "operationId": "getApiV1MetricsJson",
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/monitor/redis": {
+      "get": {
+        "tags": [
+          "monitor"
+        ],
+        "summary": "GET /api/v1/monitor/redis",
+        "operationId": "getApiV1MonitorRedis",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedisInfoEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/monitor/server": {
+      "get": {
+        "tags": [
+          "monitor"
+        ],
+        "summary": "GET /api/v1/monitor/server",
+        "operationId": "getApiV1MonitorServer",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerInfoEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "description": "Business response data",
+            "additionalProperties": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Stable machine-readable error code, present on error responses"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "EmptyEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/EmptyResponse"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "EmptyResponse": {
+        "type": "object"
+      },
+      "JobAbnormalStatus": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "reason"
+        ],
+        "properties": {
+          "group_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_failure_message": {
+            "type": "string"
+          },
+          "last_failure_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_run_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "JobEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ScheduledJob"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "JobHealthCheck": {
+        "type": "object",
+        "required": [
+          "total",
+          "enabled",
+          "paused",
+          "recent_failed",
+          "abnormal_jobs",
+          "window_hours",
+          "checked_at"
+        ],
+        "properties": {
+          "abnormal_jobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobAbnormalStatus"
+            }
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "enabled": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_run_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "paused": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "recent_failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "window_hours": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "JobHealthEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/JobHealthCheck"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "JobListEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/JobListResponse"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "JobListResponse": {
+        "type": "object",
+        "required": [
+          "list",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduledJob"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page_size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "JobLogCleanupRequest": {
+        "type": "object",
+        "properties": {
+          "retention_days": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "JobLogCleanupResult": {
+        "type": "object",
+        "required": [
+          "retention_days",
+          "cutoff_time",
+          "deleted_rows"
+        ],
+        "properties": {
+          "cutoff_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_rows": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "retention_days": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "JobLogCleanupResultEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/JobLogCleanupResult"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "MySQLConnectionInfo": {
+        "type": "object",
+        "required": [
+          "max_open_conns",
+          "open_conns",
+          "in_use",
+          "idle"
+        ],
+        "properties": {
+          "idle": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "in_use": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "max_connections": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "max_open_conns": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "max_used_connections": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "open_conns": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "threads_connected": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "threads_running": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_connections": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "wait_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "wait_duration": {
+            "type": "string"
+          }
+        }
+      },
+      "MySQLDatabaseInfo": {
+        "type": "object",
+        "required": [
+          "host",
+          "port",
+          "name",
+          "table_count",
+          "size_bytes",
+          "size"
+        ],
+        "properties": {
+          "charset": {
+            "type": "string"
+          },
+          "collation": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "table_count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "MySQLInfo": {
+        "type": "object",
+        "required": [
+          "status",
+          "version",
+          "uptime",
+          "uptime_seconds",
+          "connections"
+        ],
+        "properties": {
+          "connections": {
+            "$ref": "#/components/schemas/MySQLConnectionInfo"
+          },
+          "database": {
+            "$ref": "#/components/schemas/MySQLDatabaseInfo"
+          },
+          "queries": {
+            "$ref": "#/components/schemas/MySQLQueryInfo"
+          },
+          "status": {
+            "type": "string"
+          },
+          "traffic": {
+            "$ref": "#/components/schemas/MySQLTrafficInfo"
+          },
+          "uptime": {
+            "type": "string"
+          },
+          "uptime_seconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "MySQLInfoEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/MySQLInfo"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "MySQLQueryInfo": {
+        "type": "object",
+        "required": [
+          "questions",
+          "qps",
+          "slow_queries"
+        ],
+        "properties": {
+          "deletes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "inserts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "qps": {
+            "type": "number",
+            "format": "double"
+          },
+          "questions": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "selects": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "slow_queries": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updates": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "MySQLTrafficInfo": {
+        "type": "object",
+        "required": [
+          "bytes_received",
+          "bytes_sent",
+          "bytes_received_human",
+          "bytes_sent_human"
+        ],
+        "properties": {
+          "bytes_received": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "bytes_received_human": {
+            "type": "string"
+          },
+          "bytes_sent": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "bytes_sent_human": {
+            "type": "string"
+          }
+        }
+      },
+      "RedisClientsInfo": {
+        "type": "object",
+        "required": [
+          "connected",
+          "blocked",
+          "tracking"
+        ],
+        "properties": {
+          "blocked": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "connected": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tracking": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RedisInfo": {
+        "type": "object",
+        "required": [
+          "status",
+          "server",
+          "memory",
+          "stats",
+          "keyspace"
+        ],
+        "properties": {
+          "clients": {
+            "$ref": "#/components/schemas/RedisClientsInfo"
+          },
+          "keyspace": {
+            "$ref": "#/components/schemas/RedisKeyspaceInfo"
+          },
+          "memory": {
+            "$ref": "#/components/schemas/RedisMemoryInfo"
+          },
+          "pool": {
+            "$ref": "#/components/schemas/RedisPoolInfo"
+          },
+          "server": {
+            "$ref": "#/components/schemas/RedisServerInfo"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/RedisStatsInfo"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "RedisInfoEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RedisInfo"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "RedisKeyspaceInfo": {
+        "type": "object",
+        "required": [
+          "dbsize",
+          "dbs"
+        ],
+        "properties": {
+          "dbs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          "dbsize": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RedisMemoryInfo": {
+        "type": "object",
+        "required": [
+          "used",
+          "peak",
+          "lua",
+          "fragmentation",
+          "used_bytes",
+          "peak_bytes"
+        ],
+        "properties": {
+          "dataset": {
+            "type": "string"
+          },
+          "fragmentation": {
+            "type": "string"
+          },
+          "lua": {
+            "type": "string"
+          },
+          "maxmemory": {
+            "type": "string"
+          },
+          "mem_allocator": {
+            "type": "string"
+          },
+          "overhead": {
+            "type": "string"
+          },
+          "peak": {
+            "type": "string"
+          },
+          "peak_bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rss": {
+            "type": "string"
+          },
+          "used": {
+            "type": "string"
+          },
+          "used_bytes": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RedisPoolInfo": {
+        "type": "object",
+        "required": [
+          "hits",
+          "misses",
+          "timeouts",
+          "total_conns",
+          "idle_conns",
+          "stale_conns"
+        ],
+        "properties": {
+          "hits": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "idle_conns": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "misses": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stale_conns": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timeouts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_conns": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RedisServerInfo": {
+        "type": "object",
+        "required": [
+          "version",
+          "os",
+          "mode",
+          "uptime",
+          "uptime_seconds"
+        ],
+        "properties": {
+          "arch_bits": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "os": {
+            "type": "string"
+          },
+          "process_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tcp_port": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "uptime": {
+            "type": "string"
+          },
+          "uptime_seconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "RedisStatsInfo": {
+        "type": "object",
+        "required": [
+          "connections",
+          "ops",
+          "keys",
+          "hit_rate"
+        ],
+        "properties": {
+          "connections": {
+            "type": "string"
+          },
+          "evicted_keys": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "expired_keys": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "hit_rate": {
+            "type": "string"
+          },
+          "keys": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "keyspace_hits": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "keyspace_misses": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ops": {
+            "type": "string"
+          },
+          "total_commands_processed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_connections_received": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SaveJobRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "cron_expression",
+          "invoke_target"
+        ],
+        "properties": {
+          "concurrent": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cron_expression": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "group_name": {
+            "type": "string"
+          },
+          "invoke_target": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ScheduledJob": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "cron_expression",
+          "status"
+        ],
+        "properties": {
+          "concurrent": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cron_expression": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "group_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "invoke_target": {
+            "type": "string"
+          },
+          "last_run_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "next_run_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ServerCPUInfo": {
+        "type": "object",
+        "required": [
+          "model_name",
+          "cores",
+          "used_percent"
+        ],
+        "properties": {
+          "cores": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "model_name": {
+            "type": "string"
+          },
+          "used_percent": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "ServerDiskInfo": {
+        "type": "object",
+        "required": [
+          "total",
+          "used",
+          "free",
+          "used_percent"
+        ],
+        "properties": {
+          "free": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "used": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "used_percent": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "ServerInfo": {
+        "type": "object",
+        "required": [
+          "os",
+          "cpu",
+          "memory",
+          "disk"
+        ],
+        "properties": {
+          "cpu": {
+            "$ref": "#/components/schemas/ServerCPUInfo"
+          },
+          "disk": {
+            "$ref": "#/components/schemas/ServerDiskInfo"
+          },
+          "memory": {
+            "$ref": "#/components/schemas/ServerMemoryInfo"
+          },
+          "os": {
+            "$ref": "#/components/schemas/ServerOSInfo"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/ServerOSInfo"
+          }
+        }
+      },
+      "ServerInfoEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ServerInfo"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ServerMemoryInfo": {
+        "type": "object",
+        "required": [
+          "total",
+          "used",
+          "free",
+          "used_percent"
+        ],
+        "properties": {
+          "free": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "used": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "used_percent": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "ServerOSInfo": {
+        "type": "object",
+        "required": [
+          "go_os",
+          "arch",
+          "compiler",
+          "go_version",
+          "num_goroutine",
+          "hostname",
+          "platform",
+          "boot_time"
+        ],
+        "properties": {
+          "arch": {
+            "type": "string"
+          },
+          "boot_time": {
+            "type": "string"
+          },
+          "compiler": {
+            "type": "string"
+          },
+          "go_os": {
+            "type": "string"
+          },
+          "go_version": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "num_goroutine": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "platform": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

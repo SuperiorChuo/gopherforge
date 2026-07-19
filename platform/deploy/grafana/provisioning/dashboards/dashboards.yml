@@ -1,0 +1,14 @@
+apiVersion: 1
+
+providers:
+  - name: go-admin-kit
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      # 面板 JSON 目录（与本 provisioning 目录同挂载在 /etc/grafana/provisioning）
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

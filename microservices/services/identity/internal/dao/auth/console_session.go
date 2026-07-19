@@ -1,0 +1,49 @@
+package auth
+
+import (
+	"context"
+	"time"
+
+	"github.com/go-admin-kit/services/identity/internal/model"
+	"gorm.io/gorm"
+)
+
+type ConsoleSessionDAO struct {
+	db *gorm.DB
+}
+
+func NewConsoleSessionDAO(db *gorm.DB) ConsoleSessionDAO {
+	return ConsoleSessionDAO{db: db}
+}
+
+func (d ConsoleSessionDAO) dbWithContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return d.db.WithContext(ctx)
+}
+
+func (d ConsoleSessionDAO) Ready() bool {
+	return d.db != nil
+}
+
+func (d ConsoleSessionDAO) CreateContext(ctx context.Context, record *model.ConsoleSession) error {
+	return d.dbWithContext(ctx).Create(record).Error
+}
+
+func (d ConsoleSessionDAO) GetBySessionIDContext(ctx context.Context, sessionID string) (*model.ConsoleSession, error) {
+	var record model.ConsoleSession
+	err := d.dbWithContext(ctx).First(&record, "session_id = ?", sessionID).Error
+	return &record, err
+}
+
+func (d ConsoleSessionDAO) TouchContext(ctx context.Context, sessionID string, seenAt time.Time) error {
+	return d.dbWithContext(ctx).Model(&model.ConsoleSession{}).
+		Where("session_id = ?", sessionID).
+		Update("last_seen_at", seenAt).
+		Error
+}
+
+func (d ConsoleSessionDAO) RevokeContext(ctx context.Context, record *model.ConsoleSession, revokedAt time.Time) error {
+	return d.dbWithContext(ctx).Model(record).Update("revoked_at", revokedAt).Error
+}

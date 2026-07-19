@@ -1,0 +1,51 @@
+-- +goose Up
+ALTER TABLE wm_audit_log RENAME TO audit_logs;
+ALTER TABLE wm_console_route RENAME TO console_routes;
+ALTER TABLE wm_console_session RENAME TO console_sessions;
+ALTER TABLE wm_system_setting RENAME TO system_settings;
+
+ALTER INDEX idx_wm_audit_log_created_at RENAME TO idx_audit_logs_created_at;
+ALTER INDEX idx_wm_audit_log_actor_type RENAME TO idx_audit_logs_actor_type;
+ALTER INDEX idx_wm_audit_log_actor_id RENAME TO idx_audit_logs_actor_id;
+ALTER INDEX idx_wm_audit_log_action RENAME TO idx_audit_logs_action;
+ALTER INDEX idx_wm_audit_log_target_type RENAME TO idx_audit_logs_target_type;
+ALTER INDEX idx_wm_audit_log_target_id RENAME TO idx_audit_logs_target_id;
+
+ALTER INDEX idx_wm_console_route_path RENAME TO idx_console_routes_path;
+ALTER INDEX idx_wm_console_route_name RENAME TO idx_console_routes_name;
+ALTER INDEX idx_wm_console_route_sort_order RENAME TO idx_console_routes_sort_order;
+ALTER INDEX idx_wm_console_route_parent_key RENAME TO idx_console_routes_parent_key;
+ALTER INDEX idx_wm_console_route_enabled RENAME TO idx_console_routes_enabled;
+
+ALTER INDEX idx_wm_console_session_username RENAME TO idx_console_sessions_username;
+ALTER INDEX idx_wm_console_session_issued_at RENAME TO idx_console_sessions_issued_at;
+ALTER INDEX idx_wm_console_session_expires_at RENAME TO idx_console_sessions_expires_at;
+ALTER INDEX idx_wm_console_session_revoked_at RENAME TO idx_console_sessions_revoked_at;
+
+ALTER INDEX idx_wm_system_setting_updated_at RENAME TO idx_system_settings_updated_at;
+
+-- +goose Down
+ALTER INDEX idx_system_settings_updated_at RENAME TO idx_wm_system_setting_updated_at;
+
+ALTER INDEX idx_console_sessions_username RENAME TO idx_wm_console_session_username;
+ALTER INDEX idx_console_sessions_issued_at RENAME TO idx_wm_console_session_issued_at;
+ALTER INDEX idx_console_sessions_expires_at RENAME TO idx_wm_console_session_expires_at;
+ALTER INDEX idx_console_sessions_revoked_at RENAME TO idx_wm_console_session_revoked_at;
+
+ALTER INDEX idx_console_routes_path RENAME TO idx_wm_console_route_path;
+ALTER INDEX idx_console_routes_name RENAME TO idx_wm_console_route_name;
+ALTER INDEX idx_console_routes_sort_order RENAME TO idx_wm_console_route_sort_order;
+ALTER INDEX idx_console_routes_parent_key RENAME TO idx_wm_console_route_parent_key;
+ALTER INDEX idx_console_routes_enabled RENAME TO idx_wm_console_route_enabled;
+
+ALTER INDEX idx_audit_logs_created_at RENAME TO idx_wm_audit_log_created_at;
+ALTER INDEX idx_audit_logs_actor_type RENAME TO idx_wm_audit_log_actor_type;
+ALTER INDEX idx_audit_logs_actor_id RENAME TO idx_wm_audit_log_actor_id;
+ALTER INDEX idx_audit_logs_action RENAME TO idx_wm_audit_log_action;
+ALTER INDEX idx_audit_logs_target_type RENAME TO idx_wm_audit_log_target_type;
+ALTER INDEX idx_audit_logs_target_id RENAME TO idx_wm_audit_log_target_id;
+
+ALTER TABLE system_settings RENAME TO wm_system_setting;
+ALTER TABLE console_sessions RENAME TO wm_console_session;
+ALTER TABLE console_routes RENAME TO wm_console_route;
+ALTER TABLE audit_logs RENAME TO wm_audit_log;

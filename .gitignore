@@ -1,0 +1,63 @@
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+.claude/
+*.swp
+*~
+
+# Local env
+.env
+.env.local
+*.local
+**/.env
+!**/.env.example
+
+# Go
+**/coverage.out
+**/coverage.txt
+**/logs/
+**/uploads/
+**/build/
+*.exe
+*.test
+
+# Frontend
+**/node_modules/
+**/dist/
+**/_site/
+**/playwright-report/
+**/test-results/
+**/.vite/
+
+# Python / tooling (local)
+.venv/
+.uv-cache/
+__pycache__/
+.pytest_cache/
+.codegraph/
+.codegraph-tools/
+
+# Deploy staging binaries
+/dist/
+
+# OS junk
+Thumbs.db
+
+# Monolith legacy lives on the `monolith` branch; keep main microservices-only
+/monolith/
+
+# go.work is local multi-module convenience; its sum file churns constantly
+go.work.sum
+
+# AI assistant instructions (local working conventions, not project docs)
+CLAUDE.md
+AGENTS.md
+
+# Internal dev-machine workflow (kept locally, not published)
+/scripts/dev-sync.sh
+/scripts/remote-bootstrap.sh
+/scripts/remote-ms-deploy.sh
+/docs/remote-dev.md
+/deploy/remote/
+Makefile.local
