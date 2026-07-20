@@ -1,0 +1,54 @@
+name: deploy-demo
+
+# 把前端以「演示模式」（纯前端假数据，见 web/src/demo/）发布到 GitHub Pages。
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'microservices/web/**'
+      - '.github/workflows/deploy-demo.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: microservices/web/package-lock.json
+      - name: 安装依赖
+        working-directory: microservices/web
+        run: npm ci
+      - name: 演示模式构建
+        working-directory: microservices/web
+        env:
+          VITE_DEMO: '1'
+          VITE_BASE: /go-admin-kit/
+        run: npm run build
+      - name: SPA 路由回退（Pages 404 技巧）
+        run: cp microservices/web/dist/index.html microservices/web/dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: microservices/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

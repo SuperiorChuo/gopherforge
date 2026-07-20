@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  // 演示模式部署到 GitHub Pages 子路径时用 VITE_BASE=/go-admin-kit/
+  base: process.env.VITE_BASE || '/',
   plugins: [react()],
   resolve: {
     alias: {

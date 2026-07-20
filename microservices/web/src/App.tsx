@@ -244,9 +244,20 @@ export default function App() {
         >
           <AntApp>
             <FeedbackBridge />
-            <BrowserRouter>
+            <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
               <AppRoutes />
             </BrowserRouter>
+            {import.meta.env.VITE_DEMO === '1' && (
+              <div
+                style={{
+                  position: 'fixed', bottom: 16, left: 16, zIndex: 9999, pointerEvents: 'none',
+                  padding: '6px 14px', borderRadius: 999, fontSize: 12, color: '#fff',
+                  background: 'rgba(37,99,235,.88)', boxShadow: '0 4px 16px rgba(37,99,235,.35)',
+                }}
+              >
+                演示模式 · 纯前端假数据 · 任意账号可登录
+              </div>
+            )}
           </AntApp>
         </ConfigProvider>
       </ThemeContext.Provider>
