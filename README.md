@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://superiorchuo.github.io/go-admin-kit/"><strong>🖥️ 在线体验 Demo →</strong></a><br/>
+  <a href="https://superiorchuo.github.io/go-admin-kit/"><strong>🖥️ 在线体验 Demo →</strong></a> · <a href="README.en.md">English</a><br/>
   <sub>纯前端演示模式（假数据，任意账号可登录）；完整功能克隆后 <code>docker compose</code> 一键启动</sub>
 </p>
 
