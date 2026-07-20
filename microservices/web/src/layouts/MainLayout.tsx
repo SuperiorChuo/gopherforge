@@ -31,6 +31,7 @@ import {
   FileTextOutlined,
   NotificationOutlined,
   SettingOutlined,
+  CodeOutlined,
   StopOutlined,
   MonitorOutlined,
   CloudServerOutlined,
@@ -194,6 +195,7 @@ const MENU_DEFS: MenuDef[] = [
       { label: '在线用户', key: '/system/online-user', icon: <MonitorOutlined /> },
       { label: '系统设置', key: '/system/setting', icon: <SettingOutlined /> },
       { label: '租户管理', key: '/system/tenant', icon: <TeamOutlined /> },
+      { label: '代码生成', key: '/system/codegen', icon: <CodeOutlined /> },
     ],
   },
   {
@@ -260,6 +262,7 @@ const pathBreadcrumbMap: Record<string, string> = {
   '/system/online-user': '在线用户',
   '/system/setting': '系统设置',
   '/system/tenant': '租户管理',
+  '/system/codegen': '代码生成',
   '/monitor/server': '服务器监控',
   '/monitor/mysql': '数据库监控',
   '/monitor/redis': 'Redis 监控',

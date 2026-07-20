@@ -32,6 +32,10 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	onlineUserAPI := system.NewOnlineUserAPI()
 	notificationAPI := system.NewNotificationAPI()
 	weatherAPI := system.NewWeatherAPI()
+	var codegenAPI *system.CodegenAPI
+	if deps.DB != nil {
+		codegenAPI = system.NewCodegenAPIWithService(systemsvc.NewCodegenServiceWithDB(deps.DB))
+	}
 	if deps.DB != nil {
 		menuMgmtAPI = system.NewMenuManagementAPIWithService(systemsvc.NewMenuServiceWithDB(deps.DB))
 		menuUserAPI = system.NewMenuAPIWithService(systemsvc.NewMenuUserServiceWithDB(deps.DB))
@@ -62,6 +66,13 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 
 		// 仪表盘天气 chip：登录即可见，不设权限点
 		protected.GET("/system/weather", weatherAPI.GetLiveWeather)
+
+		if codegenAPI != nil {
+			protected.GET("/codegen/tables", middleware.PermissionMiddleware("system:codegen:list"), codegenAPI.GetTables)
+			protected.GET("/codegen/tables/:name/columns", middleware.PermissionMiddleware("system:codegen:list"), codegenAPI.GetColumns)
+			protected.POST("/codegen/preview", middleware.PermissionMiddleware("system:codegen:generate"), codegenAPI.Preview)
+			protected.POST("/codegen/download", middleware.PermissionMiddleware("system:codegen:generate"), codegenAPI.Download)
+		}
 
 		protected.GET("/menus", middleware.PermissionMiddleware("system:menu:list"), menuMgmtAPI.GetMenuList)
 		protected.GET("/menus/tree", middleware.PermissionMiddleware("system:menu:list"), menuMgmtAPI.GetMenuTree)

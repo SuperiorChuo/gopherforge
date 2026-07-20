@@ -45,6 +45,7 @@ var defaultMenuSeed = []model.Menu{
 	{ID: 22, Name: "audit-log", Title: "审计日志", Icon: "secured", Path: "/system/audit-log", Component: "system/audit-log/index", ParentID: 10, Sort: 12, Status: 1, Hidden: 0, Permission: "system:log:audit"},
 	{ID: 23, Name: "setting", Title: "系统设置", Icon: "setting", Path: "/system/setting", Component: "system/setting/index", ParentID: 10, Sort: 13, Status: 1, Hidden: 0, Permission: "system:setting:list"},
 	{ID: 24, Name: "tenant", Title: "租户管理", Icon: "team", Path: "/system/tenant", Component: "system/tenant/index", ParentID: 10, Sort: 14, Status: 1, Hidden: 0, Permission: "system:tenant:list"},
+	{ID: 25, Name: "codegen", Title: "代码生成", Icon: "code", Path: "/system/codegen", Component: "system/codegen/index", ParentID: 10, Sort: 15, Status: 1, Hidden: 0, Permission: "system:codegen:list"},
 
 	{ID: 30, Name: "monitor", Title: "系统监控", Icon: "chart-analytics", Path: "/monitor", Component: "Layout", ParentID: 0, Sort: 2, Status: 1, Hidden: 0},
 	{ID: 31, Name: "monitor-job", Title: "定时任务", Icon: "time", Path: "/monitor/job", Component: "monitor/job/index", ParentID: 30, Sort: 1, Status: 1, Hidden: 0, Permission: "system:job:list"},
