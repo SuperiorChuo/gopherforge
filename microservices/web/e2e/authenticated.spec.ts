@@ -19,7 +19,7 @@ test.describe('认证后应用', () => {
     { path: '/system/user', expect: /用户管理|用户/ },
     { path: '/system/menu', expect: /菜单/ },
     { path: '/monitor/server', expect: /服务器|监控/ },
-    { path: '/social/content', expect: /内容中心|内容/ },
+    { path: '/system/codegen', expect: /代码生成|选择表/ },
   ]
 
   for (const p of pages) {
