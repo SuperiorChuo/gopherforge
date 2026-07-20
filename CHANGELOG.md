@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+### 修复
+
+- **在线 Demo**：仪表盘因假数据返回形状不符崩进错误边界（`/notices/active` 应返回裸数组而非
+  `{list}` 包装；`menus/tree`、`departments/tree` 一并修正）；GitHub Pages 部署改为按路由
+  预渲染 `index.html`，深链接直接返回 200，`404.html` 仅兜未知路径
+
 ### 新增
 
 - **代码生成器**（同步自上游完整版）：系统管理 → 代码生成，选表配字段一键生成

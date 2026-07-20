@@ -37,7 +37,10 @@ jobs:
           VITE_DEMO: '1'
           VITE_BASE: /go-admin-kit/
         run: npm run build
-      - name: SPA 路由回退（Pages 404 技巧）
+      - name: 深链接预渲染（每路由一份 index.html，直链返回 200）
+        working-directory: microservices/web
+        run: node scripts/prerender-spa.mjs
+      - name: 未知路径 404 兜底
         run: cp microservices/web/dist/index.html microservices/web/dist/404.html
       - uses: actions/upload-pages-artifact@v3
         with:

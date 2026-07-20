@@ -300,13 +300,14 @@ const routes: Array<[string, RegExp, Handler]> = [
   ['delete', /^\/api\/v1\/permissions\/(\d+)$/, () => unsupported('删除权限点')],
 
   // 菜单 / 部门
-  ['get', /^\/api\/v1\/menus\/tree$/, () => ({ list: menuTree(), total: menuRows.length })],
+  // tree 接口前端契约同样是裸数组
+  ['get', /^\/api\/v1\/menus\/tree$/, () => menuTree()],
   ['get', /^\/api\/v1\/menus$/, () => ({ list: menuTree(), total: menuRows.length })],
   ['get', /^\/api\/v1\/menus\/(\d+)$/, (m) => menuRows.find((x) => x.id === Number(m[1])) ?? menuRows[0]],
   ['post', /^\/api\/v1\/menus$/, () => unsupported('新增菜单')],
   ['put', /^\/api\/v1\/menus\/(\d+)$/, () => unsupported('修改菜单')],
   ['delete', /^\/api\/v1\/menus\/(\d+)$/, () => unsupported('删除菜单')],
-  ['get', /^\/api\/v1\/departments\/tree$/, () => ({ list: deptTree, total: departments.length })],
+  ['get', /^\/api\/v1\/departments\/tree$/, () => deptTree],
   ['get', /^\/api\/v1\/departments\/all$/, () => ({ list: departments, total: departments.length })],
   ['get', /^\/api\/v1\/departments$/, (_m, _b, q) => paged(departments, q)],
   ['get', /^\/api\/v1\/departments\/(\d+)$/, (m) => departments.find((x) => x.id === Number(m[1])) ?? departments[0]],
@@ -354,7 +355,8 @@ const routes: Array<[string, RegExp, Handler]> = [
     if (i >= 0) dictItems.splice(i, 1)
     return {}
   }],
-  ['get', /^\/api\/v1\/notices\/active$/, () => ({ list: notices.filter((n) => n.status === 1), total: notices.length })],
+  // 前端契约是裸数组（见 src/api/system/notice.ts），包 {list} 会让仪表盘崩进错误边界
+  ['get', /^\/api\/v1\/notices\/active$/, () => notices.filter((n) => n.status === 1)],
   ['get', /^\/api\/v1\/notices$/, (_m, _b, q) => paged(notices, q)],
   ['get', /^\/api\/v1\/notices\/(\d+)$/, (m) => notices.find((x) => x.id === Number(m[1])) ?? notices[0]],
   ['post', /^\/api\/v1\/notices$/, (_m, body) => {
