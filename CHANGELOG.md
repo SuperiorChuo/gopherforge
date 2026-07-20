@@ -3,6 +3,19 @@
 本项目提交信息为全中文 Conventional 风格；版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 0.x 期间 API 与表结构可能变化。
 
+## [Unreleased]
+
+### 新增
+
+- **代码生成器**（同步自上游完整版）：系统管理 → 代码生成，选表配字段一键生成
+  CRUD 前后端起步包（Go model/store/handlers/routes + React 列表页 + axios api + 菜单 SQL），
+  支持分文件预览与 zip 下载；权限点 `system:codegen:list|generate`（迁移 000017）
+
+### 清理
+
+- 剔除脚手架残留的 AI/IM/CC 引用与业务迁移（`ai_*` 表迁移、AiMarkdown、imContact、
+  设置页 AI/呼叫分组、仪表盘业务快捷入口）
+
 ## [0.1.0] - 2026-07-18
 
 微服务脚手架首个版本，只含平台无关的基础设施服务。
