@@ -28,9 +28,9 @@ func mustTplJSX(name, body string) *template.Template {
 
 var tplModel = mustTpl("model", `package {{.Module}}
 
-{{if .HasTime}}import "time"
+import "time"
 
-{{end}}// {{.Entity}} maps table {{.Table}}.
+// {{.Entity}} maps table {{.Table}}.
 type {{.Entity}} struct {
 	ID uint64 {{bq}}gorm:"primaryKey" json:"id"{{bq}}
 {{- range .Fields}}

@@ -67,11 +67,22 @@ export default function CodegenPage() {
       .catch(() => {})
   }
 
+  // step 2 时第 1 步的 Form 已卸载，validateFields 拿不到值；从 store 全量读
+  function collectRequest(): CodegenRequest | null {
+    const values = form.getFieldsValue(true) as { table?: string; module?: string; title?: string }
+    if (!values.table || !values.module || !values.title) {
+      message.error('配置不完整，请回上一步填写模块名与标题')
+      setStep(1)
+      return null
+    }
+    return { table: values.table, module: values.module, title: values.title, fields: fieldConfigs }
+  }
+
   async function onPreview() {
-    const values = await form.validateFields()
+    const req = collectRequest()
+    if (!req) return
     setLoading(true)
     try {
-      const req: CodegenRequest = { ...values, fields: fieldConfigs }
       const res = await previewCodegen(req)
       setPreviewFiles(res.files ?? [])
       setPreviewOpen(true)
@@ -83,10 +94,10 @@ export default function CodegenPage() {
   }
 
   async function onDownload() {
-    const values = await form.validateFields()
+    const req = collectRequest()
+    if (!req) return
     setLoading(true)
     try {
-      const req: CodegenRequest = { ...values, fields: fieldConfigs }
       const blob = await downloadCodegen(req)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
