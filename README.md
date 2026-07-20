@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/screenshots/wechat-group.jpg" alt="go-admin-kit 微信交流群二维码" width="420" />
+</p>
+
 # 🚀 Go Admin Kit · 微服务脚手架
 
 <p align="center">
