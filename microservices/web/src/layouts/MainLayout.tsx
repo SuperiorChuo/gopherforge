@@ -16,7 +16,6 @@ import {
 import {
   ApiOutlined,
   AudioOutlined,
-  CustomerServiceOutlined,
   ControlOutlined,
   ForkOutlined,
   SoundOutlined,
@@ -51,9 +50,7 @@ import {
   HomeOutlined,
   VerticalAlignTopOutlined,
   ColumnHeightOutlined,
-  RobotOutlined,
   BookOutlined,
-  MessageOutlined,
   GlobalOutlined,
   PhoneOutlined,
   FundOutlined,
@@ -67,7 +64,6 @@ import {
   SafetyCertificateOutlined,
   DesktopOutlined,
   AppstoreOutlined,
-  WechatOutlined,
   EditOutlined,
   ShareAltOutlined,
 } from '@ant-design/icons'
@@ -124,9 +120,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   data: <BarsOutlined />,
   'user-circle': <UserOutlined />,
   team: <TeamOutlined />,
-  robot: <RobotOutlined />,
   book: <BookOutlined />,
-  message: <MessageOutlined />,
   global: <GlobalOutlined />,
   phone: <PhoneOutlined />,
   control: <ControlOutlined />,
@@ -135,7 +129,6 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   fork: <ForkOutlined />,
   fund: <FundOutlined />,
   queue: <TeamOutlined />,
-  music: <CustomerServiceOutlined />,
   audio: <AudioOutlined />,
   stop: <StopOutlined />,
   radar: <RadarChartOutlined />,
@@ -147,7 +140,6 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   money: <PayCircleOutlined />,
   safety: <SafetyCertificateOutlined />,
   desktop: <DesktopOutlined />,
-  wechat: <WechatOutlined />,
   edit: <EditOutlined />,
   share: <ShareAltOutlined />,
   aim: <AimOutlined />,
@@ -278,10 +270,6 @@ const pathBreadcrumbMap: Record<string, string> = {
 const GROUP_META: Record<string, { label: string; icon: React.ReactNode }> = {
   '/system': { label: '系统管理', icon: <SettingOutlined /> },
   '/monitor': { label: '运维监控', icon: <CloudServerOutlined /> },
-  '/ai': { label: 'AI 智能', icon: <RobotOutlined /> },
-  '/im': { label: '智能客服', icon: <MessageOutlined /> },
-  '/cc': { label: '呼叫中心', icon: <PhoneOutlined /> },
-  '/mp': { label: '公众号运营', icon: <WechatOutlined /> },
 }
 
 export default function MainLayout() {

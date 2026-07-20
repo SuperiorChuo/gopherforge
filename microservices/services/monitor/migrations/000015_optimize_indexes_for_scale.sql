@@ -32,16 +32,6 @@ DROP INDEX IF EXISTS idx_audit_logs_actor_type;
 DROP INDEX IF EXISTS idx_audit_logs_actor_id;
 DROP INDEX IF EXISTS idx_audit_logs_target_type;
 
--- ai_conversations：列表固定为 tenant+user ORDER BY updated_at DESC。
-CREATE INDEX IF NOT EXISTS idx_ai_conversations_tenant_user_updated ON ai_conversations (tenant_id, user_id, updated_at DESC);
-DROP INDEX IF EXISTS idx_ai_conversations_tenant_id;
-DROP INDEX IF EXISTS idx_ai_conversations_user_id;
-DROP INDEX IF EXISTS idx_ai_conversations_tenant_user;
-
--- ai_messages：会话内按 id 顺序取（含 keyset 场景），复合索引免排序。
-CREATE INDEX IF NOT EXISTS idx_ai_messages_conv_id ON ai_messages (conversation_id, id);
-DROP INDEX IF EXISTS idx_ai_messages_conversation_id;
-
 -- files：列表 tenant+created_at DESC；(tenant_id,user_id)、hash、user_id 维持不变。
 CREATE INDEX IF NOT EXISTS idx_files_tenant_created ON files (tenant_id, created_at DESC);
 DROP INDEX IF EXISTS idx_files_tenant_id;
@@ -71,14 +61,6 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id ON audit_logs (actor_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_target_type ON audit_logs (target_type);
 DROP INDEX IF EXISTS idx_audit_logs_tenant_created;
 DROP INDEX IF EXISTS idx_audit_logs_target;
-
-CREATE INDEX IF NOT EXISTS idx_ai_conversations_tenant_id ON ai_conversations (tenant_id);
-CREATE INDEX IF NOT EXISTS idx_ai_conversations_user_id ON ai_conversations (user_id);
-CREATE INDEX IF NOT EXISTS idx_ai_conversations_tenant_user ON ai_conversations (tenant_id, user_id);
-DROP INDEX IF EXISTS idx_ai_conversations_tenant_user_updated;
-
-CREATE INDEX IF NOT EXISTS idx_ai_messages_conversation_id ON ai_messages (conversation_id);
-DROP INDEX IF EXISTS idx_ai_messages_conv_id;
 
 CREATE INDEX IF NOT EXISTS idx_files_tenant_id ON files (tenant_id);
 DROP INDEX IF EXISTS idx_files_tenant_created;

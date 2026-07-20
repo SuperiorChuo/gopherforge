@@ -12,8 +12,6 @@ import {
   CalendarOutlined,
   HistoryOutlined,
   EnvironmentOutlined,
-  RobotOutlined,
-  CustomerServiceOutlined,
   SettingOutlined,
   IdcardOutlined,
 } from '@ant-design/icons'
@@ -361,8 +359,6 @@ export default function DashboardPage() {
   // 快捷操作：避开下方统计卡已覆盖的入口，按权限过滤
   const heroActions = [
     { label: '发布公告', icon: <SoundOutlined />, path: '/system/notice', visible: hasPerm('system:notice:create') },
-    { label: 'AI 助手', icon: <RobotOutlined />, path: '/ai/assistant', visible: true },
-    { label: '客服工作台', icon: <CustomerServiceOutlined />, path: '/im/desk', visible: true },
     { label: '系统设置', icon: <SettingOutlined />, path: '/system/setting', visible: hasPerm('system:setting:update') },
     { label: '个人中心', icon: <IdcardOutlined />, path: '/profile', visible: true },
   ].filter((a) => a.visible)
