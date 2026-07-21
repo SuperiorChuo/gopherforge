@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: 安全问题报告
-    url: https://github.com/SuperiorChuo/go-admin-kit/blob/main/SECURITY.md
+    url: https://github.com/SuperiorChuo/gopherforge/blob/main/SECURITY.md
     about: 请阅读安全策略，避免在公开 issue 中披露完整利用细节。

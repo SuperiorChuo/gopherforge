@@ -510,7 +510,7 @@ export default function MainLayout() {
           <div className="app-logo-mark">
             <SafetyOutlined />
           </div>
-          {!collapsed && <span className="app-logo-text">Go Admin Kit</span>}
+          {!collapsed && <span className="app-logo-text">GopherForge</span>}
         </div>
         <div className="app-menu-scroll">
           <Menu

@@ -35,7 +35,7 @@ jobs:
         working-directory: microservices/web
         env:
           VITE_DEMO: '1'
-          VITE_BASE: /go-admin-kit/
+          VITE_BASE: /gopherforge/
         run: npm run build
       - name: 深链接预渲染（每路由一份 index.html，直链返回 200）
         working-directory: microservices/web

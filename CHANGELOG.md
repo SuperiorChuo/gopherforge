@@ -47,4 +47,4 @@
 - 运维脚本（`scripts/ops/`）：PG 每日备份、磁盘清理、日志轮转、镜像回滚，`install-ops-cron.sh` 一键装 cron
 - Docker Compose 一键启动全栈；宿主机端口默认只绑 loopback
 
-[0.1.0]: https://github.com/SuperiorChuo/go-admin-kit/releases/tag/v0.1.0
+[0.1.0]: https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.1.0

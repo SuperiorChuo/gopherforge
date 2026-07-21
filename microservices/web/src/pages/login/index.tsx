@@ -226,7 +226,7 @@ export default function LoginPage() {
             <div className="login-logo-mark">
               <SafetyOutlined />
             </div>
-            <span className="login-logo-name">Go Admin Kit</span>
+            <span className="login-logo-name">GopherForge</span>
           </div>
 
           <div className="login-brand-copy">
@@ -450,7 +450,7 @@ export default function LoginPage() {
               </Form>
             )}
 
-            <div className="login-footer">© {new Date().getFullYear()} Go Admin Kit</div>
+            <div className="login-footer">© {new Date().getFullYear()} GopherForge</div>
           </div>
         </div>
       </div>

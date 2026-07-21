@@ -1,25 +1,26 @@
 <p align="center">
-  <img src="docs/screenshots/wechat-group.jpg" alt="go-admin-kit 微信交流群二维码" width="420" />
+  <img src="docs/screenshots/wechat-group.jpg" alt="GopherForge 微信交流群二维码" width="420" />
 </p>
 
-# 🚀 Go Admin Kit · 微服务脚手架
+# 🚀 GopherForge · Go 微服务后台脚手架
 
 <p align="center">
   <strong>✨ 企业级微服务后台脚手架 · 只含基础设施 · 开箱即用 ✨</strong><br/>
-  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React + Ant Design &nbsp;·&nbsp; 🧩 Traefik 网关 + 7 服务
+  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React + Ant Design &nbsp;·&nbsp; 🧩 Traefik 网关 + 7 服务<br/>
+  <sub>GopherForge（曾用名 go-admin-kit）是 SuperiorChuo 维护的开源 Go 后台管理脚手架</sub>
 </p>
 
 <p align="center">
-  <a href="https://superiorchuo.github.io/go-admin-kit/"><strong>🖥️ 在线体验 Demo →</strong></a> · <a href="README.en.md">English</a><br/>
+  <a href="https://superiorchuo.github.io/gopherforge/"><strong>🖥️ 在线体验 Demo →</strong></a> · <a href="README.en.md">English</a><br/>
   <sub>纯前端演示模式（假数据，任意账号可登录）；完整功能克隆后 <code>docker compose</code> 一键启动</sub>
 </p>
 
 <p align="center">
-  <a href="https://github.com/SuperiorChuo/go-admin-kit/actions/workflows/ci.yml"><img src="https://github.com/SuperiorChuo/go-admin-kit/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/SuperiorChuo/gopherforge/actions/workflows/ci.yml"><img src="https://github.com/SuperiorChuo/gopherforge/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?logo=open-source-initiative&logoColor=white" alt="License" /></a>
-  <a href="https://github.com/SuperiorChuo/go-admin-kit"><img src="https://img.shields.io/github/stars/SuperiorChuo/go-admin-kit?style=flat&logo=github" alt="Stars" /></a>
-  <a href="https://github.com/SuperiorChuo/go-admin-kit/network/members"><img src="https://img.shields.io/github/forks/SuperiorChuo/go-admin-kit?style=flat&logo=github" alt="Forks" /></a>
-  <a href="https://github.com/SuperiorChuo/go-admin-kit/issues"><img src="https://img.shields.io/github/issues/SuperiorChuo/go-admin-kit?logo=github" alt="Issues" /></a>
+  <a href="https://github.com/SuperiorChuo/gopherforge"><img src="https://img.shields.io/github/stars/SuperiorChuo/gopherforge?style=flat&logo=github" alt="Stars" /></a>
+  <a href="https://github.com/SuperiorChuo/gopherforge/network/members"><img src="https://img.shields.io/github/forks/SuperiorChuo/gopherforge?style=flat&logo=github" alt="Forks" /></a>
+  <a href="https://github.com/SuperiorChuo/gopherforge/issues"><img src="https://img.shields.io/github/issues/SuperiorChuo/gopherforge?logo=github" alt="Issues" /></a>
   <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen.svg?logo=git&logoColor=white" alt="PRs Welcome" />
 </p>
 
@@ -55,7 +56,7 @@
 
 ---
 
-## ✨ 为什么选 Go Admin Kit 脚手架
+## ✨ 为什么选 GopherForge
 
 | 亮点 | 说明 |
 |:-----|:-----|
@@ -192,7 +193,7 @@ flowchart LR
 ## 📂 仓库结构
 
 ```text
-go-admin-kit/
+gopherforge/
 ├── microservices/                 # 🧩 微服务脚手架
 │   ├── services/
 │   │   ├── auth/                  # 🔐 认证、令牌、网关验签
@@ -225,8 +226,8 @@ go-admin-kit/
 ### 🧩 启动
 
 ```bash
-git clone https://github.com/SuperiorChuo/go-admin-kit.git
-cd go-admin-kit/microservices
+git clone https://github.com/SuperiorChuo/gopherforge.git
+cd gopherforge/microservices
 cp .env.example .env
 docker compose up -d --build
 # 或仓库根目录：make compose-up
@@ -337,11 +338,11 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 
 <p>
   <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/Contributing-欢迎贡献-brightgreen?logo=git&logoColor=white" alt="Contributing" /></a>
-  <a href="https://github.com/SuperiorChuo/go-admin-kit/issues"><img src="https://img.shields.io/badge/Issues-反馈问题-red?logo=github" alt="Issues" /></a>
+  <a href="https://github.com/SuperiorChuo/gopherforge/issues"><img src="https://img.shields.io/badge/Issues-反馈问题-red?logo=github" alt="Issues" /></a>
 </p>
 
 - 贡献指南 👉 [CONTRIBUTING.md](CONTRIBUTING.md)（**提交标题与正文须全中文**）
-- CI 👉 https://github.com/SuperiorChuo/go-admin-kit/actions
+- CI 👉 https://github.com/SuperiorChuo/gopherforge/actions
 
 ---
 

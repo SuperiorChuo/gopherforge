@@ -1,12 +1,13 @@
-# 🚀 Go Admin Kit · Microservices Admin Scaffold
+# 🚀 GopherForge · Go Microservices Admin Scaffold
 
 <p align="center">
   <strong>Production-grade Go microservices admin scaffold — infrastructure only, batteries included.</strong><br/>
-  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React 19 + Ant Design 6 &nbsp;·&nbsp; 🧩 Traefik gateway + 7 services
+  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React 19 + Ant Design 6 &nbsp;·&nbsp; 🧩 Traefik gateway + 7 services<br/>
+  <sub>GopherForge (formerly <code>go-admin-kit</code>) is an open-source Go admin scaffold maintained by SuperiorChuo.</sub>
 </p>
 
 <p align="center">
-  <a href="https://superiorchuo.github.io/go-admin-kit/"><strong>🖥️ Live Demo →</strong></a><br/>
+  <a href="https://superiorchuo.github.io/gopherforge/"><strong>🖥️ Live Demo →</strong></a><br/>
   <sub>Front-end-only demo mode (mock data, any credentials work). Full stack: clone &amp; <code>docker compose up</code>.</sub>
 </p>
 
@@ -16,9 +17,9 @@
 
 ---
 
-## Why Go Admin Kit
+## Why GopherForge
 
-Most admin scaffolds are monoliths. Go Admin Kit gives you a **real microservices architecture** you can grow into, without business-domain baggage:
+Most admin scaffolds are monoliths. GopherForge (formerly go-admin-kit) gives you a **real microservices architecture** you can grow into, without business-domain baggage:
 
 - **Traefik gateway + ForwardAuth**: one place verifies JWT; downstream services only trust gateway-injected `X-Auth-*` headers.
 - **7 infrastructure services**, split by domain: `auth` (login / JWT rotation &amp; revocation / OAuth / TOTP), `identity` (users / roles / permissions / departments), `system` (menus / dicts / notices / hot settings / code generator), `audit` (logs, NATS login events), `file` (MinIO / local), `monitor` (health / metrics / server &amp; DB &amp; Redis dashboards / cron jobs), plus a `shared` library.
@@ -32,8 +33,8 @@ Adding business capability = add one microservice + one gateway label. The base 
 ## Quick start
 
 ```bash
-git clone https://github.com/SuperiorChuo/go-admin-kit.git
-cd go-admin-kit/microservices
+git clone https://github.com/SuperiorChuo/gopherforge.git
+cd gopherforge/microservices
 cp .env.example .env
 docker compose up -d --build
 # open http://localhost:8000  (admin / admin123)

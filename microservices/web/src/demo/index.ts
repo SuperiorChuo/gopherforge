@@ -122,7 +122,7 @@ const dictItems = [
 ]
 
 const notices = [
-  { id: 1, title: '🎉 欢迎体验 Go Admin Kit 在线演示', content: '这是纯前端演示模式：任意账号可登录，数据为浏览器内存假数据，刷新即重置。完整功能请克隆仓库后 docker compose 一键启动。', type: 2, status: 1, created_at: daysAgo(1) },
+  { id: 1, title: '🎉 欢迎体验 GopherForge 在线演示', content: '这是纯前端演示模式：任意账号可登录，数据为浏览器内存假数据，刷新即重置。完整功能请克隆仓库后 docker compose 一键启动。', type: 2, status: 1, created_at: daysAgo(1) },
   { id: 2, title: '演示环境说明', content: '上传、导出、下载等依赖后端的动作在演示模式中被禁用。', type: 1, status: 1, created_at: daysAgo(3) },
 ]
 
@@ -169,7 +169,7 @@ const tenants = [
 ]
 
 const settings: Array<{ setting_key: string; value_json: Record<string, unknown>; updated_at?: string }> = [
-  { setting_key: 'site.basic', value_json: { site_name: 'Go Admin Kit 演示站', icp: '', logo_url: '' }, updated_at: daysAgo(9) },
+  { setting_key: 'site.basic', value_json: { site_name: 'GopherForge 演示站', icp: '', logo_url: '' }, updated_at: daysAgo(9) },
 ]
 
 const demoUser = () => ({

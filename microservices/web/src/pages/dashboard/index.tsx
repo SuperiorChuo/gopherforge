@@ -375,7 +375,7 @@ export default function DashboardPage() {
             <div className="dash-hero-greeting">
               {greeting}，<em>{userInfo?.nickname || userInfo?.username}</em>
             </div>
-            <div className="dash-hero-sub">欢迎回到 Go Admin Kit · 以工程之美，驱动今日工作</div>
+            <div className="dash-hero-sub">欢迎回到 GopherForge · 以工程之美，驱动今日工作</div>
             <div className="dash-hero-chips">
               <span className="hero-chip">
                 <CalendarOutlined />
