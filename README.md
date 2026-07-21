@@ -2,12 +2,17 @@
   <img src="docs/screenshots/wechat-group.jpg" alt="GopherForge 微信交流群二维码" width="420" />
 </p>
 
-# 🚀 GopherForge · Go 微服务后台脚手架
+# 🚀 GopherForge · Go 微服务后台管理脚手架
+
+**GopherForge**（曾用名 `go-admin-kit`）是一套**开源的企业级 Go 微服务后台管理系统脚手架**：后端 Go + Gin 按域拆分 7 个基础服务，前端 React 19 + Ant Design 6，Traefik 网关统一鉴权，自带 RBAC 权限、多租户、审计日志、系统监控与代码生成器，`docker compose up` 一条命令拉起全栈。
+
+- **适合谁**：需要快速搭建企业内部管理平台 / SaaS 管理后台的 Go 团队；前端更熟 React 而不想用 Vue 的团队；想要真微服务架构（而非单体）作为起点、又不想背业务包袱的项目。
+- **和同类有何不同**：只含基础设施、零业务耦合——对比 gin-vue-admin、go-admin、RuoYi 系见 [同类项目对比](docs/comparison.md)。
+- **多快能跑起来**：克隆后 `docker compose up -d --build`，约 3 分钟拉起网关 + 7 服务 + 前端 + PostgreSQL/Redis/NATS；或先玩 [在线 Demo](https://superiorchuo.github.io/gopherforge/)（纯前端假数据，任意账号可登录）。
 
 <p align="center">
   <strong>✨ 企业级微服务后台脚手架 · 只含基础设施 · 开箱即用 ✨</strong><br/>
-  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React + Ant Design &nbsp;·&nbsp; 🧩 Traefik 网关 + 7 服务<br/>
-  <sub>GopherForge（曾用名 go-admin-kit）是 SuperiorChuo 维护的开源 Go 后台管理脚手架</sub>
+  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React + Ant Design &nbsp;·&nbsp; 🧩 Traefik 网关 + 7 服务
 </p>
 
 <p align="center">
@@ -304,6 +309,7 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 |------|------|
 | 环境变量 | [`microservices/.env.example`](microservices/.env.example) |
 | 迁移 / OpenAPI | `microservices/services/monitor/migrations/`、`docs/openapi.json` |
+| 同类项目对比 | [`docs/comparison.md`](docs/comparison.md) |
 | 产品线对照 | [`docs/PRODUCT_LINES.md`](docs/PRODUCT_LINES.md) |
 | 安全说明 | [`docs/SECURITY.md`](docs/SECURITY.md) · [`SECURITY.md`](SECURITY.md) |
 | 工程说明 | [`docs/ENGINEERING.md`](docs/ENGINEERING.md) |
