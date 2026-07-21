@@ -46,6 +46,12 @@ var defaultMenuSeed = []model.Menu{
 	{ID: 23, Name: "setting", Title: "系统设置", Icon: "setting", Path: "/system/setting", Component: "system/setting/index", ParentID: 10, Sort: 13, Status: 1, Hidden: 0, Permission: "system:setting:list"},
 	{ID: 24, Name: "tenant", Title: "租户管理", Icon: "team", Path: "/system/tenant", Component: "system/tenant/index", ParentID: 10, Sort: 14, Status: 1, Hidden: 0, Permission: "system:tenant:list"},
 	{ID: 25, Name: "codegen", Title: "代码生成", Icon: "code", Path: "/system/codegen", Component: "system/codegen/index", ParentID: 10, Sort: 15, Status: 1, Hidden: 0, Permission: "system:codegen:list"},
+	// 短信管理：渠道/模板/发送日志
+	{ID: 26, Name: "sms", Title: "短信管理", Icon: "mail", Path: "/system/sms", Component: "system/sms/index", ParentID: 10, Sort: 16, Status: 1, Hidden: 0, Permission: "system:sms-channel:list"},
+	// 错误码管理：错误文案在线改，30s 热生效
+	{ID: 27, Name: "errcodes", Title: "错误码管理", Icon: "warning", Path: "/system/errcodes", Component: "system/errcodes/index", ParentID: 10, Sort: 17, Status: 1, Hidden: 0, Permission: "system:errcode:list"},
+	// 岗位管理：岗位 CRUD + 用户选岗（identity-service）
+	{ID: 28, Name: "post", Title: "岗位管理", Icon: "idcard", Path: "/system/post", Component: "system/posts", ParentID: 10, Sort: 18, Status: 1, Hidden: 0, Permission: "system:post:list"},
 
 	{ID: 30, Name: "monitor", Title: "系统监控", Icon: "chart-analytics", Path: "/monitor", Component: "Layout", ParentID: 0, Sort: 2, Status: 1, Hidden: 0},
 	{ID: 31, Name: "monitor-job", Title: "定时任务", Icon: "time", Path: "/monitor/job", Component: "monitor/job/index", ParentID: 30, Sort: 1, Status: 1, Hidden: 0, Permission: "system:job:list"},

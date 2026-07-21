@@ -2,7 +2,7 @@ import request from '@/utils/request'
 import type { PageRequest, PageResponse, SystemUser } from '@/types'
 
 type UserListParams = PageRequest & { keyword?: string; status?: number }
-type UserCreateData = Omit<SystemUser, 'id' | 'created_at'> & { password?: string }
+type UserCreateData = Omit<SystemUser, 'id' | 'created_at'> & { password?: string; post_ids?: number[] }
 type UserUpdateData = Partial<UserCreateData>
 
 export const getUserList = (params: UserListParams) =>
@@ -11,7 +11,7 @@ export const getUserList = (params: UserListParams) =>
 export const createUser = (data: UserCreateData) =>
   request.post<unknown, SystemUser>('/api/v1/users', data)
 
-// 后端仅支持更新 nickname/email/phone/avatar；状态用 updateUserStatus，角色用 assignUserRoles
+// 后端支持更新 nickname/email/phone/avatar/post_ids；状态用 updateUserStatus，角色用 assignUserRoles
 export const updateUser = (id: number, data: UserUpdateData) =>
   request.put<unknown, SystemUser>(`/api/v1/users/${id}`, data)
 

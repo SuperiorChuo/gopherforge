@@ -50,6 +50,9 @@ const routes: RouteObject[] = [
       { path: 'system/setting', element: lazyLoad(() => import('@/pages/system/setting')) },
       { path: 'system/tenant', element: lazyLoad(() => import('@/pages/system/tenant')) },
       { path: 'system/codegen', element: lazyLoad(() => import('@/pages/system/codegen')) },
+      { path: 'system/sms', element: lazyLoad(() => import('@/pages/system/sms')) },
+      { path: 'system/errcodes', element: lazyLoad(() => import('@/pages/system/errcodes')) },
+      { path: 'system/post', element: lazyLoad(() => import('@/pages/system/posts')) },
 
       // Monitor
       { path: 'monitor/server', element: lazyLoad(() => import('@/pages/monitor/server')) },

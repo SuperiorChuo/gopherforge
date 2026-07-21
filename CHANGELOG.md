@@ -13,6 +13,16 @@
 
 ### 新增
 
+- **同步自主项目：短信管理 + 错误码管理 + 岗位管理**：
+  短信管理（system）——渠道 / 模板 / 发送日志三 Tab，发送器可插拔（debug 联调直通 /
+  阿里云 / 腾讯云，均无 SDK 依赖），密钥读时脱敏、更新占位保留，权限点
+  `system:sms-*`（迁移 000019/000020）；
+  错误码管理（system）——错误码 → 对外文案在线改，30s TTL 热生效，字典 / 公告两处
+  接入示例，权限点 `system:errcode:*`（迁移 000018）；
+  岗位管理（identity）——`sys_posts` / `sys_user_posts` 表（迁移 000021），岗位 CRUD
+  （code 租户内唯一、有用户关联拒删），用户建改可带 `post_ids`、列表 / 详情带岗位摘要，
+  权限点 `system:post:*`；网关按新路径分发（sms / error-codes → system，posts → identity），
+  三页面均接入在线 Demo 假数据
 - **代码生成器**（同步自上游完整版）：系统管理 → 代码生成，选表配字段一键生成
   CRUD 前后端起步包（Go model/store/handlers/routes + React 列表页 + axios api + 菜单 SQL），
   支持分文件预览与 zip 下载；权限点 `system:codegen:list|generate`（迁移 000017）

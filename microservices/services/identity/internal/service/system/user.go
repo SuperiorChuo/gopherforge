@@ -37,10 +37,11 @@ type UserListRequest struct {
 }
 
 type UpdateUserRequest struct {
-	Nickname string `json:"nickname"`
-	Email    string `json:"email" binding:"email"`
-	Phone    string `json:"phone"`
-	Avatar   string `json:"avatar"`
+	Nickname string  `json:"nickname"`
+	Email    string  `json:"email" binding:"email"`
+	Phone    string  `json:"phone"`
+	Avatar   string  `json:"avatar"`
+	PostIDs  *[]uint `json:"post_ids"`
 }
 
 type AssignRolesRequest struct {
@@ -55,6 +56,7 @@ type CreateUserRequest struct {
 	Phone        string `json:"phone"`
 	DepartmentID uint   `json:"department_id"`
 	Status       int8   `json:"status"`
+	PostIDs      []uint `json:"post_ids"`
 }
 
 var (
@@ -63,8 +65,21 @@ var (
 	ErrUserNotFound          = errors.New("user not found")
 	ErrRoleNotInTenant       = errors.New("role does not belong to current tenant")
 	ErrDepartmentNotInTenant = errors.New("department does not belong to current tenant")
+	ErrPostNotInTenant       = errors.New("post does not belong to current tenant")
 	ErrTenantUserQuota       = errors.New("tenant user quota exceeded")
 )
+
+// fillPostIDs mirrors preloaded posts into the plain post_ids field.
+func fillPostIDs(user *model.User) {
+	if user == nil || len(user.Posts) == 0 {
+		return
+	}
+	ids := make([]uint, 0, len(user.Posts))
+	for _, post := range user.Posts {
+		ids = append(ids, post.ID)
+	}
+	user.PostIDs = ids
+}
 
 func (s *UserService) GetUserByIDContext(ctx context.Context, id uint) (*model.User, error) {
 	user, err := s.userDAO.GetUserByIDContext(ctx, id)
@@ -81,7 +96,7 @@ func (s *UserService) GetUserByIDContext(ctx context.Context, id uint) (*model.U
 }
 
 func (s *UserService) GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error) {
-	user, err := s.userDAO.GetUserWithRolesContext(ctx, id)
+	user, err := s.userDAO.GetUserWithRolesPostsContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
@@ -91,11 +106,19 @@ func (s *UserService) GetUserWithRolesContext(ctx context.Context, id uint) (*mo
 	if err := assertSameTenant(ctx, user.TenantID); err != nil {
 		return nil, ErrUserNotFound
 	}
+	fillPostIDs(user)
 	return user, nil
 }
 
 func (s *UserService) GetUserListContext(ctx context.Context, req UserListRequest) ([]model.User, int64, error) {
-	return s.userDAO.GetUserListContext(ctx, req.PageRequest, req.Keyword, req.Status, req.DataScope)
+	users, total, err := s.userDAO.GetUserListContext(ctx, req.PageRequest, req.Keyword, req.Status, req.DataScope)
+	if err != nil {
+		return nil, 0, err
+	}
+	for i := range users {
+		fillPostIDs(&users[i])
+	}
+	return users, total, nil
 }
 
 func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserRequest) (*model.User, error) {
@@ -138,6 +161,14 @@ func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserReque
 			return nil, err
 		}
 	}
+	if len(req.PostIDs) > 0 {
+		if err := s.userDAO.AssertPostsInTenantContext(ctx, req.PostIDs, tenantID); err != nil {
+			if errors.Is(err, systemdao.ErrPostNotInTenant) {
+				return nil, ErrPostNotInTenant
+			}
+			return nil, err
+		}
+	}
 	now := time.Now()
 	user := &model.User{
 		TenantID:          tenantID,
@@ -157,6 +188,13 @@ func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserReque
 
 	if err := s.userDAO.CreateUserContext(ctx, user); err != nil {
 		return nil, err
+	}
+
+	if len(req.PostIDs) > 0 {
+		if err := s.userDAO.AssignPostsContext(ctx, user.ID, req.PostIDs); err != nil {
+			return nil, err
+		}
+		user.PostIDs = req.PostIDs
 	}
 
 	return user, nil
@@ -194,6 +232,19 @@ func (s *UserService) UpdateUserContext(ctx context.Context, id uint, req Update
 
 	if err := s.userDAO.UpdateUserContext(ctx, user); err != nil {
 		return nil, err
+	}
+
+	if req.PostIDs != nil {
+		if err := s.userDAO.AssertPostsInTenantContext(ctx, *req.PostIDs, user.TenantID); err != nil {
+			if errors.Is(err, systemdao.ErrPostNotInTenant) {
+				return nil, ErrPostNotInTenant
+			}
+			return nil, err
+		}
+		if err := s.userDAO.AssignPostsContext(ctx, user.ID, *req.PostIDs); err != nil {
+			return nil, err
+		}
+		user.PostIDs = *req.PostIDs
 	}
 
 	return user, nil

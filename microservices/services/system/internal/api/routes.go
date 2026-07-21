@@ -28,6 +28,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	menuUserAPI := system.NewMenuAPI()
 	dictAPI := system.NewDictAPI()
 	noticeAPI := system.NewNoticeAPI()
+	errCodeAPI := system.NewErrCodeAPI()
 	settingAPI := system.NewSettingAPI()
 	onlineUserAPI := system.NewOnlineUserAPI()
 	notificationAPI := system.NewNotificationAPI()
@@ -41,6 +42,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		menuUserAPI = system.NewMenuAPIWithService(systemsvc.NewMenuUserServiceWithDB(deps.DB))
 		dictAPI = system.NewDictAPIWithService(systemsvc.NewDictServiceWithDB(deps.DB))
 		noticeAPI = system.NewNoticeAPIWithService(systemsvc.NewNoticeServiceWithDB(deps.DB))
+		errCodeAPI = system.NewErrCodeAPIWithService(systemsvc.NewErrCodeServiceWithDB(deps.DB))
 		settingAPI = system.NewSettingAPIWithService(systemsvc.NewSettingServiceWithDB(deps.DB))
 		notificationAPI = system.NewNotificationAPIWithService(systemsvc.NewNoticeServiceWithDB(deps.DB))
 
@@ -107,6 +109,14 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		protected.DELETE("/notices/:id", middleware.PermissionMiddleware("system:notice:delete"), noticeAPI.DeleteNotice)
 		protected.PUT("/notices/:id/status", middleware.PermissionMiddleware("system:notice:update"), noticeAPI.UpdateNoticeStatus)
 
+		// 错误码管理：文案在线改，30s TTL 热生效；/all 供服务/前端整包拉取
+		protected.GET("/error-codes", middleware.PermissionMiddleware("system:errcode:list"), errCodeAPI.GetList)
+		protected.GET("/error-codes/all", errCodeAPI.GetAllEnabled)
+		protected.GET("/error-codes/:id", middleware.PermissionMiddleware("system:errcode:list"), errCodeAPI.Get)
+		protected.POST("/error-codes", middleware.PermissionMiddleware("system:errcode:create"), errCodeAPI.Create)
+		protected.PUT("/error-codes/:id", middleware.PermissionMiddleware("system:errcode:update"), errCodeAPI.Update)
+		protected.DELETE("/error-codes/:id", middleware.PermissionMiddleware("system:errcode:delete"), errCodeAPI.Delete)
+
 		// 系统设置属平台级（AI/SMTP 密钥等），在权限码之上再要求平台管理员
 		settingGuard := middleware.PlatformAdminMiddleware()
 		protected.GET("/system-settings", settingGuard, middleware.PermissionMiddleware("system:setting:list"), settingAPI.GetSettings)
@@ -118,5 +128,8 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		protected.GET("/online-users", middleware.PermissionMiddleware("system:online-user:list"), onlineUserAPI.GetOnlineUsers)
 		protected.GET("/online-users/count", middleware.PermissionMiddleware("system:online-user:list"), onlineUserAPI.GetOnlineUserCount)
 		protected.DELETE("/online-users/:token_id", middleware.PermissionMiddleware("system:online-user:kick"), onlineUserAPI.ForceLogout)
+
+		// 短信管理（渠道/模板/发送日志/发送），详见 routes_sms.go
+		registerSmsRoutes(protected, deps)
 	}
 }

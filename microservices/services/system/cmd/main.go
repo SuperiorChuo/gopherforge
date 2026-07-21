@@ -205,6 +205,7 @@ func run(ctx context.Context) error {
 		DataScope:   authz.NewDatabaseDataScopeStore(database.DB),
 	})
 	runtimeconfig.SetSecurityPolicyStore(systemDAO.NewSettingDAO(database.DB))
+	runtimeconfig.SetErrorCodeStore(systemDAO.NewErrCodeDAO(database.DB))
 	defer func() {
 		if err := database.Close(); err != nil {
 			logger.Error("database close failed", logger.Err(err))

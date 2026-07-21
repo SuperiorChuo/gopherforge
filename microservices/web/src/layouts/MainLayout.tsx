@@ -45,7 +45,9 @@ import {
   FullscreenExitOutlined,
   SearchOutlined,
   AimOutlined,
+  IdcardOutlined,
   ThunderboltOutlined,
+  WarningOutlined,
   SunOutlined,
   MoonOutlined,
   HomeOutlined,
@@ -146,6 +148,8 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   aim: <AimOutlined />,
   search: <SearchOutlined />,
   thunderbolt: <ThunderboltOutlined />,
+  warning: <WarningOutlined />,
+  idcard: <IdcardOutlined />,
 }
 
 function iconOf(name?: string): React.ReactNode {
@@ -186,6 +190,7 @@ const MENU_DEFS: MenuDef[] = [
       { label: '权限管理', key: '/system/permission', icon: <SafetyOutlined /> },
       { label: '菜单管理', key: '/system/menu', icon: <MenuOutlined /> },
       { label: '部门管理', key: '/system/department', icon: <ApartmentOutlined /> },
+      { label: '岗位管理', key: '/system/post', icon: <IdcardOutlined /> },
       { label: '字典管理', key: '/system/dict', icon: <DatabaseOutlined /> },
       { label: '文件管理', key: '/system/file', icon: <FileOutlined /> },
       { label: '公告管理', key: '/system/notice', icon: <NotificationOutlined /> },
@@ -196,6 +201,8 @@ const MENU_DEFS: MenuDef[] = [
       { label: '系统设置', key: '/system/setting', icon: <SettingOutlined /> },
       { label: '租户管理', key: '/system/tenant', icon: <TeamOutlined /> },
       { label: '代码生成', key: '/system/codegen', icon: <CodeOutlined /> },
+      { label: '短信管理', key: '/system/sms', icon: <MailOutlined /> },
+      { label: '错误码管理', key: '/system/errcodes', icon: <WarningOutlined /> },
     ],
   },
   {
@@ -263,6 +270,9 @@ const pathBreadcrumbMap: Record<string, string> = {
   '/system/setting': '系统设置',
   '/system/tenant': '租户管理',
   '/system/codegen': '代码生成',
+  '/system/sms': '短信管理',
+  '/system/errcodes': '错误码管理',
+  '/system/post': '岗位管理',
   '/monitor/server': '服务器监控',
   '/monitor/mysql': '数据库监控',
   '/monitor/redis': 'Redis 监控',

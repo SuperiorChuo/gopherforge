@@ -277,7 +277,7 @@ services:
       # Same PathPrefix caveat as the auth router: exact paths use Path(),
       # subtrees use a trailing-slash PathPrefix(). `/user/...` (singular,
       # monolith + auth-service) must NOT match `/users`.
-      traefik.http.routers.identity.rule: "Path(`/api/v1/users`) || PathPrefix(`/api/v1/users/`) || Path(`/api/v1/roles`) || PathPrefix(`/api/v1/roles/`) || Path(`/api/v1/permissions`) || PathPrefix(`/api/v1/permissions/`) || Path(`/api/v1/departments`) || PathPrefix(`/api/v1/departments/`) || Path(`/api/v1/tenants`) || PathPrefix(`/api/v1/tenants/`)"
+      traefik.http.routers.identity.rule: "Path(`/api/v1/users`) || PathPrefix(`/api/v1/users/`) || Path(`/api/v1/roles`) || PathPrefix(`/api/v1/roles/`) || Path(`/api/v1/permissions`) || PathPrefix(`/api/v1/permissions/`) || Path(`/api/v1/departments`) || PathPrefix(`/api/v1/departments/`) || Path(`/api/v1/tenants`) || PathPrefix(`/api/v1/tenants/`) || Path(`/api/v1/posts`) || PathPrefix(`/api/v1/posts/`)"
       traefik.http.routers.identity.entrypoints: web
       traefik.http.routers.identity.priority: "100"
       traefik.http.services.identity.loadbalancer.server.port: "8083"
@@ -335,7 +335,7 @@ services:
       # Same PathPrefix caveat as the auth/identity routers: exact paths use
       # Path(), subtrees use a trailing-slash PathPrefix(). `/user/menus` is
       # an exact path so it can't collide with auth's /user/me etc.
-      traefik.http.routers.system.rule: "Path(`/api/v1/menus`) || PathPrefix(`/api/v1/menus/`) || Path(`/api/v1/user/menus`) || Path(`/api/v1/dict-types`) || PathPrefix(`/api/v1/dict-types/`) || Path(`/api/v1/dict-items`) || PathPrefix(`/api/v1/dict-items/`) || Path(`/api/v1/dicts`) || PathPrefix(`/api/v1/dicts/`) || Path(`/api/v1/notices`) || PathPrefix(`/api/v1/notices/`) || Path(`/api/v1/system-settings`) || PathPrefix(`/api/v1/system-settings/`) || Path(`/api/v1/online-users`) || PathPrefix(`/api/v1/online-users/`) || Path(`/api/v1/ws/notifications`) || PathPrefix(`/api/v1/ws/notifications/`) || Path(`/api/v1/system/weather`) || PathPrefix(`/api/v1/codegen/`)"
+      traefik.http.routers.system.rule: "Path(`/api/v1/menus`) || PathPrefix(`/api/v1/menus/`) || Path(`/api/v1/user/menus`) || Path(`/api/v1/dict-types`) || PathPrefix(`/api/v1/dict-types/`) || Path(`/api/v1/dict-items`) || PathPrefix(`/api/v1/dict-items/`) || Path(`/api/v1/dicts`) || PathPrefix(`/api/v1/dicts/`) || Path(`/api/v1/notices`) || PathPrefix(`/api/v1/notices/`) || Path(`/api/v1/system-settings`) || PathPrefix(`/api/v1/system-settings/`) || Path(`/api/v1/online-users`) || PathPrefix(`/api/v1/online-users/`) || Path(`/api/v1/ws/notifications`) || PathPrefix(`/api/v1/ws/notifications/`) || Path(`/api/v1/system/weather`) || PathPrefix(`/api/v1/codegen/`) || PathPrefix(`/api/v1/sms/`) || Path(`/api/v1/error-codes`) || PathPrefix(`/api/v1/error-codes/`)"
       traefik.http.routers.system.entrypoints: web
       traefik.http.routers.system.priority: "100"
       traefik.http.services.system.loadbalancer.server.port: "8084"

@@ -59,15 +59,26 @@ func (d *UserDAO) GetUserListContext(ctx context.Context, req pagination.PageReq
 
 	result := query.Scopes(pagination.Paginate(req)).
 		Preload("Roles").
+		Preload("Posts").
 		Order("created_at DESC").
 		Find(&users)
 
 	return users, total, result.Error
 }
 
+// GetUserWithRolesPostsContext loads a user together with roles and posts.
+func (d *UserDAO) GetUserWithRolesPostsContext(ctx context.Context, id uint) (*model.User, error) {
+	var user model.User
+	result := d.dbWithContext(ctx).Preload("Roles").Preload("Posts").First(&user, id)
+	return &user, result.Error
+}
+
 func (d *UserDAO) DeleteUserContext(ctx context.Context, id uint) error {
 	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("user_id = ?", id).Delete(&model.UserRole{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", id).Delete(&model.UserPost{}).Error; err != nil {
 			return err
 		}
 		if err := tx.Delete(&model.User{}, id).Error; err != nil {
@@ -141,6 +152,67 @@ func (d *UserDAO) AssertRolesInTenantContext(ctx context.Context, roleIDs []uint
 	return nil
 }
 
+// AssignPostsContext replaces the post assignment of a user.
+func (d *UserDAO) AssignPostsContext(ctx context.Context, userID uint, postIDs []uint) error {
+	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("user_id = ?", userID).Delete(&model.UserPost{}).Error; err != nil {
+			return err
+		}
+
+		if len(postIDs) == 0 {
+			return nil
+		}
+
+		userPosts := make([]model.UserPost, 0, len(postIDs))
+		for _, postID := range postIDs {
+			userPosts = append(userPosts, model.UserPost{
+				UserID: userID,
+				PostID: postID,
+			})
+		}
+
+		if err := tx.Create(&userPosts).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// AssertPostsInTenantContext ensures every post id belongs to tenantID.
+func (d *UserDAO) AssertPostsInTenantContext(ctx context.Context, postIDs []uint, tenantID uint) error {
+	if len(postIDs) == 0 {
+		return nil
+	}
+	if tenantID == 0 {
+		tenantID = 1
+	}
+	seen := make(map[uint]struct{}, len(postIDs))
+	uniq := make([]uint, 0, len(postIDs))
+	for _, id := range postIDs {
+		if id == 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniq = append(uniq, id)
+	}
+	if len(uniq) == 0 {
+		return nil
+	}
+	var count int64
+	if err := d.dbWithContext(ctx).Model(&model.Post{}).
+		Where("tenant_id = ? AND id IN ?", tenantID, uniq).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if int(count) != len(uniq) {
+		return ErrPostNotInTenant
+	}
+	return nil
+}
+
 // AssertDepartmentInTenantContext ensures department belongs to tenant.
 func (d *UserDAO) AssertDepartmentInTenantContext(ctx context.Context, departmentID, tenantID uint) error {
 	if departmentID == 0 {
@@ -165,4 +237,5 @@ func (d *UserDAO) AssertDepartmentInTenantContext(ctx context.Context, departmen
 var (
 	ErrRoleNotInTenant       = errors.New("role does not belong to current tenant")
 	ErrDepartmentNotInTenant = errors.New("department does not belong to current tenant")
+	ErrPostNotInTenant       = errors.New("post does not belong to current tenant")
 )

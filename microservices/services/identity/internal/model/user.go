@@ -22,6 +22,8 @@ type User struct {
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 	Roles              []Role     `gorm:"many2many:user_roles;" json:"roles,omitempty"`
+	Posts              []Post     `gorm:"many2many:sys_user_posts;" json:"posts,omitempty"`
+	PostIDs            []uint     `gorm:"-" json:"post_ids,omitempty"`
 }
 
 // PasswordHistory stores previous password hashes for reuse checks.

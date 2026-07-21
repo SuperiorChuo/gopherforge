@@ -12,6 +12,8 @@ import type { SystemUser, SystemRole, Department } from '@/types'
 import * as UserAPI from '@/api/system/user'
 import { getRoleList } from '@/api/system/role'
 import { getDepartmentList } from '@/api/system/department'
+import { getAllPosts } from '@/api/system/posts'
+import type { SystemPost } from '@/api/system/posts'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
@@ -36,16 +38,20 @@ interface SearchParams {
   page_size: number
 }
 
+// 用户行：后端用户列表 / 详情会附带岗位摘要（posts）与岗位 id 数组（post_ids）
+type UserRow = SystemUser & { posts?: SystemPost[]; post_ids?: number[] }
+
 export default function UserPage() {
-  const [list, setList] = useState<SystemUser[]>([])
+  const [list, setList] = useState<UserRow[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [modalOpen, setModalOpen] = useState(false)
-  const [editRecord, setEditRecord] = useState<SystemUser | null>(null)
+  const [editRecord, setEditRecord] = useState<UserRow | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [roles, setRoles] = useState<SystemRole[]>([])
   const [depts, setDepts] = useState<Department[]>([])
+  const [posts, setPosts] = useState<SystemPost[]>([])
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
@@ -89,6 +95,11 @@ export default function UserPage() {
       .catch(() => {
         // ignore
       })
+    getAllPosts()
+      .then((res) => setPosts(res ?? []))
+      .catch(() => {
+        // ignore
+      })
   }, [])
 
   const handleSearch = (values: { keyword?: string; status?: number }) => {
@@ -106,7 +117,7 @@ export default function UserPage() {
     setModalOpen(true)
   }
 
-  const openEdit = (record: SystemUser) => {
+  const openEdit = (record: UserRow) => {
     setEditRecord(record)
     form.setFieldsValue({
       username: record.username,
@@ -116,6 +127,7 @@ export default function UserPage() {
       status: record.status,
       department_id: record.department_id,
       role_ids: record.roles?.map((r) => r.id) ?? [],
+      post_ids: record.post_ids ?? record.posts?.map((p) => p.id) ?? [],
     })
     setModalOpen(true)
   }
@@ -165,7 +177,7 @@ export default function UserPage() {
     }
   }
 
-  const columns: ColumnsType<SystemUser> = [
+  const columns: ColumnsType<UserRow> = [
     {
       title: '用户',
       dataIndex: 'username',
@@ -209,6 +221,21 @@ export default function UserPage() {
       render: (id?: number) =>
         id && deptNameMap.get(id) ? (
           deptNameMap.get(id)
+        ) : (
+          <span className="cell-muted">—</span>
+        ),
+    },
+    {
+      title: '岗位',
+      dataIndex: 'posts',
+      width: 150,
+      render: (userPosts: UserRow['posts']) =>
+        userPosts && userPosts.length > 0 ? (
+          <Space size={[4, 4]} wrap>
+            {userPosts.map((p) => (
+              <Tag key={p.id} variant="filled">{p.name}</Tag>
+            ))}
+          </Space>
         ) : (
           <span className="cell-muted">—</span>
         ),
@@ -435,6 +462,15 @@ export default function UserPage() {
               placeholder="请选择角色"
               optionFilterProp="label"
               options={roles.map((r) => ({ label: r.name, value: r.id }))}
+            />
+          </Form.Item>
+          <Form.Item name="post_ids" label="岗位">
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="请选择岗位"
+              optionFilterProp="label"
+              options={posts.map((p) => ({ label: p.name, value: p.id, disabled: p.status !== 1 }))}
             />
           </Form.Item>
         </Form>

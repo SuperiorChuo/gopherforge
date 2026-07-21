@@ -56,10 +56,10 @@ const departments = [
 const deptTree = [{ ...departments[0], children: [departments[1], departments[2]] }]
 
 const users = [
-  { id: 1, username: 'admin', nickname: '管理员', email: 'admin@example.com', phone: '13800000001', status: 1, department_id: 1, roles: [roles[0]], created_at: daysAgo(90) },
-  { id: 2, username: 'zhangsan', nickname: '张三', email: 'zhangsan@example.com', phone: '13800000002', status: 1, department_id: 2, roles: [roles[1]], created_at: daysAgo(45) },
-  { id: 3, username: 'lisi', nickname: '李四', email: 'lisi@example.com', phone: '13800000003', status: 1, department_id: 3, roles: [roles[2]], created_at: daysAgo(20) },
-  { id: 4, username: 'wangwu', nickname: '王五', email: 'wangwu@example.com', phone: '13800000004', status: 0, department_id: 2, roles: [roles[2]], created_at: daysAgo(7) },
+  { id: 1, username: 'admin', nickname: '管理员', email: 'admin@example.com', phone: '13800000001', status: 1, department_id: 1, roles: [roles[0]], posts: [{ id: 1, code: 'ceo', name: '总经理', sort: 1, status: 1 }], post_ids: [1], created_at: daysAgo(90) },
+  { id: 2, username: 'zhangsan', nickname: '张三', email: 'zhangsan@example.com', phone: '13800000002', status: 1, department_id: 2, roles: [roles[1]], posts: [{ id: 3, code: 'dev', name: '研发工程师', sort: 3, status: 1 }], post_ids: [3], created_at: daysAgo(45) },
+  { id: 3, username: 'lisi', nickname: '李四', email: 'lisi@example.com', phone: '13800000003', status: 1, department_id: 3, roles: [roles[2]], posts: [{ id: 2, code: 'hr', name: '人事专员', sort: 2, status: 1 }], post_ids: [2], created_at: daysAgo(20) },
+  { id: 4, username: 'wangwu', nickname: '王五', email: 'wangwu@example.com', phone: '13800000004', status: 0, department_id: 2, roles: [roles[2]], posts: [] as Array<{ id: number; code: string; name: string; sort: number; status: number }>, post_ids: [] as number[], created_at: daysAgo(7) },
 ]
 
 // 与后端 menu_seed 一致的菜单树
@@ -82,6 +82,9 @@ const menuRows = [
   { id: 23, name: 'setting', title: '系统设置', icon: 'setting', path: '/system/setting', component: 'system/setting/index', parent_id: 10, sort: 13, status: 1, hidden: 0, permission: 'system:setting:list' },
   { id: 24, name: 'tenant', title: '租户管理', icon: 'team', path: '/system/tenant', component: 'system/tenant/index', parent_id: 10, sort: 14, status: 1, hidden: 0, permission: 'system:tenant:list' },
   { id: 25, name: 'codegen', title: '代码生成', icon: 'code', path: '/system/codegen', component: 'system/codegen/index', parent_id: 10, sort: 15, status: 1, hidden: 0, permission: 'system:codegen:list' },
+  { id: 26, name: 'sms', title: '短信管理', icon: 'mail', path: '/system/sms', component: 'system/sms/index', parent_id: 10, sort: 16, status: 1, hidden: 0, permission: 'system:sms-channel:list' },
+  { id: 27, name: 'errcodes', title: '错误码管理', icon: 'warning', path: '/system/errcodes', component: 'system/errcodes/index', parent_id: 10, sort: 17, status: 1, hidden: 0, permission: 'system:errcode:list' },
+  { id: 28, name: 'post', title: '岗位管理', icon: 'idcard', path: '/system/post', component: 'system/posts', parent_id: 10, sort: 18, status: 1, hidden: 0, permission: 'system:post:list' },
   { id: 30, name: 'monitor', title: '系统监控', icon: 'chart-analytics', path: '/monitor', component: 'Layout', parent_id: 0, sort: 2, status: 1, hidden: 0 },
   { id: 31, name: 'monitor-job', title: '定时任务', icon: 'time', path: '/monitor/job', component: 'monitor/job/index', parent_id: 30, sort: 1, status: 1, hidden: 0, permission: 'system:job:list' },
   { id: 32, name: 'monitor-server', title: '服务器监控', icon: 'server', path: '/monitor/server', component: 'monitor/server/index', parent_id: 30, sort: 2, status: 1, hidden: 0, permission: 'system:monitor:server' },
@@ -167,6 +170,45 @@ const jobs = [
 const tenants = [
   { id: 1, code: 'default', name: '默认租户', status: 1, plan: 'pro', max_users: 200, created_at: daysAgo(90), updated_at: daysAgo(3) },
 ]
+
+const sysPosts = [
+  { id: 1, tenant_id: 1, code: 'ceo', name: '总经理', sort: 1, status: 1, remark: '公司负责人', created_at: daysAgo(90) },
+  { id: 2, tenant_id: 1, code: 'hr', name: '人事专员', sort: 2, status: 1, remark: '', created_at: daysAgo(60) },
+  { id: 3, tenant_id: 1, code: 'dev', name: '研发工程师', sort: 3, status: 1, remark: '', created_at: daysAgo(60) },
+  { id: 4, tenant_id: 1, code: 'intern', name: '实习生', sort: 9, status: 0, remark: '停用示例', created_at: daysAgo(30) },
+]
+
+const errorCodes = [
+  { id: 1, code: 'BAD_REQUEST', message: '请求参数有误，请检查后重试', memo: '默认: bad request（通用参数校验失败）', scope: 'global', status: 1, created_at: daysAgo(20), updated_at: daysAgo(20) },
+  { id: 2, code: 'UNAUTHORIZED', message: '登录状态已失效，请重新登录', memo: '默认: unauthorized（认证失败/令牌失效）', scope: 'global', status: 1, created_at: daysAgo(20), updated_at: daysAgo(20) },
+  { id: 3, code: 'FORBIDDEN', message: '权限不足，无法执行该操作', memo: '默认: insufficient permissions（权限中间件拒绝）', scope: 'global', status: 1, created_at: daysAgo(20), updated_at: daysAgo(20) },
+  { id: 4, code: 'NOTICE_NOT_FOUND', message: '公告不存在或已下线', memo: '默认: notice not found（已接入覆盖示例）', scope: 'system', status: 1, created_at: daysAgo(20), updated_at: daysAgo(5) },
+  { id: 5, code: 'DICT_TYPE_NOT_FOUND', message: '字典类型不存在', memo: '默认: dict type not found（已接入覆盖示例）', scope: 'system', status: 1, created_at: daysAgo(20), updated_at: daysAgo(20) },
+]
+
+type DemoSmsChannel = { id: number; tenant_id: number; name: string; provider: string; config: Record<string, string>; status: number; remark: string; created_at: string; updated_at: string }
+const smsChannels: DemoSmsChannel[] = [
+  { id: 1, tenant_id: 1, name: '联调直通（debug）', provider: 'debug', config: { sign_name: 'GopherForge' }, status: 1, remark: '不真发短信，直接记成功日志', created_at: daysAgo(30), updated_at: daysAgo(30) },
+  { id: 2, tenant_id: 1, name: '阿里云短信', provider: 'aliyun', config: { access_key_id: '******', access_key_secret: '******', sign_name: 'GopherForge' }, status: 1, remark: '密钥读时脱敏为 ******', created_at: daysAgo(25), updated_at: daysAgo(10) },
+  { id: 3, tenant_id: 1, name: '腾讯云短信', provider: 'tencent', config: { secret_id: '******', secret_key: '******', sdk_app_id: '1400000000', sign_name: 'GopherForge' }, status: 0, remark: '停用示例', created_at: daysAgo(25), updated_at: daysAgo(25) },
+]
+
+const smsTemplates = [
+  { id: 1, tenant_id: 1, code: 'login-code', name: '登录验证码', channel_id: 1, content: '您的验证码是 {code}，5 分钟内有效。', type: 1, provider_template_id: '', status: 1, remark: '', created_at: daysAgo(28), updated_at: daysAgo(28) },
+  { id: 2, tenant_id: 1, code: 'notify-audit', name: '审核结果通知', channel_id: 2, content: '您提交的 {biz} 已{result}。', type: 2, provider_template_id: 'SMS_10000001', status: 1, remark: '', created_at: daysAgo(20), updated_at: daysAgo(6) },
+]
+
+type DemoSmsLog = { id: number; tenant_id: number; mobile: string; template_code: string; content: string; params: Record<string, string>; channel_id: number; channel_name: string; provider: string; status: string; provider_msg_id: string; error: string; created_at: string; updated_at: string }
+const smsLogs: DemoSmsLog[] = Array.from({ length: 9 }, (_, i) => ({
+  id: 9 - i, tenant_id: 1, mobile: `1380000${String(1000 + i).slice(1)}`,
+  template_code: i % 2 ? 'notify-audit' : 'login-code',
+  content: i % 2 ? '您提交的 工单 已通过。' : `您的验证码是 ${314100 + i}，5 分钟内有效。`,
+  params: (i % 2 ? { biz: '工单', result: '通过' } : { code: String(314100 + i) }) as Record<string, string>,
+  channel_id: (i % 2) + 1, channel_name: i % 2 ? '阿里云短信' : '联调直通（debug）',
+  provider: i % 2 ? 'aliyun' : 'debug', status: i % 7 === 5 ? 'failure' : 'success',
+  provider_msg_id: i % 2 ? `msg-${9000 + i}` : '', error: i % 7 === 5 ? '模板参数缺失' : '',
+  created_at: daysAgo(Math.floor(i / 2), 9 + i), updated_at: daysAgo(Math.floor(i / 2), 9 + i),
+}))
 
 const settings: Array<{ setting_key: string; value_json: Record<string, unknown>; updated_at?: string }> = [
   { setting_key: 'site.basic', value_json: { site_name: 'GopherForge 演示站', icp: '', logo_url: '' }, updated_at: daysAgo(9) },
@@ -411,6 +453,107 @@ const routes: Array<[string, RegExp, Handler]> = [
   ['get', /^\/api\/v1\/online-users\/count$/, () => ({ count: onlineUsers.length })],
   ['get', /^\/api\/v1\/online-users$/, (_m, _b, q) => paged(onlineUsers, q)],
   ['delete', /^\/api\/v1\/online-users\//, () => unsupported('强制下线')],
+
+  // 岗位 / 错误码 / 短信（同步自主项目的三个基础设施模块）
+  ['get', /^\/api\/v1\/posts\/all$/, (_m, _b, q) => {
+    const st = q.get('status')
+    return st === null ? sysPosts : sysPosts.filter((p) => p.status === Number(st))
+  }],
+  ['get', /^\/api\/v1\/posts$/, (_m, _b, q) => paged(sysPosts, q)],
+  ['get', /^\/api\/v1\/posts\/(\d+)$/, (m) => sysPosts.find((p) => p.id === Number(m[1])) ?? sysPosts[0]],
+  ['post', /^\/api\/v1\/posts$/, (_m, body) => {
+    const p = { id: nextID(), tenant_id: 1, sort: 0, status: 1, remark: '', created_at: now(), ...body } as (typeof sysPosts)[0]
+    sysPosts.push(p)
+    return p
+  }],
+  ['put', /^\/api\/v1\/posts\/(\d+)$/, (m, body) => {
+    const i = sysPosts.findIndex((p) => p.id === Number(m[1]))
+    if (i >= 0) sysPosts[i] = { ...sysPosts[i], ...body }
+    return sysPosts[i] ?? {}
+  }],
+  ['delete', /^\/api\/v1\/posts\/(\d+)$/, (m) => {
+    const i = sysPosts.findIndex((p) => p.id === Number(m[1]))
+    if (i >= 0) sysPosts.splice(i, 1)
+    return {}
+  }],
+  ['get', /^\/api\/v1\/error-codes\/all$/, () => errorCodes.filter((e) => e.status === 1)],
+  ['get', /^\/api\/v1\/error-codes$/, (_m, _b, q) => paged(errorCodes, q)],
+  ['get', /^\/api\/v1\/error-codes\/(\d+)$/, (m) => errorCodes.find((e) => e.id === Number(m[1])) ?? errorCodes[0]],
+  ['post', /^\/api\/v1\/error-codes$/, (_m, body) => {
+    const e = { id: nextID(), memo: '', scope: 'global', status: 1, created_at: now(), updated_at: now(), ...body } as (typeof errorCodes)[0]
+    errorCodes.unshift(e)
+    return e
+  }],
+  // code 是稳定标识，更新时保持不变（与后端语义一致）
+  ['put', /^\/api\/v1\/error-codes\/(\d+)$/, (m, body) => {
+    const i = errorCodes.findIndex((e) => e.id === Number(m[1]))
+    if (i >= 0) errorCodes[i] = { ...errorCodes[i], ...body, code: errorCodes[i].code, updated_at: now() }
+    return errorCodes[i] ?? {}
+  }],
+  ['delete', /^\/api\/v1\/error-codes\/(\d+)$/, (m) => {
+    const i = errorCodes.findIndex((e) => e.id === Number(m[1]))
+    if (i >= 0) errorCodes.splice(i, 1)
+    return {}
+  }],
+  ['get', /^\/api\/v1\/sms\/channels\/enabled$/, () => smsChannels.filter((c) => c.status === 1)],
+  ['get', /^\/api\/v1\/sms\/channels$/, (_m, _b, q) => paged(smsChannels, q)],
+  ['post', /^\/api\/v1\/sms\/channels$/, (_m, body) => {
+    const c = { id: nextID(), tenant_id: 1, config: {}, status: 1, remark: '', created_at: now(), updated_at: now(), ...body } as DemoSmsChannel
+    smsChannels.push(c)
+    return c
+  }],
+  ['put', /^\/api\/v1\/sms\/channels\/(\d+)\/status$/, (m, body) => {
+    const c = smsChannels.find((x) => x.id === Number(m[1]))
+    if (c) c.status = Number(body.status ?? c.status)
+    return {}
+  }],
+  ['put', /^\/api\/v1\/sms\/channels\/(\d+)$/, (m, body) => {
+    const i = smsChannels.findIndex((x) => x.id === Number(m[1]))
+    if (i >= 0) smsChannels[i] = { ...smsChannels[i], ...body, updated_at: now() }
+    return smsChannels[i] ?? {}
+  }],
+  ['delete', /^\/api\/v1\/sms\/channels\/(\d+)$/, (m) => {
+    const i = smsChannels.findIndex((x) => x.id === Number(m[1]))
+    if (i >= 0) smsChannels.splice(i, 1)
+    return {}
+  }],
+  ['get', /^\/api\/v1\/sms\/templates$/, (_m, _b, q) => paged(smsTemplates, q)],
+  ['post', /^\/api\/v1\/sms\/templates$/, (_m, body) => {
+    const t = { id: nextID(), tenant_id: 1, type: 1, provider_template_id: '', status: 1, remark: '', created_at: now(), updated_at: now(), ...body } as (typeof smsTemplates)[0]
+    smsTemplates.push(t)
+    return t
+  }],
+  ['put', /^\/api\/v1\/sms\/templates\/(\d+)\/status$/, (m, body) => {
+    const t = smsTemplates.find((x) => x.id === Number(m[1]))
+    if (t) t.status = Number(body.status ?? t.status)
+    return {}
+  }],
+  ['put', /^\/api\/v1\/sms\/templates\/(\d+)$/, (m, body) => {
+    const i = smsTemplates.findIndex((x) => x.id === Number(m[1]))
+    if (i >= 0) smsTemplates[i] = { ...smsTemplates[i], ...body, updated_at: now() }
+    return smsTemplates[i] ?? {}
+  }],
+  ['delete', /^\/api\/v1\/sms\/templates\/(\d+)$/, (m) => {
+    const i = smsTemplates.findIndex((x) => x.id === Number(m[1]))
+    if (i >= 0) smsTemplates.splice(i, 1)
+    return {}
+  }],
+  ['get', /^\/api\/v1\/sms\/logs$/, (_m, _b, q) => paged(smsLogs, q)],
+  // 测试发送：走 debug 语义，直接记一条成功日志
+  ['post', /^\/api\/v1\/sms\/send$/, (_m, body) => {
+    const tpl = smsTemplates.find((t) => t.code === String(body.template_code || ''))
+    const params = (body.params as Record<string, string>) ?? {}
+    let content = tpl?.content ?? '演示模式测试短信'
+    Object.entries(params).forEach(([k, v]) => { content = content.split(`{${k}}`).join(v) })
+    const log: DemoSmsLog = {
+      id: nextID(), tenant_id: 1, mobile: String(body.mobile || ''), template_code: String(body.template_code || ''),
+      content, params, channel_id: tpl?.channel_id ?? 1,
+      channel_name: smsChannels.find((c) => c.id === (tpl?.channel_id ?? 1))?.name ?? '联调直通（debug）',
+      provider: 'debug', status: 'success', provider_msg_id: '', error: '', created_at: now(), updated_at: now(),
+    }
+    smsLogs.unshift(log)
+    return { log_id: log.id, status: log.status, content: log.content }
+  }],
 
   // 设置 / 租户 / 天气
   ['get', /^\/api\/v1\/system-settings$/, () => settings],

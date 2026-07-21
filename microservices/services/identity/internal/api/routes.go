@@ -27,12 +27,14 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	roleMgmtAPI := system.NewRoleManagementAPI()
 	permissionMgmtAPI := system.NewPermissionManagementAPI()
 	departmentAPI := system.NewDepartmentAPI()
+	postAPI := system.NewPostAPI()
 	var tenantAPI *system.TenantAPI
 	if deps.DB != nil {
 		userMgmtAPI = system.NewUserManagementAPIWithService(systemsvc.NewUserServiceWithDB(deps.DB))
 		roleMgmtAPI = system.NewRoleManagementAPIWithService(systemsvc.NewRoleServiceWithDB(deps.DB))
 		permissionMgmtAPI = system.NewPermissionManagementAPIWithService(systemsvc.NewPermissionServiceWithDB(deps.DB))
 		departmentAPI = system.NewDepartmentAPIWithService(systemsvc.NewDepartmentServiceWithDB(deps.DB))
+		postAPI = system.NewPostAPIWithService(systemsvc.NewPostServiceWithDB(deps.DB))
 		tenantAPI = system.NewTenantAPIWithService(systemsvc.NewTenantServiceWithDB(deps.DB))
 	}
 
@@ -76,5 +78,12 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		protected.POST("/departments", middleware.PermissionMiddleware("system:department:create"), departmentAPI.CreateDepartment)
 		protected.PUT("/departments/:id", middleware.PermissionMiddleware("system:department:update"), departmentAPI.UpdateDepartment)
 		protected.DELETE("/departments/:id", middleware.PermissionMiddleware("system:department:delete"), departmentAPI.DeleteDepartment)
+
+		protected.GET("/posts", middleware.PermissionMiddleware("system:post:list"), postAPI.GetPostList)
+		protected.GET("/posts/all", middleware.PermissionMiddleware("system:post:list"), postAPI.GetAllPosts)
+		protected.GET("/posts/:id", middleware.PermissionMiddleware("system:post:list"), postAPI.GetPost)
+		protected.POST("/posts", middleware.PermissionMiddleware("system:post:create"), postAPI.CreatePost)
+		protected.PUT("/posts/:id", middleware.PermissionMiddleware("system:post:update"), postAPI.UpdatePost)
+		protected.DELETE("/posts/:id", middleware.PermissionMiddleware("system:post:delete"), postAPI.DeletePost)
 	}
 }
