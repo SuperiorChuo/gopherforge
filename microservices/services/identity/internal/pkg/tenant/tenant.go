@@ -1,4 +1,11 @@
-// Package tenant provides multi-tenant context helpers and a GORM isolation plugin (M2).
+// Package tenant provides multi-tenant context helpers and a GORM isolation
+// plugin（多租户 M2 引入，cmd/main.go 注册）。对标 yudao 透明化封装后泛化
+// （B 档①）：模型白名单（曾漏 Post）改为 schema 驱动——凡带 tenant_id 列的
+// 模型自动隔离，DisableScope 为平台级跨租户操作的显式逃生口。手写 scope
+// 保留为第一道，插件是防漏挂的第二道网（双重过滤无害）。
+//
+// 已知边界：db.Raw / Exec 原生 SQL 不经回调，不受保护（identity DAO 全走
+// ORM）；Create 时 ctx 租户为权威值（显式跨租户写入需 DisableScope）。
 package tenant
 
 import (
@@ -6,7 +13,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-admin-kit/services/identity/internal/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -79,15 +85,11 @@ func Require(ctx context.Context) (uint, error) {
 	return id, nil
 }
 
-var (
-	userModelType       = reflect.TypeOf(model.User{})
-	roleModelType       = reflect.TypeOf(model.Role{})
-	departmentModelType = reflect.TypeOf(model.Department{})
-)
-
 const tenantAppliedSetting = "go_admin_kit:tenant_scope_applied"
 
-// Plugin applies tenant_id filters for User / Role / Department.
+// Plugin applies tenant_id filters for every model whose schema carries a
+// tenant_id column (schema-driven; platform-level tables without the column
+// are naturally exempt).
 type Plugin struct{}
 
 func NewPlugin() *Plugin { return &Plugin{} }
@@ -136,7 +138,7 @@ func applyTenantQuery(db *gorm.DB) {
 	if tenantID == 0 {
 		return
 	}
-	if !ensureSchema(db) || !isTenantModel(db.Statement.Schema.ModelType) {
+	if !ensureSchema(db) || !isTenantSchema(db) {
 		return
 	}
 	db.Statement.Settings.Store(tenantAppliedSetting, true)
@@ -162,7 +164,7 @@ func applyTenantCreate(db *gorm.DB) {
 	if tenantID == 0 {
 		return
 	}
-	if !ensureSchema(db) || !isTenantModel(db.Statement.Schema.ModelType) {
+	if !ensureSchema(db) || !isTenantSchema(db) {
 		return
 	}
 	// Reflect set TenantID if zero on dest struct(s)
@@ -176,6 +178,14 @@ func applyTenantCreate(db *gorm.DB) {
 
 func applyTenantMutate(db *gorm.DB) {
 	// Updates/deletes: constrain by tenant_id so cross-tenant id guessing fails.
+	// 仅在语句已有 WHERE 时追加——空条件的全局更新/删除仍交给 gorm 的
+	// ErrMissingWhereClause 保护，避免"无条件更新"静默降级成"整租户更新"。
+	if db == nil || db.Statement == nil {
+		return
+	}
+	if _, hasWhere := db.Statement.Clauses["WHERE"]; !hasWhere {
+		return
+	}
 	applyTenantQuery(db)
 }
 
@@ -195,19 +205,14 @@ func ensureSchema(db *gorm.DB) bool {
 	return db.Statement.Schema != nil
 }
 
-func isTenantModel(t reflect.Type) bool {
-	if t == nil {
+// isTenantSchema reports whether the parsed schema carries a tenant_id column.
+func isTenantSchema(db *gorm.DB) bool {
+	sc := db.Statement.Schema
+	if sc == nil {
 		return false
 	}
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	switch t {
-	case userModelType, roleModelType, departmentModelType:
-		return true
-	default:
-		return false
-	}
+	field := sc.LookUpField("TenantID")
+	return field != nil && field.DBName == "tenant_id"
 }
 
 func setTenantIDOnDest(dest any, tenantID uint) {
