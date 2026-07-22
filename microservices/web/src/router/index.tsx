@@ -56,6 +56,7 @@ const routes: RouteObject[] = [
       { path: 'system/tenant-packages', element: lazyLoad(() => import('@/pages/system/tenant-packages')) },
 
       // BPM (bpm-service) 审批中心
+      { path: 'bpm/start', element: lazyLoad(() => import('@/pages/bpm/start')) },
       { path: 'bpm/definitions', element: lazyLoad(() => import('@/pages/bpm/definitions')) },
       { path: 'bpm/tasks', element: lazyLoad(() => import('@/pages/bpm/tasks')) },
       { path: 'bpm/instances', element: lazyLoad(() => import('@/pages/bpm/instances')) },

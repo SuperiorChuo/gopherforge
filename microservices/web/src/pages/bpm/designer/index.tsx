@@ -21,6 +21,7 @@ import {
 import {
   ArrowDownOutlined,
   ArrowLeftOutlined,
+  FormOutlined,
   ArrowUpOutlined,
   AuditOutlined,
   CaretDownOutlined,
@@ -39,6 +40,7 @@ import type { SystemRole, SystemUser } from '@/types'
 import {
   BPM_ASSIGNEE_TYPE_META,
   BPM_CONDITION_OP_META,
+  BPM_FORM_FIELD_TYPE_META,
   BPM_DEFINITION_STATUS_META,
   BPM_DEPT_LEADER_BASE_META,
   BPM_EMPTY_FALLBACK_META,
@@ -62,11 +64,15 @@ import {
   validateCcNode,
   validateChain,
   validateConditionNode,
+  validateFormSchema,
+  formFieldLabels,
   type AnyNode,
   type ApprovalNode,
   type AssigneeRule,
   type BpmDefinition,
   type CcNode,
+  type BpmFormField,
+  type BpmFormSchema,
   type ConditionLeafOp,
   type ConditionNode,
   type DesignerBranch,
@@ -542,6 +548,9 @@ interface FlowDesignerProps {
 export default function FlowDesigner({ definitionId, readOnly = false, onBack }: FlowDesignerProps) {
   const [def, setDef] = useState<BpmDefinition | null>(null)
   const [chain, setChain] = useState<AnyNode[]>([])
+  // 表单构建器（M1）：流程表单 Schema，随定义保存；发布时前后端双重校验
+  const [formSchema, setFormSchema] = useState<BpmFormSchema | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
   const [defName, setDefName] = useState('')
   const [selection, setSelection] = useState<Selection | null>(null)
   const [users, setUsers] = useState<SystemUser[]>([])
@@ -559,6 +568,7 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
         if (!alive) return
         setDef(d)
         setDefName(d.name)
+        setFormSchema(d.form_schema ?? null)
         setChain(flowToChain(d.node_tree ?? createDefaultFlowSchema(d.biz_type)))
       })
       .catch(() => {
@@ -693,7 +703,12 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
     return <Text type="secondary">未知节点类型，保存时原样保留</Text>
   }
 
-  const startFormFields = chain[0]?.type === 'start' ? ((chain[0] as StartNode).formFields ?? []) : []
+  const startFormFields = formSchema?.fields?.length
+    ? formSchema.fields.map((f) => f.key)
+    : chain[0]?.type === 'start'
+      ? ((chain[0] as StartNode).formFields ?? [])
+      : []
+  const fieldLabels = formFieldLabels(formSchema)
 
   // ---- 保存 / 发布 ----
 
@@ -707,7 +722,11 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
     }
     setSaving(true)
     try {
-      await updateDefinition(definitionId, { name: defName.trim() || def?.name, node_tree: nodeTree })
+      await updateDefinition(definitionId, {
+        name: defName.trim() || def?.name,
+        node_tree: nodeTree,
+        form_schema: formSchema,
+      })
       if (!quiet) message.success('草稿已保存')
       return true
     } catch {
@@ -719,7 +738,7 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
   }
 
   const publish = async () => {
-    const errors = validateChain(chain)
+    const errors = [...validateFormSchema(formSchema), ...validateChain(chain)]
     if (errors.length) {
       setPublishErrors(errors)
       message.warning('存在未完成的节点配置，请先修正')
@@ -790,6 +809,9 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
         </Space>
         {!readOnly && (
           <Space wrap>
+            <Button icon={<FormOutlined />} onClick={() => setFormOpen(true)}>
+              表单设计{formSchema?.fields?.length ? `（${formSchema.fields.length}）` : ''}
+            </Button>
             <Button icon={<SaveOutlined />} loading={saving} onClick={() => void save()}>
               保存草稿
             </Button>
@@ -869,6 +891,7 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
             branch={selectedBranch}
             readOnly={readOnly}
             formFields={startFormFields}
+            fieldLabels={fieldLabels}
             onChange={(patch) => updateBranchMeta(selectedCond.id, selectedBranch.id, patch)}
           />
         ) : selectedNode ? (
@@ -878,13 +901,158 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
             users={users}
             roles={roles}
             formFields={startFormFields}
+            schemaFields={formSchema?.fields}
             userNameOf={userNameOf}
             roleNameOf={roleNameOf}
             onChange={(patch) => updateNode(selectedNode.id, patch)}
           />
         ) : null}
       </Drawer>
+
+      <Drawer
+        title="表单设计（流程表单模式）"
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        width={520}
+        destroyOnHidden
+      >
+        <FormSchemaEditor
+          value={formSchema}
+          readOnly={readOnly}
+          onChange={setFormSchema}
+        />
+      </Drawer>
     </Card>
+  )
+}
+
+// ---------------------------------------------------------------------
+// 表单 Schema 编辑器（表单构建器 M1）：字段行编辑，无自由拖拽画布
+// ---------------------------------------------------------------------
+
+function FormSchemaEditor({
+  value,
+  readOnly,
+  onChange,
+}: {
+  value: BpmFormSchema | null
+  readOnly: boolean
+  onChange: (next: BpmFormSchema | null) => void
+}) {
+  const fields = value?.fields ?? []
+  const commit = (next: BpmFormField[]) => {
+    onChange(next.length ? { version: value?.version ?? 1, fields: next } : null)
+  }
+  const patch = (i: number, p: Partial<BpmFormField>) => {
+    commit(fields.map((f, idx) => (idx === i ? { ...f, ...p } : f)))
+  }
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir
+    if (j < 0 || j >= fields.length) return
+    const next = [...fields]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    commit(next)
+  }
+
+  return (
+    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Alert
+        type="info"
+        showIcon
+        message="配置发起表单后，本流程可在「发起申请」页零代码发起；发布时字段声明自动同步给条件分支求值。金额字段按分存储、元录入。"
+      />
+      {fields.map((f, i) => (
+        <Card key={i} size="small">
+          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            <Space.Compact block>
+              <Input
+                style={{ width: '38%' }}
+                className="cell-mono"
+                disabled={readOnly}
+                placeholder="key（如 amount_cents）"
+                value={f.key}
+                maxLength={64}
+                onChange={(e) => patch(i, { key: e.target.value.trim() })}
+              />
+              <Input
+                style={{ width: '32%' }}
+                disabled={readOnly}
+                placeholder="显示名"
+                value={f.label}
+                maxLength={64}
+                onChange={(e) => patch(i, { label: e.target.value })}
+              />
+              <Select
+                style={{ width: '30%' }}
+                disabled={readOnly}
+                value={f.type}
+                options={Object.entries(BPM_FORM_FIELD_TYPE_META).map(([v, l]) => ({
+                  value: v,
+                  label: l,
+                }))}
+                onChange={(v) => patch(i, { type: v as BpmFormField['type'] })}
+              />
+            </Space.Compact>
+            {(f.type === 'select' || f.type === 'radio') && (
+              <Select
+                mode="tags"
+                style={{ width: '100%' }}
+                disabled={readOnly}
+                placeholder="输入选项后回车，可多个"
+                value={f.options ?? []}
+                open={false}
+                tokenSeparators={[',', '，']}
+                onChange={(v: string[]) => patch(i, { options: v })}
+              />
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Space size={10}>
+                <span>
+                  <Text type="secondary" style={{ fontSize: 12 }}>必填</Text>{' '}
+                  <Switch
+                    size="small"
+                    disabled={readOnly}
+                    checked={!!f.required}
+                    onChange={(checked) => patch(i, { required: checked || undefined })}
+                  />
+                </span>
+                <Input
+                  size="small"
+                  style={{ width: 180 }}
+                  disabled={readOnly}
+                  placeholder="占位提示（可空）"
+                  value={f.placeholder ?? ''}
+                  maxLength={64}
+                  onChange={(e) => patch(i, { placeholder: e.target.value || undefined })}
+                />
+              </Space>
+              {!readOnly && (
+                <Space size={0}>
+                  <Button type="text" size="small" icon={<ArrowUpOutlined />} disabled={i === 0} onClick={() => move(i, -1)} />
+                  <Button type="text" size="small" icon={<ArrowDownOutlined />} disabled={i === fields.length - 1} onClick={() => move(i, 1)} />
+                  <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={() => commit(fields.filter((_, idx) => idx !== i))} />
+                </Space>
+              )}
+            </div>
+          </Space>
+        </Card>
+      ))}
+      {!readOnly && (
+        <Button
+          type="dashed"
+          block
+          icon={<PlusOutlined />}
+          onClick={() => commit([...fields, { key: '', label: '', type: 'input' }])}
+        >
+          添加字段
+        </Button>
+      )}
+      {!fields.length && (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          未配置表单：本流程为"业务表单"模式，只能由业务后端经 internal 端点发起。
+        </Text>
+      )}
+    </Space>
   )
 }
 
@@ -898,11 +1066,14 @@ function BranchConfigPanel({
   branch,
   readOnly,
   formFields,
+  fieldLabels,
   onChange,
 }: {
   branch: DesignerBranch
   readOnly: boolean
   formFields: string[]
+  /** 字段中文名（表单 Schema 优先） */
+  fieldLabels?: Record<string, string>
   onChange: (patch: Partial<DesignerBranch>) => void
 }) {
   const isDefault = !branch.expr
@@ -912,9 +1083,10 @@ function BranchConfigPanel({
     onChange({ expr: draftToExpr({ logic, rows }) ?? { op: 'and', items: [] } })
   }
 
+  const labels = fieldLabels ?? BPM_FORM_FIELD_LABELS
   const fieldOptions = formFields.map((f) => ({
     value: f,
-    label: BPM_FORM_FIELD_LABELS[f] ? `${BPM_FORM_FIELD_LABELS[f]}（${f}）` : f,
+    label: labels[f] && labels[f] !== f ? `${labels[f]}（${f}）` : f,
   }))
 
   return (
@@ -1039,6 +1211,8 @@ interface NodeConfigPanelProps {
   roles: SystemRole[]
   /** 发起节点声明的表单字段（dept_leader form_field 的字段名候选） */
   formFields: string[]
+  /** 表单 Schema 字段（有值时审批节点可配字段可见性） */
+  schemaFields?: BpmFormField[]
   userNameOf: (id: number) => string
   roleNameOf: (id: number) => string
   onChange: (patch: Partial<AnyNode>) => void
@@ -1050,6 +1224,7 @@ function NodeConfigPanel({
   users,
   roles,
   formFields,
+  schemaFields,
   userNameOf,
   roleNameOf,
   onChange,
@@ -1520,6 +1695,42 @@ function NodeConfigPanel({
           onChange={(v) => onChange({ timeoutHours: v ?? undefined })}
         />
       </div>
+
+      {(schemaFields?.length ?? 0) > 0 && (
+        <div>
+          <Text type="secondary">表单字段可见性（对此节点隐藏的字段不出现在其任务详情）</Text>
+          <Space direction="vertical" size={6} style={{ width: '100%', marginTop: 6 }}>
+            {schemaFields!.map((f) => {
+              const hidden = approval.fieldPerms?.[f.key] === 'hidden'
+              return (
+                <div
+                  key={f.key}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <span>
+                    {f.label}{' '}
+                    <Text type="secondary" className="cell-mono" style={{ fontSize: 12 }}>
+                      {f.key}
+                    </Text>
+                  </span>
+                  <Switch
+                    size="small"
+                    checkedChildren="隐藏"
+                    unCheckedChildren="可见"
+                    checked={hidden}
+                    onChange={(checked) => {
+                      const perms = { ...(approval.fieldPerms ?? {}) }
+                      if (checked) perms[f.key] = 'hidden'
+                      else delete perms[f.key]
+                      onChange({ fieldPerms: Object.keys(perms).length ? perms : undefined })
+                    }}
+                  />
+                </div>
+              )
+            })}
+          </Space>
+        </div>
+      )}
     </Space>
   )
 }

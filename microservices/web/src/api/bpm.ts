@@ -53,6 +53,83 @@ export interface ApprovalNode extends BaseNode {
   timeoutHours?: number
   /** 依次(SEQ)时是否允许当前人退回上一审批人 */
   allowBackPrev?: boolean
+  /** 表单字段权限（M1 仅 hidden）：该节点任务详情按此过滤快照（表单构建器） */
+  fieldPerms?: Record<string, 'hidden'>
+}
+
+// ---------------------------------------------------------------------
+// 表单构建器（M1，流程表单模式；见 docs/design/bpm-form-builder.md）
+// ---------------------------------------------------------------------
+
+export type BpmFormFieldType =
+  | 'input'
+  | 'textarea'
+  | 'number'
+  | 'amount'
+  | 'select'
+  | 'radio'
+  | 'date'
+  | 'switch'
+
+export interface BpmFormField {
+  /** ^[a-z][a-z0-9_]{0,63}$，表单内唯一 */
+  key: string
+  label: string
+  type: BpmFormFieldType
+  required?: boolean
+  placeholder?: string
+  /** select / radio 必填 */
+  options?: string[]
+  min?: number
+  max?: number
+  rows?: number
+}
+
+export interface BpmFormSchema {
+  version: number
+  fields: BpmFormField[]
+}
+
+export const BPM_FORM_FIELD_TYPE_META: Record<string, string> = {
+  input: '单行文本',
+  textarea: '多行文本',
+  number: '数字',
+  amount: '金额（元录入，分存储）',
+  select: '下拉选择',
+  radio: '单选',
+  date: '日期',
+  switch: '开关',
+}
+
+const FORM_KEY_RE = /^[a-z][a-z0-9_]{0,63}$/
+
+/** 表单 Schema 前端预校验（后端发布时二次权威校验），返回错误清单 */
+export function validateFormSchema(schema?: BpmFormSchema | null): string[] {
+  const errors: string[] = []
+  const fields = schema?.fields ?? []
+  if (!fields.length) return errors
+  if (fields.length > 50) errors.push('表单字段数超过上限 50')
+  const seen = new Set<string>()
+  fields.forEach((f, i) => {
+    const where = `第 ${i + 1} 个字段`
+    if (!FORM_KEY_RE.test(f.key || '')) errors.push(`${where}：key「${f.key || ''}」非法（小写字母开头，仅小写字母/数字/下划线）`)
+    if (f.key && seen.has(f.key)) errors.push(`${where}：key「${f.key}」重复`)
+    if (f.key) seen.add(f.key)
+    if (!f.label?.trim()) errors.push(`${where}：缺少显示名`)
+    if ((f.type === 'select' || f.type === 'radio') && !(f.options && f.options.length > 0)) {
+      errors.push(`字段「${f.label || f.key}」需要至少一个选项`)
+    }
+  })
+  return errors
+}
+
+/** 表单字段中文名映射（schema 优先，兜底 BPM_FORM_FIELD_LABELS / key 本身） */
+export function formFieldLabels(schema?: BpmFormSchema | null): Record<string, string> {
+  const map: Record<string, string> = { ...BPM_FORM_FIELD_LABELS }
+  for (const f of schema?.fields ?? []) {
+    if (f.key) map[f.key] = f.label || f.key
+  }
+  return map
 }
 
 /** 抄送节点 */
@@ -125,7 +202,8 @@ export interface BpmDefinition {
   status: BpmDefinitionStatus | string
   /** 列表接口可能不带（节点树较大），编辑前以详情接口为准 */
   node_tree?: FlowSchema
-  form_schema?: unknown
+  /** 表单 Schema（流程表单模式；空=业务表单，业务后端 internal 发起） */
+  form_schema?: BpmFormSchema | null
   /** 业务类型，如 demo_expense（业务方自定义） */
   biz_type?: string
   remark?: string
@@ -156,6 +234,8 @@ export interface BpmInstance {
   current_node_name?: string
   /** 发起时表单快照（条件求值依据） */
   form_snapshot?: Record<string, unknown>
+  /** 详情接口附带：冻结版本的表单 Schema（流程表单模式，动态渲染用） */
+  form_schema?: BpmFormSchema | null
   variables?: Record<string, unknown>
   initiator_id: number
   initiator_name?: string
@@ -724,6 +804,8 @@ export interface BpmDefinitionCreateData {
   name: string
   biz_type?: string
   node_tree: FlowSchema
+  /** 流程表单模式的表单 Schema（null=业务表单） */
+  form_schema?: BpmFormSchema | null
   remark?: string
 }
 
@@ -763,11 +845,29 @@ export const getActiveDefinitionByKey = (key: string) =>
 
 // ---------------------------------------------------------------------
 // API 封装 —— §4.2 发起端 + §4.4 实例端
-// 注：POST /api/v1/bpm/instances 的业务发起走业务后端 internal 变体
-//（表单快照由业务后端权威生成），前端不封装裸发起接口。
+// 注：POST /api/v1/bpm/instances 仅接受流程表单定义（表单构建器 M1）；
+// 业务表单走业务后端 internal 变体（表单快照由业务后端权威生成）。
 // ---------------------------------------------------------------------
 
 export type BpmInstanceListParams = PageRequest & { status?: string }
+
+/** 可发起流程（active 且携带表单 Schema 的"流程表单"定义；登录即可） */
+export const listStartableDefinitions = () =>
+  request
+    .get<unknown, { list?: BpmDefinition[] }>('/api/v1/bpm/startable')
+    .then((d) => d?.list ?? [])
+
+/** 通用发起（表单构建器 M1）：仅流程表单定义；biz 锚点由服务端生成 */
+export const startFormInstance = (
+  definitionKey: string,
+  formSnapshot: Record<string, unknown>,
+  title?: string,
+) =>
+  request.post<unknown, { instance_id: number; status: string }>('/api/v1/bpm/instances', {
+    definition_key: definitionKey,
+    form_snapshot: formSnapshot,
+    title: title || undefined,
+  })
 
 /** 我发起的 */
 export const listMyInstances = (params: BpmInstanceListParams) =>

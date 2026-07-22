@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Input, InputNumber, Modal, Popconfirm, Skeleton, Space, Tag, Typography } from 'antd'
+import { Alert, Button, Form, Input, InputNumber, Modal, Popconfirm, Skeleton, Space, Tag, Typography } from 'antd'
 import { RollbackOutlined, SendOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
 import {
@@ -9,13 +9,14 @@ import {
   resubmitInstance,
   type BpmInstance,
 } from '@/api/bpm'
+import BpmDynamicForm, { formValuesToSnapshot, snapshotToFormValues } from '@/components/BpmDynamicForm'
 
 const { Text } = Typography
 
 /**
  * 被退回实例的「重新提交」弹窗（M2，引擎侧通用能力）。
- * 展示当前 form_snapshot 的键值编辑器：字符串/数字值可改，其余类型只读展示；
- * 不做业务表单渲染。确认后调 resubmit（全链路 round+1 重新流转）；
+ * 流程表单（实例带 form_schema）走动态表单渲染（表单构建器 M1）；
+ * 业务表单退化为键值编辑器：字符串/数字值可改，其余类型只读展示。确认后调 resubmit（全链路 round+1 重新流转）；
  * 旁给「撤销流程」按钮（复用既有 cancel）。
  * 复用方：我发起的列表/详情抽屉、待办中心的重提任务动作。
  */
@@ -44,6 +45,7 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
   const [entries, setEntries] = useState<SnapshotEntry[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [canceling, setCanceling] = useState(false)
+  const [form] = Form.useForm()
 
   useEffect(() => {
     if (!open || !instanceId) return
@@ -55,7 +57,11 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
       .then((inst) => {
         if (!alive) return
         setInstance(inst)
-        setEntries(toEntries(inst.form_snapshot))
+        if (inst.form_schema?.fields?.length) {
+          form.setFieldsValue(snapshotToFormValues(inst.form_schema, inst.form_snapshot))
+        } else {
+          setEntries(toEntries(inst.form_snapshot))
+        }
       })
       .catch(() => {
         // 错误提示由 request 拦截器统一弹出
@@ -74,12 +80,18 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
 
   const onResubmit = async () => {
     if (!instanceId) return
-    setSubmitting(true)
-    try {
-      const snapshot: Record<string, unknown> = {}
+    let snapshot: Record<string, unknown> = {}
+    if (instance?.form_schema?.fields?.length) {
+      const values = await form.validateFields().catch(() => null)
+      if (!values) return
+      snapshot = formValuesToSnapshot(instance.form_schema, values)
+    } else {
       entries.forEach((e) => {
         snapshot[e.key] = e.value
       })
+    }
+    setSubmitting(true)
+    try {
       await resubmitInstance(instanceId, snapshot)
       message.success('已重新提交，流程将重新流转')
       onClose()
@@ -147,6 +159,10 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
       />
       {loading ? (
         <Skeleton active paragraph={{ rows: 4 }} title={false} />
+      ) : instance?.form_schema?.fields?.length ? (
+        <Form form={form} layout="vertical">
+          <BpmDynamicForm schema={instance.form_schema} />
+        </Form>
       ) : entries.length ? (
         <Space direction="vertical" size={10} style={{ width: '100%' }}>
           {entries.map((e) => (

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/bpm/internal/flow"
+	"github.com/go-admin-kit/services/bpm/internal/form"
 	"github.com/go-admin-kit/services/bpm/internal/model"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -180,6 +181,8 @@ func (s *Store) UpdateDefinition(id, tenantID uint64, in UpdateDefinitionInput) 
 }
 
 // Publish 发布：整树校验通过后本版本置 active，同 key 旧 active 置 archived。
+// 携带 form_schema（流程表单模式）时一并校验表单结构与节点字段权限，并以
+// Schema keys 覆盖 start.formFields（条件求值字段声明与表单同源）。
 func (s *Store) Publish(id, tenantID uint64) (*model.ProcessDefinition, error) {
 	d, err := s.GetDefinition(id, tenantID)
 	if err != nil {
@@ -192,8 +195,40 @@ func (s *Store) Publish(id, tenantID uint64) (*model.ProcessDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
+	fs, err := form.Parse(d.FormSchema)
+	if err != nil {
+		return nil, err
+	}
+	if fs != nil {
+		if err := fs.Validate(); err != nil {
+			return nil, err
+		}
+		if sc.Start != nil {
+			sc.Start.FormFields = fs.Keys()
+		}
+	}
+	var permErr error
+	flow.Walk(sc, func(n *flow.Node) bool {
+		if n.Type == flow.TypeApproval && len(n.FieldPerms) > 0 {
+			if err := fs.ValidateFieldPerms(n.Name, n.FieldPerms); err != nil {
+				permErr = err
+				return false
+			}
+		}
+		return true
+	})
+	if permErr != nil {
+		return nil, permErr
+	}
 	if err := flow.Validate(sc); err != nil {
 		return nil, err
+	}
+	if fs != nil { // formFields 覆盖后回写 node_tree
+		raw, err := json.Marshal(sc)
+		if err != nil {
+			return nil, err
+		}
+		d.NodeTree = model.JSONB(raw)
 	}
 	err = s.db.Transaction(func(tx *gorm.DB) error {
 		if err := tenantQ(tx.Model(&model.ProcessDefinition{}), tenantID).
@@ -247,6 +282,25 @@ func (s *Store) Suspend(id, tenantID uint64) (*model.ProcessDefinition, error) {
 		return nil, err
 	}
 	return d, nil
+}
+
+// ListStartable 可发起流程（active 且携带 form_schema 的"流程表单"定义，
+// 通用发起页用；登录即可访问，不设权限码——发起权是普适权）。
+func (s *Store) ListStartable(tenantID uint64) ([]model.ProcessDefinition, error) {
+	var list []model.ProcessDefinition
+	err := tenantQ(s.db, tenantID).
+		Where("status = ?", model.DefActive).
+		Order("id DESC").Limit(100).Find(&list).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make([]model.ProcessDefinition, 0, len(list))
+	for _, d := range list {
+		if fs, err := form.Parse(d.FormSchema); err == nil && fs != nil {
+			out = append(out, d)
+		}
+	}
+	return out, nil
 }
 
 // ActiveByKey 按 key 取当前 active 版本。
@@ -608,6 +662,17 @@ func (s *Store) MarkTaskReminded(row TimeoutDueRow, hours int) (bool, error) {
 		return nil
 	})
 	return reminded, err
+}
+
+// ListUserTaskNodeIDs 查看者在实例内出过任务的节点（去重）；实例详情按
+// 这些节点的 fieldPerms 并集过滤隐藏字段（表单构建器 M1）。
+func (s *Store) ListUserTaskNodeIDs(instanceID, tenantID, userID uint64) []string {
+	var ids []string
+	_ = s.db.Model(&model.Task{}).
+		Where("instance_id = ? AND tenant_id = ? AND (assignee_id = ? OR origin_assignee = ?)",
+			instanceID, tenantID, userID, userID).
+		Distinct().Pluck("node_id", &ids).Error
+	return ids
 }
 
 // HasPrevApprovalTask 实例是否存在当前节点之外的历史审批任务（排除 start

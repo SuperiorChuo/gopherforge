@@ -4,12 +4,16 @@ package api
 // 详情、时间线、流转图、by-biz 反查。
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/bpm/internal/engine"
 	"github.com/go-admin-kit/services/bpm/internal/flow"
+	"github.com/go-admin-kit/services/bpm/internal/form"
 	"github.com/go-admin-kit/services/bpm/internal/model"
 )
 
@@ -25,8 +29,10 @@ type startInstanceReq struct {
 	InitiatorDept uint64 `json:"initiator_dept"`
 }
 
-// CreateInstance 用户侧发起（M1 主要走业务侧 internal 变体；此端点供
-// 未来通用发起页 / 脚手架 demo 场景）。
+// CreateInstance 用户侧发起（表单构建器 M1，仅"流程表单"定义）：快照按
+// form_schema 服务端权威校验；biz_type 强制 flow_form、biz_id 服务端生成，
+// 客户端传入的业务锚点一律忽略——业务表单只能经 internal 端点由业务后端
+// 发起，堵住用户侧伪造业务审批（终态回调打向业务方）的口子。
 func (s *Server) CreateInstance(c *gin.Context) {
 	u, authed := s.requireUser(c)
 	if !authed {
@@ -37,13 +43,35 @@ func (s *Server) CreateInstance(c *gin.Context) {
 		fail(c, http.StatusBadRequest, "invalid body")
 		return
 	}
+	def, err := s.Store.ActiveByKey(req.DefinitionKey, u.TenantID)
+	if err != nil {
+		fail(c, http.StatusBadRequest, "流程不存在或未发布")
+		return
+	}
+	fs, err := form.Parse(def.FormSchema)
+	if err != nil || fs == nil {
+		fail(c, http.StatusBadRequest, "该流程未配置发起表单，请从业务入口发起")
+		return
+	}
+	snapshot, err := fs.ValidateSnapshot(req.FormSnapshot)
+	if err != nil {
+		fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		title = def.Name
+		if u.Username != "" {
+			title = def.Name + "（" + u.Username + "）"
+		}
+	}
 	eff, err := s.Engine.Start(engine.StartInput{
 		TenantID:      u.TenantID,
-		DefinitionKey: req.DefinitionKey,
-		Title:         req.Title,
-		BizType:       req.BizType,
-		BizID:         req.BizID,
-		FormSnapshot:  req.FormSnapshot,
+		DefinitionKey: def.Key,
+		Title:         title,
+		BizType:       model.BizTypeFlowForm,
+		BizID:         randomBizID(),
+		FormSnapshot:  snapshot,
 		Variables:     req.Variables,
 		InitiatorID:   u.UserID,
 	})
@@ -53,6 +81,29 @@ func (s *Server) CreateInstance(c *gin.Context) {
 	}
 	s.applyEffects(eff)
 	ok(c, gin.H{"instance_id": eff.Instance.ID, "status": eff.Instance.Status})
+}
+
+// randomBizID flow_form 实例的业务锚点：随机 hex 串——同一表单可重复发起，
+// 不撞 ux_bpm_inst_biz_running 防重索引。
+func randomBizID() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// ListStartable GET /api/v1/bpm/startable —— 可发起流程列表（通用发起页；
+// 登录即可访问，发起权是普适权）。
+func (s *Server) ListStartable(c *gin.Context) {
+	u, authed := s.requireUser(c)
+	if !authed {
+		return
+	}
+	list, err := s.Store.ListStartable(u.TenantID)
+	if err != nil {
+		fail(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(c, gin.H{"list": list})
 }
 
 // InternalCreateInstance 业务方服务端到服务端发起（X-Internal-Token；
@@ -226,7 +277,44 @@ func (s *Server) GetInstance(c *gin.Context) {
 	if !okv {
 		return
 	}
-	ok(c, inst)
+	// 附冻结版本的 form_schema（流程表单模式的详情展示 / 重提动态渲染）
+	var formSchema json.RawMessage
+	var def model.ProcessDefinition
+	if err := s.Store.DB().Where("id = ?", inst.DefinitionID).First(&def).Error; err == nil {
+		if fs, err := form.Parse(def.FormSchema); err == nil && fs != nil {
+			formSchema = json.RawMessage(def.FormSchema)
+		}
+	}
+	s.filterSnapshotForViewer(c, inst)
+	ok(c, struct {
+		*model.ProcessInstance
+		FormSchema json.RawMessage `json:"form_schema,omitempty"`
+	}{inst, formSchema})
+}
+
+// filterSnapshotForViewer 字段权限（M1 hidden）：非发起人/非管理员的参与者，
+// 按其任务节点的 fieldPerms 并集过滤实例快照——实例详情/流转图与任务详情
+// 同口径，防绕过（设计文档 bpm-form-builder.md §3）。
+func (s *Server) filterSnapshotForViewer(c *gin.Context, inst *model.ProcessInstance) {
+	u, authed := s.requireUser(c) // 调用方已过鉴权，此处必成功
+	if !authed || inst.InitiatorID == u.UserID || u.PlatformAdmin {
+		return
+	}
+	sc, err := s.Store.InstanceSchema(inst)
+	if err != nil {
+		return
+	}
+	merged := map[string]string{}
+	for _, nodeID := range s.Store.ListUserTaskNodeIDs(inst.ID, inst.TenantID, u.UserID) {
+		if node := flow.NodeByID(sc, nodeID); node != nil {
+			for k, v := range node.FieldPerms {
+				merged[k] = v
+			}
+		}
+	}
+	if len(merged) > 0 {
+		inst.FormSnapshot = filterSnapshot(inst.FormSnapshot, merged)
+	}
 }
 
 func (s *Server) InstanceTimeline(c *gin.Context) {
@@ -294,6 +382,7 @@ func (s *Server) InstanceDiagram(c *gin.Context) {
 		}
 	}
 
+	s.filterSnapshotForViewer(c, inst)
 	nodes := map[string]diagramNode{}
 	finished := inst.Status == model.InstApproved ||
 		inst.Status == model.InstRejected || inst.Status == model.InstCanceled
