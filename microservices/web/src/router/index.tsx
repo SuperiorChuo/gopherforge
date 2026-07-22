@@ -53,6 +53,12 @@ const routes: RouteObject[] = [
       { path: 'system/sms', element: lazyLoad(() => import('@/pages/system/sms')) },
       { path: 'system/errcodes', element: lazyLoad(() => import('@/pages/system/errcodes')) },
       { path: 'system/post', element: lazyLoad(() => import('@/pages/system/posts')) },
+      { path: 'system/tenant-packages', element: lazyLoad(() => import('@/pages/system/tenant-packages')) },
+
+      // BPM (bpm-service) 审批中心
+      { path: 'bpm/definitions', element: lazyLoad(() => import('@/pages/bpm/definitions')) },
+      { path: 'bpm/tasks', element: lazyLoad(() => import('@/pages/bpm/tasks')) },
+      { path: 'bpm/instances', element: lazyLoad(() => import('@/pages/bpm/instances')) },
 
       // Monitor
       { path: 'monitor/server', element: lazyLoad(() => import('@/pages/monitor/server')) },

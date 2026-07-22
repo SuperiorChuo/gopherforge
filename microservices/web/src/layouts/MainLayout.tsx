@@ -16,6 +16,9 @@ import {
 import {
   ApiOutlined,
   AudioOutlined,
+  AuditOutlined,
+  CheckSquareOutlined,
+  SendOutlined,
   ControlOutlined,
   ForkOutlined,
   SoundOutlined,
@@ -145,6 +148,10 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   desktop: <DesktopOutlined />,
   edit: <EditOutlined />,
   share: <ShareAltOutlined />,
+  audit: <AuditOutlined />,
+  check: <CheckSquareOutlined />,
+  send: <SendOutlined />,
+  appstore: <AppstoreOutlined />,
   aim: <AimOutlined />,
   search: <SearchOutlined />,
   thunderbolt: <ThunderboltOutlined />,
@@ -203,6 +210,7 @@ const MENU_DEFS: MenuDef[] = [
       { label: '代码生成', key: '/system/codegen', icon: <CodeOutlined /> },
       { label: '短信管理', key: '/system/sms', icon: <MailOutlined /> },
       { label: '错误码管理', key: '/system/errcodes', icon: <WarningOutlined /> },
+      { label: '租户套餐', key: '/system/tenant-packages', icon: <AppstoreOutlined /> },
     ],
   },
   {
@@ -214,6 +222,16 @@ const MENU_DEFS: MenuDef[] = [
       { label: '数据库监控', key: '/monitor/mysql', icon: <DatabaseOutlined /> },
       { label: 'Redis 监控', key: '/monitor/redis', icon: <BarsOutlined /> },
       { label: '定时任务', key: '/monitor/job', icon: <ScheduleOutlined /> },
+    ],
+  },
+  {
+    label: '审批中心',
+    key: '/bpm',
+    icon: <AuditOutlined />,
+    children: [
+      { label: '待办中心', key: '/bpm/tasks', icon: <CheckSquareOutlined /> },
+      { label: '我发起的', key: '/bpm/instances', icon: <SendOutlined /> },
+      { label: '流程定义', key: '/bpm/definitions', icon: <ForkOutlined /> },
     ],
   },
 ]
@@ -273,16 +291,21 @@ const pathBreadcrumbMap: Record<string, string> = {
   '/system/sms': '短信管理',
   '/system/errcodes': '错误码管理',
   '/system/post': '岗位管理',
+  '/system/tenant-packages': '租户套餐',
   '/monitor/server': '服务器监控',
   '/monitor/mysql': '数据库监控',
   '/monitor/redis': 'Redis 监控',
   '/monitor/job': '定时任务',
+  '/bpm/tasks': '待办中心',
+  '/bpm/instances': '我发起的',
+  '/bpm/definitions': '流程定义',
 }
 
 // 分组 key（含前导 /）→ 面包屑上的分组名和图标
 const GROUP_META: Record<string, { label: string; icon: React.ReactNode }> = {
   '/system': { label: '系统管理', icon: <SettingOutlined /> },
   '/monitor': { label: '运维监控', icon: <CloudServerOutlined /> },
+  '/bpm': { label: '审批中心', icon: <AuditOutlined /> },
 }
 
 export default function MainLayout() {

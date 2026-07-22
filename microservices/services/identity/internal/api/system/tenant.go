@@ -78,7 +78,8 @@ func (a *TenantAPI) CreateTenant(c *gin.Context) {
 		switch {
 		case errors.Is(err, systemsvc.ErrTenantCodeExists),
 			errors.Is(err, systemsvc.ErrTenantCodeInvalid),
-			errors.Is(err, systemsvc.ErrTenantNameRequired):
+			errors.Is(err, systemsvc.ErrTenantNameRequired),
+			errors.Is(err, systemsvc.ErrTenantPackageNotFound):
 			response.BadRequest(c, err.Error())
 		default:
 			response.InternalServerError(c, err.Error())
@@ -110,6 +111,10 @@ func (a *TenantAPI) UpdateTenant(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, systemsvc.ErrDefaultTenantLocked) {
+			response.BadRequest(c, err.Error())
+			return
+		}
+		if errors.Is(err, systemsvc.ErrTenantPackageNotFound) {
 			response.BadRequest(c, err.Error())
 			return
 		}

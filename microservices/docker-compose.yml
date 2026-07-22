@@ -277,7 +277,7 @@ services:
       # Same PathPrefix caveat as the auth router: exact paths use Path(),
       # subtrees use a trailing-slash PathPrefix(). `/user/...` (singular,
       # monolith + auth-service) must NOT match `/users`.
-      traefik.http.routers.identity.rule: "Path(`/api/v1/users`) || PathPrefix(`/api/v1/users/`) || Path(`/api/v1/roles`) || PathPrefix(`/api/v1/roles/`) || Path(`/api/v1/permissions`) || PathPrefix(`/api/v1/permissions/`) || Path(`/api/v1/departments`) || PathPrefix(`/api/v1/departments/`) || Path(`/api/v1/tenants`) || PathPrefix(`/api/v1/tenants/`) || Path(`/api/v1/posts`) || PathPrefix(`/api/v1/posts/`)"
+      traefik.http.routers.identity.rule: "Path(`/api/v1/users`) || PathPrefix(`/api/v1/users/`) || Path(`/api/v1/roles`) || PathPrefix(`/api/v1/roles/`) || Path(`/api/v1/permissions`) || PathPrefix(`/api/v1/permissions/`) || Path(`/api/v1/departments`) || PathPrefix(`/api/v1/departments/`) || Path(`/api/v1/tenants`) || PathPrefix(`/api/v1/tenants/`) || Path(`/api/v1/posts`) || PathPrefix(`/api/v1/posts/`) || Path(`/api/v1/tenant-packages`) || PathPrefix(`/api/v1/tenant-packages/`)"
       traefik.http.routers.identity.entrypoints: web
       traefik.http.routers.identity.priority: "100"
       traefik.http.services.identity.loadbalancer.server.port: "8083"
@@ -303,7 +303,11 @@ services:
       dockerfile: system/Dockerfile
     container_name: go-admin-kit-system
     restart: unless-stopped
+    volumes:
+      # 离线 IP 归属地库（在线用户归属地）；文件缺失时服务优雅降级
+      - ./data:/app/data:ro
     environment:
+      IP2REGION_XDB: /app/data/ip2region.xdb
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8084
       DB_HOST: go-admin-kit-postgres
@@ -361,7 +365,11 @@ services:
       dockerfile: audit/Dockerfile
     container_name: go-admin-kit-audit
     restart: unless-stopped
+    volumes:
+      # 离线 IP 归属地库（登录日志归属地）；文件缺失时回退在线查询
+      - ./data:/app/data:ro
     environment:
+      IP2REGION_XDB: /app/data/ip2region.xdb
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8085
       DB_HOST: go-admin-kit-postgres
@@ -474,6 +482,54 @@ services:
     networks:
       - go-admin-kit-net
 
+  # 审批流引擎（bpm-service）：流程定义 / 实例 / 任务 / 流转日志，AutoMigrate 自管表。
+  # 鉴权走 Bearer JWT 自校验（与其它业务路由一致，网关注入的 X-Auth-* 头优先）；
+  # 终态经 HTTP 回调业务方（BPM_CALLBACK_<BIZTYPE> 注册，脚手架默认无回调目标）。
+  bpm-service:
+    build:
+      context: ./services/bpm
+      dockerfile: Dockerfile
+    container_name: go-admin-kit-bpm
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8096
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      # internal 端点共享密钥（业务方 → bpm 发起审批 / by-biz 反查）；空=禁用 /internal 端点
+      BPM_INTERNAL_TOKEN: ${BPM_INTERNAL_TOKEN:-}
+      # 终态回调业务方内部端点时携带的 X-Internal-Token；空=回调不带鉴权头
+      BPM_CALLBACK_TOKEN: ${BPM_CALLBACK_TOKEN:-}
+      # 回调目标按 biz_type 注册：BPM_CALLBACK_<BIZTYPE>=完整 URL（默认无，业务方自行接线）
+      # 站内信通知：另配 NOTIFY_API_BASE + NOTIFY_INTERNAL_TOKEN 后启用，两者留空则静默跳过
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${BPM_SERVICE_PORT:-8096}:8096"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.bpm.rule: "Path(`/api/v1/bpm`) || PathPrefix(`/api/v1/bpm/`)"
+      traefik.http.routers.bpm.entrypoints: web
+      traefik.http.routers.bpm.priority: "100"
+      traefik.http.services.bpm.loadbalancer.server.port: "8096"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      go-admin-kit-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8096/api/v1/bpm/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
   go-admin-kit-minio:
     image: minio/minio:latest
     container_name: go-admin-kit-minio
@@ -555,6 +611,8 @@ services:
       audit-service:
         condition: service_started
       file-service:
+        condition: service_started
+      bpm-service:
         condition: service_started
       frontend:
         condition: service_started

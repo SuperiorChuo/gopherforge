@@ -20,13 +20,22 @@ export function createTenant(data: {
   plan?: string
   max_users?: number
   status?: number
+  /** 租户套餐（权限包）；缺省/0 = 不限 */
+  package_id?: number
 }) {
   return request.post('/api/v1/tenants', data) as Promise<TenantInfo>
 }
 
 export function updateTenant(
   id: number,
-  data: { name?: string; plan?: string; max_users?: number; status?: number },
+  data: {
+    name?: string
+    plan?: string
+    max_users?: number
+    status?: number
+    /** 租户套餐：缺省 = 不改；0 = 解绑；>0 = 绑定 */
+    package_id?: number
+  },
 ) {
   return request.put(`/api/v1/tenants/${id}`, data) as Promise<TenantInfo>
 }

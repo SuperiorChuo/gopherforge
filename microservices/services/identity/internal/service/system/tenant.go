@@ -25,11 +25,33 @@ var tenantCodeRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,63}$`)
 
 // TenantService manages SaaS tenants.
 type TenantService struct {
-	dao *system.TenantDAO
+	dao    *system.TenantDAO
+	pkgDAO *system.TenantPackageDAO
 }
 
 func NewTenantServiceWithDB(db *gorm.DB) *TenantService {
-	return &TenantService{dao: system.NewTenantDAO(db)}
+	return &TenantService{
+		dao:    system.NewTenantDAO(db),
+		pkgDAO: system.NewTenantPackageDAO(db),
+	}
+}
+
+// resolvePackageID 归一化套餐绑定入参：nil/0 → 不绑定（NULL）；>0 校验套餐存在后绑定。
+func (s *TenantService) resolvePackageID(ctx context.Context, packageID *uint) (*uint, error) {
+	if packageID == nil || *packageID == 0 {
+		return nil, nil
+	}
+	if s.pkgDAO == nil {
+		return nil, ErrTenantPackageNotFound
+	}
+	if _, err := s.pkgDAO.GetByIDContext(ctx, *packageID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTenantPackageNotFound
+		}
+		return nil, err
+	}
+	id := *packageID
+	return &id, nil
 }
 
 type TenantListRequest struct {
@@ -44,6 +66,8 @@ type CreateTenantRequest struct {
 	Plan     string `json:"plan"`
 	MaxUsers int64  `json:"max_users"`
 	Status   int8   `json:"status"`
+	// PackageID 租户套餐（权限包）；缺省/0 = 不限。
+	PackageID *uint `json:"package_id"`
 }
 
 // PlanDefaultMaxUsers returns a soft default quota when max_users is 0 on create.
@@ -63,6 +87,8 @@ type UpdateTenantRequest struct {
 	Plan     *string `json:"plan"`
 	MaxUsers *int64  `json:"max_users"`
 	Status   *int8   `json:"status"`
+	// PackageID 租户套餐：缺省 = 不改；0 = 解绑（置 NULL）；>0 = 绑定（校验存在）。
+	PackageID *uint `json:"package_id"`
 }
 
 func (s *TenantService) List(ctx context.Context, req TenantListRequest) ([]model.Tenant, int64, error) {
@@ -111,12 +137,17 @@ func (s *TenantService) Create(ctx context.Context, req CreateTenantRequest) (*m
 		// 0 means "use plan default" on create (enterprise stays unlimited).
 		maxUsers = PlanDefaultMaxUsers(plan)
 	}
+	packageID, err := s.resolvePackageID(ctx, req.PackageID)
+	if err != nil {
+		return nil, err
+	}
 	t := &model.Tenant{
-		Code:     code,
-		Name:     name,
-		Status:   status,
-		Plan:     plan,
-		MaxUsers: maxUsers,
+		Code:      code,
+		Name:      name,
+		Status:    status,
+		Plan:      plan,
+		MaxUsers:  maxUsers,
+		PackageID: packageID,
 	}
 	if err := s.dao.CreateContext(ctx, t); err != nil {
 		return nil, err
@@ -146,6 +177,13 @@ func (s *TenantService) Update(ctx context.Context, id uint, req UpdateTenantReq
 	}
 	if req.MaxUsers != nil {
 		t.MaxUsers = *req.MaxUsers
+	}
+	if req.PackageID != nil {
+		packageID, err := s.resolvePackageID(ctx, req.PackageID)
+		if err != nil {
+			return nil, err
+		}
+		t.PackageID = packageID
 	}
 	if req.Status != nil {
 		// Default tenant (id=1) must stay enabled: disabling it would lock out

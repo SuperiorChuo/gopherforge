@@ -3,8 +3,9 @@ import { Alert, Button, Card, Form, Input, InputNumber, Modal, Select, Space, Ta
 import { PlusOutlined, ReloadOutlined, SwapOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
 import type { ColumnsType } from 'antd/es/table'
-import type { TenantInfo } from '@/types'
+import type { TenantInfo, TenantPackageInfo } from '@/types'
 import * as TenantAPI from '@/api/system/tenant'
+import { getAllTenantPackages } from '@/api/system/tenantPackages'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import StatusPill from '@/components/StatusPill'
@@ -30,6 +31,7 @@ export default function TenantPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editRow, setEditRow] = useState<TenantInfo | null>(null)
   const [actTenant, setActTenant] = useState<string | null>(getActTenantId())
+  const [packages, setPackages] = useState<TenantPackageInfo[]>([])
   const [form] = Form.useForm()
   const [editForm] = Form.useForm()
   const [searchForm] = Form.useForm()
@@ -57,6 +59,13 @@ export default function TenantPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params])
 
+  useEffect(() => {
+    // 权限套餐下拉与列名映射（无权限或接口失败时静默降级为仅显示 ID）
+    getAllTenantPackages()
+      .then((res) => setPackages(res || []))
+      .catch(() => {})
+  }, [])
+
   const handleSearch = (values: { keyword?: string }) => {
     setParams({ ...params, page: 1, ...values })
   }
@@ -76,6 +85,8 @@ export default function TenantPage() {
         // 0 = use plan default on server (free→10, pro→50, enterprise→unlimited)
         max_users: values.max_users ?? 0,
         status: 1,
+        // 权限套餐：缺省 = 不限
+        package_id: values.package_id,
       })
       message.success('已创建租户')
       setCreateOpen(false)
@@ -93,6 +104,7 @@ export default function TenantPage() {
       plan: row.plan,
       max_users: row.max_users,
       status: row.status,
+      package_id: row.package_id ?? undefined,
     })
   }
 
@@ -105,6 +117,8 @@ export default function TenantPage() {
         plan: values.plan,
         max_users: values.max_users,
         status: values.status,
+        // 清空选择 → 0（解绑）
+        package_id: values.package_id ?? 0,
       })
       message.success('已保存')
       setEditRow(null)
@@ -136,12 +150,22 @@ export default function TenantPage() {
     },
     { title: '名称', dataIndex: 'name' },
     {
-      title: '套餐',
+      title: '计费方案',
       dataIndex: 'plan',
       width: 110,
       render: (v: string) => (
         <Tag variant="filled" color={planColors[v] ?? 'default'}>{v || 'free'}</Tag>
       ),
+    },
+    {
+      title: '权限套餐',
+      dataIndex: 'package_id',
+      width: 130,
+      render: (v: number | null | undefined) => {
+        if (!v) return <Tag variant="filled">不限</Tag>
+        const pkg = packages.find((p) => p.id === v)
+        return <Tag variant="filled" color="purple">{pkg ? pkg.name : `#${v}`}</Tag>
+      },
     },
     {
       title: '用户上限',
@@ -268,7 +292,7 @@ export default function TenantPage() {
           <Form.Item name="name" label="名称" rules={[{ required: true }]}>
             <Input placeholder="Acme 公司" />
           </Form.Item>
-          <Form.Item name="plan" label="套餐" extra="max_users=0 时：free→10、pro→50、enterprise→不限">
+          <Form.Item name="plan" label="计费方案" extra="max_users=0 时：free→10、pro→50、enterprise→不限">
             <Select
               options={[
                 { label: 'free', value: 'free' },
@@ -277,8 +301,18 @@ export default function TenantPage() {
               ]}
             />
           </Form.Item>
-          <Form.Item name="max_users" label="最大用户数（0=按套餐默认）">
+          <Form.Item name="max_users" label="最大用户数（0=按计费方案默认）">
             <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="package_id" label="权限套餐" extra="不选 = 不限；绑定后租户内角色只能分配套餐内权限">
+            <Select
+              allowClear
+              placeholder="不限"
+              options={packages.map((p) => ({
+                label: p.status === 1 ? p.name : `${p.name}（已停用）`,
+                value: p.id,
+              }))}
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -293,7 +327,7 @@ export default function TenantPage() {
           <Form.Item name="name" label="名称" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="plan" label="套餐">
+          <Form.Item name="plan" label="计费方案">
             <Select
               options={[
                 { label: 'free', value: 'free' },
@@ -304,6 +338,16 @@ export default function TenantPage() {
           </Form.Item>
           <Form.Item name="max_users" label="最大用户数（0=不限）">
             <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="package_id" label="权限套餐" extra="清空 = 解绑（不限）；改小套餐不回收存量角色权限，仅拦截新分配">
+            <Select
+              allowClear
+              placeholder="不限"
+              options={packages.map((p) => ({
+                label: p.status === 1 ? p.name : `${p.name}（已停用）`,
+                value: p.id,
+              }))}
+            />
           </Form.Item>
           <Form.Item name="status" label="状态">
             <Select

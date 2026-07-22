@@ -41,6 +41,9 @@ __pycache__/
 # Deploy staging binaries
 /dist/
 
+# IP 归属地离线库（约 11MB 大文件不进 git，用 scripts/download-ip2region.sh 下载）
+*.xdb
+
 # OS junk
 Thumbs.db
 

@@ -4,6 +4,7 @@ use (
 	./services/shared
 	./services/audit
 	./services/auth
+	./services/bpm
 	./services/file
 	./services/identity
 	./services/monitor

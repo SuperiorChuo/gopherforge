@@ -12,6 +12,7 @@ import (
 	"github.com/go-admin-kit/services/audit/internal/pkg/ipinfo"
 	"github.com/go-admin-kit/services/audit/internal/pkg/pagination"
 	"github.com/go-admin-kit/services/audit/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/iploc"
 	"gorm.io/gorm"
 )
 
@@ -186,7 +187,12 @@ func parseUserAgent(ua string) (device, os, browser string) {
 	return
 }
 
+// getIPLocation 解析 IP 归属地：优先走 ip2region 离线库（内网返回「内网」，
+// 微秒级无外呼）；离线库未部署或查不到时回退 ip-api.com 在线查询，保持旧行为。
 func getIPLocation(ctx context.Context, ip string) string {
+	if loc := iploc.Lookup(ip); loc != "" {
+		return loc
+	}
 	return ipinfo.GetLocationByIPContext(ctx, ip)
 }
 

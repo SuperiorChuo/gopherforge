@@ -82,6 +82,18 @@ func buildPermissionTree(permissions []model.Permission, parentID uint) []model.
 	return tree
 }
 
+// FindCodesByIDsContext 按权限 ID 批量取权限码（租户套餐越界校验用）。
+func (d *PermissionManageDAO) FindCodesByIDsContext(ctx context.Context, ids []uint) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var codes []string
+	err := d.dbWithContext(ctx).Model(&model.Permission{}).
+		Where("id IN ?", ids).
+		Pluck("code", &codes).Error
+	return codes, err
+}
+
 func (d *PermissionManageDAO) CreatePermissionContext(ctx context.Context, permission *model.Permission) error {
 	return d.dbWithContext(ctx).Create(permission).Error
 }
