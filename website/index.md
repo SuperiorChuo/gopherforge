@@ -36,3 +36,13 @@ features:
     title: 工程完备
     details: CI 全绿门禁、OpenAPI 契约漂移检测、迁移彩排、Playwright E2E、Prometheus/Grafana、可选 OTel 链路追踪。
 ---
+
+## 界面预览
+
+深空暗色 / 白蓝亮色双主题，一套视觉语言：
+
+| 🌌 深空暗色 | ☁️ 白蓝亮色 |
+| --- | --- |
+| ![系统概览 · 深空暗色](/screenshots/dashboard.png) | ![系统概览 · 白蓝亮色](/screenshots/dashboard-light.png) |
+
+![用户管理](/screenshots/users.png)
