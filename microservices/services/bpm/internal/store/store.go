@@ -1,9 +1,10 @@
-// Package store 持久化 bpm 五张表。AutoMigrate 自管表，
-// 全部查询强制 tenant_id 隔离；防重的部分唯一索引在建表后补建
+// Package store 持久化 bpm 五张表。AutoMigrate 自管表（轻量服务同
+// 约定），全部查询强制 tenant_id 隔离；防重的部分唯一索引在建表后补建
 // （AutoMigrate 不支持 WHERE 索引）。引擎推进事务见 internal/engine。
 package store
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -354,6 +355,26 @@ func (s *Store) ListMyInstances(tenantID, me uint64, status string, p Page) ([]m
 	return list, total, err
 }
 
+// ListAllInstances 租户内全部实例（M3 管理视图，平台管理员用）。
+func (s *Store) ListAllInstances(tenantID uint64, status, keyword string, p Page) ([]model.ProcessInstance, int64, error) {
+	q := tenantQ(s.db.Model(&model.ProcessInstance{}), tenantID)
+	if status != "" {
+		q = q.Where("status = ?", status)
+	}
+	if kw := strings.TrimSpace(keyword); kw != "" {
+		like := "%" + kw + "%"
+		q = q.Where("title LIKE ? OR definition_key LIKE ? OR biz_id LIKE ?", like, like, like)
+	}
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	offset, limit := p.clamp()
+	var list []model.ProcessInstance
+	err := q.Order("id DESC").Offset(offset).Limit(limit).Find(&list).Error
+	return list, total, err
+}
+
 // FindByBiz 按业务对象反查实例（在途 + 历史，按 id 倒序）。
 func (s *Store) FindByBiz(tenantID uint64, bizType, bizID string) ([]model.ProcessInstance, error) {
 	var list []model.ProcessInstance
@@ -409,11 +430,16 @@ func (s *Store) ListTodo(tenantID, me uint64, p Page) ([]TaskView, int64, error)
 	return list, total, err
 }
 
-// ListDone 我的已办（approved/rejected 历史，按处理时间倒序）。
+// ListDone 我的已办：本人处理过的（approved/rejected，以及带意见退回的
+// returned——acted_at 非空区分"我退回的"与"被连带置 returned 的"），加上
+// 转办出去的任务（origin_assignee=me，M2 验收：转办后原人已办可见）。
 func (s *Store) ListDone(tenantID, me uint64, p Page) ([]TaskView, int64, error) {
 	q := s.taskViewQ(tenantID).
-		Where("bpm_task.assignee_id = ? AND bpm_task.status IN ?",
-			me, []string{model.TaskApproved, model.TaskRejected})
+		Where(`(bpm_task.assignee_id = ? AND (bpm_task.status IN ?
+				OR (bpm_task.status = ? AND bpm_task.acted_at IS NOT NULL)))
+			OR (bpm_task.origin_assignee = ? AND bpm_task.assignee_id <> ?)`,
+			me, []string{model.TaskApproved, model.TaskRejected},
+			model.TaskReturned, me, me)
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -459,15 +485,152 @@ func (s *Store) ListInstanceCc(instanceID, tenantID uint64) ([]model.CcRecord, e
 	return list, err
 }
 
-// CanView 实例可见性（M1 从简）：发起人 ∪ 任务参与者 ∪ 被抄送人。
-// 平台管理员放行由 handler 层判断（X-Auth-Platform-Admin）。
+// InstanceSchema 解析实例冻结版本的节点树（任务详情动作列表用）。
+func (s *Store) InstanceSchema(inst *model.ProcessInstance) (*flow.Schema, error) {
+	var def model.ProcessDefinition
+	if err := s.db.Where("id = ?", inst.DefinitionID).First(&def).Error; err != nil {
+		return nil, err
+	}
+	return flow.Parse(def.NodeTree)
+}
+
+// ---------- 抄送（M2） ----------
+
+// CcRow 抄送箱列表行（契约字段勿改：与前端 /bpm/cc/my 对齐）。
+type CcRow struct {
+	ID            uint64     `json:"id"`
+	InstanceID    uint64     `json:"instance_id"`
+	InstanceTitle string     `json:"instance_title"`
+	NodeName      string     `json:"node_name"`
+	InitiatorID   uint64     `json:"initiator_id"`
+	ReadAt        *time.Time `json:"read_at,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
+// ListMyCc 抄送我的列表（按抄送时间倒序；unreadOnly 只看未读）。
+func (s *Store) ListMyCc(tenantID, me uint64, unreadOnly bool, p Page) ([]CcRow, int64, error) {
+	q := s.db.Table("bpm_cc_record").
+		Select(`bpm_cc_record.id, bpm_cc_record.instance_id, bpm_cc_record.node_name,
+			bpm_cc_record.read_at, bpm_cc_record.created_at,
+			i.title AS instance_title, i.initiator_id`).
+		Joins("JOIN bpm_process_instance i ON i.id = bpm_cc_record.instance_id").
+		Where("bpm_cc_record.tenant_id = ? AND bpm_cc_record.user_id = ?", tenantID, me)
+	if unreadOnly {
+		q = q.Where("bpm_cc_record.read_at IS NULL")
+	}
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	offset, limit := p.clamp()
+	var list []CcRow
+	err := q.Order("bpm_cc_record.id DESC").Offset(offset).Limit(limit).Scan(&list).Error
+	return list, total, err
+}
+
+var ErrNotCcOwner = errors.New("仅本人可标记该抄送已读")
+
+// MarkCcRead 标记抄送已读（仅本人；幂等——已读重复调用直接成功）。
+func (s *Store) MarkCcRead(id, tenantID, me uint64) error {
+	var rec model.CcRecord
+	if err := tenantQ(s.db, tenantID).Where("id = ?", id).First(&rec).Error; err != nil {
+		return err
+	}
+	if rec.UserID != me {
+		return ErrNotCcOwner
+	}
+	if rec.ReadAt != nil {
+		return nil // 幂等
+	}
+	return s.db.Model(&model.CcRecord{}).
+		Where("id = ? AND read_at IS NULL", id).
+		Update("read_at", time.Now()).Error
+}
+
+// ---------- 超时提醒扫描（M2 ticker） ----------
+
+// TimeoutDueRow 到点未提醒的待办（附实例摘要，发 bpm.task_timeout 用）。
+type TimeoutDueRow struct {
+	ID            uint64
+	TenantID      uint64
+	InstanceID    uint64
+	NodeID        string
+	NodeName      string
+	AssigneeID    uint64
+	TimeoutAt     time.Time
+	CreatedAt     time.Time
+	InstanceTitle string
+}
+
+// ListTimeoutDue 扫描 pending 且 timeout_at 已到、尚未提醒过的任务
+//（跨租户系统扫描；命中 ix_bpm_task_timeout 部分索引）。
+func (s *Store) ListTimeoutDue(limit int) ([]TimeoutDueRow, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	var list []TimeoutDueRow
+	err := s.db.Table("bpm_task").
+		Select(`bpm_task.id, bpm_task.tenant_id, bpm_task.instance_id, bpm_task.node_id,
+			bpm_task.node_name, bpm_task.assignee_id, bpm_task.timeout_at, bpm_task.created_at,
+			i.title AS instance_title`).
+		Joins("JOIN bpm_process_instance i ON i.id = bpm_task.instance_id").
+		Where("bpm_task.status = ? AND bpm_task.timeout_at IS NOT NULL AND bpm_task.timeout_at <= ? AND bpm_task.reminded_at IS NULL",
+			model.TaskPending, time.Now()).
+		Where("i.status = ?", model.InstRunning).
+		Order("bpm_task.timeout_at ASC").Limit(limit).Scan(&list).Error
+	return list, err
+}
+
+// MarkTaskReminded 回填 reminded_at 并写 timeout_remind 日志（operator=0）。
+// 条件更新防重：并发/重复扫描下仅第一次返回 true，保证"只提醒一次"。
+func (s *Store) MarkTaskReminded(row TimeoutDueRow, hours int) (bool, error) {
+	reminded := false
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&model.Task{}).
+			Where("id = ? AND status = ? AND reminded_at IS NULL", row.ID, model.TaskPending).
+			Update("reminded_at", time.Now())
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return nil // 已被提醒/已处理
+		}
+		reminded = true
+		detail, _ := json.Marshal(map[string]any{
+			"assignee_id": row.AssigneeID, "hours": hours,
+		})
+		// 日志失败不阻断（与引擎 writeLog 同理念）
+		_ = tx.Create(&model.ProcessLog{
+			TenantID: row.TenantID, InstanceID: row.InstanceID, NodeID: row.NodeID,
+			TaskID: row.ID, Action: model.ActionTimeoutRemind, OperatorID: 0,
+			Detail: model.JSONB(detail),
+		}).Error
+		return nil
+	})
+	return reminded, err
+}
+
+// HasPrevApprovalTask 实例是否存在当前节点之外的历史审批任务（排除 start
+// 重提任务）；taskActions 的 return_prev 可用性探测（M3，执行路径口径）。
+func (s *Store) HasPrevApprovalTask(instanceID, tenantID uint64, currentNodeID, startNodeID string) bool {
+	var cnt int64
+	s.db.Model(&model.Task{}).
+		Where("instance_id = ? AND tenant_id = ? AND node_id NOT IN ?",
+			instanceID, tenantID, []string{currentNodeID, startNodeID}).
+		Count(&cnt)
+	return cnt > 0
+}
+
+// CanView 实例可见性（M1 从简）：发起人 ∪ 任务参与者（含转办转出人，M2）
+// ∪ 被抄送人。平台管理员放行由 handler 层判断（X-Auth-Platform-Admin）。
 func (s *Store) CanView(inst *model.ProcessInstance, userID uint64) bool {
 	if inst.InitiatorID == userID {
 		return true
 	}
 	var cnt int64
 	s.db.Model(&model.Task{}).
-		Where("instance_id = ? AND assignee_id = ?", inst.ID, userID).Count(&cnt)
+		Where("instance_id = ? AND (assignee_id = ? OR origin_assignee = ?)",
+			inst.ID, userID, userID).Count(&cnt)
 	if cnt > 0 {
 		return true
 	}

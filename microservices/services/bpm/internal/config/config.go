@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -28,6 +29,9 @@ type Config struct {
 	// token 空=静默跳过通知（不阻断审批主流程）。
 	NotifyAPIBase       string
 	NotifyInternalToken string
+	// TimeoutScanInterval 超时提醒扫描周期（BPM_TIMEOUT_SCAN_INTERVAL，
+	// time.ParseDuration 语法，默认 5m）。
+	TimeoutScanInterval time.Duration
 }
 
 func Load() Config {
@@ -45,7 +49,17 @@ func Load() Config {
 		CallbackToken:       getenv("BPM_CALLBACK_TOKEN", ""),
 		NotifyAPIBase:       getenv("NOTIFY_API_BASE", ""),
 		NotifyInternalToken: getenv("NOTIFY_INTERNAL_TOKEN", ""),
+		TimeoutScanInterval: getenvDuration("BPM_TIMEOUT_SCAN_INTERVAL", 5*time.Minute),
 	}
+}
+
+func getenvDuration(key string, fallback time.Duration) time.Duration {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			return d
+		}
+	}
+	return fallback
 }
 
 func (c Config) DSN() string {

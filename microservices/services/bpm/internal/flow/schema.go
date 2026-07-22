@@ -1,14 +1,14 @@
 // Package flow 定义流程节点树 JSON Schema（与设计文档 §2.2 的 TypeScript
 // interface 等价的 Go 承载）与发布时校验。
 //
-// M1 支持范围（发布校验强制）：
-//   - 节点类型：start / approval / cc（condition 条件分支留 M3）
-//   - 多人模式：AND（会签）/ OR（或签）（SEQ 依次留 M3）
-//   - 拒绝走向：reject（back_to_start 退回发起人留 M2）
-//   - 审批人规则：users / roles / self_select（dept_leader 部门主管留 M2）
+// M3 支持范围（发布校验强制）：
+//   - 节点类型：start / approval / cc / condition（排他条件分支，允许嵌套）
+//   - 多人模式：AND（会签）/ OR（或签）/ SEQ（依次）
+//   - 拒绝走向：reject / back_to_start
+//   - 审批人规则：users / roles / self_select / dept_leader
 //
-// 结构上保留 condition / SEQ / dept_leader 等字段位，保证 JSON 前后兼容，
-// 仅在发布校验时拒绝，后续里程碑放开无需改存储。
+// 结构模型：单链 + 条件分支。condition 节点的每个分支挂一条子链，
+// 子链走完自动"汇合"回 condition 的 next（执行后继统一由 Successor 计算）。
 package flow
 
 import (
@@ -47,7 +47,19 @@ const (
 	FallbackSuspend  = "suspend" // 缺省
 )
 
-// MaxNodes 链上节点数上限（防御异常定义）。
+// dept_leader 规则的部门基准（M2）。
+const (
+	DeptBaseInitiator = "initiator"  // 缺省：以发起人所在部门取主管
+	DeptBaseFormField = "form_field" // 从发起表单快照的指定字段取部门 id
+)
+
+// 拒绝走向。
+const (
+	OnRejectReject      = "reject"        // 缺省：节点拒绝 → 实例终态 rejected
+	OnRejectBackToStart = "back_to_start" // M2：节点拒绝 → 退回发起人重新提交
+)
+
+// MaxNodes 整树节点数上限（含分支子链，防御异常定义）。
 const MaxNodes = 200
 
 // Schema 一条流程定义的节点树（definition.node_tree 的内容）。
@@ -76,16 +88,16 @@ type Node struct {
 	// --- cc ---
 	Targets *AssigneeRule `json:"targets,omitempty"`
 
-	// --- condition（M3 启用，字段位保留）---
+	// --- condition（M3 启用）---
 	Branches []Branch `json:"branches,omitempty"`
 }
 
-// Branch 条件分支（M3 启用）。
+// Branch 条件分支（M3）：expr=null 为 default 兜底分支（数组末尾唯一一个）。
 type Branch struct {
 	ID   string          `json:"id"`
 	Name string          `json:"name"`
 	Expr json.RawMessage `json:"expr,omitempty"` // null=default 兜底分支
-	Next *Node           `json:"next,omitempty"`
+	Next *Node           `json:"next,omitempty"` // 分支子链头；空=直通汇合点
 }
 
 // AssigneeRule 审批人 / 抄送对象解析规则。
@@ -112,20 +124,95 @@ func Parse(raw []byte) (*Schema, error) {
 	return &s, nil
 }
 
-// Nodes 返回主链节点切片（含 start，按链序）。M1 无分支，链即全部。
+// Nodes 返回整树节点切片（含分支子链，深度优先：主链序，condition 节点
+// 之后紧跟其各分支子链）。总量受 MaxNodes 截断保护。
 func Nodes(s *Schema) []*Node {
 	var out []*Node
-	for n := s.Start; n != nil && len(out) <= MaxNodes; n = n.Next {
+	Walk(s, func(n *Node) bool {
 		out = append(out, n)
-	}
+		return len(out) <= MaxNodes
+	})
 	return out
 }
 
-// NodeByID 按 id 在主链上定位节点；未找到返回 nil。
+// Walk 深度优先遍历整树（主链 + 条件分支子链）；fn 返回 false 时终止。
+func Walk(s *Schema, fn func(n *Node) bool) {
+	if s == nil {
+		return
+	}
+	walkChain(s.Start, fn, 0)
+}
+
+// walkChain 遍历一条链；depth 防御异常嵌套（JSON 树无环，纯保险）。
+func walkChain(head *Node, fn func(n *Node) bool, depth int) bool {
+	if depth > 32 {
+		return false
+	}
+	for n := head; n != nil; n = n.Next {
+		if !fn(n) {
+			return false
+		}
+		if n.Type == TypeCondition {
+			for i := range n.Branches {
+				if !walkChain(n.Branches[i].Next, fn, depth+1) {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// NodeByID 在整树上定位节点（含分支子链）；未找到返回 nil。
 func NodeByID(s *Schema, id string) *Node {
-	for _, n := range Nodes(s) {
+	var hit *Node
+	Walk(s, func(n *Node) bool {
 		if n.ID == id {
-			return n
+			hit = n
+			return false
+		}
+		return true
+	})
+	return hit
+}
+
+// Successor 返回节点在整树上的"执行后继"：分支子链走完自动汇合回所属
+// condition 的 next（该 next 为空则继续向外层汇合）。节点不存在返回 nil；
+// 返回 nil 亦表示到达链尾（实例应终态 approved）。
+func Successor(s *Schema, id string) *Node {
+	if s == nil {
+		return nil
+	}
+	n, _ := succIn(s.Start, id, nil)
+	return n
+}
+
+// succIn 在 chain 中找 id 的后继；joins 为由内到外的汇合目标栈
+//（元素可为 nil，表示该层 condition 之后直接续接更外层的汇合点）。
+func succIn(chain *Node, id string, joins []*Node) (*Node, bool) {
+	for n := chain; n != nil; n = n.Next {
+		if n.ID == id {
+			if n.Next != nil {
+				return n.Next, true
+			}
+			return firstJoin(joins), true
+		}
+		if n.Type == TypeCondition {
+			inner := append([]*Node{n.Next}, joins...)
+			for i := range n.Branches {
+				if got, found := succIn(n.Branches[i].Next, id, inner); found {
+					return got, true
+				}
+			}
+		}
+	}
+	return nil, false
+}
+
+func firstJoin(joins []*Node) *Node {
+	for _, j := range joins {
+		if j != nil {
+			return j
 		}
 	}
 	return nil
@@ -147,7 +234,7 @@ func (r *AssigneeRule) EffectiveFallback() string {
 	return r.EmptyFallback
 }
 
-// Validate 发布时的整树校验（M1 约束集）。校验失败返回可读中文错误。
+// Validate 发布时的整树校验（M3 约束集）。校验失败返回可读中文错误。
 func Validate(s *Schema) error {
 	if s == nil || s.Start == nil {
 		return errors.New("缺少发起节点")
@@ -155,31 +242,50 @@ func Validate(s *Schema) error {
 	if s.Start.Type != TypeStart {
 		return errors.New("链头必须是发起节点（type=start）")
 	}
-	seen := map[string]bool{}
-	approvals := 0
-	count := 0
-	for n := s.Start; n != nil; n = n.Next {
-		count++
-		if count > MaxNodes {
+	v := &validator{
+		seen:       map[string]bool{},
+		formFields: s.Start.FormFields,
+	}
+	if err := v.chain(s.Start, true); err != nil {
+		return err
+	}
+	if v.approvals == 0 {
+		return errors.New("流程至少需要一个审批节点")
+	}
+	return nil
+}
+
+type validator struct {
+	seen       map[string]bool
+	formFields []string
+	approvals  int
+	count      int
+}
+
+// chain 校验一条链；topLevel 仅主链为 true（start 只允许出现在主链头）。
+func (v *validator) chain(head *Node, topLevel bool) error {
+	for n := head; n != nil; n = n.Next {
+		v.count++
+		if v.count > MaxNodes {
 			return fmt.Errorf("节点数超过上限 %d", MaxNodes)
 		}
 		if n.ID == "" {
 			return errors.New("存在缺少 id 的节点")
 		}
-		if seen[n.ID] {
+		if v.seen[n.ID] {
 			return fmt.Errorf("节点 id 重复: %s", n.ID)
 		}
-		seen[n.ID] = true
+		v.seen[n.ID] = true
 		if n.Name == "" {
 			return fmt.Errorf("节点 %s 缺少名称", n.ID)
 		}
 		switch n.Type {
 		case TypeStart:
-			if n != s.Start {
+			if !topLevel || n != head || v.count != 1 {
 				return fmt.Errorf("发起节点只能出现在链头（节点 %s）", n.ID)
 			}
 		case TypeApproval:
-			approvals++
+			v.approvals++
 			if err := validateApproval(n); err != nil {
 				return err
 			}
@@ -194,29 +300,68 @@ func Validate(s *Schema) error {
 				return err
 			}
 		case TypeCondition:
-			return fmt.Errorf("条件分支节点（%s）将在 M3 支持", n.Name)
+			if err := v.condition(n); err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("节点 %s 类型未知: %s", n.ID, n.Type)
 		}
 	}
-	if approvals == 0 {
-		return errors.New("流程至少需要一个审批节点")
+	return nil
+}
+
+// condition 校验条件分支节点：分支 ≥2、default 有且仅有一个且在末尾、
+// 表达式字段已声明、分支子链递归校验。
+func (v *validator) condition(n *Node) error {
+	if len(n.Branches) < 2 {
+		return fmt.Errorf("条件分支节点 %s 至少需要 2 个分支", n.Name)
+	}
+	defaults := 0
+	branchSeen := map[string]bool{}
+	for i := range n.Branches {
+		b := &n.Branches[i]
+		if b.ID == "" {
+			return fmt.Errorf("条件分支节点 %s 存在缺少 id 的分支", n.Name)
+		}
+		if branchSeen[b.ID] {
+			return fmt.Errorf("条件分支节点 %s 分支 id 重复: %s", n.Name, b.ID)
+		}
+		branchSeen[b.ID] = true
+		if b.Name == "" {
+			return fmt.Errorf("条件分支节点 %s 存在缺少名称的分支", n.Name)
+		}
+		expr, err := ParseExpr(b.Expr)
+		if err != nil {
+			return fmt.Errorf("分支「%s」: %w", b.Name, err)
+		}
+		if expr == nil {
+			defaults++
+			if i != len(n.Branches)-1 {
+				return fmt.Errorf("条件分支节点 %s 的默认分支「%s」必须位于末尾", n.Name, b.Name)
+			}
+		} else {
+			if err := ValidateExpr(expr, v.formFields); err != nil {
+				return fmt.Errorf("分支「%s」: %w", b.Name, err)
+			}
+		}
+		if err := v.chain(b.Next, false); err != nil {
+			return err
+		}
+	}
+	if defaults != 1 {
+		return fmt.Errorf("条件分支节点 %s 必须有且仅有一个默认（兜底）分支", n.Name)
 	}
 	return nil
 }
 
 func validateApproval(n *Node) error {
 	switch n.MultiMode {
-	case "", MultiAnd, MultiOr:
-	case MultiSeq:
-		return fmt.Errorf("审批节点 %s：依次审批（SEQ）将在 M3 支持", n.Name)
+	case "", MultiAnd, MultiOr, MultiSeq:
 	default:
 		return fmt.Errorf("审批节点 %s：多人模式未知: %s", n.Name, n.MultiMode)
 	}
 	switch n.OnReject {
-	case "", "reject":
-	case "back_to_start":
-		return fmt.Errorf("审批节点 %s：拒绝退回发起人（back_to_start）将在 M2 支持", n.Name)
+	case "", OnRejectReject, OnRejectBackToStart:
 	default:
 		return fmt.Errorf("审批节点 %s：拒绝走向未知: %s", n.Name, n.OnReject)
 	}
@@ -242,7 +387,16 @@ func validateRule(nodeName string, r *AssigneeRule) error {
 	case RuleSelfSelect:
 		// 发起时校验 variables.selected_assignees 提供选人（引擎侧）
 	case RuleDeptLeader:
-		return fmt.Errorf("节点 %s：部门主管规则将在 M2 支持", nodeName)
+		switch r.DeptLeaderBase {
+		case "", DeptBaseInitiator:
+			// 缺省以发起人部门为基准
+		case DeptBaseFormField:
+			if r.DeptFormField == "" {
+				return fmt.Errorf("节点 %s：部门主管规则按表单字段取部门时需指定字段名（deptFormField）", nodeName)
+			}
+		default:
+			return fmt.Errorf("节点 %s：部门主管基准未知: %s", nodeName, r.DeptLeaderBase)
+		}
 	default:
 		return fmt.Errorf("节点 %s：审批人规则类型未知: %s", nodeName, r.Type)
 	}

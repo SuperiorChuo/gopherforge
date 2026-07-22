@@ -138,7 +138,7 @@ export interface BpmDefinition {
   active_id?: number
 }
 
-export type BpmInstanceStatus = 'running' | 'approved' | 'rejected' | 'canceled'
+export type BpmInstanceStatus = 'running' | 'approved' | 'rejected' | 'canceled' | 'suspended'
 
 export interface BpmInstance {
   id: number
@@ -209,8 +209,20 @@ export interface BpmTask {
 export interface BpmTaskDetail {
   task: BpmTask
   instance: BpmInstance
-  /** 如 ["approve","reject"] */
+  /** 如 ["approve","reject","transfer","return_start","return_prev","resubmit"] */
   actions?: string[]
+}
+
+/** 抄送记录（bpm_cc_record，M2；GET /cc/my 行结构按契约） */
+export interface BpmCcRecord {
+  id: number
+  instance_id: number
+  instance_title: string
+  node_name: string
+  initiator_id: number
+  /** 空=未读 */
+  read_at?: string
+  created_at: string
 }
 
 export type BpmLogAction =
@@ -221,9 +233,13 @@ export type BpmLogAction =
   | 'return_start'
   | 'return_prev'
   | 'cancel'
+  | 'resubmit'
   | 'cc'
   | 'timeout_remind'
   | 'auto_pass'
+  | 'suspend'
+  | 'branch'
+  | 'terminate'
   | 'finish_approved'
   | 'finish_rejected'
 
@@ -279,6 +295,7 @@ export const BPM_INSTANCE_STATUS_META: Record<string, { label: string; color: st
   approved: { label: '已通过', color: 'success' },
   rejected: { label: '已拒绝', color: 'error' },
   canceled: { label: '已撤销', color: 'default' },
+  suspended: { label: '已挂起', color: 'warning' },
 }
 
 export const BPM_TASK_STATUS_META: Record<
@@ -301,11 +318,26 @@ export const BPM_ACTION_META: Record<string, { label: string; color: string }> =
   return_start: { label: '退回发起人', color: 'orange' },
   return_prev: { label: '退回上一节点', color: 'orange' },
   cancel: { label: '撤销', color: 'gray' },
+  resubmit: { label: '重新提交', color: 'blue' },
   cc: { label: '抄送', color: 'blue' },
   timeout_remind: { label: '超时提醒', color: 'orange' },
   auto_pass: { label: '自动通过', color: 'green' },
+  suspend: { label: '实例挂起', color: 'orange' },
+  branch: { label: '分支命中', color: 'purple' },
+  terminate: { label: '管理员终止', color: 'red' },
   finish_approved: { label: '审批通过', color: 'green' },
   finish_rejected: { label: '审批拒绝', color: 'red' },
+}
+
+/** 条件表达式叶子操作符文案 */
+export const BPM_CONDITION_OP_META: Record<string, string> = {
+  gt: '大于',
+  gte: '大于等于',
+  lt: '小于',
+  lte: '小于等于',
+  eq: '等于',
+  ne: '不等于',
+  in: '属于（多值）',
 }
 
 export const BPM_MULTI_MODE_META: Record<string, string> = {
@@ -321,8 +353,31 @@ export const BPM_ASSIGNEE_TYPE_META: Record<string, string> = {
   self_select: '发起人自选',
 }
 
-/** biz_type 预置（发起节点 formFields 由业务类型预置，只读展示；见 §3.6/§5.1）。
- *  脚手架给一个通用示例，业务方按需扩展自己的 biz_type 与字段。 */
+export const BPM_DEPT_LEADER_BASE_META: Record<string, string> = {
+  initiator: '发起人部门',
+  form_field: '表单字段指定部门',
+}
+
+export const BPM_EMPTY_FALLBACK_META: Record<string, string> = {
+  auto_pass: '自动通过',
+  to_users: '转指定人',
+  suspend: '挂起待管理员处理',
+}
+
+export const BPM_ON_REJECT_META: Record<string, string> = {
+  reject: '结束流程',
+  back_to_start: '退回发起人',
+}
+
+/** 表单快照的已知字段中文名（demo 业务类型字段；时间线与重提编辑器共用） */
+export const BPM_FORM_FIELD_LABELS: Record<string, string> = {
+  amount_cents: '金额',
+  reason: '事由',
+  applicant: '申请人',
+  title: '标题',
+}
+
+/** biz_type 预置（发起节点 formFields 由业务类型预置，只读展示；脚手架内置示例） */
 export const BPM_BIZ_TYPE_PRESETS: Record<string, { label: string; formFields: string[] }> = {
   demo_expense: {
     label: '示例：报销审批',
@@ -354,73 +409,289 @@ export function createDefaultFlowSchema(bizType?: string): FlowSchema {
   }
 }
 
-/** 把链式 node_tree 展平成数组（start 恒为下标 0）；带环保护 */
-export function flowToChain(schema?: FlowSchema | null): AnyNode[] {
+/**
+ * 设计器编辑态分支：子链以数组承载（branch.chain），保存时经 chainToFlow
+ * 重建 next 链并剥离该辅助字段。M3 条件分支设计器专用。
+ */
+export type DesignerBranch = ConditionBranch & { chain?: AnyNode[] }
+
+/** 把一条链表展平成数组（递归处理条件分支子链，写入 branch.chain）；带环保护 */
+export function chainFromHead(head?: AnyNode | null): AnyNode[] {
   const chain: AnyNode[] = []
-  let cur: AnyNode | null | undefined = schema?.start
+  let cur: AnyNode | null | undefined = head
   let guard = 0
   while (cur && guard < 200) {
-    chain.push(cur)
+    if (cur.type === 'condition') {
+      const branches = (cur.branches ?? []).map((b) => ({
+        ...b,
+        chain: chainFromHead(b.next),
+      }))
+      chain.push({ ...cur, branches } as AnyNode)
+    } else {
+      chain.push(cur)
+    }
     cur = cur.next ?? null
     guard += 1
   }
   return chain
 }
 
-/** 把数组重新串回链式 node_tree；节点浅拷贝后重建 next 指针 */
-export function chainToFlow(chain: AnyNode[], schemaVersion = 1): FlowSchema {
+/** 把链式 node_tree 展平成数组（start 恒为下标 0，分支子链递归展平） */
+export function flowToChain(schema?: FlowSchema | null): AnyNode[] {
+  return chainFromHead(schema?.start)
+}
+
+/** 把数组重新串回一条链表（递归重建分支 next 链，剥离编辑辅助字段 chain） */
+function chainToHead(chain: AnyNode[]): AnyNode | null {
   const cloned = chain.map((n) => ({ ...n }))
   for (let i = 0; i < cloned.length; i += 1) {
-    cloned[i].next = i + 1 < cloned.length ? cloned[i + 1] : null
+    const n = cloned[i]
+    if (n.type === 'condition') {
+      n.branches = (n.branches ?? []).map((b) => {
+        const { chain: sub, ...rest } = b as DesignerBranch
+        return { ...rest, next: sub ? chainToHead(sub) : (b.next ?? null) }
+      })
+    }
+    n.next = i + 1 < cloned.length ? cloned[i + 1] : null
   }
-  const start = cloned[0]
+  return cloned[0] ?? null
+}
+
+/** 把数组重新串回链式 node_tree */
+export function chainToFlow(chain: AnyNode[], schemaVersion = 1): FlowSchema {
+  const start = chainToHead(chain)
   if (!start || start.type !== 'start') {
     throw new Error('节点树必须以发起节点开头')
   }
   return { version: schemaVersion, start: start as StartNode }
 }
 
-/** 单个审批节点的配置校验，返回错误文案（空串=通过）；供卡片内联标红与发布前整树校验共用 */
-export function validateApprovalNode(node: ApprovalNode): string {
+/** 在编辑态链（含分支子链）里按 id 定位节点 */
+export function findNodeById(chain: AnyNode[], id: string): AnyNode | null {
+  for (const n of chain) {
+    if (n.id === id) return n
+    if (n.type === 'condition') {
+      for (const b of n.branches ?? []) {
+        const hit = findNodeById((b as DesignerBranch).chain ?? [], id)
+        if (hit) return hit
+      }
+    }
+  }
+  return null
+}
+
+/** 在编辑态链（含分支子链）里按 id 打补丁，返回新链（不可变更新） */
+export function updateNodeById(chain: AnyNode[], id: string, patch: Partial<AnyNode>): AnyNode[] {
+  return chain.map((n) => {
+    if (n.id === id) return { ...n, ...patch } as AnyNode
+    if (n.type === 'condition') {
+      const branches = (n.branches ?? []).map((b) => {
+        const db = b as DesignerBranch
+        return db.chain ? { ...b, chain: updateNodeById(db.chain, id, patch) } : b
+      })
+      return { ...n, branches } as AnyNode
+    }
+    return n
+  })
+}
+
+/** 新建条件分支节点（一个待配置条件 + 一个默认兜底分支） */
+export function createConditionNode(): ConditionNode {
+  return {
+    id: genNodeId(),
+    name: '条件分支',
+    type: 'condition',
+    branches: [
+      { id: genNodeId(), name: '条件 1', expr: { op: 'and', items: [] }, next: null },
+      { id: genNodeId(), name: '默认', expr: null, next: null },
+    ],
+    next: null,
+  }
+}
+
+// ---------------------------------------------------------------------
+// 条件表达式草稿（简版编辑器：一层 AND/OR + 若干比较行；保存即 ConditionExpr）
+// ---------------------------------------------------------------------
+
+export type ConditionLeafOp = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'ne' | 'in'
+
+export interface ConditionRowDraft {
+  field: string
+  op: ConditionLeafOp
+  /** 原样字符串承载；in 用逗号分隔多值，保存时数字化 */
+  value: string
+}
+
+export interface ConditionDraft {
+  logic: 'and' | 'or'
+  rows: ConditionRowDraft[]
+}
+
+function scalarToDraft(v: unknown): string {
+  return Array.isArray(v) ? v.join(',') : String(v ?? '')
+}
+
+type ConditionGroup = Extract<ConditionExpr, { items: ConditionExpr[] }>
+
+function isConditionGroup(e: ConditionExpr): e is ConditionGroup {
+  return e.op === 'and' || e.op === 'or'
+}
+
+/** ConditionExpr → 编辑草稿（嵌套组合超出简版编辑器能力时平铺忽略组合层级） */
+export function exprToDraft(expr?: ConditionExpr | null): ConditionDraft {
+  if (!expr) return { logic: 'and', rows: [] }
+  if (isConditionGroup(expr)) {
+    const rows: ConditionRowDraft[] = []
+    for (const item of expr.items ?? []) {
+      if (isConditionGroup(item)) continue
+      rows.push({ field: item.field, op: item.op, value: scalarToDraft(item.value) })
+    }
+    return { logic: expr.op, rows }
+  }
+  return { logic: 'and', rows: [{ field: expr.field, op: expr.op, value: scalarToDraft(expr.value) }] }
+}
+
+function parseScalar(s: string): string | number {
+  const t = s.trim()
+  return t !== '' && Number.isFinite(Number(t)) ? Number(t) : t
+}
+
+/** 编辑草稿 → ConditionExpr；全部行为空返回 null（发布校验会拦非默认分支） */
+export function draftToExpr(d: ConditionDraft): ConditionExpr | null {
+  const rows = d.rows.filter((r) => r.field && r.op && r.value.trim() !== '')
+  if (!rows.length) return null
+  const leaves: ConditionExpr[] = rows.map((r) => ({
+    op: r.op,
+    field: r.field,
+    value:
+      r.op === 'in'
+        ? r.value
+            .split(/[,，、]/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .map(parseScalar)
+        : parseScalar(r.value),
+  }))
+  return leaves.length === 1 ? leaves[0] : { op: d.logic, items: leaves }
+}
+
+/** 分支条件的摘要文案（分支卡片展示用） */
+export function exprSummary(expr?: ConditionExpr | null): string {
+  if (!expr) return '其余情况进入此分支'
+  const d = exprToDraft(expr)
+  if (!d.rows.length) return '未配置条件'
+  const parts = d.rows.map(
+    (r) =>
+      `${BPM_FORM_FIELD_LABELS[r.field] ?? r.field} ${BPM_CONDITION_OP_META[r.op] ?? r.op} ${r.value}`,
+  )
+  return parts.join(d.logic === 'and' ? ' 且 ' : ' 或 ')
+}
+
+/**
+ * 单个审批节点的配置校验，返回错误文案（空串=通过）；供卡片内联标红与发布前整树校验共用。
+ * formFields：发起节点声明的表单字段（用于 dept_leader form_field 的字段名合法性校验）。
+ */
+export function validateApprovalNode(node: ApprovalNode, formFields?: string[]): string {
   if (!node.name?.trim()) return '节点名称不能为空'
   const rule = node.assignee
   if (!rule?.type) return '未配置审批人'
   if (rule.type === 'users' && !(rule.userIds && rule.userIds.length > 0)) return '未选择审批用户'
   if (rule.type === 'roles' && !(rule.roleIds && rule.roleIds.length > 0)) return '未选择审批角色'
+  if (rule.type === 'dept_leader') {
+    const base = rule.deptLeaderBase ?? 'initiator'
+    if (base === 'form_field') {
+      const field = rule.deptFormField?.trim()
+      if (!field) return '部门主管规则：请填写部门来源的表单字段名'
+      if (formFields?.length && !formFields.includes(field)) {
+        return `部门主管规则：字段「${field}」不在发起表单字段声明中`
+      }
+    }
+    if (
+      rule.emptyFallback === 'to_users' &&
+      !(rule.fallbackUserIds && rule.fallbackUserIds.length > 0)
+    ) {
+      return '部门主管规则：请选择空结果兜底的指定审批人'
+    }
+  }
   if (!node.multiMode) return '未选择多人审批模式'
-  // 与后端发布校验对齐（M1 拒绝）：SEQ 依次、back_to_start 退回发起人均属 M2
-  if (node.multiMode === 'SEQ') return 'M1 暂不支持「依次」模式'
-  if (node.onReject === 'back_to_start') return 'M1 拒绝后走向仅支持「流程结束」'
   return ''
 }
 
-/** 发布前整树校验（前端先挡一道，后端发布时二次校验 §2.2 约束） */
+/** 条件分支节点配置校验（M3）：分支数、默认分支唯一且在末尾、条件行完整 */
+export function validateConditionNode(node: ConditionNode, formFields?: string[]): string {
+  if (!node.name?.trim()) return '节点名称不能为空'
+  const branches = node.branches ?? []
+  if (branches.length < 2) return '条件分支至少需要 2 个分支'
+  const defaults = branches.filter((b) => !b.expr)
+  if (defaults.length !== 1) return '必须有且仅有一个默认（兜底）分支'
+  if (branches[branches.length - 1].expr) return '默认分支必须位于最后'
+  for (const b of branches) {
+    if (!b.name?.trim()) return '存在未命名的分支'
+    if (!b.expr) continue
+    const d = exprToDraft(b.expr)
+    if (!d.rows.length) return `分支「${b.name}」未配置条件`
+    for (const r of d.rows) {
+      if (!r.field) return `分支「${b.name}」存在未选字段的条件行`
+      if (!r.value.trim()) return `分支「${b.name}」存在未填值的条件行`
+      if (formFields?.length && !formFields.includes(r.field)) {
+        return `分支「${b.name}」的字段「${r.field}」不在发起表单字段声明中`
+      }
+    }
+  }
+  return ''
+}
+
+/** 抄送节点配置校验：抄送对象仅支持 users / roles（M2 约束） */
+export function validateCcNode(node: CcNode): string {
+  if (!node.name?.trim()) return '节点名称不能为空'
+  const rule = node.targets
+  if (!rule?.type) return '未配置抄送对象'
+  if (rule.type !== 'users' && rule.type !== 'roles') return '抄送对象仅支持指定用户或指定角色'
+  if (rule.type === 'users' && !(rule.userIds && rule.userIds.length > 0)) return '未选择抄送用户'
+  if (rule.type === 'roles' && !(rule.roleIds && rule.roleIds.length > 0)) return '未选择抄送角色'
+  return ''
+}
+
+/** 发布前整树校验（前端先挡一道，后端发布时二次校验 §2.2 约束）；递归进分支子链 */
 export function validateChain(chain: AnyNode[]): string[] {
   const errors: string[] = []
   if (!chain.length || chain[0].type !== 'start') {
     errors.push('缺少发起节点')
     return errors
   }
-  const approvals = chain.filter((n): n is ApprovalNode => n.type === 'approval')
-  if (!approvals.length) errors.push('至少需要一个审批节点')
-  chain.forEach((node, idx) => {
-    // 与后端 M1 发布校验对齐：condition 节点、cc 的 self_select 直接拒绝
-    if (node.type === 'condition') {
-      errors.push(`节点「${node.name || '未命名'}」：M1 暂不支持条件分支节点`)
-      return
-    }
-    if (node.type === 'cc' && node.targets?.type === 'self_select') {
-      errors.push(`节点「${node.name || '未命名'}」：抄送对象不支持发起人自选`)
-      return
-    }
-    if (node.type !== 'approval') return
-    const err = validateApprovalNode(node)
-    if (err) errors.push(`第 ${idx} 个节点「${node.name || '未命名'}」：${err}`)
-    // §2.2 约束 5：self_select 只允许出现在紧邻发起节点之后的审批节点
-    if (node.assignee?.type === 'self_select' && idx !== 1) {
-      errors.push(`节点「${node.name || '未命名'}」：发起人自选只允许配置在紧邻发起节点的第一个审批节点上`)
-    }
-  })
+  const formFields = chain[0].type === 'start' ? ((chain[0] as StartNode).formFields ?? []) : []
+  let approvals = 0
+
+  const walkChain = (nodes: AnyNode[], topLevel: boolean) => {
+    nodes.forEach((node, idx) => {
+      if (node.type === 'approval') {
+        approvals += 1
+        const err = validateApprovalNode(node, formFields)
+        if (err) errors.push(`节点「${node.name || '未命名'}」：${err}`)
+        // §2.2 约束 5：self_select 只允许出现在紧邻发起节点之后的审批节点
+        if (node.assignee?.type === 'self_select' && !(topLevel && idx === 1)) {
+          errors.push(
+            `节点「${node.name || '未命名'}」：发起人自选只允许配置在紧邻发起节点的第一个审批节点上`,
+          )
+        }
+        return
+      }
+      if (node.type === 'cc') {
+        const ccErr = validateCcNode(node)
+        if (ccErr) errors.push(`节点「${node.name || '未命名'}」：${ccErr}`)
+        return
+      }
+      if (node.type === 'condition') {
+        const err = validateConditionNode(node, formFields)
+        if (err) errors.push(`节点「${node.name || '未命名'}」：${err}`)
+        for (const b of node.branches ?? []) {
+          walkChain((b as DesignerBranch).chain ?? [], false)
+        }
+      }
+    })
+  }
+  walkChain(chain, true)
+  if (!approvals) errors.push('至少需要一个审批节点')
   return errors
 }
 
@@ -506,6 +777,20 @@ export const listMyInstances = (params: BpmInstanceListParams) =>
 export const cancelInstance = (id: number) =>
   request.post<unknown, void>(`/api/v1/bpm/instances/${id}/cancel`)
 
+/** 管理员终止（M3）：仅平台管理员；running/suspended 可终止，原因必填 */
+export const terminateInstance = (id: number, comment: string) =>
+  request.post<unknown, void>(`/api/v1/bpm/instances/${id}/terminate`, { comment })
+
+/** 全部实例（M3 管理视图）：仅平台管理员可见（后端 403 拦非管理员） */
+export const listAllInstances = (params: BpmInstanceListParams & { keyword?: string }) =>
+  request.get<unknown, PageResponse<BpmInstance>>('/api/v1/bpm/instances', { params })
+
+/** 被退回后修改快照重新提交（M2）：全链路 round+1 重新展开；form_snapshot 缺省=按原快照重提 */
+export const resubmitInstance = (id: number, formSnapshot?: Record<string, unknown>) =>
+  request.post<unknown, BpmInstance | void>(`/api/v1/bpm/instances/${id}/resubmit`, {
+    form_snapshot: formSnapshot,
+  })
+
 /** 实例详情：基本信息 + form_snapshot + 当前节点 */
 export const getInstance = (id: number, silent = false) =>
   request.get<unknown, BpmInstance>(`/api/v1/bpm/instances/${id}`, { silent })
@@ -523,9 +808,6 @@ export const getInstanceTimeline = (id: number, silent = false) =>
 export const getInstanceDiagram = (id: number, silent = false) =>
   request.get<unknown, BpmDiagram>(`/api/v1/bpm/instances/${id}/diagram`, { silent })
 
-// 注：bpm 的 by-biz 反查仅有 internal 变体（/api/v1/bpm/internal/instances/by-biz，
-// X-Internal-Token，前端不可用）。业务侧嵌入审批进度时，反查走各业务后端
-// 自建的代理端点（脚手架不含具体业务，故此处不提供反查封装）。
 
 // ---------------------------------------------------------------------
 // API 封装 —— §4.3 任务端（审批人视角；M1 动作：同意/拒绝）
@@ -541,9 +823,9 @@ export const listTodoTasks = (params: BpmTaskListParams, silent = false) =>
 export const listDoneTasks = (params: BpmTaskListParams) =>
   request.get<unknown, PageResponse<BpmTask>>('/api/v1/bpm/tasks/done', { params })
 
-/** 任务详情（含实例摘要 + form_snapshot + 我可用的动作列表） */
-export const getTask = (id: number) =>
-  request.get<unknown, BpmTaskDetail>(`/api/v1/bpm/tasks/${id}`)
+/** 任务详情（含实例摘要 + form_snapshot + 我可用的动作列表）；silent 供列表批量预取动作用 */
+export const getTask = (id: number, silent = false) =>
+  request.get<unknown, BpmTaskDetail>(`/api/v1/bpm/tasks/${id}`, { silent })
 
 /** 审批动作的返回体（后端确认形态） */
 export interface BpmTaskActionResult {
@@ -562,3 +844,28 @@ export const approveTask = (id: number, comment?: string) =>
 /** 拒绝（意见必填，前端强制 §3.3） */
 export const rejectTask = (id: number, comment: string) =>
   request.post<unknown, BpmTaskActionResult>(`/api/v1/bpm/tasks/${id}/reject`, { comment })
+
+/** 转办（M2）：任务换人保持 pending，不改变计数规则 */
+export const transferTask = (id: number, targetUserId: number, comment?: string) =>
+  request.post<unknown, BpmTaskActionResult>(`/api/v1/bpm/tasks/${id}/transfer`, {
+    target_user_id: targetUserId,
+    comment: comment || undefined,
+  })
+
+/** 退回（M2）：to=start 退回发起人 / to=prev 退回上一节点（须动作列表含 return_prev）；意见必填 */
+export const returnTask = (id: number, to: 'start' | 'prev', comment: string) =>
+  request.post<unknown, BpmTaskActionResult>(`/api/v1/bpm/tasks/${id}/return`, { to, comment })
+
+// ---------------------------------------------------------------------
+// API 封装 —— §4.3 抄送（M2）
+// ---------------------------------------------------------------------
+
+export type BpmCcListParams = PageRequest & { unread_only?: boolean }
+
+/** 抄送我的列表；unread_only=true 仅未读（page_size=1 可作未读计数探针） */
+export const listMyCc = (params: BpmCcListParams, silent = false) =>
+  request.get<unknown, PageResponse<BpmCcRecord>>('/api/v1/bpm/cc/my', { params, silent })
+
+/** 标记抄送已读（幂等） */
+export const readCcRecord = (id: number, silent = false) =>
+  request.post<unknown, void>(`/api/v1/bpm/cc/${id}/read`, undefined, { silent })

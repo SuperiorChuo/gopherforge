@@ -19,6 +19,9 @@ import (
 type UserService struct {
 	userDAO   systemdao.UserDAO
 	tenantDAO *systemdao.TenantDAO
+	// deptDAO 导出（部门名列）与导入（部门名→id 解析）用；零值构造时为
+	// nil，相关方法自行降级（见 user_excel.go）。
+	deptDAO *systemdao.DepartmentDAO
 }
 
 // NewUserServiceWithDB builds a UserService backed by an injected database handle.
@@ -26,6 +29,7 @@ func NewUserServiceWithDB(db *gorm.DB) UserService {
 	return UserService{
 		userDAO:   *systemdao.NewUserDAO(db),
 		tenantDAO: systemdao.NewTenantDAO(db),
+		deptDAO:   systemdao.NewDepartmentDAO(db),
 	}
 }
 

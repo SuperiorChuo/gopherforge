@@ -85,7 +85,8 @@ func (s *Server) requireUser(c *gin.Context) (*authjwt.AgentClaims, bool) {
 	return claims, true
 }
 
-// requireInternal 校验 X-Internal-Token；未配置密钥直接 503（拒绝裸奔）。
+// requireInternal 校验 X-Internal-Token；未配置密钥直接 503（拒绝裸奔），
+
 func (s *Server) requireInternal(c *gin.Context) bool {
 	if s.InternalToken == "" {
 		fail(c, http.StatusServiceUnavailable, "internal endpoint disabled")
@@ -157,7 +158,7 @@ func (s *Server) applyEffects(eff *engine.Effects) {
 		s.notifyCc(inst, &eff.CcRecords[i])
 	}
 	if eff.FinalResult != "" {
-		s.notifyResult(inst)
+		s.notifyResult(inst, eff.ResultText)
 		if s.Callback != nil {
 			finishedAt := ""
 			if inst.FinishedAt != nil {
@@ -219,6 +220,7 @@ func (s *Server) notifyCc(inst *model.ProcessInstance, rec *model.CcRecord) {
 		Vars: map[string]string{
 			"instance_title": inst.Title,
 			"instance_id":    instID,
+			"node_name":      rec.NodeName,
 		},
 		Title:   "审批抄送：" + inst.Title,
 		Content: "流程「" + inst.Title + "」抄送给你",
@@ -227,8 +229,9 @@ func (s *Server) notifyCc(inst *model.ProcessInstance, rec *model.CcRecord) {
 	s.sendNotify(in, "cc")
 }
 
-// notifyResult 终态结果通知发起人（模板 bpm.result）。
-func (s *Server) notifyResult(inst *model.ProcessInstance) {
+// notifyResult 终态结果通知发起人（模板 bpm.result）。overrideText 非空时
+// 覆盖按状态取的文案（管理员终止与发起人撤销同为 canceled，文案需区分）。
+func (s *Server) notifyResult(inst *model.ProcessInstance, overrideText string) {
 	if s.Notify == nil || !s.Notify.Enabled() {
 		return
 	}
@@ -237,6 +240,9 @@ func (s *Server) notifyResult(inst *model.ProcessInstance) {
 		model.InstRejected: "已拒绝",
 		model.InstCanceled: "已撤销",
 	}[inst.Status]
+	if overrideText != "" {
+		resultText = overrideText
+	}
 	instID := strconv.FormatUint(inst.ID, 10)
 	in := notifyclient.SendInput{
 		TenantID:     inst.TenantID,
@@ -248,6 +254,7 @@ func (s *Server) notifyResult(inst *model.ProcessInstance) {
 		Vars: map[string]string{
 			"instance_title": inst.Title,
 			"result":         inst.Status,
+			"result_text":    resultText,
 			"instance_id":    instID,
 		},
 		Title:   "审批结果：" + inst.Title + " " + resultText,

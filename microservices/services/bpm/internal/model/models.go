@@ -151,18 +151,18 @@ type Task struct {
 	InstanceID uint64 `gorm:"not null;index:ix_bpm_task_inst,priority:1" json:"instance_id"`
 	NodeID     string `gorm:"size:64;not null;index:ix_bpm_task_inst,priority:2" json:"node_id"`
 	NodeName   string `gorm:"size:128;not null" json:"node_name"`
-	// Round 退回重审时同节点的第几轮（M1 恒 1，M2 退回启用）
+	// Round 退回重审时同节点的第几轮（每次重新展开该节点 +1，时间线可回放）
 	Round      int    `gorm:"not null;default:1;index:ix_bpm_task_inst,priority:3" json:"round"`
 	AssigneeID uint64 `gorm:"not null;index:ix_bpm_task_todo,priority:2" json:"assignee_id"`
-	// OriginAssignee 转办前的原处理人（0=未转办；M2 转办启用）
-	OriginAssignee uint64 `gorm:"not null;default:0" json:"origin_assignee,omitempty"`
+	// OriginAssignee 最近一次转办的转出人（0=未转办）；已办列表据此让原人可见
+	OriginAssignee uint64 `gorm:"not null;default:0;index" json:"origin_assignee,omitempty"`
 	// MultiMode 冗余自节点（AND|OR|SEQ），便于收敛判定与查询
 	MultiMode string `gorm:"size:8;not null;default:OR" json:"multi_mode"`
 	// SeqOrder SEQ 模式下的顺位（M3 启用）
 	SeqOrder int    `gorm:"not null;default:0" json:"seq_order"`
 	Status   string `gorm:"size:16;not null;default:pending;index:ix_bpm_task_todo,priority:3" json:"status"`
 	Comment  string `gorm:"size:512" json:"comment,omitempty"`
-	// TimeoutAt 超时提醒时间点（M2 ticker 启用，M1 仅落库）
+	// TimeoutAt 超时提醒时间点（创建时按节点 timeoutHours 算好；ticker 扫描）
 	TimeoutAt  *time.Time `json:"timeout_at,omitempty"`
 	RemindedAt *time.Time `json:"reminded_at,omitempty"`
 	ActedAt    *time.Time `json:"acted_at,omitempty"`
@@ -175,20 +175,22 @@ func (Task) TableName() string { return "bpm_task" }
 // ---------- 抄送记录 ----------
 
 type CcRecord struct {
-	ID         uint64     `gorm:"primaryKey" json:"id"`
-	TenantID   uint64     `gorm:"not null;default:1;index:ix_bpm_cc_user,priority:1" json:"tenant_id"`
-	InstanceID uint64     `gorm:"not null;index" json:"instance_id"`
-	NodeID     string     `gorm:"size:64;not null" json:"node_id"`
-	UserID     uint64     `gorm:"not null;index:ix_bpm_cc_user,priority:2" json:"user_id"`
-	ReadAt     *time.Time `json:"read_at,omitempty"` // NULL=未读（已读接口 M2）
-	CreatedAt  time.Time  `json:"created_at"`
+	ID         uint64 `gorm:"primaryKey" json:"id"`
+	TenantID   uint64 `gorm:"not null;default:1;index:ix_bpm_cc_user,priority:1" json:"tenant_id"`
+	InstanceID uint64 `gorm:"not null;index" json:"instance_id"`
+	NodeID     string `gorm:"size:64;not null" json:"node_id"`
+	// NodeName 冗余自节点（M2 抄送箱列表展示；M1 存量记录为空）
+	NodeName  string     `gorm:"size:128;not null;default:''" json:"node_name"`
+	UserID    uint64     `gorm:"not null;index:ix_bpm_cc_user,priority:2" json:"user_id"`
+	ReadAt    *time.Time `json:"read_at,omitempty"` // NULL=未读
+	CreatedAt time.Time  `json:"created_at"`
 }
 
 func (CcRecord) TableName() string { return "bpm_cc_record" }
 
 // ---------- 操作 / 流转日志 ----------
 
-// 日志动作（M1 使用的子集；transfer/return_*/timeout_remind 留 M2）。
+// 日志动作。
 const (
 	ActionSubmit         = "submit"
 	ActionApprove        = "approve"
@@ -199,6 +201,15 @@ const (
 	ActionSuspend        = "suspend"
 	ActionFinishApproved = "finish_approved"
 	ActionFinishRejected = "finish_rejected"
+	// M2 起启用：转办 / 退回发起人 / 退回上一节点 / 重新提交 / 超时提醒
+	ActionTransfer      = "transfer"
+	ActionReturnStart   = "return_start"
+	ActionReturnPrev    = "return_prev"
+	ActionResubmit      = "resubmit"
+	ActionTimeoutRemind = "timeout_remind"
+	// M3 起启用：条件分支命中 / 管理员终止
+	ActionBranch    = "branch"
+	ActionTerminate = "terminate"
 )
 
 type ProcessLog struct {

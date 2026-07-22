@@ -3,6 +3,7 @@ import { Descriptions, Skeleton, Space, Tag, Timeline, Typography } from 'antd'
 import { ClockCircleOutlined } from '@ant-design/icons'
 import {
   BPM_ACTION_META,
+  BPM_FORM_FIELD_LABELS,
   BPM_INSTANCE_STATUS_META,
   collectNodeNames,
   getInstance,
@@ -17,13 +18,12 @@ import { formatDateTime } from '@/utils/format'
 
 const { Text } = Typography
 
-// 表单快照的已知字段中文名（通用示例字段；业务方按自己的 biz_type 扩展）
-const FORM_FIELD_LABELS: Record<string, string> = {
-  amount_cents: '金额',
-  reason: '事由',
-  applicant: '申请人',
-  title: '标题',
-  no: '编号',
+/** 宽松取数字（后端 detail JSONB 里的 id 可能是 number 或数字字符串） */
+function detailNumber(detail: Record<string, unknown> | undefined, key: string): number | undefined {
+  const v = detail?.[key]
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string' && v !== '' && Number.isFinite(Number(v))) return Number(v)
+  return undefined
 }
 
 function formatFormValue(key: string, value: unknown): string {
@@ -79,7 +79,10 @@ export default function BpmInstanceTimeline({
       setLoading(true)
       setUnavailable(false)
       try {
-        const inst: BpmInstance | null = instanceId ? await getInstance(instanceId, true) : null
+        let inst: BpmInstance | null = null
+        if (instanceId) {
+          inst = await getInstance(instanceId, true)
+        }
         if (!alive) return
         if (!inst) {
           setUnavailable(true)
@@ -125,6 +128,8 @@ export default function BpmInstanceTimeline({
     const nodeName = log.node_name || (log.node_id ? nodeNames[log.node_id] : '')
     const comment =
       log.detail && typeof log.detail.comment === 'string' ? log.detail.comment : ''
+    // 转办（M2）：detail.target_user_id 为新处理人；operator 为原处理人
+    const transferTarget = log.action === 'transfer' ? detailNumber(log.detail, 'target_user_id') : undefined
     return {
       color: meta.color,
       children: (
@@ -137,6 +142,13 @@ export default function BpmInstanceTimeline({
               {formatDateTime(log.created_at)}
             </Text>
           </Space>
+          {transferTarget !== undefined ? (
+            <div style={{ marginTop: 2 }}>
+              <Text type="secondary">
+                {displayUserName(userMap, log.operator_id)} → {displayUserName(userMap, transferTarget)}
+              </Text>
+            </div>
+          ) : null}
           {comment ? (
             <div style={{ marginTop: 2 }}>
               <Text type="secondary">意见：{comment}</Text>
@@ -204,7 +216,7 @@ export default function BpmInstanceTimeline({
           style={{ marginBottom: 16 }}
           items={Object.entries(instance.form_snapshot).map(([key, value]) => ({
             key,
-            label: FORM_FIELD_LABELS[key] ?? key,
+            label: BPM_FORM_FIELD_LABELS[key] ?? key,
             children: formatFormValue(key, value),
           }))}
         />

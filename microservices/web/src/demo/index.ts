@@ -349,6 +349,9 @@ const routes: Array<[string, RegExp, Handler]> = [
   ['post', /^\/api\/v1\/ws\/notifications\/ticket$/, () => ({ ticket: 'demo-ticket' })],
 
   // 用户
+  ['get', /^\/api\/v1\/users\/(export|import-template)$/, () => {
+    throw new DemoError(400, '演示模式不支持文件下载')
+  }],
   ['get', /^\/api\/v1\/users$/, (_m, _b, q) => paged(users, q)],
   ['get', /^\/api\/v1\/users\/(\d+)$/, (m) => users.find((u) => u.id === Number(m[1])) ?? users[0]],
   ['post', /^\/api\/v1\/users$/, (_m, body) => {
@@ -724,6 +727,13 @@ const routes: Array<[string, RegExp, Handler]> = [
     return d
   }],
   ['get', /^\/api\/v1\/bpm\/instances\/my$/, (_m, _b, q) => paged(bpmInstances, q)],
+  // M3：全部实例管理视图 + 管理员终止（演示数据直接标记撤销）
+  ['get', /^\/api\/v1\/bpm\/instances$/, (_m, _b, q) => paged(bpmInstances, q)],
+  ['post', /^\/api\/v1\/bpm\/instances\/(\d+)\/terminate$/, (m) => {
+    const inst = bpmInstances.find((x) => x.id === Number(m[1]))
+    if (inst) { inst.status = 'canceled'; inst.finished_at = now() }
+    return { instance_id: Number(m[1]), status: 'canceled' }
+  }],
   ['get', /^\/api\/v1\/bpm\/instances\/(\d+)\/timeline$/, (m) => ({ list: bpmTimeline(Number(m[1])) })],
   ['get', /^\/api\/v1\/bpm\/instances\/(\d+)\/diagram$/, (m) => {
     const inst = bpmInstances.find((x) => x.id === Number(m[1])) ?? bpmInstances[0]
