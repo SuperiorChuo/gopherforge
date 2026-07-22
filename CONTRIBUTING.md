@@ -128,6 +128,7 @@ Tabs ink bar becomes a glowing gradient strip...
 - 产品线边界见 `docs/PRODUCT_LINES.md`。
 - 不提交本地运行数据、日志、上传文件、数据库卷、`.env`、构建产物和密钥。
 - 文档正文默认使用中文；命令、路径、API、配置项和包名可保持原文。
+- **新增/变更功能须同步文档站**：`website/` 下对应模块页（中文必改，英文 `website/en/` 尽量同步）；本地 `cd website && npm run build` 须通过（死链会构建失败）。
 
 ## 提交前验证
 
