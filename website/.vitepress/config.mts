@@ -85,6 +85,8 @@ export default defineConfig({
   description:
     'GopherForge 开源 Go 微服务后台管理系统脚手架文档：快速上手、架构设计、RBAC 权限、多租户、审批流、代码生成器与二次开发指南',
   base: '/gopherforge/docs/',
+  // Algolia DocSearch 域名所有权验证
+  head: [['meta', { name: 'algolia-site-verification', content: 'F83830458D62489E' }]],
   // 教程里的 localhost 入口地址不是死链
   ignoreDeadLinks: [/^https?:\/\/localhost/],
   lastUpdated: true,
