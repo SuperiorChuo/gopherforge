@@ -41,7 +41,11 @@ func writeSystemUserServiceError(c *gin.Context, operation string, err error) {
 }
 
 func writeSystemRoleServiceError(c *gin.Context, operation string, err error) {
+	var exceedErr *systemsvc.PermissionsExceedPackageError
 	switch {
+	case errors.As(err, &exceedErr):
+		// 越界分配：把具体越界权限码回给前端，便于租户管理员定位。
+		response.BadRequest(c, exceedErr.Error())
 	case errors.Is(err, systemsvc.ErrRoleCodeAlreadyExists):
 		response.BadRequestWithCode(c, response.ErrorCodeRoleCodeAlreadyExists, systemsvc.ErrRoleCodeAlreadyExists.Error())
 	case errors.Is(err, systemsvc.ErrInvalidRoleDataScope):

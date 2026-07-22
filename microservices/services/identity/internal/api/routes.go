@@ -29,6 +29,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	departmentAPI := system.NewDepartmentAPI()
 	postAPI := system.NewPostAPI()
 	var tenantAPI *system.TenantAPI
+	var tenantPackageAPI *system.TenantPackageAPI
 	if deps.DB != nil {
 		userMgmtAPI = system.NewUserManagementAPIWithService(systemsvc.NewUserServiceWithDB(deps.DB))
 		roleMgmtAPI = system.NewRoleManagementAPIWithService(systemsvc.NewRoleServiceWithDB(deps.DB))
@@ -36,6 +37,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		departmentAPI = system.NewDepartmentAPIWithService(systemsvc.NewDepartmentServiceWithDB(deps.DB))
 		postAPI = system.NewPostAPIWithService(systemsvc.NewPostServiceWithDB(deps.DB))
 		tenantAPI = system.NewTenantAPIWithService(systemsvc.NewTenantServiceWithDB(deps.DB))
+		tenantPackageAPI = system.NewTenantPackageAPIWithService(systemsvc.NewTenantPackageServiceWithDB(deps.DB))
 	}
 
 	protected := api.Group("/")
@@ -46,6 +48,16 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 			protected.POST("/tenants", middleware.PermissionMiddleware("system:tenant:create"), tenantAPI.CreateTenant)
 			protected.GET("/tenants/:id", middleware.PermissionMiddleware("system:tenant:detail"), tenantAPI.GetTenant)
 			protected.PUT("/tenants/:id", middleware.PermissionMiddleware("system:tenant:update"), tenantAPI.UpdateTenant)
+		}
+
+		if tenantPackageAPI != nil {
+			// 租户套餐（权限包）：/all 供租户管理页下拉，放宽到 system:tenant:list 亦可访问。
+			protected.GET("/tenant-packages", middleware.PermissionMiddleware("system:tenant-package:list"), tenantPackageAPI.GetTenantPackageList)
+			protected.GET("/tenant-packages/all", middleware.PermissionMiddleware("system:tenant-package:list", "system:tenant:list"), tenantPackageAPI.GetAllTenantPackages)
+			protected.GET("/tenant-packages/:id", middleware.PermissionMiddleware("system:tenant-package:list"), tenantPackageAPI.GetTenantPackage)
+			protected.POST("/tenant-packages", middleware.PermissionMiddleware("system:tenant-package:create"), tenantPackageAPI.CreateTenantPackage)
+			protected.PUT("/tenant-packages/:id", middleware.PermissionMiddleware("system:tenant-package:update"), tenantPackageAPI.UpdateTenantPackage)
+			protected.DELETE("/tenant-packages/:id", middleware.PermissionMiddleware("system:tenant-package:delete"), tenantPackageAPI.DeleteTenantPackage)
 		}
 
 		protected.GET("/users", middleware.PermissionMiddleware("system:user:list"), userMgmtAPI.GetUserList)

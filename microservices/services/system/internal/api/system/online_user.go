@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/services/shared/pkg/iploc"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 	sharedapi "github.com/go-admin-kit/services/system/internal/api/shared"
@@ -90,12 +91,19 @@ func (a *OnlineUserAPI) GetOnlineUsers(c *gin.Context) {
 	}
 	list := make([]onlineUserListItem, 0, len(users))
 	for _, user := range users {
+		// The session writer (auth-service) leaves Location empty, so
+		// resolve it on read via the offline ip2region lookup. Queries are
+		// in-memory (microseconds); without the xdb file it stays empty.
+		location := user.Location
+		if location == "" {
+			location = iploc.Lookup(user.IP)
+		}
 		list = append(list, onlineUserListItem{
 			UserID:               user.UserID,
 			Username:             user.Username,
 			Nickname:             user.Nickname,
 			IP:                   user.IP,
-			Location:             user.Location,
+			Location:             location,
 			Browser:              user.Browser,
 			OS:                   user.OS,
 			LoginTime:            user.LoginTime,

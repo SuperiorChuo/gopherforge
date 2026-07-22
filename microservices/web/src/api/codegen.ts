@@ -24,10 +24,27 @@ export type CodegenFieldConfig = {
   required: boolean
 }
 
+// 生成模式：crud=单表（默认）、tree=树表、sub=主子表
+export type CodegenTplType = 'crud' | 'tree' | 'sub'
+
+export type CodegenTreeConfig = {
+  parent_field: string // 父级字段（如 parent_id）
+  name_field: string // 显示字段（如 name），用作树节点标题
+  sort_field?: string // 可选排序字段（如 sort）
+}
+
+export type CodegenSubConfig = {
+  table: string // 子表表名
+  fk_field: string // 子表中指向主表 id 的外键列
+}
+
 export type CodegenRequest = {
   table: string
   module: string
   title: string
+  tpl_type?: CodegenTplType
+  tree?: CodegenTreeConfig
+  sub?: CodegenSubConfig
   fields: CodegenFieldConfig[]
 }
 

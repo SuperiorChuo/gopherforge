@@ -85,11 +85,16 @@ const menuRows = [
   { id: 26, name: 'sms', title: '短信管理', icon: 'mail', path: '/system/sms', component: 'system/sms/index', parent_id: 10, sort: 16, status: 1, hidden: 0, permission: 'system:sms-channel:list' },
   { id: 27, name: 'errcodes', title: '错误码管理', icon: 'warning', path: '/system/errcodes', component: 'system/errcodes/index', parent_id: 10, sort: 17, status: 1, hidden: 0, permission: 'system:errcode:list' },
   { id: 28, name: 'post', title: '岗位管理', icon: 'idcard', path: '/system/post', component: 'system/posts', parent_id: 10, sort: 18, status: 1, hidden: 0, permission: 'system:post:list' },
+  { id: 29, name: 'tenant-packages', title: '租户套餐', icon: 'appstore', path: '/system/tenant-packages', component: 'system/tenant-packages', parent_id: 10, sort: 19, status: 1, hidden: 0, permission: 'system:tenant-package:list' },
   { id: 30, name: 'monitor', title: '系统监控', icon: 'chart-analytics', path: '/monitor', component: 'Layout', parent_id: 0, sort: 2, status: 1, hidden: 0 },
   { id: 31, name: 'monitor-job', title: '定时任务', icon: 'time', path: '/monitor/job', component: 'monitor/job/index', parent_id: 30, sort: 1, status: 1, hidden: 0, permission: 'system:job:list' },
   { id: 32, name: 'monitor-server', title: '服务器监控', icon: 'server', path: '/monitor/server', component: 'monitor/server/index', parent_id: 30, sort: 2, status: 1, hidden: 0, permission: 'system:monitor:server' },
   { id: 33, name: 'monitor-mysql', title: '数据库监控', icon: 'data-base', path: '/monitor/mysql', component: 'monitor/mysql/index', parent_id: 30, sort: 3, status: 1, hidden: 0, permission: 'system:monitor:mysql' },
   { id: 34, name: 'monitor-redis', title: '缓存监控', icon: 'data', path: '/monitor/redis', component: 'monitor/redis/index', parent_id: 30, sort: 4, status: 1, hidden: 0, permission: 'system:monitor:redis' },
+  { id: 35, name: 'bpm', title: '审批中心', icon: 'audit', path: '/bpm', component: 'Layout', parent_id: 0, sort: 3, status: 1, hidden: 0 },
+  { id: 36, name: 'bpm-tasks', title: '待办中心', icon: 'check', path: '/bpm/tasks', component: 'bpm/tasks/index', parent_id: 35, sort: 1, status: 1, hidden: 0 },
+  { id: 37, name: 'bpm-instances', title: '我发起的', icon: 'send', path: '/bpm/instances', component: 'bpm/instances/index', parent_id: 35, sort: 2, status: 1, hidden: 0 },
+  { id: 38, name: 'bpm-definitions', title: '流程定义', icon: 'fork', path: '/bpm/definitions', component: 'bpm/definitions/index', parent_id: 35, sort: 3, status: 1, hidden: 0, permission: 'bpm:definition:list' },
   { id: 40, name: 'profile', title: '个人中心', icon: 'user-circle', path: '/profile', component: 'Layout', parent_id: 0, sort: 99, status: 1, hidden: 1 },
   { id: 41, name: 'profile-index', title: '个人中心', icon: 'user', path: '/profile/index', component: 'profile/index', parent_id: 40, sort: 1, status: 1, hidden: 0 },
 ]
@@ -213,6 +218,60 @@ const smsLogs: DemoSmsLog[] = Array.from({ length: 9 }, (_, i) => ({
 const settings: Array<{ setting_key: string; value_json: Record<string, unknown>; updated_at?: string }> = [
   { setting_key: 'site.basic', value_json: { site_name: 'GopherForge 演示站', icp: '', logo_url: '' }, updated_at: daysAgo(9) },
 ]
+
+// 租户套餐（权限包）：套餐 = 可分配权限码集合，租户绑定后角色分配受约束
+type DemoTenantPackage = { id: number; name: string; permission_codes: string[]; status: number; remark: string; created_at: string; updated_at: string }
+const tenantPackages: DemoTenantPackage[] = [
+  { id: 1, name: '基础版', permission_codes: ['system:user:list', 'system:role:list', 'system:dict:list'], status: 1, remark: '仅基础系统管理能力', created_at: daysAgo(60), updated_at: daysAgo(10) },
+  { id: 2, name: '专业版', permission_codes: ['system:user:list', 'system:role:list', 'system:menu:list', 'system:dict:list', 'system:notice:list', 'bpm:definition:list'], status: 1, remark: '含审批中心', created_at: daysAgo(40), updated_at: daysAgo(5) },
+  { id: 3, name: '停用示例', permission_codes: ['system:user:list'], status: 0, remark: '停用套餐示例', created_at: daysAgo(20), updated_at: daysAgo(20) },
+]
+
+// 审批流（bpm）：一条报销审批流程定义 + 节点树 + 实例 / 待办 / 时间线
+const demoNodeTree = {
+  version: 1,
+  start: {
+    id: 'n1', name: '发起人', type: 'start', formFields: ['amount_cents', 'reason', 'applicant'],
+    next: {
+      id: 'n2', name: '部门经理审批', type: 'approval',
+      assignee: { type: 'roles', roleIds: [2] }, multiMode: 'OR', onReject: 'reject',
+      next: {
+        id: 'n3', name: '财务审批', type: 'approval',
+        assignee: { type: 'users', userIds: [1] }, multiMode: 'AND', onReject: 'reject', next: null,
+      },
+    },
+  },
+}
+
+type DemoBpmDefinition = Record<string, unknown> & { id: number; key: string; status: string }
+const bpmDefinitions: DemoBpmDefinition[] = [
+  { id: 1, key: 'expense_approval', name: '报销审批', version: 1, status: 'active', biz_type: 'demo_expense', node_tree: demoNodeTree, active_version: 1, active_id: 1, created_by: 1, created_at: daysAgo(30), updated_at: daysAgo(20) },
+  { id: 2, key: 'leave_approval', name: '请假审批', version: 1, status: 'draft', biz_type: '', node_tree: demoNodeTree, created_by: 1, created_at: daysAgo(12), updated_at: daysAgo(2) },
+]
+
+type DemoBpmInstance = Record<string, unknown> & { id: number; status: string }
+const bpmInstances: DemoBpmInstance[] = [
+  { id: 1, definition_id: 1, definition_key: 'expense_approval', title: '报销审批：差旅费 1200 元', biz_type: 'demo_expense', biz_id: '1001', status: 'running', current_node_id: 'n2', current_node_name: '部门经理审批', form_snapshot: { amount_cents: 120000, reason: '出差差旅费', applicant: '张三' }, initiator_id: 1, initiator_name: '演示管理员', created_at: daysAgo(2) },
+  { id: 2, definition_id: 1, definition_key: 'expense_approval', title: '报销审批：办公用品 300 元', biz_type: 'demo_expense', biz_id: '1002', status: 'approved', current_node_id: 'n3', form_snapshot: { amount_cents: 30000, reason: '采购办公用品', applicant: '李四' }, initiator_id: 1, initiator_name: '演示管理员', finished_at: daysAgo(1), created_at: daysAgo(5) },
+]
+
+type DemoBpmTask = Record<string, unknown> & { id: number; instance_id: number; status: string }
+const bpmTasks: DemoBpmTask[] = [
+  { id: 1, instance_id: 1, node_id: 'n2', node_name: '部门经理审批', assignee_id: 1, assignee_name: '演示管理员', multi_mode: 'OR', status: 'pending', instance_title: '报销审批：差旅费 1200 元', instance_status: 'running', initiator_id: 1, initiator_name: '演示管理员', biz_type: 'demo_expense', biz_id: '1001', created_at: daysAgo(2) },
+  { id: 2, instance_id: 2, node_id: 'n2', node_name: '部门经理审批', assignee_id: 1, assignee_name: '演示管理员', multi_mode: 'OR', status: 'approved', comment: '同意报销', acted_at: daysAgo(1), instance_title: '报销审批：办公用品 300 元', instance_status: 'approved', initiator_id: 1, initiator_name: '演示管理员', biz_type: 'demo_expense', biz_id: '1002', created_at: daysAgo(5) },
+]
+
+const bpmTimeline = (instId: number) => [
+  { id: 1, instance_id: instId, node_id: 'n1', node_name: '发起人', action: 'submit', operator_id: 1, operator_name: '演示管理员', created_at: daysAgo(2) },
+  { id: 2, instance_id: instId, node_id: 'n2', node_name: '部门经理审批', action: 'approve', operator_id: 1, operator_name: '演示管理员', detail: { comment: '同意' }, created_at: daysAgo(1) },
+]
+
+const bpmDiagram = (inst: DemoBpmInstance) => ({
+  node_tree: demoNodeTree,
+  nodes: inst.status === 'running'
+    ? { n1: { state: 'done' }, n2: { state: 'doing', tasks: bpmTasks.filter((t) => t.instance_id === inst.id) }, n3: { state: 'todo' } }
+    : { n1: { state: 'done' }, n2: { state: 'done' }, n3: { state: 'done' } },
+})
 
 const demoUser = () => ({
   id: 1, tenant_id: 1, is_platform_admin: true, username: 'admin', nickname: '演示管理员',
@@ -612,6 +671,85 @@ const routes: Array<[string, RegExp, Handler]> = [
   ['get', /^\/api\/v1\/codegen\/tables\/[^/]+\/columns$/, () => ({ list: codegenColumns, total: codegenColumns.length })],
   ['post', /^\/api\/v1\/codegen\/preview$/, (_m, body) => codegenPreview(String(body.module || 'demo'))],
   ['post', /^\/api\/v1\/codegen\/download$/, () => unsupported('zip 下载')],
+
+  // 租户套餐（identity-service）
+  ['get', /^\/api\/v1\/tenant-packages\/all$/, () => tenantPackages],
+  ['get', /^\/api\/v1\/tenant-packages$/, (_m, _b, q) => paged(tenantPackages, q)],
+  ['get', /^\/api\/v1\/tenant-packages\/(\d+)$/, (m) => tenantPackages.find((p) => p.id === Number(m[1])) ?? tenantPackages[0]],
+  ['post', /^\/api\/v1\/tenant-packages$/, (_m, body) => {
+    const p = { id: nextID(), name: '', status: 1, remark: '', permission_codes: [] as string[], created_at: now(), updated_at: now(), ...body } as DemoTenantPackage
+    tenantPackages.unshift(p)
+    return p
+  }],
+  ['put', /^\/api\/v1\/tenant-packages\/(\d+)$/, (m, body) => {
+    const i = tenantPackages.findIndex((p) => p.id === Number(m[1]))
+    if (i >= 0) tenantPackages[i] = { ...tenantPackages[i], ...body, updated_at: now() }
+    return tenantPackages[i] ?? {}
+  }],
+  ['delete', /^\/api\/v1\/tenant-packages\/(\d+)$/, (m) => {
+    const i = tenantPackages.findIndex((p) => p.id === Number(m[1]))
+    if (i >= 0) tenantPackages.splice(i, 1)
+    return {}
+  }],
+
+  // 审批中心（bpm-service）：流程定义 / 实例 / 待办
+  ['get', /^\/api\/v1\/bpm\/definitions\/keys\/[^/]+\/active$/, () => bpmDefinitions.find((d) => d.status === 'active') ?? bpmDefinitions[0]],
+  ['get', /^\/api\/v1\/bpm\/definitions$/, (_m, _b, q) => paged(bpmDefinitions, q)],
+  ['get', /^\/api\/v1\/bpm\/definitions\/(\d+)$/, (m) => bpmDefinitions.find((d) => d.id === Number(m[1])) ?? bpmDefinitions[0]],
+  ['post', /^\/api\/v1\/bpm\/definitions$/, (_m, body) => {
+    const d = { id: nextID(), key: '', name: '', version: 1, status: 'draft', created_by: 1, created_at: now(), updated_at: now(), ...body } as DemoBpmDefinition
+    bpmDefinitions.unshift(d)
+    return d
+  }],
+  ['put', /^\/api\/v1\/bpm\/definitions\/(\d+)$/, (m, body) => {
+    const i = bpmDefinitions.findIndex((d) => d.id === Number(m[1]))
+    if (i >= 0) bpmDefinitions[i] = { ...bpmDefinitions[i], ...body, updated_at: now() }
+    return bpmDefinitions[i] ?? {}
+  }],
+  ['post', /^\/api\/v1\/bpm\/definitions\/(\d+)\/publish$/, (m) => {
+    const d = bpmDefinitions.find((x) => x.id === Number(m[1]))
+    if (d) d.status = 'active'
+    return d ?? {}
+  }],
+  ['post', /^\/api\/v1\/bpm\/definitions\/(\d+)\/suspend$/, (m) => {
+    const d = bpmDefinitions.find((x) => x.id === Number(m[1]))
+    if (d) d.status = 'suspended'
+    return d ?? {}
+  }],
+  ['post', /^\/api\/v1\/bpm\/definitions\/(\d+)\/new-version$/, (m) => {
+    const src = bpmDefinitions.find((x) => x.id === Number(m[1]))
+    if (!src) return {}
+    const d = { ...src, id: nextID(), version: Number(src.version ?? 1) + 1, status: 'draft', created_at: now(), updated_at: now() } as DemoBpmDefinition
+    bpmDefinitions.unshift(d)
+    return d
+  }],
+  ['get', /^\/api\/v1\/bpm\/instances\/my$/, (_m, _b, q) => paged(bpmInstances, q)],
+  ['get', /^\/api\/v1\/bpm\/instances\/(\d+)\/timeline$/, (m) => ({ list: bpmTimeline(Number(m[1])) })],
+  ['get', /^\/api\/v1\/bpm\/instances\/(\d+)\/diagram$/, (m) => {
+    const inst = bpmInstances.find((x) => x.id === Number(m[1])) ?? bpmInstances[0]
+    return bpmDiagram(inst)
+  }],
+  ['get', /^\/api\/v1\/bpm\/instances\/(\d+)$/, (m) => bpmInstances.find((x) => x.id === Number(m[1])) ?? bpmInstances[0]],
+  ['post', /^\/api\/v1\/bpm\/instances\/(\d+)\/cancel$/, (m) => {
+    const inst = bpmInstances.find((x) => x.id === Number(m[1]))
+    if (inst) inst.status = 'canceled'
+    return {}
+  }],
+  ['get', /^\/api\/v1\/bpm\/tasks\/todo$/, (_m, _b, q) => paged(bpmTasks.filter((t) => t.status === 'pending'), q)],
+  ['get', /^\/api\/v1\/bpm\/tasks\/done$/, (_m, _b, q) => paged(bpmTasks.filter((t) => t.status !== 'pending'), q)],
+  ['get', /^\/api\/v1\/bpm\/tasks\/(\d+)$/, (m) => {
+    const task = bpmTasks.find((t) => t.id === Number(m[1])) ?? bpmTasks[0]
+    const instance = bpmInstances.find((i) => i.id === task.instance_id) ?? bpmInstances[0]
+    return { task, instance, actions: task.status === 'pending' ? ['approve', 'reject'] : [] }
+  }],
+  ['post', /^\/api\/v1\/bpm\/tasks\/(\d+)\/(approve|reject)$/, (m) => {
+    const task = bpmTasks.find((t) => t.id === Number(m[1]))
+    const approved = m[2] === 'approve'
+    if (task) task.status = approved ? 'approved' : 'rejected'
+    const inst = task ? bpmInstances.find((i) => i.id === task.instance_id) : undefined
+    if (inst) inst.status = approved ? 'approved' : 'rejected'
+    return { task_id: Number(m[1]), instance_id: task?.instance_id ?? 0, instance_status: inst?.status ?? 'running' }
+  }],
 ]
 
 /* --------------------------------- adapter -------------------------------- */

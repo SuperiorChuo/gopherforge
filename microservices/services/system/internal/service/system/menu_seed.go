@@ -52,12 +52,20 @@ var defaultMenuSeed = []model.Menu{
 	{ID: 27, Name: "errcodes", Title: "错误码管理", Icon: "warning", Path: "/system/errcodes", Component: "system/errcodes/index", ParentID: 10, Sort: 17, Status: 1, Hidden: 0, Permission: "system:errcode:list"},
 	// 岗位管理：岗位 CRUD + 用户选岗（identity-service）
 	{ID: 28, Name: "post", Title: "岗位管理", Icon: "idcard", Path: "/system/post", Component: "system/posts", ParentID: 10, Sort: 18, Status: 1, Hidden: 0, Permission: "system:post:list"},
+	// 租户套餐：权限包 CRUD + 租户绑定，租户内角色分配受套餐约束（identity-service）
+	{ID: 29, Name: "tenant-packages", Title: "租户套餐", Icon: "appstore", Path: "/system/tenant-packages", Component: "system/tenant-packages", ParentID: 10, Sort: 19, Status: 1, Hidden: 0, Permission: "system:tenant-package:list"},
 
 	{ID: 30, Name: "monitor", Title: "系统监控", Icon: "chart-analytics", Path: "/monitor", Component: "Layout", ParentID: 0, Sort: 2, Status: 1, Hidden: 0},
 	{ID: 31, Name: "monitor-job", Title: "定时任务", Icon: "time", Path: "/monitor/job", Component: "monitor/job/index", ParentID: 30, Sort: 1, Status: 1, Hidden: 0, Permission: "system:job:list"},
 	{ID: 32, Name: "monitor-server", Title: "服务器监控", Icon: "server", Path: "/monitor/server", Component: "monitor/server/index", ParentID: 30, Sort: 2, Status: 1, Hidden: 0, Permission: "system:monitor:server"},
 	{ID: 33, Name: "monitor-mysql", Title: "数据库监控", Icon: "data-base", Path: "/monitor/mysql", Component: "monitor/mysql/index", ParentID: 30, Sort: 3, Status: 1, Hidden: 0, Permission: "system:monitor:mysql"},
 	{ID: 34, Name: "monitor-redis", Title: "缓存监控", Icon: "data", Path: "/monitor/redis", Component: "monitor/redis/index", ParentID: 30, Sort: 4, Status: 1, Hidden: 0, Permission: "system:monitor:redis"},
+
+	// 审批中心（bpm-service）：流程定义（需权限）+ 待办/我发起的（登录即见）
+	{ID: 35, Name: "bpm", Title: "审批中心", Icon: "audit", Path: "/bpm", Component: "Layout", ParentID: 0, Sort: 3, Status: 1, Hidden: 0},
+	{ID: 36, Name: "bpm-tasks", Title: "待办中心", Icon: "check", Path: "/bpm/tasks", Component: "bpm/tasks/index", ParentID: 35, Sort: 1, Status: 1, Hidden: 0},
+	{ID: 37, Name: "bpm-instances", Title: "我发起的", Icon: "send", Path: "/bpm/instances", Component: "bpm/instances/index", ParentID: 35, Sort: 2, Status: 1, Hidden: 0},
+	{ID: 38, Name: "bpm-definitions", Title: "流程定义", Icon: "fork", Path: "/bpm/definitions", Component: "bpm/definitions/index", ParentID: 35, Sort: 3, Status: 1, Hidden: 0, Permission: "bpm:definition:list"},
 
 	{ID: 40, Name: "profile", Title: "个人中心", Icon: "user-circle", Path: "/profile", Component: "Layout", ParentID: 0, Sort: 99, Status: 1, Hidden: 1},
 	{ID: 41, Name: "profile-index", Title: "个人中心", Icon: "user", Path: "/profile/index", Component: "profile/index", ParentID: 40, Sort: 1, Status: 1, Hidden: 0},

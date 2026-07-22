@@ -15,6 +15,10 @@ import (
 type RoleService struct {
 	roleDAO            systemdao.RoleDAO
 	permissionCacheDAO *systemdao.PermissionCacheDAO
+	// 租户套餐约束依赖（任一为 nil 时跳过约束，兼容旧的零值构造路径）。
+	tenantDAO        *systemdao.TenantDAO
+	tenantPackageDAO *systemdao.TenantPackageDAO
+	permissionDAO    *systemdao.PermissionManageDAO
 }
 
 // NewRoleServiceWithDB builds a RoleService backed by an injected database handle.
@@ -22,6 +26,9 @@ func NewRoleServiceWithDB(db *gorm.DB) RoleService {
 	return RoleService{
 		roleDAO:            *systemdao.NewRoleDAO(db),
 		permissionCacheDAO: systemdao.NewPermissionCacheDAO(db),
+		tenantDAO:          systemdao.NewTenantDAO(db),
+		tenantPackageDAO:   systemdao.NewTenantPackageDAO(db),
+		permissionDAO:      systemdao.NewPermissionManageDAO(db),
 	}
 }
 
@@ -165,11 +172,16 @@ func (s *RoleService) DeleteRoleContext(ctx context.Context, id uint) error {
 }
 
 func (s *RoleService) AssignPermissionsContext(ctx context.Context, roleID uint, req AssignPermissionsRequest) error {
-	_, err := s.roleDAO.GetRoleByIDContext(ctx, roleID)
+	role, err := s.roleDAO.GetRoleByIDContext(ctx, roleID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrRoleNotFound
 		}
+		return err
+	}
+
+	// 租户套餐约束：租户内角色可分配的权限必须 ⊆ 套餐 permission_codes。
+	if err := s.enforceTenantPackageContext(ctx, role.TenantID, req.PermissionIDs); err != nil {
 		return err
 	}
 
@@ -178,6 +190,69 @@ func (s *RoleService) AssignPermissionsContext(ctx context.Context, roleID uint,
 	}
 
 	return InvalidatePermissionCacheByRolesContext(ctx, s.permissionCacheDAO, roleID)
+}
+
+// isPlatformAdminContext 读取认证中间件写入的平台管理员标志（middleware/auth.go）。
+func isPlatformAdminContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	v, _ := ctx.Value("platform_admin").(bool)
+	return v
+}
+
+// enforceTenantPackageContext 校验角色所属租户绑定的套餐是否允许分配指定权限。
+// 豁免：平台管理员/超管（platform_admin 上下文标志）、未绑定套餐的租户、旧构造路径（约束依赖未注入）。
+// 语义（M1）：套餐改小后不回收已有角色的越界权限，只拦截新的分配请求（挡新分配）。
+func (s *RoleService) enforceTenantPackageContext(ctx context.Context, roleTenantID uint, permissionIDs []uint) error {
+	if s.tenantDAO == nil || s.tenantPackageDAO == nil || s.permissionDAO == nil {
+		return nil
+	}
+	if isPlatformAdminContext(ctx) {
+		return nil
+	}
+	if len(permissionIDs) == 0 {
+		return nil // 清空权限总是允许
+	}
+	// 平台级目录读绕过行级租户过滤（tenants / tenant_packages 无 tenant_id 列）。
+	qctx := tenant.DisableScope(ctx)
+	t, err := s.tenantDAO.GetByIDContext(qctx, tenant.Normalize(roleTenantID))
+	if err != nil {
+		// 单租户旧库无 tenants 行时不启用约束。
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+	if t.PackageID == nil || *t.PackageID == 0 {
+		return nil // 未绑定套餐 = 不限
+	}
+	pkg, err := s.tenantPackageDAO.GetByIDContext(qctx, *t.PackageID)
+	if err != nil {
+		// 绑定的套餐已不存在（删除有绑定守卫，此处防御式放行）。
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+	codes, err := s.permissionDAO.FindCodesByIDsContext(qctx, permissionIDs)
+	if err != nil {
+		return err
+	}
+	allowed := make(map[string]struct{}, len(pkg.PermissionCodes))
+	for _, c := range pkg.PermissionCodes {
+		allowed[c] = struct{}{}
+	}
+	var exceeded []string
+	for _, c := range codes {
+		if _, ok := allowed[c]; !ok {
+			exceeded = append(exceeded, c)
+		}
+	}
+	if len(exceeded) > 0 {
+		return &PermissionsExceedPackageError{Codes: exceeded}
+	}
+	return nil
 }
 
 func normalizeRoleDataScope(dataScope string) string {

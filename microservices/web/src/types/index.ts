@@ -53,6 +53,19 @@ export interface TenantInfo {
   status: number
   plan: string
   max_users: number
+  /** 绑定的租户套餐（权限包）；null/缺省 = 不限 */
+  package_id?: number | null
+  created_at?: string
+  updated_at?: string
+}
+
+/** 租户套餐（权限包）：permission_codes 圈定租户内角色可分配的权限码 */
+export interface TenantPackageInfo {
+  id: number
+  name: string
+  permission_codes: string[]
+  status: number
+  remark?: string
   created_at?: string
   updated_at?: string
 }
