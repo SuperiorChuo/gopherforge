@@ -75,6 +75,13 @@ curl -s http://127.0.0.1:8000/api/v1/health/ready   # 期望 {"code":200,...,"st
 - **对象存储 MinIO**：`docker compose --profile storage up -d`
 - **可观测（Prometheus/Grafana/OTel/Jaeger）**：`docker compose --profile monitoring up -d`（默认不启，见 [ops-gaps]）
 
+### 可选：IP 归属地离线库（登录日志 / 在线用户）
+```bash
+/opt/go-admin-kit/scripts/download-ip2region.sh   # 下载 ip2region.xdb（约 11MB，不进 git）到 microservices/data/
+docker compose restart system-service audit-service
+```
+文件缺失时服务优雅降级：登录日志回退在线查询、在线用户归属地留空，不影响启动。
+
 ---
 
 ## 4. Nginx 反向代理 + HTTPS

@@ -43,6 +43,13 @@
   CRUD 前后端起步包（Go model/store/handlers/routes + React 列表页 + axios api + 菜单 SQL），
   支持分文件预览与 zip 下载；权限点 `system:codegen:list|generate`（迁移 000017）
 
+### 文档
+
+- **审批流引擎设计方案**：`docs/design/bpm-approval-flow.md` 随引擎同步自上游
+  （置顶脚手架适配说明：本仓只含引擎本体，文中 CRM 场景为上游叙事参考、不在本仓；
+  notify 未配置时站内信静默跳过）；服务清单（PRODUCT_LINES / README 中英）补
+  bpm-service 与「8 服务」口径；部署指南补 IP 归属地离线库（ip2region.xdb）下载步骤
+
 ### 清理
 
 - 剔除脚手架残留的 AI/IM/CC 引用与业务迁移（`ai_*` 表迁移、AiMarkdown、imContact、
