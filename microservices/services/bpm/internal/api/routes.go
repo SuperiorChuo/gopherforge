@@ -25,9 +25,12 @@ func (s *Server) RegisterRoutes(r *gin.Engine) {
 
 	// ---- 发起端 / 实例端 ----
 	r.POST("/api/v1/bpm/instances", s.CreateInstance)
+	r.GET("/api/v1/bpm/instances", s.ListInstances) // M3：仅平台管理员（管理视图）
 	r.GET("/api/v1/bpm/instances/my", s.MyInstances)
 	r.GET("/api/v1/bpm/instances/:id", s.GetInstance)
 	r.POST("/api/v1/bpm/instances/:id/cancel", s.CancelInstance)
+	r.POST("/api/v1/bpm/instances/:id/resubmit", s.ResubmitInstance)
+	r.POST("/api/v1/bpm/instances/:id/terminate", s.TerminateInstance) // M3：仅平台管理员
 	r.GET("/api/v1/bpm/instances/:id/timeline", s.InstanceTimeline)
 	r.GET("/api/v1/bpm/instances/:id/diagram", s.InstanceDiagram)
 
@@ -37,6 +40,12 @@ func (s *Server) RegisterRoutes(r *gin.Engine) {
 	r.GET("/api/v1/bpm/tasks/:id", s.GetTask)
 	r.POST("/api/v1/bpm/tasks/:id/approve", s.ApproveTask)
 	r.POST("/api/v1/bpm/tasks/:id/reject", s.RejectTask)
+	r.POST("/api/v1/bpm/tasks/:id/transfer", s.TransferTask)
+	r.POST("/api/v1/bpm/tasks/:id/return", s.ReturnTask)
+
+	// ---- 抄送端（M2）----
+	r.GET("/api/v1/bpm/cc/my", s.MyCc)
+	r.POST("/api/v1/bpm/cc/:id/read", s.ReadCc)
 
 	// ---- 内部端点（业务方服务端到服务端，X-Internal-Token）----
 	r.POST("/api/v1/bpm/internal/instances", s.InternalCreateInstance)

@@ -1,12 +1,13 @@
 package api
 
-// 任务端 handler：待办 / 已办 / 任务详情 / 同意 / 拒绝。
+// 任务端 handler：待办 / 已办 / 任务详情 / 同意 / 拒绝 / 转办 / 退回（M2）。
 // 任务动作只校验 assignee 身份，不设权限码（设计文档 Q6 建议）。
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/services/bpm/internal/flow"
 	"github.com/go-admin-kit/services/bpm/internal/model"
 )
 
@@ -61,12 +62,36 @@ func (s *Server) GetTask(c *gin.Context) {
 		fail(c, http.StatusForbidden, "无权查看该任务")
 		return
 	}
-	actions := []string{}
-	if t.AssigneeID == u.UserID && t.Status == model.TaskPending &&
-		inst.Status == model.InstRunning {
-		actions = []string{"approve", "reject"}
-	}
+	actions := s.taskActions(t, inst, u.UserID)
 	ok(c, gin.H{"task": t, "instance": inst, "actions": actions})
+}
+
+// taskActions 当前用户对任务可用的动作列表（前端契约：approve / reject /
+// transfer / return_start / return_prev / resubmit，勿改动作名）。
+func (s *Server) taskActions(t *model.Task, inst *model.ProcessInstance, userID uint64) []string {
+	actions := []string{}
+	if t.AssigneeID != userID || t.Status != model.TaskPending ||
+		inst.Status != model.InstRunning {
+		return actions
+	}
+	sc, err := s.Store.InstanceSchema(inst)
+	if err != nil {
+		// 定义解析异常时回退 M1 基础动作，不因动作列表阻断详情
+		return []string{"approve", "reject"}
+	}
+	node := flow.NodeByID(sc, t.NodeID)
+	if node != nil && node.Type == flow.TypeStart {
+		// 被退回后的"重新提交"任务：发起人走重提（或实例撤销）
+		return []string{"resubmit"}
+	}
+	actions = append(actions, "approve", "reject", "transfer", "return_start")
+	// return_prev 可用性按执行路径判定（M3）：本实例存在当前节点之外的
+	// 历史审批任务（与引擎 prevApprovalNode 同口径的存在性探测）
+	if node != nil && node.AllowBackPrev && sc.Start != nil &&
+		s.Store.HasPrevApprovalTask(inst.ID, inst.TenantID, node.ID, sc.Start.ID) {
+		actions = append(actions, "return_prev")
+	}
+	return actions
 }
 
 type actReq struct {
@@ -122,6 +147,76 @@ func (s *Server) RejectTask(c *gin.Context) {
 	s.applyEffects(eff)
 	ok(c, gin.H{
 		"task_id":         id,
+		"instance_id":     eff.Instance.ID,
+		"instance_status": eff.Instance.Status,
+	})
+}
+
+// ---------- M2：转办 / 退回 ----------
+
+type transferReq struct {
+	TargetUserID uint64 `json:"target_user_id"`
+	Comment      string `json:"comment"`
+}
+
+// TransferTask handles POST /api/v1/bpm/tasks/:id/transfer
+func (s *Server) TransferTask(c *gin.Context) {
+	u, authed := s.requireUser(c)
+	if !authed {
+		return
+	}
+	id, valid := pathID(c, "id")
+	if !valid {
+		return
+	}
+	var req transferReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		fail(c, http.StatusBadRequest, "invalid body")
+		return
+	}
+	eff, err := s.Engine.Transfer(u.TenantID, id, u.UserID, req.TargetUserID, req.Comment)
+	if err != nil {
+		fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.applyEffects(eff)
+	ok(c, gin.H{
+		"task_id":         id,
+		"target_user_id":  req.TargetUserID,
+		"instance_id":     eff.Instance.ID,
+		"instance_status": eff.Instance.Status,
+	})
+}
+
+type returnReq struct {
+	To      string `json:"to"` // start | prev
+	Comment string `json:"comment"`
+}
+
+// ReturnTask handles POST /api/v1/bpm/tasks/:id/return
+func (s *Server) ReturnTask(c *gin.Context) {
+	u, authed := s.requireUser(c)
+	if !authed {
+		return
+	}
+	id, valid := pathID(c, "id")
+	if !valid {
+		return
+	}
+	var req returnReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		fail(c, http.StatusBadRequest, "invalid body")
+		return
+	}
+	eff, err := s.Engine.Return(u.TenantID, id, u.UserID, req.To, req.Comment)
+	if err != nil {
+		fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.applyEffects(eff)
+	ok(c, gin.H{
+		"task_id":         id,
+		"to":              req.To,
 		"instance_id":     eff.Instance.ID,
 		"instance_status": eff.Instance.Status,
 	})

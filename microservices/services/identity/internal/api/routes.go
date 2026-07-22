@@ -62,6 +62,10 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 
 		protected.GET("/users", middleware.PermissionMiddleware("system:user:list"), userMgmtAPI.GetUserList)
 		protected.POST("/users", middleware.PermissionMiddleware("system:user:create"), userMgmtAPI.CreateUser)
+		// Excel 导出/导入（路线图第 11 项）：导出复用列表权限（同数据范围），导入复用创建权限
+		protected.GET("/users/export", middleware.PermissionMiddleware("system:user:list"), userMgmtAPI.ExportUsers)
+		protected.GET("/users/import-template", middleware.PermissionMiddleware("system:user:create"), userMgmtAPI.DownloadUserImportTemplate)
+		protected.POST("/users/import", middleware.PermissionMiddleware("system:user:create"), userMgmtAPI.ImportUsers)
 		protected.GET("/users/:id", middleware.PermissionMiddleware("system:user:detail"), userMgmtAPI.GetUser)
 		protected.PUT("/users/:id", middleware.PermissionMiddleware("system:user:update"), userMgmtAPI.UpdateUser)
 		protected.DELETE("/users/:id", middleware.PermissionMiddleware("system:user:delete"), userMgmtAPI.DeleteUser)

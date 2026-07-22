@@ -6,6 +6,7 @@ import {
 import { message } from '@/utils/feedback'
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, UserOutlined, EditOutlined, DeleteOutlined,
+  DownloadOutlined, UploadOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { SystemUser, SystemRole, Department } from '@/types'
@@ -16,6 +17,7 @@ import { getAllPosts } from '@/api/system/posts'
 import type { SystemPost } from '@/api/system/posts'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
+import ExcelImportModal from '@/components/ExcelImportModal'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
@@ -52,6 +54,8 @@ export default function UserPage() {
   const [roles, setRoles] = useState<SystemRole[]>([])
   const [depts, setDepts] = useState<Department[]>([])
   const [posts, setPosts] = useState<SystemPost[]>([])
+  const [importOpen, setImportOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
@@ -345,6 +349,23 @@ export default function UserPage() {
               <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>
                 刷新
               </Button>
+              <Button
+                icon={<DownloadOutlined />}
+                loading={exporting}
+                onClick={() => {
+                  setExporting(true)
+                  void UserAPI.exportUsers({ keyword: params.keyword, status: params.status })
+                    .catch(() => {})
+                    .finally(() => setExporting(false))
+                }}
+              >
+                导出
+              </Button>
+              {hasPerm('system:user:create') && (
+                <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
+                  导入
+                </Button>
+              )}
               {hasPerm('system:user:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                   新增用户
@@ -475,6 +496,16 @@ export default function UserPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <ExcelImportModal
+        open={importOpen}
+        title="批量导入用户"
+        hint="请使用「下载导入模板」生成的 .xlsx 文件；密码留空用默认初始密码，部门须为已存在的部门名称"
+        onClose={() => setImportOpen(false)}
+        onDone={() => fetchList(params)}
+        downloadTemplate={UserAPI.downloadUserImportTemplate}
+        doImport={UserAPI.importUsers}
+      />
     </div>
   )
 }

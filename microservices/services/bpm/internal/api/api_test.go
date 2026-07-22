@@ -1,6 +1,6 @@
 package api
 
-// HTTP 全链路冒烟：走真实路由表 + sqlite 内存库。
+// HTTP 全链路冒烟：走真实路由表 + sqlite 内存库（sqlite 内存库基架）。
 // 覆盖：定义创建/发布 → internal 发起（X-Internal-Token）→ 待办列表 →
 // 同意 → 终态 → 终态回调派发到业务方 mock；以及 internal 未配 token 503。
 
@@ -179,8 +179,16 @@ func TestHTTPFlowEndToEnd(t *testing.T) {
 		Actions []string `json:"actions"`
 	}
 	_ = json.Unmarshal(env.Data, &detail)
-	if len(detail.Actions) != 2 {
+	// M2：普通审批任务 = approve/reject/transfer/return_start（无上一审批
+	// 节点且未开 allowBackPrev，不含 return_prev）
+	wantActions := map[string]bool{"approve": true, "reject": true, "transfer": true, "return_start": true}
+	if len(detail.Actions) != len(wantActions) {
 		t.Fatalf("actions: %+v", detail.Actions)
+	}
+	for _, a := range detail.Actions {
+		if !wantActions[a] {
+			t.Fatalf("未知动作 %s: %+v", a, detail.Actions)
+		}
 	}
 
 	// 5. 同意 → 终态

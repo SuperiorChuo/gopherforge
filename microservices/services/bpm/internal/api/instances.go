@@ -89,6 +89,25 @@ func (s *Server) InternalCreateInstance(c *gin.Context) {
 	ok(c, gin.H{"instance_id": eff.Instance.ID, "status": eff.Instance.Status})
 }
 
+// ListInstances handles GET /api/v1/bpm/instances — 全部实例（M3 管理视图），
+// 仅平台管理员（配合终止动作处置挂起/异常实例）。
+func (s *Server) ListInstances(c *gin.Context) {
+	u, authed := s.requireUser(c)
+	if !authed {
+		return
+	}
+	if !u.PlatformAdmin {
+		fail(c, http.StatusForbidden, "仅平台管理员可查看全部实例")
+		return
+	}
+	list, total, err := s.Store.ListAllInstances(u.TenantID, c.Query("status"), c.Query("keyword"), pageOf(c))
+	if err != nil {
+		fail(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(c, gin.H{"list": list, "total": total})
+}
+
 func (s *Server) MyInstances(c *gin.Context) {
 	u, authed := s.requireUser(c)
 	if !authed {
@@ -112,6 +131,65 @@ func (s *Server) CancelInstance(c *gin.Context) {
 		return
 	}
 	eff, err := s.Engine.Cancel(u.TenantID, id, u.UserID)
+	if err != nil {
+		fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.applyEffects(eff)
+	ok(c, gin.H{"instance_id": id, "status": eff.Instance.Status})
+}
+
+// ResubmitInstance handles POST /api/v1/bpm/instances/:id/resubmit —
+// 被退回后发起人修改快照重新提交（M2）；form_snapshot 缺省沿用旧快照。
+func (s *Server) ResubmitInstance(c *gin.Context) {
+	u, authed := s.requireUser(c)
+	if !authed {
+		return
+	}
+	id, valid := pathID(c, "id")
+	if !valid {
+		return
+	}
+	var req struct {
+		FormSnapshot json.RawMessage `json:"form_snapshot"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil && c.Request.ContentLength > 0 {
+		fail(c, http.StatusBadRequest, "invalid body")
+		return
+	}
+	eff, err := s.Engine.Resubmit(u.TenantID, id, u.UserID, req.FormSnapshot)
+	if err != nil {
+		fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.applyEffects(eff)
+	ok(c, gin.H{"instance_id": id, "status": eff.Instance.Status})
+}
+
+// TerminateInstance handles POST /api/v1/bpm/instances/:id/terminate —
+// 管理员强制终止（M3）：仅平台管理员；running / suspended 均可终止（挂起
+// 实例的管理出口），原因必填，业务回调按 canceled 语义处理。
+func (s *Server) TerminateInstance(c *gin.Context) {
+	u, authed := s.requireUser(c)
+	if !authed {
+		return
+	}
+	if !u.PlatformAdmin {
+		fail(c, http.StatusForbidden, "仅平台管理员可终止流程")
+		return
+	}
+	id, valid := pathID(c, "id")
+	if !valid {
+		return
+	}
+	var req struct {
+		Comment string `json:"comment"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		fail(c, http.StatusBadRequest, "comment 必填")
+		return
+	}
+	eff, err := s.Engine.Terminate(u.TenantID, id, u.UserID, req.Comment)
 	if err != nil {
 		fail(c, http.StatusBadRequest, err.Error())
 		return
@@ -202,37 +280,49 @@ func (s *Server) InstanceDiagram(c *gin.Context) {
 		ccByNode[r.NodeID] = true
 	}
 
+	// M3：状态判定改为"节点自身活动痕迹"口径（任务 / 抄送记录 / branch、
+	// auto_pass 日志），不再依赖主链线性顺序——条件分支下未走的分支节点
+	// 无任何痕迹，自然落 todo / skipped。
+	logs, _ := s.Store.ListInstanceLogs(inst.ID, inst.TenantID)
+	activityByNode := map[string]bool{}
+	for _, lg := range logs {
+		if lg.NodeID == "" {
+			continue
+		}
+		if lg.Action == model.ActionBranch || lg.Action == model.ActionAutoPass {
+			activityByNode[lg.NodeID] = true
+		}
+	}
+
 	nodes := map[string]diagramNode{}
 	finished := inst.Status == model.InstApproved ||
 		inst.Status == model.InstRejected || inst.Status == model.InstCanceled
-	passedCurrent := false
 	for _, n := range flow.Nodes(sc) {
 		dn := diagramNode{Tasks: tasksByNode[n.ID]}
 		switch {
+		case n.ID == inst.CurrentNodeID && !finished:
+			// 优先于 start 判断：被退回待重提时游标在 start，应显示 doing（M2）
+			dn.State = "doing"
 		case n.Type == flow.TypeStart:
 			dn.State = "done"
-		case n.ID == inst.CurrentNodeID && !finished:
-			dn.State = "doing"
-			passedCurrent = true
-		case passedCurrent && !finished:
-			dn.State = "todo"
-		case len(dn.Tasks) > 0 || (n.Type == flow.TypeCc && ccByNode[n.ID]):
-			// 有任务/抄送记录的节点：全 skipped 视为 skipped，否则 done
+		case len(dn.Tasks) > 0:
+			// 有任务的节点：全 skipped/canceled 视为 skipped，否则 done
 			dn.State = "done"
-			if len(dn.Tasks) > 0 {
-				allSkipped := true
-				for _, t := range dn.Tasks {
-					if t.Status != model.TaskSkipped && t.Status != model.TaskCanceled {
-						allSkipped = false
-						break
-					}
-				}
-				if allSkipped {
-					dn.State = "skipped"
+			allSkipped := true
+			for _, t := range dn.Tasks {
+				if t.Status != model.TaskSkipped && t.Status != model.TaskCanceled {
+					allSkipped = false
+					break
 				}
 			}
+			if allSkipped {
+				dn.State = "skipped"
+			}
+		case (n.Type == flow.TypeCc && ccByNode[n.ID]) || activityByNode[n.ID]:
+			dn.State = "done"
 		default:
-			// 终态后未走到 / 运行中当前节点之前无任务的节点
+			// 未走到的节点（含未命中的分支子链）：终态后定格 skipped，
+			// 运行中显示 todo
 			if finished {
 				dn.State = "skipped"
 			} else {

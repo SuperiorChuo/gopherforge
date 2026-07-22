@@ -23,3 +23,51 @@ export const updateUserStatus = (id: number, status: number) =>
 
 export const assignUserRoles = (id: number, role_ids: number[]) =>
   request.post<unknown, void>(`/api/v1/users/${id}/roles`, { role_ids })
+
+// ---- Excel 导出 / 导入（路线图第 11 项）----
+
+const saveBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+/** 按当前筛选条件导出用户 xlsx（同列表权限与数据范围） */
+export const exportUsers = async (params: Omit<UserListParams, 'page' | 'page_size'>) => {
+  const blob = await request.get<unknown, Blob>('/api/v1/users/export', {
+    params,
+    responseType: 'blob',
+  })
+  saveBlob(blob, `users_${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '')}.xlsx`)
+}
+
+/** 下载批量导入模板 */
+export const downloadUserImportTemplate = async () => {
+  const blob = await request.get<unknown, Blob>('/api/v1/users/import-template', {
+    responseType: 'blob',
+  })
+  saveBlob(blob, 'user_import_template.xlsx')
+}
+
+export interface UserImportRowError {
+  row: number
+  username: string
+  reason: string
+}
+
+export interface UserImportResult {
+  total: number
+  success: number
+  failed: number
+  errors?: UserImportRowError[]
+}
+
+/** 批量导入用户（部分成功语义：单行失败不中断，逐行错误明细返回） */
+export const importUsers = (file: File) => {
+  const form = new FormData()
+  form.append('file', file)
+  return request.post<unknown, UserImportResult>('/api/v1/users/import', form)
+}

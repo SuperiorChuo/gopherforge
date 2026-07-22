@@ -35,12 +35,15 @@ func openTest(t *testing.T) (*store.Store, *Engine) {
 	if err != nil {
 		t.Fatalf("store: %v", err)
 	}
-	// 角色解析依赖的 identity 表（生产同库；测试手建最小结构）
+	// 角色/部门主管解析依赖的 identity 表（生产同库；测试手建最小结构）
 	for _, ddl := range []string{
 		`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, tenant_id INTEGER DEFAULT 1,
-			username TEXT DEFAULT '', nickname TEXT DEFAULT '', status INTEGER DEFAULT 1)`,
+			username TEXT DEFAULT '', nickname TEXT DEFAULT '', department_id INTEGER DEFAULT 0,
+			status INTEGER DEFAULT 1)`,
 		`CREATE TABLE IF NOT EXISTS user_roles (id INTEGER PRIMARY KEY AUTOINCREMENT,
 			user_id INTEGER, role_id INTEGER)`,
+		`CREATE TABLE IF NOT EXISTS departments (id INTEGER PRIMARY KEY, tenant_id INTEGER DEFAULT 1,
+			name TEXT DEFAULT '', leader_user_id INTEGER DEFAULT 0, status INTEGER DEFAULT 1)`,
 	} {
 		if err := db.Exec(ddl).Error; err != nil {
 			t.Fatalf("identity ddl: %v", err)
@@ -519,24 +522,37 @@ func TestTenantIsolation(t *testing.T) {
 	}
 }
 
-// 发布校验：M1 范围外的配置一律拒绝发布。
+// 发布校验：非法配置一律拒绝发布。
+// dept_leader / back_to_start（M2）、SEQ / condition（M3）已放开，
+// 拒绝清单转为结构性非法（分支缺 default / 表达式字段未声明等）。
 func TestPublishValidationRejects(t *testing.T) {
 	st, _ := openTest(t)
 	cases := []struct {
 		name string
 		tree *flow.Schema
 	}{
-		{"SEQ 依次留 M3", &flow.Schema{Version: 1,
-			Start: startNode(approvalUsers("a", "依次", flow.MultiSeq, []uint64{2, 3}, nil))}},
-		{"dept_leader 留 M2", &flow.Schema{Version: 1,
+		{"dept_leader 表单基准缺字段名", &flow.Schema{Version: 1,
 			Start: startNode(&flow.Node{ID: "a", Name: "主管", Type: flow.TypeApproval,
-				Assignee: &flow.AssigneeRule{Type: flow.RuleDeptLeader}})}},
-		{"back_to_start 留 M2", &flow.Schema{Version: 1,
-			Start: startNode(&flow.Node{ID: "a", Name: "审批", Type: flow.TypeApproval,
-				Assignee: &flow.AssigneeRule{Type: flow.RuleUsers, UserIDs: []uint64{2}},
-				OnReject: "back_to_start"})}},
-		{"condition 留 M3", &flow.Schema{Version: 1,
+				Assignee: &flow.AssigneeRule{Type: flow.RuleDeptLeader,
+					DeptLeaderBase: flow.DeptBaseFormField}})}},
+		{"condition 无分支", &flow.Schema{Version: 1,
 			Start: startNode(&flow.Node{ID: "a", Name: "分支", Type: flow.TypeCondition})}},
+		{"condition 缺默认分支", &flow.Schema{Version: 1,
+			Start: startNode(&flow.Node{ID: "a", Name: "分支", Type: flow.TypeCondition,
+				Branches: []flow.Branch{
+					{ID: "b1", Name: "高", Expr: []byte(`{"op":"gte","field":"amount_cents","value":1}`),
+						Next: approvalUsers("a1", "审批A", flow.MultiOr, []uint64{2}, nil)},
+					{ID: "b2", Name: "低", Expr: []byte(`{"op":"lt","field":"amount_cents","value":1}`),
+						Next: approvalUsers("a2", "审批B", flow.MultiOr, []uint64{2}, nil)},
+				}})}},
+		{"condition 表达式字段未声明", &flow.Schema{Version: 1,
+			Start: startNode(&flow.Node{ID: "a", Name: "分支", Type: flow.TypeCondition,
+				Branches: []flow.Branch{
+					{ID: "b1", Name: "命中", Expr: []byte(`{"op":"eq","field":"undeclared","value":1}`),
+						Next: approvalUsers("a1", "审批A", flow.MultiOr, []uint64{2}, nil)},
+					{ID: "b2", Name: "默认",
+						Next: approvalUsers("a2", "审批B", flow.MultiOr, []uint64{2}, nil)},
+				}})}},
 		{"无审批节点", &flow.Schema{Version: 1, Start: startNode(nil)}},
 		{"users 规则空人", &flow.Schema{Version: 1,
 			Start: startNode(&flow.Node{ID: "a", Name: "审批", Type: flow.TypeApproval,
