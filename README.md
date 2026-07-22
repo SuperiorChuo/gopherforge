@@ -4,15 +4,15 @@
 
 # 🚀 GopherForge · Go 微服务后台管理脚手架
 
-**GopherForge**（曾用名 `go-admin-kit`）是一套**开源的企业级 Go 微服务后台管理系统脚手架**：后端 Go + Gin 按域拆分 7 个基础服务，前端 React 19 + Ant Design 6，Traefik 网关统一鉴权，自带 RBAC 权限、多租户、审计日志、系统监控与代码生成器，`docker compose up` 一条命令拉起全栈。
+**GopherForge**（曾用名 `go-admin-kit`）是一套**开源的企业级 Go 微服务后台管理系统脚手架**：后端 Go + Gin 按域拆分 8 个基础服务，前端 React 19 + Ant Design 6，Traefik 网关统一鉴权，自带 RBAC 权限、多租户、审计日志、系统监控与代码生成器，`docker compose up` 一条命令拉起全栈。
 
 - **适合谁**：需要快速搭建企业内部管理平台 / SaaS 管理后台的 Go 团队；前端更熟 React 而不想用 Vue 的团队；想要真微服务架构（而非单体）作为起点、又不想背业务包袱的项目。
 - **和同类有何不同**：只含基础设施、零业务耦合——对比 gin-vue-admin、go-admin、RuoYi 系见 [同类项目对比](docs/comparison.md)。
-- **多快能跑起来**：克隆后 `docker compose up -d --build`，约 3 分钟拉起网关 + 7 服务 + 前端 + PostgreSQL/Redis/NATS；或先玩 [在线 Demo](https://superiorchuo.github.io/gopherforge/)（纯前端假数据，任意账号可登录）。
+- **多快能跑起来**：克隆后 `docker compose up -d --build`，约 3 分钟拉起网关 + 8 服务 + 前端 + PostgreSQL/Redis/NATS；或先玩 [在线 Demo](https://superiorchuo.github.io/gopherforge/)（纯前端假数据，任意账号可登录）。
 
 <p align="center">
   <strong>✨ 企业级微服务后台脚手架 · 只含基础设施 · 开箱即用 ✨</strong><br/>
-  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React + Ant Design &nbsp;·&nbsp; 🧩 Traefik 网关 + 7 服务
+  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React + Ant Design &nbsp;·&nbsp; 🧩 Traefik 网关 + 8 服务
 </p>
 
 <p align="center">
@@ -120,7 +120,7 @@
 |------|------|------|
 | 网关 | **Traefik** | 路由、ForwardAuth 统一验签 |
 | 消息 | **NATS JetStream** | 登录事件解耦 |
-| 服务 | auth / identity / system / audit / file / monitor + shared | 按域拆分的基础设施服务 |
+| 服务 | auth / identity / system / audit / file / monitor / bpm + shared | 按域拆分的基础设施服务 |
 | 契约 | **OpenAPI 3.1** | 从路由生成 + 前端类型 |
 
 ### 🔭 可观测与存储（可选）
@@ -154,6 +154,7 @@
 | 📁 文件上传（MinIO / 本地） | ✅ |
 | 🖥️ 服务器 / PostgreSQL / Redis / 定时任务监控 | ✅ |
 | ❤️ 健康检查、Prometheus metrics | ✅ |
+| 📋 审批流引擎（流程定义 / 待办中心 / 会签或签 / 终态回调） | ✅ |
 | 🚪 Traefik 网关 + ForwardAuth | ✅ |
 | 📡 NATS 登录事件 | ✅ |
 | 🐳 Docker Compose 一键启动 | ✅ |

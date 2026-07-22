@@ -16,6 +16,7 @@
 | 登录/操作/审计日志 | ✅ audit-service |
 | 文件上传 | ✅ file-service |
 | 服务器 / DB / Redis / 任务监控 | ✅ monitor-service |
+| 审批流引擎（流程定义 / 待办 / 会签或签） | ✅ bpm-service |
 | 健康检查 / metrics | ✅ monitor-service（兜底路由） |
 | Traefik 网关 + ForwardAuth | ✅ |
 | NATS 登录事件 | ✅ |
@@ -34,6 +35,7 @@
 | audit-service | `services/audit` | 日志查询与登录事件消费 |
 | file-service | `services/file` | 文件与 uploads |
 | monitor-service | `services/monitor` | 监控、健康、metrics、**共享 goose 迁移**、网关 `/api` 兜底 |
+| bpm-service | `services/bpm` | 轻量审批流引擎（定义版本化 / 实例推进 / 会签或签 / 终态回调），设计见 `docs/design/bpm-approval-flow.md` |
 
 > `services/shared` 为跨服务共享库（配置、中间件、遥测等），非独立进程。
 
