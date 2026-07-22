@@ -4,10 +4,12 @@ package api
 // 任务动作只校验 assignee 身份，不设权限码（设计文档 Q6 建议）。
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/bpm/internal/flow"
+	"github.com/go-admin-kit/services/bpm/internal/form"
 	"github.com/go-admin-kit/services/bpm/internal/model"
 )
 
@@ -62,8 +64,44 @@ func (s *Server) GetTask(c *gin.Context) {
 		fail(c, http.StatusForbidden, "无权查看该任务")
 		return
 	}
+	// 表单字段权限（M1 hidden）：按该任务节点的 fieldPerms 过滤快照
+	// （服务端过滤，隐藏字段不出网）
+	if sc, err := s.Store.InstanceSchema(inst); err == nil {
+		if node := flow.NodeByID(sc, t.NodeID); node != nil && len(node.FieldPerms) > 0 {
+			inst.FormSnapshot = filterSnapshot(inst.FormSnapshot, node.FieldPerms)
+		}
+	}
 	actions := s.taskActions(t, inst, u.UserID)
 	ok(c, gin.H{"task": t, "instance": inst, "actions": actions})
+}
+
+// filterSnapshot 删除 fieldPerms 标记为 hidden 的字段。
+func filterSnapshot(raw model.JSONB, perms map[string]string) model.JSONB {
+	if len(raw) == 0 {
+		return raw
+	}
+	m := map[string]any{}
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return raw
+	}
+	changed := false
+	for key, perm := range perms {
+		if perm != form.PermHidden {
+			continue
+		}
+		if _, exists := m[key]; exists {
+			delete(m, key)
+			changed = true
+		}
+	}
+	if !changed {
+		return raw
+	}
+	out, err := json.Marshal(m)
+	if err != nil {
+		return raw
+	}
+	return model.JSONB(out)
 }
 
 // taskActions 当前用户对任务可用的动作列表（前端契约：approve / reject /

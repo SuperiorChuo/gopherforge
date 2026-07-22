@@ -4,6 +4,7 @@ import { ClockCircleOutlined } from '@ant-design/icons'
 import {
   BPM_ACTION_META,
   BPM_FORM_FIELD_LABELS,
+  formFieldLabels,
   BPM_INSTANCE_STATUS_META,
   collectNodeNames,
   getInstance,
@@ -26,11 +27,13 @@ function detailNumber(detail: Record<string, unknown> | undefined, key: string):
   return undefined
 }
 
-function formatFormValue(key: string, value: unknown): string {
+function formatFormValue(key: string, value: unknown, amountKeys?: Set<string>): string {
   if (value === null || value === undefined || value === '') return '-'
-  if (key === 'amount_cents' && typeof value === 'number') {
+  const isAmount = key === 'amount_cents' || amountKeys?.has(key)
+  if (isAmount && typeof value === 'number') {
     return `¥${(value / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`
   }
+  if (typeof value === 'boolean') return value ? '是' : '否'
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
 }
@@ -214,11 +217,21 @@ export default function BpmInstanceTimeline({
           column={2}
           bordered
           style={{ marginBottom: 16 }}
-          items={Object.entries(instance.form_snapshot).map(([key, value]) => ({
-            key,
-            label: BPM_FORM_FIELD_LABELS[key] ?? key,
-            children: formatFormValue(key, value),
-          }))}
+          items={(() => {
+            const labels = instance.form_schema
+              ? formFieldLabels(instance.form_schema)
+              : BPM_FORM_FIELD_LABELS
+            const amountKeys = new Set(
+              (instance.form_schema?.fields ?? [])
+                .filter((f) => f.type === 'amount')
+                .map((f) => f.key),
+            )
+            return Object.entries(instance.form_snapshot!).map(([key, value]) => ({
+              key,
+              label: labels[key] ?? key,
+              children: formatFormValue(key, value, amountKeys),
+            }))
+          })()}
         />
       )}
       {timelineItems.length > 0 ? (

@@ -74,6 +74,10 @@ const (
 	DefArchived  = "archived"
 )
 
+// BizTypeFlowForm 流程表单模式的固定业务类型（表单构建器 M1）：用户侧
+// 通用发起页发起的实例，无业务对象、无回调目标（除非显式注册）。
+const BizTypeFlowForm = "flow_form"
+
 // 实例状态（suspended：审批人解析为空且兜底策略为挂起时的非终态）。
 const (
 	InstRunning   = "running"

@@ -84,6 +84,9 @@ type Node struct {
 	OnReject      string        `json:"onReject,omitempty"`  // reject|back_to_start，缺省按 reject
 	TimeoutHours  int           `json:"timeoutHours,omitempty"`
 	AllowBackPrev bool          `json:"allowBackPrev,omitempty"`
+	// FieldPerms 表单字段权限（M1 仅 "hidden"；键须在定义的 form_schema 内，
+	// 发布时经 form.ValidateFieldPerms 校验）——该节点任务详情按此过滤快照
+	FieldPerms map[string]string `json:"fieldPerms,omitempty"`
 
 	// --- cc ---
 	Targets *AssigneeRule `json:"targets,omitempty"`

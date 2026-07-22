@@ -94,6 +94,7 @@ const menuRows = [
   { id: 35, name: 'bpm', title: '审批中心', icon: 'audit', path: '/bpm', component: 'Layout', parent_id: 0, sort: 3, status: 1, hidden: 0 },
   { id: 36, name: 'bpm-tasks', title: '待办中心', icon: 'check', path: '/bpm/tasks', component: 'bpm/tasks/index', parent_id: 35, sort: 1, status: 1, hidden: 0 },
   { id: 37, name: 'bpm-instances', title: '我发起的', icon: 'send', path: '/bpm/instances', component: 'bpm/instances/index', parent_id: 35, sort: 2, status: 1, hidden: 0 },
+  { id: 39, name: 'bpm-start', title: '发起申请', icon: 'form', path: '/bpm/start', component: 'bpm/start/index', parent_id: 35, sort: 0, status: 1, hidden: 0 },
   { id: 38, name: 'bpm-definitions', title: '流程定义', icon: 'fork', path: '/bpm/definitions', component: 'bpm/definitions/index', parent_id: 35, sort: 3, status: 1, hidden: 0, permission: 'bpm:definition:list' },
   { id: 40, name: 'profile', title: '个人中心', icon: 'user-circle', path: '/profile', component: 'Layout', parent_id: 0, sort: 99, status: 1, hidden: 1 },
   { id: 41, name: 'profile-index', title: '个人中心', icon: 'user', path: '/profile/index', component: 'profile/index', parent_id: 40, sort: 1, status: 1, hidden: 0 },
@@ -244,8 +245,16 @@ const demoNodeTree = {
 }
 
 type DemoBpmDefinition = Record<string, unknown> & { id: number; key: string; status: string }
+const demoFormSchema = {
+  version: 1,
+  fields: [
+    { key: 'amount_cents', label: '金额', type: 'amount', required: true, min: 1 },
+    { key: 'reason', label: '事由', type: 'textarea', required: true },
+    { key: 'applicant', label: '申请人', type: 'input', required: true },
+  ],
+}
 const bpmDefinitions: DemoBpmDefinition[] = [
-  { id: 1, key: 'expense_approval', name: '报销审批', version: 1, status: 'active', biz_type: 'demo_expense', node_tree: demoNodeTree, active_version: 1, active_id: 1, created_by: 1, created_at: daysAgo(30), updated_at: daysAgo(20) },
+  { id: 1, key: 'expense_approval', name: '报销审批', version: 1, status: 'active', biz_type: 'demo_expense', node_tree: demoNodeTree, form_schema: demoFormSchema, active_version: 1, active_id: 1, created_by: 1, created_at: daysAgo(30), updated_at: daysAgo(20) },
   { id: 2, key: 'leave_approval', name: '请假审批', version: 1, status: 'draft', biz_type: '', node_tree: demoNodeTree, created_by: 1, created_at: daysAgo(12), updated_at: daysAgo(2) },
 ]
 
@@ -725,6 +734,21 @@ const routes: Array<[string, RegExp, Handler]> = [
     const d = { ...src, id: nextID(), version: Number(src.version ?? 1) + 1, status: 'draft', created_at: now(), updated_at: now() } as DemoBpmDefinition
     bpmDefinitions.unshift(d)
     return d
+  }],
+  // 表单构建器（M1）：可发起流程 + 用户侧动态表单发起
+  ['get', /^\/api\/v1\/bpm\/startable$/, () => ({ list: bpmDefinitions.filter((d) => d.status === 'active' && d.form_schema) })],
+  ['post', /^\/api\/v1\/bpm\/instances$/, (_m, body) => {
+    const def = bpmDefinitions.find((d) => d.key === body.definition_key) ?? bpmDefinitions[0]
+    const snap = (body.form_snapshot ?? {}) as Record<string, unknown>
+    const inst: DemoBpmInstance = {
+      id: nextID(), definition_id: def.id, definition_key: def.key,
+      title: String(body.title || `${def.name}（演示管理员）`), biz_type: 'flow_form',
+      biz_id: String(nextID()), status: 'running', current_node_id: 'n2',
+      current_node_name: '部门经理审批', form_snapshot: snap, form_schema: def.form_schema,
+      initiator_id: 1, initiator_name: '演示管理员', created_at: now(),
+    }
+    bpmInstances.unshift(inst)
+    return { instance_id: inst.id, status: 'running' }
   }],
   ['get', /^\/api\/v1\/bpm\/instances\/my$/, (_m, _b, q) => paged(bpmInstances, q)],
   // M3：全部实例管理视图 + 管理员终止（演示数据直接标记撤销）
