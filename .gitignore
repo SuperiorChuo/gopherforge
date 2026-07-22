@@ -64,3 +64,8 @@ AGENTS.md
 /docs/remote-dev.md
 /deploy/remote/
 Makefile.local
+
+# 文档站（VitePress）
+website/node_modules/
+website/.vitepress/dist/
+website/.vitepress/cache/
