@@ -1,11 +1,14 @@
 name: deploy-demo
 
-# 把前端以「演示模式」（纯前端假数据，见 web/src/demo/）发布到 GitHub Pages。
+# 把前端以「演示模式」（纯前端假数据，见 web/src/demo/）发布到 GitHub Pages，
+# 并把 VitePress 文档站（website/）合并发布到同站 /docs/ 子路径。
 on:
   push:
     branches: [main]
     paths:
       - 'microservices/web/**'
+      - 'website/**'
+      - 'docs/**'
       - '.github/workflows/deploy-demo.yml'
   workflow_dispatch:
 
@@ -42,6 +45,14 @@ jobs:
         run: node scripts/prerender-spa.mjs
       - name: 未知路径 404 兜底
         run: cp microservices/web/dist/index.html microservices/web/dist/404.html
+      - name: 文档站依赖
+        working-directory: website
+        run: npm ci
+      - name: 文档站构建（VitePress → /docs/ 子路径）
+        working-directory: website
+        run: npm run build
+      - name: 合并文档站产物
+        run: cp -r website/.vitepress/dist microservices/web/dist/docs
       - uses: actions/upload-pages-artifact@v3
         with:
           path: microservices/web/dist

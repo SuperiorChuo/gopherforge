@@ -1,6 +1,8 @@
-# 生产部署指南（Linux + Docker Compose + Nginx/HTTPS）
+# 生产部署
 
-面向把 **GopherForge 微服务版** 部署到一台 Linux 服务器的运维/自部署用户。本地开发联调请看 [`LOCAL_SETUP.md`](../LOCAL_SETUP.md)，本文只讲**生产上线**。
+> 本页与仓库 [`docs/deployment.md`](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/deployment.md) 同源。
+
+面向把 **GopherForge 微服务版** 部署到一台 Linux 服务器的运维/自部署用户。本地开发联调请看 [`LOCAL_SETUP.md`](https://github.com/SuperiorChuo/gopherforge/blob/main/LOCAL_SETUP.md)，本文只讲**生产上线**。
 
 ---
 
@@ -192,5 +194,5 @@ Docker 默认 json-file 日志不轮转，长期会撑满磁盘。配 `/etc/dock
 ---
 
 ## 相关文档
-- 数据库迁移：[`development/MIGRATIONS.md`](./development/MIGRATIONS.md)
-- 安全说明：[`SECURITY.md`](./SECURITY.md)
+- 数据库迁移：[`development/MIGRATIONS.md`](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/development/MIGRATIONS.md)
+- 安全说明：[`SECURITY.md`](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/SECURITY.md)

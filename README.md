@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <a href="https://superiorchuo.github.io/gopherforge/"><strong>🖥️ 在线体验 Demo →</strong></a> · <a href="README.en.md">English</a><br/>
+  <a href="https://superiorchuo.github.io/gopherforge/"><strong>🖥️ 在线体验 Demo →</strong></a> · <a href="https://superiorchuo.github.io/gopherforge/docs/"><strong>📖 文档站</strong></a> · <a href="README.en.md">English</a><br/>
   <sub>纯前端演示模式（假数据，任意账号可登录）；完整功能克隆后 <code>docker compose</code> 一键启动</sub>
 </p>
 
@@ -310,6 +310,7 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 |------|------|
 | 环境变量 | [`microservices/.env.example`](microservices/.env.example) |
 | 迁移 / OpenAPI | `microservices/services/monitor/migrations/`、`docs/openapi.json` |
+| 📖 **文档站（教程/模块文档/二开指南）** | https://superiorchuo.github.io/gopherforge/docs/ |
 | 同类项目对比 | [`docs/comparison.md`](docs/comparison.md) |
 | 产品线对照 | [`docs/PRODUCT_LINES.md`](docs/PRODUCT_LINES.md) |
 | 安全说明 | [`docs/SECURITY.md`](docs/SECURITY.md) · [`SECURITY.md`](SECURITY.md) |
