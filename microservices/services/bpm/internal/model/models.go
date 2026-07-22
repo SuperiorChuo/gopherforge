@@ -214,6 +214,9 @@ const (
 	// M3 起启用：条件分支命中 / 管理员终止
 	ActionBranch    = "branch"
 	ActionTerminate = "terminate"
+	// 收官项：超时自动动作（operator=0 系统）
+	ActionTimeoutPass   = "timeout_pass"
+	ActionTimeoutReject = "timeout_reject"
 )
 
 type ProcessLog struct {

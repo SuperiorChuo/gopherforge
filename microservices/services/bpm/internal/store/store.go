@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -685,6 +687,185 @@ func (s *Store) HasPrevApprovalTask(instanceID, tenantID uint64, currentNodeID, 
 		Count(&cnt)
 	return cnt > 0
 }
+
+// ---------- 审批统计（收官项，管理视图） ----------
+
+// StatsTrendItem 单日发起数。
+type StatsTrendItem struct {
+	Date  string `json:"date"` // YYYY-MM-DD
+	Count int64  `json:"count"`
+}
+
+// DefStatsItem 按定义聚合：发起量 / 通过率 / 平均时长。
+type DefStatsItem struct {
+	DefinitionKey string  `json:"definition_key"`
+	Name          string  `json:"name"`
+	Total         int64   `json:"total"`
+	Approved      int64   `json:"approved"`
+	Rejected      int64   `json:"rejected"`
+	Running       int64   `json:"running"`
+	AvgHours      float64 `json:"avg_hours"` // 已结束实例平均时长（小时）
+}
+
+// NodeStatsItem 节点处理时长（瓶颈定位）。
+type NodeStatsItem struct {
+	NodeName string  `json:"node_name"`
+	Acted    int64   `json:"acted"`
+	AvgHours float64 `json:"avg_hours"`
+}
+
+// BpmStats 审批统计总览。
+type BpmStats struct {
+	StatusCounts    map[string]int64 `json:"status_counts"`
+	Trend           []StatsTrendItem `json:"trend"`
+	Definitions     []DefStatsItem   `json:"definitions"`
+	NodeBottlenecks []NodeStatsItem  `json:"node_bottlenecks"`
+}
+
+// Stats 聚合审批统计：状态分布 / 近 30 天发起趋势 / 按定义通过率与均时长 /
+// 节点瓶颈。为保 sqlite 测试可移植，日期分桶与时长均在 Go 端计算，取数
+// 均有上限（趋势 5000 / 时长样本 1000/2000），大库下是近似值而非全量。
+func (s *Store) Stats(tenantID uint64) (*BpmStats, error) {
+	out := &BpmStats{StatusCounts: map[string]int64{}}
+
+	// 状态分布
+	type statusRow struct {
+		Status string
+		Cnt    int64
+	}
+	var statusRows []statusRow
+	if err := tenantQ(s.db.Model(&model.ProcessInstance{}), tenantID).
+		Select("status, COUNT(*) AS cnt").Group("status").Scan(&statusRows).Error; err != nil {
+		return nil, err
+	}
+	for _, r := range statusRows {
+		out.StatusCounts[r.Status] = r.Cnt
+	}
+
+	// 近 30 天发起趋势（Go 端按日分桶）
+	since := time.Now().AddDate(0, 0, -29)
+	dayStart := time.Date(since.Year(), since.Month(), since.Day(), 0, 0, 0, 0, since.Location())
+	var createdAts []time.Time
+	if err := tenantQ(s.db.Model(&model.ProcessInstance{}), tenantID).
+		Where("created_at >= ?", dayStart).Limit(5000).
+		Pluck("created_at", &createdAts).Error; err != nil {
+		return nil, err
+	}
+	byDay := map[string]int64{}
+	for _, ts := range createdAts {
+		byDay[ts.Format("2006-01-02")]++
+	}
+	for d := 0; d < 30; d++ {
+		day := dayStart.AddDate(0, 0, d).Format("2006-01-02")
+		out.Trend = append(out.Trend, StatsTrendItem{Date: day, Count: byDay[day]})
+	}
+
+	// 按定义聚合：状态计数（SQL 分组）+ 平均时长（最近 1000 条已结束，Go 端算）
+	type defRow struct {
+		DefinitionKey string
+		Status        string
+		Cnt           int64
+	}
+	var defRows []defRow
+	if err := tenantQ(s.db.Model(&model.ProcessInstance{}), tenantID).
+		Select("definition_key, status, COUNT(*) AS cnt").
+		Group("definition_key").Group("status").Scan(&defRows).Error; err != nil {
+		return nil, err
+	}
+	defItems := map[string]*DefStatsItem{}
+	for _, r := range defRows {
+		item := defItems[r.DefinitionKey]
+		if item == nil {
+			item = &DefStatsItem{DefinitionKey: r.DefinitionKey}
+			defItems[r.DefinitionKey] = item
+		}
+		item.Total += r.Cnt
+		switch r.Status {
+		case model.InstApproved:
+			item.Approved += r.Cnt
+		case model.InstRejected:
+			item.Rejected += r.Cnt
+		case model.InstRunning, model.InstSuspended:
+			item.Running += r.Cnt
+		}
+	}
+	type durRow struct {
+		DefinitionKey string
+		CreatedAt     time.Time
+		FinishedAt    *time.Time
+	}
+	var durRows []durRow
+	if err := tenantQ(s.db.Model(&model.ProcessInstance{}), tenantID).
+		Where("finished_at IS NOT NULL").
+		Select("definition_key, created_at, finished_at").
+		Order("id DESC").Limit(1000).Scan(&durRows).Error; err != nil {
+		return nil, err
+	}
+	durSum := map[string]float64{}
+	durCnt := map[string]int64{}
+	for _, r := range durRows {
+		if r.FinishedAt == nil {
+			continue
+		}
+		durSum[r.DefinitionKey] += r.FinishedAt.Sub(r.CreatedAt).Hours()
+		durCnt[r.DefinitionKey]++
+	}
+	// 定义名映射（每 key 最新版本名）
+	var defs []model.ProcessDefinition
+	_ = tenantQ(s.db, tenantID).Order("id ASC").Limit(500).
+		Select("key, name").Find(&defs).Error
+	nameByKey := map[string]string{}
+	for _, d := range defs {
+		nameByKey[d.Key] = d.Name // 后写覆盖 → 留下最新版本名
+	}
+	for key, item := range defItems {
+		if durCnt[key] > 0 {
+			item.AvgHours = round1(durSum[key] / float64(durCnt[key]))
+		}
+		item.Name = nameByKey[key]
+		out.Definitions = append(out.Definitions, *item)
+	}
+	sort.Slice(out.Definitions, func(i, j int) bool {
+		return out.Definitions[i].Total > out.Definitions[j].Total
+	})
+
+	// 节点瓶颈：最近 2000 条已处理任务的平均等待时长（创建→处理）
+	type taskRow struct {
+		NodeName  string
+		CreatedAt time.Time
+		ActedAt   *time.Time
+	}
+	var taskRows []taskRow
+	if err := tenantQ(s.db.Model(&model.Task{}), tenantID).
+		Where("acted_at IS NOT NULL").
+		Select("node_name, created_at, acted_at").
+		Order("id DESC").Limit(2000).Scan(&taskRows).Error; err != nil {
+		return nil, err
+	}
+	nodeSum := map[string]float64{}
+	nodeCnt := map[string]int64{}
+	for _, r := range taskRows {
+		if r.ActedAt == nil {
+			continue
+		}
+		nodeSum[r.NodeName] += r.ActedAt.Sub(r.CreatedAt).Hours()
+		nodeCnt[r.NodeName]++
+	}
+	for name, cnt := range nodeCnt {
+		out.NodeBottlenecks = append(out.NodeBottlenecks, NodeStatsItem{
+			NodeName: name, Acted: cnt, AvgHours: round1(nodeSum[name] / float64(cnt)),
+		})
+	}
+	sort.Slice(out.NodeBottlenecks, func(i, j int) bool {
+		return out.NodeBottlenecks[i].AvgHours > out.NodeBottlenecks[j].AvgHours
+	})
+	if len(out.NodeBottlenecks) > 10 {
+		out.NodeBottlenecks = out.NodeBottlenecks[:10]
+	}
+	return out, nil
+}
+
+func round1(v float64) float64 { return math.Round(v*10) / 10 }
 
 // CanView 实例可见性（M1 从简）：发起人 ∪ 任务参与者（含转办转出人，M2）
 // ∪ 被抄送人。平台管理员放行由 handler 层判断（X-Auth-Platform-Admin）。

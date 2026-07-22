@@ -59,6 +59,13 @@ const (
 	OnRejectBackToStart = "back_to_start" // M2：节点拒绝 → 退回发起人重新提交
 )
 
+// 超时动作（收官项，设计文档 Q3 落地）。
+const (
+	TimeoutRemind     = "remind"      // 缺省：仅站内信提醒
+	TimeoutAutoPass   = "auto_pass"   // 到期自动通过（记系统操作）
+	TimeoutAutoReject = "auto_reject" // 到期自动拒绝（记系统操作）
+)
+
 // MaxNodes 整树节点数上限（含分支子链，防御异常定义）。
 const MaxNodes = 200
 
@@ -83,6 +90,9 @@ type Node struct {
 	MultiMode     string        `json:"multiMode,omitempty"` // AND|OR|SEQ，缺省按 OR
 	OnReject      string        `json:"onReject,omitempty"`  // reject|back_to_start，缺省按 reject
 	TimeoutHours  int           `json:"timeoutHours,omitempty"`
+	// TimeoutAction 到期动作：remind（缺省）|auto_pass|auto_reject；
+	// 非 remind 时 TimeoutHours 必须 >0（发布校验强制）
+	TimeoutAction string `json:"timeoutAction,omitempty"`
 	AllowBackPrev bool          `json:"allowBackPrev,omitempty"`
 	// FieldPerms 表单字段权限（M1 仅 "hidden"；键须在定义的 form_schema 内，
 	// 发布时经 form.ValidateFieldPerms 校验）——该节点任务详情按此过滤快照
@@ -229,6 +239,14 @@ func (n *Node) EffectiveMultiMode() string {
 	return n.MultiMode
 }
 
+// EffectiveTimeoutAction 节点生效的超时动作（缺省 remind）。
+func (n *Node) EffectiveTimeoutAction() string {
+	if n.TimeoutAction == "" {
+		return TimeoutRemind
+	}
+	return n.TimeoutAction
+}
+
 // EffectiveFallback 规则生效的空候选人兜底（缺省 suspend）。
 func (r *AssigneeRule) EffectiveFallback() string {
 	if r == nil || r.EmptyFallback == "" {
@@ -370,6 +388,15 @@ func validateApproval(n *Node) error {
 	}
 	if n.TimeoutHours < 0 {
 		return fmt.Errorf("审批节点 %s：超时小时数不能为负", n.Name)
+	}
+	switch n.TimeoutAction {
+	case "", TimeoutRemind:
+	case TimeoutAutoPass, TimeoutAutoReject:
+		if n.TimeoutHours <= 0 {
+			return fmt.Errorf("审批节点 %s：配置超时自动动作需同时设置超时小时数", n.Name)
+		}
+	default:
+		return fmt.Errorf("审批节点 %s：超时动作未知: %s", n.Name, n.TimeoutAction)
 	}
 	if n.Assignee == nil {
 		return fmt.Errorf("审批节点 %s 缺少审批人规则", n.Name)

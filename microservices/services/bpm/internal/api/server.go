@@ -144,6 +144,9 @@ func pageOf(c *gin.Context) store.Page {
 
 // ---- effects 分发（事务提交后）----
 
+// ApplyEffects 供进程内后台任务（超时 ticker）分发副作用的导出入口。
+func (s *Server) ApplyEffects(eff *engine.Effects) { s.applyEffects(eff) }
+
 // applyEffects 分发引擎收集的副作用：新待办/抄送站内信 + 终态回调与结果
 // 通知。全部尽力而为，失败仅日志，不影响审批事实。
 func (s *Server) applyEffects(eff *engine.Effects) {

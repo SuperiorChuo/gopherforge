@@ -217,6 +217,26 @@ func (s *Server) ResubmitInstance(c *gin.Context) {
 	ok(c, gin.H{"instance_id": id, "status": eff.Instance.Status})
 }
 
+// Stats handles GET /api/v1/bpm/stats —— 审批统计（收官项，管理视图）：
+// 状态分布 / 近 30 天发起趋势 / 按定义通过率与均时长 / 节点瓶颈。
+// 仅平台管理员（与全部实例管理视图同口径）。
+func (s *Server) Stats(c *gin.Context) {
+	u, authed := s.requireUser(c)
+	if !authed {
+		return
+	}
+	if !u.PlatformAdmin {
+		fail(c, http.StatusForbidden, "仅平台管理员可查看审批统计")
+		return
+	}
+	stats, err := s.Store.Stats(u.TenantID)
+	if err != nil {
+		fail(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(c, stats)
+}
+
 // TerminateInstance handles POST /api/v1/bpm/instances/:id/terminate —
 // 管理员强制终止（M3）：仅平台管理员；running / suspended 均可终止（挂起
 // 实例的管理出口），原因必填，业务回调按 canceled 语义处理。
