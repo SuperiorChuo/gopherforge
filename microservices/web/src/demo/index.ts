@@ -736,6 +736,18 @@ const routes: Array<[string, RegExp, Handler]> = [
     return d
   }],
   // 表单构建器（M1）：可发起流程 + 用户侧动态表单发起
+  ['get', /^\/api\/v1\/bpm\/stats$/, () => ({
+    status_counts: { running: 1, approved: 1 },
+    trend: Array.from({ length: 30 }, (_, i) => ({
+      date: daysAgo(29 - i).slice(0, 10), count: i % 7 === 3 ? 2 : i % 5 === 1 ? 1 : 0,
+    })),
+    definitions: [
+      { definition_key: 'expense_approval', name: '报销审批', total: 2, approved: 1, rejected: 0, running: 1, avg_hours: 26.5 },
+    ],
+    node_bottlenecks: [
+      { node_name: '部门经理审批', acted: 1, avg_hours: 26.5 },
+    ],
+  })],
   ['get', /^\/api\/v1\/bpm\/startable$/, () => ({ list: bpmDefinitions.filter((d) => d.status === 'active' && d.form_schema) })],
   ['post', /^\/api\/v1\/bpm\/instances$/, (_m, body) => {
     const def = bpmDefinitions.find((d) => d.key === body.definition_key) ?? bpmDefinitions[0]

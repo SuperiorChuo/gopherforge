@@ -391,10 +391,21 @@ func newObjectStorageClient(storageType string, cfg config.ObjectStorageConfig) 
 	if err != nil {
 		return nil, err
 	}
+	lookup := minio.BucketLookupAuto
+	switch strings.ToLower(strings.TrimSpace(cfg.BucketLookup)) {
+	case "", "auto":
+	case "dns": // virtual-host 风格：阿里 OSS / 腾讯 COS 官方端点
+		lookup = minio.BucketLookupDNS
+	case "path": // path 风格：MinIO / IP 端点
+		lookup = minio.BucketLookupPath
+	default:
+		return nil, fmt.Errorf("%w: bucket_lookup must be auto, dns, or path", ErrStorageProviderNotConfigured)
+	}
 	client, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(strings.TrimSpace(cfg.AccessKey), strings.TrimSpace(cfg.SecretKey), ""),
-		Secure: secure,
-		Region: strings.TrimSpace(cfg.Region),
+		Creds:        credentials.NewStaticV4(strings.TrimSpace(cfg.AccessKey), strings.TrimSpace(cfg.SecretKey), ""),
+		Secure:       secure,
+		Region:       strings.TrimSpace(cfg.Region),
+		BucketLookup: lookup,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s client init failed: %v", ErrStorageProviderUnavailable, storageType, err)

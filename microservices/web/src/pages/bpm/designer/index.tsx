@@ -663,7 +663,12 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
           <Tag>
             {node.multiMode === 'AND' ? '会签' : node.multiMode === 'SEQ' ? '依次' : '或签'}
           </Tag>
-          {node.timeoutHours ? <Tag color="gold">{node.timeoutHours}h 超时提醒</Tag> : null}
+          {node.timeoutHours ? (
+            <Tag color={node.timeoutAction === 'auto_pass' ? 'green' : node.timeoutAction === 'auto_reject' ? 'red' : 'gold'}>
+              {node.timeoutHours}h{' '}
+              {node.timeoutAction === 'auto_pass' ? '超时自动通过' : node.timeoutAction === 'auto_reject' ? '超时自动拒绝' : '超时提醒'}
+            </Tag>
+          ) : null}
           {node.onReject === 'back_to_start' ? <Tag color="orange">拒绝退回发起人</Tag> : null}
           {node.allowBackPrev ? <Tag color="cyan">可退回上一节点</Tag> : null}
         </Space>
@@ -1685,15 +1690,47 @@ function NodeConfigPanel({
       </div>
 
       <div>
-        <Text type="secondary">超时提醒（小时，留空不提醒）</Text>
+        <Text type="secondary">超时（小时，留空不启用）</Text>
         <InputNumber
           style={{ width: '100%', marginTop: 4 }}
           min={1}
           precision={0}
           placeholder="如 24"
           value={approval.timeoutHours ?? null}
-          onChange={(v) => onChange({ timeoutHours: v ?? undefined })}
+          onChange={(v) =>
+            onChange({
+              timeoutHours: v ?? undefined,
+              // 关闭超时时联动清掉自动动作（发布校验要求二者成对）
+              ...(v ? {} : { timeoutAction: undefined }),
+            })
+          }
         />
+        {!!approval.timeoutHours && (
+          <div style={{ marginTop: 8 }}>
+            <Text type="secondary">到期动作</Text>
+            <div style={{ marginTop: 4 }}>
+              <Segmented
+                block
+                value={approval.timeoutAction ?? 'remind'}
+                options={[
+                  { label: '仅提醒', value: 'remind' },
+                  { label: '自动通过', value: 'auto_pass' },
+                  { label: '自动拒绝', value: 'auto_reject' },
+                ]}
+                onChange={(v) =>
+                  onChange({
+                    timeoutAction: v === 'remind' ? undefined : (v as 'auto_pass' | 'auto_reject'),
+                  })
+                }
+              />
+            </div>
+            {(approval.timeoutAction === 'auto_pass' || approval.timeoutAction === 'auto_reject') && (
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+                到期后由系统自动{approval.timeoutAction === 'auto_pass' ? '通过' : '拒绝'}该待办（时间线记系统操作）
+              </Text>
+            )}
+          </div>
+        )}
       </div>
 
       {(schemaFields?.length ?? 0) > 0 && (

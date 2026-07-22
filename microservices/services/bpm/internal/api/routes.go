@@ -27,6 +27,7 @@ func (s *Server) RegisterRoutes(r *gin.Engine) {
 	r.GET("/api/v1/bpm/startable", s.ListStartable) // 通用发起页（表单构建器 M1）
 	r.POST("/api/v1/bpm/instances", s.CreateInstance)
 	r.GET("/api/v1/bpm/instances", s.ListInstances) // M3：仅平台管理员（管理视图）
+	r.GET("/api/v1/bpm/stats", s.Stats)             // 收官项：审批统计（仅平台管理员）
 	r.GET("/api/v1/bpm/instances/my", s.MyInstances)
 	r.GET("/api/v1/bpm/instances/:id", s.GetInstance)
 	r.POST("/api/v1/bpm/instances/:id/cancel", s.CancelInstance)

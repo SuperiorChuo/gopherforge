@@ -179,6 +179,9 @@ type ObjectStorageConfig struct {
 	AccessKey string
 	SecretKey string
 	UseSSL    bool
+	// BucketLookup 寻址风格：auto（缺省）| dns（virtual-host，阿里 OSS/腾讯
+	// COS 官方端点）| path（MinIO/IP 端点）。S3 兼容云的主要差异点。
+	BucketLookup string
 }
 
 type ImageConfig struct {
@@ -409,12 +412,14 @@ func applyEnv(config *Config) {
 	config.Upload.S3.AccessKey = getEnvString("UPLOAD_S3_ACCESS_KEY", config.Upload.S3.AccessKey)
 	config.Upload.S3.SecretKey = getEnvString("UPLOAD_S3_SECRET_KEY", config.Upload.S3.SecretKey)
 	config.Upload.S3.UseSSL = getEnvBool("UPLOAD_S3_USE_SSL", config.Upload.S3.UseSSL)
+	config.Upload.S3.BucketLookup = getEnvString("UPLOAD_S3_BUCKET_LOOKUP", config.Upload.S3.BucketLookup)
 	config.Upload.MinIO.Endpoint = getEnvString("UPLOAD_MINIO_ENDPOINT", config.Upload.MinIO.Endpoint)
 	config.Upload.MinIO.Bucket = getEnvString("UPLOAD_MINIO_BUCKET", config.Upload.MinIO.Bucket)
 	config.Upload.MinIO.Region = getEnvString("UPLOAD_MINIO_REGION", config.Upload.MinIO.Region)
 	config.Upload.MinIO.AccessKey = getEnvString("UPLOAD_MINIO_ACCESS_KEY", config.Upload.MinIO.AccessKey)
 	config.Upload.MinIO.SecretKey = getEnvString("UPLOAD_MINIO_SECRET_KEY", config.Upload.MinIO.SecretKey)
 	config.Upload.MinIO.UseSSL = getEnvBool("UPLOAD_MINIO_USE_SSL", config.Upload.MinIO.UseSSL)
+	config.Upload.MinIO.BucketLookup = getEnvString("UPLOAD_MINIO_BUCKET_LOOKUP", config.Upload.MinIO.BucketLookup)
 }
 
 func validate(cfg Config) error {

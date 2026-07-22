@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd'
+import { Button, Card, Drawer, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd'
 import {
   ApartmentOutlined,
   CopyOutlined,
@@ -10,6 +10,7 @@ import {
   ReloadOutlined,
   SearchOutlined,
   SendOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { message } from '@/utils/feedback'
@@ -25,6 +26,8 @@ import {
   type BpmDefinition,
 } from '@/api/bpm'
 import FlowDesigner from '@/pages/bpm/designer'
+import BpmStatsPanel from '@/components/BpmStatsPanel'
+import { useAppSelector } from '@/hooks/store'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import StatusPill from '@/components/StatusPill'
@@ -45,6 +48,8 @@ const BIZ_TYPE_OPTIONS = Object.entries(BPM_BIZ_TYPE_PRESETS).map(([value, meta]
 }))
 
 export default function BpmDefinitionsPage() {
+  const isPlatform = !!useAppSelector((s) => s.auth.userInfo)?.is_platform_admin
+  const [statsOpen, setStatsOpen] = useState(false)
   const [list, setList] = useState<BpmDefinition[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -306,6 +311,11 @@ export default function BpmDefinitionsPage() {
           description="审批流程模板的版本化管理，发布后业务方即可按 key 发起审批"
           extra={
             <Space wrap>
+              {isPlatform && (
+                <Button icon={<BarChartOutlined />} onClick={() => setStatsOpen(true)}>
+                  审批统计
+                </Button>
+              )}
               <Button icon={<ReloadOutlined />} onClick={() => void fetchList(params)}>
                 刷新
               </Button>
@@ -375,6 +385,15 @@ export default function BpmDefinitionsPage() {
           </Form.Item>
         </Form>
       </Modal>
+      <Drawer
+        title="审批统计"
+        open={statsOpen}
+        onClose={() => setStatsOpen(false)}
+        width={720}
+        destroyOnHidden
+      >
+        <BpmStatsPanel />
+      </Drawer>
     </div>
   )
 }

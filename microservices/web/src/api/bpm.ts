@@ -49,8 +49,10 @@ export interface ApprovalNode extends BaseNode {
   multiMode: 'AND' | 'OR' | 'SEQ'
   /** 拒绝时的走向：结束流程（reject）还是退回发起人（back_to_start） */
   onReject: 'reject' | 'back_to_start'
-  /** 超时提醒阈值（小时），空=不提醒 */
+  /** 超时阈值（小时），空=不启用超时 */
   timeoutHours?: number
+  /** 到期动作：remind（缺省提醒）| auto_pass | auto_reject（收官项 Q3） */
+  timeoutAction?: 'remind' | 'auto_pass' | 'auto_reject'
   /** 依次(SEQ)时是否允许当前人退回上一审批人 */
   allowBackPrev?: boolean
   /** 表单字段权限（M1 仅 hidden）：该节点任务详情按此过滤快照（表单构建器） */
@@ -401,6 +403,8 @@ export const BPM_ACTION_META: Record<string, { label: string; color: string }> =
   resubmit: { label: '重新提交', color: 'blue' },
   cc: { label: '抄送', color: 'blue' },
   timeout_remind: { label: '超时提醒', color: 'orange' },
+  timeout_pass: { label: '超时自动通过', color: 'green' },
+  timeout_reject: { label: '超时自动拒绝', color: 'red' },
   auto_pass: { label: '自动通过', color: 'green' },
   suspend: { label: '实例挂起', color: 'orange' },
   branch: { label: '分支命中', color: 'purple' },
@@ -880,6 +884,41 @@ export const cancelInstance = (id: number) =>
 /** 管理员终止（M3）：仅平台管理员；running/suspended 可终止，原因必填 */
 export const terminateInstance = (id: number, comment: string) =>
   request.post<unknown, void>(`/api/v1/bpm/instances/${id}/terminate`, { comment })
+
+// ---------------------------------------------------------------------
+// 审批统计（收官项，仅平台管理员）
+// ---------------------------------------------------------------------
+
+export interface BpmStatsTrendItem {
+  date: string
+  count: number
+}
+
+export interface BpmDefStatsItem {
+  definition_key: string
+  name?: string
+  total: number
+  approved: number
+  rejected: number
+  running: number
+  avg_hours: number
+}
+
+export interface BpmNodeStatsItem {
+  node_name: string
+  acted: number
+  avg_hours: number
+}
+
+export interface BpmStats {
+  status_counts: Record<string, number>
+  trend: BpmStatsTrendItem[]
+  definitions: BpmDefStatsItem[]
+  node_bottlenecks: BpmNodeStatsItem[]
+}
+
+/** 审批统计（状态分布/30 天趋势/按定义通过率与均时长/节点瓶颈） */
+export const getBpmStats = () => request.get<unknown, BpmStats>('/api/v1/bpm/stats')
 
 /** 全部实例（M3 管理视图）：仅平台管理员可见（后端 403 拦非管理员） */
 export const listAllInstances = (params: BpmInstanceListParams & { keyword?: string }) =>
