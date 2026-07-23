@@ -1,6 +1,6 @@
-<p align="center">
+<!-- <p align="center">
   <img src="docs/screenshots/wechat-group.jpg" alt="GopherForge 微信交流群二维码" width="420" />
-</p>
+</p> -->
 
 # 🚀 GopherForge · Go 微服务后台管理脚手架
 
