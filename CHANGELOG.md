@@ -7,6 +7,13 @@
 
 ### 新增
 
+- **全服务 /metrics 可观测**（同步自主项目）：`shared/pkg/metrics` 零依赖 Prometheus
+  指标包（HTTP 计数/错误/延迟直方图 + Go runtime + DB 连接池），auth/identity/system/
+  audit/file 一行接入，bpm（独立构建上下文）持 `internal/metrics` 同源副本；Prometheus
+  新增 `go-admin-kit-services` 抓取任务（service 标签聚合），Grafana 预置「服务概览」
+  看板（QPS/错误率/P95/在途/goroutine/内存/连接池）。`/metrics` 仅容器网络内可达，
+  网关不路由；`METRICS_ENABLED=false` 可关。
+
 - **部门主管选人**（同步自主项目，补齐 BPM M2 缺腿）：部门管理支持指定主管用户
   （`departments.leader_user_id`，迁移 `000025`），审批流「部门主管」规则据此解析
   审批人——此前引擎已读该列但 identity 侧未建列，全新部署走 dept_leader 规则会

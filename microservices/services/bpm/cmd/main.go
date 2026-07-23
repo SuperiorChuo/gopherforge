@@ -21,6 +21,7 @@ import (
 	"github.com/go-admin-kit/services/bpm/internal/callback"
 	"github.com/go-admin-kit/services/bpm/internal/config"
 	"github.com/go-admin-kit/services/bpm/internal/engine"
+	"github.com/go-admin-kit/services/bpm/internal/metrics"
 	"github.com/go-admin-kit/services/bpm/internal/notifyclient"
 	"github.com/go-admin-kit/services/bpm/internal/store"
 )
@@ -64,6 +65,8 @@ func main() {
 	log.Printf("bpm timeout: scan enabled, interval=%s remind=%v", cfg.TimeoutScanInterval, notify.Enabled())
 
 	r := gin.New()
+	// HTTP 指标（GET /metrics，Prometheus 抓取）；先于 Logger 注册，抓取不刷访问日志
+	metrics.Install(r)
 	r.Use(gin.Recovery(), gin.Logger())
 	srv.RegisterRoutes(r)
 
