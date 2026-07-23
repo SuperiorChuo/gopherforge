@@ -7,6 +7,11 @@
 
 ### 新增
 
+- **部门主管选人**（同步自主项目，补齐 BPM M2 缺腿）：部门管理支持指定主管用户
+  （`departments.leader_user_id`，迁移 `000025`），审批流「部门主管」规则据此解析
+  审批人——此前引擎已读该列但 identity 侧未建列，全新部署走 dept_leader 规则会
+  解析报错，本次补齐迁移 + 模型 + 接口 + 前端选人表单。
+
 - **Compose 双栈拆分**（同步自主项目）：有状态服务（PG/Redis/NATS/MinIO）独立为
   `docker-compose.infra.yml`（project `go-admin-kit-infra`），应用栈任意 down/up/rebuild
   不再触碰数据；两栈经外部网络 `go-admin-kit-net` 互通。新增 `make infra-up/infra-down`，

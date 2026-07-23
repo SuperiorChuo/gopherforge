@@ -71,20 +71,24 @@ type CreateDepartmentRequest struct {
 	Code     string `json:"code" binding:"required"`
 	ParentID uint   `json:"parent_id"`
 	Leader   string `json:"leader"`
-	Phone    string `json:"phone"`
-	Email    string `json:"email"`
-	Sort     int    `json:"sort"`
-	Status   int8   `json:"status"`
+	// LeaderUserID 部门主管用户 id（0=未设；不做存在性级联校验）
+	LeaderUserID uint64 `json:"leader_user_id"`
+	Phone        string `json:"phone"`
+	Email        string `json:"email"`
+	Sort         int    `json:"sort"`
+	Status       int8   `json:"status"`
 }
 
 type UpdateDepartmentRequest struct {
 	Name     string `json:"name"`
 	ParentID *uint  `json:"parent_id"`
 	Leader   string `json:"leader"`
-	Phone    string `json:"phone"`
-	Email    string `json:"email"`
-	Sort     *int   `json:"sort"`
-	Status   *int8  `json:"status"`
+	// LeaderUserID 指针区分"未传"与"清空为 0"
+	LeaderUserID *uint64 `json:"leader_user_id"`
+	Phone        string  `json:"phone"`
+	Email        string  `json:"email"`
+	Sort         *int    `json:"sort"`
+	Status       *int8   `json:"status"`
 }
 
 var (
@@ -137,15 +141,16 @@ func (s *DepartmentService) CreateContext(ctx context.Context, req CreateDepartm
 	}
 
 	dept := &model.Department{
-		TenantID: tenant.Normalize(tenant.FromContext(ctx)),
-		Name:     req.Name,
-		Code:     req.Code,
-		ParentID: req.ParentID,
-		Leader:   req.Leader,
-		Phone:    req.Phone,
-		Email:    req.Email,
-		Sort:     req.Sort,
-		Status:   req.Status,
+		TenantID:     tenant.Normalize(tenant.FromContext(ctx)),
+		Name:         req.Name,
+		Code:         req.Code,
+		ParentID:     req.ParentID,
+		Leader:       req.Leader,
+		LeaderUserID: req.LeaderUserID,
+		Phone:        req.Phone,
+		Email:        req.Email,
+		Sort:         req.Sort,
+		Status:       req.Status,
 	}
 	if dept.Status == 0 {
 		dept.Status = 1
@@ -190,6 +195,9 @@ func (s *DepartmentService) UpdateContext(ctx context.Context, id uint, req Upda
 	}
 	if req.Leader != "" {
 		dept.Leader = req.Leader
+	}
+	if req.LeaderUserID != nil {
+		dept.LeaderUserID = *req.LeaderUserID // 0=清空主管，允许
 	}
 	if req.Phone != "" {
 		dept.Phone = req.Phone

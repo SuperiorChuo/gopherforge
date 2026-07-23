@@ -176,6 +176,8 @@ export interface Department {
   sort: number
   status: number
   leader?: string
+  /** 部门主管用户 id（BPM dept_leader 审批人规则数据源；0/空=未设置） */
+  leader_user_id?: number
   phone?: string
   email?: string
   created_at?: string
