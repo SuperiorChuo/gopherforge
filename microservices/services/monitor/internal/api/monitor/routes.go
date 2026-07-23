@@ -37,6 +37,7 @@ func RegisterProtectedRoutesWithDeps(r *gin.RouterGroup, deps sharedapi.Dependen
 
 	monitorGroup := r.Group("/monitor")
 	monitorGroup.GET("/server", middleware.PermissionMiddleware("system:monitor:server"), serverAPI.GetServerInfo)
+	monitorGroup.GET("/services", middleware.PermissionMiddleware("system:monitor:server"), serverAPI.GetServicesHealth)
 	if mysqlAPI != nil {
 		monitorGroup.GET("/mysql", middleware.PermissionMiddleware("system:monitor:mysql"), mysqlAPI.GetMySQLInfo)
 	}
@@ -45,6 +46,7 @@ func RegisterProtectedRoutesWithDeps(r *gin.RouterGroup, deps sharedapi.Dependen
 	if jobAPI != nil {
 		monitorGroup.GET("/jobs", middleware.PermissionMiddleware("system:job:list"), jobAPI.GetJobList)
 		monitorGroup.GET("/jobs/health", middleware.PermissionMiddleware("system:job:list"), jobAPI.GetJobHealth)
+		monitorGroup.GET("/jobs/heartbeats", middleware.PermissionMiddleware("system:job:list"), jobAPI.GetJobHeartbeats)
 		monitorGroup.POST("/jobs", middleware.PermissionMiddleware("system:job:create"), jobAPI.CreateJob)
 		monitorGroup.PUT("/jobs/:id", middleware.PermissionMiddleware("system:job:update"), jobAPI.UpdateJob)
 		monitorGroup.DELETE("/jobs/:id", middleware.PermissionMiddleware("system:job:delete"), jobAPI.DeleteJob)
