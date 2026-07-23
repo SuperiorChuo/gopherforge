@@ -8,6 +8,7 @@
     "preview": "vitepress preview"
   },
   "devDependencies": {
+    "node-html-parser": "^9.0.0",
     "vitepress": "^1.6.3"
   }
 }
