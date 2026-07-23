@@ -17,6 +17,7 @@ import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import { EnableStatusPill } from '@/components/StatusPill'
 import { useUrlParams } from '@/hooks/useUrlParams'
+import { displayUserName, useUserNameMap } from '@/hooks/useUserNameMap'
 
 interface SearchParams {
   keyword?: string
@@ -52,6 +53,12 @@ export default function DepartmentPage() {
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
+  // 部门主管选人与列表主管姓名展示共用一份用户映射（模块级缓存，403 静默降级）
+  const userMap = useUserNameMap()
+  const userOptions = useMemo(
+    () => Object.entries(userMap).map(([id, name]) => ({ value: Number(id), label: name })),
+    [userMap],
+  )
 
   const fetchList = async (p: SearchParams) => {
     setLoading(true)
@@ -123,6 +130,7 @@ export default function DepartmentPage() {
       code: record.code,
       parent_id: record.parent_id === 0 ? undefined : record.parent_id,
       leader: record.leader,
+      leader_user_id: record.leader_user_id || undefined,
       phone: record.phone,
       email: record.email,
       sort: record.sort,
@@ -146,7 +154,8 @@ export default function DepartmentPage() {
     if (!values) return
     setSubmitting(true)
     try {
-      const payload = { ...values, parent_id: values.parent_id ?? 0 }
+      // leader_user_id 可清空：清空时显式传 0（identity 侧按 0 置空）
+      const payload = { ...values, parent_id: values.parent_id ?? 0, leader_user_id: values.leader_user_id ?? 0 }
       if (editRecord) {
         await DeptAPI.updateDepartment(editRecord.id, payload)
         message.success('更新成功')
@@ -180,7 +189,14 @@ export default function DepartmentPage() {
       width: 180,
       render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
     },
-    { title: '负责人', dataIndex: 'leader', width: 120, render: (v: string) => v || <span className="cell-muted">—</span> },
+    {
+      title: '部门主管',
+      dataIndex: 'leader_user_id',
+      width: 130,
+      // 优先展示主管选人（leader_user_id → 姓名），未设置时回退旧的负责人文本字段
+      render: (v: number | undefined, record) =>
+        v ? displayUserName(userMap, v) : record.leader || <span className="cell-muted">—</span>,
+    },
     { title: '排序', dataIndex: 'sort', width: 70 },
     {
       title: '状态',
@@ -327,10 +343,27 @@ export default function DepartmentPage() {
           </Row>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="leader" label="负责人">
+              <Form.Item
+                name="leader_user_id"
+                label="部门主管"
+                tooltip="审批流「部门主管」规则据此取主管；可清空"
+              >
+                <Select
+                  showSearch
+                  allowClear
+                  optionFilterProp="label"
+                  placeholder="选择主管用户（可清空）"
+                  options={userOptions}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="leader" label="负责人（备注名）">
                 <Input />
               </Form.Item>
             </Col>
+          </Row>
+          <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="phone" label="电话">
                 <Input />

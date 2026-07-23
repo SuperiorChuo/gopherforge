@@ -2,6 +2,8 @@ import request from '@/utils/request'
 import type { PageRequest, PageResponse, Department } from '@/types'
 
 type DepartmentListParams = PageRequest & { keyword?: string; status?: number }
+// leader_user_id（部门主管，BPM dept_leader 规则数据源）随 Department 类型透传：
+// create/update 载荷与 detail/list 返回均含该字段（identity M2 起支持，可传 0 清空）
 type DepartmentCreateData = Omit<Department, 'id' | 'created_at' | 'children'>
 type DepartmentUpdateData = Partial<DepartmentCreateData>
 
