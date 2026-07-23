@@ -734,6 +734,27 @@ async function main() {
   });
   assertResponse(response.data?.active === true && response.data?.client_id === oauth2ClientId, 'introspect did not report the token active');
 
+  // Security: a different client must NOT be able to introspect this token —
+  // cross-client introspection returns {active:false} (审查发现 M2 的回归防护).
+  step('oauth2 introspect cross-client denied');
+  const otherClient = await request('POST', '/oauth2/clients', 200, jsonObject({
+    name: `smoke-oauth2-other-${config.safeRunId}`,
+    client_type: 1,
+    redirect_uris: [oauth2Redirect],
+    scopes: ['openid'],
+    grant_types: ['client_credentials'],
+  }), state.accessToken);
+  const otherClientId = getJsonPath(otherClient.data, 'data.client.client_id');
+  const otherClientSecret = getJsonPath(otherClient.data, 'data.client_secret');
+  const otherClientDbId = getJsonPath(otherClient.data, 'data.client.id');
+  response = await requestForm('/oauth2/introspect', 200, {
+    token: oauthAccess,
+    client_id: otherClientId,
+    client_secret: otherClientSecret,
+  });
+  assertResponse(response.data?.active === false, 'cross-client introspection must not reveal another client token');
+  await request('DELETE', `/oauth2/clients/${otherClientDbId}`, 200, '', state.accessToken);
+
   step('oauth2 refresh rotation');
   tokenRes = await requestForm('/oauth2/token', 200, {
     grant_type: 'refresh_token',

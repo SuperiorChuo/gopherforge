@@ -56,6 +56,55 @@ func TestSettingServiceDeleteSettingContextMapsNotFound(t *testing.T) {
 	}
 }
 
+func TestSettingServiceProtectsOIDCSigningKey(t *testing.T) {
+	// The OIDC signing private key must never be readable, writable or deletable
+	// through the generic settings API — these checks short-circuit before any DB
+	// access, so no sqlmock expectations are set (a stray query would fail).
+	db, _ := setupSystemUserServiceContextTestDB(t)
+	svc := NewSettingServiceWithDB(db)
+	ctx := context.Background()
+
+	if _, err := (&svc).GetSettingContext(ctx, "oidc.signing_key"); !errors.Is(err, ErrProtectedSystemSettingKey) {
+		t.Fatalf("GetSettingContext(oidc.signing_key) = %v, want ErrProtectedSystemSettingKey", err)
+	}
+	if _, err := (&svc).UpsertSettingContext(ctx, UpsertSettingRequest{
+		SettingKey: "oidc.signing_key", ValueJSON: map[string]any{"pem": "x"},
+	}); !errors.Is(err, ErrProtectedSystemSettingKey) {
+		t.Fatalf("UpsertSettingContext(oidc.signing_key) = %v, want ErrProtectedSystemSettingKey", err)
+	}
+	if err := (&svc).DeleteSettingContext(ctx, "oidc.signing_key"); !errors.Is(err, ErrProtectedSystemSettingKey) {
+		t.Fatalf("DeleteSettingContext(oidc.signing_key) = %v, want ErrProtectedSystemSettingKey", err)
+	}
+	if _, err := (&svc).BatchUpsertSettingsContext(ctx, BatchUpsertSettingsRequest{
+		Settings: []UpsertSettingRequest{{SettingKey: "oidc.signing_key", ValueJSON: map[string]any{"pem": "x"}}},
+	}); !errors.Is(err, ErrProtectedSystemSettingKey) {
+		t.Fatalf("BatchUpsertSettingsContext(oidc.signing_key) = %v, want ErrProtectedSystemSettingKey", err)
+	}
+}
+
+func TestSettingServiceMasksProtectedKeyInList(t *testing.T) {
+	db, mock := setupSystemUserServiceContextTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "system_settings" WHERE setting_key LIKE $1 ORDER BY setting_key ASC`)).
+		WithArgs("oidc.%").
+		WillReturnRows(sqlmock.NewRows([]string{"setting_key", "value_json", "updated_at"}).
+			AddRow("oidc.signing_key", `{"pem":"-----BEGIN RSA PRIVATE KEY-----SECRET"}`, time.Now()))
+
+	svc := NewSettingServiceWithDB(db)
+	got, err := (&svc).ListSettingsContext(context.Background(), "oidc")
+	if err != nil {
+		t.Fatalf("ListSettingsContext() error = %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 setting, got %d", len(got))
+	}
+	if pem, ok := got[0].ValueJSON["pem"]; ok {
+		t.Fatalf("list leaked private key material: pem=%v", pem)
+	}
+	if got[0].ValueJSON["protected"] != true {
+		t.Fatalf("protected key not masked: %v", got[0].ValueJSON)
+	}
+}
+
 func TestSettingServiceUpsertSecurityPolicyRefreshesRuntimeConfig(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectBegin()

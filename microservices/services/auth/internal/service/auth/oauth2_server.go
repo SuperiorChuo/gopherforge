@@ -292,20 +292,34 @@ func appendQuery(rawURL string, params map[string]string) (string, error) {
 // AuthenticateClientContext validates client credentials at the token endpoint.
 // Confidential clients must present a matching secret; public clients present
 // none (authenticated via PKCE at code exchange).
+//
+// All authentication failures return a single, uniform "client authentication
+// failed" message, and unknown/disabled clients still run a dummy bcrypt compare
+// so response timing and wording don't reveal whether a client_id exists.
 func (s *OAuth2ServerService) AuthenticateClientContext(ctx context.Context, clientID, secret string) (*model.OAuth2Client, *OAuth2Error) {
-	client, oerr := s.loadActiveClient(ctx, clientID)
-	if oerr != nil {
-		return nil, oerr
+	client, err := s.clients.GetByClientIDContext(ctx, clientID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, oauth2Err(500, "server_error", "failed to load client")
+	}
+	authFailed := oauth2Err(401, "invalid_client", "client authentication failed")
+	if errors.Is(err, gorm.ErrRecordNotFound) || client.Status != 1 {
+		bcryptDummyCompare() // flatten timing vs. the confidential-secret path
+		return nil, authFailed
 	}
 	if client.ClientType == model.OAuth2ClientConfidential {
-		if secret == "" {
-			return nil, oauth2Err(401, "invalid_client", "client secret is required")
-		}
-		if bcrypt.CompareHashAndPassword([]byte(client.ClientSecretHash), []byte(secret)) != nil {
-			return nil, oauth2Err(401, "invalid_client", "invalid client secret")
+		if secret == "" || bcrypt.CompareHashAndPassword([]byte(client.ClientSecretHash), []byte(secret)) != nil {
+			return nil, authFailed
 		}
 	}
 	return client, nil
+}
+
+// bcryptDummyCompare burns a bcrypt comparison against a fixed hash so that the
+// unknown/disabled-client path costs roughly the same as a real secret check.
+func bcryptDummyCompare() {
+	// bcrypt hash of a random constant; result intentionally ignored.
+	const dummyHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+	_ = bcrypt.CompareHashAndPassword([]byte(dummyHash), []byte("timing"))
 }
 
 // ExchangeAuthorizationCode handles grant_type=authorization_code.
@@ -357,13 +371,26 @@ func (s *OAuth2ServerService) ExchangeRefreshToken(ctx context.Context, client *
 	if stored.ClientID != client.ClientID {
 		return nil, oauth2Err(400, "invalid_grant", "refresh token was issued to another client")
 	}
-	if stored.RevokedAt != nil || time.Now().After(stored.ExpiresAt) {
+	tctx := tenantCtx(ctx, stored.TenantID)
+	if stored.RevokedAt != nil {
+		// A revoked refresh token being replayed signals theft (the legitimate
+		// client already rotated). Per OAuth Security BCP, revoke the whole token
+		// family for this (client, user) to contain the compromise.
+		_ = s.tokens.RevokeAllByClientUserContext(tctx, stored.ClientID, stored.UserID)
 		return nil, oauth2Err(400, "invalid_grant", "refresh token is expired or revoked")
 	}
-	tctx := tenantCtx(ctx, stored.TenantID)
-	// Rotate: revoke the old refresh token + its access token.
-	if _, err := s.tokens.RevokeRefreshByHashContext(tctx, hash); err != nil {
+	if time.Now().After(stored.ExpiresAt) {
+		return nil, oauth2Err(400, "invalid_grant", "refresh token is expired or revoked")
+	}
+	// Rotate: atomically claim the old refresh token. RowsAffected==0 means a
+	// concurrent request already rotated it — reject instead of minting a second
+	// token pair (prevents refresh-token double-spend under a race).
+	claimed, err := s.tokens.RevokeRefreshByHashContext(tctx, hash)
+	if err != nil {
 		return nil, oauth2Err(500, "server_error", "failed to rotate refresh token")
+	}
+	if claimed == 0 {
+		return nil, oauth2Err(400, "invalid_grant", "refresh token is expired or revoked")
 	}
 	if err := s.tokens.RevokeAccessByRefreshTokenIDContext(tctx, stored.ID); err != nil {
 		return nil, oauth2Err(500, "server_error", "failed to rotate access token")
@@ -505,10 +532,15 @@ func (s *OAuth2ServerService) lookupActiveAccessToken(ctx context.Context, rawTo
 }
 
 // Introspect implements RFC 7662. Always returns a map; inactive tokens report
-// {"active": false} without leaking why.
-func (s *OAuth2ServerService) Introspect(ctx context.Context, rawToken string) map[string]any {
+// {"active": false} without leaking why. The token is only introspected when it
+// belongs to the authenticated caller client — a caller must not learn metadata
+// about tokens issued to other clients (or other tenants).
+func (s *OAuth2ServerService) Introspect(ctx context.Context, client *model.OAuth2Client, rawToken string) map[string]any {
 	token, err := s.lookupActiveAccessToken(ctx, rawToken)
 	if err != nil {
+		return map[string]any{"active": false}
+	}
+	if token.ClientID != client.ClientID {
 		return map[string]any{"active": false}
 	}
 	result := map[string]any{

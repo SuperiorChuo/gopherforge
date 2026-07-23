@@ -80,6 +80,12 @@ func (s OAuth2ClientService) validate(m ClientMutation) error {
 		if err != nil || !u.IsAbs() || u.Fragment != "" {
 			return OAuth2ClientValidationError{"回调地址必须是不含 fragment 的绝对 URL：" + uri}
 		}
+		// Whitelist schemes: only http/https (plus common mobile custom schemes
+		// via reverse-DNS form). This rejects javascript:/data: which pass the
+		// IsAbs()+no-fragment check yet enable redirect-based XSS on the client.
+		if !isAllowedRedirectScheme(u.Scheme) {
+			return OAuth2ClientValidationError{"回调地址协议不被允许（仅支持 http/https 或形如 com.example.app 的移动端 scheme）：" + uri}
+		}
 	}
 	for _, sc := range m.Scopes {
 		if !containsStr(supportedScopes, sc) {
@@ -99,6 +105,18 @@ func (s OAuth2ClientService) validate(m ClientMutation) error {
 		return OAuth2ClientValidationError{"公开客户端不能使用 client_credentials 模式"}
 	}
 	return nil
+}
+
+// isAllowedRedirectScheme permits http/https (web) and reverse-DNS custom
+// schemes (mobile apps, e.g. com.example.app://cb), while rejecting dangerous
+// schemes like javascript: and data: that enable redirect-based XSS.
+func isAllowedRedirectScheme(scheme string) bool {
+	switch scheme {
+	case "http", "https":
+		return true
+	}
+	// Mobile custom scheme: reverse-DNS with at least one dot, no colon/space.
+	return strings.Contains(scheme, ".") && !strings.ContainsAny(scheme, ": /")
 }
 
 func normalizeTTLs(m *ClientMutation) {
