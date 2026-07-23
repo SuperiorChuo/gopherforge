@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 
 import { buildConfig, decodeTextCaptchaCode, getJsonPath, jsonObject, statusMatches } from './api-smoke-lib.mjs';
 
@@ -22,6 +22,7 @@ const state = {
   fileId: '',
   noticeId: '',
   originalNickname: '',
+  oauth2ClientDbId: '',
   profileNeedsRestore: false,
   loggedOut: false,
   lastStep: 'initializing',
@@ -174,6 +175,50 @@ async function requestBytes(method, path, expected, token = '') {
   return { status: response.status, bytes, headers: response.headers };
 }
 
+// OAuth2 protocol endpoints (token/introspect/revoke) speak
+// application/x-www-form-urlencoded and return bare RFC JSON.
+async function requestForm(path, expected, fields, token = '') {
+  const headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/x-www-form-urlencoded',
+    'X-Request-ID': `api-smoke-${config.safeRunId}`,
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  let response;
+  try {
+    response = await fetch(`${config.apiBaseUrl}${path}`, {
+      method: 'POST',
+      headers,
+      body: new URLSearchParams(fields).toString(),
+      signal: AbortSignal.timeout(config.timeoutSeconds * 1000),
+    });
+  } catch (error) {
+    throw new SmokeError(`request failed: POST ${path}: ${error.message}`);
+  }
+  const text = await response.text();
+  state.lastResponse = { status: response.status, text };
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (error) {
+      throw new SmokeError(`invalid JSON response for POST ${path}: ${error.message}`);
+    }
+  }
+  if (!statusMatches(expected, response.status)) {
+    throw new SmokeError(`unexpected HTTP status for POST ${path}; expected ${expected}`);
+  }
+  return { status: response.status, data, text };
+}
+
+function pkcePair() {
+  const verifier = randomBytes(32).toString('base64url');
+  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  return { verifier, challenge };
+}
+
 async function cleanupRequest(method, path, body, token = state.accessToken) {
   try {
     await request(method, path, '*', body, token);
@@ -207,6 +252,10 @@ async function cleanup() {
 
   if (state.permissionId && state.accessToken) {
     await cleanupRequest('DELETE', `/permissions/${state.permissionId}`);
+  }
+
+  if (state.oauth2ClientDbId && state.accessToken) {
+    await cleanupRequest('DELETE', `/oauth2/clients/${state.oauth2ClientDbId}`);
   }
 
   if (!state.loggedOut && state.accessToken) {
@@ -559,6 +608,140 @@ async function main() {
   response = await request('DELETE', `/roles/${state.roleId}`, 200, '', state.accessToken);
   assertResponse(response.data?.code === 200, 'role delete did not succeed');
   state.roleId = '';
+
+  // ---------- OAuth2 授权服务端全流程 ----------
+  const oauth2Redirect = 'https://smoke.example.com/callback';
+  const { verifier: pkceVerifier, challenge: pkceChallenge } = pkcePair();
+
+  step('oauth2 create client');
+  response = await request('POST', '/oauth2/clients', 200, jsonObject({
+    name: `smoke-oauth2-${config.safeRunId}`,
+    client_type: 1,
+    redirect_uris: [oauth2Redirect],
+    scopes: ['profile', 'email'],
+    grant_types: ['authorization_code', 'refresh_token', 'client_credentials'],
+  }), state.accessToken);
+  const oauth2ClientId = getJsonPath(response.data, 'data.client.client_id');
+  const oauth2ClientSecret = getJsonPath(response.data, 'data.client_secret');
+  state.oauth2ClientDbId = getJsonPath(response.data, 'data.client.id');
+  assertResponse(
+    response.data?.code === 200 && typeof oauth2ClientId === 'string' && typeof oauth2ClientSecret === 'string' && oauth2ClientSecret.length > 0,
+    'oauth2 client create did not return client_id + one-time secret',
+  );
+
+  const authorizeQuery =
+    `?response_type=code&client_id=${encodeURIComponent(oauth2ClientId)}` +
+    `&redirect_uri=${encodeURIComponent(oauth2Redirect)}&scope=${encodeURIComponent('profile email')}` +
+    `&state=smoke-state&code_challenge=${pkceChallenge}&code_challenge_method=S256`;
+
+  step('oauth2 authorize view');
+  response = await request('GET', `/oauth2/authorize${authorizeQuery}`, 200, '', state.accessToken);
+  assertResponse(
+    response.data?.code === 200 && response.data?.data?.client_id === oauth2ClientId && Array.isArray(response.data?.data?.scopes),
+    'oauth2 authorize view did not return the consent payload',
+  );
+
+  step('oauth2 approve -> code');
+  response = await request('POST', '/oauth2/authorize', 200, jsonObject({
+    client_id: oauth2ClientId,
+    redirect_uri: oauth2Redirect,
+    response_type: 'code',
+    scope: 'profile email',
+    state: 'smoke-state',
+    code_challenge: pkceChallenge,
+    code_challenge_method: 'S256',
+    approved: true,
+  }), state.accessToken);
+  const approveRedirect = getJsonPath(response.data, 'data.redirect_url');
+  assertResponse(response.data?.code === 200 && typeof approveRedirect === 'string', 'oauth2 approve did not return a redirect_url');
+  const approveUrl = new URL(approveRedirect);
+  const authCode = approveUrl.searchParams.get('code');
+  assertResponse(
+    authCode && approveUrl.searchParams.get('state') === 'smoke-state',
+    'oauth2 redirect is missing code or state',
+  );
+
+  step('oauth2 token (authorization_code + PKCE)');
+  let tokenRes = await requestForm('/oauth2/token', 200, {
+    grant_type: 'authorization_code',
+    code: authCode,
+    redirect_uri: oauth2Redirect,
+    code_verifier: pkceVerifier,
+    client_id: oauth2ClientId,
+    client_secret: oauth2ClientSecret,
+  });
+  const oauthAccess = tokenRes.data?.access_token;
+  const oauthRefresh = tokenRes.data?.refresh_token;
+  assertResponse(
+    tokenRes.data?.token_type === 'Bearer' && typeof oauthAccess === 'string' && typeof oauthRefresh === 'string',
+    'oauth2 token exchange did not return bearer access + refresh tokens',
+  );
+
+  step('oauth2 userinfo');
+  response = await request('GET', '/oauth2/userinfo', 200, '', oauthAccess);
+  assertResponse(
+    response.data?.sub !== undefined && response.data?.username === config.username && response.data?.email !== undefined,
+    'oauth2 userinfo did not return scoped claims',
+  );
+
+  step('oauth2 introspect active');
+  response = await requestForm('/oauth2/introspect', 200, {
+    token: oauthAccess,
+    client_id: oauth2ClientId,
+    client_secret: oauth2ClientSecret,
+  });
+  assertResponse(response.data?.active === true && response.data?.client_id === oauth2ClientId, 'introspect did not report the token active');
+
+  step('oauth2 refresh rotation');
+  tokenRes = await requestForm('/oauth2/token', 200, {
+    grant_type: 'refresh_token',
+    refresh_token: oauthRefresh,
+    client_id: oauth2ClientId,
+    client_secret: oauth2ClientSecret,
+  });
+  const rotatedAccess = tokenRes.data?.access_token;
+  assertResponse(typeof rotatedAccess === 'string' && rotatedAccess !== oauthAccess, 'oauth2 refresh did not mint a new access token');
+
+  step('oauth2 old refresh token rejected');
+  tokenRes = await requestForm('/oauth2/token', 400, {
+    grant_type: 'refresh_token',
+    refresh_token: oauthRefresh,
+    client_id: oauth2ClientId,
+    client_secret: oauth2ClientSecret,
+  });
+  assertResponse(tokenRes.data?.error === 'invalid_grant', 'reused refresh token was not rejected with invalid_grant');
+
+  step('oauth2 client_credentials grant');
+  tokenRes = await requestForm('/oauth2/token', 200, {
+    grant_type: 'client_credentials',
+    scope: 'profile',
+    client_id: oauth2ClientId,
+    client_secret: oauth2ClientSecret,
+  });
+  const ccAccess = tokenRes.data?.access_token;
+  assertResponse(typeof ccAccess === 'string' && tokenRes.data?.refresh_token === undefined, 'client_credentials should mint an access token without a refresh token');
+
+  step('oauth2 client_credentials has no user (userinfo 403)');
+  response = await request('GET', '/oauth2/userinfo', 403, '', ccAccess);
+  assertResponse(response.data?.error === 'insufficient_scope', 'client_credentials token should have no user for userinfo');
+
+  step('oauth2 revoke access token');
+  await requestForm('/oauth2/revoke', 200, {
+    token: rotatedAccess,
+    client_id: oauth2ClientId,
+    client_secret: oauth2ClientSecret,
+  });
+  response = await requestForm('/oauth2/introspect', 200, {
+    token: rotatedAccess,
+    client_id: oauth2ClientId,
+    client_secret: oauth2ClientSecret,
+  });
+  assertResponse(response.data?.active === false, 'revoked access token still reports active');
+
+  step('oauth2 delete client');
+  response = await request('DELETE', `/oauth2/clients/${state.oauth2ClientDbId}`, 200, '', state.accessToken);
+  assertResponse(response.data?.code === 200, 'oauth2 client delete did not succeed');
+  state.oauth2ClientDbId = '';
 
   step('logout');
   response = await request('POST', '/logout', 200, jsonObject({ refresh_token: state.refreshToken }), state.accessToken);

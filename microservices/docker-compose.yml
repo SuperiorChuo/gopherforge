@@ -222,7 +222,7 @@ services:
       # would also capture `/api/v1/login-logs` and `/api/v1/user/me` would
       # capture `/api/v1/user/menus` (both monolith routes). Exact-path routes
       # use Path(); only true subtrees use PathPrefix() with a trailing slash.
-      traefik.http.routers.auth.rule: "Path(`/api/v1/login`) || PathPrefix(`/api/v1/login/`) || Path(`/api/v1/register`) || Path(`/api/v1/refresh`) || Path(`/api/v1/logout`) || Path(`/api/v1/captcha`) || PathPrefix(`/api/v1/captcha/`) || PathPrefix(`/api/v1/oauth/`) || PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/console-routes`) || PathPrefix(`/api/v1/console-routes/`) || Path(`/api/v1/user/me`) || Path(`/api/v1/user/profile`) || Path(`/api/v1/user/password`) || PathPrefix(`/api/v1/user/2fa/`)"
+      traefik.http.routers.auth.rule: "Path(`/api/v1/login`) || PathPrefix(`/api/v1/login/`) || Path(`/api/v1/register`) || Path(`/api/v1/refresh`) || Path(`/api/v1/logout`) || Path(`/api/v1/captcha`) || PathPrefix(`/api/v1/captcha/`) || PathPrefix(`/api/v1/oauth/`) || PathPrefix(`/api/v1/oauth2/`) || PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/console-routes`) || PathPrefix(`/api/v1/console-routes/`) || Path(`/api/v1/user/me`) || Path(`/api/v1/user/profile`) || Path(`/api/v1/user/password`) || PathPrefix(`/api/v1/user/2fa/`)"
       traefik.http.routers.auth.entrypoints: web
       traefik.http.routers.auth.priority: "100"
       traefik.http.services.auth.loadbalancer.server.port: "8082"

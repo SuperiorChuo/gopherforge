@@ -27,6 +27,12 @@ const routes: RouteObject[] = [
     element: lazyLoad(() => import('@/pages/login')),
   },
   {
+    // OAuth2 授权确认页：面向第三方授权流程，刻意放在 MainLayout 之外
+    // （第三方用户不应看到管理台骨架），与 /login 平级
+    path: '/oauth/authorize',
+    element: lazyLoad(() => import('@/pages/oauth/authorize')),
+  },
+  {
     path: '/',
     element: <MainLayout />,
     children: [
@@ -51,6 +57,7 @@ const routes: RouteObject[] = [
       { path: 'system/tenant', element: lazyLoad(() => import('@/pages/system/tenant')) },
       { path: 'system/codegen', element: lazyLoad(() => import('@/pages/system/codegen')) },
       { path: 'system/sms', element: lazyLoad(() => import('@/pages/system/sms')) },
+      { path: 'system/oauth2', element: lazyLoad(() => import('@/pages/system/oauth2')) },
       { path: 'system/errcodes', element: lazyLoad(() => import('@/pages/system/errcodes')) },
       { path: 'system/post', element: lazyLoad(() => import('@/pages/system/posts')) },
       { path: 'system/tenant-packages', element: lazyLoad(() => import('@/pages/system/tenant-packages')) },

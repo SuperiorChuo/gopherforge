@@ -5,6 +5,15 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **OAuth2 授权服务端**（同步自主项目）：应用管理 + `authorization_code`（公开客户端强制
+  PKCE S256）/`refresh_token`（旋转）/`client_credentials` 三种授权模式 +
+  `/oauth2/{authorize,token,introspect,userinfo,revoke}` 协议端点 + 授权确认页。令牌以
+  SHA-256 哈希入库、`redirect_uri` 精确匹配、`client_secret` 一次性回显；协议端点走 RFC
+  裸 JSON、授权与管理面走仓内封装。落在 auth-service，迁移 `000024`，权限码
+  `system:oauth2-*`，设计见 `docs/design/oauth2-server.md`。
+
 ### 修复
 
 - **在线 Demo**：仪表盘因假数据返回形状不符崩进错误边界（`/notices/active` 应返回裸数组而非
