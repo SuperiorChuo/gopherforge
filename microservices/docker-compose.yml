@@ -1,76 +1,15 @@
+# 应用栈：无状态服务 + 网关 + 前端。
+# 有状态服务（PG/Redis/NATS/MinIO）在独立 infra 栈 docker-compose.infra.yml
+# （project go-admin-kit-infra），本栈任意 down/up/rebuild 不触碰数据服务；
+# 两栈经外部网络 go-admin-kit-net 互通（创建方式见 infra 文件头部）。
 name: go-admin-kit
 
 services:
-  go-admin-kit-postgres:
-    image: pgvector/pgvector:pg16
-    container_name: go-admin-kit-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
-      POSTGRES_DB: ${POSTGRES_DB:-go_admin_kit}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      TZ: ${TZ:-Asia/Shanghai}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - go_admin_kit_postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-      start_period: 30s
-    networks:
-      - go-admin-kit-net
-
-  go-admin-kit-redis:
-    image: redis:7-alpine
-    container_name: go-admin-kit-redis
-    restart: unless-stopped
-    command: >
-      sh -c 'if [ -n "$$REDIS_PASSWORD" ]; then
-        redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD";
-      else
-        redis-server --appendonly yes;
-      fi'
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      TZ: ${TZ:-Asia/Shanghai}
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - go_admin_kit_redis_data:/data
-    healthcheck:
-      test: ["CMD-SHELL", "if [ -n \"$${REDIS_PASSWORD}\" ]; then redis-cli -a \"$${REDIS_PASSWORD}\" ping; else redis-cli ping; fi"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-    networks:
-      - go-admin-kit-net
-
-  go-admin-kit-nats:
-    image: nats:2.10-alpine
-    container_name: go-admin-kit-nats
-    restart: unless-stopped
-    command:
-      - --jetstream
-      - --store_dir=/data
-      - --http_port=8222
-    ports:
-      - "${NATS_PORT:-4222}:4222"
-    volumes:
-      - go_admin_kit_nats_data:/data
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8222/healthz >/dev/null 2>&1"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-    networks:
-      - go-admin-kit-net
-
   # 一次性迁移 job：复用 monitor 镜像跑 goose up 后退出。
   # 把迁移从 monitor 常驻进程中剥离，迁移失败不再拖垮监控/健康检查，
   # 各业务服务通过 depends_on service_completed_successfully 等它完成。
+  # infra 栈独立后无法再对 postgres 做跨栈健康等待，改为有界重试：
+  # PG 未就绪时等待重试，真实迁移错误在重试耗尽后以非零码失败。
   migrate:
     build:
       context: ./services/monitor
@@ -78,7 +17,7 @@ services:
     image: go-admin-kit-monitor-service
     container_name: go-admin-kit-migrate
     restart: "no"
-    command: ["./migrate", "-config", "./configs/config.yaml", "-dir", "./migrations", "up"]
+    command: ["sh", "-c", "n=0; until ./migrate -config ./configs/config.yaml -dir ./migrations up; do n=$$((n+1)); [ $$n -ge 30 ] && exit 1; echo \"[migrate] not ready, retry $$n/30\"; sleep 2; done"]
     environment:
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
@@ -87,9 +26,6 @@ services:
       DB_NAME: ${POSTGRES_DB:-go_admin_kit}
       DB_SSLMODE: ${DB_SSLMODE:-disable}
       TZ: ${TZ:-Asia/Shanghai}
-    depends_on:
-      go-admin-kit-postgres:
-        condition: service_healthy
     networks:
       - go-admin-kit-net
 
@@ -161,12 +97,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      go-admin-kit-postgres:
-        condition: service_healthy
-      go-admin-kit-redis:
-        condition: service_healthy
-      go-admin-kit-nats:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/api/v1/health/ready >/dev/null || exit 1"]
       interval: 10s
@@ -231,12 +161,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      go-admin-kit-postgres:
-        condition: service_healthy
-      go-admin-kit-redis:
-        condition: service_healthy
-      go-admin-kit-nats:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/api/v1/health/ready >/dev/null || exit 1"]
       interval: 10s
@@ -284,10 +208,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      go-admin-kit-postgres:
-        condition: service_healthy
-      go-admin-kit-redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8083/api/v1/health/ready >/dev/null || exit 1"]
       interval: 10s
@@ -346,10 +266,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      go-admin-kit-postgres:
-        condition: service_healthy
-      go-admin-kit-redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8084/api/v1/health/ready >/dev/null || exit 1"]
       interval: 10s
@@ -399,12 +315,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      go-admin-kit-postgres:
-        condition: service_healthy
-      go-admin-kit-redis:
-        condition: service_healthy
-      go-admin-kit-nats:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8085/api/v1/health/ready >/dev/null || exit 1"]
       interval: 10s
@@ -469,10 +379,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      go-admin-kit-postgres:
-        condition: service_healthy
-      go-admin-kit-redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8086/api/v1/health/ready >/dev/null || exit 1"]
       interval: 10s
@@ -519,39 +425,12 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      go-admin-kit-postgres:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8096/api/v1/bpm/health/ready >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
       start_period: 20s
-    networks:
-      - go-admin-kit-net
-
-  go-admin-kit-minio:
-    image: minio/minio:latest
-    container_name: go-admin-kit-minio
-    restart: unless-stopped
-    profiles:
-      - storage
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      TZ: ${TZ:-Asia/Shanghai}
-    ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
-    volumes:
-      - go_admin_kit_minio_data:/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
     networks:
       - go-admin-kit-net
 
@@ -705,19 +584,14 @@ services:
       - go-admin-kit-net
 
 networks:
+  # 与 infra 栈共享的外部网络。子网钉在 172.28.0.0/16（TRUSTED_PROXIES 白名单
+  # 依赖它，改动需同步 backend/auth-service 的 TRUSTED_PROXIES env）；
+  # 创建命令见 docker-compose.infra.yml 头部。
   go-admin-kit-net:
+    external: true
     name: go-admin-kit-net
-    ipam:
-      config:
-        # Pinned so TRUSTED_PROXIES can whitelist the gateway; keep in sync
-        # with the TRUSTED_PROXIES env on backend and auth-service.
-        - subnet: 172.28.0.0/16
 
 volumes:
   go_admin_kit_uploads:
-  go_admin_kit_postgres_data:
-  go_admin_kit_redis_data:
-  go_admin_kit_nats_data:
-  go_admin_kit_minio_data:
   go_admin_kit_prometheus_data:
   go_admin_kit_grafana_data:

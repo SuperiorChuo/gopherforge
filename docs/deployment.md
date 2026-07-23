@@ -1,6 +1,6 @@
 # 生产部署指南（Linux + Docker Compose + Nginx/HTTPS）
 
-面向把 **GopherForge 微服务版** 部署到一台 Linux 服务器的运维/自部署用户。本地开发联调请看 [`LOCAL_SETUP.md`](../LOCAL_SETUP.md)，本文只讲**生产上线**。
+面向把 **GopherForge 微服务版** 部署到一台 Linux 服务器的运维/自部署用户。本地开发联调请看 [`LOCAL_SETUP.md`](../LOCAL_SETUP.md)，本文只讲**生产上线**。要上 Kubernetes（k3s / 云托管集群）的看 [`deploy-k8s.md`](deploy-k8s.md)。
 
 ---
 
@@ -55,10 +55,16 @@ chmod 600 .env          # .env 含密钥，收紧权限
 
 ## 3. 启动核心栈
 
-核心服务（无 profile，默认启动）：postgres、redis、nats、migrate（一次性迁移）、9 个业务服务、gateway、frontend。
+栈分两层（应用重建永不触碰数据）：**infra 栈** `docker-compose.infra.yml`（postgres、redis、nats、minio 可选）+ **应用栈** `docker-compose.yml`（migrate 一次性迁移、业务服务、gateway、frontend），经外部网络 `go-admin-kit-net` 互通。
 
 ```bash
 cd /opt/go-admin-kit/microservices
+# 共享网络（一次性；子网与 TRUSTED_PROXIES 白名单对齐）
+docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
+  docker network create --subnet 172.28.0.0/16 go-admin-kit-net
+# 数据栈先行（必须显式 -p；要 MinIO 加 --profile storage）
+docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
+# 应用栈
 docker compose up -d --build
 # 等全部 healthy（migrate 会先跑 goose 迁移再退出，业务服务 depends_on 它完成）
 docker compose ps
