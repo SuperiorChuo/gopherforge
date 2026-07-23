@@ -7,6 +7,18 @@
 
 ### 新增
 
+- **Compose 双栈拆分**（同步自主项目）：有状态服务（PG/Redis/NATS/MinIO）独立为
+  `docker-compose.infra.yml`（project `go-admin-kit-infra`），应用栈任意 down/up/rebuild
+  不再触碰数据；两栈经外部网络 `go-admin-kit-net` 互通。新增 `make infra-up/infra-down`，
+  `make compose-up` 自动先起数据栈；migrate job 改有界重试（跨栈无法 depends_on PG 健康）。
+  升级注意：首次切换需先创建共享网络（`make compose-up` 已内置），volume 名不变、数据零迁移。
+- **file-service 对象存储直链**（同步自主项目）：`/uploads` 在 `UPLOAD_STORAGE_TYPE=minio/s3`
+  下由 file-service 动态回源（对象存储优先、本地磁盘兜底存量），URL 形态不变、桶无需公开——
+  多副本/多节点部署的前置能力，默认 `local` 行为不变。
+- **Kubernetes 部署指南**（`docs/deploy-k8s.md`）：Compose→K8s 映射表、Service 命名沿用
+  容器名实现环境变量零改动、migrate Job、Deployment/probes 模板、Traefik
+  IngressRoute+ForwardAuth 平移、k3s 起步与迁移实操顺序。
+
 - **OAuth2 授权服务端**（同步自主项目）：应用管理 + `authorization_code`（公开客户端强制
   PKCE S256）/`refresh_token`（旋转）/`client_credentials` 三种授权模式 +
   `/oauth2/{authorize,token,introspect,userinfo,revoke}` 协议端点 + 授权确认页。令牌以
