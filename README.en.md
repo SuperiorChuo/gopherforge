@@ -27,7 +27,8 @@
 Most admin scaffolds are monoliths. GopherForge (formerly go-admin-kit) gives you a **real microservices architecture** you can grow into, without business-domain baggage:
 
 - **Traefik gateway + ForwardAuth**: one place verifies JWT; downstream services only trust gateway-injected `X-Auth-*` headers.
-- **8 infrastructure services**, split by domain: `auth` (login / JWT rotation &amp; revocation / OAuth / TOTP), `identity` (users / roles / permissions / departments), `system` (menus / dicts / notices / hot settings / code generator), `audit` (logs, NATS login events), `file` (MinIO / local), `monitor` (health / metrics / server &amp; DB &amp; Redis dashboards / cron jobs), `bpm` (lightweight approval-flow engine), plus a `shared` library.
+- **8 infrastructure services**, split by domain: `auth` (login / JWT rotation &amp; revocation / OAuth / TOTP / **OAuth2 + OIDC provider** — authorization_code + PKCE, client_credentials, RS256 `id_token` with JWKS &amp; discovery endpoints, console-managed clients and tokens), `identity` (users / roles / permissions / departments), `system` (menus / dicts / notices / hot settings / code generator), `audit` (logs, NATS login events), `file` (MinIO / local), `monitor` (health / metrics / server &amp; DB &amp; Redis dashboards / cron jobs / one-glance service-health probe / distributed-job heartbeats), `bpm` (lightweight approval-flow engine), plus a `shared` library.
+- **Alerting loop built in (optional)**: node_exporter host metrics + Prometheus alert rules (service down / low disk / high memory / 5xx surge) + Alertmanager grouping &amp; dedup, delivered as in-console notifications via the notify webhook.
 - **React 19 + Ant Design 6** front end with dark-space / light dual themes and a glassmorphism look.
 - **Code generator**: pick a table, tick the fields, get a CRUD starter kit (Go model / store / handlers / routes + React list page + menu SQL) as preview or zip.
 - **Engineering done for you**: goose versioned migrations, OpenAPI 3.1 contracts with CI drift checks, Prometheus metrics, optional OTel + Jaeger tracing, Playwright E2E through the gateway, secret-scanning pre-commit hook.
@@ -61,7 +62,7 @@ docker compose up -d --build
 | Backend | Go 1.26 · Gin · GORM · PostgreSQL 16 · Redis 7 · goose |
 | Gateway / Bus | Traefik (ForwardAuth) · NATS JetStream |
 | Frontend | React 19 · TypeScript · Vite · Ant Design 6 · Redux Toolkit |
-| Observability | Prometheus · Grafana · OpenTelemetry + Jaeger (optional) |
+| Observability | Prometheus + node_exporter · Grafana · Alertmanager alert loop · OpenTelemetry + Jaeger (optional) |
 | Storage | MinIO (S3-compatible) or local |
 | CI | GitHub Actions: per-service test+vet, lint+build, OpenAPI drift, migration rehearsal, compose smoke + Playwright E2E |
 
