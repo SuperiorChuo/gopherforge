@@ -82,6 +82,8 @@ func writeSystemSettingServiceError(c *gin.Context, operation string, err error)
 	switch {
 	case errors.Is(err, systemsvc.ErrInvalidSystemSettingKey):
 		response.BadRequest(c, systemsvc.ErrInvalidSystemSettingKey.Error())
+	case errors.Is(err, systemsvc.ErrProtectedSystemSettingKey):
+		response.Forbidden(c, systemsvc.ErrProtectedSystemSettingKey.Error())
 	case errors.Is(err, systemsvc.ErrSystemSettingNotFound):
 		response.NotFound(c, systemsvc.ErrSystemSettingNotFound.Error())
 	default:

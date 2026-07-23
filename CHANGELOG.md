@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+### 安全
+
+- **OAuth2/OIDC 安全评审修复**（同步自主项目）：三方对抗性审查后的一批加固——① OIDC 签名
+  私钥（RSA）禁止经通用 `system-settings` API 读出/改删（新增保护名单，list 读取遮蔽为
+  `{protected:true}`），杜绝拿到私钥后伪造任意用户 id_token 的"通杀"面；② `introspect`
+  限定只能内省调用方自己签发的 token（`token.client_id != caller` 返回 `{active:false}`），
+  堵住跨 client/跨租户元数据泄漏；③ refresh 旋转检查 `RowsAffected` 防并发双花，检测到已吊销
+  refresh 被复用即吊销整个令牌族（OAuth Security BCP）；④ `redirect_uri` 注册加 scheme 白名单
+  （拒 `javascript:`/`data:`）；⑤ `invalid_client` 错误文案统一 + dummy bcrypt 抹平 client
+  存在性时序 oracle。附 14 条 service 层安全单测。
+
 ### 新增
 
 - **OAuth2 服务端 OIDC（M2）**（同步自主项目）：在 OAuth2 服务端上补齐 OpenID Connect——

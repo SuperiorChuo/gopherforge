@@ -171,7 +171,8 @@ func (a *OAuth2ServerAPI) PostToken(c *gin.Context) {
 func (a *OAuth2ServerAPI) PostIntrospect(c *gin.Context) {
 	clientID, secret := clientCredentialsFromRequest(c)
 	ctx := c.Request.Context()
-	if _, oerr := a.server.AuthenticateClientContext(ctx, clientID, secret); oerr != nil {
+	client, oerr := a.server.AuthenticateClientContext(ctx, clientID, secret)
+	if oerr != nil {
 		rfcError(c, oerr)
 		return
 	}
@@ -180,7 +181,7 @@ func (a *OAuth2ServerAPI) PostIntrospect(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"active": false})
 		return
 	}
-	c.JSON(http.StatusOK, a.server.Introspect(ctx, token))
+	c.JSON(http.StatusOK, a.server.Introspect(ctx, client, token))
 }
 
 // PostRevoke implements RFC 7009 (always 200).

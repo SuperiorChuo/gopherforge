@@ -38,17 +38,50 @@ type BatchUpsertSettingsRequest struct {
 var (
 	ErrSystemSettingNotFound   = errors.New("system setting not found")
 	ErrInvalidSystemSettingKey = errors.New("invalid system setting key")
+	// ErrProtectedSystemSettingKey guards machine-managed secret settings (e.g.
+	// the OIDC signing private key) from being read back, overwritten, or
+	// deleted through the generic settings API.
+	ErrProtectedSystemSettingKey = errors.New("system setting is protected and cannot be accessed via this API")
 )
 
 var systemSettingKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_.-]{0,127}$`)
 
+// protectedSettingKeys are auto-generated secrets that must never be exposed or
+// mutated through the generic settings CRUD API. The OIDC signing key is an RSA
+// private key managed by auth-service; leaking it lets an attacker forge
+// id_tokens for any user, and deleting/overwriting it breaks id_token
+// verification across replicas. Keep this list in sync with the owning service.
+var protectedSettingKeys = map[string]bool{
+	"oidc.signing_key": true,
+}
+
+func isProtectedSettingKey(key string) bool {
+	return protectedSettingKeys[key]
+}
+
+// maskedSettingValue is returned in place of a protected setting's real value on
+// list reads, so its existence is visible but its secret contents are not.
+var maskedSettingValue = map[string]any{"protected": true}
+
 func (s *SettingService) ListSettingsContext(ctx context.Context, group string) ([]model.SystemSetting, error) {
-	return s.settingDAO.ListContext(ctx, group)
+	settings, err := s.settingDAO.ListContext(ctx, group)
+	if err != nil {
+		return nil, err
+	}
+	for i := range settings {
+		if isProtectedSettingKey(settings[i].SettingKey) {
+			settings[i].ValueJSON = maskedSettingValue
+		}
+	}
+	return settings, nil
 }
 
 func (s *SettingService) GetSettingContext(ctx context.Context, key string) (*model.SystemSetting, error) {
 	if !isValidSystemSettingKey(key) {
 		return nil, ErrInvalidSystemSettingKey
+	}
+	if isProtectedSettingKey(key) {
+		return nil, ErrProtectedSystemSettingKey
 	}
 	setting, err := s.settingDAO.GetByKeyContext(ctx, key)
 	if err != nil {
@@ -63,6 +96,9 @@ func (s *SettingService) GetSettingContext(ctx context.Context, key string) (*mo
 func (s *SettingService) UpsertSettingContext(ctx context.Context, req UpsertSettingRequest) (*model.SystemSetting, error) {
 	if !isValidSystemSettingKey(req.SettingKey) {
 		return nil, ErrInvalidSystemSettingKey
+	}
+	if isProtectedSettingKey(req.SettingKey) {
+		return nil, ErrProtectedSystemSettingKey
 	}
 	if req.ValueJSON == nil {
 		req.ValueJSON = map[string]any{}
@@ -84,6 +120,9 @@ func (s *SettingService) BatchUpsertSettingsContext(ctx context.Context, req Bat
 		if !isValidSystemSettingKey(item.SettingKey) {
 			return nil, ErrInvalidSystemSettingKey
 		}
+		if isProtectedSettingKey(item.SettingKey) {
+			return nil, ErrProtectedSystemSettingKey
+		}
 		if item.ValueJSON == nil {
 			item.ValueJSON = map[string]any{}
 		}
@@ -104,6 +143,9 @@ func (s *SettingService) BatchUpsertSettingsContext(ctx context.Context, req Bat
 func (s *SettingService) DeleteSettingContext(ctx context.Context, key string) error {
 	if !isValidSystemSettingKey(key) {
 		return ErrInvalidSystemSettingKey
+	}
+	if isProtectedSettingKey(key) {
+		return ErrProtectedSystemSettingKey
 	}
 	if err := s.settingDAO.DeleteContext(ctx, key); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
