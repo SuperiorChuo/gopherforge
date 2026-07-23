@@ -60,6 +60,7 @@ func (a *OAuth2ServerAPI) GetAuthorize(c *gin.Context) {
 		State:               c.Query("state"),
 		CodeChallenge:       c.Query("code_challenge"),
 		CodeChallengeMethod: c.Query("code_challenge_method"),
+		Nonce:               c.Query("nonce"),
 	}
 	view, oerr := a.server.ValidateAuthorizeRequest(c.Request.Context(), req, userID)
 	if oerr != nil {
@@ -85,6 +86,7 @@ func (a *OAuth2ServerAPI) PostAuthorize(c *gin.Context) {
 		State               string `json:"state"`
 		CodeChallenge       string `json:"code_challenge"`
 		CodeChallengeMethod string `json:"code_challenge_method"`
+		Nonce               string `json:"nonce"`
 		Approved            bool   `json:"approved"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -99,6 +101,7 @@ func (a *OAuth2ServerAPI) PostAuthorize(c *gin.Context) {
 		State:               body.State,
 		CodeChallenge:       body.CodeChallenge,
 		CodeChallengeMethod: body.CodeChallengeMethod,
+		Nonce:               body.Nonce,
 	}
 	if !body.Approved {
 		// User denied: hand back the standard access_denied redirect.
@@ -211,4 +214,29 @@ func (a *OAuth2ServerAPI) GetUserInfo(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, claims)
+}
+
+// GetOpenIDConfiguration serves the OIDC discovery document (bare JSON, public).
+func (a *OAuth2ServerAPI) GetOpenIDConfiguration(c *gin.Context) {
+	oidc := a.server.OIDC()
+	if oidc == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "oidc_not_configured"})
+		return
+	}
+	c.JSON(http.StatusOK, oidc.Discovery())
+}
+
+// GetJWKS serves the public JSON Web Key Set for id_token verification (bare JSON, public).
+func (a *OAuth2ServerAPI) GetJWKS(c *gin.Context) {
+	oidc := a.server.OIDC()
+	if oidc == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "oidc_not_configured"})
+		return
+	}
+	jwks, err := oidc.JWKS(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "server_error"})
+		return
+	}
+	c.JSON(http.StatusOK, jwks)
 }

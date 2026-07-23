@@ -63,6 +63,26 @@ func (d *SettingDAO) BatchUpsertContext(ctx context.Context, settings []model.Sy
 		Create(&settings).Error
 }
 
+// CreateIfAbsentContext inserts the setting only when its key does not yet
+// exist (INSERT ... ON CONFLICT DO NOTHING). Returns true when this call
+// actually created the row. Used to converge all replicas onto a single
+// auto-generated value (e.g. the OIDC signing key) without racing overwrites.
+func (d *SettingDAO) CreateIfAbsentContext(ctx context.Context, setting *model.SystemSetting) (bool, error) {
+	if setting.UpdatedAt.IsZero() {
+		setting.UpdatedAt = time.Now()
+	}
+	result := d.dbWithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "setting_key"}},
+			DoNothing: true,
+		}).
+		Create(setting)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected > 0, nil
+}
+
 func (d *SettingDAO) DeleteContext(ctx context.Context, key string) error {
 	result := d.dbWithContext(ctx).Where("setting_key = ?", key).Delete(&model.SystemSetting{})
 	if result.Error != nil {

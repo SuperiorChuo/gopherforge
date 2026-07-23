@@ -36,6 +36,7 @@ export default function OAuth2AuthorizePage() {
         state: params.get('state') ?? '',
         code_challenge: params.get('code_challenge') ?? '',
         code_challenge_method: params.get('code_challenge_method') ?? '',
+        nonce: params.get('nonce') ?? '',
         approved,
       })
       // 跳回第三方应用（可能是外站，用整页跳转而非 SPA 路由）

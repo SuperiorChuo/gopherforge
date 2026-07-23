@@ -40,7 +40,7 @@ func NewOAuth2ClientServiceWithDB(db *gorm.DB) OAuth2ClientService {
 
 // supported scope/grant catalog (M1 static list).
 var (
-	supportedScopes = []string{"profile", "email"}
+	supportedScopes = []string{"openid", "profile", "email"}
 	supportedGrants = []string{model.GrantAuthorizationCode, model.GrantRefreshToken, model.GrantClientCredentials}
 )
 

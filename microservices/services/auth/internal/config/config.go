@@ -61,6 +61,10 @@ type JWTConfig struct {
 	RefreshTokenExpire   int
 	RefreshTokenRotation bool
 	Issuer               string
+	// OIDCIssuerURL is the public base URL clients reach the gateway at. The
+	// OIDC issuer identifier is this + "/api/v1/oauth2"; id_token `iss` and the
+	// discovery document's absolute endpoints derive from it.
+	OIDCIssuerURL string
 }
 
 type CORSConfig struct {
@@ -190,6 +194,7 @@ func Defaults() Config {
 			RefreshTokenExpire:   86400,
 			RefreshTokenRotation: true,
 			Issuer:               "go-admin-kit",
+			OIDCIssuerURL:        "http://localhost:8000",
 		},
 		CORS: CORSConfig{
 			AllowOrigins: []string{
@@ -289,6 +294,7 @@ func applyEnv(config *Config) {
 
 	config.JWT.Secret = getEnvString("JWT_SECRET", config.JWT.Secret)
 	config.JWT.RefreshTokenRotation = getEnvBool("JWT_REFRESH_TOKEN_ROTATION", config.JWT.RefreshTokenRotation)
+	config.JWT.OIDCIssuerURL = getEnvString("OIDC_ISSUER_URL", config.JWT.OIDCIssuerURL)
 
 	config.CORS.AllowOrigins = getEnvStringSlice("CORS_ALLOW_ORIGINS", config.CORS.AllowOrigins)
 	config.CORS.AllowCredentials = getEnvBool("CORS_ALLOW_CREDENTIALS", config.CORS.AllowCredentials)
