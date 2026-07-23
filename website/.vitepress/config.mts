@@ -36,6 +36,7 @@ const zhSidebar = {
       text: '参考',
       items: [
         { text: '生产部署', link: '/reference/deployment' },
+        { text: '数据库表结构', link: '/reference/database' },
         { text: '同类项目对比', link: '/reference/comparison' },
       ],
     },
@@ -74,6 +75,7 @@ const enSidebar = {
       text: 'Reference',
       items: [
         { text: 'Production Deployment', link: '/en/reference/deployment' },
+        { text: 'Database Schema', link: '/en/reference/database' },
         { text: 'Comparison', link: '/en/reference/comparison' },
       ],
     },

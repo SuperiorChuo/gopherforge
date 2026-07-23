@@ -1,6 +1,7 @@
 go 1.26.3
 
 use (
+	./tools/dbdoc
 	./services/shared
 	./services/audit
 	./services/auth
