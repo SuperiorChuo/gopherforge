@@ -1,0 +1,27 @@
+# Alertmanager 配置模板：__NOTIFY_TOKEN__ 由容器启动时 sed 注入
+# （compose entrypoint 从 NOTIFY_INTERNAL_TOKEN env 替换，真实密钥不进 git）。
+# 出口：notify-service 告警端点 → 站内信（notify 侧按 fingerprint+status 去重）。
+route:
+  receiver: notify-webhook
+  # 同名告警聚一组：首报等 30s 攒齐同组，组内新增 5m 一波，未恢复 4h 重复提醒
+  # （重复推送被 notify 侧 24h ref 去重吸收，不会刷屏站内信）。
+  group_by: ["alertname"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: notify-webhook
+    webhook_configs:
+      - url: http://go-admin-kit-notify:8095/api/v1/notify/internal/alerts
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            credentials: __NOTIFY_TOKEN__
+
+inhibit_rules:
+  # 目标已判宕（ServiceDown）时抑制同服务的错误率告警，避免一宕双报。
+  - source_matchers: ['alertname = "ServiceDown"']
+    target_matchers: ['alertname = "ServiceHighErrorRate"']
+    equal: ["service"]

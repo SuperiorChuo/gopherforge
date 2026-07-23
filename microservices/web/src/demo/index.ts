@@ -650,6 +650,20 @@ const routes: Array<[string, RegExp, Handler]> = [
   ['get', /^\/api\/v1\/monitor\/mysql$/, () => mysqlInfo],
   ['get', /^\/api\/v1\/monitor\/redis$/, () => redisInfo],
   ['get', /^\/api\/v1\/monitor\/jobs\/health$/, () => ({ total: jobs.length, enabled: jobs.filter((j) => j.status === 1).length, paused: jobs.filter((j) => j.status !== 1).length, recent_failed: 0, last_run_time: jobs[0].last_run_time, window_hours: 24 })],
+  ['get', /^\/api\/v1\/monitor\/jobs\/heartbeats$/, () => ({ list: [
+    { id: 1, job_key: 'demo.daily_report', service: 'demo-service', description: '每日报表汇总', interval_sec: 86400, last_run_at: now(), last_status: 'ok', last_error: '', last_duration_ms: 1200, runs: 30, fails: 0, stale: false },
+    { id: 2, job_key: 'ops.pg_backup', service: 'ops-cron', description: 'PG 每日全量备份', interval_sec: 86400, last_run_at: now(), last_status: 'ok', last_error: '', last_duration_ms: 8500, runs: 30, fails: 1, stale: false },
+    { id: 3, job_key: 'demo.stale_job', service: 'demo-service', description: '演示：超期未上报的任务', interval_sec: 3600, last_run_at: '2026-07-01T00:00:00+08:00', last_status: 'ok', last_error: '', last_duration_ms: 300, runs: 5, fails: 0, stale: true },
+  ], total: 3 })],
+  ['get', /^\/api\/v1\/monitor\/services$/, () => ({ list: [
+    { name: 'auth', ok: true, http_code: 200, latency_ms: 12 },
+    { name: 'identity', ok: true, http_code: 200, latency_ms: 18 },
+    { name: 'system', ok: true, http_code: 200, latency_ms: 9 },
+    { name: 'audit', ok: true, http_code: 200, latency_ms: 15 },
+    { name: 'file', ok: true, http_code: 200, latency_ms: 22 },
+    { name: 'bpm', ok: true, http_code: 200, latency_ms: 25 },
+    { name: 'monitor', ok: true, http_code: 200, latency_ms: 6 },
+  ], total: 7, healthy: 7, checked_at: now() })],
   ['get', /^\/api\/v1\/monitor\/jobs$/, (_m, _b, q) => paged(jobs, q)],
   ['post', /^\/api\/v1\/monitor\/jobs\/(\d+)\/(start|stop)$/, (m) => {
     const j = jobs.find((x) => x.id === Number(m[1]))

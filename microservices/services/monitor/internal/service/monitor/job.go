@@ -473,3 +473,43 @@ func validateCronExpression(expression string) error {
 	}
 	return nil
 }
+
+// ---- distributed job heartbeats (task center M1) ----
+
+// JobHeartbeatView is a heartbeat row plus the aggregation-side staleness flag.
+type JobHeartbeatView struct {
+	model.OpsJobHeartbeat
+	// Stale means the job missed its schedule: interval_sec > 0 and
+	// now - last_run_at > 2*interval (one-cycle jitter tolerated).
+	Stale bool `json:"stale"`
+}
+
+// heartbeatLister is an optional dao capability (fake daos compile without it
+// and the service degrades to an empty list).
+type heartbeatLister interface {
+	ListHeartbeatsContext(ctx context.Context) ([]model.OpsJobHeartbeat, error)
+}
+
+// ListJobHeartbeatsContext lists distributed job heartbeats with staleness
+// computed. Returns an empty list when the dao lacks the capability (test
+// fakes, no-DB degradation).
+func (s *JobService) ListJobHeartbeatsContext(ctx context.Context) ([]JobHeartbeatView, error) {
+	hl, ok := s.dao.(heartbeatLister)
+	if !ok {
+		return []JobHeartbeatView{}, nil
+	}
+	rows, err := hl.ListHeartbeatsContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	out := make([]JobHeartbeatView, 0, len(rows))
+	for _, r := range rows {
+		v := JobHeartbeatView{OpsJobHeartbeat: r}
+		if r.IntervalSec > 0 && now.Sub(r.LastRunAt) > 2*time.Duration(r.IntervalSec)*time.Second {
+			v.Stale = true
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}

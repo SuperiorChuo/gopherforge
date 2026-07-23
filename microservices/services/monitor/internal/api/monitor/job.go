@@ -240,3 +240,15 @@ func (a *JobAPI) handleError(c *gin.Context, err error) {
 		internalServerError(c, "failed to process scheduled job request", err)
 	}
 }
+
+// GetJobHeartbeats returns distributed job heartbeats: last-run status of
+// in-process loops across services and host shell crons; stale means the job
+// missed its expected schedule.
+func (a *JobAPI) GetJobHeartbeats(c *gin.Context) {
+	list, err := a.service.ListJobHeartbeatsContext(c.Request.Context())
+	if err != nil {
+		a.handleError(c, err)
+		return
+	}
+	response.Success(c, gin.H{"list": list, "total": len(list)})
+}

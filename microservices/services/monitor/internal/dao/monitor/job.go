@@ -159,3 +159,11 @@ func (d *JobDAO) GetLatestJobLogContext(ctx context.Context, jobID uint) (*model
 		First(&log).Error
 	return &log, err
 }
+
+// ListHeartbeatsContext lists all distributed job heartbeats (task center;
+// row count equals the number of jobs, tens at most).
+func (d *JobDAO) ListHeartbeatsContext(ctx context.Context) ([]model.OpsJobHeartbeat, error) {
+	var list []model.OpsJobHeartbeat
+	err := d.dbWithContext(ctx).Order("service ASC, job_key ASC").Find(&list).Error
+	return list, err
+}

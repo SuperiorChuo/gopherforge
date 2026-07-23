@@ -14,6 +14,7 @@ import {
   getJobList, createJob, updateJob, deleteJob,
   startJob, stopJob, runJob, cleanupJobLogs,
   getJobHealth, type JobHealth,
+  getJobHeartbeats, type JobHeartbeat,
 } from '@/api/monitor'
 import TableToolbar from '@/components/TableToolbar'
 import StatusPill from '@/components/StatusPill'
@@ -372,6 +373,113 @@ export default function JobPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <HeartbeatsCard />
     </div>
+  )
+}
+
+// 服务任务心跳：monitor 进程外的分布式任务（各服务内循环 + 主机 shell cron）
+// 最近运行状态。stale（超期未上报）标红——静默停摆在这里现形。
+function HeartbeatsCard() {
+  const [list, setList] = useState<JobHeartbeat[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await getJobHeartbeats()
+      setList(res.list ?? [])
+    } catch {
+      message.error('获取任务心跳失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void load() }, [load])
+
+  const fmtInterval = (sec: number) => {
+    if (!sec) return '—'
+    if (sec % 86400 === 0) return `${sec / 86400} 天`
+    if (sec % 3600 === 0) return `${sec / 3600} 小时`
+    if (sec % 60 === 0) return `${sec / 60} 分钟`
+    return `${sec} 秒`
+  }
+
+  const columns: ColumnsType<JobHeartbeat> = [
+    {
+      title: '任务',
+      dataIndex: 'job_key',
+      width: 200,
+      render: (v: string, r) => (
+        <Space direction="vertical" size={0}>
+          <span className="cell-mono">{v}</span>
+          <span className="cell-dim" style={{ fontSize: 12 }}>{r.description}</span>
+        </Space>
+      ),
+    },
+    {
+      title: '来源',
+      dataIndex: 'service',
+      width: 120,
+      render: (v: string) => <Tag variant="filled">{v}</Tag>,
+    },
+    { title: '期望间隔', dataIndex: 'interval_sec', width: 100, render: fmtInterval },
+    {
+      title: '上次运行',
+      dataIndex: 'last_run_at',
+      width: 170,
+      className: 'cell-time',
+      render: formatDateTime,
+    },
+    {
+      title: '状态',
+      key: 'beat_status',
+      width: 130,
+      render: (_, r) =>
+        r.stale ? (
+          <StatusPill tone="danger" label="超期未上报" />
+        ) : r.last_status === 'error' ? (
+          <StatusPill tone="danger" label="上次失败" />
+        ) : (
+          <StatusPill tone="success" label="正常" />
+        ),
+    },
+    {
+      title: '累计（失败/总数）',
+      key: 'beat_runs',
+      width: 140,
+      render: (_, r) => (
+        <span className="cell-mono">
+          {r.fails > 0 ? <span style={{ color: '#cf1322' }}>{r.fails}</span> : 0} / {r.runs}
+        </span>
+      ),
+    },
+    {
+      title: '最近错误',
+      dataIndex: 'last_error',
+      ellipsis: true,
+      render: (v: string) => v || <span className="cell-dim">—</span>,
+    },
+  ]
+
+  return (
+    <Card className="list-main-card" bordered={false} style={{ marginTop: 16 }}>
+      <TableToolbar
+        title="服务任务心跳"
+        total={list.length}
+        extra={<Button icon={<ReloadOutlined />} onClick={() => void load()}>刷新</Button>}
+      />
+      <Table
+        rowKey="job_key"
+        className="list-table"
+        columns={columns}
+        dataSource={list}
+        loading={loading}
+        pagination={false}
+        locale={{ emptyText: <GlassEmpty text="暂无任务心跳（各服务后台循环运行后自动上报）" compact /> }}
+      />
+    </Card>
   )
 }

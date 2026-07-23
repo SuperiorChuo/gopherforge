@@ -8,9 +8,10 @@ import {
   CloudServerOutlined,
   CodeOutlined,
 } from '@ant-design/icons'
-import { getServerInfo } from '@/api/monitor'
+import { getServerInfo, getServicesHealth, type ServiceHealthRow } from '@/api/monitor'
 import { formatBytes } from '@/utils/format'
 import MonitorGaugeCard from '@/components/MonitorGaugeCard'
+import { Tag, Tooltip } from 'antd'
 
 export default function ServerMonitorPage() {
   const [data, setData] = useState<Record<string, unknown>>({})
@@ -58,6 +59,8 @@ export default function ServerMonitorPage() {
           </Button>
         </Space>
       </div>
+
+      <ServicesHealthCard />
 
       <Row gutter={[20, 20]}>
         <Col xs={24} sm={8}>
@@ -129,5 +132,60 @@ export default function ServerMonitorPage() {
         </Col>
       </Row>
     </Spin>
+  )
+}
+
+// 微服务健康总览：并发探测 15 个服务 ready，不健康的排最前。10 秒随页自刷。
+function ServicesHealthCard() {
+  const [rows, setRows] = useState<ServiceHealthRow[]>([])
+  const [healthy, setHealthy] = useState(0)
+
+  const load = useCallback(async () => {
+    try {
+      const res = await getServicesHealth()
+      setRows(res.list ?? [])
+      setHealthy(res.healthy ?? 0)
+    } catch {
+      // 探测失败保留上一轮
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+    const timer = setInterval(load, 10000)
+    return () => clearInterval(timer)
+  }, [load])
+
+  const allUp = rows.length > 0 && healthy === rows.length
+  return (
+    <Card
+      className="glass-rise"
+      style={{ marginBottom: 20 }}
+      title={
+        <Space>
+          <CloudServerOutlined className="card-title-icon" /> 微服务健康
+          {rows.length > 0 && (
+            <Tag color={allUp ? 'green' : 'red'} variant="filled">{healthy}/{rows.length}</Tag>
+          )}
+        </Space>
+      }
+    >
+      <Space size={[8, 8]} wrap>
+        {rows.map((r) => (
+          <Tooltip
+            key={r.name}
+            title={r.ok ? `ready · ${r.latency_ms}ms` : r.error || `HTTP ${r.http_code}`}
+          >
+            <Tag
+              color={r.ok ? 'green' : 'red'}
+              variant={r.ok ? 'outlined' : 'filled'}
+              style={{ marginInlineEnd: 0, cursor: 'default' }}
+            >
+              {r.name}{r.ok ? '' : ' ✕'}
+            </Tag>
+          </Tooltip>
+        ))}
+      </Space>
+    </Card>
   )
 }

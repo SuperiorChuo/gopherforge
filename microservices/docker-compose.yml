@@ -516,10 +516,48 @@ services:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ../platform/deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../platform/deploy/prometheus/rules:/etc/prometheus/rules:ro
       - go_admin_kit_prometheus_data:/prometheus
     depends_on:
       monitor-service:
         condition: service_started
+    networks:
+      - go-admin-kit-net
+
+  # 告警出口（告警闭环）：Prometheus 规则 → 本容器分组去抖 → notify webhook
+  # 站内信。配置是模板：启动时 sed 把 NOTIFY_INTERNAL_TOKEN 注入 Bearer 凭据。
+  # 脚手架未启 notify-service 时投递失败仅记日志，不影响其余组件。
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: go-admin-kit-alertmanager
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    environment:
+      NOTIFY_INTERNAL_TOKEN: ${NOTIFY_INTERNAL_TOKEN:-dev-notify-internal-token}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - sed "s|__NOTIFY_TOKEN__|$$NOTIFY_INTERNAL_TOKEN|" /etc/alertmanager/alertmanager.tpl.yml > /tmp/alertmanager.yml && exec /bin/alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/alertmanager
+    ports:
+      - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ../platform/deploy/alertmanager/alertmanager.tpl.yml:/etc/alertmanager/alertmanager.tpl.yml:ro
+      - go_admin_kit_alertmanager_data:/alertmanager
+    networks:
+      - go-admin-kit-net
+
+  # 主机指标（磁盘/内存/CPU）：挂宿主根只读
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: go-admin-kit-node-exporter
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    pid: host
+    command:
+      - --path.rootfs=/host
+    volumes:
+      - /:/host:ro,rslave
     networks:
       - go-admin-kit-net
 
@@ -594,4 +632,5 @@ networks:
 volumes:
   go_admin_kit_uploads:
   go_admin_kit_prometheus_data:
+  go_admin_kit_alertmanager_data:
   go_admin_kit_grafana_data:

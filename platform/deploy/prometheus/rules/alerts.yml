@@ -1,0 +1,51 @@
+# 运维告警规则（告警闭环②）：触发 → Alertmanager 分组去抖 → notify webhook 站内信。
+# 阈值按内网单机开发环境定，生产按量调。severity: critical=影响服务, warning=需关注。
+groups:
+  - name: availability
+    rules:
+      # 任何抓取目标掉线（业务服务副本 / monitor / fscc control-api / node）。
+      # Swarm 滚动更新期间副本短暂消失属正常，for 3m 吸收。
+      - alert: ServiceDown
+        expr: up == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "监控目标掉线：{{ $labels.job }}/{{ $labels.service }}{{ $labels.instance }}"
+          description: "Prometheus 连续 3 分钟抓不到该目标，服务可能已宕或网络不通。"
+
+  - name: host
+    rules:
+      # 磁盘可用低于 15%：录音/备份最容易吃满盘。
+      - alert: HostDiskSpaceLow
+        expr: >
+          (node_filesystem_avail_bytes{fstype=~"ext4|xfs|btrfs"} /
+           node_filesystem_size_bytes{fstype=~"ext4|xfs|btrfs"}) < 0.15
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "磁盘空间不足：{{ $labels.mountpoint }} 剩 {{ $value | humanizePercentage }}"
+          description: "先查录音盘与备份目录（disk-cleanup/pg-backup 保留期），必要时扩容。"
+
+      # 内存持续高位（>92% 十分钟）。
+      - alert: HostMemoryHigh
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.92
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "主机内存高位：已用 {{ $value | humanizePercentage }}"
+          description: "持续 10 分钟高于 92%，检查异常容器（docker stats）。"
+
+  - name: errors
+    rules:
+      # 某服务 5 分钟内 5xx/框架错误超 30 次（shared/pkg/metrics 计数器）。
+      - alert: ServiceHighErrorRate
+        expr: increase(go_admin_kit_http_request_errors_total[5m]) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "服务错误陡增：{{ $labels.service }} 5 分钟内 {{ $value | printf \"%.0f\" }} 个 5xx"
+          description: "查该服务容器日志与 Grafana 服务概览（错误率/P95）。"
