@@ -160,6 +160,12 @@ func (s *Server) applyEffects(eff *engine.Effects) {
 	for i := range eff.CcRecords {
 		s.notifyCc(inst, &eff.CcRecords[i])
 	}
+	for i := range eff.DelegatedTasks {
+		s.notifyTaskDelegated(inst, &eff.DelegatedTasks[i])
+	}
+	for i := range eff.DelegateResolvedTasks {
+		s.notifyDelegateResolved(inst, &eff.DelegateResolvedTasks[i])
+	}
 	if eff.FinalResult != "" {
 		s.notifyResult(inst, eff.ResultText)
 		if s.Callback != nil {
@@ -205,6 +211,59 @@ func (s *Server) notifyTaskAssigned(inst *model.ProcessInstance, t *model.Task) 
 		Link:    "/bpm/todo?taskId=" + taskID,
 	}
 	s.sendNotify(in, "task-assigned")
+}
+
+// notifyTaskDelegated 委派站内信发受托人（模板 bpm.task_delegated）。
+func (s *Server) notifyTaskDelegated(inst *model.ProcessInstance, t *model.Task) {
+	if s.Notify == nil || !s.Notify.Enabled() {
+		return
+	}
+	taskID := strconv.FormatUint(t.ID, 10)
+	in := notifyclient.SendInput{
+		TenantID:     inst.TenantID,
+		UserID:       t.AssigneeID,
+		TemplateCode: "bpm.task_delegated",
+		Type:         "bpm",
+		RefType:      "bpm_task",
+		RefID:        taskID,
+		Vars: map[string]string{
+			"instance_title": inst.Title,
+			"node_name":      t.NodeName,
+			"from_user_id":   strconv.FormatUint(t.DelegatedBy, 10),
+			"task_id":        taskID,
+		},
+		Title:   "审批委派：" + inst.Title,
+		Content: "节点「" + t.NodeName + "」的任务委派给你办理",
+		Link:    "/bpm/todo?taskId=" + taskID,
+	}
+	s.sendNotify(in, "task-delegated")
+}
+
+// notifyDelegateResolved 委派办结站内信发回原处理人（模板
+// bpm.task_delegate_resolved；此时任务 assignee 已还原为委派人）。
+func (s *Server) notifyDelegateResolved(inst *model.ProcessInstance, t *model.Task) {
+	if s.Notify == nil || !s.Notify.Enabled() {
+		return
+	}
+	taskID := strconv.FormatUint(t.ID, 10)
+	in := notifyclient.SendInput{
+		TenantID:     inst.TenantID,
+		UserID:       t.AssigneeID,
+		TemplateCode: "bpm.task_delegate_resolved",
+		Type:         "bpm",
+		RefType:      "bpm_task",
+		RefID:        taskID,
+		Vars: map[string]string{
+			"instance_title": inst.Title,
+			"node_name":      t.NodeName,
+			"from_user_id":   strconv.FormatUint(t.DelegateResolvedBy, 10),
+			"task_id":        taskID,
+		},
+		Title:   "委派办结：" + inst.Title,
+		Content: "节点「" + t.NodeName + "」受托人已办理完成，任务已回到你名下，请继续审批",
+		Link:    "/bpm/todo?taskId=" + taskID,
+	}
+	s.sendNotify(in, "delegate-resolved")
 }
 
 // notifyCc 抄送站内信（模板 bpm.cc）。

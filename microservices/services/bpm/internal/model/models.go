@@ -160,6 +160,12 @@ type Task struct {
 	AssigneeID uint64 `gorm:"not null;index:ix_bpm_task_todo,priority:2" json:"assignee_id"`
 	// OriginAssignee 最近一次转办的转出人（0=未转办）；已办列表据此让原人可见
 	OriginAssignee uint64 `gorm:"not null;default:0;index" json:"origin_assignee,omitempty"`
+	// AddSignBy 加签发起人（0=非加签产生的任务）
+	AddSignBy uint64 `gorm:"not null;default:0" json:"add_sign_by,omitempty"`
+	// DelegatedBy 委派人（非 0=委派办理中，assignee 为受托人；办结后清零）
+	DelegatedBy uint64 `gorm:"not null;default:0;index" json:"delegated_by,omitempty"`
+	// DelegateResolvedBy 最近一次委派办结的受托人；已办列表/可见性据此让受托人可见
+	DelegateResolvedBy uint64 `gorm:"not null;default:0;index" json:"delegate_resolved_by,omitempty"`
 	// MultiMode 冗余自节点（AND|OR|SEQ），便于收敛判定与查询
 	MultiMode string `gorm:"size:8;not null;default:OR" json:"multi_mode"`
 	// SeqOrder SEQ 模式下的顺位（M3 启用）
@@ -217,6 +223,10 @@ const (
 	// 收官项：超时自动动作（operator=0 系统）
 	ActionTimeoutPass   = "timeout_pass"
 	ActionTimeoutReject = "timeout_reject"
+	// M3+：加签 / 委派 / 委派办结
+	ActionAddSign         = "add_sign"
+	ActionDelegate        = "delegate"
+	ActionDelegateResolve = "delegate_resolve"
 )
 
 type ProcessLog struct {

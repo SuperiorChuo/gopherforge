@@ -131,8 +131,18 @@ export default function BpmInstanceTimeline({
     const nodeName = log.node_name || (log.node_id ? nodeNames[log.node_id] : '')
     const comment =
       log.detail && typeof log.detail.comment === 'string' ? log.detail.comment : ''
-    // 转办（M2）：detail.target_user_id 为新处理人；operator 为原处理人
-    const transferTarget = log.action === 'transfer' ? detailNumber(log.detail, 'target_user_id') : undefined
+    // 转办（M2）/ 委派 / 委派办结（M3+）：detail.target_user_id 为任务去向人，
+    // operator 为动作发出人（办结时渲染「受托人 → 委派人」，语义正确）
+    const transferTarget = ['transfer', 'delegate', 'delegate_resolve'].includes(log.action)
+      ? detailNumber(log.detail, 'target_user_id')
+      : undefined
+    // 加签（M3+）：detail.target_user_ids 为新增审批人列表
+    const addSignTargets =
+      log.action === 'add_sign' && Array.isArray(log.detail?.target_user_ids)
+        ? (log.detail!.target_user_ids as unknown[])
+            .map((v) => (typeof v === 'number' ? v : Number(v)))
+            .filter((v) => Number.isFinite(v))
+        : []
     return {
       color: meta.color,
       children: (
@@ -149,6 +159,13 @@ export default function BpmInstanceTimeline({
             <div style={{ marginTop: 2 }}>
               <Text type="secondary">
                 {displayUserName(userMap, log.operator_id)} → {displayUserName(userMap, transferTarget)}
+              </Text>
+            </div>
+          ) : null}
+          {addSignTargets.length > 0 ? (
+            <div style={{ marginTop: 2 }}>
+              <Text type="secondary">
+                加签给：{addSignTargets.map((uid) => displayUserName(userMap, uid)).join('、')}
               </Text>
             </div>
           ) : null}

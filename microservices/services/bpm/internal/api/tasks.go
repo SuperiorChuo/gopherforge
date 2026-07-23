@@ -1,7 +1,7 @@
 package api
 
-// 任务端 handler：待办 / 已办 / 任务详情 / 同意 / 拒绝 / 转办 / 退回（M2）。
-// 任务动作只校验 assignee 身份，不设权限码（设计文档 Q6 建议）。
+// 任务端 handler：待办 / 已办 / 任务详情 / 同意 / 拒绝 / 转办 / 退回（M2）/
+// 加签 / 委派（M3+）。任务动作只校验 assignee 身份，不设权限码（设计文档 Q6 建议）。
 
 import (
 	"encoding/json"
@@ -105,12 +105,17 @@ func filterSnapshot(raw model.JSONB, perms map[string]string) model.JSONB {
 }
 
 // taskActions 当前用户对任务可用的动作列表（前端契约：approve / reject /
-// transfer / return_start / return_prev / resubmit，勿改动作名）。
+// transfer / return_start / return_prev / resubmit / add_sign / delegate /
+// delegate_resolve，勿改动作名）。
 func (s *Server) taskActions(t *model.Task, inst *model.ProcessInstance, userID uint64) []string {
 	actions := []string{}
 	if t.AssigneeID != userID || t.Status != model.TaskPending ||
 		inst.Status != model.InstRunning {
 		return actions
+	}
+	if t.DelegatedBy != 0 {
+		// 委派办理中：受托人只能办理完成（不依赖 schema 解析）
+		return []string{"delegate_resolve"}
 	}
 	sc, err := s.Store.InstanceSchema(inst)
 	if err != nil {
@@ -122,7 +127,11 @@ func (s *Server) taskActions(t *model.Task, inst *model.ProcessInstance, userID 
 		// 被退回后的"重新提交"任务：发起人走重提（或实例撤销）
 		return []string{"resubmit"}
 	}
-	actions = append(actions, "approve", "reject", "transfer", "return_start")
+	actions = append(actions, "approve", "reject", "transfer", "return_start", "delegate")
+	// 加签仅审批节点且非依次模式（SEQ 顺位语义与并加签冲突）
+	if node != nil && node.Type == flow.TypeApproval && node.EffectiveMultiMode() != flow.MultiSeq {
+		actions = append(actions, "add_sign")
+	}
 	// return_prev 可用性按执行路径判定（M3）：本实例存在当前节点之外的
 	// 历史审批任务（与引擎 prevApprovalNode 同口径的存在性探测）
 	if node != nil && node.AllowBackPrev && sc.Start != nil &&
@@ -221,6 +230,98 @@ func (s *Server) TransferTask(c *gin.Context) {
 	ok(c, gin.H{
 		"task_id":         id,
 		"target_user_id":  req.TargetUserID,
+		"instance_id":     eff.Instance.ID,
+		"instance_status": eff.Instance.Status,
+	})
+}
+
+// ---------- M3+：加签 / 委派 ----------
+
+type addSignReq struct {
+	UserIDs []uint64 `json:"user_ids"`
+	Comment string   `json:"comment"`
+}
+
+// AddSignTask handles POST /api/v1/bpm/tasks/:id/add-sign
+func (s *Server) AddSignTask(c *gin.Context) {
+	u, authed := s.requireUser(c)
+	if !authed {
+		return
+	}
+	id, valid := pathID(c, "id")
+	if !valid {
+		return
+	}
+	var req addSignReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		fail(c, http.StatusBadRequest, "invalid body")
+		return
+	}
+	eff, err := s.Engine.AddSign(u.TenantID, id, u.UserID, req.UserIDs, req.Comment)
+	if err != nil {
+		fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.applyEffects(eff)
+	ok(c, gin.H{
+		"task_id":         id,
+		"instance_id":     eff.Instance.ID,
+		"instance_status": eff.Instance.Status,
+	})
+}
+
+// DelegateTask handles POST /api/v1/bpm/tasks/:id/delegate
+func (s *Server) DelegateTask(c *gin.Context) {
+	u, authed := s.requireUser(c)
+	if !authed {
+		return
+	}
+	id, valid := pathID(c, "id")
+	if !valid {
+		return
+	}
+	var req transferReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		fail(c, http.StatusBadRequest, "invalid body")
+		return
+	}
+	eff, err := s.Engine.Delegate(u.TenantID, id, u.UserID, req.TargetUserID, req.Comment)
+	if err != nil {
+		fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.applyEffects(eff)
+	ok(c, gin.H{
+		"task_id":         id,
+		"target_user_id":  req.TargetUserID,
+		"instance_id":     eff.Instance.ID,
+		"instance_status": eff.Instance.Status,
+	})
+}
+
+// ResolveDelegateTask handles POST /api/v1/bpm/tasks/:id/delegate/resolve
+func (s *Server) ResolveDelegateTask(c *gin.Context) {
+	u, authed := s.requireUser(c)
+	if !authed {
+		return
+	}
+	id, valid := pathID(c, "id")
+	if !valid {
+		return
+	}
+	var req actReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		fail(c, http.StatusBadRequest, "comment 必填")
+		return
+	}
+	eff, err := s.Engine.ResolveDelegate(u.TenantID, id, u.UserID, req.Comment)
+	if err != nil {
+		fail(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.applyEffects(eff)
+	ok(c, gin.H{
+		"task_id":         id,
 		"instance_id":     eff.Instance.ID,
 		"instance_status": eff.Instance.Status,
 	})

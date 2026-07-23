@@ -1,16 +1,22 @@
 import { useMemo, useState } from 'react'
 import { Button, Form, Input, Modal, Radio, Select, Space } from 'antd'
 import {
+  CheckCircleOutlined,
   CheckOutlined,
   CloseOutlined,
   EditOutlined,
   SwapOutlined,
   UndoOutlined,
+  UsergroupAddOutlined,
+  UserSwitchOutlined,
 } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
 import {
+  addSignTask,
   approveTask,
+  delegateTask,
   rejectTask,
+  resolveDelegateTask,
   returnTask,
   transferTask,
   type BpmTask,
@@ -22,13 +28,23 @@ import { useUserNameMap } from '@/hooks/useUserNameMap'
 // 服务端仍是权威校验方，越权动作会被拒绝并由拦截器提示。
 const FALLBACK_ACTIONS = ['approve', 'reject', 'transfer', 'return_start']
 
-type ModalMode = 'approve' | 'reject' | 'transfer' | 'return'
+type ModalMode =
+  | 'approve'
+  | 'reject'
+  | 'transfer'
+  | 'return'
+  | 'add_sign'
+  | 'delegate'
+  | 'delegate_resolve'
 
 /**
  * 审批任务动作条（待办行 / 任务详情动作区 / 实例详情复用同一份，含弹窗）。
- * 按任务详情返回的动作列表动态渲染：approve/reject/transfer/return_start/return_prev/resubmit。
+ * 按任务详情返回的动作列表动态渲染：approve/reject/transfer/return_start/
+ * return_prev/resubmit/add_sign/delegate/delegate_resolve。
  * - 转办：选人（复用现有用户映射数据源）+ 意见选填
  * - 退回：退回到发起人/上一节点（return_prev 仅当动作列表含它时显示）+ 意见必填
+ * - 加签：多选审批人（同节点同轮次并列参与收敛）+ 意见选填
+ * - 委派：选人办理，办结后回到本人；办理完成意见必填
  * - 重新提交：复用 BpmResubmitModal（含撤销流程入口）
  */
 interface BpmTaskActionsProps {
@@ -87,6 +103,15 @@ export default function BpmTaskActions({
       } else if (modal === 'transfer') {
         await transferTask(task.id, values.target_user_id, values.comment)
         message.success('已转办，新处理人将收到待办通知')
+      } else if (modal === 'add_sign') {
+        await addSignTask(task.id, values.user_ids, values.comment)
+        message.success('已加签，新审批人将收到待办通知')
+      } else if (modal === 'delegate') {
+        await delegateTask(task.id, values.target_user_id, values.comment)
+        message.success('已委派，受托人办结后任务将回到你名下')
+      } else if (modal === 'delegate_resolve') {
+        await resolveDelegateTask(task.id, values.comment)
+        message.success('已办结，任务已回到原处理人')
       } else {
         await returnTask(task.id, values.to, values.comment)
         message.success(values.to === 'start' ? '已退回发起人' : '已退回上一节点')
@@ -106,7 +131,11 @@ export default function BpmTaskActions({
     reject: '拒绝',
     transfer: '转办',
     return: '退回',
+    add_sign: '加签',
+    delegate: '委派',
+    delegate_resolve: '办理完成',
   }
+  const commentRequired = modal === 'reject' || modal === 'return' || modal === 'delegate_resolve'
 
   return (
     <>
@@ -121,9 +150,29 @@ export default function BpmTaskActions({
             拒绝
           </Button>
         )}
+        {acts.includes('delegate_resolve') && (
+          <Button
+            type={buttonType === 'link' ? 'link' : 'primary'}
+            size={size}
+            icon={<CheckCircleOutlined />}
+            onClick={() => openModal('delegate_resolve')}
+          >
+            办理完成
+          </Button>
+        )}
         {acts.includes('transfer') && (
           <Button type={buttonType} size={size} icon={<SwapOutlined />} onClick={() => openModal('transfer')}>
             转办
+          </Button>
+        )}
+        {acts.includes('add_sign') && (
+          <Button type={buttonType} size={size} icon={<UsergroupAddOutlined />} onClick={() => openModal('add_sign')}>
+            加签
+          </Button>
+        )}
+        {acts.includes('delegate') && (
+          <Button type={buttonType} size={size} icon={<UserSwitchOutlined />} onClick={() => openModal('delegate')}>
+            委派
           </Button>
         )}
         {(canReturnStart || canReturnPrev) && (
@@ -168,6 +217,35 @@ export default function BpmTaskActions({
               />
             </Form.Item>
           )}
+          {modal === 'add_sign' && (
+            <Form.Item
+              name="user_ids"
+              label="加签给"
+              rules={[{ required: true, message: '请选择加签审批人' }]}
+            >
+              <Select
+                mode="multiple"
+                showSearch
+                optionFilterProp="label"
+                placeholder="选择审批人（与你并列参与本节点审批）"
+                options={userOptions}
+              />
+            </Form.Item>
+          )}
+          {modal === 'delegate' && (
+            <Form.Item
+              name="target_user_id"
+              label="委派给"
+              rules={[{ required: true, message: '请选择委派目标用户' }]}
+            >
+              <Select
+                showSearch
+                optionFilterProp="label"
+                placeholder="选择用户（其办结后任务回到你名下，由你做审批决定）"
+                options={userOptions}
+              />
+            </Form.Item>
+          )}
           {modal === 'return' && (
             <Form.Item name="to" label="退回到" rules={[{ required: true, message: '请选择退回目标' }]}>
               <Radio.Group
@@ -182,13 +260,28 @@ export default function BpmTaskActions({
           )}
           <Form.Item
             name="comment"
-            label={modal === 'transfer' ? '转办说明' : '审批意见'}
+            label={
+              modal === 'transfer'
+                ? '转办说明'
+                : modal === 'add_sign'
+                  ? '加签说明'
+                  : modal === 'delegate'
+                    ? '委派说明'
+                    : modal === 'delegate_resolve'
+                      ? '办理意见'
+                      : '审批意见'
+            }
             rules={
-              modal === 'reject' || modal === 'return'
+              commentRequired
                 ? [
                     {
                       required: true,
-                      message: modal === 'return' ? '退回时必须填写意见' : '拒绝时必须填写审批意见',
+                      message:
+                        modal === 'return'
+                          ? '退回时必须填写意见'
+                          : modal === 'delegate_resolve'
+                            ? '办理完成必须填写意见'
+                            : '拒绝时必须填写审批意见',
                     },
                   ]
                 : []
@@ -202,7 +295,9 @@ export default function BpmTaskActions({
                   ? '请说明拒绝原因（必填）'
                   : modal === 'return'
                     ? '请说明退回原因（必填）'
-                    : '可选'
+                    : modal === 'delegate_resolve'
+                      ? '请填写办理情况（必填，将展示在流程时间线）'
+                      : '可选'
               }
             />
           </Form.Item>

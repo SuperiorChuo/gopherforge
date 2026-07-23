@@ -135,8 +135,14 @@ export default function BpmTasksPage() {
   const nodeColumn: ColumnsType<BpmTask>[number] = {
     title: '节点',
     dataIndex: 'node_name',
-    width: 160,
-    render: (v: string) => <Tag>{v || '-'}</Tag>,
+    width: 200,
+    render: (v: string, row) => (
+      <Space size={4} wrap>
+        <Tag>{v || '-'}</Tag>
+        {row.delegated_by ? <Tag color="geekblue">委派办理</Tag> : null}
+        {row.add_sign_by ? <Tag color="purple">加签</Tag> : null}
+      </Space>
+    ),
   }
 
   const todoColumns: ColumnsType<BpmTask> = [
