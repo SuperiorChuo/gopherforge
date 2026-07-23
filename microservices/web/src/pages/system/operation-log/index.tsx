@@ -71,8 +71,13 @@ export default function OperationLogPage() {
   const [clearForm] = Form.useForm()
   const { hasPerm } = usePermission()
 
-  useEffect(() => {
+  const loadStats = () => {
     getOperationLogStats().then(setStats).catch(() => setStats(null))
+  }
+
+  useEffect(() => {
+    loadStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchList = async (p: SearchParams) => {
@@ -147,6 +152,8 @@ export default function OperationLogPage() {
       message.success(`清理成功，共删除 ${res.deleted_count} 条日志`)
       setClearOpen(false)
       fetchList({ ...params, page: 1 })
+      // 顶部统计与列表同屏，清完必须一起刷新，否则两块数据互相矛盾
+      loadStats()
     } catch {
       message.error('清理失败')
     } finally {
@@ -257,7 +264,15 @@ export default function OperationLogPage() {
           layout="inline"
           className="list-filter-form"
           onFinish={handleSearch}
-          initialValues={params}
+          initialValues={{
+            ...params,
+            // URL 里存 start_time/end_time 字符串,表单字段是 dateRange——
+            // 不反解的话刷新后时间过滤仍生效但选择器显示为空
+            dateRange:
+              params.start_time && params.end_time
+                ? [dayjs(params.start_time), dayjs(params.end_time)]
+                : undefined,
+          }}
         >
           <Form.Item name="username">
             <Input placeholder="搜索用户名" prefix={<SearchOutlined />} allowClear style={{ width: 200 }} />
@@ -332,7 +347,7 @@ export default function OperationLogPage() {
         title="请求诊断"
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        width={720}
+        width="min(720px, 100vw)"
         destroyOnHidden
       >
         {detail && (

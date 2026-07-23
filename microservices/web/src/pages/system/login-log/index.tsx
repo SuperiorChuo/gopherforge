@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Table, Button, Space, Tag, Card, Input, Select, Form, DatePicker, Modal, InputNumber, Tooltip,
+  Table, Button, Space, Tag, Card, Input, Select, Form, DatePicker, Modal, InputNumber, Tooltip, Segmented, Skeleton,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import { SearchOutlined, ReloadOutlined, ClearOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { LoginLog } from '@/types'
-import { getLoginLogList, clearLoginLogs, getLoginStats, type LoginLogStats } from '@/api/system/log'
+import { getLoginLogList, clearLoginLogs, getLoginStats, getLoginGeoDistribution, type LoginLogStats, type LoginGeoItem } from '@/api/system/log'
+import GeoMap, { type GeoMapPoint } from '@/components/GeoMap'
+import { resolveGeoPoint, resolveProvinceShort } from '@/utils/chinaGeo'
 import TableToolbar from '@/components/TableToolbar'
 import CountUpValue from '@/components/CountUpValue'
 import StatusPill from '@/components/StatusPill'
@@ -39,6 +41,11 @@ export default function LoginLogPage() {
   const [clearOpen, setClearOpen] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [stats, setStats] = useState<LoginLogStats | null>(null)
+  const [geoDays, setGeoDays] = useState(7)
+  const [geoData, setGeoData] = useState<LoginGeoItem[] | null>(null)
+  const [geoLoading, setGeoLoading] = useState(true)
+  // 刷新失败保留上一窗口数据，避免整卡连切换器一起消失、用户失去重试入口
+  const geoFailedRef = useRef(false)
   const [searchForm] = Form.useForm()
   const [clearForm] = Form.useForm()
   const { hasPerm } = usePermission()
@@ -46,6 +53,72 @@ export default function LoginLogPage() {
   useEffect(() => {
     getLoginStats().then(setStats).catch(() => setStats(null))
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    setGeoLoading(true)
+    getLoginGeoDistribution(geoDays)
+      .then((data) => {
+        if (cancelled) return
+        setGeoData(data)
+        geoFailedRef.current = false
+      })
+      .catch(() => {
+        if (cancelled) return
+        // 保留旧数据；从未拿到过数据时记失败态供空态文案区分
+        geoFailedRef.current = true
+      })
+      .finally(() => {
+        if (!cancelled) setGeoLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [geoDays])
+
+  // 落点合并：同坐标累加（同市不同 ISP、省级兜底锚点与省会同点）；
+  // 无法定位的（内网/海外/未知）进榜单不落图
+  const geoView = useMemo(() => {
+    if (!geoData || geoData.length === 0) return null
+    const pointMap = new Map<string, GeoMapPoint>()
+    const provinceTotals: Record<string, number> = {}
+    const unlocated = new Map<string, { name: string; total: number; failed: number }>()
+    for (const item of geoData) {
+      const point = resolveGeoPoint(item.province, item.city)
+      if (point) {
+        const key = `${point.lng},${point.lat}`
+        const prev = pointMap.get(key)
+        if (prev) {
+          prev.total += item.total
+          prev.failed += item.failed
+        } else {
+          pointMap.set(key, { ...point, total: item.total, failed: item.failed })
+        }
+        if (!point.abroad) {
+          const short = resolveProvinceShort(item.province)
+          provinceTotals[short] = (provinceTotals[short] ?? 0) + item.total
+        }
+      } else {
+        // 内网/未知按解析后标签合并（新旧记录的原文不同：「内网」/「Private Network」）
+        const name = item.province === '内网' || item.province === '未知' ? item.province : item.location || '未知'
+        const prev = unlocated.get(name)
+        if (prev) {
+          prev.total += item.total
+          prev.failed += item.failed
+        } else {
+          unlocated.set(name, { name, total: item.total, failed: item.failed })
+        }
+      }
+    }
+    const points = [...pointMap.values()]
+    const ranking = [
+      ...points.map((p) => ({ name: p.name, total: p.total, failed: p.failed, located: true })),
+      ...[...unlocated.values()].map((o) => ({ ...o, located: false })),
+    ]
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 12)
+    return { points, ranking, max: ranking[0]?.total ?? 0, provinceTotals }
+  }, [geoData])
 
   const fetchList = async (p: SearchParams) => {
     setLoading(true)
@@ -170,13 +243,69 @@ export default function LoginLogPage() {
         </Card>
       )}
 
+      {hasPerm('system:log:login') && (geoData !== null || geoLoading) && (
+        <Card className="list-filter-card" bordered={false}>
+          <div className="geo-dist-header">
+            <span className="geo-dist-title">登录地域分布</span>
+            <Segmented
+              size="small"
+              options={[
+                { label: '近 7 天', value: 7 },
+                { label: '近 14 天', value: 14 },
+                { label: '近 30 天', value: 30 },
+              ]}
+              value={geoDays}
+              onChange={(v) => setGeoDays(v as number)}
+            />
+          </div>
+          {geoView ? (
+            <div className="geo-dist-body">
+              <div className="geo-dist-map">
+                <GeoMap points={geoView.points} provinceTotals={geoView.provinceTotals} height={400} />
+              </div>
+              <div className="geo-dist-side">
+                {geoView.ranking.map((r) => (
+                  <div key={r.name} className="geo-rank-item">
+                    <div className="geo-rank-meta">
+                      <span className={`geo-rank-name${r.located ? '' : ' geo-rank-name-muted'}`}>{r.name}</span>
+                      <span className="geo-rank-count">
+                        {r.total}
+                        {r.failed > 0 && <em>失败 {r.failed}</em>}
+                      </span>
+                    </div>
+                    <div className="geo-rank-bar">
+                      <i
+                        className={r.failed / r.total > 0.5 ? 'geo-rank-bar-alarm' : ''}
+                        style={{ '--ratio': geoView.max > 0 ? r.total / geoView.max : 0 } as React.CSSProperties}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : geoLoading ? (
+            <Skeleton active paragraph={{ rows: 6 }} title={false} style={{ padding: '24px 0' }} />
+          ) : (
+            <GlassEmpty compact text={geoFailedRef.current ? '分布数据加载失败，可切换天数重试' : '该时间段暂无登录记录'} />
+          )}
+        </Card>
+      )}
+
       <Card className="list-filter-card" bordered={false}>
         <Form
           form={searchForm}
           layout="inline"
           className="list-filter-form"
           onFinish={handleSearch}
-          initialValues={params}
+          initialValues={{
+            ...params,
+            // URL 里存 start_time/end_time 字符串,表单字段是 dateRange——
+            // 不反解的话刷新后时间过滤仍生效但选择器显示为空
+            dateRange:
+              params.start_time && params.end_time
+                ? [dayjs(params.start_time), dayjs(params.end_time)]
+                : undefined,
+          }}
         >
           <Form.Item name="username">
             <Input placeholder="搜索用户名" prefix={<SearchOutlined />} allowClear style={{ width: 200 }} />

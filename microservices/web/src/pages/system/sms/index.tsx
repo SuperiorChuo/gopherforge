@@ -767,7 +767,7 @@ function TemplateTab() {
         <Form form={testForm} layout="vertical" style={{ marginTop: 16 }}>
           {testRecord && (
             <Form.Item label="模板内容">
-              <div style={{ padding: '8px 12px', background: 'rgba(0,0,0,0.04)', borderRadius: 8 }}>
+              <div style={{ padding: '8px 12px', background: 'rgba(148, 163, 184, 0.1)', borderRadius: 8 }}>
                 {testRecord.content}
               </div>
             </Form.Item>

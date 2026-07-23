@@ -75,6 +75,23 @@ export interface LoginTrendItem {
   failed: number
 }
 
+export interface LoginGeoItem {
+  location: string
+  province: string
+  city: string
+  total: number
+  success: number
+  failed: number
+}
+
+// 登录地域分布（按 location 聚合，province/city 为后端尽力拆解）；窗口由服务端
+// 按 days 计算（与 trend 同口径，避免时区偏移）；无权限时静默降级
+export const getLoginGeoDistribution = (days = 7) =>
+  request.get<unknown, LoginGeoItem[]>('/api/v1/login-logs/geo', {
+    params: { days },
+    silent: true,
+  })
+
 // 仪表盘可选模块：无权限时静默降级，不弹全局错误
 export const getLoginTrend = (days = 7) =>
   request.get<unknown, LoginTrendItem[]>('/api/v1/login-logs/trend', {

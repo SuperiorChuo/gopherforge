@@ -76,7 +76,8 @@ export default function TenantPage() {
   }
 
   async function onCreate() {
-    const values = await form.validateFields()
+    const values = await form.validateFields().catch(() => null)
+    if (!values) return
     try {
       await TenantAPI.createTenant({
         code: values.code,
@@ -110,7 +111,8 @@ export default function TenantPage() {
 
   async function onSaveEdit() {
     if (!editRow) return
-    const values = await editForm.validateFields()
+    const values = await editForm.validateFields().catch(() => null)
+    if (!values) return
     try {
       await TenantAPI.updateTenant(editRow.id, {
         name: values.name,

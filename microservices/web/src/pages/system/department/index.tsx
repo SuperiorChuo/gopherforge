@@ -40,6 +40,18 @@ function countTree(nodes: Department[]): number {
   return nodes.reduce((acc, n) => acc + 1 + (n.children ? countTree(n.children) : 0), 0)
 }
 
+// 有子节点的行 id（树是异步拉的，defaultExpandAllRows 在首挂空数据时算一次
+// 就失效——必须受控展开）
+function collectExpandableKeys(nodes: Department[]): number[] {
+  const keys: number[] = []
+  for (const n of nodes) {
+    if (n.children?.length) {
+      keys.push(n.id, ...collectExpandableKeys(n.children))
+    }
+  }
+  return keys
+}
+
 export default function DepartmentPage() {
   const [list, setList] = useState<Department[]>([])
   const [tree, setTree] = useState<Department[]>([])
@@ -50,6 +62,7 @@ export default function DepartmentPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<Department | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [expandedKeys, setExpandedKeys] = useState<readonly React.Key[]>([])
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
@@ -78,6 +91,7 @@ export default function DepartmentPage() {
     try {
       const res = await DeptAPI.getDepartmentTree()
       setTree(res ?? [])
+      setExpandedKeys(collectExpandableKeys(res ?? []))
     } catch {
       message.error('获取部门树失败')
     } finally {
@@ -283,7 +297,7 @@ export default function DepartmentPage() {
           dataSource={isTree ? tree : list}
           loading={loading}
           locale={{ emptyText: <GlassEmpty text="暂无部门" compact /> }}
-          expandable={isTree ? { defaultExpandAllRows: true } : undefined}
+          expandable={isTree ? { expandedRowKeys: expandedKeys, onExpandedRowsChange: setExpandedKeys } : undefined}
           pagination={
             isTree
               ? false

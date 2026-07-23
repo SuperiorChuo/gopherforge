@@ -512,6 +512,20 @@ const routes: Array<[string, RegExp, Handler]> = [
     })
   }],
   ['get', /^\/api\/v1\/login-logs\/stats$/, () => ({ total: loginLogs.length, success: loginLogs.filter((l) => l.status === 1).length, failed: loginLogs.filter((l) => l.status === 0).length })],
+  // 登录地域分布：省市中文串匹配前端坐标表，覆盖多省 + 海外 + 内网，让演示站地图有染色/光点/榜单
+  ['get', /^\/api\/v1\/login-logs\/geo$/, () => [
+    { location: '广东省 深圳市 电信', province: '广东省', city: '深圳市', total: 42, success: 40, failed: 2 },
+    { location: '广东省 广州市 联通', province: '广东省', city: '广州市', total: 28, success: 27, failed: 1 },
+    { location: '北京 北京市 联通', province: '北京', city: '北京市', total: 35, success: 34, failed: 1 },
+    { location: '上海 上海市 电信', province: '上海', city: '上海市', total: 26, success: 26, failed: 0 },
+    { location: '浙江省 杭州市 电信', province: '浙江省', city: '杭州市', total: 19, success: 18, failed: 1 },
+    { location: '江苏省 南京市 移动', province: '江苏省', city: '南京市', total: 14, success: 14, failed: 0 },
+    { location: '四川省 成都市 电信', province: '四川省', city: '成都市', total: 12, success: 11, failed: 1 },
+    { location: '湖北省 武汉市 联通', province: '湖北省', city: '武汉市', total: 9, success: 9, failed: 0 },
+    { location: '陕西省 西安市 移动', province: '陕西省', city: '西安市', total: 7, success: 5, failed: 2 },
+    { location: 'Singapore', province: 'Singapore', city: '', total: 5, success: 5, failed: 0 },
+    { location: '内网', province: '内网', city: '', total: 4, success: 4, failed: 0 },
+  ]],
   ['get', /^\/api\/v1\/login-logs\/my$/, (_m, _b, q) => paged(loginLogs.filter((l) => l.username === 'admin'), q)],
   ['get', /^\/api\/v1\/login-logs$/, (_m, _b, q) => paged(loginLogs, q)],
   ['delete', /^\/api\/v1\/login-logs\/clear$/, () => unsupported('清空日志')],

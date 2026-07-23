@@ -298,24 +298,28 @@ export default function RolePage() {
           </Space>
         </div>
         <div className="perm-assign-list">
-          {filteredPerms.map((p) => {
-            const checked = selectedPerms.includes(p.id)
-            return (
-              <div
-                key={p.id}
-                className={`perm-pill${checked ? ' perm-pill-on' : ''}`}
-                onClick={() =>
-                  setSelectedPerms(
-                    checked ? selectedPerms.filter((id) => id !== p.id) : [...selectedPerms, p.id],
-                  )
-                }
-              >
-                <Checkbox checked={checked} style={{ pointerEvents: 'none' }} />
-                <span className="perm-pill-name">{p.name}</span>
-                <span className="cell-mono perm-pill-code">{p.code}</span>
-              </div>
-            )
-          })}
+          {filteredPerms.length === 0 ? (
+            <GlassEmpty compact text="无匹配权限" />
+          ) : (
+            filteredPerms.map((p) => {
+              const checked = selectedPerms.includes(p.id)
+              return (
+                <div
+                  key={p.id}
+                  className={`perm-pill${checked ? ' perm-pill-on' : ''}`}
+                  onClick={() =>
+                    setSelectedPerms(
+                      checked ? selectedPerms.filter((id) => id !== p.id) : [...selectedPerms, p.id],
+                    )
+                  }
+                >
+                  <Checkbox checked={checked} style={{ pointerEvents: 'none' }} />
+                  <span className="perm-pill-name">{p.name}</span>
+                  <span className="cell-mono perm-pill-code">{p.code}</span>
+                </div>
+              )
+            })
+          )}
         </div>
       </Modal>
     </div>

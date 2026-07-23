@@ -10,6 +10,7 @@ import {
 import { getMySQLInfo } from '@/api/monitor'
 import { formatBytes, formatDuration } from '@/utils/format'
 import MonitorGaugeCard from '@/components/MonitorGaugeCard'
+import CountUpValue from '@/components/CountUpValue'
 
 export default function MySQLMonitorPage() {
   const [data, setData] = useState<Record<string, unknown>>({})
@@ -50,10 +51,10 @@ export default function MySQLMonitorPage() {
   const bytesSent = Number(traffic?.bytes_sent ?? 0)
 
   const queryStats = [
-    { label: 'SELECT', value: Number(query?.selects ?? 0).toLocaleString(), color: '#818cf8', lightColor: '#4f46e5' },
-    { label: 'INSERT', value: Number(query?.inserts ?? 0).toLocaleString(), color: '#34d399', lightColor: '#059669' },
-    { label: 'UPDATE', value: Number(query?.updates ?? 0).toLocaleString(), color: '#fbbf24', lightColor: '#d97706' },
-    { label: 'DELETE', value: Number(query?.deletes ?? 0).toLocaleString(), color: '#f87171', lightColor: '#dc2626' },
+    { label: 'SELECT', value: Number(query?.selects ?? 0), color: '#818cf8', lightColor: '#4f46e5' },
+    { label: 'INSERT', value: Number(query?.inserts ?? 0), color: '#34d399', lightColor: '#059669' },
+    { label: 'UPDATE', value: Number(query?.updates ?? 0), color: '#fbbf24', lightColor: '#d97706' },
+    { label: 'DELETE', value: Number(query?.deletes ?? 0), color: '#f87171', lightColor: '#dc2626' },
   ]
 
   // 连接数比 CPU 类指标更敏感，用 80/60 阈值分档
@@ -199,7 +200,7 @@ export default function MySQLMonitorPage() {
                   style={{ '--qs': q.color, '--qs-light': q.lightColor } as React.CSSProperties}
                 >
                   <div className="query-stat-label">{q.label}</div>
-                  <div className="query-stat-value">{q.value}</div>
+                  <div className="query-stat-value"><CountUpValue value={q.value} /></div>
                 </div>
               ))}
             </div>

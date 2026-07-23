@@ -172,7 +172,7 @@ export default function AuditLogPage() {
         title="审计详情"
         open={!!detail}
         onClose={() => setDetail(null)}
-        width={720}
+        width="min(720px, 100vw)"
         destroyOnHidden
       >
         {detail && (
