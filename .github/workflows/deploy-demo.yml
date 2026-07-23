@@ -51,6 +51,11 @@ jobs:
       - name: 文档站构建（VitePress → /docs/ 子路径）
         working-directory: website
         run: npm run build
+      - name: 推送 Algolia 搜索索引（自建管道，替代 crawler；缺 secret 自动跳过）
+        working-directory: website
+        env:
+          ALGOLIA_ADMIN_KEY: ${{ secrets.ALGOLIA_ADMIN_KEY }}
+        run: node scripts/algolia-index.mjs
       - name: 合并文档站产物
         run: cp -r website/.vitepress/dist microservices/web/dist/docs
       - uses: actions/upload-pages-artifact@v3
