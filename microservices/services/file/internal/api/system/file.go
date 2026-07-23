@@ -6,12 +6,14 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	pathpkg "path"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/file/internal/config"
 	"github.com/go-admin-kit/services/file/internal/pkg/authz"
+	"github.com/go-admin-kit/services/file/internal/pkg/upload"
 	"github.com/go-admin-kit/services/file/internal/service/system"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 )
@@ -249,19 +251,47 @@ func (a *FileAPI) GetFileStats(c *gin.Context) {
 	response.Success(c, stats)
 }
 
-// ServeStaticFiles registers static file serving for local storage.
+// ServeStaticFiles registers /uploads serving for the configured storage.
+// Local storage keeps router.Static; object storage (minio/s3) registers a
+// dynamic handler that streams objects under the same /uploads URL shape, so
+// PUBLIC_BASE_URL stays unchanged and the bucket never needs public access.
+// Objects missing from the bucket fall back to the local disk so legacy files
+// uploaded before the storage switch keep working without a migration.
 func ServeStaticFiles(router *gin.Engine) {
-	if config.Cfg.Upload.EffectiveStorageType() != "local" {
+	storageType := config.Cfg.Upload.EffectiveStorageType()
+	urlPrefix := config.Cfg.Upload.EffectiveLocalURLPrefix()
+	uploadPath := config.Cfg.Upload.EffectiveLocalPath()
+
+	if storageType == "local" {
+		// Ensure the upload directory exists before registering the route.
+		if err := os.MkdirAll(uploadPath, 0755); err == nil {
+			router.Static(urlPrefix, uploadPath)
+		}
 		return
 	}
 
-	uploadPath := config.Cfg.Upload.EffectiveLocalPath()
-	urlPrefix := config.Cfg.Upload.EffectiveLocalURLPrefix()
+	uploader := upload.NewUploader()
+	router.GET(strings.TrimRight(urlPrefix, "/")+"/*filepath", func(c *gin.Context) {
+		key := strings.TrimPrefix(c.Param("filepath"), "/")
+		obj, err := uploader.OpenForStorageTypeContext(c.Request.Context(), storageType, key)
+		if err != nil {
+			obj, err = uploader.OpenForStorageTypeContext(c.Request.Context(), "local", key)
+		}
+		if err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		defer obj.Body.Close()
 
-	// Ensure the upload directory exists before registering the route.
-	if err := os.MkdirAll(uploadPath, 0755); err == nil {
-		router.Static(urlPrefix, uploadPath)
-	}
+		if ct := mime.TypeByExtension(strings.ToLower(pathpkg.Ext(key))); ct != "" {
+			c.Header("Content-Type", ct)
+		}
+		if obj.Size > 0 {
+			c.Header("Content-Length", strconv.FormatInt(obj.Size, 10))
+		}
+		c.Status(http.StatusOK)
+		_, _ = io.Copy(c.Writer, obj.Body)
+	})
 }
 
 // Preview streams an image file inline.
