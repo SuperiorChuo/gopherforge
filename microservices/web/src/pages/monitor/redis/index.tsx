@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons'
 import { getRedisInfo } from '@/api/monitor'
 import { formatDuration } from '@/utils/format'
+import CountUpValue from '@/components/CountUpValue'
 
 interface MiniStat {
   label: string
@@ -57,7 +58,7 @@ export default function RedisMonitorPage() {
   const cards: MiniStat[] = [
     {
       label: '连接客户端',
-      value: String(clients?.connected ?? '-'),
+      value: clients?.connected != null ? <CountUpValue value={Number(clients.connected)} /> : '-',
       icon: <TeamOutlined />,
       gradient: 'linear-gradient(135deg, #818cf8, #4f46e5)',
       shadow: 'rgba(79, 70, 229, 0.35)',
@@ -73,7 +74,7 @@ export default function RedisMonitorPage() {
     },
     {
       label: '每秒操作数',
-      value: String(stats?.ops ?? '0'),
+      value: <CountUpValue value={Number(stats?.ops ?? 0)} />,
       icon: <ThunderboltOutlined />,
       gradient: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
       shadow: 'rgba(245, 158, 11, 0.35)',
@@ -81,7 +82,7 @@ export default function RedisMonitorPage() {
     },
     {
       label: 'Key 数量',
-      value: Number(keyspace?.dbsize ?? 0).toLocaleString(),
+      value: <CountUpValue value={Number(keyspace?.dbsize ?? 0)} />,
       icon: <KeyOutlined />,
       gradient: 'linear-gradient(135deg, #34d399, #059669)',
       shadow: 'rgba(5, 150, 105, 0.35)',

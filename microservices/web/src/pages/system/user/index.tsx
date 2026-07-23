@@ -190,7 +190,8 @@ export default function UserPage() {
         <div className="user-cell">
           <Avatar
             size={40}
-            icon={<UserOutlined />}
+            // antd 优先级 icon > children：有名字时不能传 icon，否则首字母永远不显示
+            icon={record.nickname || record.username ? undefined : <UserOutlined />}
             style={{ background: avatarPalette[record.id % avatarPalette.length], flexShrink: 0 }}
           >
             {(record.nickname || record.username)?.slice(0, 1).toUpperCase()}

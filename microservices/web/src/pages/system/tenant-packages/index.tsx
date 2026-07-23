@@ -117,7 +117,8 @@ export default function TenantPackagePage() {
   }
 
   async function onSubmit() {
-    const values = await form.validateFields()
+    const values = await form.validateFields().catch(() => null)
+    if (!values) return
     setSubmitting(true)
     try {
       if (editRecord) {
@@ -282,7 +283,7 @@ export default function TenantPackagePage() {
               <Button size="small" onClick={() => setCheckedCodes(allCodes)}>全选</Button>
               <Button size="small" onClick={() => setCheckedCodes([])}>清空</Button>
             </Space>
-            <div style={{ maxHeight: 320, overflow: 'auto', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 8, padding: 8 }}>
+            <div style={{ maxHeight: 320, overflow: 'auto', border: '1px solid rgba(148, 163, 184, 0.25)', borderRadius: 8, padding: 8 }}>
               <Tree
                 checkable
                 checkStrictly

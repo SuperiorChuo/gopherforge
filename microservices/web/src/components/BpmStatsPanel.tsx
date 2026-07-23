@@ -42,9 +42,10 @@ export default function BpmStatsPanel() {
 
   return (
     <div>
-      <Row gutter={[12, 12]}>
+      <Row gutter={[16, 16]}>
         {STATUS_CARDS.map((c) => (
-          <Col key={c.key} xs={12} sm={8} lg={4}>
+          // 5 张卡用纯 flex 均分整行（span 制 6 列永远缺一格）；窄屏自动换行
+          <Col key={c.key} flex="1 1 150px">
             <Card size="small">
               <Statistic
                 title={c.label}
@@ -56,7 +57,7 @@ export default function BpmStatsPanel() {
         ))}
       </Row>
 
-      <Card size="small" title="近 30 天发起趋势" style={{ marginTop: 12 }}>
+      <Card size="small" title="近 30 天发起趋势" style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80 }}>
           {stats.trend.map((t) => (
             <Tooltip key={t.date} title={`${t.date}：${t.count} 件`}>
@@ -75,7 +76,7 @@ export default function BpmStatsPanel() {
         </div>
       </Card>
 
-      <Card size="small" title="按流程定义" style={{ marginTop: 12 }}>
+      <Card size="small" title="按流程定义" style={{ marginTop: 16 }}>
         <Table
           size="small"
           rowKey="definition_key"
@@ -116,7 +117,7 @@ export default function BpmStatsPanel() {
         />
       </Card>
 
-      <Card size="small" title="节点瓶颈（平均处理时长 Top 10）" style={{ marginTop: 12 }}>
+      <Card size="small" title="节点瓶颈（平均处理时长 Top 10）" style={{ marginTop: 16 }}>
         <Table
           size="small"
           rowKey="node_name"

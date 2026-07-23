@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Button, Card, Checkbox, Form, Input, Modal, Radio, Select, Space, Steps, Table, Tabs,
 } from 'antd'
@@ -46,6 +46,11 @@ export default function CodegenPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    void loadTables()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function onSelectTable(table: string) {
     setLoading(true)
@@ -479,9 +484,13 @@ export default function CodegenPage() {
                 style={{
                   maxHeight: '60vh',
                   overflow: 'auto',
-                  background: '#f6f6f6',
+                  // 代码底色固定深色（不随主题反转），显式给字色——
+                  // 继承主题字色的话暗色主题下曾是浅字浅底不可读
+                  background: 'rgba(2, 6, 23, 0.55)',
+                  color: '#e2e8f0',
+                  border: '1px solid rgba(148, 163, 184, 0.18)',
                   padding: 12,
-                  borderRadius: 4,
+                  borderRadius: 8,
                   fontSize: 13,
                   lineHeight: 1.5,
                 }}

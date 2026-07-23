@@ -465,7 +465,7 @@ function HeartbeatsCard() {
   ]
 
   return (
-    <Card className="list-main-card" bordered={false} style={{ marginTop: 16 }}>
+    <Card className="list-main-card" bordered={false}>
       <TableToolbar
         title="服务任务心跳"
         total={list.length}

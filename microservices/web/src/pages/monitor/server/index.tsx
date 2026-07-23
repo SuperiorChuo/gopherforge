@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Card, Descriptions, Spin, Row, Col, Button, Space } from 'antd'
+import { Card, Descriptions, Spin, Row, Col, Button, Space, Skeleton, Tag, Tooltip } from 'antd'
 import {
   ReloadOutlined,
   DesktopOutlined,
@@ -11,7 +11,6 @@ import {
 import { getServerInfo, getServicesHealth, type ServiceHealthRow } from '@/api/monitor'
 import { formatBytes } from '@/utils/format'
 import MonitorGaugeCard from '@/components/MonitorGaugeCard'
-import { Tag, Tooltip } from 'antd'
 
 export default function ServerMonitorPage() {
   const [data, setData] = useState<Record<string, unknown>>({})
@@ -63,7 +62,7 @@ export default function ServerMonitorPage() {
       <ServicesHealthCard />
 
       <Row gutter={[20, 20]}>
-        <Col xs={24} sm={8}>
+        <Col xs={24} md={12} lg={8}>
           <MonitorGaugeCard
             title="CPU 使用率"
             icon={<DesktopOutlined />}
@@ -72,7 +71,7 @@ export default function ServerMonitorPage() {
             footer={<>{String(cpu?.cores ?? '-')} 核 · {String(cpu?.model_name || '未知型号')}</>}
           />
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} md={12} lg={8}>
           <MonitorGaugeCard
             title="内存使用率"
             icon={<DatabaseOutlined />}
@@ -81,7 +80,7 @@ export default function ServerMonitorPage() {
             footer={<>{formatBytes(Number(mem?.used ?? 0))} / {formatBytes(Number(mem?.total ?? 0))}</>}
           />
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} md={12} lg={8}>
           <MonitorGaugeCard
             title="磁盘使用率"
             icon={<HddOutlined />}
@@ -139,14 +138,21 @@ export default function ServerMonitorPage() {
 function ServicesHealthCard() {
   const [rows, setRows] = useState<ServiceHealthRow[]>([])
   const [healthy, setHealthy] = useState(0)
+  const [loading, setLoading] = useState(true)
+  // 探测接口本身失败时保留上一轮结果，但要给出可见提示——
+  // 监控页上「探测挂了」和「一切正常」不可混淆
+  const [probeFailed, setProbeFailed] = useState(false)
 
   const load = useCallback(async () => {
     try {
       const res = await getServicesHealth()
       setRows(res.list ?? [])
       setHealthy(res.healthy ?? 0)
+      setProbeFailed(false)
     } catch {
-      // 探测失败保留上一轮
+      setProbeFailed(true)
+    } finally {
+      setLoading(false)
     }
   }, [])
 
@@ -167,25 +173,34 @@ function ServicesHealthCard() {
           {rows.length > 0 && (
             <Tag color={allUp ? 'green' : 'red'} variant="filled">{healthy}/{rows.length}</Tag>
           )}
+          {probeFailed && (
+            <Tag color="orange" variant="filled">探测接口异常，显示为上一轮结果</Tag>
+          )}
         </Space>
       }
     >
-      <Space size={[8, 8]} wrap>
-        {rows.map((r) => (
-          <Tooltip
-            key={r.name}
-            title={r.ok ? `ready · ${r.latency_ms}ms` : r.error || `HTTP ${r.http_code}`}
-          >
-            <Tag
-              color={r.ok ? 'green' : 'red'}
-              variant={r.ok ? 'outlined' : 'filled'}
-              style={{ marginInlineEnd: 0, cursor: 'default' }}
+      {loading ? (
+        <Skeleton active title={false} paragraph={{ rows: 2 }} />
+      ) : rows.length === 0 ? (
+        <span className="cell-muted">{probeFailed ? '健康探测接口不可用' : '暂无受监控的服务'}</span>
+      ) : (
+        <Space size={[8, 8]} wrap>
+          {rows.map((r) => (
+            <Tooltip
+              key={r.name}
+              title={r.ok ? `ready · ${r.latency_ms}ms` : r.error || `HTTP ${r.http_code}`}
             >
-              {r.name}{r.ok ? '' : ' ✕'}
-            </Tag>
-          </Tooltip>
-        ))}
-      </Space>
+              <Tag
+                color={r.ok ? 'green' : 'red'}
+                variant={r.ok ? 'outlined' : 'filled'}
+                style={{ marginInlineEnd: 0, cursor: 'default' }}
+              >
+                {r.name}{r.ok ? '' : ' ✕'}
+              </Tag>
+            </Tooltip>
+          ))}
+        </Space>
+      )}
     </Card>
   )
 }
