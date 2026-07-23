@@ -5,7 +5,7 @@
 //   node scripts/algolia-index.mjs            # 需 ALGOLIA_ADMIN_KEY；缺失时打印摘要后跳过（退出 0，CI 安全）
 //   node scripts/algolia-index.mjs --dry-run  # 只解析并打印 records 摘要，不推送
 //
-// 环境变量：ALGOLIA_APP_ID（默认 PPRG5T8BJE）、ALGOLIA_ADMIN_KEY、ALGOLIA_INDEX（默认 gopherforge）
+// 环境变量：ALGOLIA_APP_ID（默认 23Y7MRK7R7）、ALGOLIA_ADMIN_KEY、ALGOLIA_INDEX（默认 gopherforge）
 
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
