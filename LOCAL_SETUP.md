@@ -10,19 +10,27 @@
 
 ## 微服务版
 
+有状态服务（PG/Redis/NATS/MinIO）在独立的 infra 栈（`docker-compose.infra.yml`），应用栈随便 down/up/rebuild 都不会碰数据：
+
 ```bash
 cd microservices
 cp .env.example .env
+# 1. 共享网络（一次性）
+docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
+  docker network create --subnet 172.28.0.0/16 go-admin-kit-net
+# 2. 数据栈（要 MinIO 加 --profile storage）
+docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
+# 3. 应用栈
 docker compose up -d --build
 ```
 
 - 网关：`http://localhost:8000`
-- 迁移由 `services/monitor` 容器在启动时执行
+- 迁移由 `migrate` 一次性 job 执行（PG 未就绪会自动重试）
 
-本地只起依赖：
+本地只起依赖（数据栈就够了）：
 
 ```bash
-docker compose up -d go-admin-kit-postgres go-admin-kit-redis go-admin-kit-nats
+docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
 cd services/auth && go run ./cmd
 cd web && npm ci && npm run dev
 ```

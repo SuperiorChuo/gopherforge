@@ -1,10 +1,10 @@
 # 🚀 GopherForge · Go Microservices Admin Scaffold
 
-**GopherForge** (formerly `go-admin-kit`) is an **open-source, production-grade Go microservices admin scaffold**: Go + Gin backend split into 8 infrastructure services, React 19 + Ant Design 6 frontend, Traefik gateway with unified auth, built-in RBAC, multi-tenancy, audit logs, monitoring and a code generator — the whole stack boots with one `docker compose up`.
+**GopherForge** (formerly `go-admin-kit`) is an **open-source, production-grade Go microservices admin scaffold**: Go + Gin backend split into 8 infrastructure services, React 19 + Ant Design 6 frontend, Traefik gateway with unified auth, built-in RBAC, multi-tenancy, audit logs, monitoring and a code generator — the whole stack boots with one `make compose-up` (data stack and app stack are separate, so rebuilding the app never touches your data).
 
 - **Who it's for**: Go teams building internal admin platforms or SaaS back-offices; teams that prefer **React over Vue** (most Go admin scaffolds ship Vue); projects that want real microservices as a starting point without business-module baggage.
 - **How it differs**: infrastructure only, zero business coupling — see the [comparison with gin-vue-admin, go-admin & RuoYi](docs/comparison.md).
-- **Time to running**: clone, `docker compose up -d --build`, ~3 minutes for gateway + 8 services + frontend + PostgreSQL/Redis/NATS. Or try the [Live Demo](https://superiorchuo.github.io/gopherforge/) first (front-end-only mock data, any credentials work).
+- **Time to running**: clone, `make compose-up`, ~3 minutes for gateway + 8 services + frontend + PostgreSQL/Redis/NATS. Or try the [Live Demo](https://superiorchuo.github.io/gopherforge/) first (front-end-only mock data, any credentials work).
 
 <p align="center">
   <strong>Production-grade Go microservices admin scaffold — infrastructure only, batteries included.</strong><br/>
@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://superiorchuo.github.io/gopherforge/"><strong>🖥️ Live Demo →</strong></a><br/>
-  <sub>Front-end-only demo mode (mock data, any credentials work). Full stack: clone &amp; <code>docker compose up</code>.</sub>
+  <sub>Front-end-only demo mode (mock data, any credentials work). Full stack: clone &amp; <code>make compose-up</code>.</sub>
 </p>
 
 <p align="center">
@@ -39,10 +39,19 @@ Adding business capability = add one microservice + one gateway label. The base 
 
 ```bash
 git clone https://github.com/SuperiorChuo/gopherforge.git
-cd gopherforge/microservices
-cp .env.example .env
-docker compose up -d --build
+cd gopherforge/microservices && cp .env.example .env && cd ..
+make compose-up      # shared network → infra (data) stack → app stack
 # open http://localhost:8000  (admin / admin123)
+```
+
+Without make — the equivalent three commands (data stack is separate from the app stack, so app rebuilds never touch data):
+
+```bash
+cd microservices
+docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
+  docker network create --subnet 172.28.0.0/16 go-admin-kit-net
+docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
+docker compose up -d --build
 ```
 
 ## Stack

@@ -4,11 +4,11 @@
 
 # 🚀 GopherForge · Go 微服务后台管理脚手架
 
-**GopherForge**（曾用名 `go-admin-kit`）是一套**开源的企业级 Go 微服务后台管理系统脚手架**：后端 Go + Gin 按域拆分 8 个基础服务，前端 React 19 + Ant Design 6，Traefik 网关统一鉴权，自带 RBAC 权限、多租户、审计日志、系统监控与代码生成器，`docker compose up` 一条命令拉起全栈。
+**GopherForge**（曾用名 `go-admin-kit`）是一套**开源的企业级 Go 微服务后台管理系统脚手架**：后端 Go + Gin 按域拆分 8 个基础服务，前端 React 19 + Ant Design 6，Traefik 网关统一鉴权，自带 RBAC 权限、多租户、审计日志、系统监控与代码生成器，`make compose-up` 一条命令拉起全栈（数据栈与应用栈分离，重建应用不触碰数据）。
 
 - **适合谁**：需要快速搭建企业内部管理平台 / SaaS 管理后台的 Go 团队；前端更熟 React 而不想用 Vue 的团队；想要真微服务架构（而非单体）作为起点、又不想背业务包袱的项目。
 - **和同类有何不同**：只含基础设施、零业务耦合——对比 gin-vue-admin、go-admin、RuoYi 系见 [同类项目对比](docs/comparison.md)。
-- **多快能跑起来**：克隆后 `docker compose up -d --build`，约 3 分钟拉起网关 + 8 服务 + 前端 + PostgreSQL/Redis/NATS；或先玩 [在线 Demo](https://superiorchuo.github.io/gopherforge/)（纯前端假数据，任意账号可登录）。
+- **多快能跑起来**：克隆后 `make compose-up`，约 3 分钟拉起网关 + 8 服务 + 前端 + PostgreSQL/Redis/NATS；或先玩 [在线 Demo](https://superiorchuo.github.io/gopherforge/)（纯前端假数据，任意账号可登录）。
 
 <p align="center">
   <strong>✨ 企业级微服务后台脚手架 · 只含基础设施 · 开箱即用 ✨</strong><br/>
@@ -17,7 +17,7 @@
 
 <p align="center">
   <a href="https://superiorchuo.github.io/gopherforge/"><strong>🖥️ 在线体验 Demo →</strong></a> · <a href="https://superiorchuo.github.io/gopherforge/docs/"><strong>📖 文档站</strong></a> · <a href="README.en.md">English</a><br/>
-  <sub>纯前端演示模式（假数据，任意账号可登录）；完整功能克隆后 <code>docker compose</code> 一键启动</sub>
+  <sub>纯前端演示模式（假数据，任意账号可登录）；完整功能克隆后 <code>make compose-up</code> 一键启动</sub>
 </p>
 
 <p align="center">
@@ -235,8 +235,17 @@ gopherforge/
 git clone https://github.com/SuperiorChuo/gopherforge.git
 cd gopherforge/microservices
 cp .env.example .env
+cd .. && make compose-up      # 自动：共享网络 → infra 数据栈 → 应用栈
+```
+
+不用 make 的话，等价的三条命令（数据栈与应用栈分离，重建应用不碰数据）：
+
+```bash
+cd microservices
+docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
+  docker network create --subnet 172.28.0.0/16 go-admin-kit-net
+docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
 docker compose up -d --build
-# 或仓库根目录：make compose-up
 ```
 
 | 入口 | 地址 |
@@ -275,7 +284,7 @@ docker compose up -d --build
 
 ```bash
 cd microservices
-docker compose up -d go-admin-kit-postgres go-admin-kit-redis go-admin-kit-nats
+make -C .. infra-up            # 只起数据栈（PG/Redis/NATS）
 cd services/auth && go run ./cmd
 cd web && npm ci && npm run dev
 ```

@@ -11,11 +11,11 @@ help:
 	@echo "微服务：make compose-up | compose-down | test | smoke-api | ..."
 	@echo "详情：cd microservices && 查看 README"
 
-.PHONY: compose-up compose-down compose-monitoring dev-backend dev-auth dev-frontend \
+.PHONY: compose-up compose-down compose-monitoring infra-up infra-down dev-backend dev-auth dev-frontend \
 	build-server test lint audit smoke-api e2e-api db-import migrate-up migrate-status \
 	migrate-down migrate-redo migrate-reset migrate-create api-contract status logs
 
-compose-up compose-down compose-monitoring dev-backend dev-auth dev-frontend \
+compose-up compose-down compose-monitoring infra-up infra-down dev-backend dev-auth dev-frontend \
 build-server test lint smoke-api db-import migrate-up migrate-status \
 migrate-down migrate-create api-contract status logs:
 	@$(MAKE) -C $(MICRO) $@

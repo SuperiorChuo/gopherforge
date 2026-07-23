@@ -1,0 +1,122 @@
+# 有状态服务独立栈（集群化前置）：PG / Redis / NATS / MinIO 与应用栈分离，
+# 应用栈（docker-compose.yml）任意 down/up/rebuild 都不再触碰数据服务。
+#
+# 与应用栈通过外部网络 go-admin-kit-net 互通，网络需先创建（deploy 脚本已内置）：
+#   docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
+#     docker network create --subnet 172.28.0.0/16 go-admin-kit-net
+#
+# 操作必须显式 -p（防止外部 COMPOSE_PROJECT_NAME=go-admin-kit 覆盖 name:，
+# 否则两栈同 project 会互判孤儿容器）：
+#   docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
+#   docker compose -p go-admin-kit-infra -f docker-compose.infra.yml --profile storage up -d  # 含 MinIO
+name: go-admin-kit-infra
+
+services:
+  go-admin-kit-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: go-admin-kit-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      POSTGRES_DB: ${POSTGRES_DB:-go_admin_kit}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - go_admin_kit_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - go-admin-kit-net
+
+  go-admin-kit-redis:
+    image: redis:7-alpine
+    container_name: go-admin-kit-redis
+    restart: unless-stopped
+    command: >
+      sh -c 'if [ -n "$$REDIS_PASSWORD" ]; then
+        redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD";
+      else
+        redis-server --appendonly yes;
+      fi'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - go_admin_kit_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "if [ -n \"$${REDIS_PASSWORD}\" ]; then redis-cli -a \"$${REDIS_PASSWORD}\" ping; else redis-cli ping; fi"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - go-admin-kit-net
+
+  go-admin-kit-nats:
+    image: nats:2.10-alpine
+    container_name: go-admin-kit-nats
+    restart: unless-stopped
+    command:
+      - --jetstream
+      - --store_dir=/data
+      - --http_port=8222
+    ports:
+      - "${NATS_PORT:-4222}:4222"
+    volumes:
+      - go_admin_kit_nats_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8222/healthz >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - go-admin-kit-net
+
+  go-admin-kit-minio:
+    image: minio/minio:latest
+    container_name: go-admin-kit-minio
+    restart: unless-stopped
+    profiles:
+      - storage
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - go_admin_kit_minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - go-admin-kit-net
+
+networks:
+  go-admin-kit-net:
+    external: true
+    name: go-admin-kit-net
+
+volumes:
+  # 钉住拆分前单栈（project=go-admin-kit）创建的 volume 名：存量数据零迁移直接续用；
+  # 全新环境 compose 会按同名自动创建，不需要任何预处理。
+  go_admin_kit_postgres_data:
+    name: go-admin-kit_go_admin_kit_postgres_data
+  go_admin_kit_redis_data:
+    name: go-admin-kit_go_admin_kit_redis_data
+  go_admin_kit_nats_data:
+    name: go-admin-kit_go_admin_kit_nats_data
+  go_admin_kit_minio_data:
+    name: go-admin-kit_go_admin_kit_minio_data
