@@ -18,3 +18,17 @@ Protected routes attach Traefik's ForwardAuth middleware. The auth service verif
 ## Password policy
 
 bcrypt storage, password-history reuse limits and max-age forced rotation, all hot-configurable under the `security.policy` settings key.
+
+## OAuth2 authorization server + OIDC
+
+Beyond being an OAuth *client* ("login with GitHub"), the scaffold is a full **OAuth2 authorization server** — third-party apps can "login with your platform account":
+
+- **Grant types**: `authorization_code` (+ PKCE, enforced for public clients) and `client_credentials` (service-to-service).
+- **Protocol endpoints**: `/oauth2/authorize` (consent page), `/oauth2/token`, `/oauth2/introspect`, `/oauth2/revoke`, `/oauth2/userinfo`.
+- **OIDC**: the `openid` scope issues an **RS256 `id_token`**, with `/oauth2/.well-known/openid-configuration` discovery and `/oauth2/jwks` public-key endpoints — third parties integrate SSO with any off-the-shelf OIDC client library, verifying via JWKS with no shared secrets. Signing uses a dedicated RSA-2048 key (auto-generated, persisted in `system_settings` for multi-replica sharing, stable `kid`), fully isolated from the console's own HS256.
+- **Console management**: "System → OAuth2 Apps" manages clients (redirect-URI scheme allowlist) and lets admins inspect and revoke issued tokens.
+- **Hardening** (from adversarial review): the OIDC private key cannot be read through the generic settings API; `introspect` only inspects tokens issued to the caller; refresh rotation guards against concurrent double-spend, and reuse of a revoked refresh token revokes the whole token family (OAuth Security BCP).
+
+## Security review
+
+The auth surface has been through several rounds of adversarial security review (supply chain, timing oracles, token-family attacks, redirect hijacking); fixes ship with regression tests. Please report issues privately per [SECURITY.md](https://github.com/SuperiorChuo/gopherforge/blob/main/SECURITY.md).

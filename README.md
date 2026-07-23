@@ -127,8 +127,9 @@
 
 | 组件 | 技术 |
 |------|------|
-| 指标 | **Prometheus** 📈 |
+| 指标 | **Prometheus** 📈（+ node_exporter 主机指标） |
 | 看板 | **Grafana** 📊 |
+| 告警 | **Alertmanager** 🚨（分组去抖 → 站内信闭环） |
 | 链路 | **OpenTelemetry** + Jaeger 🔭 |
 | 对象存储 | **MinIO**（S3 兼容） 📦 |
 
@@ -147,13 +148,16 @@
 | 能力 | 状态 |
 |------|:----:|
 | 🔐 登录 / JWT 刷新与撤销 / 验证码 / TOTP / OAuth | ✅ |
+| 🪪 OAuth2 授权服务端 + OIDC（authorization_code+PKCE / client_credentials / id_token / JWKS / 发现文档，控制台管理应用与令牌） | ✅ |
 | 🛡️ RBAC（用户、角色、权限、部门、菜单） | ✅ |
 | 🏢 多租户（共享库 + tenant_id，登录带租户码） | ✅ |
 | 📚 字典、公告、系统设置（DB 热配置）、在线用户 | ✅ |
 | 📝 登录日志 / 操作日志 / 审计日志 | ✅ |
 | 📁 文件上传（MinIO / 本地） | ✅ |
 | 🖥️ 服务器 / PostgreSQL / Redis / 定时任务监控 | ✅ |
-| ❤️ 健康检查、Prometheus metrics | ✅ |
+| ❤️ 健康检查、Prometheus metrics、微服务健康总览（并发探测各服务 ready） | ✅ |
+| 🚨 告警闭环（node_exporter + 告警规则 + Alertmanager → 站内信，服务down/磁盘/内存/5xx） | ✅ |
+| 💓 任务中心（分布式任务心跳上报 `shared/pkg/jobbeat`，超期即亮红） | ✅ |
 | 📋 审批流引擎（流程定义 / 待办中心 / 会签或签 / 终态回调） | ✅ |
 | 🚪 Traefik 网关 + ForwardAuth | ✅ |
 | 📡 NATS 登录事件 | ✅ |
