@@ -8,3 +8,21 @@ scrape_configs:
     static_configs:
       - targets:
           - go-admin-kit-monitor:8081  # monitor 服务承载 /api/v1/metrics（原 backend 命名已不存在）
+
+  # 全部业务服务的 HTTP/runtime/DB 池指标（shared/pkg/metrics 统一中间件，
+  # 端点 /metrics 只在容器网络内可达，网关不路由）。service 标签用于看板聚合。
+  - job_name: go-admin-kit-services
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["go-admin-kit-auth:8082"]
+        labels: { service: auth }
+      - targets: ["go-admin-kit-identity:8083"]
+        labels: { service: identity }
+      - targets: ["go-admin-kit-system:8084"]
+        labels: { service: system }
+      - targets: ["go-admin-kit-audit:8085"]
+        labels: { service: audit }
+      - targets: ["go-admin-kit-file:8086"]
+        labels: { service: file }
+      - targets: ["go-admin-kit-bpm:8096"]
+        labels: { service: bpm }

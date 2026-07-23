@@ -1,0 +1,156 @@
+{
+  "uid": "gak-services",
+  "title": "服务概览（go-admin-kit）",
+  "tags": ["go-admin-kit", "services"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "服务在线状态",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 4 },
+      "targets": [
+        {
+          "expr": "up{job=\"go-admin-kit-services\"}",
+          "legendFormat": "{{service}}",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "textMode": "name",
+        "colorMode": "background"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "DOWN", "color": "red" },
+                "1": { "text": "UP", "color": "green" }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "请求速率 QPS（按服务）",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum by (service) (rate(go_admin_kit_http_requests_total{job=\"go-admin-kit-services\"}[2m]))",
+          "legendFormat": "{{service}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "错误率 %（5xx / Gin errors）",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "100 * sum by (service) (rate(go_admin_kit_http_request_errors_total{job=\"go-admin-kit-services\"}[5m])) / sum by (service) (rate(go_admin_kit_http_requests_total{job=\"go-admin-kit-services\"}[5m]))",
+          "legendFormat": "{{service}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0 }, "overrides": [] }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "P95 延迟（按服务）",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (service, le) (rate(go_admin_kit_http_request_duration_seconds_bucket{job=\"go-admin-kit-services\"}[5m])))",
+          "legendFormat": "{{service}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "在途请求（in-flight）",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "go_admin_kit_http_in_flight_requests{job=\"go-admin-kit-services\"}",
+          "legendFormat": "{{service}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [] }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Goroutines（按服务）",
+      "gridPos": { "x": 0, "y": 20, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "go_admin_kit_go_goroutines{job=\"go-admin-kit-services\"}",
+          "legendFormat": "{{service}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "堆内存 alloc（按服务）",
+      "gridPos": { "x": 8, "y": 20, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "go_admin_kit_go_memory_alloc_bytes{job=\"go-admin-kit-services\"}",
+          "legendFormat": "{{service}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "DB 连接池 in-use（接入 SetDBStats 的服务）",
+      "gridPos": { "x": 16, "y": 20, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "go_admin_kit_db_in_use_connections{job=\"go-admin-kit-services\"}",
+          "legendFormat": "{{service}}",
+          "refId": "A"
+        },
+        {
+          "expr": "go_admin_kit_db_open_connections{job=\"go-admin-kit-services\"}",
+          "legendFormat": "{{service}} open",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [] }
+    }
+  ]
+}

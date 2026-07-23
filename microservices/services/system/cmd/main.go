@@ -17,6 +17,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
+	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 	"github.com/go-admin-kit/services/system/internal/api"
 	sharedapi "github.com/go-admin-kit/services/system/internal/api/shared"
 	systemAPI "github.com/go-admin-kit/services/system/internal/api/system"
@@ -313,6 +314,12 @@ func run(ctx context.Context) error {
 		}
 	}
 
+	// HTTP 指标（GET /metrics，Prometheus 抓取）：先于其余中间件注册，
+	// 端点不进日志/限流链；METRICS_ENABLED=false 关闭
+	sharedmetrics.Install(router)
+	if sqlDB, err := database.DB.DB(); err == nil {
+		sharedmetrics.SetDBStats(sqlDB.Stats)
+	}
 	router.Use(middleware.RequestID(config.Cfg.Observability.RequestIDHeader))
 	if tracingCfg.Enabled {
 		router.Use(observability.GinTracing(tracingCfg.ServiceName, middleware.RequestIDKey))
