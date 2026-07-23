@@ -179,9 +179,13 @@ func TestHTTPFlowEndToEnd(t *testing.T) {
 		Actions []string `json:"actions"`
 	}
 	_ = json.Unmarshal(env.Data, &detail)
-	// M2：普通审批任务 = approve/reject/transfer/return_start（无上一审批
-	// 节点且未开 allowBackPrev，不含 return_prev）
-	wantActions := map[string]bool{"approve": true, "reject": true, "transfer": true, "return_start": true}
+	// M2+M3+：普通审批任务 = approve/reject/transfer/return_start/delegate/
+	// add_sign（无上一审批节点且未开 allowBackPrev，不含 return_prev；
+	// OR 节点非 SEQ，含 add_sign）
+	wantActions := map[string]bool{
+		"approve": true, "reject": true, "transfer": true, "return_start": true,
+		"delegate": true, "add_sign": true,
+	}
 	if len(detail.Actions) != len(wantActions) {
 		t.Fatalf("actions: %+v", detail.Actions)
 	}

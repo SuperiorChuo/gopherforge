@@ -45,6 +45,15 @@ var (
 	// M3 新增动作错误
 	ErrTerminateReason  = errors.New("终止必须填写原因")
 	ErrInstanceFinished = errors.New("流程实例已结束")
+	// M3+ 加签 / 委派动作错误
+	ErrAddSignTarget    = errors.New("加签目标人不能为空")
+	ErrAddSignSeq       = errors.New("依次审批节点不支持加签")
+	ErrAddSignDuplicate = errors.New("目标人已在当前节点待审，不能重复加签")
+	ErrDelegateTarget   = errors.New("委派目标人不能为空")
+	ErrDelegateSelf     = errors.New("不能委派给自己")
+	ErrTaskDelegated    = errors.New("任务委派办理中，仅支持办理完成")
+	ErrNotDelegated     = errors.New("任务不在委派办理中")
+	ErrDelegateComment  = errors.New("办理完成必须填写意见")
 )
 
 type Engine struct {
@@ -65,6 +74,10 @@ type Effects struct {
 	FinalResult string
 	// ResultText 终态文案覆盖（管理员终止时区分于发起人撤销；空=按状态取）
 	ResultText string
+	// DelegatedTasks 本次委派给受托人的任务（发 bpm.task_delegated 站内信）
+	DelegatedTasks []model.Task
+	// DelegateResolvedTasks 委派办结回到原处理人的任务（发 bpm.task_delegate_resolved 站内信）
+	DelegateResolvedTasks []model.Task
 }
 
 // instVars 实例运行期变量（M1：发起人自选的选人结果）。
@@ -185,6 +198,9 @@ func (e *Engine) Approve(tenantID, taskID, userID uint64, comment string) (*Effe
 		if err != nil {
 			return err
 		}
+		if task.DelegatedBy != 0 { // 委派办理中：受托人只能办理完成
+			return ErrTaskDelegated
+		}
 		sc, node, err := e.loadNode(tx, inst, task.NodeID)
 		if err != nil {
 			return err
@@ -218,6 +234,9 @@ func (e *Engine) Reject(tenantID, taskID, userID uint64, comment string) (*Effec
 		task, inst, err := e.lockTaskAndInstance(tx, tenantID, taskID, userID)
 		if err != nil {
 			return err
+		}
+		if task.DelegatedBy != 0 {
+			return ErrTaskDelegated
 		}
 		sc, node, err := e.loadNode(tx, inst, task.NodeID)
 		if err != nil {
@@ -257,6 +276,9 @@ func (e *Engine) Transfer(tenantID, taskID, userID, targetUserID uint64, comment
 		if err != nil {
 			return err
 		}
+		if task.DelegatedBy != 0 {
+			return ErrTaskDelegated
+		}
 		_, node, err := e.loadNode(tx, inst, task.NodeID)
 		if err != nil {
 			return err
@@ -289,6 +311,172 @@ func (e *Engine) Transfer(tenantID, taskID, userID, targetUserID uint64, comment
 	return eff, nil
 }
 
+// ---------- 加签 / 委派（M3+） ----------
+
+// AddSign 并加签：往当前节点当前 round 增加审批人，新任务沿用节点
+// MultiMode 参与既有收敛（AND 全过才过 / OR 一人过即过）；SEQ 不支持。
+// 不动游标不调收敛——settleApproved 按 nodeTasks 任务集判定，插行天然纳入。
+func (e *Engine) AddSign(tenantID, taskID, userID uint64, targetUserIDs []uint64, comment string) (*Effects, error) {
+	targets := dedupe(targetUserIDs)
+	if len(targets) == 0 {
+		return nil, ErrAddSignTarget
+	}
+	eff := &Effects{}
+	err := e.db.Transaction(func(tx *gorm.DB) error {
+		task, inst, err := e.lockTaskAndInstance(tx, tenantID, taskID, userID)
+		if err != nil {
+			return err
+		}
+		if task.DelegatedBy != 0 {
+			return ErrTaskDelegated
+		}
+		_, node, err := e.loadNode(tx, inst, task.NodeID)
+		if err != nil {
+			return err
+		}
+		if node.Type == flow.TypeStart { // 重提任务不支持加签
+			return ErrReturnStartTask
+		}
+		if task.MultiMode == flow.MultiSeq {
+			return ErrAddSignSeq
+		}
+		// 同节点同 round 已有 pending 任务的人不能重复加（含操作人自己）
+		siblings, err := nodeTasks(tx, inst.ID, task.NodeID, task.Round)
+		if err != nil {
+			return err
+		}
+		pending := map[uint64]bool{}
+		for _, t := range siblings {
+			if t.Status == model.TaskPending {
+				pending[t.AssigneeID] = true
+			}
+		}
+		added := make([]uint64, 0, len(targets))
+		for _, uid := range targets {
+			if !pending[uid] {
+				added = append(added, uid)
+			}
+		}
+		if len(added) == 0 {
+			return ErrAddSignDuplicate
+		}
+		// 目标人存在性不做校验（与转办同口径：ID 由前端选人组件保证）
+		for _, uid := range added {
+			nt := model.Task{
+				TenantID: inst.TenantID, InstanceID: inst.ID,
+				NodeID: task.NodeID, NodeName: task.NodeName, Round: task.Round,
+				AssigneeID: uid, MultiMode: task.MultiMode,
+				Status: model.TaskPending, TimeoutAt: nodeTimeoutAt(node),
+				AddSignBy: userID,
+			}
+			if err := tx.Create(&nt).Error; err != nil {
+				return err
+			}
+			eff.NewTasks = append(eff.NewTasks, nt) // 复用 bpm.task_assigned 待办通知
+		}
+		eff.Instance = inst
+		writeLog(tx, inst, task.NodeID, task.ID, model.ActionAddSign, userID,
+			map[string]any{"target_user_ids": added, "from_user_id": userID, "comment": comment})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return eff, nil
+}
+
+// Delegate 委派：任务交给受托人办理（assignee 换为受托人、delegated_by 记
+// 委派人），受托人办结后回到委派人再做决定。不改变节点计数；禁止链式委派；
+// 与转办正交（origin_assignee 不动，转办后再委派两字段并存）。
+func (e *Engine) Delegate(tenantID, taskID, userID, targetUserID uint64, comment string) (*Effects, error) {
+	if targetUserID == 0 {
+		return nil, ErrDelegateTarget
+	}
+	if targetUserID == userID {
+		return nil, ErrDelegateSelf
+	}
+	eff := &Effects{}
+	err := e.db.Transaction(func(tx *gorm.DB) error {
+		task, inst, err := e.lockTaskAndInstance(tx, tenantID, taskID, userID)
+		if err != nil {
+			return err
+		}
+		if task.DelegatedBy != 0 { // 禁止链式委派
+			return ErrTaskDelegated
+		}
+		_, node, err := e.loadNode(tx, inst, task.NodeID)
+		if err != nil {
+			return err
+		}
+		if node.Type == flow.TypeStart {
+			return ErrReturnStartTask
+		}
+		res := tx.Model(&model.Task{}).
+			Where("id = ? AND status = ?", task.ID, model.TaskPending).
+			Updates(map[string]any{"assignee_id": targetUserID, "delegated_by": userID})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return ErrTaskHandled
+		}
+		eff.Instance = inst
+		writeLog(tx, inst, task.NodeID, task.ID, model.ActionDelegate, userID,
+			map[string]any{"target_user_id": targetUserID, "from_user_id": userID, "comment": comment})
+		task.AssigneeID = targetUserID
+		task.DelegatedBy = userID
+		eff.DelegatedTasks = append(eff.DelegatedTasks, *task)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return eff, nil
+}
+
+// ResolveDelegate 委派办结：受托人填写办理意见后任务回到委派人（assignee
+// 还原、delegated_by 清零、delegate_resolved_by 记受托人）。受托人意见落
+// 日志 detail（时间线可见）；task.Comment 留给委派人终审时写。
+func (e *Engine) ResolveDelegate(tenantID, taskID, userID uint64, comment string) (*Effects, error) {
+	if strings.TrimSpace(comment) == "" {
+		return nil, ErrDelegateComment
+	}
+	eff := &Effects{}
+	err := e.db.Transaction(func(tx *gorm.DB) error {
+		task, inst, err := e.lockTaskAndInstance(tx, tenantID, taskID, userID)
+		if err != nil {
+			return err
+		}
+		if task.DelegatedBy == 0 {
+			return ErrNotDelegated
+		}
+		res := tx.Model(&model.Task{}).
+			Where("id = ? AND status = ?", task.ID, model.TaskPending).
+			Updates(map[string]any{
+				"assignee_id": task.DelegatedBy, "delegated_by": 0,
+				"delegate_resolved_by": userID,
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return ErrTaskHandled
+		}
+		eff.Instance = inst
+		writeLog(tx, inst, task.NodeID, task.ID, model.ActionDelegateResolve, userID,
+			map[string]any{"target_user_id": task.DelegatedBy, "from_user_id": userID, "comment": comment})
+		task.AssigneeID = task.DelegatedBy
+		task.DelegatedBy = 0
+		task.DelegateResolvedBy = userID
+		eff.DelegateResolvedTasks = append(eff.DelegateResolvedTasks, *task)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return eff, nil
+}
+
 // Return 退回：to=start 退回发起人（生成重提任务）；to=prev 退回上一审批
 // 节点（round+1 重新展开；节点需 allowBackPrev；无上一审批节点时等价退回
 // 发起人）。当前节点所有 pending 任务置 returned。
@@ -304,6 +492,9 @@ func (e *Engine) Return(tenantID, taskID, userID uint64, to, comment string) (*E
 		task, inst, err := e.lockTaskAndInstance(tx, tenantID, taskID, userID)
 		if err != nil {
 			return err
+		}
+		if task.DelegatedBy != 0 {
+			return ErrTaskDelegated
 		}
 		sc, node, err := e.loadNode(tx, inst, task.NodeID)
 		if err != nil {

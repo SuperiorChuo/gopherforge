@@ -268,6 +268,12 @@ export interface BpmTask {
   assignee_name?: string
   /** 转办前的原处理人（空=未转办） */
   origin_assignee?: number
+  /** 加签发起人（空=非加签产生的任务） */
+  add_sign_by?: number
+  /** 委派人（非空=委派办理中，当前 assignee 为受托人） */
+  delegated_by?: number
+  /** 最近一次委派办结的受托人 */
+  delegate_resolved_by?: number
   multi_mode?: 'AND' | 'OR' | 'SEQ'
   seq_order?: number
   status: BpmTaskStatus | string
@@ -324,6 +330,9 @@ export type BpmLogAction =
   | 'terminate'
   | 'finish_approved'
   | 'finish_rejected'
+  | 'add_sign'
+  | 'delegate'
+  | 'delegate_resolve'
 
 /** 流转日志（bpm_process_log），时间线数据源；操作人姓名由前端用现有用户接口映射（§4.4 M1 约定） */
 export interface BpmTimelineItem {
@@ -411,6 +420,9 @@ export const BPM_ACTION_META: Record<string, { label: string; color: string }> =
   terminate: { label: '管理员终止', color: 'red' },
   finish_approved: { label: '审批通过', color: 'green' },
   finish_rejected: { label: '审批拒绝', color: 'red' },
+  add_sign: { label: '加签', color: 'purple' },
+  delegate: { label: '委派', color: 'geekblue' },
+  delegate_resolve: { label: '委派办结', color: 'geekblue' },
 }
 
 /** 条件表达式叶子操作符文案 */
@@ -989,6 +1001,26 @@ export const transferTask = (id: number, targetUserId: number, comment?: string)
   request.post<unknown, BpmTaskActionResult>(`/api/v1/bpm/tasks/${id}/transfer`, {
     target_user_id: targetUserId,
     comment: comment || undefined,
+  })
+
+/** 加签（M3+）：往当前节点同轮次增加审批人，沿用节点多人模式参与收敛（SEQ 不支持） */
+export const addSignTask = (id: number, userIds: number[], comment?: string) =>
+  request.post<unknown, BpmTaskActionResult>(`/api/v1/bpm/tasks/${id}/add-sign`, {
+    user_ids: userIds,
+    comment: comment || undefined,
+  })
+
+/** 委派（M3+）：任务交受托人办理，办结后回到委派人再做决定；不改变计数规则 */
+export const delegateTask = (id: number, targetUserId: number, comment?: string) =>
+  request.post<unknown, BpmTaskActionResult>(`/api/v1/bpm/tasks/${id}/delegate`, {
+    target_user_id: targetUserId,
+    comment: comment || undefined,
+  })
+
+/** 委派办结（M3+）：受托人填写办理意见后任务回到委派人；意见必填 */
+export const resolveDelegateTask = (id: number, comment: string) =>
+  request.post<unknown, BpmTaskActionResult>(`/api/v1/bpm/tasks/${id}/delegate/resolve`, {
+    comment,
   })
 
 /** 退回（M2）：to=start 退回发起人 / to=prev 退回上一节点（须动作列表含 return_prev）；意见必填 */

@@ -44,6 +44,9 @@ func (s *Server) RegisterRoutes(r *gin.Engine) {
 	r.POST("/api/v1/bpm/tasks/:id/reject", s.RejectTask)
 	r.POST("/api/v1/bpm/tasks/:id/transfer", s.TransferTask)
 	r.POST("/api/v1/bpm/tasks/:id/return", s.ReturnTask)
+	r.POST("/api/v1/bpm/tasks/:id/add-sign", s.AddSignTask)              // M3+
+	r.POST("/api/v1/bpm/tasks/:id/delegate", s.DelegateTask)            // M3+
+	r.POST("/api/v1/bpm/tasks/:id/delegate/resolve", s.ResolveDelegateTask) // M3+
 
 	// ---- 抄送端（M2）----
 	r.GET("/api/v1/bpm/cc/my", s.MyCc)

@@ -454,6 +454,8 @@ type TaskView struct {
 	TimeoutAt      *time.Time `json:"timeout_at,omitempty"`
 	ActedAt        *time.Time `json:"acted_at,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
+	AddSignBy      uint64     `json:"add_sign_by,omitempty"`
+	DelegatedBy    uint64     `json:"delegated_by,omitempty"`
 	InstanceTitle  string     `json:"instance_title"`
 	InstanceStatus string     `json:"instance_status"`
 	BizType        string     `json:"biz_type"`
@@ -466,6 +468,7 @@ func (s *Store) taskViewQ(tenantID uint64) *gorm.DB {
 		Select(`bpm_task.id, bpm_task.instance_id, bpm_task.node_id, bpm_task.node_name,
 			bpm_task.round, bpm_task.assignee_id, bpm_task.multi_mode, bpm_task.status,
 			bpm_task.comment, bpm_task.timeout_at, bpm_task.acted_at, bpm_task.created_at,
+			bpm_task.add_sign_by, bpm_task.delegated_by,
 			i.title AS instance_title, i.status AS instance_status,
 			i.biz_type, i.biz_id, i.initiator_id`).
 		Joins("JOIN bpm_process_instance i ON i.id = bpm_task.instance_id").
@@ -488,14 +491,18 @@ func (s *Store) ListTodo(tenantID, me uint64, p Page) ([]TaskView, int64, error)
 
 // ListDone 我的已办：本人处理过的（approved/rejected，以及带意见退回的
 // returned——acted_at 非空区分"我退回的"与"被连带置 returned 的"），加上
-// 转办出去的任务（origin_assignee=me，M2 验收：转办后原人已办可见）。
+// 转办出去的任务（origin_assignee=me，M2 验收：转办后原人已办可见）、
+// 委派出去的任务（delegated_by=me，委派期间原人可追踪）与我办结过的
+// 委派任务（delegate_resolved_by=me，办结后受托人已办可见）。
 func (s *Store) ListDone(tenantID, me uint64, p Page) ([]TaskView, int64, error) {
 	q := s.taskViewQ(tenantID).
 		Where(`(bpm_task.assignee_id = ? AND (bpm_task.status IN ?
 				OR (bpm_task.status = ? AND bpm_task.acted_at IS NOT NULL)))
-			OR (bpm_task.origin_assignee = ? AND bpm_task.assignee_id <> ?)`,
+			OR (bpm_task.origin_assignee = ? AND bpm_task.assignee_id <> ?)
+			OR (bpm_task.delegated_by = ? AND bpm_task.assignee_id <> ?)
+			OR (bpm_task.delegate_resolved_by = ? AND bpm_task.assignee_id <> ?)`,
 			me, []string{model.TaskApproved, model.TaskRejected},
-			model.TaskReturned, me, me)
+			model.TaskReturned, me, me, me, me, me, me)
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -671,8 +678,9 @@ func (s *Store) MarkTaskReminded(row TimeoutDueRow, hours int) (bool, error) {
 func (s *Store) ListUserTaskNodeIDs(instanceID, tenantID, userID uint64) []string {
 	var ids []string
 	_ = s.db.Model(&model.Task{}).
-		Where("instance_id = ? AND tenant_id = ? AND (assignee_id = ? OR origin_assignee = ?)",
-			instanceID, tenantID, userID, userID).
+		Where(`instance_id = ? AND tenant_id = ? AND (assignee_id = ?
+			OR origin_assignee = ? OR delegated_by = ? OR delegate_resolved_by = ?)`,
+			instanceID, tenantID, userID, userID, userID, userID).
 		Distinct().Pluck("node_id", &ids).Error
 	return ids
 }
@@ -867,16 +875,18 @@ func (s *Store) Stats(tenantID uint64) (*BpmStats, error) {
 
 func round1(v float64) float64 { return math.Round(v*10) / 10 }
 
-// CanView 实例可见性（M1 从简）：发起人 ∪ 任务参与者（含转办转出人，M2）
-// ∪ 被抄送人。平台管理员放行由 handler 层判断（X-Auth-Platform-Admin）。
+// CanView 实例可见性（M1 从简）：发起人 ∪ 任务参与者（含转办转出人 M2、
+// 委派人与办结受托人 M3+）∪ 被抄送人。平台管理员放行由 handler 层判断
+// （X-Auth-Platform-Admin）。
 func (s *Store) CanView(inst *model.ProcessInstance, userID uint64) bool {
 	if inst.InitiatorID == userID {
 		return true
 	}
 	var cnt int64
 	s.db.Model(&model.Task{}).
-		Where("instance_id = ? AND (assignee_id = ? OR origin_assignee = ?)",
-			inst.ID, userID, userID).Count(&cnt)
+		Where(`instance_id = ? AND (assignee_id = ? OR origin_assignee = ?
+			OR delegated_by = ? OR delegate_resolved_by = ?)`,
+			inst.ID, userID, userID, userID, userID).Count(&cnt)
 	if cnt > 0 {
 		return true
 	}
