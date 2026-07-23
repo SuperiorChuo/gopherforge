@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -42,6 +43,7 @@ type AuthorizeRequest struct {
 	State               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	Nonce               string // OIDC: echoed into the id_token to bind it to this request
 }
 
 // AuthorizeView is what the consent screen renders.
@@ -57,13 +59,15 @@ type AuthorizeView struct {
 	AlreadyApproved bool     `json:"already_approved"`
 }
 
-// TokenResponse is the RFC 6749 token endpoint success body.
+// TokenResponse is the RFC 6749 token endpoint success body. IDToken is present
+// only for OIDC flows (openid scope with an authenticated user).
 type TokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	TokenType    string `json:"token_type"`
 	ExpiresIn    int    `json:"expires_in"`
 	RefreshToken string `json:"refresh_token,omitempty"`
 	Scope        string `json:"scope"`
+	IDToken      string `json:"id_token,omitempty"`
 }
 
 // OAuth2ServerService implements the authorization-server protocol endpoints.
@@ -73,9 +77,10 @@ type OAuth2ServerService struct {
 	approvals authdao.OAuth2ApprovalDAO
 	users     *UserService
 	cache     *cache.CacheService
+	oidc      *OIDCService
 }
 
-func NewOAuth2ServerServiceWithDB(db *gorm.DB, redis cache.RedisClient) *OAuth2ServerService {
+func NewOAuth2ServerServiceWithDB(db *gorm.DB, redis cache.RedisClient, oidc *OIDCService) *OAuth2ServerService {
 	users := NewUserServiceWithDB(db)
 	var cacheSvc *cache.CacheService
 	if redis != nil {
@@ -89,8 +94,12 @@ func NewOAuth2ServerServiceWithDB(db *gorm.DB, redis cache.RedisClient) *OAuth2S
 		approvals: authdao.NewOAuth2ApprovalDAO(db),
 		users:     &users,
 		cache:     cacheSvc,
+		oidc:      oidc,
 	}
 }
+
+// OIDC exposes the OIDC service for discovery/JWKS handlers.
+func (s *OAuth2ServerService) OIDC() *OIDCService { return s.oidc }
 
 const approvalTTL = 180 * 24 * time.Hour // consent remembered for 180 days
 
@@ -232,6 +241,7 @@ func (s *OAuth2ServerService) Approve(ctx context.Context, userID uint, username
 		Scopes:              view.Scopes,
 		CodeChallenge:       req.CodeChallenge,
 		CodeChallengeMethod: req.CodeChallengeMethod,
+		Nonce:               req.Nonce,
 	}
 	if err := s.cache.StoreOAuth2CodeContext(ctx, code, payload); err != nil {
 		return "", oauth2Err(500, "server_error", "failed to persist code")
@@ -327,7 +337,7 @@ func (s *OAuth2ServerService) ExchangeAuthorizationCode(ctx context.Context, cli
 		}
 	}
 	uid := payload.UserID
-	return s.issueTokens(ctx, client, &uid, payload.Username, payload.TenantID, payload.Scopes, model.GrantAuthorizationCode)
+	return s.issueTokens(ctx, client, &uid, payload.Username, payload.TenantID, payload.Scopes, model.GrantAuthorizationCode, payload.Nonce)
 }
 
 // ExchangeRefreshToken handles grant_type=refresh_token with rotation: the old
@@ -358,7 +368,9 @@ func (s *OAuth2ServerService) ExchangeRefreshToken(ctx context.Context, client *
 	if err := s.tokens.RevokeAccessByRefreshTokenIDContext(tctx, stored.ID); err != nil {
 		return nil, oauth2Err(500, "server_error", "failed to rotate access token")
 	}
-	return s.issueTokens(ctx, client, stored.UserID, stored.Username, stored.TenantID, stored.Scopes, model.GrantRefreshToken)
+	// Refresh does not carry the original nonce; id_token (if openid) is minted
+	// without one, which is permitted for the refresh flow.
+	return s.issueTokens(ctx, client, stored.UserID, stored.Username, stored.TenantID, stored.Scopes, model.GrantRefreshToken, "")
 }
 
 // ClientCredentials handles grant_type=client_credentials (confidential only,
@@ -391,8 +403,9 @@ func (s *OAuth2ServerService) ClientCredentials(ctx context.Context, client *mod
 }
 
 // issueTokens mints a linked refresh + access token pair (authorization_code /
-// refresh_token grants).
-func (s *OAuth2ServerService) issueTokens(ctx context.Context, client *model.OAuth2Client, userID *uint, username string, tenantID uint, scopes []string, grantType string) (*TokenResponse, *OAuth2Error) {
+// refresh_token grants), plus an OIDC id_token when the openid scope was granted
+// to an authenticated user.
+func (s *OAuth2ServerService) issueTokens(ctx context.Context, client *model.OAuth2Client, userID *uint, username string, tenantID uint, scopes []string, grantType, nonce string) (*TokenResponse, *OAuth2Error) {
 	tctx := tenantCtx(ctx, tenantID)
 	refreshRaw, err := randomBase64URL(32)
 	if err != nil {
@@ -415,13 +428,46 @@ func (s *OAuth2ServerService) issueTokens(ctx context.Context, client *model.OAu
 	if oerr != nil {
 		return nil, oerr
 	}
-	return &TokenResponse{
+	resp := &TokenResponse{
 		AccessToken:  accessToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    client.AccessTokenTTL,
 		RefreshToken: refreshRaw,
 		Scope:        strings.Join(scopes, " "),
-	}, nil
+	}
+	if s.oidc != nil && userID != nil && containsStr(scopes, "openid") {
+		idToken, err := s.signIDToken(tctx, client, *userID, tenantID, scopes, nonce)
+		if err != nil {
+			return nil, oauth2Err(500, "server_error", "failed to sign id_token")
+		}
+		resp.IDToken = idToken
+	}
+	return resp, nil
+}
+
+// signIDToken builds and signs the id_token, embedding the scope-gated profile
+// and email claims (loaded from the user record).
+func (s *OAuth2ServerService) signIDToken(ctx context.Context, client *model.OAuth2Client, userID, tenantID uint, scopes []string, nonce string) (string, error) {
+	extra := map[string]any{}
+	if containsStr(scopes, "profile") || containsStr(scopes, "email") {
+		if user, err := s.users.GetUserWithRolesContext(ctx, userID); err == nil {
+			if containsStr(scopes, "profile") {
+				extra["name"] = user.Nickname
+				extra["preferred_username"] = user.Username
+				extra["picture"] = user.Avatar
+			}
+			if containsStr(scopes, "email") {
+				extra["email"] = user.Email
+			}
+		}
+	}
+	return s.oidc.SignIDToken(ctx, IDTokenClaims{
+		Subject:  strconv.FormatUint(uint64(userID), 10),
+		Audience: client.ClientID,
+		Nonce:    nonce,
+		TTL:      time.Duration(client.AccessTokenTTL) * time.Second,
+		Extra:    extra,
+	})
 }
 
 func (s *OAuth2ServerService) mintAccessToken(ctx context.Context, client *model.OAuth2Client, userID *uint, username string, tenantID uint, scopes []string, grantType string, refreshID *uint) (string, *OAuth2Error) {

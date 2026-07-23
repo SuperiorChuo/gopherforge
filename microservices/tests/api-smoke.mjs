@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, createPublicKey, verify as cryptoVerify } from 'node:crypto';
 
 import { buildConfig, decodeTextCaptchaCode, getJsonPath, jsonObject, statusMatches } from './api-smoke-lib.mjs';
 
@@ -611,6 +611,7 @@ async function main() {
 
   // ---------- OAuth2 授权服务端全流程 ----------
   const oauth2Redirect = 'https://smoke.example.com/callback';
+  const oauth2Nonce = `smoke-nonce-${config.safeRunId}`;
   const { verifier: pkceVerifier, challenge: pkceChallenge } = pkcePair();
 
   step('oauth2 create client');
@@ -618,7 +619,7 @@ async function main() {
     name: `smoke-oauth2-${config.safeRunId}`,
     client_type: 1,
     redirect_uris: [oauth2Redirect],
-    scopes: ['profile', 'email'],
+    scopes: ['openid', 'profile', 'email'],
     grant_types: ['authorization_code', 'refresh_token', 'client_credentials'],
   }), state.accessToken);
   const oauth2ClientId = getJsonPath(response.data, 'data.client.client_id');
@@ -631,8 +632,8 @@ async function main() {
 
   const authorizeQuery =
     `?response_type=code&client_id=${encodeURIComponent(oauth2ClientId)}` +
-    `&redirect_uri=${encodeURIComponent(oauth2Redirect)}&scope=${encodeURIComponent('profile email')}` +
-    `&state=smoke-state&code_challenge=${pkceChallenge}&code_challenge_method=S256`;
+    `&redirect_uri=${encodeURIComponent(oauth2Redirect)}&scope=${encodeURIComponent('openid profile email')}` +
+    `&state=smoke-state&nonce=${encodeURIComponent(oauth2Nonce)}&code_challenge=${pkceChallenge}&code_challenge_method=S256`;
 
   step('oauth2 authorize view');
   response = await request('GET', `/oauth2/authorize${authorizeQuery}`, 200, '', state.accessToken);
@@ -646,8 +647,9 @@ async function main() {
     client_id: oauth2ClientId,
     redirect_uri: oauth2Redirect,
     response_type: 'code',
-    scope: 'profile email',
+    scope: 'openid profile email',
     state: 'smoke-state',
+    nonce: oauth2Nonce,
     code_challenge: pkceChallenge,
     code_challenge_method: 'S256',
     approved: true,
@@ -672,9 +674,49 @@ async function main() {
   });
   const oauthAccess = tokenRes.data?.access_token;
   const oauthRefresh = tokenRes.data?.refresh_token;
+  const oauthIDToken = tokenRes.data?.id_token;
   assertResponse(
     tokenRes.data?.token_type === 'Bearer' && typeof oauthAccess === 'string' && typeof oauthRefresh === 'string',
     'oauth2 token exchange did not return bearer access + refresh tokens',
+  );
+  assertResponse(typeof oauthIDToken === 'string' && oauthIDToken.split('.').length === 3, 'openid scope did not yield a JWT id_token');
+
+  step('oidc discovery document');
+  response = await request('GET', '/oauth2/.well-known/openid-configuration', 200);
+  const disco = response.data;
+  assertResponse(
+    typeof disco?.issuer === 'string' &&
+      disco.issuer.endsWith('/api/v1/oauth2') &&
+      typeof disco.jwks_uri === 'string' &&
+      Array.isArray(disco.id_token_signing_alg_values_supported) &&
+      disco.id_token_signing_alg_values_supported.includes('RS256'),
+    'oidc discovery document is missing required fields',
+  );
+
+  step('oidc jwks + id_token signature verify');
+  const jwksRes = await request('GET', '/oauth2/jwks', 200);
+  const jwk = jwksRes.data?.keys?.[0];
+  assertResponse(jwk?.kty === 'RSA' && typeof jwk.n === 'string' && typeof jwk.kid === 'string', 'jwks did not return an RSA key');
+  // 用 JWKS 公钥验证 id_token 的 RS256 签名（node 内置 crypto 直接吃 JWK）
+  const [idHeaderB64, idPayloadB64, idSigB64] = oauthIDToken.split('.');
+  const idPubKey = createPublicKey({ key: { kty: jwk.kty, n: jwk.n, e: jwk.e }, format: 'jwk' });
+  const idSigOk = cryptoVerify(
+    'RSA-SHA256',
+    Buffer.from(`${idHeaderB64}.${idPayloadB64}`),
+    idPubKey,
+    Buffer.from(idSigB64, 'base64url'),
+  );
+  assertResponse(idSigOk, 'id_token RS256 signature did not verify against JWKS');
+  const idHeader = JSON.parse(Buffer.from(idHeaderB64, 'base64url').toString('utf8'));
+  const idClaims = JSON.parse(Buffer.from(idPayloadB64, 'base64url').toString('utf8'));
+  assertResponse(idHeader.alg === 'RS256' && idHeader.kid === jwk.kid, 'id_token header alg/kid mismatch with JWKS');
+  assertResponse(
+    idClaims.iss === disco.issuer &&
+      idClaims.aud === oauth2ClientId &&
+      idClaims.nonce === oauth2Nonce &&
+      typeof idClaims.sub === 'string' &&
+      idClaims.email !== undefined,
+    'id_token claims (iss/aud/nonce/sub/email) are not as expected',
   );
 
   step('oauth2 userinfo');

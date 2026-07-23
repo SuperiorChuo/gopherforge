@@ -32,6 +32,7 @@ type OAuth2CodePayload struct {
 	Scopes              []string `json:"scopes"`
 	CodeChallenge       string   `json:"code_challenge"`
 	CodeChallengeMethod string   `json:"code_challenge_method"`
+	Nonce               string   `json:"nonce,omitempty"`
 }
 
 func (s *CacheService) StoreOAuth2CodeContext(ctx context.Context, code string, payload OAuth2CodePayload) error {

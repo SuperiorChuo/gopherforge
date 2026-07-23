@@ -3,6 +3,7 @@ package auth
 import (
 	"github.com/gin-gonic/gin"
 	sharedapi "github.com/go-admin-kit/services/auth/internal/api/shared"
+	"github.com/go-admin-kit/services/auth/internal/config"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
 	authsvc "github.com/go-admin-kit/services/auth/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/auth/internal/service/system"
@@ -12,7 +13,8 @@ func newOAuth2ServerAPIFromDeps(deps sharedapi.Dependencies) *OAuth2ServerAPI {
 	if deps.DB == nil {
 		return nil
 	}
-	return NewOAuth2ServerAPI(authsvc.NewOAuth2ServerServiceWithDB(deps.DB, deps.Redis))
+	oidc := authsvc.NewOIDCService(deps.DB, config.Cfg.JWT.OIDCIssuerURL)
+	return NewOAuth2ServerAPI(authsvc.NewOAuth2ServerServiceWithDB(deps.DB, deps.Redis, oidc))
 }
 
 func newOAuth2AdminAPIFromDeps(deps sharedapi.Dependencies) *OAuth2AdminAPI {
@@ -36,6 +38,10 @@ func RegisterOAuth2PublicRoutes(r gin.IRoutes, deps sharedapi.Dependencies) {
 	r.POST("/oauth2/introspect", server.PostIntrospect)
 	r.POST("/oauth2/revoke", server.PostRevoke)
 	r.GET("/oauth2/userinfo", middleware.OAuth2BearerMiddleware(), server.GetUserInfo)
+	// OIDC discovery + JWKS. Path-scoped issuer keeps these under the already
+	// gateway-routed /api/v1/oauth2/ prefix.
+	r.GET("/oauth2/.well-known/openid-configuration", server.GetOpenIDConfiguration)
+	r.GET("/oauth2/jwks", server.GetJWKS)
 }
 
 // RegisterOAuth2AuthorizeRoutes mounts the consent endpoints (require console

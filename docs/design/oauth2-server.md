@@ -1,6 +1,6 @@
 # OAuth2 授权服务端设计
 
-> 状态：**M1 已落地** · 应用管理 + authorization_code / refresh_token / client_credentials + 授权确认页
+> 状态：**M1 + M2(OIDC) 已落地** · 应用管理 + authorization_code / refresh_token / client_credentials + 授权确认页 + OIDC(id_token/discovery/JWKS)
 > 范围：`microservices/services/auth`（协议端点与数据表内聚于认证域）
 > 原则：授权端点在任何跳转前先校验 `client_id` + `redirect_uri`；令牌只存哈希；`redirect_uri` 精确匹配
 > 对标：yudao 开放平台（应用-授权-令牌）
@@ -34,7 +34,7 @@
 ### 2.2 非目标（M1 不做）
 
 - `implicit` / `password` grant（已废弃，不实现）
-- 完整 OIDC `id_token`（`userinfo` 已够资源服务器取身份；JWT 形态 access token 留 M2）
+- ~~完整 OIDC `id_token`~~ → **M2 已补**（id_token + discovery + JWKS，见 §10）；JWT 形态 access token 仍留后续
 - 动态客户端注册（RFC 7591）
 - per-client 精细限流（复用全局 `DynamicRateLimit`，M2 再细化）
 
@@ -106,7 +106,7 @@
 
 ## 8. 验证
 
-`microservices/tests/api-smoke.mjs` 覆盖全流程：建应用（记一次性密钥）→ authorize 视图 → approve 取 code → token(PKCE) → userinfo → introspect(active) → refresh 旋转 → 旧 refresh 拒绝 → client_credentials → revoke → introspect(inactive) → 删应用。
+`microservices/tests/api-smoke.mjs` 覆盖全流程：建应用（记一次性密钥）→ authorize 视图 → approve 取 code → token(PKCE) → **discovery 文档 + JWKS + id_token RS256 验签** → userinfo → introspect(active) → refresh 旋转 → 旧 refresh 拒绝 → client_credentials → revoke → introspect(inactive) → 删应用。
 
 ## 9. 与 yudao 的差异
 
@@ -116,3 +116,17 @@
 | redirect_uri | 精确匹配 | 精确匹配 |
 | PKCE | S256-only，public 强制 | 支持 |
 | 部署足迹 | 内聚 auth-service，无新进程 | 独立模块 |
+
+## 10. OIDC（M2）
+
+在 M1 之上补齐 OpenID Connect，使其成为标准身份提供方——第三方用现成 OIDC 客户端库即可对接 SSO，拿 `id_token` 本地验签取身份，无需回调 introspect。
+
+**签名与密钥**：`id_token` 用 **RS256**（独立于 console session 的 HS256 JWT），密钥是自动生成的 RSA-2048。私钥 PEM 持久化在 `system_settings`（key `oidc.signing_key`）——首次用时生成，`INSERT ... ON CONFLICT DO NOTHING` + 回读，让多副本收敛到同一把、重启复用。`kid` 由公钥 SHA-256 派生（跨副本一致）。第三方靠 JWKS 公钥验签，不需要任何共享密钥（HS256 做不到，尤其公开客户端）。
+
+**issuer 路径式**：`issuer = ${OIDC_ISSUER_URL}/api/v1/oauth2`（env `OIDC_ISSUER_URL`，默认 `http://localhost:8000`，生产需设为网关公网 URL）。discovery 落 `/api/v1/oauth2/.well-known/openid-configuration`、JWKS 落 `/api/v1/oauth2/jwks`——全在已路由的 `/api/v1/oauth2/` 前缀下，**网关零改动**（路径式 issuer 是 OIDC 合法用法，Keycloak realm / Auth0 tenant 同款）。
+
+**流程**：授权请求带 `scope=openid ...` 与可选 `nonce`；`nonce` 透传 authorize→code(Redis)→id_token。`id_token` 仅在 `openid` scope 且有用户时签发（authorization_code；refresh 也签但不带原 nonce；client_credentials 无用户不签）。claims：`iss/sub/aud/exp/iat/auth_time` + `nonce`（有则带）+ 按 scope 的 `name/preferred_username/picture`（profile）、`email`（email）。
+
+**端点**（均公开、裸 JSON）：`GET /oauth2/.well-known/openid-configuration`、`GET /oauth2/jwks`。
+
+**关键文件**：`service/auth/oidc.go`（密钥/签名/discovery/JWKS）、`dao/system/setting.go` 的 `CreateIfAbsentContext`、`oauth2_server.go` 的 `signIDToken` + `TokenResponse.IDToken`。

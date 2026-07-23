@@ -7,6 +7,13 @@
 
 ### 新增
 
+- **OAuth2 服务端 OIDC（M2）**（同步自主项目）：在 OAuth2 服务端上补齐 OpenID Connect——
+  `openid` scope 签发 RS256 `id_token` + `/.well-known/openid-configuration` 发现文档 +
+  `/oauth2/jwks` 公钥端点，第三方用现成 OIDC 客户端库即可对接 SSO。`id_token` 用独立
+  RSA-2048 密钥（不碰 console 的 HS256），私钥自动生成后持久化在 `system_settings`
+  （多副本共享、`kid` 稳定），第三方靠 JWKS 验签无需共享密钥；`nonce` 透传绑定；走路径式
+  issuer（`${OIDC_ISSUER_URL}/api/v1/oauth2`）故网关零改动。设计见 `docs/design/oauth2-server.md` §10。
+
 - **全服务 /metrics 可观测**（同步自主项目）：`shared/pkg/metrics` 零依赖 Prometheus
   指标包（HTTP 计数/错误/延迟直方图 + Go runtime + DB 连接池），auth/identity/system/
   audit/file 一行接入，bpm（独立构建上下文）持 `internal/metrics` 同源副本；Prometheus
