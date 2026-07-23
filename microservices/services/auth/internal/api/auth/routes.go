@@ -60,6 +60,11 @@ func RegisterPublicRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies) {
 	r.GET("/oauth/github/callback", oauthAPI.GithubCallback)
 	r.GET("/oauth/wechat/login", oauthAPI.WechatLogin)
 	r.GET("/oauth/wechat/callback", oauthAPI.WechatCallback)
+
+	// OAuth2 authorization-server protocol endpoints. These authenticate by
+	// client credentials / opaque bearer, not the console JWT, so they live in
+	// the public group.
+	RegisterOAuth2PublicRoutes(r, deps)
 }
 
 // RegisterProtectedRoutes mounts authenticated console/user authentication
@@ -92,4 +97,9 @@ func RegisterProtectedRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies)
 	oauthAPI := newOAuthAPIFromDeps(deps)
 	r.POST("/oauth/bind", oauthAPI.BindOAuth)
 	r.POST("/oauth/unbind", oauthAPI.UnbindOAuth)
+
+	// OAuth2 consent (resource owner logs in as a normal user) + tenant-scoped
+	// application/token management (behind per-action permission checks).
+	RegisterOAuth2AuthorizeRoutes(r, deps)
+	RegisterOAuth2AdminRoutes(r, deps)
 }

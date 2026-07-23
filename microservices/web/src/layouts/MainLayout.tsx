@@ -209,6 +209,7 @@ const MENU_DEFS: MenuDef[] = [
       { label: '租户管理', key: '/system/tenant', icon: <TeamOutlined /> },
       { label: '代码生成', key: '/system/codegen', icon: <CodeOutlined /> },
       { label: '短信管理', key: '/system/sms', icon: <MailOutlined /> },
+      { label: 'OAuth2 应用', key: '/system/oauth2', icon: <ApiOutlined /> },
       { label: '错误码管理', key: '/system/errcodes', icon: <WarningOutlined /> },
       { label: '租户套餐', key: '/system/tenant-packages', icon: <AppstoreOutlined /> },
     ],
@@ -289,6 +290,7 @@ const pathBreadcrumbMap: Record<string, string> = {
   '/system/tenant': '租户管理',
   '/system/codegen': '代码生成',
   '/system/sms': '短信管理',
+  '/system/oauth2': 'OAuth2 应用',
   '/system/errcodes': '错误码管理',
   '/system/post': '岗位管理',
   '/system/tenant-packages': '租户套餐',
@@ -387,7 +389,10 @@ export default function MainLayout() {
 
   useEffect(() => {
     if (!token) {
-      navigate('/login', { replace: true })
+      // 带上来源路径，登录后回跳（授权页等深链依赖此行为）；根路径不带以免冗余
+      const from = window.location.pathname + window.location.search
+      const target = from && from !== '/' ? `/login?redirect=${encodeURIComponent(from)}` : '/login'
+      navigate(target, { replace: true })
       return
     }
     // 有 token 但用户/权限未就绪时拉取；避免 login 只写了 userInfo、permissions 仍为空

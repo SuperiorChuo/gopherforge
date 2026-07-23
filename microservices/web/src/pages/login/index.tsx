@@ -25,6 +25,18 @@ import { getCaptcha } from '@/api/auth'
 import { setTokens } from '@/utils/request'
 import { useThemeMode } from '@/theme/ThemeContext'
 
+/**
+ * 读取 ?redirect= 并做开放重定向防护：只接受站内绝对路径（单个前导斜杠，
+ * 拒绝 //host、http(s):// 等外站跳转）。用于登录后回到来源页（如 OAuth2 授权页）。
+ */
+function safeRedirectTarget(): string {
+  const raw = new URLSearchParams(window.location.search).get('redirect')
+  if (raw && /^\/(?!\/)/.test(raw)) {
+    return raw
+  }
+  return '/dashboard'
+}
+
 export default function LoginPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
@@ -67,7 +79,7 @@ export default function LoginPage() {
     setSuccess(true)
     message.success('登录成功')
     window.setTimeout(() => {
-      navigate('/dashboard', { replace: true })
+      navigate(safeRedirectTarget(), { replace: true })
     }, 280)
   }, [navigate])
 
