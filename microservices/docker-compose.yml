@@ -535,9 +535,11 @@ services:
       - monitoring
     environment:
       NOTIFY_INTERNAL_TOKEN: ${NOTIFY_INTERNAL_TOKEN:-dev-notify-internal-token}
+      # 企业微信群机器人 webhook（带外 critical 告警）；未配时 critical 仍有站内信兜底
+      WECOM_WEBHOOK: ${WECOM_WEBHOOK:-http://127.0.0.1:1/blackhole}
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - sed "s|__NOTIFY_TOKEN__|$$NOTIFY_INTERNAL_TOKEN|" /etc/alertmanager/alertmanager.tpl.yml > /tmp/alertmanager.yml && exec /bin/alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/alertmanager
+      - sed -e "s|__NOTIFY_TOKEN__|$$NOTIFY_INTERNAL_TOKEN|" -e "s|__WECOM_WEBHOOK__|$$WECOM_WEBHOOK|" /etc/alertmanager/alertmanager.tpl.yml > /tmp/alertmanager.yml && exec /bin/alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/alertmanager
     ports:
       - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
     volumes:
