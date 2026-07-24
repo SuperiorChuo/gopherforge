@@ -8,7 +8,7 @@
 
 ## 微服务后端边界（`microservices/`）
 
-- `services/auth|identity|system|audit|file|ai`：业务微服务
+- `services/auth|identity|system|audit|file|bpm`：基础微服务
 - `services/monitor`：监控、健康、metrics、共享 goose 迁移、网关 `/api` 兜底
 - `web/`：React + Ant Design 前端
 

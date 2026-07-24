@@ -2,6 +2,8 @@
 
 The full production guide is currently maintained in Chinese: [生产部署（中文）](/reference/deployment) · [source on GitHub](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/deployment.md).
 
+> The current release line is `v0.2.0-rc.1`. It is a 0.x release: APIs and database schemas may change. Complete backups, migration compatibility checks and a rollback rehearsal before production use.
+
 Checklist summary:
 
 1. **Rotate secrets**: `JWT_SECRET`, PostgreSQL/Redis/MinIO/Grafana credentials, default admin password, `CORS_ALLOW_ORIGINS`.

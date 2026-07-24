@@ -4,7 +4,7 @@
 
 | 产品线 | 目录 | 启动 |
 |--------|------|------|
-| 微服务脚手架 | `microservices/` | `cd microservices && docker compose up -d --build` 或 `make compose-up` |
+| 微服务脚手架 | `microservices/` | `make compose-up`（自动先起 infra 数据栈） |
 
 ## 内置能力
 

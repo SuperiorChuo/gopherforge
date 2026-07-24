@@ -1,6 +1,6 @@
 # 架构总览
 
-GopherForge 采用**真微服务架构**：后端按域拆分为 8 个 Go 服务，前端单页应用，Traefik 网关统一入口与鉴权，全部经 Docker Compose 编排。
+GopherForge 采用**真微服务架构**：后端按域拆分为 7 个 Go 服务，另有 `shared` 公共库；前端单页应用，Traefik 网关统一入口与鉴权，全部经 Docker Compose 编排。
 
 ## 服务清单
 

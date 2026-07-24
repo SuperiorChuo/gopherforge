@@ -1,6 +1,6 @@
 # Architecture
 
-GopherForge is a **real microservices architecture**: 8 Go services split by domain, an SPA frontend, a Traefik gateway as the single entry with unified auth, all orchestrated by Docker Compose.
+GopherForge is a **real microservices architecture**: 7 Go services split by domain plus a shared library, an SPA frontend, a Traefik gateway as the single entry with unified auth, all orchestrated by Docker Compose.
 
 ## Services
 

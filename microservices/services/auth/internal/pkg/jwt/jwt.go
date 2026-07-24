@@ -339,8 +339,16 @@ func refreshTokenWithBase(ctx context.Context, refreshToken string) (accessToken
 		return "", "", err
 	}
 
-	if err := RevokeTokenContext(ctx, refreshToken, claims); err != nil {
+	// Atomically claim the old refresh token. A concurrent request may have
+	// passed the revocation read above before this point; SETNX-backed consume
+	// ensures only one of them can mint a rotated pair successfully.
+	expireTime := time.Until(claims.ExpiresAt.Time)
+	consumed, err := ConsumeTokenID(ctx, claims.ID, expireTime)
+	if err != nil {
 		return "", "", err
+	}
+	if !consumed {
+		return "", "", ErrRevokedToken
 	}
 
 	return accessToken, newRefreshToken, nil

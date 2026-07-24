@@ -35,6 +35,9 @@ export interface paths {
   "/api/v1/monitor/server": {
     get: operations["getApiV1MonitorServer"];
   };
+  "/api/v1/monitor/services": {
+    get: operations["getApiV1MonitorServices"];
+  };
 }
 
 export interface operations {
@@ -285,6 +288,31 @@ export interface operations {
       "200": {
         content: {
           "application/json": components["schemas"]["ServerInfoEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorServices": {
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
         };
       };
       "400": {
