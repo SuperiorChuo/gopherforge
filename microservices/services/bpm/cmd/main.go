@@ -23,6 +23,7 @@ import (
 	"github.com/go-admin-kit/services/bpm/internal/engine"
 	"github.com/go-admin-kit/services/bpm/internal/metrics"
 	"github.com/go-admin-kit/services/bpm/internal/notifyclient"
+	"github.com/go-admin-kit/services/bpm/internal/jobbeat"
 	"github.com/go-admin-kit/services/bpm/internal/store"
 )
 
@@ -105,7 +106,13 @@ func runTimeoutLoop(ctx context.Context, srv *api.Server, st *store.Store, notif
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
+		start := time.Now()
 		scanTimeoutDue(ctx, srv, st, notify)
+		jobbeat.Report(st.DB(), jobbeat.Run{
+			Key: "bpm.timeout_scan", Service: "bpm-service",
+			Description: "审批任务超时扫描（提醒/自动通过/自动拒绝）",
+			IntervalSec: int64(interval / time.Second), StartedAt: start,
+		})
 		select {
 		case <-ticker.C:
 		case <-ctx.Done():

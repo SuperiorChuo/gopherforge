@@ -561,6 +561,41 @@ services:
     networks:
       - go-admin-kit-net
 
+  # 统一日志：Loki 存储 + promtail 采全容器 stdout，Grafana Explore 里查
+  # （{service="auth"} |= "关键词"）。保留 7 天，filesystem 单机存储。
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: go-admin-kit-loki
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    command:
+      - -config.file=/etc/loki/config.yml
+    ports:
+      - "127.0.0.1:${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ../platform/deploy/loki/loki-config.yml:/etc/loki/config.yml:ro
+      - go_admin_kit_loki_data:/loki
+    networks:
+      - go-admin-kit-net
+
+  promtail:
+    image: grafana/promtail:3.1.1
+    container_name: go-admin-kit-promtail
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    command:
+      - -config.file=/etc/promtail/config.yml
+    volumes:
+      - ../platform/deploy/loki/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      loki:
+        condition: service_started
+    networks:
+      - go-admin-kit-net
+
   grafana:
     image: grafana/grafana:11.2.0
     container_name: go-admin-kit-grafana
@@ -633,4 +668,5 @@ volumes:
   go_admin_kit_uploads:
   go_admin_kit_prometheus_data:
   go_admin_kit_alertmanager_data:
+  go_admin_kit_loki_data:
   go_admin_kit_grafana_data:
