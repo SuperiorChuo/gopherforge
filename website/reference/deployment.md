@@ -4,6 +4,8 @@
 
 面向把 **GopherForge 微服务版** 部署到一台 Linux 服务器的运维/自部署用户。本地开发联调请看 [`LOCAL_SETUP.md`](https://github.com/SuperiorChuo/gopherforge/blob/main/LOCAL_SETUP.md)，本文只讲**生产上线**。
 
+> 当前发布候选版：`v0.2.0-rc.1`。0.x 期间 API 和数据库表结构可能变化；上线前请完成备份、迁移兼容性检查和回滚演练。
+
 ---
 
 ## 1. 架构与你要准备的东西
@@ -21,7 +23,7 @@
 **服务器要求**：
 - Linux（Ubuntu 22.04 / Debian 12 / 任意 systemd 发行版）
 - Docker Engine 24+ 与 Docker Compose v2（`docker compose`，非旧版 `docker-compose`）
-- 建议 4C8G 起（全栈 ~13 个 Go 服务 + PG + Redis + NATS）
+- 建议 4C8G 起（7 个 Go 服务 + PG + Redis + NATS；监控 profile 另计资源）
 - 一个域名 + 该域名的 TLS 证书（Let's Encrypt 即可）
 
 ---
@@ -29,10 +31,10 @@
 ## 2. 拉取代码与准备 .env
 
 ```bash
-git clone <your-repo> /opt/go-admin-kit
-cd /opt/go-admin-kit/microservices
-cp .env.example .env
-chmod 600 .env          # .env 含密钥，收紧权限
+git clone https://github.com/SuperiorChuo/gopherforge.git /opt/gopherforge
+cd /opt/gopherforge
+cp microservices/.env.example microservices/.env
+chmod 600 microservices/.env          # .env 含密钥，收紧权限
 ```
 
 **必须改的项**（`APP_ENV=production` 会强校验这些，弱值直接拒绝启动）：
@@ -57,11 +59,12 @@ chmod 600 .env          # .env 含密钥，收紧权限
 
 ## 3. 启动核心栈
 
-核心服务（无 profile，默认启动）：postgres、redis、nats、migrate（一次性迁移）、9 个业务服务、gateway、frontend。
+核心服务（无 profile，默认启动）：postgres、redis、nats、migrate（一次性迁移）、7 个基础服务、gateway、frontend。
 
 ```bash
-cd /opt/go-admin-kit/microservices
-docker compose up -d --build
+cd /opt/gopherforge
+make compose-up
+cd microservices
 # 等全部 healthy（migrate 会先跑 goose 迁移再退出，业务服务 depends_on 它完成）
 docker compose ps
 ```
@@ -79,7 +82,7 @@ curl -s http://127.0.0.1:8000/api/v1/health/ready   # 期望 {"code":200,...,"st
 
 ### 可选：IP 归属地离线库（登录日志 / 在线用户）
 ```bash
-/opt/go-admin-kit/scripts/download-ip2region.sh   # 下载 ip2region.xdb（约 11MB，不进 git）到 microservices/data/
+/opt/gopherforge/scripts/download-ip2region.sh   # 下载 ip2region.xdb（约 11MB，不进 git）到 microservices/data/
 docker compose restart system-service audit-service
 ```
 文件缺失时服务优雅降级：登录日志回退在线查询、在线用户归属地留空，不影响启动。
@@ -113,7 +116,7 @@ server {
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # WebSocket（IM 消息 / 系统通知 / 呼叫监控都用）
+        # WebSocket（实时通知等场景使用）
         proxy_http_version 1.1;
         proxy_set_header Upgrade    $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -134,9 +137,9 @@ server {
 
 **升级**：
 ```bash
-cd /opt/go-admin-kit/microservices
+cd /opt/gopherforge
 git pull
-docker compose up -d --build           # 迁移由 migrate job 自动跑；只重建有变化的镜像
+make compose-up
 ```
 
 **回滚**（当前 compose 无镜像版本管理，靠 tag 手动留一版）：

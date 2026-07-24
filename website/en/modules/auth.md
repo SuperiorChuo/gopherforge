@@ -6,6 +6,7 @@ The **auth service** owns the whole chain from login to gateway verification.
 
 - **Password login** with captcha and Redis-backed rate limiting (lockout threshold/window hot-configurable in console settings).
 - **Dual JWT tokens** (access + refresh) with rotation and revocation (Redis blacklist); the frontend refreshes transparently.
+- **Concurrent-refresh protection**: one page reuses its in-flight refresh request; multiple tabs coordinate through Web Locks or a local lease, while the server atomically consumes the old refresh token in Redis to prevent duplicate rotation and false logouts.
 - **TOTP two-factor** compatible with standard authenticator apps.
 - **OAuth** third-party login providers.
 - **Online users** registered in Redis; admins can force logout.
@@ -28,6 +29,10 @@ Beyond being an OAuth *client* ("login with GitHub"), the scaffold is a full **O
 - **OIDC**: the `openid` scope issues an **RS256 `id_token`**, with `/oauth2/.well-known/openid-configuration` discovery and `/oauth2/jwks` public-key endpoints — third parties integrate SSO with any off-the-shelf OIDC client library, verifying via JWKS with no shared secrets. Signing uses a dedicated RSA-2048 key (auto-generated, persisted in `system_settings` for multi-replica sharing, stable `kid`), fully isolated from the console's own HS256.
 - **Console management**: "System → OAuth2 Apps" manages clients (redirect-URI scheme allowlist) and lets admins inspect and revoke issued tokens.
 - **Hardening** (from adversarial review): the OIDC private key cannot be read through the generic settings API; `introspect` only inspects tokens issued to the caller; refresh rotation guards against concurrent double-spend, and reuse of a revoked refresh token revokes the whole token family (OAuth Security BCP).
+
+## Refresh failure boundary
+
+The browser first adopts a newer token pair published by another tab. It redirects to login only when no usable pair remains, the refresh lease times out, or the server confirms that the refresh token is invalid. Server-side rotation is still a one-time consume operation; callers must not retry the same old refresh token.
 
 ## Security review
 

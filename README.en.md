@@ -1,19 +1,21 @@
 # 🚀 GopherForge · Go Microservices Admin Scaffold
 
-**GopherForge** (formerly `go-admin-kit`) is an **open-source, production-grade Go microservices admin scaffold**: Go + Gin backend split into 8 infrastructure services, React 19 + Ant Design 6 frontend, Traefik gateway with unified auth, built-in RBAC, multi-tenancy, audit logs, monitoring and a code generator — the whole stack boots with one `make compose-up` (data stack and app stack are separate, so rebuilding the app never touches your data).
+**GopherForge** (formerly `go-admin-kit`) is an **open-source, production-grade Go microservices admin scaffold**: Go + Gin backend split into 7 infrastructure services, React 19 + Ant Design 6 frontend, Traefik gateway with unified auth, built-in RBAC, multi-tenancy, audit logs, monitoring and a code generator — the whole stack boots with one `make compose-up` (data stack and app stack are separate, so rebuilding the app never touches your data).
+
+> Current release candidate: `v0.2.0-rc.1`. This is a 0.x release: APIs, database schemas and generated code formats may still change. Before production use, follow the deployment guide for secret rotation, migration backups and rollback rehearsal.
 
 - **Who it's for**: Go teams building internal admin platforms or SaaS back-offices; teams that prefer **React over Vue** (most Go admin scaffolds ship Vue); projects that want real microservices as a starting point without business-module baggage.
 - **How it differs**: infrastructure only, zero business coupling — see the [comparison with gin-vue-admin, go-admin & RuoYi](docs/comparison.md).
-- **Time to running**: clone, `make compose-up`, ~3 minutes for gateway + 8 services + frontend + PostgreSQL/Redis/NATS. Or try the [Live Demo](https://superiorchuo.github.io/gopherforge/) first (front-end-only mock data, any credentials work).
+- **Time to running**: clone, `make compose-up`, ~3 minutes for gateway + 7 services + frontend + PostgreSQL/Redis/NATS. Or try the [Live Demo](https://superiorchuo.github.io/gopherforge/) first (front-end-only mock data, any credentials work).
 
 <p align="center">
   <strong>Production-grade Go microservices admin scaffold — infrastructure only, batteries included.</strong><br/>
-  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React 19 + Ant Design 6 &nbsp;·&nbsp; 🧩 Traefik gateway + 8 services
+  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React 19 + Ant Design 6 &nbsp;·&nbsp; 🧩 Traefik gateway + 7 services
 </p>
 
 <p align="center">
-  <a href="https://superiorchuo.github.io/gopherforge/"><strong>🖥️ Live Demo →</strong></a><br/>
-  <sub>Front-end-only demo mode (mock data, any credentials work). Full stack: clone &amp; <code>make compose-up</code>.</sub>
+  <a href="https://superiorchuo.github.io/gopherforge/"><strong>🖥️ Live Demo →</strong></a> · <a href="https://superiorchuo.github.io/gopherforge/docs/"><strong>📖 Documentation</strong></a><br/>
+  <sub>Front-end-only demo mode (mock data, any credentials work). Full stack: clone &amp; <code>make compose-up</code>. See <a href="CHANGELOG.md">CHANGELOG</a> for the release candidate scope.</sub>
 </p>
 
 <p align="center">
@@ -27,7 +29,7 @@
 Most admin scaffolds are monoliths. GopherForge (formerly go-admin-kit) gives you a **real microservices architecture** you can grow into, without business-domain baggage:
 
 - **Traefik gateway + ForwardAuth**: one place verifies JWT; downstream services only trust gateway-injected `X-Auth-*` headers.
-- **8 infrastructure services**, split by domain: `auth` (login / JWT rotation &amp; revocation / OAuth / TOTP / **OAuth2 + OIDC provider** — authorization_code + PKCE, client_credentials, RS256 `id_token` with JWKS &amp; discovery endpoints, console-managed clients and tokens), `identity` (users / roles / permissions / departments), `system` (menus / dicts / notices / hot settings / code generator), `audit` (logs, NATS login events), `file` (MinIO / local), `monitor` (health / metrics / server &amp; DB &amp; Redis dashboards / cron jobs / one-glance service-health probe / distributed-job heartbeats), `bpm` (lightweight approval-flow engine), plus a `shared` library.
+- **7 infrastructure services**, split by domain: `auth` (login / JWT rotation &amp; revocation / OAuth / TOTP / **OAuth2 + OIDC provider** — authorization_code + PKCE, client_credentials, RS256 `id_token` with JWKS &amp; discovery endpoints, console-managed clients and tokens), `identity` (users / roles / permissions / departments), `system` (menus / dicts / notices / hot settings / code generator), `audit` (logs, NATS login events), `file` (MinIO / local), `monitor` (health / metrics / server &amp; DB &amp; Redis dashboards / cron jobs / one-glance service-health probe / distributed-job heartbeats), `bpm` (lightweight approval-flow engine), plus a `shared` library.
 - **Alerting loop built in (optional)**: node_exporter host metrics + Prometheus alert rules (service down / low disk / high memory / 5xx surge) + Alertmanager grouping &amp; dedup, delivered as in-console notifications via the notify webhook.
 - **React 19 + Ant Design 6** front end with dark-space / light dual themes and a glassmorphism look.
 - **Code generator**: pick a table, tick the fields, get a CRUD starter kit (Go model / store / handlers / routes + React list page + menu SQL) as preview or zip.

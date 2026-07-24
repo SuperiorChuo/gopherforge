@@ -29,10 +29,21 @@ docker compose up -d --build
 
 本地只起依赖（数据栈就够了）：
 
+下面的长时间运行命令请分别放在三个终端执行：
+
 ```bash
+# 终端 1：微服务依赖
+cd microservices
 docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
-cd services/auth && go run ./cmd
-cd web && npm ci && npm run dev
+
+# 终端 2：启动要调试的 Go 服务（以 auth 为例）
+cd microservices/services/auth
+go run ./cmd
+
+# 终端 3：启动前端 HMR
+cd microservices/web
+npm ci
+npm run dev
 ```
 
 验证：
@@ -57,10 +68,21 @@ docker compose up -d --build
 
 本地：
 
+下面的长时间运行命令请分别放在三个终端执行：
+
 ```bash
+# 终端 1：单体依赖
+cd monolith
 docker compose up -d go-admin-kit-mono-postgres go-admin-kit-mono-redis
-cd server && go run ./cmd/main.go
-cd web && npm ci && npm run dev
+
+# 终端 2：单体后端
+cd monolith/server
+go run ./cmd/main.go
+
+# 终端 3：单体前端 HMR
+cd monolith/web
+npm ci
+npm run dev
 ```
 
 ## 端口冲突

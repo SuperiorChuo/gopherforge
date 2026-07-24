@@ -22,13 +22,13 @@ features:
     details: 只含认证、RBAC、多租户、日志、文件、监控等平台无关的基础设施服务，是干净的项目起点——加业务能力 = 加一个微服务 + 网关标签。
   - icon: 🚀
     title: 开箱即用
-    details: docker compose up 约 3 分钟拉起 Traefik 网关 + 8 个 Go 服务 + React 前端 + PostgreSQL/Redis/NATS，自带迁移与种子数据。
+    details: make compose-up 约 3 分钟拉起 Traefik 网关 + 7 个 Go 服务 + React 前端 + PostgreSQL/Redis/NATS，自带迁移与种子数据；应用栈与数据栈分离。
   - icon: 📋
     title: 轻量审批流引擎
     details: 自研 Go 引擎不引 Flowable——仿钉钉设计器、会签/或签/依次、条件分支、超时自动动作、流程表单零代码发起、审批统计。
   - icon: 🛠️
     title: 代码生成器三模式
-    details: 选表配字段一键生成 CRUD 前后端，支持单表、树表、主子表三种生成模式，新业务页面分钟级落地。
+    details: 选表配字段生成 CRUD 前后端预览或 ZIP，支持单表、树表、主子表三种模式；下载后仍需按项目规范接入路由、菜单和迁移。
   - icon: 🏢
     title: 多租户 SaaS 底座
     details: 共享库 + tenant_id 隔离，登录带租户码，套餐即权限包；GORM 插件级自动隔离，漏挂 scope 也不会越权。
@@ -36,6 +36,10 @@ features:
     title: 工程完备
     details: CI 全绿门禁、OpenAPI 契约漂移检测、迁移彩排、Playwright E2E、Prometheus/Grafana、可选 OTel 链路追踪。
 ---
+
+::: tip 当前发布线
+当前文档对应 `v0.2.0-rc.1` 候选版。项目仍处于 0.x 阶段，API、数据库表结构和生成代码格式可能变化；在线 Demo 使用纯前端假数据，完整能力请按[快速上手](/guide/getting-started)启动本地栈。
+:::
 
 ## 界面预览
 

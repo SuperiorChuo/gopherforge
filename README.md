@@ -4,7 +4,9 @@
 
 # 🚀 GopherForge · Go 微服务后台管理脚手架
 
-**GopherForge**（曾用名 `go-admin-kit`）是一套**开源的企业级 Go 微服务后台管理系统脚手架**：后端 Go + Gin 按域拆分 8 个基础服务，前端 React 19 + Ant Design 6，Traefik 网关统一鉴权，自带 RBAC 权限、多租户、审计日志、系统监控与代码生成器，`make compose-up` 一条命令拉起全栈（数据栈与应用栈分离，重建应用不触碰数据）。
+**GopherForge**（曾用名 `go-admin-kit`）是一套**开源的企业级 Go 微服务后台管理系统脚手架**：后端 Go + Gin 按域拆分 7 个基础服务，前端 React 19 + Ant Design 6，Traefik 网关统一鉴权，自带 RBAC 权限、多租户、审计日志、系统监控与代码生成器，`make compose-up` 一条命令拉起全栈（数据栈与应用栈分离，重建应用不触碰数据）。
+
+> 当前发布候选版：`v0.2.0-rc.1`。这是 0.x 版本，API、数据库表结构和生成代码格式仍可能调整；上线前请按部署文档完成密钥替换、迁移备份和回滚演练。
 
 - **适合谁**：需要快速搭建企业内部管理平台 / SaaS 管理后台的 Go 团队；前端更熟 React 而不想用 Vue 的团队；想要真微服务架构（而非单体）作为起点、又不想背业务包袱的项目。
 - **和同类有何不同**：只含基础设施、零业务耦合——对比 gin-vue-admin、go-admin、RuoYi 系见 [同类项目对比](docs/comparison.md)。
@@ -17,7 +19,7 @@
 
 <p align="center">
   <a href="https://superiorchuo.github.io/gopherforge/"><strong>🖥️ 在线体验 Demo →</strong></a> · <a href="https://superiorchuo.github.io/gopherforge/docs/"><strong>📖 文档站</strong></a> · <a href="README.en.md">English</a><br/>
-  <sub>纯前端演示模式（假数据，任意账号可登录）；完整功能克隆后 <code>make compose-up</code> 一键启动</sub>
+  <sub>纯前端演示模式（假数据，任意账号可登录）；完整功能克隆后 <code>make compose-up</code> 一键启动；候选版说明见 <a href="CHANGELOG.md">CHANGELOG</a></sub>
 </p>
 
 <p align="center">
@@ -178,10 +180,11 @@ flowchart LR
         AUD["📝 audit"]
         FILE["📁 file"]
         MON["📈 monitor · 迁移/兜底"]
+        BPM["✅ bpm · 审批流"]
     end
 
     GW -. "ForwardAuth 统一验签" .-> AUTH
-    GW --> AUTH & IDT & SYS & AUD & FILE & MON
+    GW --> AUTH & IDT & SYS & AUD & FILE & MON & BPM
 
     subgraph INFRA["🗄️ 共享基础设施"]
         PG[("🐘 PostgreSQL 16 + pgvector")]
@@ -211,6 +214,7 @@ gopherforge/
 │   │   ├── system/                # 📚 菜单 / 字典 / 公告 / 设置
 │   │   ├── audit/                 # 📝 日志与事件消费
 │   │   ├── file/                  # 📁 文件与 uploads
+│   │   ├── bpm/                   # ✅ 轻量审批流引擎
 │   │   ├── shared/                # 🧰 跨服务共享包（日志/响应/脱敏）
 │   │   └── monitor/               # 📈 监控、健康、共享迁移、兜底
 │   ├── web/                       # ⚛️ React + Ant Design
@@ -286,11 +290,21 @@ docker compose up -d --build
 
 ## 💻 本地开发（可选）
 
+下面的长时间运行命令请分别放在三个终端执行：
+
 ```bash
+# 终端 1：只起数据栈（PG/Redis/NATS）
 cd microservices
-make -C .. infra-up            # 只起数据栈（PG/Redis/NATS）
-cd services/auth && go run ./cmd
-cd web && npm ci && npm run dev
+make -C .. infra-up
+
+# 终端 2：启动要调试的 Go 服务（以 auth 为例）
+cd microservices/services/auth
+go run ./cmd
+
+# 终端 3：启动前端 HMR
+cd microservices/web
+npm ci
+npm run dev
 ```
 
 完整联调说明 👉 [LOCAL_SETUP.md](LOCAL_SETUP.md)
