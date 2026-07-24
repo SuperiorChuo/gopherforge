@@ -32,10 +32,10 @@
 
 ### 安全
 
-- **登录态并发刷新加固**：前端在同一页面内复用刷新请求，并通过 Web Locks 或
-  `localStorage` 租约协调多个标签页，避免并发消费同一个 refresh token；服务端用 Redis
-  原子消费令牌 ID，只有一个并发请求能成功轮转，另一个明确收到已吊销错误。补充跨请求回归测试
-  与 Playwright 场景测试。
+- **登录态并发刷新加固**：前端在同一页面内复用刷新请求，优先通过 Web Locks 非阻塞获取跨标签页锁；
+  不支持 Web Locks 时使用 IndexedDB 原子租约，只有 IndexedDB 不可用才降级到 `localStorage` 最佳努力租约，
+  避免并发消费同一个 refresh token。服务端用 Redis 原子消费令牌 ID，只有一个并发请求能成功轮转，
+  另一个明确收到已吊销错误；刷新请求增加 15 秒超时。补充跨请求回归测试与 Playwright 场景测试。
 - **OAuth2/OIDC 安全评审修复**（同步自主项目）：三方对抗性审查后的一批加固——① OIDC 签名
   私钥（RSA）禁止经通用 `system-settings` API 读出/改删（新增保护名单，list 读取遮蔽为
   `{protected:true}`），杜绝拿到私钥后伪造任意用户 id_token 的"通杀"面；② `introspect`

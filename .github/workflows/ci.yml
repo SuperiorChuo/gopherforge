@@ -210,9 +210,12 @@ jobs:
             frontend.cache-from=type=gha,scope=compose-frontend
             frontend.cache-to=type=gha,scope=compose-frontend,mode=max,ignore-error=true
 
+      - name: Create shared compose network
+        run: docker network inspect go-admin-kit-net >/dev/null 2>&1 || docker network create --subnet 172.28.0.0/16 go-admin-kit-net
+
       - name: Start postgres, redis and NATS
         working-directory: microservices
-        run: docker compose up -d --wait --wait-timeout 180 go-admin-kit-postgres go-admin-kit-redis go-admin-kit-nats
+        run: docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d --wait --wait-timeout 180 go-admin-kit-postgres go-admin-kit-redis go-admin-kit-nats
 
       - name: Apply migrations and seed data
         working-directory: microservices/services/monitor
@@ -230,7 +233,7 @@ jobs:
 
       - name: Start the full stack behind the Traefik gateway
         working-directory: microservices
-        run: docker compose up -d --wait --wait-timeout 300
+        run: docker compose -p go-admin-kit up -d --wait --wait-timeout 300
 
       - name: Run API smoke through the gateway
         working-directory: microservices
@@ -265,13 +268,16 @@ jobs:
         if: failure()
         working-directory: microservices
         run: |
-          docker compose ps -a || true
-          docker compose logs --tail=100 || true
+          docker compose -p go-admin-kit ps -a || true
+          docker compose -p go-admin-kit logs --tail=100 || true
           echo '::group::gateway (Traefik) log incl. access log'
-          docker compose logs --no-log-prefix --tail=300 gateway || true
+          docker compose -p go-admin-kit logs --no-log-prefix --tail=300 gateway || true
           echo '::endgroup::'
 
       - name: Tear down the stack
         if: always()
         working-directory: microservices
-        run: docker compose down -v --remove-orphans
+        run: |
+          docker compose -p go-admin-kit down -v --remove-orphans || true
+          docker compose -p go-admin-kit-infra -f docker-compose.infra.yml down -v --remove-orphans || true
+          docker network rm go-admin-kit-net || true

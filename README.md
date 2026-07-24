@@ -213,9 +213,9 @@ gopherforge/
 │   │   ├── identity/              # 👥 用户 / 角色 / 权限 / 部门
 │   │   ├── system/                # 📚 菜单 / 字典 / 公告 / 设置
 │   │   ├── audit/                 # 📝 日志与事件消费
-    │   │   ├── file/                  # 📁 文件与 uploads
-    │   │   ├── bpm/                   # ✅ 轻量审批流引擎
-    │   │   ├── shared/                # 🧰 跨服务共享包（日志/响应/脱敏）
+│   │   ├── file/                  # 📁 文件与 uploads
+│   │   ├── bpm/                   # ✅ 轻量审批流引擎
+│   │   ├── shared/                # 🧰 跨服务共享包（日志/响应/脱敏）
 │   │   └── monitor/               # 📈 监控、健康、共享迁移、兜底
 │   ├── web/                       # ⚛️ React + Ant Design
 │   ├── docker-compose.yml
