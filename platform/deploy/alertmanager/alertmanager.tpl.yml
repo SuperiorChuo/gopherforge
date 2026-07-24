@@ -1,16 +1,28 @@
-# Alertmanager 配置模板：__NOTIFY_TOKEN__ 由容器启动时 sed 注入
-# （compose entrypoint 从 NOTIFY_INTERNAL_TOKEN env 替换，真实密钥不进 git）。
-# 出口：notify-service 告警端点 → 站内信（notify 侧按 fingerprint+status 去重）。
+# Alertmanager 配置模板：__NOTIFY_TOKEN__ / __WECOM_KEY__ 由容器启动时 sed 注入
+# （compose entrypoint 从 env 替换，真实密钥不进 git）。
+#
+# 告警分级出口：
+#   - warning：只走站内信（notify-service，后台登录可见）。
+#   - critical：站内信 + 企业微信群机器人带外通知。带外走 Alertmanager 直发
+#     webhook（独立容器，不碰业务库）——PG/notify/网关整体故障时仍能触达人，
+#     这是站内信补不上的死角。
+#   - __WECOM_KEY__ 为空（未配机器人）时，wecom-critical 分支的 webhook 目标
+#     指向本地黑洞端口，发送失败仅记日志、静默降级；critical 仍有站内信兜底。
 route:
   receiver: notify-webhook
-  # 同名告警聚一组：首报等 30s 攒齐同组，组内新增 5m 一波，未恢复 4h 重复提醒
-  # （重复推送被 notify 侧 24h ref 去重吸收，不会刷屏站内信）。
   group_by: ["alertname"]
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
+  routes:
+    # critical 单独走「站内信 + 企业微信」聚合 receiver；warning 落默认 receiver。
+    - matchers: ['severity = "critical"']
+      receiver: critical-fanout
+      # critical 重复提醒更勤（1h），比默认 4h 紧
+      repeat_interval: 1h
 
 receivers:
+  # 默认：仅站内信（warning 及无 severity 的告警）
   - name: notify-webhook
     webhook_configs:
       - url: http://go-admin-kit-notify:8095/api/v1/notify/internal/alerts
@@ -19,6 +31,24 @@ receivers:
           authorization:
             type: Bearer
             credentials: __NOTIFY_TOKEN__
+
+  # critical：站内信 + 企业微信群机器人（带外）。任一通道失败不影响另一个。
+  - name: critical-fanout
+    webhook_configs:
+      # 通道 1：站内信（与默认同端点）
+      - url: http://go-admin-kit-notify:8095/api/v1/notify/internal/alerts
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            credentials: __NOTIFY_TOKEN__
+      # 通道 2：企业微信群机器人。__WECOM_KEY__ 未配时指向黑洞（127.0.0.1:1），
+      # 发送失败仅告警日志报错，不阻塞站内信通道。配了 key 即带外生效。
+      # 注：企业微信机器人要 markdown 格式，Alertmanager 原生 webhook 发的是
+      # Prometheus JSON —— 生产接入时在 __WECOM_KEY__ 处换成群机器人 URL，并视需要
+      # 前置 prometheus-webhook-dingtalk 之类适配器转 markdown（见 docs 待补）。
+      - url: __WECOM_WEBHOOK__
+        send_resolved: true
 
 inhibit_rules:
   # 目标已判宕（ServiceDown）时抑制同服务的错误率告警，避免一宕双报。
