@@ -1,10 +1,12 @@
 # 微服务脚手架说明
 
-本仓库是 **go-admin-kit 微服务脚手架**：只含平台无关的基础设施服务，不带任何业务功能。用它作为起点，业务能力按需自行增补服务。
+本仓库是 **GopherForge（曾用名 `go-admin-kit`）微服务脚手架**：只含平台无关的基础设施服务，不带任何业务功能。用它作为起点，业务能力按需自行增补服务。
+
+> 当前发布候选版：`v0.2.0-rc.1`。项目仍处于 0.x 阶段，API、数据库表结构和生成代码格式可能变化。
 
 | 产品线 | 目录 | 启动 |
 |--------|------|------|
-| 微服务脚手架 | `microservices/` | `cd microservices && docker compose up -d --build` 或 `make compose-up` |
+| 微服务脚手架 | `microservices/` | `make compose-up`（自动先起 infra 数据栈） |
 
 ## 内置能力
 

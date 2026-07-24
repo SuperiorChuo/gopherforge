@@ -1,6 +1,6 @@
 # Getting Started (15 minutes)
 
-GopherForge is an open-source, enterprise-grade Go microservices admin scaffold. This guide takes you from zero to a running full stack: gateway + 8 Go services + React frontend + PostgreSQL/Redis/NATS.
+GopherForge is an open-source, enterprise-grade Go microservices admin scaffold. This guide takes you from zero to a running full stack: gateway + 7 Go services + React frontend + PostgreSQL/Redis/NATS.
 
 ## Requirements
 
@@ -11,9 +11,9 @@ GopherForge is an open-source, enterprise-grade Go microservices admin scaffold.
 
 ```bash
 git clone https://github.com/SuperiorChuo/gopherforge.git
-cd gopherforge/microservices
-cp .env.example .env
-docker compose up -d --build
+cd gopherforge
+cp microservices/.env.example microservices/.env
+make compose-up
 ```
 
 First build takes ~3 minutes. Then:
@@ -41,6 +41,9 @@ cd microservices
 (cd services/monitor && go test ./... && go vet ./...)
 (cd web && npm run lint && npm run build)
 npm run test:smoke:unit && npm run test:contract
+npm run api:contract
+docker compose config --quiet
+docker compose -p go-admin-kit-infra -f docker-compose.infra.yml config --quiet
 API_BASE_URL=http://127.0.0.1:8000/api/v1 npm run smoke:api
 ```
 
@@ -48,11 +51,21 @@ API_BASE_URL=http://127.0.0.1:8000/api/v1 npm run smoke:api
 
 Run only the infra containers and hot-reload services/frontend on your machine:
 
+Run the long-lived commands in three separate terminals:
+
 ```bash
+# Terminal 1: dependency containers
 cd microservices
-docker compose up -d go-admin-kit-postgres go-admin-kit-redis go-admin-kit-nats
-cd services/auth && go run ./cmd
-cd web && npm ci && npm run dev
+docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d go-admin-kit-postgres go-admin-kit-redis go-admin-kit-nats
+
+# Terminal 2: the Go service under development (auth as an example)
+cd microservices/services/auth
+go run ./cmd
+
+# Terminal 3: frontend HMR
+cd microservices/web
+npm ci
+npm run dev
 ```
 
 ## Port conflicts

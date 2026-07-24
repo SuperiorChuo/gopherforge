@@ -29,11 +29,43 @@ export interface paths {
   "/api/v1/metrics/json": {
     get: operations["getApiV1MetricsJson"];
   };
+  "/api/v1/monitor/job-logs/cleanup": {
+    post: operations["postApiV1MonitorJobLogsCleanup"];
+  };
+  "/api/v1/monitor/jobs": {
+    get: operations["getApiV1MonitorJobs"];
+    post: operations["postApiV1MonitorJobs"];
+  };
+  "/api/v1/monitor/jobs/health": {
+    get: operations["getApiV1MonitorJobsHealth"];
+  };
+  "/api/v1/monitor/jobs/heartbeats": {
+    get: operations["getApiV1MonitorJobsHeartbeats"];
+  };
+  "/api/v1/monitor/jobs/{id}": {
+    delete: operations["deleteApiV1MonitorJobsId"];
+    put: operations["putApiV1MonitorJobsId"];
+  };
+  "/api/v1/monitor/jobs/{id}/run": {
+    post: operations["postApiV1MonitorJobsIdRun"];
+  };
+  "/api/v1/monitor/jobs/{id}/start": {
+    post: operations["postApiV1MonitorJobsIdStart"];
+  };
+  "/api/v1/monitor/jobs/{id}/stop": {
+    post: operations["postApiV1MonitorJobsIdStop"];
+  };
+  "/api/v1/monitor/mysql": {
+    get: operations["getApiV1MonitorMysql"];
+  };
   "/api/v1/monitor/redis": {
     get: operations["getApiV1MonitorRedis"];
   };
   "/api/v1/monitor/server": {
     get: operations["getApiV1MonitorServer"];
+  };
+  "/api/v1/monitor/services": {
+    get: operations["getApiV1MonitorServices"];
   };
 }
 
@@ -254,6 +286,334 @@ export interface operations {
       };
     };
   };
+  "postApiV1MonitorJobLogsCleanup": {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["JobLogCleanupRequest"];
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["JobLogCleanupResultEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorJobs": {
+    parameters: {
+      query: {
+        page?: number;
+        page_size?: number;
+        name?: string;
+        status?: number;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["JobListEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1MonitorJobs": {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SaveJobRequest"];
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["JobEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorJobsHealth": {
+    parameters: {
+      query: {
+        window_hours?: number;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["JobHealthEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorJobsHeartbeats": {
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "deleteApiV1MonitorJobsId": {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["EmptyEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "putApiV1MonitorJobsId": {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SaveJobRequest"];
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["JobEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1MonitorJobsIdRun": {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["EmptyEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1MonitorJobsIdStart": {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["EmptyEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1MonitorJobsIdStop": {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["EmptyEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorMysql": {
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["MySQLInfoEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
   "getApiV1MonitorRedis": {
     security: [{"BearerAuth":[]}];
     responses: {
@@ -285,6 +645,31 @@ export interface operations {
       "200": {
         content: {
           "application/json": components["schemas"]["ServerInfoEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorServices": {
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
         };
       };
       "400": {

@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+后续变更将在这里累计；本页下方记录当前 `v0.2.0-rc.1` 候选版范围。
+
+## [0.2.0-rc.1] - 2026-07-24
+
 ### 新增（运维管理面）
 
 - **运维管理面：任务中心 + 服务健康总览 + 告警闭环**（同步自主项目）：
@@ -28,6 +32,10 @@
 
 ### 安全
 
+- **登录态并发刷新加固**：前端在同一页面内复用刷新请求，优先通过 Web Locks 非阻塞获取跨标签页锁；
+  不支持 Web Locks 时使用 IndexedDB 原子租约，只有 IndexedDB 不可用才降级到 `localStorage` 最佳努力租约，
+  避免并发消费同一个 refresh token。服务端用 Redis 原子消费令牌 ID，只有一个并发请求能成功轮转，
+  另一个明确收到已吊销错误；刷新请求增加 15 秒超时。补充跨请求回归测试与 Playwright 场景测试。
 - **OAuth2/OIDC 安全评审修复**（同步自主项目）：三方对抗性审查后的一批加固——① OIDC 签名
   私钥（RSA）禁止经通用 `system-settings` API 读出/改删（新增保护名单，list 读取遮蔽为
   `{protected:true}`），杜绝拿到私钥后伪造任意用户 id_token 的"通杀"面；② `introspect`
@@ -120,7 +128,7 @@
 - **审批流引擎设计方案**：`docs/design/bpm-approval-flow.md` 随引擎同步自上游
   （置顶脚手架适配说明：本仓只含引擎本体，文中 CRM 场景为上游叙事参考、不在本仓；
   notify 未配置时站内信静默跳过）；服务清单（PRODUCT_LINES / README 中英）补
-  bpm-service 与「8 服务」口径；部署指南补 IP 归属地离线库（ip2region.xdb）下载步骤
+  bpm-service 与「7 个 Go 服务 + shared 公共库」口径；部署指南补 IP 归属地离线库（ip2region.xdb）下载步骤
 
 ### 清理
 
@@ -153,3 +161,4 @@
 - Docker Compose 一键启动全栈；宿主机端口默认只绑 loopback
 
 [0.1.0]: https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.1.0
+[0.2.0-rc.1]: https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.2.0-rc.1

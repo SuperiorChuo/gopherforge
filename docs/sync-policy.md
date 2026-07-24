@@ -1,12 +1,12 @@
 # 同步与范围策略（Sync Policy）
 
-本仓库是 **Go Admin Kit 的脚手架发行线**：只包含平台无关的基础设施，作为干净的二次开发起点。
+本仓库是 **GopherForge（曾用名 go-admin-kit）的脚手架发行线**：只包含平台无关的基础设施，作为干净的二次开发起点。
 
 ## 范围
 
 **包含（基础设施）**
 
-- 七个基础服务：`auth`（认证/JWT/OAuth/TOTP）、`identity`（用户/角色/权限/部门）、`system`（菜单/字典/公告/设置/在线用户）、`audit`（日志）、`file`（文件）、`monitor`（监控/健康/metrics/迁移）、`shared`（公共库）
+- 七个基础服务：`auth`（认证/JWT/OAuth/TOTP）、`identity`（用户/角色/权限/部门）、`system`（菜单/字典/公告/设置/在线用户）、`audit`（日志）、`file`（文件）、`monitor`（监控/健康/metrics/迁移）、`bpm`（轻量审批流）；另有 `shared`（公共库）
 - React 前端底座：布局、深空/亮色双主题、路由框架、请求层、RBAC 与系统管理页面
 - 工程件：Traefik 网关配置、Docker Compose、goose 迁移、OpenAPI、CI
 
