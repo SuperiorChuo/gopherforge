@@ -7,3 +7,9 @@ datasources:
     url: http://prometheus:9090
     isDefault: true
     editable: true
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://go-admin-kit-loki:3100
+    editable: true
