@@ -290,11 +290,21 @@ docker compose up -d --build
 
 ## 💻 本地开发（可选）
 
+下面的长时间运行命令请分别放在三个终端执行：
+
 ```bash
+# 终端 1：只起数据栈（PG/Redis/NATS）
 cd microservices
-make -C .. infra-up            # 只起数据栈（PG/Redis/NATS）
-cd services/auth && go run ./cmd
-cd web && npm ci && npm run dev
+make -C .. infra-up
+
+# 终端 2：启动要调试的 Go 服务（以 auth 为例）
+cd microservices/services/auth
+go run ./cmd
+
+# 终端 3：启动前端 HMR
+cd microservices/web
+npm ci
+npm run dev
 ```
 
 完整联调说明 👉 [LOCAL_SETUP.md](LOCAL_SETUP.md)

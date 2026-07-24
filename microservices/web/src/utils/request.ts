@@ -14,9 +14,13 @@ const AUTH_TOKEN_CHANGE_KEY = 'auth_tokens_changed'
 const AUTH_TOKEN_CHANNEL = 'go-admin-kit-auth'
 const AUTH_REFRESH_LOCK_KEY = 'go-admin-kit-auth-refresh-lock'
 const AUTH_REFRESH_LOCK_NAME = 'go-admin-kit-auth-refresh'
-const AUTH_REFRESH_WAIT_MS = 10_000
+const AUTH_REFRESH_DB_NAME = 'go-admin-kit-auth'
+const AUTH_REFRESH_DB_VERSION = 1
+const AUTH_REFRESH_DB_STORE = 'leases'
+const AUTH_REFRESH_WAIT_MS = 20_000
 const AUTH_REFRESH_RECOVERY_WAIT_MS = 1_500
 const AUTH_REFRESH_LOCK_TTL_MS = 20_000
+const AUTH_REFRESH_REQUEST_TIMEOUT_MS = 15_000
 /** Platform admin act-as tenant (M4); honored only when JWT platform_admin=true */
 const ACT_TENANT_KEY = 'act_tenant_id'
 
@@ -32,7 +36,11 @@ type AuthRequestConfig = AxiosRequestConfig & {
 }
 
 type AuthLockManager = {
-  request<T>(name: string, callback: () => Promise<T>): Promise<T>
+  request<T>(
+    name: string,
+    options: { ifAvailable?: boolean },
+    callback: (lock: object | null) => Promise<T>,
+  ): Promise<T>
 }
 
 type RefreshLease = {
@@ -40,8 +48,15 @@ type RefreshLease = {
   expiresAt: number
 }
 
+type RefreshLeaseHandle = {
+  backend: 'indexeddb' | 'storage'
+}
+
+type IndexedDBLeaseResult = 'acquired' | 'busy' | 'unavailable'
+
 const tabID = `${Date.now()}-${Math.random().toString(36).slice(2)}`
 let authChannel: BroadcastChannel | null | undefined
+let refreshLockDatabasePromise: Promise<IDBDatabase | null> | null = null
 
 function getAuthChannel() {
   if (authChannel !== undefined) return authChannel
@@ -114,18 +129,111 @@ function getWebLockManager(): AuthLockManager | null {
   return locks ?? null
 }
 
-function parseRefreshLease(value: string | null): RefreshLease | null {
-  if (!value) return null
-  try {
-    const lease = JSON.parse(value) as Partial<RefreshLease>
-    if (typeof lease.owner !== 'string' || typeof lease.expiresAt !== 'number') return null
-    return { owner: lease.owner, expiresAt: lease.expiresAt }
-  } catch {
-    return null
+function normalizeRefreshLease(value: unknown): RefreshLease | null {
+  if (typeof value === 'string') {
+    if (!value) return null
+    try {
+      value = JSON.parse(value)
+    } catch {
+      return null
+    }
   }
+  if (!value || typeof value !== 'object') return null
+  const lease = value as Partial<RefreshLease>
+  if (typeof lease.owner !== 'string' || typeof lease.expiresAt !== 'number') return null
+  return { owner: lease.owner, expiresAt: lease.expiresAt }
 }
 
-function tryAcquireRefreshLease(): boolean {
+function parseRefreshLease(value: string | null): RefreshLease | null {
+  return normalizeRefreshLease(value)
+}
+
+function openRefreshLockDatabase(): Promise<IDBDatabase | null> {
+  if (refreshLockDatabasePromise) return refreshLockDatabasePromise
+  if (typeof indexedDB === 'undefined') return Promise.resolve(null)
+
+  refreshLockDatabasePromise = new Promise((resolve) => {
+    let request: IDBOpenDBRequest
+    try {
+      request = indexedDB.open(AUTH_REFRESH_DB_NAME, AUTH_REFRESH_DB_VERSION)
+    } catch {
+      resolve(null)
+      return
+    }
+
+    request.onupgradeneeded = () => {
+      const database = request.result
+      if (!database.objectStoreNames.contains(AUTH_REFRESH_DB_STORE)) {
+        database.createObjectStore(AUTH_REFRESH_DB_STORE)
+      }
+    }
+    request.onsuccess = () => {
+      const database = request.result
+      database.onversionchange = () => database.close()
+      resolve(database)
+    }
+    request.onerror = () => resolve(null)
+    request.onblocked = () => resolve(null)
+  })
+
+  return refreshLockDatabasePromise
+}
+
+async function tryAcquireIndexedDBLease(): Promise<IndexedDBLeaseResult> {
+  const database = await openRefreshLockDatabase()
+  if (!database) return 'unavailable'
+
+  return new Promise((resolve) => {
+    let acquired = false
+    try {
+      const transaction = database.transaction(AUTH_REFRESH_DB_STORE, 'readwrite')
+      const store = transaction.objectStore(AUTH_REFRESH_DB_STORE)
+      const request = store.get(AUTH_REFRESH_LOCK_KEY)
+      request.onsuccess = () => {
+        const current = normalizeRefreshLease(request.result)
+        if (current && current.owner !== tabID && current.expiresAt > Date.now()) return
+
+        store.put(
+          {
+            owner: tabID,
+            expiresAt: Date.now() + AUTH_REFRESH_LOCK_TTL_MS,
+          } satisfies RefreshLease,
+          AUTH_REFRESH_LOCK_KEY,
+        )
+        acquired = true
+      }
+      transaction.oncomplete = () => resolve(acquired ? 'acquired' : 'busy')
+      transaction.onerror = () => resolve('unavailable')
+      transaction.onabort = () => resolve('unavailable')
+    } catch {
+      resolve('unavailable')
+    }
+  })
+}
+
+async function releaseIndexedDBLease() {
+  const database = await openRefreshLockDatabase()
+  if (!database) return
+
+  await new Promise<void>((resolve) => {
+    try {
+      const transaction = database.transaction(AUTH_REFRESH_DB_STORE, 'readwrite')
+      const store = transaction.objectStore(AUTH_REFRESH_DB_STORE)
+      const request = store.get(AUTH_REFRESH_LOCK_KEY)
+      request.onsuccess = () => {
+        const current = normalizeRefreshLease(request.result)
+        if (current?.owner === tabID) store.delete(AUTH_REFRESH_LOCK_KEY)
+      }
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => resolve()
+      transaction.onabort = () => resolve()
+    } catch {
+      resolve()
+    }
+  })
+}
+
+function tryAcquireStorageLease(): boolean {
   const current = parseRefreshLease(localStorage.getItem(AUTH_REFRESH_LOCK_KEY))
   if (current && current.owner !== tabID && current.expiresAt > Date.now()) return false
 
@@ -137,9 +245,27 @@ function tryAcquireRefreshLease(): boolean {
   return parseRefreshLease(localStorage.getItem(AUTH_REFRESH_LOCK_KEY))?.owner === tabID
 }
 
-function releaseRefreshLease() {
+function releaseStorageLease() {
   const current = parseRefreshLease(localStorage.getItem(AUTH_REFRESH_LOCK_KEY))
   if (current?.owner === tabID) localStorage.removeItem(AUTH_REFRESH_LOCK_KEY)
+}
+
+async function acquireRefreshLease(): Promise<RefreshLeaseHandle | null> {
+  const indexedDBResult = await tryAcquireIndexedDBLease()
+  if (indexedDBResult === 'acquired') return { backend: 'indexeddb' }
+  if (indexedDBResult === 'busy') return null
+  // IndexedDB is the strict fallback. Only browsers that cannot open it use
+  // the legacy best-effort lease; a losing 401 waits for the winner's token
+  // announcement before the caller treats refresh as a real failure.
+  return tryAcquireStorageLease() ? { backend: 'storage' } : null
+}
+
+async function releaseRefreshLease(handle: RefreshLeaseHandle) {
+  if (handle.backend === 'indexeddb') {
+    await releaseIndexedDBLease()
+    return
+  }
+  releaseStorageLease()
 }
 
 function waitForTokenPairUpdate(previous: TokenPair, timeoutMs: number): Promise<TokenPair | null> {
@@ -183,7 +309,11 @@ function waitForTokenPairUpdate(previous: TokenPair, timeoutMs: number): Promise
 
 async function requestFreshTokenPair(used: TokenPair): Promise<TokenPair> {
   try {
-    const res = await axios.post('/api/v1/refresh', { refresh_token: used.refresh })
+    const res = await axios.post(
+      '/api/v1/refresh',
+      { refresh_token: used.refresh },
+      { timeout: AUTH_REFRESH_REQUEST_TIMEOUT_MS },
+    )
     const payload = res.data?.data ?? res.data
     const access = payload?.access_token
     const refresh = payload?.refresh_token
@@ -228,13 +358,14 @@ async function refreshWithStorageLease(previous: TokenPair): Promise<TokenPair> 
     if (tokenPairChanged(current, previous)) return current
     if (!hasUsableTokenPair(current)) throw new Error('refresh token is missing')
 
-    if (tryAcquireRefreshLease()) {
+    const lease = await acquireRefreshLease()
+    if (lease) {
       try {
         const latest = readTokenPair()
         if (tokenPairChanged(latest, previous)) return latest
         return await requestFreshTokenPair(latest)
       } finally {
-        releaseRefreshLease()
+        await releaseRefreshLease(lease)
       }
     }
 
@@ -247,12 +378,25 @@ async function refreshWithStorageLease(previous: TokenPair): Promise<TokenPair> 
 async function refreshAcrossContexts(previous: TokenPair): Promise<TokenPair> {
   const locks = getWebLockManager()
   if (locks) {
-    return locks.request(AUTH_REFRESH_LOCK_NAME, async () => {
-      const current = readTokenPair()
-      if (tokenPairChanged(current, previous)) return current
-      if (!hasUsableTokenPair(current)) throw new Error('refresh token is missing')
-      return requestFreshTokenPair(current)
-    })
+    const deadline = Date.now() + AUTH_REFRESH_WAIT_MS
+    while (Date.now() < deadline) {
+      const refreshed = await locks.request<TokenPair | null>(
+        AUTH_REFRESH_LOCK_NAME,
+        { ifAvailable: true },
+        async (lock) => {
+          if (!lock) return null
+          const current = readTokenPair()
+          if (tokenPairChanged(current, previous)) return current
+          if (!hasUsableTokenPair(current)) throw new Error('refresh token is missing')
+          return requestFreshTokenPair(current)
+        },
+      )
+      if (refreshed) return refreshed
+
+      const updated = await waitForTokenPairUpdate(previous, Math.min(500, deadline - Date.now()))
+      if (updated) return updated
+    }
+    throw new Error('timed out waiting for another page to refresh the session')
   }
   return refreshWithStorageLease(previous)
 }

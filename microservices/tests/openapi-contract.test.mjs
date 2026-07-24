@@ -14,9 +14,14 @@ test('monitor OpenAPI exposes health and monitor routes', async () => {
   assert.ok(spec.paths['/api/v1/health/live']);
   assert.ok(spec.paths['/api/v1/health/ready']);
   assert.ok(spec.paths['/api/v1/monitor/server']);
+  assert.ok(spec.paths['/api/v1/monitor/mysql']);
   assert.ok(spec.paths['/api/v1/monitor/redis']);
+  assert.ok(spec.paths['/api/v1/monitor/jobs']);
+  assert.ok(spec.paths['/api/v1/monitor/jobs/health']);
+  assert.ok(spec.paths['/api/v1/monitor/jobs/{id}/run']);
+  assert.ok(spec.paths['/api/v1/monitor/job-logs/cleanup']);
   assert.ok(spec.paths['/api/v1/metrics']);
-  assert.ok(Object.keys(spec.paths || {}).length >= 5);
+  assert.ok(Object.keys(spec.paths || {}).length >= 21);
 });
 
 test('optional web generated types file is schema-shaped when present', async () => {

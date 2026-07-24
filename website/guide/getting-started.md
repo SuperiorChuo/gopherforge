@@ -54,11 +54,21 @@ API_BASE_URL=http://127.0.0.1:8000/api/v1 npm run smoke:api
 
 只起依赖容器，服务与前端本机热更新：
 
+下面的长时间运行命令请分别放在三个终端执行：
+
 ```bash
+# 终端 1：依赖容器
 cd microservices
 docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d go-admin-kit-postgres go-admin-kit-redis go-admin-kit-nats
-cd services/auth && go run ./cmd     # 任一服务
-cd web && npm ci && npm run dev      # 前端 HMR
+
+# 终端 2：要调试的 Go 服务（以 auth 为例）
+cd microservices/services/auth
+go run ./cmd
+
+# 终端 3：前端 HMR
+cd microservices/web
+npm ci
+npm run dev
 ```
 
 ## 端口冲突怎么办
