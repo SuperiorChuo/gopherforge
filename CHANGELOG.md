@@ -5,7 +5,49 @@
 
 ## [Unreleased]
 
-后续变更将在这里累计；本页下方记录当前 `v0.2.0-rc.1` 候选版范围。
+### 新增（工程化）
+
+- **发布流程与供应链扫描**（同步自主项目）：新增 `release.yml`（tag `v*` 触发 →
+  SemVer 与 CHANGELOG 门禁 → Go/前端/契约三条门禁 → 8 个镜像推 ghcr.io →
+  建 GitHub Release；镜像双 tag `vX.Y.Z` + `sha-<7位>`，`latest` 仅非预发布时更新，
+  服务清单由 `docker compose config --format json` 现算而非硬编码）、
+  `security-scan.yml`（govulncheck 按模块跑，第三方符号级可达才阻断、stdlib 与
+  非符号级只告警；trivy 只对 HIGH/CRITICAL 且上游已有修复版本阻断）、
+  `dependabot.yml`（gomod / npm / github-actions / docker，weekly）。
+  trivy 刻意不用 `aquasecurity/trivy-action`——2026-03 该 action 的 76 个 tag 曾被
+  强推为窃取 runner secret 的恶意版本，改跑固定版本官方镜像。
+- **镜像名版本化**：compose 里每个可构建服务显式声明
+  `${IMAGE_PREFIX:-go-admin-kit}-<服务名>:${IMAGE_TAG:-latest}`，两变量都不设时
+  与旧推导名完全一致（本机开发 / CI bake / ops 脚本零改动）。
+- **CI 补 `shared-module` 与 `bpm-service` 两个门禁**：`shared` 是 8 个服务共用的
+  公共库（metrics/logger/response/jobbeat/mask/iploc），改坏了全线崩却一直没有门禁。
+- **CI 的 Go 版本抽成顶层 `env.GO_VERSION`**，升版本只改一处；`setup-buildx-action`
+  与 `upload-artifact` 同步升到当前主版本（后者 v4 已是 Node 20 弃用线）。
+
+### 安全
+
+- **Go 工具链升 1.26.5**（同步自主项目）：`go.work` 与 9 个模块加 `toolchain go1.26.5`。
+  刻意不抬高 `go` 语言版本指令——那是使用者的最低要求，抬高会强迫下游全部升级，
+  而消除 stdlib 漏洞只需用新工具链编译。实测 govulncheck 在 `services/shared` 上
+  由 3 条 stdlib 符号级可达降为 0 条（`crypto/tls` 需 1.26.5，1.26.4 不够）。
+- **bpm 生产配置强校验**：`APP_ENV=production` 下 `JWT_SECRET`（<32 位或占位符）与
+  `DB_PASSWORD`（空/弱值）拒绝启动；其余内部 token 不阻断启动，改为在使用点
+  fail closed 并打 WARNING——`BPM_INTERNAL_TOKEN` 缺失或为占位符时 `/internal`
+  端点一律 503，绝不拿公开的开发占位符当真凭据校验。占位符判定用 `dev-` 前缀兜底。
+- 清掉 compose 中 alertmanager 的 `NOTIFY_INTERNAL_TOKEN` 开发占位符默认值，
+  让"没配"就是没配，不再静默注入一个人尽皆知的 token。
+
+### 文档
+
+- `CONTRIBUTING.md` 技术栈订正 Go + Vue → **React**；启动流程改为 `make compose-up`
+  （数据栈在独立 infra compose，只起应用栈会失败）；移除仓库内不存在的 `monolith/` 引用。
+- `SECURITY.md`：`MYSQL_ROOT_PASSWORD` → `DB_PASSWORD`、MySQL → PostgreSQL；
+  新增「已知边界」显式声明**未实现 CSRF 防护**（纯 Bearer + SPA，改用 cookie 承载
+  token 需自行补齐）；补生产自校验的分服务准确口径。
+- 新增 `CODE_OF_CONDUCT.md`（Contributor Covenant v2.1 中文版）。
+- README 中英两版：服务数订正为 7 个 Go 服务进程，补行为准则与收录范围链接。
+
+本页下方记录 `v0.2.0-rc.1` 候选版范围。
 
 ## [0.2.0-rc.1] - 2026-07-24
 

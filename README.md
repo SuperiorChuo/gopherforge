@@ -10,11 +10,11 @@
 
 - **适合谁**：需要快速搭建企业内部管理平台 / SaaS 管理后台的 Go 团队；前端更熟 React 而不想用 Vue 的团队；想要真微服务架构（而非单体）作为起点、又不想背业务包袱的项目。
 - **和同类有何不同**：只含基础设施、零业务耦合——对比 gin-vue-admin、go-admin、RuoYi 系见 [同类项目对比](docs/comparison.md)。
-- **多快能跑起来**：克隆后 `make compose-up`，约 3 分钟拉起网关 + 8 服务 + 前端 + PostgreSQL/Redis/NATS；或先玩 [在线 Demo](https://superiorchuo.github.io/gopherforge/)（纯前端假数据，任意账号可登录）。
+- **多快能跑起来**：克隆后 `make compose-up`，约 3 分钟拉起网关 + 7 服务 + 前端 + PostgreSQL/Redis/NATS；或先玩 [在线 Demo](https://superiorchuo.github.io/gopherforge/)（纯前端假数据，任意账号可登录）。
 
 <p align="center">
   <strong>✨ 企业级微服务后台脚手架 · 只含基础设施 · 开箱即用 ✨</strong><br/>
-  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React + Ant Design &nbsp;·&nbsp; 🧩 Traefik 网关 + 8 服务
+  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React + Ant Design &nbsp;·&nbsp; 🧩 Traefik 网关 + 7 服务
 </p>
 
 <p align="center">
@@ -373,10 +373,13 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 
 <p>
   <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/Contributing-欢迎贡献-brightgreen?logo=git&logoColor=white" alt="Contributing" /></a>
+  <a href="CODE_OF_CONDUCT.md"><img src="https://img.shields.io/badge/Code%20of%20Conduct-Contributor%20Covenant%202.1-5e5e5e?logo=contributorcovenant&logoColor=white" alt="Code of Conduct" /></a>
   <a href="https://github.com/SuperiorChuo/gopherforge/issues"><img src="https://img.shields.io/badge/Issues-反馈问题-red?logo=github" alt="Issues" /></a>
 </p>
 
 - 贡献指南 👉 [CONTRIBUTING.md](CONTRIBUTING.md)（**提交标题与正文须全中文**）
+- 行为准则 👉 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)（Contributor Covenant v2.1）
+- 收录范围 👉 [docs/sync-policy.md](docs/sync-policy.md)（业务功能类需求不在本仓范围）
 - CI 👉 https://github.com/SuperiorChuo/gopherforge/actions
 
 ---
