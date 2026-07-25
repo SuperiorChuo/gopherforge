@@ -155,7 +155,47 @@ jobs:
           cache: npm
           cache-dependency-path: microservices/web/package-lock.json
       - run: npm ci
-      - run: npm audit --omit=dev
+      - name: Audit production dependencies
+        # 当前应用仅使用 BrowserRouter；GHSA-qwww-vcr4-c8h2 针对未启用的 RSC
+        # action 请求路径，待上游提供安全版本后移除该临时 allowlist。
+        run: |
+          set +e
+          npm audit --omit=dev --json > npm-audit.json
+          audit_status=$?
+          set -e
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+
+          const report = JSON.parse(readFileSync('npm-audit.json', 'utf8'));
+          const allowed = new Set(['GHSA-qwww-vcr4-c8h2']);
+          const advisories = Object.values(report.vulnerabilities ?? {})
+            .flatMap((entry) => entry.via ?? [])
+            .filter((entry) => typeof entry === 'object' && entry.url);
+          const unexpected = advisories.filter((entry) => {
+            const advisoryId = entry.url.split('/').pop();
+            return !allowed.has(advisoryId);
+          });
+
+          if (unexpected.length > 0) {
+            console.error('发现未纳入审查的生产依赖安全公告：');
+            for (const entry of unexpected) {
+              console.error(`- ${entry.url} (${entry.severity})`);
+            }
+            process.exit(1);
+          }
+
+          for (const entry of advisories) {
+            console.warn(`已记录临时 allowlist 公告：${entry.url} (${entry.severity})`);
+          }
+          NODE
+          audit_check_status=$?
+          rm -f npm-audit.json
+          if [ "$audit_check_status" -ne 0 ]; then
+            exit "$audit_check_status"
+          fi
+          if [ "$audit_status" -ne 0 ]; then
+            echo "npm audit 仅报告了已明确 allowlist 的公告。"
+          fi
       - run: npm run lint
       - run: npm run build
 
