@@ -153,25 +153,40 @@ func isWeakCredential(value string) bool {
 		return true
 	}
 	weakValues := map[string]struct{}{
-		"123456":       {},
-		"admin":        {},
-		"changeme":     {},
-		"default":      {},
-		"demo":         {},
-		"development":  {},
-		"example":      {},
-		"go-admin-kit": {},
-		"local":        {},
-		"password":     {},
-		"redis":        {},
-		"root":         {},
-		"sample":       {},
-		"secret":       {},
-		"test":         {},
-		"test123":      {},
+		"123456":                {},
+		"access-key":            {},
+		"accesskey":             {},
+		"admin":                 {},
+		"aws-access-key-id":     {},
+		"aws-secret-access-key": {},
+		"aws_access_key_id":     {},
+		"aws_secret_access_key": {},
+		"awsaccesskeyid":        {},
+		"awssecretaccesskey":    {},
+		"changeme":              {},
+		"default":               {},
+		"demo":                  {},
+		"development":           {},
+		"example":               {},
+		"go-admin-kit":          {},
+		"local":                 {},
+		"minioadmin":            {},
+		"password":              {},
+		"redis":                 {},
+		"root":                  {},
+		"sample":                {},
+		"secret":                {},
+		"secret-key":            {},
+		"secretkey":             {},
+		"test":                  {},
+		"test123":               {},
 	}
-	_, ok := weakValues[normalized]
-	return ok
+	if _, ok := weakValues[normalized]; ok {
+		return true
+	}
+	// dev- 前缀按约定视为开发占位符（与 auth/monitor 等服务口径一致）——
+	// 生产环境下 dev-xxx 形态的 token 不该被当成真凭据放行。
+	return strings.HasPrefix(normalized, "dev-")
 }
 
 // isPlaceholderValue 覆盖仓库内公开出现过的占位符。dev- 前缀是通配兜底：
