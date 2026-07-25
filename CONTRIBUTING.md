@@ -1,6 +1,8 @@
 # 贡献指南
 
-感谢你愿意参与 Go Admin Kit。这个项目定位是干净、可复用、便于二次开发的 Go + Vue 后台管理脚手架，贡献时请优先保持模板的通用性。
+感谢你愿意参与 GopherForge（曾用名 Go Admin Kit）。这个项目定位是干净、可复用、便于二次开发的 **Go + React** 微服务后台管理脚手架，贡献时请优先保持模板的通用性。
+
+参与前请先读 [行为准则](CODE_OF_CONDUCT.md)；本仓库的范围边界（哪些改动收、哪些不收）见 [docs/sync-policy.md](docs/sync-policy.md)。
 
 ## 开发环境
 
@@ -10,7 +12,7 @@
 - Docker Desktop
 - uv 0.11+
 
-本仓库含 **微服务**（`microservices/`，当前可运行）与 **单体**（`monolith/`，规划中）两条独立产品线，业务互不调用。日常开发请进入 `microservices/`。
+本仓库只有 **微服务** 一条产品线（`microservices/`），日常开发请进入该目录。单进程形态是独立仓库，不在本仓范围内。
 
 Python 辅助工具统一使用项目内隔离环境，不要向全局 Python 安装依赖：
 
@@ -21,10 +23,11 @@ uv run python --version
 
 ## 本地启动（微服务）
 
+数据栈（PostgreSQL / Redis / NATS）在独立的 `docker-compose.infra.yml`，所以别只起应用栈；`make compose-up` 会按「共享网络 → infra 数据栈 → 应用栈」的顺序拉起：
+
 ```bash
-cd microservices
-cp .env.example .env
-docker compose up -d --build
+cd microservices && cp .env.example .env && cd ..
+make compose-up
 ```
 
 默认地址：
@@ -123,9 +126,9 @@ Tabs ink bar becomes a glowing gradient strip...
 ## 代码约定
 
 - 后端接口、权限码、菜单种子和 OpenAPI 契约需要同步更新。
-- 微服务前端：`microservices/web`；单体前端：`monolith/web`（均为 React + Ant Design）。
-- 微服务迁移真源：`microservices/services/monitor/migrations/`；单体：`monolith/server/migrations/`。
-- 产品线边界见 `docs/PRODUCT_LINES.md`。
+- 前端：`microservices/web`（React + Ant Design）。
+- 迁移真源：`microservices/services/monitor/migrations/`（monitor 容器启动时执行 goose）。
+- 服务边界与进程一览见 `docs/PRODUCT_LINES.md`。
 - 不提交本地运行数据、日志、上传文件、数据库卷、`.env`、构建产物和密钥。
 - 文档正文默认使用中文；命令、路径、API、配置项和包名可保持原文。
 - **新增/变更功能须同步文档站**：`website/` 下对应模块页（中文必改，英文 `website/en/` 尽量同步）；本地 `cd website && npm run build` 须通过（死链会构建失败）。

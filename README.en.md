@@ -74,6 +74,12 @@ This repository is the **scaffold distribution line**: platform-neutral infrastr
 
 Issues and PRs are welcome for anything scaffold-related: base bugs, engineering, docs.
 
+## Contributing
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — dev setup, verification commands and the commit convention (**commit subject and body must both be written in Chinese**).
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — Contributor Covenant v2.1 (Chinese text).
+- [SECURITY.md](SECURITY.md) — how to report a vulnerability, production hardening requirements, and known gaps — notably **there is no CSRF protection**: the front end is a SPA carrying pure `Authorization: Bearer` tokens, so if you switch to cookie-borne tokens you must add CSRF defenses yourself.
+
 ## License
 
 [MIT](LICENSE)
