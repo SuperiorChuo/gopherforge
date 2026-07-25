@@ -38,7 +38,7 @@ features:
 ---
 
 ::: tip Current release line
-These docs describe the `v0.2.0-rc.1` release candidate. It is still a 0.x release: APIs, database schemas and generated code formats may change. The Live Demo uses front-end-only mock data; start the [full stack](/en/guide/getting-started) for backend verification.
+These docs describe the `v0.2.0` release ([release notes](/en/changelog)). It is still a 0.x release: APIs, database schemas and generated code formats may change. The Live Demo uses front-end-only mock data; start the [full stack](/en/guide/getting-started) for backend verification, or [deploy from the official images](/en/reference/deployment).
 :::
 
 ## UI Preview
