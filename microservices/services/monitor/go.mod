@@ -2,6 +2,8 @@ module github.com/go-admin-kit/server
 
 go 1.26.3
 
+toolchain go1.26.5
+
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/alicebob/miniredis/v2 v2.38.0
