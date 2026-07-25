@@ -153,3 +153,125 @@ func TestLoadRejectsMissingRedisPasswordFromEnv(t *testing.T) {
 		t.Fatalf("Load() error = %v, want REDIS_PASSWORD rejection", err)
 	}
 }
+
+// enabledSMTPEmail 返回一个真会发信并且带 AUTH 的邮件通道——只有这种形态才
+// 校验 EMAIL_SMTP_PASSWORD。
+func enabledSMTPEmail(password string) EmailConfig {
+	return EmailConfig{
+		Enabled:  true,
+		SMTPHost: "smtp.example.com",
+		SMTPPort: 587,
+		Username: "test-smtp-user@example.com",
+		Password: password,
+		Sender:   "test-smtp-user@example.com",
+	}
+}
+
+// 邮件通道启用且要走 AUTH 时，弱密码没有安全降级语义：密码会明文发到远端
+// SMTP 服务器，弱值必须在启动期拦下。
+func TestValidateRejectsWeakSMTPPasswordInProduction(t *testing.T) {
+	for name, password := range map[string]string{
+		"未设置":   "",
+		"开发默认值": "123456",
+		"通用词":   "password",
+		"占位符":   "your-password",
+		"待替换":   "change-me",
+		"开发前缀":  "dev-smtp-password",
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg := prodConfig()
+			cfg.Notification.Email = enabledSMTPEmail(password)
+			err := validate(cfg)
+			if err == nil || !strings.Contains(err.Error(), "EMAIL_SMTP_PASSWORD") {
+				t.Fatalf("validate() error = %v, want EMAIL_SMTP_PASSWORD rejection", err)
+			}
+		})
+	}
+}
+
+// 关键用例：通道关闭时一律不校验。生产环境里 EMAIL_SMTP_HOST 留空（通道关闭）
+// 是常态，任何无条件硬拦都会让服务重启后起不来。
+func TestValidateAllowsWeakSMTPPasswordWhenEmailChannelDisabled(t *testing.T) {
+	for name, mutate := range map[string]func(*EmailConfig){
+		"开关关闭":         func(email *EmailConfig) { email.Enabled = false },
+		"host 留空":      func(email *EmailConfig) { email.SMTPHost = "" },
+		"开关关闭且 host 空": func(email *EmailConfig) { email.Enabled = false; email.SMTPHost = "" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			for _, password := range []string{"", "123456"} {
+				cfg := prodConfig()
+				email := enabledSMTPEmail(password)
+				mutate(&email)
+				cfg.Notification.Email = email
+				if err := validate(cfg); err != nil {
+					t.Fatalf("validate() error = %v, want nil while the email channel is off", err)
+				}
+			}
+		})
+	}
+}
+
+// 匿名转发（用户名与密码都不配）是合法形态：smtpAuth 此时根本不发 AUTH 命令，
+// 没有凭据可校验，不能因为"密码为空"把服务拦在启动期。
+func TestValidateAllowsAnonymousSMTPRelayInProduction(t *testing.T) {
+	cfg := prodConfig()
+	email := enabledSMTPEmail("")
+	email.Username = ""
+	cfg.Notification.Email = email
+	if err := validate(cfg); err != nil {
+		t.Fatalf("validate() error = %v, want nil for an anonymous SMTP relay", err)
+	}
+}
+
+// 只配了密码没配用户名也算走 AUTH（smtpAuth 只要有一项非空就发 AUTH）。
+func TestValidateRejectsWeakSMTPPasswordWithoutUsernameInProduction(t *testing.T) {
+	cfg := prodConfig()
+	email := enabledSMTPEmail("123456")
+	email.Username = ""
+	cfg.Notification.Email = email
+	err := validate(cfg)
+	if err == nil || !strings.Contains(err.Error(), "EMAIL_SMTP_PASSWORD") {
+		t.Fatalf("validate() error = %v, want EMAIL_SMTP_PASSWORD rejection", err)
+	}
+}
+
+func TestValidateAcceptsStrongSMTPPasswordInProduction(t *testing.T) {
+	cfg := prodConfig()
+	cfg.Notification.Email = enabledSMTPEmail("test-smtp-password-for-unit-tests")
+	if err := validate(cfg); err != nil {
+		t.Fatalf("validate() error = %v, want nil for a strong SMTP password", err)
+	}
+}
+
+// Load 路径回归：通道开着配弱密码，启动期就要拦下。
+func TestLoadRejectsWeakSMTPPasswordFromEnv(t *testing.T) {
+	previous := Cfg
+	t.Cleanup(func() { Cfg = previous })
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("JWT_SECRET", "test-jwt-secret-for-unit-tests-0123456789")
+	t.Setenv("DB_PASSWORD", "test-db-password-for-unit-tests")
+	t.Setenv("REDIS_PASSWORD", "test-redis-password-for-unit-tests")
+	t.Setenv("EMAIL_NOTIFICATION_ENABLED", "true")
+	t.Setenv("EMAIL_SMTP_HOST", "smtp.example.com")
+	t.Setenv("EMAIL_SMTP_USERNAME", "test-smtp-user@example.com")
+	t.Setenv("EMAIL_SMTP_PASSWORD", "123456")
+	if err := Load(); err == nil || !strings.Contains(err.Error(), "EMAIL_SMTP_PASSWORD") {
+		t.Fatalf("Load() error = %v, want EMAIL_SMTP_PASSWORD rejection", err)
+	}
+}
+
+// Load 路径回归（部署现状）：EMAIL_SMTP_* 全空，生产环境必须照常启动。
+func TestLoadAllowsEmptySMTPConfigFromEnv(t *testing.T) {
+	previous := Cfg
+	t.Cleanup(func() { Cfg = previous })
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("JWT_SECRET", "test-jwt-secret-for-unit-tests-0123456789")
+	t.Setenv("DB_PASSWORD", "test-db-password-for-unit-tests")
+	t.Setenv("REDIS_PASSWORD", "test-redis-password-for-unit-tests")
+	t.Setenv("EMAIL_SMTP_HOST", "")
+	t.Setenv("EMAIL_SMTP_USERNAME", "")
+	t.Setenv("EMAIL_SMTP_PASSWORD", "")
+	if err := Load(); err != nil {
+		t.Fatalf("Load() error = %v, want nil while the email channel is unconfigured", err)
+	}
+}

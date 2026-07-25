@@ -276,11 +276,29 @@ func validateProductionSafety(config Config) error {
 	case "minio":
 		issues = appendObjectStorageIssues(issues, "upload.minio", config.Upload.MinIO, false)
 	}
+	if smtpAuthConfigured(config.Notification.Email) && isWeakCredential(config.Notification.Email.Password) {
+		issues = append(issues, "notification.email.password must not be empty, default, weak, or placeholder while SMTP authentication is configured")
+	}
 
 	if len(issues) > 0 {
 		return fmt.Errorf("production safety checks failed: %s", strings.Join(issues, "; "))
 	}
 	return nil
+}
+
+// smtpAuthConfigured reports whether the email channel is both switched on and
+// set up to authenticate. notification.email.enabled=false or an empty
+// notification.email.smtp_host means no mail is ever sent (both are copied
+// straight into runtimeconfig.EmailNotification, which is what any sender
+// reads), and username plus password both empty is an anonymous relay that
+// sends no AUTH command — none of those shapes carries a credential worth
+// blocking startup over. Only the remaining shape has a password that would
+// travel to a remote SMTP server.
+func smtpAuthConfigured(email EmailConfig) bool {
+	if !email.Enabled || strings.TrimSpace(email.SMTPHost) == "" {
+		return false
+	}
+	return strings.TrimSpace(email.Username) != "" || strings.TrimSpace(email.Password) != ""
 }
 
 func appendObjectStorageIssues(issues []string, path string, storage ObjectStorageConfig, requireRegion bool) []string {

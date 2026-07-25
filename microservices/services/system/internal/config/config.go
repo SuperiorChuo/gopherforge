@@ -380,7 +380,7 @@ func validate(cfg Config) error {
 	if isProductionEnv(cfg.App.Env) {
 		// Collect every secret problem before failing so an operator fixes the
 		// whole set in one pass instead of one restart per issue.
-		issues := make([]string, 0, 3)
+		issues := make([]string, 0, 4)
 		if !isStrongSecret(cfg.JWT.Secret, 32) {
 			issues = append(issues, "JWT_SECRET must be at least 32 characters and must not use a default or placeholder value")
 		}
@@ -390,11 +390,28 @@ func validate(cfg Config) error {
 		if isWeakCredential(cfg.Redis.Password) {
 			issues = append(issues, "REDIS_PASSWORD must not be empty, default, weak, or placeholder")
 		}
+		if smtpAuthConfigured(cfg.Notification.Email) && isWeakCredential(cfg.Notification.Email.Password) {
+			issues = append(issues, "EMAIL_SMTP_PASSWORD must not be empty, default, weak, or placeholder while SMTP authentication is configured")
+		}
 		if len(issues) > 0 {
 			return fmt.Errorf("production safety checks failed: %s", strings.Join(issues, "; "))
 		}
 	}
 	return nil
+}
+
+// smtpAuthConfigured reports whether the email channel will actually
+// authenticate against an SMTP server. mailer.SMTPSender.Send returns early
+// when Enabled is false and refuses an empty host, and mailer's smtpAuth sends
+// no AUTH command at all when username and password are both empty — the
+// switched-off channel and an anonymous relay therefore carry no credential
+// worth blocking startup over. Only the remaining shape (channel on, host set,
+// AUTH in use) has an EMAIL_SMTP_PASSWORD that travels to a remote server.
+func smtpAuthConfigured(email EmailConfig) bool {
+	if !email.Enabled || strings.TrimSpace(email.SMTPHost) == "" {
+		return false
+	}
+	return strings.TrimSpace(email.Username) != "" || strings.TrimSpace(email.Password) != ""
 }
 
 func isProductionEnv(env string) bool {

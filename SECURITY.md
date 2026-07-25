@@ -36,11 +36,19 @@ DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD=true
 - 全部服务：`JWT_SECRET` 少于 32 位、或仍是默认/占位符值；`DB_PASSWORD` 为空、默认（`123456`）、弱值或占位符。
 - 全部连接 Redis 的服务（`auth` / `audit` / `file` / `identity` / `system` / `monitor`，`bpm` 不用 Redis）：`REDIS_PASSWORD` 为空、默认、弱值或占位符。
 - 读取对象存储凭据的服务（`file` / `monitor`）：校验按 `UPLOAD_STORAGE_TYPE` 条件生效——取 `s3` 或 `minio` 时校验 endpoint 形态、bucket、access key、secret key（`s3` 另需 region），取 `local`（缺省值）时不校验任何对象存储凭据。
+- 发起第三方登录的 `auth`：`GITHUB_CLIENT_SECRET` / `WECHAT_CLIENT_SECRET` 为默认值、弱值或占位符。校验**按 provider 条件生效**——只在该 provider 真正就绪时才校验，也就是 `*_OAUTH_ENABLED=true` 且 client id / client secret / redirect uri 三件套齐备（这正是 OAuth 服务放行该 provider 的同一道闸）；开关关闭、或三件套缺一时一律不校验（此时 provider 运行期本就返回不可用，弱值不会流向任何远端）。其余服务只是携带同一份配置模板、并不发起 OAuth 流程，不做这项校验。
+- 读取邮件通道配置的 `system` / `monitor`：`EMAIL_SMTP_PASSWORD`（`monitor` 的 yaml 路径是 `notification.email.password`）为空、默认、弱值或占位符。校验**按通道条件生效**——只在通道真会发信且真会认证时才校验，也就是 `EMAIL_NOTIFICATION_ENABLED=true`、`EMAIL_SMTP_HOST` 非空，且用户名或密码至少一项非空（此时才会发 SMTP AUTH）；通道关闭、host 留空、或匿名转发（用户名与密码都不配、不发 AUTH）时一律不校验。
 - `monitor` 另外还校验 CORS 危险组合。
 
 弱凭据的判定是**已知默认值/占位符的精确匹配**，刻意不设长度下限（真实部署里存在 9 字符的对象存储 access key）。也就是说它拦得住 `123456`、`minioadmin`、`change-me` 这类值，拦不住"短但独特"的自造弱口令——强度仍需自己把关。
 
-**尚未覆盖**（如实记录，不要默认已被拦住）：`EMAIL_SMTP_PASSWORD`、OAuth `client_secret`、NATS 凭据等其余外部依赖凭据**不做生产校验**，弱值不会阻止启动——请自行确认这些依赖的密码强度。
+**尚未覆盖**（如实记录，不要默认已被拦住）：
+
+- **运行期热改的邮件配置不经启动校验**：`system_settings` 的 `notification.email` 行可以在控制台打开通道或改 `smtp_host`（密码不在可热改字段里，仍取自环境变量）。所以"启动时通道是关的、之后在控制台打开"这条路径会绕过上面的启动校验——在控制台开启邮件通道前请自行确认 `EMAIL_SMTP_PASSWORD` 的强度。
+- **基础设施容器自身的口令不经任何服务校验**：`MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD`、`GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` 是容器自己的环境变量（缺省值都是 `minioadmin` / `admin`），没有任何 Go 服务会读它们，因此弱值不会阻止启动。
+- 可选的内部鉴权 token（`BPM_INTERNAL_TOKEN` / `BPM_CALLBACK_TOKEN` / `NOTIFY_INTERNAL_TOKEN`）不做强度校验，按下一段的 fail-closed 约定处理。
+
+（事件总线不在这份清单里：这些服务只读 `NATS_URL` 这个连接地址，没有独立的 NATS 凭据配置项，也就无所谓校不校验。）
 
 其余可选的内部鉴权 token **不阻断启动**（少配一个可选 token 不该让整个服务起不来），而是打 `WARNING` 并在使用点 fail closed——例如 `BPM_INTERNAL_TOKEN` 缺失或仍是占位符时，bpm 的 `/internal` 端点一律返回 503，绝不拿公开的开发占位符当真凭据校验。上线后请检查启动日志里有没有 `WARNING`。
 
