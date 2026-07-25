@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit'
 import { login as loginAPI, getCurrentUser, getUserMenus, logout as logoutAPI } from '@/api/auth'
-import { setTokens, clearTokens } from '@/utils/request'
+import { getRefreshToken, getToken, setTokens, clearTokens } from '@/utils/request'
 import type { LoginRequest, UserInfo, MenuItem } from '@/types'
 
 interface AuthState {
@@ -13,8 +13,8 @@ interface AuthState {
 }
 
 const initialState: AuthState = {
-  token: localStorage.getItem('access_token'),
-  refreshToken: localStorage.getItem('refresh_token'),
+  token: getToken(),
+  refreshToken: getRefreshToken(),
   userInfo: null,
   menus: [],
   permissions: [],
@@ -35,8 +35,10 @@ export const fetchCurrentUser = createAsyncThunk('auth/fetchCurrentUser', async 
 })
 
 export const logout = createAsyncThunk('auth/logout', async (_, { getState }) => {
+  // 自动刷新会更新统一存储，但 Redux 中的初始快照不会随之变化。
+  // 注销必须撤销当前轮换后的 refresh token。
   const state = getState() as { auth: AuthState }
-  const refreshToken = state.auth.refreshToken
+  const refreshToken = getRefreshToken() || state.auth.refreshToken
   try {
     if (refreshToken) await logoutAPI({ refresh_token: refreshToken })
   } finally {
