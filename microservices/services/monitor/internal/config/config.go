@@ -276,7 +276,11 @@ func validateProductionSafety(config Config) error {
 	case "minio":
 		issues = appendObjectStorageIssues(issues, "upload.minio", config.Upload.MinIO, false)
 	}
-	if smtpAuthConfigured(config.Notification.Email) && isWeakCredential(config.Notification.Email.Password) {
+	// IsSMTPAuthUnsafe re-tests the environment itself, which is redundant here
+	// (Validate only calls this function in production) on purpose: routing the
+	// startup gate through the exported predicate is what keeps this check and
+	// the runtime config layer's fail-closed guard on one single definition.
+	if IsSMTPAuthUnsafe(config.App.Env, config.Notification.Email) {
 		issues = append(issues, "notification.email.password must not be empty, default, weak, or placeholder while SMTP authentication is configured")
 	}
 
@@ -299,6 +303,24 @@ func smtpAuthConfigured(email EmailConfig) bool {
 		return false
 	}
 	return strings.TrimSpace(email.Username) != "" || strings.TrimSpace(email.Password) != ""
+}
+
+// IsSMTPAuthUnsafe reports whether authenticating against an SMTP server with
+// this email configuration is unsafe in env. It is the one definition of that
+// policy: outside production nothing is refused (local development stays
+// zero-config), a channel that never sends AUTH carries no credential to judge
+// (smtpAuthConfigured), and only the remaining shape puts its password up
+// against isWeakCredential.
+//
+// Exported for internal/pkg/runtimeconfig, where a system_settings row can
+// switch notification.email on long after Validate inspected the file and
+// environment derived settings — that layer has to fail closed on exactly the
+// shape refused here. Sharing this predicate instead of exporting
+// isProductionEnv and isWeakCredential separately is deliberate: it makes the
+// two gates impossible to drift apart and keeps the raw credential primitives
+// out of reach of unrelated callers.
+func IsSMTPAuthUnsafe(env string, email EmailConfig) bool {
+	return isProductionEnv(env) && smtpAuthConfigured(email) && isWeakCredential(email.Password)
 }
 
 func appendObjectStorageIssues(issues []string, path string, storage ObjectStorageConfig, requireRegion bool) []string {
@@ -351,6 +373,11 @@ func isStrongSecret(value string, minLength int) bool {
 	return len(value) >= minLength && !isPlaceholderValue(value)
 }
 
+// isWeakCredential reports credentials that are effectively unset: empty,
+// placeholder, or a well-known development default. Criteria match the auth,
+// audit, file, identity and system services; every service is its own module
+// and its Docker build context excludes shared, so this is a deliberate local
+// copy that has to be kept in step by hand.
 func isWeakCredential(value string) bool {
 	normalized := normalizeSecretValue(value)
 	if normalized == "" || isPlaceholderValue(normalized) {
@@ -379,13 +406,19 @@ func isWeakCredential(value string) bool {
 		"root":                  {},
 		"sample":                {},
 		"go-admin-kit":          {},
+		"secret":                {},
 		"secret-key":            {},
 		"secretkey":             {},
 		"test":                  {},
 		"test123":               {},
 	}
-	_, ok := weakValues[normalized]
-	return ok
+	if _, ok := weakValues[normalized]; ok {
+		return true
+	}
+	// dev- prefixed values are development placeholders by convention (bpm
+	// blacklists such tokens one by one). Kept inside the credential check so
+	// existing JWT secret criteria stay untouched.
+	return strings.HasPrefix(normalized, "dev-")
 }
 
 func isPlaceholderValue(value string) bool {
