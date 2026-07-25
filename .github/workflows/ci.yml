@@ -31,7 +31,7 @@ jobs:
           npm run test:smoke:unit
 
       - name: Check generated OpenAPI is committed
-        run: git diff --exit-code -- microservices/services/monitor/docs/openapi.json
+        run: git diff --exit-code -- microservices/services/monitor/docs/openapi.json microservices/web/src/api/generated/schema.d.ts
 
   monitor-service:
     name: Monitor Service
