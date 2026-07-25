@@ -20,6 +20,9 @@
   RBAC 与 HTTP/2 漏洞），6 个模块的 indirect 依赖统一升级。govulncheck 判定
   漏洞符号不可达，但 trivy 门禁按设计拦截"有修复版的 HIGH"，升级后 PR 的
   CI 全部解堵。
+- **bpm 依赖升级：x/crypto 0.54、x/net 0.56**（同步自主项目）：消除 2026-07-25
+  当天新披露的 ssh/agent/knownhosts（CVE-2026-39828 等，含未授权命令执行）与
+  x/net html/idna 系列 HIGH——bpm 是仓内唯一低于修复线的模块，其余本就 ≥0.52/0.55。
 - **bpm 弱凭据名单对齐 auth/monitor 口径**（同步自主项目）：补齐 aws/access-key
   系 8 个条目与 `minioadmin`/`secret-key`/`secretkey`，并新增 `dev-` 前缀兜底
   ——生产环境下 dev-xxx 形态的 token 一律视为占位符，经 sanitize 归零后由
