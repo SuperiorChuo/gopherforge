@@ -287,7 +287,12 @@ export interface operations {
     };
   };
   "postApiV1MonitorJobLogsCleanup": {
-    requestBody: {
+    parameters: {
+      query: {
+        retention_days?: number;
+      };
+    };
+    requestBody?: {
       content: {
         "application/json": components["schemas"]["JobLogCleanupRequest"];
       };
@@ -309,7 +314,17 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -322,7 +337,7 @@ export interface operations {
         page?: number;
         page_size?: number;
         name?: string;
-        status?: number;
+        status?: 0 | 1;
       };
     };
     security: [{"BearerAuth":[]}];
@@ -342,7 +357,17 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -372,7 +397,17 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -402,7 +437,17 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -414,7 +459,7 @@ export interface operations {
     responses: {
       "200": {
         content: {
-          "application/json": components["schemas"]["ApiResponse"];
+          "application/json": components["schemas"]["JobHeartbeatsEnvelope"];
         };
       };
       "400": {
@@ -427,7 +472,17 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -457,7 +512,22 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "404": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -492,7 +562,22 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "404": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -522,7 +607,22 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "404": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -552,7 +652,22 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "404": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -582,7 +697,22 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "404": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -607,7 +737,17 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -628,6 +768,11 @@ export interface operations {
         };
       };
       "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -657,6 +802,11 @@ export interface operations {
           "application/json": components["schemas"]["ApiResponse"];
         };
       };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
       "500": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
@@ -669,7 +819,7 @@ export interface operations {
     responses: {
       "200": {
         content: {
-          "application/json": components["schemas"]["ApiResponse"];
+          "application/json": components["schemas"]["ServicesHealthEnvelope"];
         };
       };
       "400": {
@@ -678,6 +828,11 @@ export interface operations {
         };
       };
       "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -694,10 +849,10 @@ export interface operations {
 export interface components {
   schemas: {
     ApiResponse: {
-      code?: number;
+      code: number;
       data?: Record<string, unknown>;
       error_code?: string;
-      message?: string;
+      message: string;
     };
     EmptyEnvelope: {
       code: number;
@@ -734,6 +889,30 @@ export interface components {
       code: number;
       data: components["schemas"]["JobHealthCheck"];
       message: string;
+    };
+    JobHeartbeat: {
+      description: string;
+      fails: number;
+      id: number;
+      interval_sec: number;
+      job_key: string;
+      last_duration_ms: number;
+      last_error: string;
+      last_run_at: string;
+      last_status: string;
+      runs: number;
+      service: string;
+      stale: boolean;
+      updated_at: string;
+    };
+    JobHeartbeatsEnvelope: {
+      code: number;
+      data: components["schemas"]["JobHeartbeatsResponse"];
+      message: string;
+    };
+    JobHeartbeatsResponse: {
+      list: components["schemas"]["JobHeartbeat"][];
+      total: number;
     };
     JobListEnvelope: {
       code: number;
@@ -939,6 +1118,24 @@ export interface components {
       hostname: string;
       num_goroutine: number;
       platform: string;
+    };
+    ServiceHealthRow: {
+      error?: string;
+      http_code: number;
+      latency_ms: number;
+      name: string;
+      ok: boolean;
+    };
+    ServicesHealthEnvelope: {
+      code: number;
+      data: components["schemas"]["ServicesHealthResponse"];
+      message: string;
+    };
+    ServicesHealthResponse: {
+      checked_at: string;
+      healthy: number;
+      list: components["schemas"]["ServiceHealthRow"][];
+      total: number;
     };
   };
   securitySchemes: {
