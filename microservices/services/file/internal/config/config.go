@@ -443,18 +443,79 @@ func validate(cfg Config) error {
 	if isProductionEnv(cfg.App.Env) {
 		// Collect every secret problem before failing so an operator fixes the
 		// whole set in one pass instead of one restart per issue.
-		issues := make([]string, 0, 2)
+		issues := make([]string, 0, 4)
 		if !isStrongSecret(cfg.JWT.Secret, 32) {
 			issues = append(issues, "JWT_SECRET must be at least 32 characters and must not use a default or placeholder value")
 		}
 		if isWeakCredential(cfg.Database.Password) {
 			issues = append(issues, "DB_PASSWORD must not be empty, default, weak, or placeholder")
 		}
+		if isWeakCredential(cfg.Redis.Password) {
+			issues = append(issues, "REDIS_PASSWORD must not be empty, default, weak, or placeholder")
+		}
+		// Object storage credentials only exist for the selected backend: local
+		// disk has none, so the checks stay scoped to the effective storage type
+		// instead of demanding S3/MinIO settings from every deployment.
+		switch cfg.Upload.EffectiveStorageType() {
+		case "s3":
+			issues = appendObjectStorageIssues(issues, "UPLOAD_S3", cfg.Upload.S3, true)
+		case "minio":
+			issues = appendObjectStorageIssues(issues, "UPLOAD_MINIO", cfg.Upload.MinIO, false)
+		}
 		if len(issues) > 0 {
 			return fmt.Errorf("production safety checks failed: %s", strings.Join(issues, "; "))
 		}
 	}
 	return nil
+}
+
+// appendObjectStorageIssues promotes the required-field set that
+// internal/pkg/upload.validateObjectStorageConfig already enforces lazily
+// (endpoint, bucket, region for s3 only, access key, secret key) to a startup
+// check, and additionally rejects credentials that are weak rather than merely
+// empty. Region stays optional for MinIO, matching the storage client.
+func appendObjectStorageIssues(issues []string, envPrefix string, storage ObjectStorageConfig, requireRegion bool) []string {
+	issues = appendObjectStorageEndpointIssues(issues, envPrefix, storage.Endpoint)
+	if strings.TrimSpace(storage.Bucket) == "" {
+		issues = append(issues, envPrefix+"_BUCKET must be set")
+	}
+	if requireRegion && strings.TrimSpace(storage.Region) == "" {
+		issues = append(issues, envPrefix+"_REGION must be set")
+	}
+	if isWeakCredential(storage.AccessKey) {
+		issues = append(issues, envPrefix+"_ACCESS_KEY must not be empty, default, weak, or placeholder")
+	}
+	if isWeakCredential(storage.SecretKey) {
+		issues = append(issues, envPrefix+"_SECRET_KEY must not be empty, default, weak, or placeholder")
+	}
+	return issues
+}
+
+// appendObjectStorageEndpointIssues applies the same endpoint shape rules as
+// internal/pkg/upload.objectStorageEndpoint so a malformed endpoint fails at
+// boot instead of on the first upload.
+func appendObjectStorageEndpointIssues(issues []string, envPrefix string, endpoint string) []string {
+	endpoint = strings.TrimSpace(endpoint)
+	if endpoint == "" {
+		return append(issues, envPrefix+"_ENDPOINT must be set")
+	}
+	if strings.Contains(endpoint, "://") {
+		parsed, err := url.Parse(endpoint)
+		if err != nil || parsed.Host == "" {
+			return append(issues, envPrefix+"_ENDPOINT must be a valid host or URL")
+		}
+		if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			return append(issues, envPrefix+"_ENDPOINT must use http or https")
+		}
+		if strings.Trim(parsed.Path, "/") != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+			return append(issues, envPrefix+"_ENDPOINT must not include path, query, or fragment")
+		}
+		return issues
+	}
+	if strings.ContainsAny(endpoint, "/\\?#") {
+		return append(issues, envPrefix+"_ENDPOINT must not include path, query, or fragment")
+	}
+	return issues
 }
 
 func isProductionEnv(env string) bool {
