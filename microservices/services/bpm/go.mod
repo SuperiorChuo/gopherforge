@@ -2,6 +2,8 @@ module github.com/go-admin-kit/services/bpm
 
 go 1.26.3
 
+toolchain go1.26.5
+
 require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/sqlite v1.11.0

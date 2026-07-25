@@ -2,6 +2,8 @@ module github.com/go-admin-kit/services/shared
 
 go 1.26.3
 
+toolchain go1.26.5
+
 require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20260709160242-cd40e3a1d532
