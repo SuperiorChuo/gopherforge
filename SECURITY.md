@@ -33,8 +33,10 @@ DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD=true
 
 `APP_ENV=production` 下服务启动时会自校验并**拒绝启动**（这些项没有可安全降级的行为）：
 
-- 全部服务：`JWT_SECRET` 少于 32 位、或仍是默认/占位符值。
-- `monitor` 与 `bpm`：另加 `DB_PASSWORD` 为空/默认/弱值；`monitor` 还校验 `REDIS_PASSWORD` 与对象存储凭据、CORS 危险组合。
+- 全部服务：`JWT_SECRET` 少于 32 位、或仍是默认/占位符值；`DB_PASSWORD` 为空、默认（`123456`）、弱值或占位符。
+- `monitor` 另外还校验 `REDIS_PASSWORD`、对象存储凭据与 CORS 危险组合。
+
+**尚未覆盖**（如实记录，不要默认已被拦住）：除 `monitor` 外的服务读取 `REDIS_PASSWORD` 与对象存储凭据时**不做生产校验**，弱凭据不会阻止启动——请自行确认这些依赖的密码强度。
 
 其余可选的内部鉴权 token **不阻断启动**（少配一个可选 token 不该让整个服务起不来），而是打 `WARNING` 并在使用点 fail closed——例如 `BPM_INTERNAL_TOKEN` 缺失或仍是占位符时，bpm 的 `/internal` 端点一律返回 503，绝不拿公开的开发占位符当真凭据校验。上线后请检查启动日志里有没有 `WARNING`。
 
