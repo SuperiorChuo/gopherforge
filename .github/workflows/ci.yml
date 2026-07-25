@@ -7,6 +7,13 @@ on:
       - main
       - master
 
+# Go 版本只在这里维护一处（原先每个 job 各自内联，升一次版本要逐个改，
+# 容易漏改造成版本漂移）。实际编译用的工具链由各模块 go.mod 的 toolchain
+# 指令决定（GOTOOLCHAIN=auto 会自升），这里对齐同一版本只是为了省掉每个
+# job 一次工具链下载。
+env:
+  GO_VERSION: '1.26.5'
+
 jobs:
   workspace:
     name: Micro Workspace
@@ -20,7 +27,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.26.3'
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: microservices/services/monitor/go.sum
 
       - name: Workspace scripts
@@ -33,6 +40,23 @@ jobs:
       - name: Check generated OpenAPI is committed
         run: git diff --exit-code -- microservices/services/monitor/docs/openapi.json microservices/web/src/api/generated/schema.d.ts
 
+  # shared 是 8 个服务共用的公共库（metrics/logger/response/jobbeat/mask/iploc），必须单独门禁
+  shared-module:
+    name: Shared Module
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microservices/services/shared
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: microservices/services/shared/go.sum
+      - run: go mod download
+      - run: go test ./...
+      - run: go vet ./...
+
   monitor-service:
     name: Monitor Service
     runs-on: ubuntu-latest
@@ -44,7 +68,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.26.3'
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: microservices/services/monitor/go.sum
 
       - run: go mod download
@@ -71,7 +95,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.26.3'
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: microservices/services/auth/go.sum
       - run: go mod download
       - run: go test ./...
@@ -87,7 +111,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.26.3'
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: microservices/services/identity/go.sum
       - run: go mod download
       - run: go test ./...
@@ -103,7 +127,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.26.3'
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: microservices/services/system/go.sum
       - run: go mod download
       - run: go test ./...
@@ -119,7 +143,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.26.3'
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: microservices/services/audit/go.sum
       - run: go mod download
       - run: go test ./...
@@ -135,8 +159,24 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.26.3'
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: microservices/services/file/go.sum
+      - run: go mod download
+      - run: go test ./...
+      - run: go vet ./...
+
+  bpm-service:
+    name: BPM Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microservices/services/bpm
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: microservices/services/bpm/go.sum
       - run: go mod download
       - run: go test ./...
       - run: go vet ./...
@@ -211,14 +251,14 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.26.3'
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: microservices/services/monitor/go.sum
 
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build compose images
         uses: docker/bake-action@v7
@@ -297,7 +337,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: microservices/web/playwright-report
