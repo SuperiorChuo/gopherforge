@@ -352,12 +352,15 @@ func validate(cfg Config) error {
 	if isProductionEnv(cfg.App.Env) {
 		// Collect every secret problem before failing so an operator fixes the
 		// whole set in one pass instead of one restart per issue.
-		issues := make([]string, 0, 2)
+		issues := make([]string, 0, 3)
 		if !isStrongSecret(cfg.JWT.Secret, 32) {
 			issues = append(issues, "JWT_SECRET must be at least 32 characters and must not use a default or placeholder value")
 		}
 		if isWeakCredential(cfg.Database.Password) {
 			issues = append(issues, "DB_PASSWORD must not be empty, default, weak, or placeholder")
+		}
+		if isWeakCredential(cfg.Redis.Password) {
+			issues = append(issues, "REDIS_PASSWORD must not be empty, default, weak, or placeholder")
 		}
 		if len(issues) > 0 {
 			return fmt.Errorf("production safety checks failed: %s", strings.Join(issues, "; "))
