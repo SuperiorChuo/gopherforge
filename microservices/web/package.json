@@ -15,25 +15,25 @@
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
     "@reduxjs/toolkit": "^2.12.0",
-    "antd": "^6.5.0",
+    "antd": "^6.5.2",
     "axios": "^1.18.1",
     "dayjs": "^1.11.21",
     "nprogress": "^0.2.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "react-redux": "^9.3.0",
     "react-router-dom": "^7.18.1",
     "sip.js": "^0.21.2"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.0",
     "@types/node": "^24.13.3",
     "@types/nprogress": "^0.2.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
-    "oxlint": "^1.71.0",
+    "@vitejs/plugin-react": "^6.0.4",
+    "oxlint": "^1.75.0",
     "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+    "vite": "^8.1.5"
   }
 }
