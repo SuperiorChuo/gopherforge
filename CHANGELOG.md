@@ -39,6 +39,9 @@
 
 ### 文档
 
+- 文档站新增「更新日志」页（中英各一个导航入口），经 `@include` 直读仓库根
+  `CHANGELOG.md`——与 `release.yml` 抽取的 Release notes 同一来源，发版后
+  GitHub Release、文档站、仓库三处日志天然一致，无需维护第二份。
 - `CONTRIBUTING.md` 技术栈订正 Go + Vue → **React**；启动流程改为 `make compose-up`
   （数据栈在独立 infra compose，只起应用栈会失败）；移除仓库内不存在的 `monolith/` 引用。
 - `SECURITY.md`：`MYSQL_ROOT_PASSWORD` → `DB_PASSWORD`、MySQL → PostgreSQL；
