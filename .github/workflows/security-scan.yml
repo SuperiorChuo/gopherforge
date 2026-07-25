@@ -1,0 +1,364 @@
+# 供应链 / 代码安全扫描：PR 上跑快的，每周定时跑全的。
+#
+# 本仓（gopherforge）是公开脚手架发行线，Actions 在这里真正执行——这个 workflow 会实跑。
+# 文件本体由上游主项目同步而来：要调阈值请回上游改再同步，避免下次同步被覆盖。
+# 刻意与 ci.yml 完全分离：ci.yml 管功能门禁，安全扫描独立文件，互不打架。
+#
+# 【失败阈值的取舍】目标是"能长期开着而不会天天红"，所以分三档：
+#   1. govulncheck（Go 官方，零配置）——只报"你的代码真的调到了漏洞函数"的可达发现。
+#      · 第三方依赖可达漏洞  → 红（升个依赖就能修，必须修）
+#      · stdlib 可达漏洞      → 黄（只能靠升 Go 工具链，不该卡住每一个 PR）
+#   2. trivy —— 只对 HIGH/CRITICAL 且"上游已有修复版本"（--ignore-unfixed）失败。
+#      没修复版本的、MEDIUM 及以下的，只进报告不拦门。
+#      配置错误（misconfig）与密钥扫描（secret）永远只报告不拦门：前者对
+#      Dockerfile/compose 的默认规则噪音大，后者仓里已有 pre-commit 钩子兜底。
+#      已评估但暂不修的发现写进 trivy 忽略清单（见 trivy-fs 的"准备忽略清单"步骤，
+#      清单生成在 RUNNER_TEMP 里，不进仓库），与下面 npm audit 的 allowlist 同源。
+#   3. npm audit —— 只看生产依赖（--omit=dev）的高危及以上，等价于 --audit-level=high。
+#      但**不能直接用 `npm audit --audit-level=high`**：本仓当前有 2 条 high
+#      （react-router GHSA-qwww-vcr4-c8h2，RSC action 路径的 CSRF 绕过），唯一"修复"
+#      是降级到 react-router-dom@7.11.0 这个破坏性变更，ci.yml 因此已把它 allowlist。
+#      直接用 --audit-level=high 会让这个 job 每次都红，门禁就失去意义。
+#      所以这里沿用 ci.yml 的做法：解析 --json 报告，high/critical 且不在 allowlist
+#      才阻断；allowlist 命中只打 ::warning::。两处 allowlist 必须同步增删。
+#
+# 【为什么 trivy 用官方镜像而不是 aquasecurity/trivy-action】
+#   2026-03 trivy-action / setup-trivy 的 tag 被劫持过（76 个 tag 被强推成
+#   窃取 runner 内存里 secret 的恶意版本）。这里改成直接跑固定版本的官方
+#   trivy 容器，少一层第三方 action 依赖；要换回 action 就用
+#   aquasecurity/trivy-action@v0.36.0（并最好按 commit SHA 钉死）。
+
+name: Security Scan
+
+on:
+  pull_request:
+  schedule:
+    # 每周一 20:47 UTC = 北京时间周二 04:47（避开整点，错峰）
+    - cron: '47 20 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: '1.26.5'
+  NODE_VERSION: '24'
+  # 固定版本，别用 latest；0.69.4 ~ 0.69.6 是被投毒的版本，永远不要用
+  TRIVY_IMAGE: 'aquasec/trivy:0.72.0'
+
+jobs:
+  discover:
+    name: 解析 Go 模块清单
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.modules.outputs.modules }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: 从 go.work 取模块（含 shared 与 tools/dbdoc）
+        id: modules
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, re, sys
+
+          work = open("microservices/go.work", encoding="utf-8").read()
+          modules = sorted(re.findall(r"^\s*\./(\S+)\s*$", work, re.M))
+          if not modules:
+              sys.exit("未从 go.work 解析出任何模块")
+          print("modules=" + json.dumps(modules))
+          PY
+
+  govulncheck:
+    name: govulncheck · ${{ matrix.module }}
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        module: ${{ fromJson(needs.discover.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: microservices/${{ matrix.module }}/go.sum
+
+      - name: 扫描可达漏洞
+        working-directory: microservices/${{ matrix.module }}
+        env:
+          MODULE: ${{ matrix.module }}
+        run: |
+          set -uo pipefail
+          # runner 默认 bash -e，这里要自己拿 exit code，先关掉 -e
+          set +e
+          # govulncheck 固定用 @latest：漏洞库与分析逻辑都在里面，钉死版本等于钉死漏洞库
+          go run golang.org/x/vuln/cmd/govulncheck@latest -format json ./... > govulncheck.json
+          code=$?
+          # 0 = 无发现；3 = 有发现（json 模式一般仍返回 0）；其它 = 工具真的挂了
+          if [ "$code" != '0' ] && [ "$code" != '3' ]; then
+            echo "::error::govulncheck 执行失败（exit=$code）"
+            exit "$code"
+          fi
+          set -e
+          python3 - <<'PY'
+          import json, os, pathlib
+
+          module = os.environ["MODULE"]
+          raw = pathlib.Path("govulncheck.json").read_text(encoding="utf-8")
+
+          # govulncheck -format json 吐的是"一串缩进 JSON 对象拼接"，不是 JSONL，
+          # 必须 raw_decode 顺流解。实测（tools/dbdoc，415KB 输出）：raw_decode 取到
+          # 186 个对象含 13 条 finding，按行 json.loads 取到 0 条 finding —— 后者会假绿，很危险
+          decoder = json.JSONDecoder()
+          findings, pos = [], 0
+          while pos < len(raw):
+              while pos < len(raw) and raw[pos].isspace():
+                  pos += 1
+              if pos >= len(raw):
+                  break
+              obj, pos = decoder.raw_decode(raw, pos)
+              if "finding" in obj:
+                  findings.append(obj["finding"])
+
+          blocking, advisory = set(), set()
+          for finding in findings:
+              trace = finding.get("trace") or []
+              if not trace:
+                  continue
+              head = trace[0]
+              osv = finding.get("osv", "?")
+              mod = head.get("module", "?")
+              fixed = finding.get("fixed_version") or "暂无修复版本"
+              # trace[0] 带 function 才是"符号级可达"：代码真的调到了漏洞函数
+              reachable = bool(head.get("function"))
+              (blocking if reachable and mod != "stdlib" else advisory).add((osv, mod, fixed))
+
+          def render(title, bucket):
+              if not bucket:
+                  return []
+              rows = [f"- `{osv}` · {mod} · 修复版本：{fixed}" for osv, mod, fixed in sorted(bucket)]
+              return [f"**{title}**", ""] + rows + [""]
+
+          lines = [f"### govulncheck · {module}", ""]
+          if not blocking and not advisory:
+              lines += ["无漏洞发现。", ""]
+          lines += render("第三方依赖 · 符号级可达（阻断）", blocking)
+          lines += render("stdlib 或非符号级可达（仅告警）", advisory)
+
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a", encoding="utf-8") as fh:
+                  fh.write("\n".join(lines) + "\n")
+          print("\n".join(lines))
+
+          for osv, mod, fixed in sorted(advisory):
+              print(f"::warning::{module}: {osv}（{mod}）不阻断——stdlib 需升 Go 工具链，或未确认符号级可达；修复版本 {fixed}")
+          for osv, mod, fixed in sorted(blocking):
+              print(f"::error::{module}: {osv}（{mod}）符号级可达，升级到 {fixed}")
+          if blocking:
+              raise SystemExit(1)
+          PY
+
+      - name: 保留原始报告
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: govulncheck-${{ strategy.job-index }}
+          path: microservices/${{ matrix.module }}/govulncheck.json
+          retention-days: 14
+          if-no-files-found: ignore
+
+  trivy-fs:
+    name: Trivy · 文件系统
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 拉取固定版本 Trivy
+        run: docker pull "$TRIVY_IMAGE"
+
+      - name: 准备忽略清单（已评估暂不修的发现，与 npm audit allowlist 同源）
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/trivy-ignore"
+          # 刻意生成在 RUNNER_TEMP，不在仓库里放 .trivyignore：
+          # 阻断名单只影响 CI 判定，不该让 clone 下来的人以为这些漏洞不存在。
+          cat > "${RUNNER_TEMP}/trivy-ignore/.trivyignore" <<'IGNORE'
+          # react-router RSC action 路径 CSRF 绕过（无 CVE 别名，trivy 按 GHSA 编号报）。
+          # 本应用只用 BrowserRouter，未启用 RSC；上游修复线是 react-router 8.3.0（跨大版本），
+          # 暂缓升级。与 ci.yml、本文件 npm-audit 的 allowlist 三处同源，一起增删。
+          GHSA-qwww-vcr4-c8h2
+          IGNORE
+          cat "${RUNNER_TEMP}/trivy-ignore/.trivyignore"
+
+      - name: 依赖漏洞（HIGH/CRITICAL 且有修复版本 → 阻断）
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/trivy-cache"
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/src:ro" \
+            -v "${RUNNER_TEMP}/trivy-ignore:/ignore:ro" \
+            -v "${RUNNER_TEMP}/trivy-cache:/root/.cache/trivy" \
+            "$TRIVY_IMAGE" fs \
+            --scanners vuln \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --ignorefile /ignore/.trivyignore \
+            --exit-code 1 \
+            --no-progress \
+            /src
+
+      - name: 全量 SARIF（含 MEDIUM 及以下，只报告不阻断）
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/trivy-out" "${RUNNER_TEMP}/trivy-cache"
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/src:ro" \
+            -v "${RUNNER_TEMP}/trivy-out:/out" \
+            -v "${RUNNER_TEMP}/trivy-cache:/root/.cache/trivy" \
+            "$TRIVY_IMAGE" fs \
+            --scanners vuln,misconfig,secret \
+            --exit-code 0 \
+            --no-progress \
+            --format sarif \
+            --output /out/trivy-fs.sarif \
+            /src
+
+      - name: 上传到 Code Scanning
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ runner.temp }}/trivy-out/trivy-fs.sarif
+          category: trivy-fs
+
+  trivy-image:
+    # 镜像扫描要先构建，比较慢，只在定时 / 手动跑；PR 上靠 trivy-fs + govulncheck 兜。
+    # 只扫两个代表：7 个 Go 服务用的是同一套 golang:1.26-alpine → alpine:3.20 范式，
+    # 基础镜像 CVE 一扫就全知道；frontend 是唯一的 node:24-alpine → nginx:alpine 运行时。
+    if: github.event_name != 'pull_request'
+    name: Trivy · 镜像 ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: monitor-service
+            context: microservices/services/monitor
+            dockerfile: microservices/services/monitor/Dockerfile
+          - service: frontend
+            context: microservices/web
+            dockerfile: microservices/web/Dockerfile
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: 构建待扫镜像（只 load 到本地，不推）
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: true
+          provenance: false
+          tags: security-scan/${{ matrix.service }}:scan
+          cache-from: type=gha,scope=security-${{ matrix.service }}
+          cache-to: type=gha,scope=security-${{ matrix.service }},mode=max,ignore-error=true
+
+      - name: 扫镜像（HIGH/CRITICAL 且有修复版本 → 阻断）
+        env:
+          IMAGE_REF: security-scan/${{ matrix.service }}:scan
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/trivy-cache"
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${RUNNER_TEMP}/trivy-cache:/root/.cache/trivy" \
+            "$TRIVY_IMAGE" image \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            --no-progress \
+            "$IMAGE_REF"
+
+  npm-audit:
+    name: npm audit · 前端生产依赖
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microservices/web
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: microservices/web/package-lock.json
+
+      - name: 高危及以上阻断（allowlist 之外）
+        run: |
+          set -uo pipefail
+          # npm audit 有发现就返回非零，这里要自己按等级判定，先别让 -e 提前退出
+          set +e
+          npm audit --omit=dev --json > npm-audit.json
+          set -e
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+
+          // 已评估并暂时放行的公告（与 ci.yml 的 allowlist 保持一致，两处一起增删）：
+          // GHSA-qwww-vcr4-c8h2 —— react-router RSC action 路径的 CSRF 绕过；本应用只用
+          // BrowserRouter，未启用 RSC，唯一"修复"是降级到 7.11.0（破坏性变更）。
+          // 上游发布安全版本后删掉这一条。
+          const ALLOWED = new Set(['GHSA-qwww-vcr4-c8h2']);
+          const BLOCKING_SEVERITY = new Set(['high', 'critical']);
+
+          const report = JSON.parse(readFileSync('npm-audit.json', 'utf8'));
+          const advisories = new Map();
+          for (const entry of Object.values(report.vulnerabilities ?? {})) {
+            for (const via of entry.via ?? []) {
+              if (typeof via !== 'object' || !via.url) continue;
+              const id = via.url.split('/').pop();
+              advisories.set(id, { id, url: via.url, severity: via.severity ?? 'unknown' });
+            }
+          }
+
+          const blocking = [...advisories.values()].filter(
+            (a) => BLOCKING_SEVERITY.has(a.severity) && !ALLOWED.has(a.id),
+          );
+          const waived = [...advisories.values()].filter((a) => ALLOWED.has(a.id));
+
+          for (const a of waived) {
+            console.warn(`::warning::已 allowlist 的生产依赖公告：${a.url}（${a.severity}）`);
+          }
+          if (blocking.length > 0) {
+            console.error('发现未纳入 allowlist 的高危及以上生产依赖公告：');
+            for (const a of blocking) console.error(`::error::${a.url}（${a.severity}）`);
+            process.exit(1);
+          }
+          console.log(`生产依赖高危及以上公告：0 条未放行（已放行 ${waived.length} 条）`);
+          NODE
+
+      - name: 完整报告（含低危，只写摘要不阻断）
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "### npm audit（生产依赖，全等级）"
+            echo ""
+            echo '```'
+            npm audit --omit=dev || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,131 @@
+# 依赖自动升级。
+#
+# 本仓（gopherforge）是公开脚手架发行线，也是唯一真正跑 Actions / Dependabot 的仓库。
+# 文件本体由上游主项目同步而来：要改配置请回上游改再同步，避免下次同步被覆盖。
+#
+# 约定：
+# - Go 模块必须逐个目录声明（go.work 不会被自动展开），清单与 microservices/go.work
+#   的 use(...) 一一对应，新增服务时两处一起加。清单里**只有本仓真实存在的目录**——
+#   Dependabot 对不存在的 directory 会在仓库的 Dependabot 页面报错。
+# - 全部 weekly + open-pull-requests-limit，避免 PR 淹没；minor/patch 合并成一个
+#   分组 PR，major 单独开（需要人工看破坏性变更）。
+# - 时间刻意错开整点，别和全球所有仓库的 Dependabot 撞在同一分钟。
+version: 2
+
+updates:
+  # ---------- Go modules（清单同 microservices/go.work 的 9 个 use 条目）----------
+  - package-ecosystem: gomod
+    directories:
+      - /microservices/services/shared
+      - /microservices/services/audit
+      - /microservices/services/auth
+      - /microservices/services/bpm
+      - /microservices/services/file
+      - /microservices/services/identity
+      - /microservices/services/monitor
+      - /microservices/services/system
+      - /microservices/tools/dbdoc
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:13"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 构建
+    groups:
+      go-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  # ---------- 前端 npm（管理台）----------
+  - package-ecosystem: npm
+    directory: /microservices/web
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:37"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 构建
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  # ---------- 文档站 npm（VitePress，deploy-demo.yml 会 npm ci 它）----------
+  # 本仓特有：除管理台外还有一个带 lockfile 的前端工程，不管它就会长期不升级。
+  # 嫌吵就整条删掉，不影响其它生态。
+  - package-ecosystem: npm
+    directory: /website
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:53"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: 构建（文档站）
+    groups:
+      website-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  # ---------- GitHub Actions（.github/workflows 全部 workflow）----------
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:07"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: 构建（CI）
+    groups:
+      actions-all:
+        patterns:
+          - "*"
+
+  # ---------- 容器基础镜像 ----------
+  # 这条是给 trivy 镜像扫描配套的：基础镜像 CVE 只能靠升 base image 修。
+  # 目录 = 各服务 Dockerfile 所在处（golang:1.26-alpine → alpine:3.20；
+  # web 是 node:24-alpine → nginx:alpine）。
+  # 刻意忽略 major（golang / node / nginx 跨大版本要人工决策，不该自动开 PR）。
+  # 嫌吵就整条删掉，不影响其它生态。
+  - package-ecosystem: docker
+    directories:
+      - /microservices/services/audit
+      - /microservices/services/auth
+      - /microservices/services/bpm
+      - /microservices/services/file
+      - /microservices/services/identity
+      - /microservices/services/monitor
+      - /microservices/services/system
+      - /microservices/web
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "04:23"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: 构建（镜像）
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+    groups:
+      base-images:
+        patterns:
+          - "*"

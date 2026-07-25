@@ -2,6 +2,18 @@
 # 有状态服务（PG/Redis/NATS/MinIO）在独立 infra 栈 docker-compose.infra.yml
 # （project go-admin-kit-infra），本栈任意 down/up/rebuild 不触碰数据服务；
 # 两栈经外部网络 go-admin-kit-net 互通（创建方式见 infra 文件头部）。
+#
+# 镜像命名（发版用）：每个可构建服务都显式声明
+#   image: ${IMAGE_PREFIX:-go-admin-kit}-<服务名>:${IMAGE_TAG:-latest}
+# 两个变量都不设时结果是 go-admin-kit-<服务名>:latest —— 与 Compose 从
+# project 名推导出来的旧名字完全一致，本机开发 / CI bake / ops 脚本全部零改动。
+# 之所以要显式声明：不写 image 时 IMAGE_TAG 只影响 build 产物名，
+# 部署侧仍去找推导出来的旧名字，构建与运行会错位。
+# 发版后要跑某个版本（先 pull 再起，不本地构建）：
+#   IMAGE_PREFIX=ghcr.io/<owner>/<repo>/go-admin-kit IMAGE_TAG=v0.2.0 \
+#     docker compose -f docker-compose.yml pull
+#   IMAGE_PREFIX=... IMAGE_TAG=v0.2.0 docker compose -f docker-compose.yml up -d --no-build
+# （IMAGE_PREFIX 不带结尾连字符，服务名会以 -<服务名> 追加）
 name: go-admin-kit
 
 services:
@@ -14,7 +26,7 @@ services:
     build:
       context: ./services/monitor
       dockerfile: Dockerfile
-    image: go-admin-kit-monitor-service
+    image: ${IMAGE_PREFIX:-go-admin-kit}-monitor-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-migrate
     restart: "no"
     command: ["sh", "-c", "n=0; until ./migrate -config ./configs/config.yaml -dir ./migrations up; do n=$$((n+1)); [ $$n -ge 30 ] && exit 1; echo \"[migrate] not ready, retry $$n/30\"; sleep 2; done"]
@@ -33,6 +45,7 @@ services:
     build:
       context: ./services/monitor
       dockerfile: Dockerfile
+    image: ${IMAGE_PREFIX:-go-admin-kit}-monitor-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-monitor
     restart: unless-stopped
     environment:
@@ -110,6 +123,7 @@ services:
     build:
       context: ./services
       dockerfile: auth/Dockerfile
+    image: ${IMAGE_PREFIX:-go-admin-kit}-auth-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-auth
     restart: unless-stopped
     environment:
@@ -174,6 +188,7 @@ services:
     build:
       context: ./services
       dockerfile: identity/Dockerfile
+    image: ${IMAGE_PREFIX:-go-admin-kit}-identity-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-identity
     restart: unless-stopped
     environment:
@@ -221,6 +236,7 @@ services:
     build:
       context: ./services
       dockerfile: system/Dockerfile
+    image: ${IMAGE_PREFIX:-go-admin-kit}-system-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-system
     restart: unless-stopped
     volumes:
@@ -279,6 +295,7 @@ services:
     build:
       context: ./services
       dockerfile: audit/Dockerfile
+    image: ${IMAGE_PREFIX:-go-admin-kit}-audit-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-audit
     restart: unless-stopped
     volumes:
@@ -328,6 +345,7 @@ services:
     build:
       context: ./services
       dockerfile: file/Dockerfile
+    image: ${IMAGE_PREFIX:-go-admin-kit}-file-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-file
     restart: unless-stopped
     environment:
@@ -395,6 +413,7 @@ services:
     build:
       context: ./services/bpm
       dockerfile: Dockerfile
+    image: ${IMAGE_PREFIX:-go-admin-kit}-bpm-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-bpm
     restart: unless-stopped
     environment:
@@ -438,6 +457,7 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+    image: ${IMAGE_PREFIX:-go-admin-kit}-frontend:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-frontend
     restart: unless-stopped
     ports:
@@ -534,7 +554,7 @@ services:
     profiles:
       - monitoring
     environment:
-      NOTIFY_INTERNAL_TOKEN: ${NOTIFY_INTERNAL_TOKEN:-dev-notify-internal-token}
+      NOTIFY_INTERNAL_TOKEN: ${NOTIFY_INTERNAL_TOKEN:-}
       # 企业微信群机器人 webhook（带外 critical 告警）；未配时 critical 仍有站内信兜底
       WECOM_WEBHOOK: ${WECOM_WEBHOOK:-http://127.0.0.1:1/blackhole}
     entrypoint: ["/bin/sh", "-c"]
