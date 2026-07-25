@@ -441,8 +441,17 @@ func validate(cfg Config) error {
 		return fmt.Errorf("UPLOAD_STORAGE_TYPE must be one of: local, s3, minio")
 	}
 	if isProductionEnv(cfg.App.Env) {
+		// Collect every secret problem before failing so an operator fixes the
+		// whole set in one pass instead of one restart per issue.
+		issues := make([]string, 0, 2)
 		if !isStrongSecret(cfg.JWT.Secret, 32) {
-			return fmt.Errorf("JWT_SECRET must be at least 32 characters and must not use a default or placeholder value")
+			issues = append(issues, "JWT_SECRET must be at least 32 characters and must not use a default or placeholder value")
+		}
+		if isWeakCredential(cfg.Database.Password) {
+			issues = append(issues, "DB_PASSWORD must not be empty, default, weak, or placeholder")
+		}
+		if len(issues) > 0 {
+			return fmt.Errorf("production safety checks failed: %s", strings.Join(issues, "; "))
 		}
 	}
 	return nil
@@ -455,6 +464,53 @@ func isProductionEnv(env string) bool {
 func isStrongSecret(value string, minLength int) bool {
 	value = strings.TrimSpace(value)
 	return len(value) >= minLength && !isPlaceholderValue(value)
+}
+
+// isWeakCredential reports credentials that are effectively unset: empty,
+// placeholder, or a well-known development default. Criteria match the monitor
+// and bpm services; every service is its own module and its Docker build
+// context excludes shared, so this is a deliberate local copy.
+func isWeakCredential(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if normalized == "" || isPlaceholderValue(normalized) {
+		return true
+	}
+	weakValues := map[string]struct{}{
+		"123456":                {},
+		"access-key":            {},
+		"accesskey":             {},
+		"admin":                 {},
+		"aws-access-key-id":     {},
+		"aws-secret-access-key": {},
+		"aws_access_key_id":     {},
+		"aws_secret_access_key": {},
+		"awsaccesskeyid":        {},
+		"awssecretaccesskey":    {},
+		"changeme":              {},
+		"default":               {},
+		"demo":                  {},
+		"development":           {},
+		"example":               {},
+		"go-admin-kit":          {},
+		"local":                 {},
+		"minioadmin":            {},
+		"password":              {},
+		"redis":                 {},
+		"root":                  {},
+		"sample":                {},
+		"secret":                {},
+		"secret-key":            {},
+		"secretkey":             {},
+		"test":                  {},
+		"test123":               {},
+	}
+	if _, ok := weakValues[normalized]; ok {
+		return true
+	}
+	// dev- prefixed values are development placeholders by convention (bpm
+	// blacklists such tokens one by one). Kept inside the credential check so
+	// existing JWT secret criteria stay untouched.
+	return strings.HasPrefix(normalized, "dev-")
 }
 
 func isPlaceholderValue(value string) bool {
