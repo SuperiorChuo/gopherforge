@@ -81,7 +81,8 @@ type Schema struct {
 	Format               string            `json:"format,omitempty"`
 	Description          string            `json:"description,omitempty"`
 	Required             []string          `json:"required,omitempty"`
-	Enum                 []string          `json:"enum,omitempty"`
+	Enum                 []int             `json:"enum,omitempty"`
+	Minimum              *int              `json:"minimum,omitempty"`
 	Properties           map[string]Schema `json:"properties,omitempty"`
 	Items                *Schema           `json:"items,omitempty"`
 	AdditionalProperties any               `json:"additionalProperties,omitempty"`
@@ -108,6 +109,10 @@ func BuildSpec(routes []gin.RouteInfo, opts Options) Spec {
 			Schemas: map[string]Schema{
 				"ApiResponse": {
 					Type: "object",
+					Required: []string{
+						"code",
+						"message",
+					},
 					Properties: map[string]Schema{
 						"code":    {Type: "integer"},
 						"message": {Type: "string"},
@@ -189,11 +194,14 @@ func buildOperation(method, path string) Operation {
 	if !isPublicRoute(method, path) {
 		op.Security = []map[string][]string{{"BearerAuth": {}}}
 	}
+	if strings.HasPrefix(path, "/api/v1/monitor/") {
+		op.Responses["403"] = jsonResponse("Insufficient permissions", refSchema("ApiResponse"))
+	}
 	if hasContract && len(contract.QueryParams) > 0 {
 		op.Parameters = append(op.Parameters, contract.QueryParams...)
 	}
 	if hasContract && contract.RequestSchema != "" {
-		op.RequestBody = jsonRequestBody(refSchema(contract.RequestSchema))
+		op.RequestBody = jsonRequestBody(refSchema(contract.RequestSchema), !contract.OptionalRequestBody)
 	} else if hasJSONRequestBody(method, path) && (!hasContract || !contract.NoRequestBody) {
 		op.RequestBody = &RequestBody{
 			Required: true,
@@ -204,6 +212,12 @@ func buildOperation(method, path string) Operation {
 	}
 	if hasContract && contract.ResponseSchema != "" {
 		op.Responses["200"] = jsonResponse("Request succeeded", refSchema(contract.ResponseSchema))
+	}
+	if hasContract && contract.UnavailableResponse {
+		op.Responses["503"] = jsonResponse("Monitor dependency unavailable", refSchema("ApiResponse"))
+	}
+	if hasContract && contract.NotFoundResponse {
+		op.Responses["404"] = jsonResponse("Scheduled job not found", refSchema("ApiResponse"))
 	}
 	if path == "/api/v1/metrics" {
 		op.Responses["200"] = Response{
@@ -216,9 +230,9 @@ func buildOperation(method, path string) Operation {
 	return op
 }
 
-func jsonRequestBody(schema Schema) *RequestBody {
+func jsonRequestBody(schema Schema, required bool) *RequestBody {
 	return &RequestBody{
-		Required: true,
+		Required: required,
 		Content: map[string]MediaType{
 			"application/json": {Schema: schema},
 		},

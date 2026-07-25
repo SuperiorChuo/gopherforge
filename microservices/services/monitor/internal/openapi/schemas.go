@@ -1,10 +1,13 @@
 package openapi
 
 type routeContract struct {
-	RequestSchema  string
-	ResponseSchema string
-	QueryParams    []Parameter
-	NoRequestBody  bool
+	RequestSchema       string
+	ResponseSchema      string
+	QueryParams         []Parameter
+	NoRequestBody       bool
+	OptionalRequestBody bool
+	UnavailableResponse bool
+	NotFoundResponse    bool
 }
 
 func coreSchemas() map[string]Schema {
@@ -35,7 +38,7 @@ func coreSchemas() map[string]Schema {
 			"concurrent":      integerSchema(),
 		}, []string{"name", "cron_expression", "invoke_target"}),
 		"JobLogCleanupRequest": objectSchema(map[string]Schema{
-			"retention_days": integerSchema(),
+			"retention_days": minimumIntegerSchema(1),
 		}, nil),
 		"JobLogCleanupResult": objectSchema(map[string]Schema{
 			"retention_days": integerSchema(),
@@ -62,6 +65,41 @@ func coreSchemas() map[string]Schema {
 			"window_hours":  integerSchema(),
 			"checked_at":    dateTimeSchema(),
 		}, []string{"total", "enabled", "paused", "recent_failed", "abnormal_jobs", "window_hours", "checked_at"}),
+		"JobHeartbeat": objectSchema(map[string]Schema{
+			"id":               integerSchema(),
+			"job_key":          stringSchema(),
+			"service":          stringSchema(),
+			"description":      stringSchema(),
+			"interval_sec":     integerSchema(),
+			"last_run_at":      dateTimeSchema(),
+			"last_status":      stringSchema(),
+			"last_error":       stringSchema(),
+			"last_duration_ms": integerSchema(),
+			"runs":             integerSchema(),
+			"fails":            integerSchema(),
+			"updated_at":       dateTimeSchema(),
+			"stale":            booleanSchema(),
+		}, []string{
+			"id", "job_key", "service", "description", "interval_sec", "last_run_at",
+			"last_status", "last_error", "last_duration_ms", "runs", "fails", "updated_at", "stale",
+		}),
+		"JobHeartbeatsResponse": objectSchema(map[string]Schema{
+			"list":  arraySchema(refSchema("JobHeartbeat")),
+			"total": integerSchema(),
+		}, []string{"list", "total"}),
+		"ServiceHealthRow": objectSchema(map[string]Schema{
+			"name":       stringSchema(),
+			"ok":         booleanSchema(),
+			"http_code":  integerSchema(),
+			"latency_ms": integerSchema(),
+			"error":      stringSchema(),
+		}, []string{"name", "ok", "http_code", "latency_ms"}),
+		"ServicesHealthResponse": objectSchema(map[string]Schema{
+			"list":       arraySchema(refSchema("ServiceHealthRow")),
+			"total":      integerSchema(),
+			"healthy":    integerSchema(),
+			"checked_at": dateTimeSchema(),
+		}, []string{"list", "total", "healthy", "checked_at"}),
 		"ServerOSInfo": objectSchema(map[string]Schema{
 			"go_os":         stringSchema(),
 			"arch":          stringSchema(),
@@ -212,7 +250,9 @@ func coreSchemas() map[string]Schema {
 		"JobEnvelope":                 "ScheduledJob",
 		"JobListEnvelope":             "JobListResponse",
 		"JobHealthEnvelope":           "JobHealthCheck",
+		"JobHeartbeatsEnvelope":       "JobHeartbeatsResponse",
 		"JobLogCleanupResultEnvelope": "JobLogCleanupResult",
+		"ServicesHealthEnvelope":      "ServicesHealthResponse",
 		"ServerInfoEnvelope":          "ServerInfo",
 		"MySQLInfoEnvelope":           "MySQLInfo",
 		"RedisInfoEnvelope":           "RedisInfo",
@@ -226,17 +266,19 @@ func coreSchemas() map[string]Schema {
 func contractFor(method, path string) (routeContract, bool) {
 	contracts := map[string]routeContract{
 		"GET /api/v1/monitor/server":            {ResponseSchema: "ServerInfoEnvelope"},
-		"GET /api/v1/monitor/mysql":             {ResponseSchema: "MySQLInfoEnvelope"},
+		"GET /api/v1/monitor/mysql":             {ResponseSchema: "MySQLInfoEnvelope", UnavailableResponse: true},
 		"GET /api/v1/monitor/redis":             {ResponseSchema: "RedisInfoEnvelope"},
-		"GET /api/v1/monitor/jobs":              {ResponseSchema: "JobListEnvelope", QueryParams: pagingQueryParams("name", "status")},
-		"GET /api/v1/monitor/jobs/health":       {ResponseSchema: "JobHealthEnvelope", QueryParams: []Parameter{queryParam("window_hours", integerSchema())}},
-		"POST /api/v1/monitor/jobs":             {RequestSchema: "SaveJobRequest", ResponseSchema: "JobEnvelope"},
-		"PUT /api/v1/monitor/jobs/{id}":         {RequestSchema: "SaveJobRequest", ResponseSchema: "JobEnvelope"},
-		"DELETE /api/v1/monitor/jobs/{id}":      {ResponseSchema: "EmptyEnvelope"},
-		"POST /api/v1/monitor/jobs/{id}/start":  {ResponseSchema: "EmptyEnvelope", NoRequestBody: true},
-		"POST /api/v1/monitor/jobs/{id}/stop":   {ResponseSchema: "EmptyEnvelope", NoRequestBody: true},
-		"POST /api/v1/monitor/jobs/{id}/run":    {ResponseSchema: "EmptyEnvelope", NoRequestBody: true},
-		"POST /api/v1/monitor/job-logs/cleanup": {RequestSchema: "JobLogCleanupRequest", ResponseSchema: "JobLogCleanupResultEnvelope"},
+		"GET /api/v1/monitor/jobs":              {ResponseSchema: "JobListEnvelope", QueryParams: pagingQueryParams("name", "status"), UnavailableResponse: true},
+		"GET /api/v1/monitor/jobs/health":       {ResponseSchema: "JobHealthEnvelope", QueryParams: []Parameter{queryParam("window_hours", minimumIntegerSchema(1))}, UnavailableResponse: true},
+		"GET /api/v1/monitor/jobs/heartbeats":   {ResponseSchema: "JobHeartbeatsEnvelope", UnavailableResponse: true},
+		"GET /api/v1/monitor/services":          {ResponseSchema: "ServicesHealthEnvelope"},
+		"POST /api/v1/monitor/jobs":             {RequestSchema: "SaveJobRequest", ResponseSchema: "JobEnvelope", UnavailableResponse: true},
+		"PUT /api/v1/monitor/jobs/{id}":         {RequestSchema: "SaveJobRequest", ResponseSchema: "JobEnvelope", UnavailableResponse: true, NotFoundResponse: true},
+		"DELETE /api/v1/monitor/jobs/{id}":      {ResponseSchema: "EmptyEnvelope", UnavailableResponse: true, NotFoundResponse: true},
+		"POST /api/v1/monitor/jobs/{id}/start":  {ResponseSchema: "EmptyEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
+		"POST /api/v1/monitor/jobs/{id}/stop":   {ResponseSchema: "EmptyEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
+		"POST /api/v1/monitor/jobs/{id}/run":    {ResponseSchema: "EmptyEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
+		"POST /api/v1/monitor/job-logs/cleanup": {RequestSchema: "JobLogCleanupRequest", ResponseSchema: "JobLogCleanupResultEnvelope", QueryParams: []Parameter{queryParam("retention_days", minimumIntegerSchema(1))}, OptionalRequestBody: true, UnavailableResponse: true},
 	}
 	contract, ok := contracts[method+" "+path]
 	return contract, ok
@@ -283,8 +325,20 @@ func integerSchema() Schema {
 	return Schema{Type: "integer", Format: "int64"}
 }
 
+func integerEnumSchema(values ...int) Schema {
+	return Schema{Type: "integer", Format: "int64", Enum: values}
+}
+
+func minimumIntegerSchema(minimum int) Schema {
+	return Schema{Type: "integer", Format: "int64", Minimum: &minimum}
+}
+
 func numberSchema() Schema {
 	return Schema{Type: "number", Format: "double"}
+}
+
+func booleanSchema() Schema {
+	return Schema{Type: "boolean"}
 }
 
 func arraySchema(item Schema) Schema {
@@ -303,7 +357,7 @@ func pagingQueryParams(names ...string) []Parameter {
 	for _, name := range names {
 		schema := stringSchema()
 		if name == "status" {
-			schema = integerSchema()
+			schema = integerEnumSchema(0, 1)
 		}
 		params = append(params, queryParam(name, schema))
 	}

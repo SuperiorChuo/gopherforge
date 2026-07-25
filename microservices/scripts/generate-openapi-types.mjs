@@ -117,7 +117,8 @@ for (const methods of Object.values(spec.paths || {})) {
       lines.push('    };');
     }
     if (operation.requestBody) {
-      lines.push('    requestBody: {');
+      const optional = operation.requestBody.required === true ? '' : '?';
+      lines.push(`    requestBody${optional}: {`);
       lines.push('      content: {');
       for (const [contentType, mediaType] of Object.entries(operation.requestBody.content || {})) {
         lines.push(`        ${JSON.stringify(contentType)}: ${schemaToTs(mediaType.schema)};`);
