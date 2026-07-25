@@ -1,0 +1,471 @@
+# 发正式版：打 tag（vX.Y.Z）→ 校验 → 测试门禁 → 构建并推版本化镜像 → 建 GitHub Release。
+#
+# 本仓（gopherforge）是公开脚手架发行线，也是唯一真正跑 Actions 的仓库——
+# 这个 workflow 在这里会实际执行。文件本体由上游主项目同步而来：要改流程请回上游改，
+# 再同步下来，避免下次同步被覆盖。
+#
+# 本仓是 **compose 形态**（microservices/docker-compose.yml + docker-compose.infra.yml），
+# 没有 Swarm / docker-stack.yml，发布产物就是"一组带版本 tag 的镜像 + 一份 compose 部署说明"。
+#
+# 【可改的假设 · registry】默认推 ghcr.io，理由是它与本仓同源，用内置 GITHUB_TOKEN
+#    就能推，不需要额外 secret。要换成阿里云 ACR / Docker Hub / 自建 Harbor，只改三处：
+#      1) env.REGISTRY（如 registry.cn-hangzhou.aliyuncs.com）
+#      2) env.IMAGE_NAMESPACE_OVERRIDE（如 your-namespace；留空则用 owner/repo 小写）
+#      3) build-push 任务里的 docker/login-action 凭据（换成 secrets.ACR_USERNAME /
+#         secrets.ACR_PASSWORD 之类，并把 job 的 packages: write 权限去掉）
+#    另外部分 registry（含旧版 Harbor / 部分 ACR）不支持 OCI attestation，
+#    那就把 build-push-action 的 provenance/sbom 关掉（见下方注释）。
+#
+# 【镜像 tag 方案】每个服务推三个 tag：
+#    - vX.Y.Z          正式版本号（tag 名原样，便于和 Release / CHANGELOG 对齐）
+#    - sha-<短sha>     可追溯到具体提交（重打 tag 也能分辨镜像内容）
+#    - latest          仅当非预发布（tag 里没有 -rc / -beta 之类后缀）时才更新
+#
+# 【部署侧怎么用】microservices/docker-compose.yml 的镜像名已变量化：
+#    IMAGE_PREFIX=ghcr.io/<owner>/<repo>/go-admin-kit IMAGE_TAG=v0.2.0
+#    两个变量都不设时仍是 go-admin-kit-<服务名>:latest（与改造前完全一致）。
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '版本号 vX.Y.Z（演练时也必须填，用于取 CHANGELOG 段落）'
+        required: true
+        type: string
+      dry_run:
+        description: '演练模式：跑完校验/测试/构建，但不推镜像、不建 Release'
+        required: false
+        default: true
+        type: boolean
+
+# 默认只读；需要写的 job 各自提权（build-push 要 packages:write，release 要 contents:write）
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  # 留空 = 用 <owner>/<repo> 的小写形式（ghcr 要求全小写）
+  IMAGE_NAMESPACE_OVERRIDE: ''
+  GO_VERSION: '1.26.5'
+  NODE_VERSION: '24'
+  # 'true' = 先建草稿，人工过一眼 release notes 再点发布；'false' = 直接发布
+  RELEASE_AS_DRAFT: 'true'
+
+jobs:
+  meta:
+    name: 校验 tag 与生成矩阵
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+      prerelease: ${{ steps.tag.outputs.prerelease }}
+      dry_run: ${{ steps.tag.outputs.dry_run }}
+      short_sha: ${{ steps.tag.outputs.short_sha }}
+      namespace: ${{ steps.tag.outputs.namespace }}
+      services: ${{ steps.matrix.outputs.services }}
+      modules: ${{ steps.matrix.outputs.modules }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 解析并校验 tag
+        id: tag
+        env:
+          # 经环境变量传入，不把 dispatch 的自由文本直接插进 shell
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = 'workflow_dispatch' ]; then
+            TAG="$INPUT_TAG"
+            DRY_RUN="${INPUT_DRY_RUN:-true}"
+          else
+            TAG="$REF_NAME"
+            DRY_RUN='false'
+          fi
+
+          # SemVer + v 前缀；刻意不收 +build 元数据——'+' 不是合法的 Docker tag 字符
+          if ! printf '%s' "$TAG" \
+            | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$'; then
+            echo "::error::tag 格式不合法：'$TAG'。要求 vX.Y.Z 或 vX.Y.Z-rc.1（不支持 +build 元数据，'+' 不能进 Docker tag）"
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+          case "$VERSION" in
+            *-*) PRERELEASE='true' ;;
+            *)   PRERELEASE='false' ;;
+          esac
+
+          NAMESPACE="${IMAGE_NAMESPACE_OVERRIDE:-$(printf '%s' "$REPOSITORY" | tr '[:upper:]' '[:lower:]')}"
+
+          {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
+            echo "prerelease=$PRERELEASE"
+            echo "dry_run=$DRY_RUN"
+            echo "short_sha=$(git rev-parse --short=7 HEAD)"
+            echo "namespace=$NAMESPACE"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Release $TAG"
+            echo ""
+            echo "- 预发布：$PRERELEASE"
+            echo "- 演练模式：$DRY_RUN"
+            echo "- 镜像前缀：\`$REGISTRY/$NAMESPACE/go-admin-kit-<服务名>\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: CHANGELOG 必须有对应版本段落
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+          PRERELEASE: ${{ steps.tag.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if grep -Eq "^##[[:space:]]+\[?${VERSION}\]?([[:space:]]|$)" CHANGELOG.md; then
+            echo "CHANGELOG.md 命中 $VERSION 段落"
+            exit 0
+          fi
+          if [ "$PRERELEASE" = 'true' ]; then
+            echo "::warning::CHANGELOG.md 里没有 [$VERSION] 段落；预发布放行，release notes 将退化为提交摘要"
+            exit 0
+          fi
+          echo "::error::CHANGELOG.md 缺少 '## [$VERSION]' 段落。打 tag 前先把 '## [Unreleased]' 改名成 '## [$VERSION] - YYYY-MM-DD' 并补一段新的 Unreleased"
+          exit 1
+
+      - name: 生成服务镜像矩阵与 Go 模块矩阵
+        id: matrix
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, re, subprocess, sys
+
+          # 服务清单不硬编码：docker-compose.yml 是构建上下文的唯一真源。
+          # 本仓的 compose 不对应用服务做 profile 门控（唯二的 profile 是 monitoring /
+          # tracing，门控的全是 prometheus/grafana 这类第三方镜像，没有 build 段，
+          # 天然不会进镜像矩阵），所以这里不需要 --env-file 去喂 COMPOSE_PROFILES。
+          # 刻意剥掉 IMAGE_PREFIX / IMAGE_TAG：矩阵只要"仓库名"部分，
+          # 万一 runner 环境里带了这两个变量，算出来的镜像名不能被污染。
+          env = {k: v for k, v in os.environ.items() if k not in ("IMAGE_PREFIX", "IMAGE_TAG")}
+          raw = subprocess.run(
+              ["docker", "compose", "-f", "docker-compose.yml", "config", "--format", "json"],
+              cwd="microservices", check=True, capture_output=True, text=True, env=env,
+          ).stdout
+          conf = json.loads(raw)
+          root = os.getcwd()
+
+          # migrate 是一次性迁移 job，跑的就是 monitor 镜像，不单独出镜像。
+          # services/shared（库）与 tools/dbdoc（工具）不是 compose 服务，天然不在这里。
+          SKIP = {"migrate"}
+
+          include, seen = [], set()
+          for name, svc in sorted(conf.get("services", {}).items()):
+              build = svc.get("build")
+              if not build or name in SKIP:
+                  continue
+              image = svc.get("image") or f"go-admin-kit-{name}"
+              last = image.rsplit("/", 1)[-1]
+              repo = image.rsplit(":", 1)[0] if ":" in last else image
+              if repo in seen:
+                  continue
+              seen.add(repo)
+              ctx = os.path.relpath(build["context"], root)
+              dockerfile = build.get("dockerfile") or "Dockerfile"
+              include.append({
+                  "service": name,
+                  "image": repo,
+                  "context": ctx,
+                  "dockerfile": os.path.normpath(os.path.join(ctx, dockerfile)),
+              })
+
+          if not include:
+              sys.exit("未从 docker-compose.yml 解析出任何可构建服务")
+
+          # go.work 是 Go 模块的唯一真源（含 services/shared 与 tools/dbdoc）
+          work = open("microservices/go.work", encoding="utf-8").read()
+          modules = re.findall(r"^\s*\./(\S+)\s*$", work, re.M)
+          if not modules:
+              sys.exit("未从 go.work 解析出任何模块")
+
+          print("services=" + json.dumps({"include": include}, ensure_ascii=False))
+          print("modules=" + json.dumps(sorted(modules)))
+          PY
+
+      - name: 打印矩阵
+        env:
+          SERVICES: ${{ steps.matrix.outputs.services }}
+          MODULES: ${{ steps.matrix.outputs.modules }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### 本次发版镜像"
+            echo ""
+            printf '%s' "$SERVICES" | python3 -c 'import json,sys; [print("- " + e["service"]) for e in json.load(sys.stdin)["include"]]'
+            echo ""
+            echo "### 门禁 Go 模块"
+            echo ""
+            printf '%s' "$MODULES" | python3 -c 'import json,sys; [print("- " + m) for m in json.load(sys.stdin)]'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  gate-go:
+    name: 门禁 · ${{ matrix.module }}
+    needs: meta
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      max-parallel: 8
+      matrix:
+        module: ${{ fromJson(needs.meta.outputs.modules) }}
+    defaults:
+      run:
+        working-directory: microservices/${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: microservices/${{ matrix.module }}/go.sum
+      - run: go mod download
+      - run: go vet ./...
+      - run: go test ./...
+
+  gate-web:
+    name: 门禁 · 前端
+    needs: meta
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microservices/web
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: microservices/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  gate-contract:
+    name: 门禁 · 契约与 compose
+    needs: meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: microservices/services/monitor/go.sum
+      - name: Workspace scripts
+        working-directory: microservices
+        run: |
+          npm run api:contract
+          npm run test:contract
+          npm run test:smoke:unit
+      - name: 生成的 OpenAPI 与前端类型必须已提交
+        run: |
+          git diff --exit-code -- \
+            microservices/services/monitor/docs/openapi.json \
+            microservices/web/src/api/generated/schema.d.ts
+      - name: compose 文件可解析（含镜像变量替换）
+        working-directory: microservices
+        run: |
+          set -euo pipefail
+          # 纯客户端解析，不需要 daemon。两个栈都过一遍语法。
+          docker compose -f docker-compose.yml config -q
+          docker compose -f docker-compose.infra.yml config -q
+          # 版本化后镜像名必须真的跟着 IMAGE_TAG 走，否则构建与部署会错位
+          IMAGE_TAG=ci-probe docker compose -f docker-compose.yml config --images \
+            | grep -q ':ci-probe$'
+
+  build-push:
+    name: 镜像 · ${{ matrix.service }}
+    needs:
+      - meta
+      - gate-go
+      - gate-web
+      - gate-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      # 8 个服务并行会顶满并发额度，留点余量给别的流水线
+      max-parallel: 4
+      matrix: ${{ fromJson(needs.meta.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: 登录 registry
+        if: needs.meta.outputs.dry_run == 'false'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          # 换 ACR / Harbor 时改这两行（并把上面的 packages: write 换成对应 secret）
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 计算镜像 tag 与 OCI 标签
+        id: docker_meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ needs.meta.outputs.namespace }}/${{ matrix.image }}
+          tags: |
+            type=raw,value=${{ needs.meta.outputs.tag }}
+            type=raw,value=sha-${{ needs.meta.outputs.short_sha }}
+            type=raw,value=latest,enable=${{ needs.meta.outputs.prerelease == 'false' }}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.image }}
+            org.opencontainers.image.version=${{ needs.meta.outputs.tag }}
+
+      - name: 构建并推送
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          # 只出 linux/amd64：部署目标是 amd64 服务器。要多架构就加
+          # platforms: linux/amd64,linux/arm64 并在上面补 docker/setup-qemu-action@v4
+          platforms: linux/amd64
+          push: ${{ needs.meta.outputs.dry_run == 'false' }}
+          load: false
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
+          annotations: ${{ steps.docker_meta.outputs.annotations }}
+          # 溯源与 SBOM 证明（需要 registry 支持 OCI attestation；ghcr 支持，
+          # 旧版 Harbor / 部分 ACR 不支持——那就把这两行都改成 false）。
+          # 演练不推镜像时没有 exporter，attestation 一并关掉避免 buildx 报错。
+          provenance: ${{ needs.meta.outputs.dry_run == 'false' && 'mode=max' || 'false' }}
+          sbom: ${{ needs.meta.outputs.dry_run == 'false' }}
+          cache-from: type=gha,scope=release-${{ matrix.service }}
+          cache-to: type=gha,scope=release-${{ matrix.service }},mode=max,ignore-error=true
+
+  release:
+    name: 创建 GitHub Release
+    needs:
+      - meta
+      - build-push
+    if: needs.meta.outputs.dry_run == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: 生成 release notes
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+          TAG: ${{ needs.meta.outputs.tag }}
+          SHORT_SHA: ${{ needs.meta.outputs.short_sha }}
+          SERVICES: ${{ needs.meta.outputs.services }}
+          IMAGE_BASE: ${{ env.REGISTRY }}/${{ needs.meta.outputs.namespace }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib, re, subprocess
+
+          version = os.environ["VERSION"]
+          tag = os.environ["TAG"]
+          base = os.environ["IMAGE_BASE"]
+          services = json.loads(os.environ["SERVICES"])["include"]
+
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          heading = re.compile(r"^##\s+\[?" + re.escape(version) + r"\]?([\s\-–—].*)?$")
+          body, collecting = [], False
+          for line in text.split("\n"):
+              if collecting and line.startswith("## "):
+                  break
+              if collecting:
+                  body.append(line)
+                  continue
+              if heading.match(line):
+                  collecting = True
+          section = "\n".join(body).strip("\n")
+
+          if not section:
+              # 预发布时允许没有 CHANGELOG 段落，退化成上一个 tag 以来的提交摘要
+              prev = subprocess.run(
+                  ["git", "describe", "--tags", "--abbrev=0", f"{tag}^"],
+                  capture_output=True, text=True,
+              ).stdout.strip()
+              rng = f"{prev}..{tag}" if prev else tag
+              log = subprocess.run(
+                  ["git", "log", "--no-merges", "--pretty=- %s", rng],
+                  capture_output=True, text=True,
+              ).stdout.strip()
+              section = f"### 提交摘要（{rng}）\n\n{log or '（无）'}"
+
+          short_sha = os.environ["SHORT_SHA"]
+          fence = "```"
+          lines = [section, "", "## 镜像", ""]
+          lines.append(
+              f"本次共 {len(services)} 个镜像，每个都带 `{tag}` 与 `sha-{short_sha}` 两个 tag"
+              "（正式版另更新 `latest`）："
+          )
+          lines.append("")
+          lines += [f"- `{base}/{s['image']}:{tag}`" for s in services]
+          lines += [
+              "",
+              "## 部署（compose）",
+              "",
+              fence + "bash",
+              "cd microservices",
+              "# 写进 microservices/.env，或直接前置到命令上",
+              f"export IMAGE_PREFIX={base}/go-admin-kit",
+              f"export IMAGE_TAG={tag}",
+              "# 有状态服务在独立 infra 栈，先起它（数据不随应用栈重建）",
+              "docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d",
+              "# 应用栈：拉版本化镜像后直接起，不本地构建",
+              "docker compose -f docker-compose.yml pull",
+              "docker compose -f docker-compose.yml up -d --no-build",
+              fence,
+              "",
+              "不设 `IMAGE_PREFIX` / `IMAGE_TAG` 时，compose 仍解析为本地构建的",
+              "`go-admin-kit-<服务名>:latest`，行为与发版前一致。",
+          ]
+          notes = "\n".join(lines) + "\n"
+          pathlib.Path("release-notes.md").write_text(notes, encoding="utf-8")
+          print(notes[:800])
+          PY
+
+      - name: 发布 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.meta.outputs.tag }}
+          PRERELEASE: ${{ needs.meta.outputs.prerelease }}
+          DRAFT: ${{ env.RELEASE_AS_DRAFT }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG 已存在，改为更新 notes（重跑幂等）"
+            gh release edit "$TAG" --notes-file release-notes.md
+            exit 0
+          fi
+          args=(--title "$TAG" --notes-file release-notes.md --target "$GITHUB_SHA")
+          if [ "$PRERELEASE" = 'true' ]; then
+            args+=(--prerelease)
+          fi
+          if [ "$DRAFT" = 'true' ]; then
+            args+=(--draft)
+          fi
+          gh release create "$TAG" "${args[@]}"
