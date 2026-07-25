@@ -305,6 +305,8 @@ services:
       IP2REGION_XDB: /app/data/ip2region.xdb
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8085
+      # 操作/登录日志保留天数；<=0（默认）关闭自动清理，audit_logs 不在清理范围
+      AUDIT_LOG_RETENTION_DAYS: ${AUDIT_LOG_RETENTION_DAYS:-0}
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}

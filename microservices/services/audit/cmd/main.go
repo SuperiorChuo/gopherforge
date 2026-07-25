@@ -245,6 +245,16 @@ func run(ctx context.Context) error {
 		logger.Info("auth event consumer enabled", logger.String("url", config.Cfg.NATS.URL))
 	}
 
+	// 日志保留策略：按 AUDIT_LOG_RETENTION_DAYS 周期清理操作/登录日志
+	// （默认关闭；audit_logs 不清理，见 service/system/log_retention.go）。
+	if systemsvc.StartLogRetentionCleaner(lifecycleCtx, database.DB, &operationLogService, &loginLogService, systemsvc.LogRetentionOptions{
+		RetentionDays: config.Cfg.Retention.LogRetentionDays,
+		ScanInterval:  time.Duration(config.Cfg.Retention.LogRetentionScanIntervalSeconds) * time.Second,
+	}) {
+		logger.Info("log retention cleaner enabled",
+			logger.Int("retention_days", config.Cfg.Retention.LogRetentionDays))
+	}
+
 	// Refresh cached department trees when another instance (or the monolith)
 	// changes departments.
 	departmentTreeListener, err := authz.StartDepartmentTreeInvalidationListener(lifecycleCtx)

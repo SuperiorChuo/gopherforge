@@ -96,6 +96,13 @@ func (s *OperationLogService) ClearLogsContext(ctx context.Context, days int) (i
 	return s.logDAO.DeleteLogsBeforeContext(ctx, before)
 }
 
+// ClearLogsAllTenantsContext 跨租户清理 days 天前的操作日志，仅供保留策略
+// 后台任务使用（管理端 API 走带租户/数据范围的 ClearLogs*Context）。
+func (s *OperationLogService) ClearLogsAllTenantsContext(ctx context.Context, days int) (int64, error) {
+	before := time.Now().AddDate(0, 0, -days)
+	return s.logDAO.DeleteLogsAllTenantsBeforeContext(ctx, before)
+}
+
 func (s *OperationLogService) ClearLogsInScopeContext(ctx context.Context, days int, dataScope authz.UserDataScope) (int64, error) {
 	before := time.Now().AddDate(0, 0, -days)
 	return s.logDAO.DeleteLogsBeforeInScopeContext(ctx, before, dataScope)

@@ -24,6 +24,7 @@ type Config struct {
 	Security      SecurityConfig
 	Observability ObservabilityConfig
 	NATS          NATSConfig
+	Retention     RetentionConfig
 }
 
 type AppCfg struct {
@@ -151,6 +152,16 @@ type NATSConfig struct {
 	URL string
 }
 
+// RetentionConfig 控制日志保留策略。
+type RetentionConfig struct {
+	// LogRetentionDays 操作/登录日志保留天数；<=0（默认）关闭自动清理——
+	// 绝不隐式删数据。业务审计日志（audit_logs）刻意不在自动清理范围，
+	// 它是合规取证面，要清只能走显式运维操作。
+	LogRetentionDays int
+	// LogRetentionScanIntervalSeconds 清理扫描周期（秒），默认一天。
+	LogRetentionScanIntervalSeconds int
+}
+
 var Cfg Config
 
 // Defaults returns the local-development configuration. Values match the
@@ -254,6 +265,10 @@ func Defaults() Config {
 			},
 		},
 		NATS: NATSConfig{URL: ""},
+		Retention: RetentionConfig{
+			LogRetentionDays:                0,
+			LogRetentionScanIntervalSeconds: 86400,
+		},
 	}
 }
 
@@ -328,6 +343,8 @@ func applyEnv(config *Config) {
 	config.OAuth.Wechat.RedirectURI = getEnvString("WECHAT_REDIRECT_URI", config.OAuth.Wechat.RedirectURI)
 
 	config.NATS.URL = getEnvString("NATS_URL", config.NATS.URL)
+	config.Retention.LogRetentionDays = getEnvInt("AUDIT_LOG_RETENTION_DAYS", config.Retention.LogRetentionDays)
+	config.Retention.LogRetentionScanIntervalSeconds = getEnvInt("AUDIT_LOG_RETENTION_SCAN_INTERVAL_SECONDS", config.Retention.LogRetentionScanIntervalSeconds)
 }
 
 func validate(cfg Config) error {

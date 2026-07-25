@@ -121,6 +121,14 @@ func (d *OperationLogDAO) DeleteLogsBeforeContext(ctx context.Context, before ti
 	return result.RowsAffected, result.Error
 }
 
+// DeleteLogsAllTenantsBeforeContext 删除**所有租户**在 before 之前的操作日志。
+// 保留策略后台任务专用：后台协程没有租户上下文，走 ApplyFilter 会回落默认
+// 租户、漏删其余租户。请求链路一律用带租户过滤的 DeleteLogsBeforeContext。
+func (d *OperationLogDAO) DeleteLogsAllTenantsBeforeContext(ctx context.Context, before time.Time) (int64, error) {
+	result := d.dbWithContext(ctx).Where("created_at < ?", before).Delete(&model.OperationLog{})
+	return result.RowsAffected, result.Error
+}
+
 func (d *OperationLogDAO) DeleteLogsBeforeInScopeContext(ctx context.Context, before time.Time, dataScope authz.UserDataScope) (int64, error) {
 	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.OperationLog{}), ctx).Where("created_at < ?", before)
 	query = authz.ApplyOwnerScope(query, dataScope, "user_id")

@@ -45,7 +45,12 @@ audit 服务集中记录三类日志：**操作日志**（每个 API 请求）�
 
 ## 保留与清理
 
-日志清理目前是**手动 API 触发**（`DELETE …/clear?days=N`，前端日志页有入口），栈内没有自动定时清理任务——长期运行的生产环境建议把清理调用挂进自己的 cron，或结合分区/归档策略。NATS 侧事件由流的 7 天 MaxAge 自动过期，与 DB 记录互不影响。
+两条路径：
+
+- **自动保留策略**：设 `AUDIT_LOG_RETENTION_DAYS=N`（默认 `0` = 关闭，绝不隐式删数据）后，audit 服务每天自动清理 N 天前的操作/登录日志（**跨全部租户**）；扫描周期可用 `AUDIT_LOG_RETENTION_SCAN_INTERVAL_SECONDS` 调整。每轮清理经 jobbeat 上报心跳，控制台「定时任务 → 服务任务心跳」可见 `audit.log_retention`，失败会标 error。
+- **手动清理**：`DELETE …/clear?days=N`（前端日志页有入口），带租户与权限约束。
+
+**业务审计日志（`audit_logs`）刻意不在自动清理范围**——它是合规取证面，要清只能走显式运维操作。NATS 侧事件由流的 7 天 MaxAge 自动过期，与 DB 记录互不影响。
 
 ## 给二次开发者
 

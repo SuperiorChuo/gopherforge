@@ -5,6 +5,26 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **审计日志保留策略**（同步自主项目）：`AUDIT_LOG_RETENTION_DAYS` 按天数周期
+  自动清理操作/登录日志（默认 0=关闭，绝不隐式删数据；`audit_logs` 是合规取证
+  面，刻意不在自动清理范围）。后台任务没有租户上下文，直接走既有清理链路会
+  回落默认租户漏删其余租户——DAO 为此新增显式命名的跨租户方法（保留策略专用，
+  租户闸门本身不动）；每轮经 jobbeat 上报任务中心心跳（`audit.log_retention`），
+  失败标 error。
+
+### 安全
+
+- **grpc 升至 1.82.1**（同步自主项目）：消除 GHSA-hrxh-6v49-42gf（HIGH，xDS
+  RBAC 与 HTTP/2 漏洞），6 个模块的 indirect 依赖统一升级。govulncheck 判定
+  漏洞符号不可达，但 trivy 门禁按设计拦截"有修复版的 HIGH"，升级后 PR 的
+  CI 全部解堵。
+- **bpm 弱凭据名单对齐 auth/monitor 口径**（同步自主项目）：补齐 aws/access-key
+  系 8 个条目与 `minioadmin`/`secret-key`/`secretkey`，并新增 `dev-` 前缀兜底
+  ——生产环境下 dev-xxx 形态的 token 一律视为占位符，经 sanitize 归零后由
+  使用点 fail closed（此前只逐个枚举，换个名字就漏）。
+
 ### 文档
 
 - **文档站充实**：RBAC / 多租户 / 审批流 / 代码生成器四个模块页扩写为操作走查级
