@@ -390,7 +390,11 @@ func validate(cfg Config) error {
 		if isWeakCredential(cfg.Redis.Password) {
 			issues = append(issues, "REDIS_PASSWORD must not be empty, default, weak, or placeholder")
 		}
-		if smtpAuthConfigured(cfg.Notification.Email) && isWeakCredential(cfg.Notification.Email.Password) {
+		// IsSMTPAuthUnsafe re-tests the environment itself, which is redundant
+		// inside this block on purpose: routing the startup gate through the
+		// exported predicate is what keeps this check and the runtime config
+		// layer's fail-closed guard on one single definition.
+		if IsSMTPAuthUnsafe(cfg.App.Env, cfg.Notification.Email) {
 			issues = append(issues, "EMAIL_SMTP_PASSWORD must not be empty, default, weak, or placeholder while SMTP authentication is configured")
 		}
 		if len(issues) > 0 {
@@ -412,6 +416,24 @@ func smtpAuthConfigured(email EmailConfig) bool {
 		return false
 	}
 	return strings.TrimSpace(email.Username) != "" || strings.TrimSpace(email.Password) != ""
+}
+
+// IsSMTPAuthUnsafe reports whether authenticating against an SMTP server with
+// this email configuration is unsafe in env. It is the one definition of that
+// policy: outside production nothing is refused (local development stays
+// zero-config), a channel that never sends AUTH carries no credential to judge
+// (smtpAuthConfigured), and only the remaining shape puts its password up
+// against isWeakCredential.
+//
+// Exported for internal/pkg/runtimeconfig, where a system_settings row can
+// switch notification.email on long after validate() inspected the environment
+// derived settings — that layer has to fail closed on exactly the shape refused
+// here. Sharing this predicate instead of exporting isProductionEnv and
+// isWeakCredential separately is deliberate: it makes the two gates impossible
+// to drift apart and keeps the raw credential primitives out of reach of
+// unrelated callers.
+func IsSMTPAuthUnsafe(env string, email EmailConfig) bool {
+	return isProductionEnv(env) && smtpAuthConfigured(email) && isWeakCredential(email.Password)
 }
 
 func isProductionEnv(env string) bool {

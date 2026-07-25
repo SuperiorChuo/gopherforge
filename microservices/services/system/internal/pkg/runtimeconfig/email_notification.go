@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/system/internal/config"
 	"github.com/go-admin-kit/services/system/internal/model"
 	"gorm.io/gorm"
@@ -122,6 +123,11 @@ func (r *CachedEmailNotificationReader) Refresh(ctx context.Context) error {
 	}
 
 	if err == nil {
+		// Guard the finished policy, not the individual overrides: every source
+		// that can widen it — the setting row today, anything added later — has
+		// already been folded in by this point, and this is the value the cache
+		// hands to every reader until the TTL expires.
+		policy = enforceEmailNotificationSafety(policy)
 		r.mu.Lock()
 		r.policy = policy
 		r.expiresAt = time.Now().Add(r.ttl)
@@ -133,7 +139,7 @@ func (r *CachedEmailNotificationReader) Refresh(ctx context.Context) error {
 
 func EmailNotificationFromConfig() EmailNotification {
 	email := config.Cfg.Notification.Email
-	return EmailNotification{
+	return enforceEmailNotificationSafety(EmailNotification{
 		Enabled:         email.Enabled,
 		SMTPHost:        strings.TrimSpace(email.SMTPHost),
 		SMTPPort:        positiveOrDefault(email.SMTPPort, 25),
@@ -146,7 +152,52 @@ func EmailNotificationFromConfig() EmailNotification {
 		RecipientGroups: configuredRecipientGroups(email.RecipientGroups),
 		UseTLS:          email.UseTLS,
 		StartTLS:        email.StartTLS,
+	})
+}
+
+// enforceEmailNotificationSafety keeps the email channel closed on the one shape
+// startup validation cannot see. config.Validate judged the environment derived
+// settings, where EMAIL_NOTIFICATION_ENABLED is usually false, so a
+// system_settings row that flips enabled on (and may supply its own smtp_host)
+// can put a weak EMAIL_SMTP_PASSWORD on the wire at runtime in a process that
+// was legitimately allowed to boot. Fail closed there: Enabled=false is what
+// every sender checks before dialing SMTP, so an operator loses alert mail
+// rather than leaking the password to whoever answers on port 25.
+//
+// The judgement is config.IsSMTPAuthUnsafe — literally the predicate the startup
+// gate calls — so the two cannot drift. An anonymous relay (no username, no
+// password) is not authentication and stays enabled; non-production is never
+// touched.
+func enforceEmailNotificationSafety(policy EmailNotification) EmailNotification {
+	if !policy.Enabled {
+		return policy
 	}
+	if !config.IsSMTPAuthUnsafe(config.Cfg.App.Env, config.EmailConfig{
+		Enabled:  policy.Enabled,
+		SMTPHost: policy.SMTPHost,
+		Username: policy.Username,
+		Password: policy.Password,
+	}) {
+		return policy
+	}
+	policy.Enabled = false
+	warnEmailNotificationKeptDisabled(policy)
+	return policy
+}
+
+// warnEmailNotificationKeptDisabled is a variable so tests can observe the
+// warning without standing up the global logger. It must never log the
+// credential itself.
+var warnEmailNotificationKeptDisabled = func(policy EmailNotification) {
+	if logger.Logger == nil {
+		return
+	}
+	logger.Warn(
+		"email notification kept disabled: this runtime setting would authenticate to SMTP with a weak or empty EMAIL_SMTP_PASSWORD, which production refuses",
+		logger.String("setting_key", EmailNotificationSettingKey),
+		logger.String("smtp_host", policy.SMTPHost),
+		logger.String("resolution", "set a strong EMAIL_SMTP_PASSWORD in the service environment and restart, then enable the channel again"),
+	)
 }
 
 func applyEmailNotificationSetting(policy EmailNotification, value map[string]any) EmailNotification {

@@ -243,6 +243,38 @@ func TestValidateAcceptsStrongSMTPPasswordInProduction(t *testing.T) {
 	}
 }
 
+// IsSMTPAuthUnsafe 是启动期校验与 runtimeconfig 热配置共用的唯一判定：
+// 这里把它的四个分支单独钉住，热配置那侧只要调它就不会与启动期口径漂移。
+func TestIsSMTPAuthUnsafeCoversStartupCriteria(t *testing.T) {
+	anonymous := enabledSMTPEmail("")
+	anonymous.Username = ""
+	channelOff := enabledSMTPEmail("123456")
+	channelOff.Enabled = false
+	hostless := enabledSMTPEmail("123456")
+	hostless.SMTPHost = ""
+
+	for name, testCase := range map[string]struct {
+		env   string
+		email EmailConfig
+		want  bool
+	}{
+		"生产 + 走 AUTH + 弱密码": {env: "production", email: enabledSMTPEmail("123456"), want: true},
+		"生产 + 走 AUTH + 强密码": {env: "production", email: enabledSMTPEmail("test-smtp-password-for-unit-tests"), want: false},
+		"生产 + 匿名转发":         {env: "production", email: anonymous, want: false},
+		"生产 + 通道关闭":         {env: "production", email: channelOff, want: false},
+		"生产 + host 留空":      {env: "production", email: hostless, want: false},
+		"开发环境 + 弱密码":        {env: "development", email: enabledSMTPEmail("123456"), want: false},
+		"预发环境 + 弱密码":        {env: "staging", email: enabledSMTPEmail("123456"), want: false},
+		"APP_ENV 未设置 + 弱密码": {env: "", email: enabledSMTPEmail("123456"), want: false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := IsSMTPAuthUnsafe(testCase.env, testCase.email); got != testCase.want {
+				t.Fatalf("IsSMTPAuthUnsafe() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
 // Load 路径回归：通道开着配弱密码，启动期就要拦下。
 func TestLoadRejectsWeakSMTPPasswordFromEnv(t *testing.T) {
 	previous := Cfg

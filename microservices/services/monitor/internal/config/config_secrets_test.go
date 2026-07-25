@@ -127,6 +127,76 @@ func TestValidateAllowsWeakSMTPPasswordOutsideProduction(t *testing.T) {
 	}
 }
 
+// IsSMTPAuthUnsafe 是启动期校验与 runtimeconfig 热配置共用的唯一判定：
+// 这里把它的各个分支单独钉住，热配置那侧只要调它就不会与启动期口径漂移。
+func TestIsSMTPAuthUnsafeCoversStartupCriteria(t *testing.T) {
+	anonymous := enabledSMTPEmail("")
+	anonymous.Username = ""
+	channelOff := enabledSMTPEmail("123456")
+	channelOff.Enabled = false
+	hostless := enabledSMTPEmail("123456")
+	hostless.SMTPHost = ""
+
+	for name, testCase := range map[string]struct {
+		env   string
+		email EmailConfig
+		want  bool
+	}{
+		"生产 + 走 AUTH + 弱密码": {env: "production", email: enabledSMTPEmail("123456"), want: true},
+		"生产 + 走 AUTH + 强密码": {env: "production", email: enabledSMTPEmail("test-smtp-password-for-unit-tests"), want: false},
+		"生产 + 匿名转发":         {env: "production", email: anonymous, want: false},
+		"生产 + 通道关闭":         {env: "production", email: channelOff, want: false},
+		"生产 + host 留空":      {env: "production", email: hostless, want: false},
+		"开发环境 + 弱密码":        {env: "development", email: enabledSMTPEmail("123456"), want: false},
+		"预发环境 + 弱密码":        {env: "staging", email: enabledSMTPEmail("123456"), want: false},
+		"app.env 未设置 + 弱密码": {env: "", email: enabledSMTPEmail("123456"), want: false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := IsSMTPAuthUnsafe(testCase.env, testCase.email); got != testCase.want {
+				t.Fatalf("IsSMTPAuthUnsafe() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
+// 弱值口径与 auth / audit / file / identity / system 五个底座服务对齐：monitor 此前
+// 缺裸 secret 与 dev- 前缀兜底，同一个占位口令在别处被拦、在这里放行。
+func TestIsWeakCredentialMatchesPeerServices(t *testing.T) {
+	for name, value := range map[string]string{
+		"裸 secret":        "secret",
+		"裸 secret 大小写":    "Secret",
+		"裸 secret 带空白":    "  secret  ",
+		"dev- 前缀":         "dev-monitor-password",
+		"dev- 前缀大小写":      "DEV-Monitor-Password",
+		"既有条目 secret-key": "secret-key",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if !isWeakCredential(value) {
+				t.Fatalf("isWeakCredential(%q) = false, want true to match the peer services", value)
+			}
+		})
+	}
+}
+
+// 反向对照：随机强值不能被新规则误伤。真实部署的 DB / Redis / 对象存储凭据都是随机串，
+// 这里用等长的 test- 占位模拟（真值不读取、不打印），确认没有一条被判弱。
+func TestIsWeakCredentialAllowsRandomStrongValues(t *testing.T) {
+	for name, value := range map[string]string{
+		"13 位 DB 口令":      "test-db-pwd13",
+		"18 位 Redis 口令":   "test-redis-pwd18ab",
+		"9 位对象存储 access":  "test-min9",
+		"32 位对象存储 secret": "test-minio-secret-key-32chars-ab",
+		"含 secret 子串":     "test-secret-but-random",
+		"含 dev 子串但非前缀":    "test-dev-random-value",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if isWeakCredential(value) {
+				t.Fatalf("isWeakCredential(%q) = true, want false for a random production credential", value)
+			}
+		})
+	}
+}
+
 // LoadConfig + Validate 全路径回归：yaml 里通道开着配弱密码，启动期就要拦下。
 func TestValidateRejectsWeakSMTPPasswordFromYAML(t *testing.T) {
 	oldCfg := Cfg
