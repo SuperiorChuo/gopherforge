@@ -117,6 +117,13 @@ func (s *LoginLogService) ClearLogsContext(ctx context.Context, days int) (int64
 	return s.logDAO.DeleteBeforeContext(ctx, before)
 }
 
+// ClearLogsAllTenantsContext 跨租户清理 days 天前的登录日志，仅供保留策略
+// 后台任务使用（管理端 API 走带租户过滤的 ClearLogsContext）。
+func (s *LoginLogService) ClearLogsAllTenantsContext(ctx context.Context, days int) (int64, error) {
+	before := time.Now().AddDate(0, 0, -days)
+	return s.logDAO.DeleteAllTenantsBeforeContext(ctx, before)
+}
+
 func (s *LoginLogService) GetLoginTrendContext(ctx context.Context, days int) ([]systemdao.LoginTrendItem, error) {
 	return s.logDAO.GetLoginTrendContext(ctx, days)
 }

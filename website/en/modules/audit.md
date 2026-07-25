@@ -26,4 +26,4 @@ The audit service centralises three log kinds: **operation logs** (every API req
 
 ## Retention
 
-Cleanup is **manual** (the clear endpoints, exposed in the console) — schedule them from your own cron for long-running deployments. NATS events expire independently after 7 days.
+Two paths: set `AUDIT_LOG_RETENTION_DAYS=N` (default `0` = off — no implicit data deletion) and the audit service prunes operation/login logs older than N days daily, **across all tenants**, reporting a `audit.log_retention` heartbeat to the ops job center; or use the manual clear endpoints exposed in the console (tenant- and permission-scoped). **Business audit logs (`audit_logs`) are deliberately excluded from automatic cleanup** — they are the compliance trail. NATS events expire independently after 7 days.
