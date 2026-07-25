@@ -2,7 +2,7 @@
 
 面向把 **GopherForge 微服务版** 部署到一台 Linux 服务器的运维/自部署用户。本地开发联调请看 [`LOCAL_SETUP.md`](../LOCAL_SETUP.md)，本文只讲**生产上线**。要上 Kubernetes（k3s / 云托管集群）的看 [`deploy-k8s.md`](deploy-k8s.md)。
 
-> 当前发布候选版：`v0.2.0-rc.1`。0.x 期间 API 和数据库表结构可能变化；上线前请完成备份、迁移兼容性检查和回滚演练。
+> 当前正式版：`v0.2.0`（[Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.2.0)）。0.x 期间 API 和数据库表结构可能变化；上线前请完成备份、迁移兼容性检查和回滚演练。
 
 ---
 
@@ -66,8 +66,30 @@ docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
   docker network create --subnet 172.28.0.0/16 go-admin-kit-net
 # 数据栈先行（必须显式 -p；要 MinIO 加 --profile storage）
 docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
-# 应用栈
+```
+
+应用栈二选一：
+
+**方式 A · 拉官方镜像（v0.2.0 起，推荐）**。每个正式版由 `release.yml` 把 8 个镜像（7 个 Go 服务 + frontend；migrate 容器复用 monitor 镜像）推到 ghcr.io，目前仅出 `linux/amd64`（arm64 服务器走方式 B 本地构建）。镜像双 tag：`vX.Y.Z` 与 `sha-<7位>`（精确锁定提交）；`latest` 仅随正式版更新、预发布不动它。
+
+```bash
+export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
+export IMAGE_TAG=v0.2.0
+docker compose pull                # 拉全部 8 个镜像
+docker compose up -d --no-build    # 直接用拉取的镜像，不本地构建
+```
+
+> `IMAGE_PREFIX`/`IMAGE_TAG` 都不设时回落为本地构建镜像名 `go-admin-kit-<服务名>:latest`，与旧行为完全一致。
+
+**方式 B · 本地构建**（源码可改、arm64 可用）：
+
+```bash
 docker compose up -d --build
+```
+
+之后两种方式相同：
+
+```bash
 # 等全部 healthy（migrate 会先跑 goose 迁移再退出，业务服务 depends_on 它完成）
 docker compose ps
 ```
@@ -138,14 +160,23 @@ server {
 
 ## 5. 升级 / 回滚
 
-**升级**：
+**升级 / 回滚（方式 A · 镜像部署）**——改 `IMAGE_TAG` 即完成版本切换：
+```bash
+cd /opt/gopherforge/microservices
+export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
+export IMAGE_TAG=v0.2.1                 # 升级：指向新版本；回滚：切回上一个版本
+docker compose pull && docker compose up -d --no-build
+```
+需要精确到某次提交时用 `sha-<7位>` tag。各版本行为变化与升级注意事项见文档站「版本升级」页。
+
+**升级（方式 B · 源码构建）**：
 ```bash
 cd /opt/gopherforge
 git pull
 make compose-up                         # 迁移由 migrate job 自动跑；只重建有变化的镜像
 ```
 
-**回滚**（当前 compose 无镜像版本管理，靠 tag 手动留一版）：
+**回滚（方式 B，无版本化镜像，靠 tag 手动留一版）**：
 ```bash
 # 升级前先给要动的服务打 prev tag，坏了可回
 docker tag go-admin-kit-system-service:latest go-admin-kit-system-service:prev

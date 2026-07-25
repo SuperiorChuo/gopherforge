@@ -27,6 +27,7 @@ const zhSidebar = {
         { text: '审批流（BPM）', link: '/modules/bpm' },
         { text: 'Excel 导入导出', link: '/modules/excel' },
         { text: '文件服务', link: '/modules/file' },
+        { text: '审计日志', link: '/modules/audit' },
         { text: '监控与可观测', link: '/modules/observability' },
       ],
     },
@@ -36,6 +37,8 @@ const zhSidebar = {
       text: '参考',
       items: [
         { text: '生产部署', link: '/reference/deployment' },
+        { text: '版本升级', link: '/reference/upgrade' },
+        { text: '常见问题 FAQ', link: '/reference/faq' },
         { text: '数据库表结构', link: '/reference/database' },
         { text: '同类项目对比', link: '/reference/comparison' },
       ],
@@ -66,6 +69,7 @@ const enSidebar = {
         { text: 'Workflow (BPM)', link: '/en/modules/bpm' },
         { text: 'Excel Import/Export', link: '/en/modules/excel' },
         { text: 'File Service', link: '/en/modules/file' },
+        { text: 'Audit Logs', link: '/en/modules/audit' },
         { text: 'Monitoring & Observability', link: '/en/modules/observability' },
       ],
     },
@@ -75,6 +79,8 @@ const enSidebar = {
       text: 'Reference',
       items: [
         { text: 'Production Deployment', link: '/en/reference/deployment' },
+        { text: 'Upgrading', link: '/en/reference/upgrade' },
+        { text: 'FAQ', link: '/en/reference/faq' },
         { text: 'Database Schema', link: '/en/reference/database' },
         { text: 'Comparison', link: '/en/reference/comparison' },
       ],
