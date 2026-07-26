@@ -7,11 +7,20 @@ SemVer applies; during **0.x** APIs and schemas may change — breaking changes 
 ```bash
 cd /opt/gopherforge/microservices
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.2.0            # target version
+export IMAGE_TAG=v0.3.0            # target version
 docker compose pull && docker compose up -d --no-build
 ```
 
 Rollback = switch `IMAGE_TAG` back (only safe while new migrations are backward-compatible). Source builds: `git pull` to the tag, then `make compose-up`.
+
+## 0.2.0 → 0.3.0 notes
+
+No breaking changes; in order of impact:
+
+1. **Security dependency upgrades** (the main reason to move): grpc 1.82.1 (GHSA-hrxh-6v49-42gf) and x/crypto 0.54 / x/net 0.56 in bpm (the 2026-07-25 ssh/agent/knownhosts + html/idna HIGH CVEs). v0.2.0 images still carry the vulnerable versions.
+2. **Stricter bpm weak-credential detection** (the only observable behavior change): in production, `dev-`-prefixed tokens (e.g. a `dev-xxx` `BPM_INTERNAL_TOKEN`) are now treated as placeholders and fail closed — internal endpoints return 503. Switch to a strong random token before upgrading if you actually use that shape.
+3. **New audit log retention policy** (opt-in, off by default): set `AUDIT_LOG_RETENTION_DAYS=N` to enable; unset = identical behavior to 0.2.0. See [Audit Logs](/en/modules/audit).
+4. **Official images are multi-arch from this release** (`linux/amd64` + `linux/arm64`) — no more local builds on arm64.
 
 ## 0.1.0 → 0.2.0 notes
 

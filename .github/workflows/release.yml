@@ -313,6 +313,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # arm64 交叉构建依赖 QEMU（Go 服务与前端均可静态交叉，无本机依赖）
+      - uses: docker/setup-qemu-action@v4
+
       - uses: docker/setup-buildx-action@v4
 
       - name: 登录 registry
@@ -342,9 +345,9 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
-          # 只出 linux/amd64：部署目标是 amd64 服务器。要多架构就加
-          # platforms: linux/amd64,linux/arm64 并在上面补 docker/setup-qemu-action@v4
-          platforms: linux/amd64
+          # v0.3.0 起双架构（amd64 服务器 + arm64 云机/Apple Silicon）。
+          # 只想快就删掉 arm64——QEMU 交叉构建约使发版时长翻倍。
+          platforms: linux/amd64,linux/arm64
           push: ${{ needs.meta.outputs.dry_run == 'false' }}
           load: false
           tags: ${{ steps.docker_meta.outputs.tags }}

@@ -2,7 +2,7 @@
 
 面向把 **GopherForge 微服务版** 部署到一台 Linux 服务器的运维/自部署用户。本地开发联调请看 [`LOCAL_SETUP.md`](../LOCAL_SETUP.md)，本文只讲**生产上线**。要上 Kubernetes（k3s / 云托管集群）的看 [`deploy-k8s.md`](deploy-k8s.md)。
 
-> 当前正式版：`v0.2.0`（[Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.2.0)）。0.x 期间 API 和数据库表结构可能变化；上线前请完成备份、迁移兼容性检查和回滚演练。
+> 当前正式版：`v0.3.0`（[Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.3.0)）。0.x 期间 API 和数据库表结构可能变化；上线前请完成备份、迁移兼容性检查和回滚演练。
 
 ---
 
@@ -70,11 +70,11 @@ docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
 
 应用栈二选一：
 
-**方式 A · 拉官方镜像（v0.2.0 起，推荐）**。每个正式版由 `release.yml` 把 8 个镜像（7 个 Go 服务 + frontend；migrate 容器复用 monitor 镜像）推到 ghcr.io，目前仅出 `linux/amd64`（arm64 服务器走方式 B 本地构建）。镜像双 tag：`vX.Y.Z` 与 `sha-<7位>`（精确锁定提交）；`latest` 仅随正式版更新、预发布不动它。
+**方式 A · 拉官方镜像（v0.2.0 起，推荐）**。每个正式版由 `release.yml` 把 8 个镜像（7 个 Go 服务 + frontend；migrate 容器复用 monitor 镜像）推到 ghcr.io，`v0.3.0` 起同时提供 `linux/amd64` 与 `linux/arm64`（arm64 云机 / Apple Silicon 可直接拉镜像；`v0.2.0` 及更早仅 amd64）。镜像双 tag：`vX.Y.Z` 与 `sha-<7位>`（精确锁定提交）；`latest` 仅随正式版更新、预发布不动它。
 
 ```bash
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.2.0
+export IMAGE_TAG=v0.3.0
 docker compose pull                # 拉全部 8 个镜像
 docker compose up -d --no-build    # 直接用拉取的镜像，不本地构建
 ```
