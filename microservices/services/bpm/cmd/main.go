@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -68,7 +69,14 @@ func main() {
 	r := gin.New()
 	// HTTP 指标（GET /metrics，Prometheus 抓取）；先于 Logger 注册，抓取不刷访问日志
 	metrics.Install(r)
-	r.Use(gin.Recovery(), gin.Logger())
+	// 健康探针每 10s 一次；成功探测不进访问日志，失败（>=400）仍记录
+	r.Use(gin.Recovery(), gin.LoggerWithConfig(gin.LoggerConfig{
+		Skip: func(c *gin.Context) bool {
+			p := c.Request.URL.Path
+			return c.Writer.Status() < 400 &&
+				(strings.HasSuffix(p, "/health/live") || strings.HasSuffix(p, "/health/ready"))
+		},
+	}))
 	srv.RegisterRoutes(r)
 
 	httpSrv := &http.Server{

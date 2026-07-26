@@ -111,7 +111,7 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/api/v1/health/ready >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/api/v1/health/live >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -176,7 +176,7 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/api/v1/health/ready >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/api/v1/health/live >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -224,7 +224,7 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8083/api/v1/health/ready >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8083/api/v1/health/live >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -288,7 +288,7 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8084/api/v1/health/ready >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8084/api/v1/health/live >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -340,7 +340,7 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8085/api/v1/health/ready >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8085/api/v1/health/live >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -405,7 +405,7 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8086/api/v1/health/ready >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8086/api/v1/health/live >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -452,7 +452,7 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8096/api/v1/bpm/health/ready >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8096/api/v1/bpm/health/live >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20

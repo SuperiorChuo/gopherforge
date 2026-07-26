@@ -68,6 +68,10 @@ func RateLimitConfigFromPolicy(policy runtimeconfig.SecurityPolicy) RateLimitCon
 // Middleware returns a Gin middleware using the limiter's Redis client.
 func (l *RateLimiter) Middleware(config RateLimitConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if isHealthProbePath(c.Request.URL.Path) {
+			c.Next()
+			return
+		}
 		l.apply(c, config)
 	}
 }
@@ -77,6 +81,10 @@ func (l *RateLimiter) DynamicMiddleware(reader runtimeconfig.SecurityPolicyReade
 		reader = runtimeconfig.DefaultSecurityPolicyReader()
 	}
 	return func(c *gin.Context) {
+		if isHealthProbePath(c.Request.URL.Path) {
+			c.Next()
+			return
+		}
 		policy := reader.SecurityPolicy(c.Request.Context())
 		if !policy.RateLimitEnabled {
 			c.Next()

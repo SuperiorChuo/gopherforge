@@ -16,6 +16,12 @@ services:
     image: pgvector/pgvector:pg16
     container_name: go-admin-kit-postgres
     restart: unless-stopped
+    # 慢 SQL 测量：预载 pg_stat_statements（扩展本体由迁移 000029 创建）。
+    # 预载库只在启动时读取，改此参数需重启 PG 容器才生效。
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
       POSTGRES_DB: ${POSTGRES_DB:-go_admin_kit}
