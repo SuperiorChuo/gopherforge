@@ -64,8 +64,10 @@ func (d *RoleDAO) GetRoleListContext(ctx context.Context, req pagination.PageReq
 		return nil, 0, err
 	}
 
+	// 列表不预加载 Permissions：列表页只展示角色本身，权限集在详情
+	// （GetRoleByIDContext）与分配弹窗按需拉取。50 角色 × 96 权限时列表
+	// 会背 4800 行关联数据，前端对列表行的 permissions 字段零消费。
 	result := query.Scopes(pagination.Paginate(req)).
-		Preload("Permissions").
 		Preload("DataScopeDepartments").
 		Order("created_at DESC").
 		Find(&roles)
