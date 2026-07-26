@@ -8,6 +8,7 @@ import (
 	"github.com/go-admin-kit/services/system/internal/api/common"
 	sharedapi "github.com/go-admin-kit/services/system/internal/api/shared"
 	"github.com/go-admin-kit/services/system/internal/api/system"
+	"github.com/go-admin-kit/services/system/internal/config"
 	"github.com/go-admin-kit/services/system/internal/middleware"
 	authsvc "github.com/go-admin-kit/services/system/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/system/internal/service/system"
@@ -35,7 +36,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	weatherAPI := system.NewWeatherAPI()
 	var codegenAPI *system.CodegenAPI
 	if deps.DB != nil {
-		codegenAPI = system.NewCodegenAPIWithService(systemsvc.NewCodegenServiceWithDB(deps.DB))
+		codegenAPI = system.NewCodegenAPIWithOptions(systemsvc.NewCodegenServiceWithDB(deps.DB), codegenAPIOptions())
 	}
 	if deps.DB != nil {
 		menuMgmtAPI = system.NewMenuManagementAPIWithService(systemsvc.NewMenuServiceWithDB(deps.DB))
@@ -70,10 +71,15 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		protected.GET("/system/weather", weatherAPI.GetLiveWeather)
 
 		if codegenAPI != nil {
+			protected.GET("/codegen/capabilities", middleware.PermissionMiddleware("system:codegen:list"), codegenAPI.Capabilities)
 			protected.GET("/codegen/tables", middleware.PermissionMiddleware("system:codegen:list"), codegenAPI.GetTables)
 			protected.GET("/codegen/tables/:name/columns", middleware.PermissionMiddleware("system:codegen:list"), codegenAPI.GetColumns)
+			protected.GET("/codegen/tables/:name/schema", middleware.PermissionMiddleware("system:codegen:list"), codegenAPI.GetSchema)
 			protected.POST("/codegen/preview", middleware.PermissionMiddleware("system:codegen:generate"), codegenAPI.Preview)
 			protected.POST("/codegen/download", middleware.PermissionMiddleware("system:codegen:generate"), codegenAPI.Download)
+			// 写入仓库是高危能力：平台管理员 + 独立权限码 + 服务端双开关
+			// （CODEGEN_WRITE_ENABLED 与 CODEGEN_REPO_ROOT，默认全关）。
+			protected.POST("/codegen/write", middleware.PlatformAdminMiddleware(), middleware.PermissionMiddleware("system:codegen:write"), codegenAPI.Write)
 		}
 
 		protected.GET("/menus", middleware.PermissionMiddleware("system:menu:list"), menuMgmtAPI.GetMenuList)
@@ -132,4 +138,20 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		// 短信管理（渠道/模板/发送日志/发送），详见 routes_sms.go
 		registerSmsRoutes(protected, deps)
 	}
+}
+
+func codegenAPIOptions() system.CodegenAPIOptions {
+	options := system.CodegenAPIOptions{WriteEnabled: config.Cfg.Codegen.WriteEnabled}
+	if config.Cfg.Codegen.RepoRoot == "" {
+		return options
+	}
+	repository, err := systemsvc.NewRepositoryWriter(config.Cfg.Codegen.RepoRoot)
+	if err != nil {
+		return options
+	}
+	options.RepositorySource = repository
+	if options.WriteEnabled {
+		options.RepositoryWriter = repository
+	}
+	return options
 }

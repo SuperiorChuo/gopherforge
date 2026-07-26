@@ -25,6 +25,7 @@ type Config struct {
 	Observability ObservabilityConfig
 	Notification  NotificationConfig
 	NATS          NATSConfig
+	Codegen       CodegenConfig
 }
 
 type NotificationConfig struct {
@@ -172,6 +173,13 @@ type NATSConfig struct {
 	URL string
 }
 
+// CodegenConfig 控制代码生成器的仓库写入能力。两项都必须显式配置才会接线：
+// 空 RepoRoot 不构造写入器，WriteEnabled=false 只读不写——默认全关。
+type CodegenConfig struct {
+	WriteEnabled bool
+	RepoRoot     string
+}
+
 var Cfg Config
 
 // Defaults returns the local-development configuration. Values match the
@@ -275,6 +283,10 @@ func Defaults() Config {
 			},
 		},
 		NATS: NATSConfig{URL: ""},
+		Codegen: CodegenConfig{
+			WriteEnabled: false,
+			RepoRoot:     "",
+		},
 	}
 }
 
@@ -349,6 +361,8 @@ func applyEnv(config *Config) {
 	config.OAuth.Wechat.RedirectURI = getEnvString("WECHAT_REDIRECT_URI", config.OAuth.Wechat.RedirectURI)
 
 	config.NATS.URL = getEnvString("NATS_URL", config.NATS.URL)
+	config.Codegen.WriteEnabled = getEnvBool("CODEGEN_WRITE_ENABLED", config.Codegen.WriteEnabled)
+	config.Codegen.RepoRoot = getEnvString("CODEGEN_REPO_ROOT", config.Codegen.RepoRoot)
 
 	config.Notification.Email.Enabled = getEnvBool("EMAIL_NOTIFICATION_ENABLED", config.Notification.Email.Enabled)
 	config.Notification.Email.SMTPHost = getEnvString("EMAIL_SMTP_HOST", config.Notification.Email.SMTPHost)

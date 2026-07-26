@@ -8,13 +8,19 @@ package system
 
 import (
 	"regexp"
+	"strings"
 	"text/template"
 )
 
 func mustRe(expr string) *regexp.Regexp { return regexp.MustCompile(expr) }
 
 var tplFuncs = template.FuncMap{
-	"bq": func() string { return "`" },
+	"bq":           func() string { return "`" },
+	"exportedName": exportedName, // 使用 codegen.go 中已定义的函数
+	"componentIs": func(component FormComponent, expected string) bool {
+		return string(component) == expected
+	},
+	"sqlText": func(value string) string { return strings.ReplaceAll(value, "'", "''") },
 }
 
 func mustTpl(name, body string) *template.Template {
@@ -35,6 +41,9 @@ type {{.Entity}} struct {
 	ID uint64 {{bq}}gorm:"primaryKey" json:"id"{{bq}}
 {{- range .Fields}}
 	{{.Column.GoField}} {{.Column.GoType}} {{bq}}gorm:"column:{{.Name}}" json:"{{.Name}}"{{bq}}
+{{- end}}
+{{- range .M2Ms}}
+	{{exportedName .Name}}IDs []uint64 {{bq}}gorm:"-" json:"{{.Name}}_ids,omitempty"{{bq}}
 {{- end}}
 	CreatedAt time.Time {{bq}}json:"created_at"{{bq}}
 	UpdatedAt time.Time {{bq}}json:"updated_at"{{bq}}
@@ -89,18 +98,116 @@ func (s *Store) List(f ListFilter) ([]{{.Entity}}, int64, error) {
 	offset, limit := f.clamp()
 	var list []{{.Entity}}
 	err := q.Order("id DESC").Offset(offset).Limit(limit).Find(&list).Error
+	if err != nil {
+		return nil, 0, err
+	}
+{{- if .M2Ms}}
+	// 批量加载多对多关联（分离查询，避免 N+1）
+	if len(list) > 0 {
+		ids := make([]uint64, len(list))
+		for i := range list {
+			ids[i] = list[i].ID
+		}
+{{- range .M2Ms}}
+		// 加载 {{.Name}} 关联
+		type {{exportedName .Name}}Rel struct {
+			{{exportedName $.Module}}ID uint64 {{bq}}gorm:"column:{{.FKField}}"{{bq}}
+			{{exportedName .Name}}ID uint64 {{bq}}gorm:"column:{{.TargetFK}}"{{bq}}
+		}
+		var {{.Name}}Rels []{{exportedName .Name}}Rel
+		if err := s.db.Table("{{.JoinTable}}").Where("{{.FKField}} IN ?", ids).Find(&{{.Name}}Rels).Error; err == nil {
+			{{.Name}}Map := make(map[uint64][]uint64)
+			for _, r := range {{.Name}}Rels {
+				{{.Name}}Map[r.{{exportedName $.Module}}ID] = append({{.Name}}Map[r.{{exportedName $.Module}}ID], r.{{exportedName .Name}}ID)
+			}
+			for i := range list {
+				list[i].{{exportedName .Name}}IDs = {{.Name}}Map[list[i].ID]
+			}
+		}
+{{- end}}
+	}
+{{- end}}
 	return list, total, err
 }
 
 func (s *Store) Get(id uint64) (*{{.Entity}}, error) {
 	var m {{.Entity}}
 	err := s.db.First(&m, id).Error
-	return &m, err
+	if err != nil {
+		return nil, err
+	}
+{{- if .M2Ms}}
+	// 加载多对多关联
+{{- range .M2Ms}}
+	var {{.Name}}IDs []uint64
+	if err := s.db.Table("{{.JoinTable}}").Where("{{.FKField}} = ?", id).Pluck("{{.TargetFK}}", &{{.Name}}IDs).Error; err == nil {
+		m.{{exportedName .Name}}IDs = {{.Name}}IDs
+	}
+{{- end}}
+{{- end}}
+	return &m, nil
 }
 
-func (s *Store) Create(m *{{.Entity}}) error { return s.db.Create(m).Error }
+func (s *Store) Create(m *{{.Entity}}) error {
+{{- if .M2Ms}}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(m).Error; err != nil {
+			return err
+		}
+		// 保存多对多关联
+{{- range .M2Ms}}
+		if len(m.{{exportedName .Name}}IDs) > 0 {
+			type {{exportedName .Name}}Rel struct {
+				{{exportedName $.Module}}ID uint64 {{bq}}gorm:"column:{{.FKField}}"{{bq}}
+				{{exportedName .Name}}ID uint64 {{bq}}gorm:"column:{{.TargetFK}}"{{bq}}
+			}
+			rels := make([]{{exportedName .Name}}Rel, len(m.{{exportedName .Name}}IDs))
+			for i, tid := range m.{{exportedName .Name}}IDs {
+				rels[i] = {{exportedName .Name}}Rel{ {{exportedName $.Module}}ID: m.ID, {{exportedName .Name}}ID: tid }
+			}
+			if err := tx.Table("{{.JoinTable}}").Create(&rels).Error; err != nil {
+				return err
+			}
+		}
+{{- end}}
+		return nil
+	})
+{{- else}}
+	return s.db.Create(m).Error
+{{- end}}
+}
 
-func (s *Store) Update(m *{{.Entity}}) error { return s.db.Save(m).Error }
+func (s *Store) Update(m *{{.Entity}}) error {
+{{- if .M2Ms}}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(m).Error; err != nil {
+			return err
+		}
+		// 更新多对多关联（先删旧的再插入新的）
+{{- range .M2Ms}}
+		if err := tx.Exec("DELETE FROM {{.JoinTable}} WHERE {{.FKField}} = ?", m.ID).Error; err != nil {
+			return err
+		}
+		if len(m.{{exportedName .Name}}IDs) > 0 {
+			type {{exportedName .Name}}Rel struct {
+				{{exportedName $.Module}}ID uint64 {{bq}}gorm:"column:{{.FKField}}"{{bq}}
+				{{exportedName .Name}}ID uint64 {{bq}}gorm:"column:{{.TargetFK}}"{{bq}}
+			}
+			rels := make([]{{exportedName .Name}}Rel, len(m.{{exportedName .Name}}IDs))
+			for i, tid := range m.{{exportedName .Name}}IDs {
+				rels[i] = {{exportedName .Name}}Rel{ {{exportedName $.Module}}ID: m.ID, {{exportedName .Name}}ID: tid }
+			}
+			if err := tx.Table("{{.JoinTable}}").Create(&rels).Error; err != nil {
+				return err
+			}
+		}
+{{- end}}
+		return nil
+	})
+{{- else}}
+	return s.db.Save(m).Error
+{{- end}}
+}
 
 func (s *Store) Delete(id uint64) error {
 	return s.db.Delete(&{{.Entity}}{}, id).Error
@@ -132,6 +239,9 @@ type upsertReq struct {
 {{- range .FormFields}}
 	{{.Column.GoField}} {{.Column.GoType}} {{bq}}json:"{{.Name}}"{{bq}}
 {{- end}}
+{{- range .M2Ms}}
+	{{exportedName .Name}}IDs []uint64 {{bq}}json:"{{.Name}}_ids"{{bq}}
+{{- end}}
 }
 
 // List handles GET /api/v1/{{.Module}}.
@@ -158,6 +268,9 @@ func (s *Server) Create(c *gin.Context) {
 	m := {{.Entity}}{
 {{- range .FormFields}}
 		{{.Column.GoField}}: req.{{.Column.GoField}},
+{{- end}}
+{{- range .M2Ms}}
+		{{exportedName .Name}}IDs: req.{{exportedName .Name}}IDs,
 {{- end}}
 	}
 	if err := s.Store.Create(&m); err != nil {
@@ -186,6 +299,9 @@ func (s *Server) Update(c *gin.Context) {
 	}
 {{- range .FormFields}}
 	m.{{.Column.GoField}} = req.{{.Column.GoField}}
+{{- end}}
+{{- range .M2Ms}}
+	m.{{exportedName .Name}}IDs = req.{{exportedName .Name}}IDs
 {{- end}}
 	if err := s.Store.Update(m); err != nil {
 		fail(c, http.StatusBadRequest, err.Error())
@@ -230,8 +346,11 @@ export type {{.Entity}} = {
 {{- range .Fields}}
   {{.Name}}: {{.Column.TSType}}
 {{- end}}
-  created_at: string
-  updated_at: string
+{{- range .M2Ms}}
+  {{.Name}}_ids?: number[]
+{{- end}}
+  created_at?: string
+  updated_at?: string
 }
 
 export type {{.Entity}}ListParams = {
@@ -249,28 +368,48 @@ export function create{{.Entity}}(data: Partial<{{.Entity}}>) {
 }
 
 export function update{{.Entity}}(id: number, data: Partial<{{.Entity}}>) {
-  return request.put(` + "`/api/v1/{{.Module}}/${id}`" + `, data) as Promise<{{.Entity}}>
+  return request.put(`+"`/api/v1/{{.Module}}/${id}`"+`, data) as Promise<{{.Entity}}>
 }
 
 export function remove{{.Entity}}(id: number) {
-  return request.delete(` + "`/api/v1/{{.Module}}/${id}`" + `) as Promise<{ deleted: boolean }>
+  return request.delete(`+"`/api/v1/{{.Module}}/${id}`"+`) as Promise<{ deleted: boolean }>
+}
+
+export type {{.ModuleType}}RelationOption = { label: string; value: number }
+
+export function get{{.ModuleType}}RelationOptions(name: string) {
+  return request.get(`+"`/api/v1/{{.Module}}/relations/${name}/options`"+`) as Promise<{{.ModuleType}}RelationOption[]>
 }
 `)
 
 var tplPage = mustTplJSX("page", `import { useEffect, useState } from 'react'
 import {
-  Button, Card, Form, Input, InputNumber, Modal, Popconfirm, Space, Switch, Table,
+  Button, Card, Form, Input, Modal, Popconfirm, Space, Table,
+[[- if .HasNumberInput]]  InputNumber,
+[[- end]][[- if .HasSwitchInput]]  Switch,
+[[- end]][[- if .HasSelectInput]]  Select,
+[[- end]][[- if .HasTagList]]  Tag,
+[[- end]][[- if .HasDateForm]]  DatePicker,
+[[- end]]
 } from 'antd'
 import { PlusOutlined, ReloadOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { message } from '@/utils/feedback'
 import {
   create[[.Entity]], list[[.Entity]]s, remove[[.Entity]], update[[.Entity]], type [[.Entity]],
+[[- if .M2Ms]]  get[[.ModuleType]]RelationOptions,
+[[- end]]
 } from '@/api/[[.Module]]'
+[[- if .DictTypes]]
+import { getDictItems, type DictItem } from '@/api/dict'
+[[- end]]
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
+[[- if .HasDateForm]]
+import dayjs from 'dayjs'
+[[- end]]
 
 interface SearchParams {
   keyword?: string
@@ -278,7 +417,7 @@ interface SearchParams {
   page_size: number
 }
 
-export default function [[.Entity]]Page() {
+export default function [[.ModuleType]]Page() {
   const [list, setList] = useState<[[.Entity]][]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -287,6 +426,46 @@ export default function [[.Entity]]Page() {
   const [creating, setCreating] = useState(false)
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
+[[- if .DictTypes]]
+  const [dictData, setDictData] = useState<Record<string, DictItem[]>>({})
+
+  useEffect(() => {
+    const loadDicts = async () => {
+      const types = [
+[[- range $i, $t := .DictTypes]]
+[[- if $i]],
+[[end]]        '[[.]]'
+[[- end]]
+      ]
+      const results = await Promise.all(types.map(t => getDictItems(t).catch(() => [])))
+      const map: Record<string, DictItem[]> = {}
+      types.forEach((t, i) => { map[t] = results[i] })
+      setDictData(map)
+    }
+    void loadDicts()
+  }, [])
+
+  const getDictLabel = (type: string, value: any): string => {
+    const item = dictData[type]?.find(d => String(d.value) === String(value))
+    return item?.label || String(value)
+  }
+[[- end]]
+[[- if .M2Ms]]
+  // 多对多关联目标表数据
+[[- range .M2Ms]]
+  const [ [[.Name]]Options, set[[exportedName .Name]]Options] = useState<{ label: string; value: number }[]>([])
+[[- end]]
+
+  useEffect(() => {
+    const loadM2MTargets = async () => {
+[[- range .M2Ms]]
+      const [[.Name]]OptionsResult = await get[[$.ModuleType]]RelationOptions('[[.Name]]')
+      set[[exportedName .Name]]Options([[.Name]]OptionsResult)
+[[- end]]
+    }
+    void loadM2MTargets()
+  }, [])
+[[- end]]
 
   const fetchList = async (p: SearchParams) => {
     setLoading(true)
@@ -310,16 +489,28 @@ export default function [[.Entity]]Page() {
     setCreating(!row)
     form.setFieldsValue({
 [[- range .FormFields]]
-      [[.Name]]: row?.[[.Name]][[if eq .Column.TSType "string"]] || ''[[end]],
+      [[.Name]]: row?.[[.Name]][[if componentIs .Component "date"]] ? dayjs(row.[[.Name]]) : undefined[[else if componentIs .Component "datetime"]] ? dayjs(row.[[.Name]]) : undefined[[else if eq .Column.TSType "string"]] || ''[[end]],
 [[- end]]
     })
   }
 
   async function onSave() {
     const values = await form.validateFields()
+[[- if .HasDateForm]]
+    const payload = {
+      ...values,
+[[- range .FormFields]]
+[[- if componentIs .Component "date"]]      [[.Name]]: values.[[.Name]]?.format('YYYY-MM-DD'),
+[[- else if componentIs .Component "datetime"]]      [[.Name]]: values.[[.Name]]?.toISOString(),
+[[- end]]
+[[- end]]
+    }
+[[- else]]
+    const payload = values
+[[- end]]
     try {
-      if (editing) await update[[.Entity]](editing.id, values)
-      else await create[[.Entity]](values)
+      if (editing) await update[[.Entity]](editing.id, payload)
+      else await create[[.Entity]](payload)
       message.success('已保存')
       setEditing(null)
       setCreating(false)
@@ -342,7 +533,26 @@ export default function [[.Entity]]Page() {
   const columns: ColumnsType<[[.Entity]]> = [
     { title: 'ID', dataIndex: 'id', width: 70 },
 [[- range .ListFields]]
-    { title: '[[.Label]]', dataIndex: '[[.Name]]'[[if eq .Column.TSType "boolean"]], render: (v: boolean) => (v ? '是' : '否')[[end]] },
+[[- if .DictType]]
+    { title: '[[.Label]]', dataIndex: '[[.Name]]', render: (v: any) => getDictLabel('[[.DictType]]', v) },
+[[- else if eq .Column.TSType "boolean"]]
+    { title: '[[.Label]]', dataIndex: '[[.Name]]', render: (v: boolean) => (v ? '是' : '否') },
+[[- else]]
+    { title: '[[.Label]]', dataIndex: '[[.Name]]' },
+[[- end]]
+[[- end]]
+[[- range .M2Ms]]
+    {
+      title: '[[.Label]]', dataIndex: '[[.Name]]_ids', width: 200,
+      render: (ids: number[]) => (
+        <Space size={4} wrap>
+          {ids?.map(id => {
+            const opt = [[.Name]]Options.find(o => o.value === id)
+            return opt ? <Tag key={id}>{opt.label}</Tag> : null
+          })}
+        </Space>
+      ),
+    },
 [[- end]]
     { title: '创建时间', dataIndex: 'created_at', width: 165, render: formatDateTime },
     {
@@ -382,7 +592,7 @@ export default function [[.Entity]]Page() {
           locale={{ emptyText: <GlassEmpty text="暂无数据" compact /> }}
           pagination={{
             total, current: params.page, pageSize: params.page_size,
-            showSizeChanger: true, showTotal: (t) => ` + "`共 ${t} 条`" + `,
+            showSizeChanger: true, showTotal: (t) => `+"`共 ${t} 条`"+`,
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }} />
       </Card>
@@ -391,19 +601,36 @@ export default function [[.Entity]]Page() {
         onCancel={() => { setEditing(null); setCreating(false) }} onOk={() => void onSave()} destroyOnHidden>
         <Form form={form} layout="vertical">
 [[- range .FormFields]]
-[[- if eq .Column.TSType "number"]]
+[[- if .DictType]]
+          <Form.Item name="[[.Name]]" label="[[.Label]]"[[if .Required]] rules={[{ required: true }]}[[end]]>
+            <Select options={dictData['[[.DictType]]']?.map(d => ({ label: d.label, value: d.value }))} placeholder="请选择" allowClear />
+          </Form.Item>
+[[- else if componentIs .Component "textarea"]]
+          <Form.Item name="[[.Name]]" label="[[.Label]]"[[if .Required]] rules={[{ required: true }]}[[end]]>
+            <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} />
+          </Form.Item>
+[[- else if componentIs .Component "number"]]
           <Form.Item name="[[.Name]]" label="[[.Label]]"[[if .Required]] rules={[{ required: true }]}[[end]]>
             <InputNumber style={{ width: '100%' }} />
           </Form.Item>
-[[- else if eq .Column.TSType "boolean"]]
+[[- else if componentIs .Component "switch"]]
           <Form.Item name="[[.Name]]" label="[[.Label]]" valuePropName="checked">
             <Switch />
+          </Form.Item>
+[[- else if or (componentIs .Component "date") (componentIs .Component "datetime")]]
+          <Form.Item name="[[.Name]]" label="[[.Label]]"[[if .Required]] rules={[{ required: true }]}[[end]]>
+            <DatePicker[[if componentIs .Component "datetime"]] showTime[[end]] style={{ width: '100%' }} />
           </Form.Item>
 [[- else]]
           <Form.Item name="[[.Name]]" label="[[.Label]]"[[if .Required]] rules={[{ required: true }]}[[end]]>
             <Input />
           </Form.Item>
 [[- end]]
+[[- end]]
+[[- range .M2Ms]]
+          <Form.Item name="[[.Name]]_ids" label="[[.Label]]">
+            <Select mode="multiple" options={[[.Name]]Options} placeholder="请选择" allowClear showSearch />
+          </Form.Item>
 [[- end]]
         </Form>
       </Modal>

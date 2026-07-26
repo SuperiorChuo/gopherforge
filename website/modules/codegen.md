@@ -26,28 +26,39 @@
    `id / created_at / updated_at / deleted_at` 审计列自动排除。表单控件按字段类型自动推断：数字 → InputNumber、布尔 → Switch、其余 → Input（不支持在向导里自选控件类型）。
 3. **预览或下载**：`预览`逐文件查看；`下载`得到 `codegen-<module>.zip`。
 
-> 生成器只产出文件，**不写入当前仓库**；路由、菜单、权限和迁移仍需开发者接线（见下）。
+## 三种交付方式
+
+| 方式 | 说明 |
+|------|------|
+| **预览** | 分文件查看将要生成/改动的内容（含对既有接线文件的差异） |
+| **下载 ZIP** | 拿走全部产物，自行放入项目 |
+| **写入仓库** | 生成器直接把产物落盘并改写接线文件——**默认关闭**，见下方安全说明 |
+
+::: warning 写入仓库是高危能力，默认全关
+要启用需**同时**满足四个条件：`CODEGEN_WRITE_ENABLED=true`、`CODEGEN_REPO_ROOT` 指向真实仓库根、调用者是平台管理员、且具备 `system:codegen:write` 权限。路径侧做了绝对化 + 符号链接解析 + 越界拒绝（`..`、绝对路径、卷名、反斜杠、NUL 一律拒），写入走暂存 + 备份 + 加锁。
+
+**仅建议在开发环境启用**；生产环境保持默认关闭，用 ZIP 下载走正常代码评审流程。
+:::
+
+镜像内固化了一份**仓库快照**（只含生成器需要读写的接入源文件），所以预览与下载开箱即用，不需要挂载宿主仓库。
 
 ## 产物清单
 
+生成的是与本仓一致的**分层结构**，七个文件：
+
 ```
-server/<module>/model.go       # GORM 模型
-server/<module>/store.go       # 列表/详情/增删改（树表含组树；主子表含事务替换）
-server/<module>/handlers.go    # HTTP 处理函数
-server/<module>/routes.go      # RegisterRoutes() 路由注册
-web/src/api/<module>.ts        # axios 接口封装
-web/src/pages/<module>/index.tsx  # React 列表页（搜索 + 表格 + 表单弹窗）
-menu-<module>.sql              # 菜单种子 SQL（需手工调整 id/parent_id/sort 后执行）
+microservices/services/system/internal/model/<module>.go          # GORM 模型
+microservices/services/system/internal/dao/system/<module>.go     # 数据访问
+microservices/services/system/internal/service/system/<module>.go # 业务逻辑
+microservices/services/system/internal/api/system/<module>.go     # HTTP 处理
+microservices/web/src/api/<module>.ts                             # axios 封装
+microservices/web/src/pages/system/<module>/index.tsx             # React 列表页
+microservices/services/monitor/migrations/000000_codegen_<module>.sql  # 权限点迁移
 ```
+
+除新增文件外，生成器还会**改写四处接线**：服务路由注册、前端路由表、侧栏菜单布局、菜单种子。写入模式下自动完成；下载模式下预览里能看到这四处的差异，需自行合并（迁移文件号 `000000` 是占位，落地时改成你仓库的下一个可用号）。
 
 生成代码遵循仓内全部惯例（响应信封、分页参数、`tenant_id`、权限码格式），生成即合规。
-
-## 落地四步
-
-1. 解压 zip 到项目对应目录；
-2. 在目标服务的路由文件里调用生成的 `RegisterRoutes()`；
-3. 播种权限点（`<domain>:<module>:list/create/update/delete`）并挂到 `super_admin`；
-4. 调整并执行 `menu-<module>.sql` 建菜单。
 
 ## 类型映射
 
@@ -61,18 +72,23 @@ menu-<module>.sql              # 菜单种子 SQL（需手工调整 id/parent_id
 
 字段名转换保留常见缩写可读性（`id → ID`、`url → URL`、`api → API`）。
 
-## 接口速查
+## 关系与字典
 
-| 方法 | 路径 | 权限码 | 用途 |
-|------|------|--------|------|
-| GET | `/api/v1/codegen/tables` | `system:codegen:list` | 可生成表清单 |
-| GET | `/api/v1/codegen/tables/:name/columns` | `system:codegen:list` | 表字段元数据（含类型映射） |
-| POST | `/api/v1/codegen/preview` | `system:codegen:generate` | 分文件预览 |
-| POST | `/api/v1/codegen/download` | `system:codegen:generate` | 下载 zip |
+- **多对多**：可声明中间表与两侧外键，生成端会带上关联的读写与前端多选标签。
+- **字典绑定**：字段可绑定字典类型，前端自动渲染为下拉而不是纯输入框。
+- **主子表**：一对多场景，创建/更新在事务内全量替换子表行。
 
 ## 已知限制
 
-- 不支持多表 JOIN 联查生成（主子表模式覆盖一对多场景）；
-- 字段不能关联字典表渲染下拉（生成后手工替换为字典组件）；
-- `required` 只生成前端校验，后端约束需自行补；
-- 生成的 API 不自动播种权限点与菜单——这是刻意设计，落地时按项目规范接线。
+- 不支持任意多表 JOIN 联查生成（一对多走主子表、多对多走 m2m 声明，其余需手工）；
+- `required` 只生成前端校验，后端硬约束需自行补；
+- 权限迁移是模板产物，落地时要把占位的 `000000` 改成你仓库的下一个可用迁移号。
+
+## 接口速查
+
+| 方法 | 路径 | 权限码 |
+|------|------|--------|
+| GET | `/api/v1/codegen/capabilities` | `system:codegen:list` |
+| GET | `/api/v1/codegen/tables` · `/tables/:name/columns` · `/tables/:name/schema` | `system:codegen:list` |
+| POST | `/api/v1/codegen/preview` · `/download` | `system:codegen:generate` |
+| POST | `/api/v1/codegen/write` | `system:codegen:write` + 平台管理员 + 服务端双开关 |

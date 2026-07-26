@@ -75,7 +75,6 @@ func TestCodegenGenerate(t *testing.T) {
 			{Name: "active", Label: "启用", InList: true, InForm: true},
 			{Name: "id"},         // primary key must be dropped
 			{Name: "created_at"}, // audit column must be dropped
-			{Name: "ghost"},      // unknown column must be dropped
 		},
 	})
 	if err != nil {
@@ -86,19 +85,21 @@ func TestCodegenGenerate(t *testing.T) {
 		byPath[f.Path] = f.Content
 	}
 	for _, p := range []string{
-		"server/assets/model.go", "server/assets/store.go",
-		"server/assets/handlers.go", "server/assets/routes.go",
-		"web/src/api/assets.ts", "web/src/pages/assets/index.tsx",
-		"menu-assets.sql",
+		"microservices/services/system/internal/model/assets.go",
+		"microservices/services/system/internal/dao/system/assets.go",
+		"microservices/services/system/internal/service/system/assets.go",
+		"microservices/services/system/internal/api/system/assets.go",
+		"microservices/web/src/api/assets.ts", "microservices/web/src/pages/system/assets/index.tsx",
+		"microservices/services/monitor/migrations/000000_codegen_assets.sql",
 	} {
 		if byPath[p] == "" {
 			t.Fatalf("missing artifact %s (have %v)", p, keys(byPath))
 		}
 	}
 
-	model := byPath["server/assets/model.go"]
+	model := byPath["microservices/services/system/internal/model/assets.go"]
 	for _, want := range []string{
-		"type Asset struct", "AmountCents int64", "Active bool",
+		"type Asset struct", "AmountCents", "int64", "Active", "bool",
 		"`gorm:\"column:name\" json:\"name\"`", `return "demo_assets"`,
 	} {
 		if !strings.Contains(model, want) {
@@ -109,21 +110,37 @@ func TestCodegenGenerate(t *testing.T) {
 		t.Fatalf("model.go leaked dropped fields:\n%s", model)
 	}
 
-	store := byPath["server/assets/store.go"]
+	store := byPath["microservices/services/system/internal/dao/system/assets.go"]
 	if !strings.Contains(store, "name LIKE ?") {
 		t.Fatalf("store.go missing keyword search:\n%s", store)
 	}
 
-	page := byPath["web/src/pages/assets/index.tsx"]
+	page := byPath["microservices/web/src/pages/system/assets/index.tsx"]
 	for _, want := range []string{"资产管理", "title: '名称'", "rules={[{ required: true }]}", "<Switch />"} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("page missing %q", want)
 		}
 	}
 
-	api := byPath["web/src/api/assets.ts"]
+	api := byPath["microservices/web/src/api/assets.ts"]
 	if !strings.Contains(api, "export type Asset = {") || !strings.Contains(api, "amount_cents: number") {
 		t.Fatalf("api.ts wrong:\n%s", api)
+	}
+}
+
+func TestCodegenGenerateRejectsUnknownField(t *testing.T) {
+	svc := NewCodegenServiceWithDB(newCodegenTestDB(t))
+	_, err := svc.Generate(GenerateRequest{
+		Table:  "demo_assets",
+		Module: "assets",
+		Title:  "资产管理",
+		Fields: []FieldConfig{
+			{Name: "name", InForm: true},
+			{Name: "forged_column", InList: true},
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "forged_column") {
+		t.Fatalf("unknown field should be rejected, got %v", err)
 	}
 }
 

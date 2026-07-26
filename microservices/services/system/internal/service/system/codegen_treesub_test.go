@@ -40,7 +40,7 @@ func newTreeSubTestDB(t *testing.T) *gorm.DB {
 		)`,
 		`CREATE TABLE IF NOT EXISTS demo_order_items (
 			id INTEGER PRIMARY KEY,
-			order_id INTEGER NOT NULL,
+			order_id INTEGER NOT NULL REFERENCES demo_orders(id),
 			sku TEXT,
 			qty INTEGER,
 			price REAL,
@@ -50,7 +50,7 @@ func newTreeSubTestDB(t *testing.T) *gorm.DB {
 		// 无可生成列的子表（只有主键+外键+审计列），用于校验报错
 		`CREATE TABLE IF NOT EXISTS demo_bare_items (
 			id INTEGER PRIMARY KEY,
-			order_id INTEGER NOT NULL,
+			order_id INTEGER NOT NULL REFERENCES demo_orders(id),
 			created_at DATETIME,
 			updated_at DATETIME
 		)`,
@@ -100,10 +100,13 @@ func filesByPath(t *testing.T, files []GeneratedFile) map[string]string {
 func verifyArtifacts(t *testing.T, byPath map[string]string, module string) {
 	t.Helper()
 	for _, p := range []string{
-		"server/" + module + "/model.go", "server/" + module + "/store.go",
-		"server/" + module + "/handlers.go", "server/" + module + "/routes.go",
-		"web/src/api/" + module + ".ts", "web/src/pages/" + module + "/index.tsx",
-		"menu-" + module + ".sql",
+		"microservices/services/system/internal/model/" + module + ".go",
+		"microservices/services/system/internal/dao/system/" + module + ".go",
+		"microservices/services/system/internal/service/system/" + module + ".go",
+		"microservices/services/system/internal/api/system/" + module + ".go",
+		"microservices/web/src/api/" + module + ".ts",
+		"microservices/web/src/pages/system/" + module + "/index.tsx",
+		"microservices/services/monitor/migrations/000000_codegen_" + module + ".sql",
 	} {
 		if byPath[p] == "" {
 			t.Fatalf("missing artifact %s (have %v)", p, keys(byPath))
@@ -142,11 +145,11 @@ func TestCodegenGenerateTree(t *testing.T) {
 	byPath := filesByPath(t, files)
 	verifyArtifacts(t, byPath, "category")
 
-	model := byPath["server/category/model.go"]
+	model := byPath["microservices/services/system/internal/model/category.go"]
 	for _, want := range []string{
 		"type Category struct",
-		"ParentID uint64",
-		"Children []Category",
+		"ParentID", "uint64",
+		"Children", "[]Category",
 		`gorm:"-" json:"children,omitempty"`,
 		`return "demo_categories"`,
 	} {
@@ -155,14 +158,14 @@ func TestCodegenGenerateTree(t *testing.T) {
 		}
 	}
 	// 父级列只能出现一次（模板显式渲染 + 字段循环去重）
-	if strings.Count(model, "ParentID uint64") != 1 {
+	if strings.Count(model, "column:parent_id") != 1 {
 		t.Fatalf("tree model.go duplicated parent field:\n%s", model)
 	}
 
-	store := byPath["server/category/store.go"]
+	store := byPath["microservices/services/system/internal/dao/system/category.go"]
 	for _, want := range []string{
-		"func buildTree(", "func (s *Store) Tree()",
-		"ErrHasChildren", "parent_id ASC, sort ASC, id ASC",
+		"var build func(uint64)", "func (d *CategoryDAO) Tree(",
+		"HasChildren", "parent_id ASC, sort ASC, id ASC",
 		"name LIKE ?", // 平铺列表的关键字搜索仍在
 	} {
 		if !strings.Contains(store, want) {
@@ -170,26 +173,26 @@ func TestCodegenGenerateTree(t *testing.T) {
 		}
 	}
 
-	handlers := byPath["server/category/handlers.go"]
-	for _, want := range []string{"func (s *Server) Tree(", "不能选择自己作为父级", "父节点不存在"} {
+	handlers := byPath["microservices/services/system/internal/service/system/category.go"]
+	for _, want := range []string{"func (s *CategoryService) Tree(", "不能选择自己作为父级", "父节点不存在"} {
 		if !strings.Contains(handlers, want) {
 			t.Fatalf("tree handlers.go missing %q", want)
 		}
 	}
 
-	routes := byPath["server/category/routes.go"]
-	if !strings.Contains(routes, `r.GET("/api/v1/category/tree", s.Tree)`) {
+	routes := byPath["microservices/services/system/internal/api/system/category.go"]
+	if !strings.Contains(routes, `router.GET("/category/tree"`) {
 		t.Fatalf("tree routes.go missing tree route:\n%s", routes)
 	}
 
-	api := byPath["web/src/api/category.ts"]
+	api := byPath["microservices/web/src/api/category.ts"]
 	for _, want := range []string{"children?: Category[]", "getCategoryTree", "parent_id: number"} {
 		if !strings.Contains(api, want) {
 			t.Fatalf("tree api.ts missing %q:\n%s", want, api)
 		}
 	}
 
-	page := byPath["web/src/pages/category/index.tsx"]
+	page := byPath["microservices/web/src/pages/system/category/index.tsx"]
 	for _, want := range []string{
 		"TreeSelect", "treeData={treeSelectData}", "defaultExpandAllRows",
 		"toTreeSelectData", "分类管理", "新建下级",
@@ -245,13 +248,13 @@ func TestCodegenGenerateSub(t *testing.T) {
 	byPath := filesByPath(t, files)
 	verifyArtifacts(t, byPath, "orders")
 
-	model := byPath["server/orders/model.go"]
+	model := byPath["microservices/services/system/internal/model/orders.go"]
 	for _, want := range []string{
 		"type Order struct",
 		"type DemoOrderItem struct",
-		"Items []DemoOrderItem",
-		"OrderID uint64",
-		"Sku string", "Qty int64", "Price float64",
+		"Items", "[]DemoOrderItem",
+		"OrderID", "uint64",
+		"Sku", "string", "Qty", "int64", "Price", "float64",
 		`return "demo_order_items"`,
 	} {
 		if !strings.Contains(model, want) {
@@ -259,34 +262,34 @@ func TestCodegenGenerateSub(t *testing.T) {
 		}
 	}
 
-	store := byPath["server/orders/store.go"]
+	store := byPath["microservices/services/system/internal/dao/system/orders.go"]
 	for _, want := range []string{
-		"s.db.Transaction(", "func replaceItems(",
-		`Where("order_id = ?", m.ID).Delete(&DemoOrderItem{})`, // 先删后插全量替换
-		"m.Items[i].OrderID = m.ID",
+		"d.db.WithContext(ctx).Transaction(", "func (d *OrdersDAO) replaceItems(",
+		`Where("order_id = ?", row.ID)`, // 先删后插全量替换
+		"row.Items[index].OrderID = row.ID",
 	} {
 		if !strings.Contains(store, want) {
 			t.Fatalf("sub store.go missing %q:\n%s", want, store)
 		}
 	}
 	// 删除也必须连子表同事务
-	if !strings.Contains(store, `Where("order_id = ?", id).Delete(&DemoOrderItem{})`) {
+	if !strings.Contains(store, `Where("order_id = ?", id)`) || !strings.Contains(store, "Delete(&model.DemoOrderItem{})") {
 		t.Fatalf("sub store.go Delete should remove items:\n%s", store)
 	}
 
-	handlers := byPath["server/orders/handlers.go"]
-	for _, want := range []string{"type itemReq struct", "Items []itemReq", "func toItems(", "func (s *Server) Detail("} {
+	handlers := byPath["microservices/services/system/internal/service/system/orders.go"]
+	for _, want := range []string{"type OrdersInput struct", "type OrdersItemInput struct", "toOrdersItems", "func (s *OrdersService) Get("} {
 		if !strings.Contains(handlers, want) {
 			t.Fatalf("sub handlers.go missing %q", want)
 		}
 	}
 
-	routes := byPath["server/orders/routes.go"]
-	if !strings.Contains(routes, `r.GET("/api/v1/orders/:id", s.Detail)`) {
+	routes := byPath["microservices/services/system/internal/api/system/orders.go"]
+	if !strings.Contains(routes, `router.GET("/orders/:id"`) {
 		t.Fatalf("sub routes.go missing detail route:\n%s", routes)
 	}
 
-	api := byPath["web/src/api/orders.ts"]
+	api := byPath["microservices/web/src/api/orders.ts"]
 	for _, want := range []string{
 		"export type DemoOrderItem = {", "items?: DemoOrderItem[]",
 		"export type OrderUpsert", "export function getOrder(",
@@ -296,7 +299,7 @@ func TestCodegenGenerateSub(t *testing.T) {
 		}
 	}
 
-	page := byPath["web/src/pages/orders/index.tsx"]
+	page := byPath["microservices/web/src/pages/system/orders/index.tsx"]
 	for _, want := range []string{
 		"itemColumns", "patchItem", "添加一行", "子表明细",
 		"setItems(detail.items ?? [])", "订单管理",

@@ -234,8 +234,10 @@ services:
 
   system-service:
     build:
-      context: ./services
-      dockerfile: system/Dockerfile
+      # 上下文提到 microservices 根：代码生成器的仓库快照要拷 web/ 与
+      # monitor/migrations/ 下的接入源文件（见 services/system/Dockerfile）
+      context: .
+      dockerfile: services/system/Dockerfile
     image: ${IMAGE_PREFIX:-go-admin-kit}-system-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-system
     restart: unless-stopped
@@ -246,6 +248,9 @@ services:
       IP2REGION_XDB: /app/data/ip2region.xdb
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8084
+      # 代码生成器：快照在镜像内固化；写入仓库默认关闭（高危能力，需显式开）
+      CODEGEN_REPO_ROOT: ${CODEGEN_REPO_ROOT:-/app/repository-snapshot}
+      CODEGEN_WRITE_ENABLED: ${CODEGEN_WRITE_ENABLED:-false}
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
