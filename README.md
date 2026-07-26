@@ -6,7 +6,7 @@
 
 **GopherForge**（曾用名 `go-admin-kit`）是一套**开源的企业级 Go 微服务后台管理系统脚手架**：后端 Go + Gin 按域拆分 7 个基础服务，前端 React 19 + Ant Design 6，Traefik 网关统一鉴权，自带 RBAC 权限、多租户、审计日志、系统监控与代码生成器，`make compose-up` 一条命令拉起全栈（数据栈与应用栈分离，重建应用不触碰数据）。
 
-> 当前发布候选版：`v0.2.0-rc.1`。这是 0.x 版本，API、数据库表结构和生成代码格式仍可能调整；上线前请按部署文档完成密钥替换、迁移备份和回滚演练。
+> 0.x 阶段项目：API、数据库表结构和生成代码格式仍可能调整。最新正式版见下方 **Release 徽章** 与 [CHANGELOG](CHANGELOG.md)，升级注意事项见[文档站 · 版本升级](https://superiorchuo.github.io/gopherforge/docs/reference/upgrade)；上线前请按部署文档完成密钥替换、迁移备份和回滚演练。
 
 - **适合谁**：需要快速搭建企业内部管理平台 / SaaS 管理后台的 Go 团队；前端更熟 React 而不想用 Vue 的团队；想要真微服务架构（而非单体）作为起点、又不想背业务包袱的项目。
 - **和同类有何不同**：只含基础设施、零业务耦合——对比 gin-vue-admin、go-admin、RuoYi 系见 [同类项目对比](docs/comparison.md)。
@@ -19,10 +19,11 @@
 
 <p align="center">
   <a href="https://superiorchuo.github.io/gopherforge/"><strong>🖥️ 在线体验 Demo →</strong></a> · <a href="https://superiorchuo.github.io/gopherforge/docs/"><strong>📖 文档站</strong></a> · <a href="README.en.md">English</a><br/>
-  <sub>纯前端演示模式（假数据，任意账号可登录）；完整功能克隆后 <code>make compose-up</code> 一键启动；候选版说明见 <a href="CHANGELOG.md">CHANGELOG</a></sub>
+  <sub>纯前端演示模式（假数据，任意账号可登录）；完整功能克隆后 <code>make compose-up</code> 一键启动，或直接拉 ghcr 官方多架构镜像；版本说明见 <a href="CHANGELOG.md">CHANGELOG</a></sub>
 </p>
 
 <p align="center">
+  <a href="https://github.com/SuperiorChuo/gopherforge/releases/latest"><img src="https://img.shields.io/github/v/release/SuperiorChuo/gopherforge?logo=github&label=Release&color=2ea44f" alt="Latest Release" /></a>
   <a href="https://github.com/SuperiorChuo/gopherforge/actions/workflows/ci.yml"><img src="https://github.com/SuperiorChuo/gopherforge/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?logo=open-source-initiative&logoColor=white" alt="License" /></a>
   <a href="https://github.com/SuperiorChuo/gopherforge"><img src="https://img.shields.io/github/stars/SuperiorChuo/gopherforge?style=flat&logo=github" alt="Stars" /></a>
@@ -154,16 +155,16 @@
 | 🛡️ RBAC（用户、角色、权限、部门、菜单） | ✅ |
 | 🏢 多租户（共享库 + tenant_id，登录带租户码） | ✅ |
 | 📚 字典、公告、系统设置（DB 热配置）、在线用户 | ✅ |
-| 📝 登录日志 / 操作日志 / 审计日志 | ✅ |
+| 📝 登录日志 / 操作日志 / 审计日志（可选按保留天数自动清理） | ✅ |
 | 📁 文件上传（MinIO / 本地） | ✅ |
 | 🖥️ 服务器 / PostgreSQL / Redis / 定时任务监控 | ✅ |
 | ❤️ 健康检查、Prometheus metrics、微服务健康总览（并发探测各服务 ready） | ✅ |
 | 🚨 告警闭环（node_exporter + 告警规则 + Alertmanager → 站内信，服务down/磁盘/内存/5xx） | ✅ |
 | 💓 任务中心（分布式任务心跳上报 `shared/pkg/jobbeat`，超期即亮红） | ✅ |
-| 📋 审批流引擎（流程定义 / 待办中心 / 会签或签 / 终态回调） | ✅ |
+| 📋 审批流引擎（仿钉钉设计器 / 流程表单零代码发起 / 会签或签依次 / 条件分支 / 超时自动动作 / 加签委派 / 审批统计 / 终态回调） | ✅ |
 | 🚪 Traefik 网关 + ForwardAuth | ✅ |
 | 📡 NATS 登录事件 | ✅ |
-| 🐳 Docker Compose 一键启动 | ✅ |
+| 🐳 官方多架构镜像（amd64/arm64）/ Compose 一键启动 | ✅ |
 
 ---
 
@@ -245,6 +246,17 @@ cd gopherforge/microservices
 cp .env.example .env
 cd .. && make compose-up      # 自动：共享网络 → infra 数据栈 → 应用栈
 ```
+
+**不想本地构建？直接拉官方多架构镜像**（amd64 / arm64，每个正式版由 CI 构建推送到 ghcr）：
+
+```bash
+cd microservices
+export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
+export IMAGE_TAG=v0.3.0          # 用最新正式版号（见 Release 徽章）
+docker compose pull && docker compose up -d --no-build
+```
+
+> 生产部署（Nginx/HTTPS、密钥、备份、升级回滚）见 [文档站 · 生产部署](https://superiorchuo.github.io/gopherforge/docs/reference/deployment)。
 
 不用 make 的话，等价的三条命令（数据栈与应用栈分离，重建应用不碰数据）：
 
@@ -338,6 +350,9 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 | 环境变量 | [`microservices/.env.example`](microservices/.env.example) |
 | 迁移 / OpenAPI | `microservices/services/monitor/migrations/`、`docs/openapi.json` |
 | 📖 **文档站（教程/模块文档/二开指南）** | https://superiorchuo.github.io/gopherforge/docs/ |
+| 📜 更新日志（与 Release notes 同源） | [文档站 · 更新日志](https://superiorchuo.github.io/gopherforge/docs/changelog) |
+| ❓ 常见问题 FAQ | [文档站 · FAQ](https://superiorchuo.github.io/gopherforge/docs/reference/faq) |
+| ⬆️ 版本升级指南 | [文档站 · 版本升级](https://superiorchuo.github.io/gopherforge/docs/reference/upgrade) |
 | 同类项目对比 | [`docs/comparison.md`](docs/comparison.md) |
 | 产品线对照 | [`docs/PRODUCT_LINES.md`](docs/PRODUCT_LINES.md) |
 | 安全说明 | [`docs/SECURITY.md`](docs/SECURITY.md) · [`SECURITY.md`](SECURITY.md) |
