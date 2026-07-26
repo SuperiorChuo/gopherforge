@@ -13,9 +13,18 @@ type PermissionCacheStore interface {
 	FindRoleIDsByPermissionIDsContext(ctx context.Context, permissionIDs []uint) ([]uint, error)
 }
 
+// Permission and role-code caches live and die together: every existing
+// invalidation point (role changed / permission changed / user roles reassigned)
+// routes through this function, so the role cache needs no new call sites —
+// missing one would let a user whose super_admin was revoked keep passing the
+// PermissionMiddleware probe until the TTL expires.
 func InvalidatePermissionCacheForUsersContext(ctx context.Context, userIDs ...uint) error {
 	uniqueUserIDs := uniqueUint(userIDs)
-	return cache.NewCacheService().DelUserPermissionsBatchContext(ctx, uniqueUserIDs)
+	cacheService := cache.NewCacheService()
+	if err := cacheService.DelUserPermissionsBatchContext(ctx, uniqueUserIDs); err != nil {
+		return err
+	}
+	return cacheService.DelUserRolesBatchContext(ctx, uniqueUserIDs)
 }
 
 func InvalidatePermissionCacheByRolesContext(ctx context.Context, store PermissionCacheStore, roleIDs ...uint) error {
@@ -53,7 +62,11 @@ func InvalidatePermissionCacheByPermissionsContext(ctx context.Context, store Pe
 }
 
 func InvalidatePermissionCacheAllContext(ctx context.Context) error {
-	return cache.NewCacheService().DelAllUserPermissionsContext(ctx)
+	cacheService := cache.NewCacheService()
+	if err := cacheService.DelAllUserPermissionsContext(ctx); err != nil {
+		return err
+	}
+	return cacheService.DelAllUserRolesContext(ctx)
 }
 
 func uniqueUint(values []uint) []uint {
