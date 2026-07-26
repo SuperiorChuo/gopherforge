@@ -26,6 +26,8 @@ type OAuth2Error struct {
 	Code        string
 	Description string
 	Status      int
+	// RetryAfter 非零时端点发 Retry-After 头（限流场景）。
+	RetryAfter time.Duration
 }
 
 func (e *OAuth2Error) Error() string { return e.Code + ": " + e.Description }
@@ -78,6 +80,9 @@ type OAuth2ServerService struct {
 	users     *UserService
 	cache     *cache.CacheService
 	oidc      *OIDCService
+	// redis 只用于 per-client 限流（CacheService 不暴露 INCR）。类型是限流所需
+	// 的窄接口，在构造时一次性断言；为 nil 时限流放行，见 oauth2_ratelimit.go。
+	redis tokenRateRedis
 }
 
 func NewOAuth2ServerServiceWithDB(db *gorm.DB, redis cache.RedisClient, oidc *OIDCService) *OAuth2ServerService {
@@ -88,7 +93,7 @@ func NewOAuth2ServerServiceWithDB(db *gorm.DB, redis cache.RedisClient, oidc *OI
 	} else {
 		cacheSvc = cache.NewCacheService()
 	}
-	return &OAuth2ServerService{
+	svc := &OAuth2ServerService{
 		clients:   authdao.NewOAuth2ClientDAO(db),
 		tokens:    authdao.NewOAuth2TokenDAO(db),
 		approvals: authdao.NewOAuth2ApprovalDAO(db),
@@ -96,6 +101,11 @@ func NewOAuth2ServerServiceWithDB(db *gorm.DB, redis cache.RedisClient, oidc *OI
 		cache:     cacheSvc,
 		oidc:      oidc,
 	}
+	// 真实 go-redis 客户端满足这两个命令；测试替身可能不满足，那就不限流。
+	if limiter, ok := redis.(tokenRateRedis); ok {
+		svc.redis = limiter
+	}
+	return svc
 }
 
 // OIDC exposes the OIDC service for discovery/JWKS handlers.
@@ -497,11 +507,47 @@ func (s *OAuth2ServerService) signIDToken(ctx context.Context, client *model.OAu
 	})
 }
 
+// mintAccessToken issues an access token in the client's configured format.
+//
+// Both formats persist a row keyed by SHA-256 of the returned token string, so
+// introspection and revocation take the identical path regardless of format —
+// the JWT form only adds the option of offline verification for resource
+// servers. That is a deliberate trade-off, not an oversight: an offline
+// verifier will not observe a revocation until the token expires, which is why
+// opaque stays the default and TTLs should be kept short for jwt clients.
 func (s *OAuth2ServerService) mintAccessToken(ctx context.Context, client *model.OAuth2Client, userID *uint, username string, tenantID uint, scopes []string, grantType string, refreshID *uint) (string, *OAuth2Error) {
 	raw, err := randomBase64URL(32)
 	if err != nil {
 		return "", oauth2Err(500, "server_error", "failed to generate access token")
 	}
+	expiresAt := time.Now().Add(time.Duration(client.AccessTokenTTL) * time.Second)
+
+	if client.AccessTokenFormat == model.AccessTokenFormatJWT {
+		if s.oidc == nil {
+			// 签名密钥不可用时拒绝签发，绝不静默退回 opaque——调用方按形态
+			// 决定校验方式，静默降级会让它把 JWT 校验当成通过。
+			return "", oauth2Err(500, "server_error", "jwt access tokens require the OIDC signing key")
+		}
+		subject := "client:" + client.ClientID // client_credentials 无用户主体
+		if userID != nil {
+			subject = strconv.FormatUint(uint64(*userID), 10)
+		}
+		signed, signErr := s.oidc.SignAccessToken(ctx, AccessTokenClaims{
+			Subject:  subject,
+			Audience: client.ClientID,
+			ClientID: client.ClientID,
+			Scope:    strings.Join(scopes, " "),
+			JTI:      raw, // 随机串转作 jti，令牌本体是签名后的 JWT
+			TenantID: tenantID,
+			Username: username,
+			TTL:      time.Until(expiresAt),
+		})
+		if signErr != nil {
+			return "", oauth2Err(500, "server_error", "failed to sign access token")
+		}
+		raw = signed
+	}
+
 	access := &model.OAuth2AccessToken{
 		TenantID:       tenantID,
 		TokenHash:      sha256Hex(raw),
@@ -511,7 +557,7 @@ func (s *OAuth2ServerService) mintAccessToken(ctx context.Context, client *model
 		Scopes:         scopes,
 		GrantType:      grantType,
 		RefreshTokenID: refreshID,
-		ExpiresAt:      time.Now().Add(time.Duration(client.AccessTokenTTL) * time.Second),
+		ExpiresAt:      expiresAt,
 	}
 	if err := s.tokens.CreateAccessContext(ctx, access); err != nil {
 		return "", oauth2Err(500, "server_error", "failed to persist access token")

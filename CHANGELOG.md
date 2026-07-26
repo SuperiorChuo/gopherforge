@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **OAuth2 服务端 B② 收尾：per-client 限流与 JWT 形态 access token**（同步自主项目）。
+  客户端两个新字段都有默认值，存量行为不变。
+  - **JWT access token（RFC 9068）**：客户端可选 `access_token_format=jwt`，签发
+    `typ=at+jwt` 的 RS256 自包含令牌，复用 OIDC 同一把 RSA 密钥与 JWKS——资源
+    服务器只需一个密钥源。**两种形态都照旧在库里留行**，introspect 与吊销走
+    完全同一条路径；JWT 只是多给了离线验签的选项。代价明说：离线验签方在
+    过期前看不到吊销，故 opaque 仍是默认、jwt 客户端应配短 TTL。签名密钥不可用
+    时拒绝签发而非静默退回 opaque。
+  - **per-client 限流**：token 与 introspect 按 `client_id` 计每分钟配额
+    （`token_rate_per_minute`，0=服务端默认 120/min），Redis 滑动窗口，超限返
+    429 + `slow_down` + `Retry-After`。落点在客户端认证之后（认证前按请求里的
+    client_id 计数等于给了任何人耗尽他人配额的手段，认证前泛洪由服务级 IP 限流
+    兜底）；**revoke 刻意不限流**——吊销是安全止损动作；Redis 故障放行。
+  - 管理页可视配置两项，迁移 `000027` 两列均带默认值。
+
 ### 变更
 
 - **TypeScript 6 → 7**（前端工具链，原生化大版本）。适配面只有

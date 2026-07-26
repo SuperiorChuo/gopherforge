@@ -33,6 +33,10 @@ type clientRequestBody struct {
 	RefreshTokenTTL int      `json:"refresh_token_ttl"`
 	AutoApprove     bool     `json:"auto_approve"`
 	Status          *int8    `json:"status"`
+	// 空 = opaque；jwt 表示签发 RFC 9068 自包含令牌
+	AccessTokenFormat string `json:"access_token_format"`
+	// 0 = 用服务端默认配额
+	TokenRatePerMinute int `json:"token_rate_per_minute"`
 }
 
 func (b clientRequestBody) toMutation() authsvc.ClientMutation {
@@ -41,6 +45,7 @@ func (b clientRequestBody) toMutation() authsvc.ClientMutation {
 		RedirectURIs: b.RedirectURIs, Scopes: b.Scopes, GrantTypes: b.GrantTypes,
 		AccessTokenTTL: b.AccessTokenTTL, RefreshTokenTTL: b.RefreshTokenTTL,
 		AutoApprove: b.AutoApprove, Status: b.Status,
+		AccessTokenFormat: b.AccessTokenFormat, TokenRatePerMinute: b.TokenRatePerMinute,
 	}
 }
 

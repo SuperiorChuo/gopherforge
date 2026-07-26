@@ -19,25 +19,38 @@ const (
 // server" side). client_id is globally unique because the token endpoint has
 // no tenant context and must resolve the tenant from the client itself.
 type OAuth2Client struct {
-	ID               uint      `gorm:"primaryKey" json:"id"`
-	TenantID         uint      `gorm:"not null;default:1;index" json:"tenant_id"`
-	ClientID         string    `gorm:"size:64;not null;uniqueIndex" json:"client_id"`
-	ClientSecretHash string    `gorm:"size:255;not null;default:''" json:"-"`
-	Name             string    `gorm:"size:128;not null" json:"name"`
-	Logo             string    `gorm:"size:255;not null;default:''" json:"logo"`
-	Description      string    `gorm:"size:512;not null;default:''" json:"description"`
-	ClientType       int8      `gorm:"not null;default:1" json:"client_type"`
-	RedirectURIs     []string  `gorm:"type:jsonb;serializer:json" json:"redirect_uris"`
-	Scopes           []string  `gorm:"type:jsonb;serializer:json" json:"scopes"`
-	GrantTypes       []string  `gorm:"type:jsonb;serializer:json" json:"grant_types"`
-	AccessTokenTTL   int       `gorm:"not null;default:3600" json:"access_token_ttl"`
-	RefreshTokenTTL  int       `gorm:"not null;default:2592000" json:"refresh_token_ttl"`
-	AutoApprove      bool      `gorm:"not null;default:false" json:"auto_approve"`
-	Status           int8      `gorm:"not null;default:1" json:"status"`
-	CreatedBy        uint      `gorm:"not null;default:0" json:"created_by"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID               uint     `gorm:"primaryKey" json:"id"`
+	TenantID         uint     `gorm:"not null;default:1;index" json:"tenant_id"`
+	ClientID         string   `gorm:"size:64;not null;uniqueIndex" json:"client_id"`
+	ClientSecretHash string   `gorm:"size:255;not null;default:''" json:"-"`
+	Name             string   `gorm:"size:128;not null" json:"name"`
+	Logo             string   `gorm:"size:255;not null;default:''" json:"logo"`
+	Description      string   `gorm:"size:512;not null;default:''" json:"description"`
+	ClientType       int8     `gorm:"not null;default:1" json:"client_type"`
+	RedirectURIs     []string `gorm:"type:jsonb;serializer:json" json:"redirect_uris"`
+	Scopes           []string `gorm:"type:jsonb;serializer:json" json:"scopes"`
+	GrantTypes       []string `gorm:"type:jsonb;serializer:json" json:"grant_types"`
+	AccessTokenTTL   int      `gorm:"not null;default:3600" json:"access_token_ttl"`
+	RefreshTokenTTL  int      `gorm:"not null;default:2592000" json:"refresh_token_ttl"`
+	AutoApprove      bool     `gorm:"not null;default:false" json:"auto_approve"`
+	Status           int8     `gorm:"not null;default:1" json:"status"`
+	CreatedBy        uint     `gorm:"not null;default:0" json:"created_by"`
+	// AccessTokenFormat 决定 access token 形态（见下方常量）。
+	AccessTokenFormat string `gorm:"size:16;not null;default:'opaque'" json:"access_token_format"`
+	// TokenRatePerMinute 是 token/introspect 端点按 client_id 计的每分钟配额；
+	// 0 表示用服务端默认值 DefaultTokenRatePerMinute。
+	TokenRatePerMinute int       `gorm:"not null;default:0" json:"token_rate_per_minute"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
+
+// access token 形态。opaque 是默认：令牌只是随机串，任何校验都必须回授权
+// 服务器，吊销即时生效。jwt 形态签发 RFC 9068 自包含令牌，资源服务器可用
+// JWKS 离线验签——代价是离线验签方在 exp 之前看不到吊销。
+const (
+	AccessTokenFormatOpaque = "opaque"
+	AccessTokenFormatJWT    = "jwt"
+)
 
 func (OAuth2Client) TableName() string { return "oauth2_clients" }
 

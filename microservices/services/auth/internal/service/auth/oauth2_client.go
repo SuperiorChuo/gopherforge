@@ -46,17 +46,19 @@ var (
 
 // ClientMutation carries the create/update fields from the management API.
 type ClientMutation struct {
-	Name            string
-	Logo            string
-	Description     string
-	ClientType      int8
-	RedirectURIs    []string
-	Scopes          []string
-	GrantTypes      []string
-	AccessTokenTTL  int
-	RefreshTokenTTL int
-	AutoApprove     bool
-	Status          *int8
+	Name               string
+	Logo               string
+	Description        string
+	ClientType         int8
+	RedirectURIs       []string
+	Scopes             []string
+	GrantTypes         []string
+	AccessTokenTTL     int
+	RefreshTokenTTL    int
+	AutoApprove        bool
+	Status             *int8
+	AccessTokenFormat  string // 空 = opaque
+	TokenRatePerMinute int    // 0 = 服务端默认配额
 }
 
 // CreateResult returns the created client plus the one-time plaintext secret.
@@ -104,6 +106,14 @@ func (s OAuth2ClientService) validate(m ClientMutation) error {
 	if m.ClientType == model.OAuth2ClientPublic && containsStr(m.GrantTypes, model.GrantClientCredentials) {
 		return OAuth2ClientValidationError{"公开客户端不能使用 client_credentials 模式"}
 	}
+	switch m.AccessTokenFormat {
+	case "", model.AccessTokenFormatOpaque, model.AccessTokenFormatJWT:
+	default:
+		return OAuth2ClientValidationError{"不支持的令牌形态：" + m.AccessTokenFormat}
+	}
+	if m.TokenRatePerMinute < 0 {
+		return OAuth2ClientValidationError{"每分钟配额不能为负数"}
+	}
 	return nil
 }
 
@@ -125,6 +135,12 @@ func normalizeTTLs(m *ClientMutation) {
 	}
 	if m.RefreshTokenTTL <= 0 {
 		m.RefreshTokenTTL = 2592000
+	}
+	if m.AccessTokenFormat == "" {
+		m.AccessTokenFormat = model.AccessTokenFormatOpaque
+	}
+	if m.TokenRatePerMinute < 0 {
+		m.TokenRatePerMinute = 0
 	}
 }
 
@@ -154,6 +170,9 @@ func (s OAuth2ClientService) Create(ctx context.Context, tenantID, createdBy uin
 		AutoApprove:     m.AutoApprove,
 		Status:          1,
 		CreatedBy:       createdBy,
+
+		AccessTokenFormat:  m.AccessTokenFormat,
+		TokenRatePerMinute: m.TokenRatePerMinute,
 	}
 	result := &CreateResult{Client: client}
 	if m.ClientType == model.OAuth2ClientConfidential {
@@ -199,6 +218,8 @@ func (s OAuth2ClientService) Update(ctx context.Context, id uint, m ClientMutati
 	client.AccessTokenTTL = m.AccessTokenTTL
 	client.RefreshTokenTTL = m.RefreshTokenTTL
 	client.AutoApprove = m.AutoApprove
+	client.AccessTokenFormat = m.AccessTokenFormat
+	client.TokenRatePerMinute = m.TokenRatePerMinute
 	if m.Status != nil {
 		client.Status = *m.Status
 	}

@@ -85,6 +85,8 @@ function ClientsTab() {
       refresh_token_ttl: 2592000,
       auto_approve: false,
       status: 1,
+      access_token_format: 'opaque',
+      token_rate_per_minute: 0,
     })
     setModalOpen(true)
   }
@@ -103,6 +105,8 @@ function ClientsTab() {
       refresh_token_ttl: record.refresh_token_ttl,
       auto_approve: record.auto_approve,
       status: record.status,
+      access_token_format: record.access_token_format || 'opaque',
+      token_rate_per_minute: record.token_rate_per_minute ?? 0,
     })
     setModalOpen(true)
   }
@@ -126,6 +130,8 @@ function ClientsTab() {
       refresh_token_ttl: values.refresh_token_ttl,
       auto_approve: values.auto_approve,
       status: values.status,
+      access_token_format: values.access_token_format || 'opaque',
+      token_rate_per_minute: values.token_rate_per_minute ?? 0,
     }
     setSubmitting(true)
     try {
@@ -290,6 +296,28 @@ function ClientsTab() {
             </Form.Item>
             <Form.Item name="auto_approve" label="自动授权" valuePropName="checked" tooltip="跳过用户确认页（仅建议一方可信应用）">
               <Switch />
+            </Form.Item>
+          </Space>
+          <Space size="large" style={{ display: 'flex' }}>
+            <Form.Item
+              name="access_token_format"
+              label="令牌形态"
+              tooltip="不透明：每次校验都回授权服务器，吊销立即生效（默认）。JWT：RFC 9068 自包含令牌，资源服务器可用 JWKS 离线验签，但离线验签方在过期前看不到吊销——选 JWT 时请把有效期配短。"
+            >
+              <Select
+                style={{ width: 220 }}
+                options={[
+                  { value: 'opaque', label: '不透明串（默认，吊销即时生效）' },
+                  { value: 'jwt', label: 'JWT（可离线验签）' },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item
+              name="token_rate_per_minute"
+              label="令牌端点配额（次/分钟）"
+              tooltip="token 与 introspect 端点按本应用计的每分钟上限；0 表示使用服务端默认值。吊销端点不受限。"
+            >
+              <InputNumber min={0} style={{ width: 160 }} placeholder="0=默认" />
             </Form.Item>
           </Space>
           <Form.Item name="description" label="描述">

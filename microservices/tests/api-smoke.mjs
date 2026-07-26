@@ -755,6 +755,73 @@ async function main() {
   assertResponse(response.data?.active === false, 'cross-client introspection must not reveal another client token');
   await request('DELETE', `/oauth2/clients/${otherClientDbId}`, 200, '', state.accessToken);
 
+  // B②：JWT 形态（RFC 9068）。要证两件事——签发的是能用 JWKS 验签的 at+jwt，
+  // 以及**它仍然能被 introspect**：两种形态共用同一条吊销/内省路径，JWT 只是
+  // 多给了离线验签的选项。
+  step('oauth2 jwt-format access token');
+  const jwtClient = await request('POST', '/oauth2/clients', 200, jsonObject({
+    name: `smoke-oauth2-jwt-${config.safeRunId}`,
+    client_type: 1,
+    redirect_uris: [oauth2Redirect],
+    scopes: ['openid'],
+    grant_types: ['client_credentials'],
+    access_token_format: 'jwt',
+    access_token_ttl: 300,
+  }), state.accessToken);
+  const jwtClientId = getJsonPath(jwtClient.data, 'data.client.client_id');
+  const jwtClientSecret = getJsonPath(jwtClient.data, 'data.client_secret');
+  const jwtClientDbId = getJsonPath(jwtClient.data, 'data.client.id');
+  assertResponse(
+    getJsonPath(jwtClient.data, 'data.client.access_token_format') === 'jwt',
+    'client did not persist access_token_format=jwt',
+  );
+  tokenRes = await requestForm('/oauth2/token', 200, {
+    grant_type: 'client_credentials',
+    client_id: jwtClientId,
+    client_secret: jwtClientSecret,
+    scope: 'openid',
+  });
+  const jwtAccess = tokenRes.data?.access_token;
+  const jwtParts = String(jwtAccess || '').split('.');
+  assertResponse(jwtParts.length === 3, 'jwt-format client did not return a JWT access token');
+  const atHeader = JSON.parse(Buffer.from(jwtParts[0], 'base64url').toString('utf8'));
+  assertResponse(atHeader.typ === 'at+jwt', `access token typ must be at+jwt, got ${atHeader.typ}`);
+  assertResponse(atHeader.alg === 'RS256' && atHeader.kid === jwk.kid, 'access token must be RS256 signed by the JWKS key');
+  const atClaims = JSON.parse(Buffer.from(jwtParts[1], 'base64url').toString('utf8'));
+  assertResponse(atClaims.client_id === jwtClientId, 'access token client_id claim mismatch');
+  // 关键回归点：JWT 形态照样可 introspect，说明库里仍留了行、吊销通路没断。
+  response = await requestForm('/oauth2/introspect', 200, {
+    token: jwtAccess,
+    client_id: jwtClientId,
+    client_secret: jwtClientSecret,
+  });
+  assertResponse(response.data?.active === true, 'jwt-format access token must remain introspectable');
+  await request('DELETE', `/oauth2/clients/${jwtClientDbId}`, 200, '', state.accessToken);
+
+  // B②：per-client 配额。单测覆盖了限流算法，但**接线**只有活体能验——
+  // 服务构造时要把真实 redis 客户端断言成限流窄接口，断言失败会静默不限流。
+  // 每轮用全新 client（Redis key 按 client_id 分桶）故不受重复运行影响。
+  step('oauth2 per-client token rate limit');
+  const rlClient = await request('POST', '/oauth2/clients', 200, jsonObject({
+    name: `smoke-oauth2-rl-${config.safeRunId}`,
+    client_type: 1,
+    redirect_uris: [oauth2Redirect],
+    scopes: ['openid'],
+    grant_types: ['client_credentials'],
+    token_rate_per_minute: 2,
+  }), state.accessToken);
+  const rlClientId = getJsonPath(rlClient.data, 'data.client.client_id');
+  const rlClientSecret = getJsonPath(rlClient.data, 'data.client_secret');
+  const rlClientDbId = getJsonPath(rlClient.data, 'data.client.id');
+  const rlForm = { grant_type: 'client_credentials', client_id: rlClientId, client_secret: rlClientSecret, scope: 'openid' };
+  // 配额内的两次必须放行——限流不能提前拦。
+  await requestForm('/oauth2/token', 200, rlForm);
+  await requestForm('/oauth2/token', 200, rlForm);
+  // 第三次越界：429 + RFC 8628 的 slow_down + Retry-After。
+  const rlRes = await requestForm('/oauth2/token', 429, rlForm);
+  assertResponse(rlRes.data?.error === 'slow_down', `rate limited response must use slow_down, got ${rlRes.data?.error}`);
+  await request('DELETE', `/oauth2/clients/${rlClientDbId}`, 200, '', state.accessToken);
+
   step('oauth2 refresh rotation');
   tokenRes = await requestForm('/oauth2/token', 200, {
     grant_type: 'refresh_token',
