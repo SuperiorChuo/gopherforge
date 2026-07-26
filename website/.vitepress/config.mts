@@ -36,6 +36,7 @@ const zhSidebar = {
     {
       text: '参考',
       items: [
+        { text: 'API 参考', link: '/reference/api' },
         { text: '生产部署', link: '/reference/deployment' },
         { text: '版本升级', link: '/reference/upgrade' },
         { text: '常见问题 FAQ', link: '/reference/faq' },
@@ -78,6 +79,7 @@ const enSidebar = {
     {
       text: 'Reference',
       items: [
+        { text: 'API Reference', link: '/en/reference/api' },
         { text: 'Production Deployment', link: '/en/reference/deployment' },
         { text: 'Upgrading', link: '/en/reference/upgrade' },
         { text: 'FAQ', link: '/en/reference/faq' },
