@@ -2,11 +2,11 @@
 
 The full production guide is maintained in Chinese: [生产部署（中文）](/reference/deployment) · [source on GitHub](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/deployment.md).
 
-> Current release: `v0.2.0` ([Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.2.0)). It is a 0.x release: APIs and database schemas may change. Complete backups, migration compatibility checks and a rollback rehearsal before production use. See the [upgrade notes](/en/reference/upgrade).
+> Current release: `v0.3.0` ([Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.3.0)). It is a 0.x release: APIs and database schemas may change. Complete backups, migration compatibility checks and a rollback rehearsal before production use. See the [upgrade notes](/en/reference/upgrade).
 
 ## Quick start with official images (v0.2.0+, recommended)
 
-Every release pushes 8 images (7 Go services + frontend; the migrate job reuses the monitor image) to ghcr.io, `linux/amd64` only — build locally on arm64. Images are dual-tagged `vX.Y.Z` + `sha-<7chars>`; `latest` moves only on stable releases.
+Every release pushes 8 images (7 Go services + frontend; the migrate job reuses the monitor image) to ghcr.io — both `linux/amd64` and `linux/arm64` from `v0.3.0` (v0.2.0 and earlier are amd64-only). Images are dual-tagged `vX.Y.Z` + `sha-<7chars>`; `latest` moves only on stable releases.
 
 ```bash
 git clone https://github.com/SuperiorChuo/gopherforge.git /opt/gopherforge
@@ -18,7 +18,7 @@ docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
 docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d   # data stack
 
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.2.0
+export IMAGE_TAG=v0.3.0
 docker compose pull && docker compose up -d --no-build                   # app stack
 ```
 

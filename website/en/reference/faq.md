@@ -17,7 +17,7 @@ Change `FRONTEND_PORT` / `GATEWAY_PORT` / `POSTGRES_PORT` / `REDIS_PORT` in `mic
 
 ### Apple Silicon?
 
-Local builds fully support arm64 — set `DOCKER_SOCK=/var/run/docker.sock.raw` in `.env` for Docker Desktop. Note the official ghcr images are **`linux/amd64` only**; build locally on arm64 machines.
+Local builds fully support arm64 — set `DOCKER_SOCK=/var/run/docker.sock.raw` in `.env` for Docker Desktop. Official ghcr images ship **`linux/arm64` from `v0.3.0`** (v0.2.0 and earlier are amd64-only; build those locally).
 
 ### The migrate container exited — is that normal?
 

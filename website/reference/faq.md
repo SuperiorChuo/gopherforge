@@ -28,7 +28,7 @@ docker compose -p go-admin-kit-infra -f docker-compose.infra.yml down -v   # ⚠
 能，本地构建（`make compose-up`）全链路支持 arm64。两个注意点：
 
 1. Docker Desktop for Mac 需要在 `.env` 设 `DOCKER_SOCK=/var/run/docker.sock.raw`（默认 sock 形态会拒绝访问）；
-2. **官方 ghcr 镜像目前只出 `linux/amd64`**——arm64 机器请走本地构建，不要用镜像部署方式。
+2. 官方 ghcr 镜像 **`v0.3.0` 起提供 `linux/arm64`**，Apple Silicon / arm64 云机可直接镜像部署；`v0.2.0` 及更早仅 amd64（老版本请本地构建）。
 
 ### migrate 容器退出了，正常吗？
 

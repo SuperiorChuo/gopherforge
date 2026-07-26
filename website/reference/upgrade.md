@@ -14,7 +14,7 @@
 # 0) 备份（至少 pg_dump，见部署文档第 6 节）
 cd /opt/gopherforge/microservices
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.2.0            # 目标版本
+export IMAGE_TAG=v0.3.0            # 目标版本
 docker compose pull && docker compose up -d --no-build
 docker compose ps                   # migrate 自动跑新迁移后退出，等全部 healthy
 ```
@@ -22,6 +22,18 @@ docker compose ps                   # migrate 自动跑新迁移后退出，等�
 回滚 = 把 `IMAGE_TAG` 切回上一版本重来一遍（迁移不回退，所以只适用于新迁移向后兼容的情形——0.x 的迁移我们尽量保持加列不删列，但以各版本注意事项为准）。
 
 **源码构建**：`git pull` 到目标 tag → `make compose-up`。
+
+## 0.2.0 → 0.3.0 注意事项
+
+无破坏性变更，平滑升级；按影响排序：
+
+**1. 安全依赖升级（建议尽快跟进）。** grpc 1.82.1（GHSA-hrxh-6v49-42gf）与 bpm 的 x/crypto 0.54 / x/net 0.56（2026-07-25 披露的 ssh/agent/knownhosts 与 html/idna 系列 HIGH CVE）。v0.2.0 镜像仍带漏洞版本依赖，这是切到 v0.3.0 最直接的理由。
+
+**2. bpm 弱凭据判定收紧（唯一可能被感知的行为变化）。** 生产环境下 `dev-` 前缀形态的 token（如 `dev-xxx` 的 `BPM_INTERNAL_TOKEN`）将被视为占位符并 fail-closed 归零——internal 端点会返回 503。如果你确实在生产用这种形态的 token，升级前换成强随机值即可。
+
+**3. 新增审计日志保留策略（opt-in，默认关闭）。** 设 `AUDIT_LOG_RETENTION_DAYS=N` 才生效，不设则行为与 0.2.0 完全一致；详见[审计日志](/modules/audit)。
+
+**4. 官方镜像自本版起双架构**（`linux/amd64` + `linux/arm64`），arm64 部署不再需要本地构建。
 
 ## 0.1.0 → 0.2.0 注意事项
 
