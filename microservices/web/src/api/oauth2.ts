@@ -21,6 +21,10 @@ export interface OAuth2Client {
   auto_approve: boolean
   status: number
   created_by: number
+  /** opaque=不透明随机串（默认）；jwt=RFC 9068 自包含令牌，可经 JWKS 离线验签 */
+  access_token_format: 'opaque' | 'jwt'
+  /** token/introspect 每分钟配额（按 client 计）；0=服务端默认值 */
+  token_rate_per_minute: number
   created_at: string
   updated_at: string
 }
@@ -50,6 +54,8 @@ export interface OAuth2ClientSaveData {
   refresh_token_ttl?: number
   auto_approve?: boolean
   status?: number
+  access_token_format?: 'opaque' | 'jwt'
+  token_rate_per_minute?: number
 }
 
 // 创建 / 重置密钥的一次性返回：client_secret 仅此一次可见

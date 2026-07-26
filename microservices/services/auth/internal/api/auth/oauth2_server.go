@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
@@ -24,6 +25,9 @@ func NewOAuth2ServerAPI(server *authsvc.OAuth2ServerService) *OAuth2ServerAPI {
 func rfcError(c *gin.Context, err *authsvc.OAuth2Error) {
 	if err.Status == 401 {
 		c.Header("WWW-Authenticate", `Basic realm="oauth2"`)
+	}
+	if err.RetryAfter > 0 {
+		c.Header("Retry-After", strconv.FormatInt(int64(err.RetryAfter.Seconds()), 10))
 	}
 	c.JSON(err.Status, gin.H{"error": err.Code, "error_description": err.Description})
 }
@@ -141,6 +145,11 @@ func (a *OAuth2ServerAPI) PostToken(c *gin.Context) {
 		rfcError(c, oerr)
 		return
 	}
+	// per-client 配额只能在认证之后判——见 service 层 oauth2_ratelimit.go 的说明。
+	if rerr := a.server.CheckTokenRate(ctx, client); rerr != nil {
+		rfcError(c, rerr)
+		return
+	}
 
 	var (
 		token *authsvc.TokenResponse
@@ -174,6 +183,10 @@ func (a *OAuth2ServerAPI) PostIntrospect(c *gin.Context) {
 	client, oerr := a.server.AuthenticateClientContext(ctx, clientID, secret)
 	if oerr != nil {
 		rfcError(c, oerr)
+		return
+	}
+	if rerr := a.server.CheckTokenRate(ctx, client); rerr != nil {
+		rfcError(c, rerr)
 		return
 	}
 	token := c.PostForm("token")

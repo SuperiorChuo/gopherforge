@@ -34,9 +34,10 @@
 ### 2.2 非目标（M1 不做）
 
 - `implicit` / `password` grant（已废弃，不实现）
-- ~~完整 OIDC `id_token`~~ → **M2 已补**（id_token + discovery + JWKS，见 §10）；JWT 形态 access token 仍留后续
+- ~~完整 OIDC `id_token`~~ → **M2 已补**（id_token + discovery + JWKS，见 §10）
+- ~~JWT 形态 access token~~ → **B② 已补**（见 §11）
 - 动态客户端注册（RFC 7591）
-- per-client 精细限流（复用全局 `DynamicRateLimit`，M2 再细化）
+- ~~per-client 精细限流~~ → **B② 已补**（见 §11）
 
 ## 3. 数据模型（迁移 `000026`，4 表全挂 `tenant_id`）
 
@@ -130,3 +131,46 @@
 **端点**（均公开、裸 JSON）：`GET /oauth2/.well-known/openid-configuration`、`GET /oauth2/jwks`。
 
 **关键文件**：`service/auth/oidc.go`（密钥/签名/discovery/JWKS）、`dao/system/setting.go` 的 `CreateIfAbsentContext`、`oauth2_server.go` 的 `signIDToken` + `TokenResponse.IDToken`。
+
+---
+
+## 11. B② 收尾：令牌形态与 per-client 限流
+
+M1 明确留到后续的两项，客户端两个新字段（迁移见各仓 monitor migrations）都带
+默认值，存量客户端行为完全不变。
+
+### 11.1 JWT 形态 access token（RFC 9068）
+
+`oauth2_clients.access_token_format` 取 `opaque`（默认）或 `jwt`。选 `jwt` 时签发
+`typ=at+jwt` 的 RS256 自包含令牌，**复用 OIDC 的同一把 RSA 密钥与 JWKS**——资源
+服务器只需要一个密钥源；`typ` 头是 RFC 9068 §2.1 的要求，正是它让资源服务器能
+拒收被当作 access token 递过来的 id_token。claims：`iss/sub/aud/client_id/scope/
+jti/exp/iat`（+ `username`、`tenant_id`）。
+
+**关键设计：两种形态都照旧在库里留行**（存 `SHA-256(令牌串)`），introspect 与
+吊销走完全同一条路径，JWT 只是多给了「离线验签」这个选项。
+
+> **取舍要说清**：离线验签的资源服务器在令牌过期前**看不到吊销**。这是 JWT
+> 形态的固有代价，不是实现缺陷。因此 `opaque` 仍是默认；选 `jwt` 的客户端应把
+> `access_token_ttl` 配短（分钟级），把吊销延迟压到可接受范围。需要吊销即时
+> 生效就继续用 `opaque`，或让资源服务器改走 introspect。
+
+签名密钥不可用时**拒绝签发而非静默退回 opaque**：调用方按形态决定校验方式，
+静默降级会让它把随机串当 JWT 校验并放行。
+
+### 11.2 per-client 限流
+
+`oauth2_clients.token_rate_per_minute` 是 token 与 introspect 端点按 `client_id`
+计的每分钟配额，`0` = 服务端默认（120/min）。Redis `INCR` + `ExpireNX` 滑动窗口，
+与仓内既有限流器同算法。超限返 `429` + RFC 8628 注册过的 `slow_down` +
+`Retry-After` 头。
+
+三条边界值得记：
+
+1. **落点在客户端认证之后**。认证前拿请求里的 `client_id` 计数，等于给了任何人
+   耗尽他人配额的手段；认证前的泛洪由服务级按 IP 的 `DynamicRateLimit` 兜底，
+   两层各管一段。
+2. **`revoke` 刻意不限流**。吊销是安全止损动作，任何情况下都不该被自己的配额
+   挡住。
+3. **Redis 故障放行**（与既有限流器同口径）。限流是防滥用而非鉴权，缓存挂了
+   不该把正常的机器对接全打死。

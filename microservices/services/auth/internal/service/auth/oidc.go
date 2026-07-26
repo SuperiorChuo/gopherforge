@@ -144,6 +144,52 @@ func (s *OIDCService) SignIDToken(ctx context.Context, c IDTokenClaims) (string,
 	return token.SignedString(priv)
 }
 
+// AccessTokenClaims carries the inputs for an RFC 9068 JWT access token.
+type AccessTokenClaims struct {
+	Subject  string // 用户 id；client_credentials 无用户时为 client:<client_id>
+	Audience string
+	ClientID string
+	Scope    string
+	JTI      string
+	TenantID uint
+	Username string
+	TTL      time.Duration
+}
+
+// SignAccessToken mints an RFC 9068 JWT access token, reusing the same RSA key
+// (and therefore the same JWKS) as id_token so resource servers need only one
+// key source. The typ header is at+jwt per RFC 9068 §2.1 — that is what lets a
+// resource server refuse an id_token presented as an access token.
+func (s *OIDCService) SignAccessToken(ctx context.Context, c AccessTokenClaims) (string, error) {
+	priv, kid, err := s.key(ctx)
+	if err != nil {
+		return "", err
+	}
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"iss":       s.Issuer(),
+		"sub":       c.Subject,
+		"aud":       c.Audience,
+		"client_id": c.ClientID,
+		"iat":       now.Unix(),
+		"exp":       now.Add(c.TTL).Unix(),
+		"jti":       c.JTI,
+	}
+	if c.Scope != "" {
+		claims["scope"] = c.Scope
+	}
+	if c.Username != "" {
+		claims["username"] = c.Username
+	}
+	if c.TenantID > 0 {
+		claims["tenant_id"] = c.TenantID
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = kid
+	token.Header["typ"] = "at+jwt"
+	return token.SignedString(priv)
+}
+
 // Discovery builds the /.well-known/openid-configuration document.
 func (s *OIDCService) Discovery() map[string]any {
 	base := s.issuerURL + "/api/v1/oauth2"
