@@ -23,6 +23,7 @@ import { useAppDispatch, useAppSelector } from '@/hooks/store'
 import { fetchCurrentUser, login } from '@/store/slices/authSlice'
 import { getCaptcha } from '@/api/auth'
 import { setTokens } from '@/utils/request'
+import { prefetchMainLayout } from '@/router'
 import { useThemeMode } from '@/theme/ThemeContext'
 
 /**
@@ -41,6 +42,9 @@ export default function LoginPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { mode, toggle: toggleTheme } = useThemeMode()
+
+  // 登录成功后立刻要用管理台骨架，趁用户填账密的空档预取
+  useEffect(() => prefetchMainLayout(), [])
   const { loading } = useAppSelector((s) => s.auth)
   const [form] = Form.useForm()
   const [totpForm] = Form.useForm()

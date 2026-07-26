@@ -1,6 +1,24 @@
 import { lazy, Suspense, type ComponentType } from 'react'
 import { Navigate, type RouteObject } from 'react-router-dom'
-import MainLayout from '@/layouts/MainLayout'
+
+// 管理台骨架与页面一样懒加载：静态引它会让登录页背上整个 MainLayout 依赖树
+// （Layout/Menu/Dropdown 等 antd 组件），而登录页一个都用不到。
+// 工厂只此一处，预取与路由渲染共用同一模块缓存。
+const importMainLayout = () => import('@/layouts/MainLayout')
+
+// 登录页挂载后空闲预取骨架：用户填账号密码的几秒足够下完，登录跳转时模块已在
+// 缓存里，抵消懒加载带来的首跳等待。返回取消函数供 effect 清理。
+export function prefetchMainLayout(): () => void {
+  const run = () => {
+    void importMainLayout()
+  }
+  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+    const handle = window.requestIdleCallback(run, { timeout: 2000 })
+    return () => window.cancelIdleCallback?.(handle)
+  }
+  const timer = setTimeout(run, 300)
+  return () => clearTimeout(timer)
+}
 
 // 路由懒加载兜底:玻璃卡片骨架,比孤零零的 Spin 更接近成品布局
 function RouteFallback() {
@@ -34,7 +52,7 @@ const routes: RouteObject[] = [
   },
   {
     path: '/',
-    element: <MainLayout />,
+    element: lazyLoad(importMainLayout),
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: lazyLoad(() => import('@/pages/dashboard')) },
