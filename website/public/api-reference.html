@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>GopherForge · OpenAPI 契约浏览（monitor 服务）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+  <!-- 契约直读仓库 main 分支，站点零拷贝不漂移；Scalar 版本刻意钉死（供应链口径与 trivy 同理），升级时改这一处 -->
+  <script
+    id="api-reference"
+    data-url="https://raw.githubusercontent.com/SuperiorChuo/gopherforge/main/microservices/services/monitor/docs/openapi.json"></script>
+  <script>
+    document.getElementById('api-reference').dataset.configuration = JSON.stringify({
+      darkMode: true,
+      metaData: { title: 'GopherForge · OpenAPI 契约（monitor 服务）' },
+    })
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.25.130/dist/browser/standalone.min.js"></script>
+</body>
+</html>
