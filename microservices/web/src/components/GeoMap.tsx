@@ -1,7 +1,5 @@
-import { memo, useCallback, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { normalizeProvince } from '@/utils/chinaGeo'
-import chinaRaw from '@/assets/china-provinces.json'
-import worldRaw from '@/assets/world-countries.json'
 
 // 深空风格纯 SVG 世界地图：全球国家版图打底（太平洋居中，中国在视觉中心）+
 // 中国省界精细层（省级热度染色）+ 城市涟漪光点 + 汇聚枢纽的飞线动画。
@@ -58,18 +56,41 @@ function toPaths(features: GeoFeature[]) {
   }))
 }
 
-const WORLD = toPaths((worldRaw as unknown as { features: GeoFeature[] }).features)
-const CHINA = toPaths((chinaRaw as unknown as { features: GeoFeature[] }).features)
+type GeoPath = ReturnType<typeof toPaths>[number]
+
+// 两份 GeoJSON 约 270KB，曾是登录日志路由包的最大体积来源：挂载后才动态导入
+// （独立 chunk、跨页面缓存），路由包不再背地图数据。失败不缓存 promise，可重试。
+let geoLayersCache: { world: GeoPath[]; china: GeoPath[] } | null = null
+let geoLayersPromise: Promise<{ world: GeoPath[]; china: GeoPath[] }> | null = null
+
+function loadGeoLayers() {
+  if (!geoLayersPromise) {
+    geoLayersPromise = Promise.all([
+      import('@/assets/world-countries.json'),
+      import('@/assets/china-provinces.json'),
+    ]).then(([worldRaw, chinaRaw]) => {
+      geoLayersCache = {
+        world: toPaths((worldRaw.default as unknown as { features: GeoFeature[] }).features),
+        china: toPaths((chinaRaw.default as unknown as { features: GeoFeature[] }).features),
+      }
+      return geoLayersCache
+    })
+    geoLayersPromise.catch(() => {
+      geoLayersPromise = null
+    })
+  }
+  return geoLayersPromise
+}
 
 // 中国 bbox（viewBox 基线：无海外来源时视口就是它；17.5°N 截断南海远礁避免大片空海）
 const CHINA_BOUNDS = { minX: px(73), maxX: px(135.2), minY: py(53.7), maxY: py(17.5) }
 
 type TipHandler = (e: React.MouseEvent, title: string, detail: string) => void
 
-const WorldLayer = memo(function WorldLayer() {
+const WorldLayer = memo(function WorldLayer({ world }: { world: GeoPath[] }) {
   return (
     <g>
-      {WORLD.map((c) => (
+      {world.map((c) => (
         <path key={c.name} d={c.d} className="geo-country" />
       ))}
     </g>
@@ -77,11 +98,13 @@ const WorldLayer = memo(function WorldLayer() {
 })
 
 const ChinaLayer = memo(function ChinaLayer({
+  china,
   provinceTotals,
   maxHeat,
   onTip,
   onTipHide,
 }: {
+  china: GeoPath[]
   provinceTotals?: Record<string, number>
   maxHeat: number
   onTip: TipHandler
@@ -89,7 +112,7 @@ const ChinaLayer = memo(function ChinaLayer({
 }) {
   return (
     <g>
-      {CHINA.map((p) => {
+      {china.map((p) => {
         const heat = provinceTotals?.[p.short] ?? 0
         return (
           <path
@@ -183,6 +206,18 @@ const PointsLayer = memo(function PointsLayer({
 export default function GeoMap({ points, provinceTotals, height = 420 }: GeoMapProps) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [tip, setTip] = useState<{ x: number; y: number; below: boolean; title: string; detail: string } | null>(null)
+  const [layers, setLayers] = useState(geoLayersCache)
+
+  useEffect(() => {
+    if (layers) return
+    let cancelled = false
+    loadGeoLayers().then((loaded) => {
+      if (!cancelled) setLayers(loaded)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [layers])
 
   const maxHeat = useMemo(() => {
     const values = Object.values(provinceTotals ?? {})
@@ -267,8 +302,10 @@ export default function GeoMap({ points, provinceTotals, height = 420 }: GeoMapP
         role="img"
         aria-label="登录地域分布图"
       >
-        <WorldLayer />
-        <ChinaLayer provinceTotals={provinceTotals} maxHeat={maxHeat} onTip={showTip} onTipHide={hideTip} />
+        {layers && <WorldLayer world={layers.world} />}
+        {layers && (
+          <ChinaLayer china={layers.china} provinceTotals={provinceTotals} maxHeat={maxHeat} onTip={showTip} onTipHide={hideTip} />
+        )}
         <FlightsLayer flights={flights} k={k} />
         <PointsLayer points={points} k={k} labelled={labelled} onTip={showTip} onTipHide={hideTip} />
       </svg>
