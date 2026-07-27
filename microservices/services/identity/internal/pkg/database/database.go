@@ -20,7 +20,11 @@ func InitDatabase() error {
 
 	dsn := cfg.GetDSN()
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// PrepareStmt caches prepared statements per connection, saving the
+	// parse/plan round-trip on every query. SkipDefaultTransaction is left
+	// off on purpose: it would drop the implicit transaction around
+	// association writes, which is a semantic change.
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{PrepareStmt: true})
 	if err != nil {
 		return fmt.Errorf("failed to connect database: %w", err)
 	}

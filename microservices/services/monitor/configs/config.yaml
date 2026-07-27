@@ -12,8 +12,8 @@ database:
   password: "123456"
   dbname: "go_admin_kit"
   sslmode: "disable"
-  max_idle_conns: 10
-  max_open_conns: 100
+  max_idle_conns: 5
+  max_open_conns: 10
   conn_max_lifetime_seconds: 300
   conn_max_idle_time_seconds: 180
 

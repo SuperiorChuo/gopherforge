@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 
@@ -14,6 +15,8 @@ import (
 
 // TenantIDContextKey stores the authenticated tenant id in context.Context.
 const TenantIDContextKey = "tenant_id"
+
+var errAuthUserStoreMissing = errors.New("auth: user store is not configured")
 
 // AuthMiddleware validates an access token and stores the actor in the request context.
 func AuthMiddleware() gin.HandlerFunc {
@@ -121,33 +124,14 @@ func RoleMiddleware(requiredRoles ...string) gin.HandlerFunc {
 			return
 		}
 
-		users := currentAuthDeps().Users
-		if users == nil {
-			response.Forbidden(c, "failed to get user roles")
-			c.Abort()
-			return
-		}
-		user, err := users.GetUserWithRolesContext(c.Request.Context(), userID.(uint))
+		grantedRoles, err := userRoleCodesContext(c.Request.Context(), userID.(uint))
 		if err != nil {
 			response.Forbidden(c, "failed to get user roles")
 			c.Abort()
 			return
 		}
 
-		hasRequiredRole := false
-		for _, role := range user.Roles {
-			for _, requiredRole := range requiredRoles {
-				if role.Code == requiredRole {
-					hasRequiredRole = true
-					break
-				}
-			}
-			if hasRequiredRole {
-				break
-			}
-		}
-
-		if !hasRequiredRole {
+		if !containsAnyString(grantedRoles, requiredRoles) {
 			response.Forbidden(c, "insufficient permissions")
 			c.Abort()
 			return
@@ -229,17 +213,45 @@ func hasAnyRequiredPermission(grantedPermissions []string, requiredPermissions [
 }
 
 func hasRoleContext(ctx context.Context, userID uint, roleCodes ...string) bool {
-	users := currentAuthDeps().Users
-	if users == nil {
-		return false
-	}
-	user, err := users.GetUserWithRolesContext(ctx, userID)
+	granted, err := userRoleCodesContext(ctx, userID)
 	if err != nil {
 		return false
 	}
+	return containsAnyString(granted, roleCodes)
+}
+
+// userRoleCodesContext 取用户角色码，优先读缓存。
+// PermissionMiddleware 对每个受权限保护的请求都要先判一次 super_admin，
+// 不缓存的话请求路径必查 users + 预加载 roles——权限本身早已缓存，这道前置
+// 判定就成了鉴权链上唯一的必查项（super_admin 命中还会直接返回，缓存好的
+// 权限连用都用不上）。失效与权限缓存同点位，见 service/system/cache.go。
+func userRoleCodesContext(ctx context.Context, userID uint) ([]string, error) {
+	cacheService := cache.NewCacheService()
+	if cached, err := cacheService.GetUserRolesContext(ctx, userID); err == nil && len(cached) > 0 {
+		return cached, nil
+	}
+
+	users := currentAuthDeps().Users
+	if users == nil {
+		return nil, errAuthUserStoreMissing
+	}
+	user, err := users.GetUserWithRolesContext(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	codes := make([]string, 0, len(user.Roles))
 	for _, role := range user.Roles {
-		for _, code := range roleCodes {
-			if role.Code == code {
+		codes = append(codes, role.Code)
+	}
+	_ = cacheService.SetUserRolesContext(ctx, userID, codes)
+	return codes, nil
+}
+
+func containsAnyString(granted []string, wanted []string) bool {
+	for _, code := range granted {
+		for _, want := range wanted {
+			if code == want {
 				return true
 			}
 		}

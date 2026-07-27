@@ -176,8 +176,8 @@ func Defaults() Config {
 			Password:               "123456",
 			DBName:                 "go_admin_kit",
 			SSLMode:                "disable",
-			MaxIdleConns:           10,
-			MaxOpenConns:           100,
+			MaxIdleConns:           5,
+			MaxOpenConns:           10,
 			ConnMaxLifetimeSeconds: 300,
 			ConnMaxIdleTimeSeconds: 180,
 		},
@@ -284,6 +284,8 @@ func applyEnv(config *Config) {
 	config.Database.Password = getEnvString("DB_PASSWORD", config.Database.Password)
 	config.Database.DBName = getEnvString("DB_NAME", config.Database.DBName)
 	config.Database.SSLMode = getEnvString("DB_SSLMODE", config.Database.SSLMode)
+	config.Database.MaxIdleConns = getEnvInt("DB_MAX_IDLE_CONNS", config.Database.MaxIdleConns)
+	config.Database.MaxOpenConns = getEnvInt("DB_MAX_OPEN_CONNS", config.Database.MaxOpenConns)
 	config.Database.ConnMaxLifetimeSeconds = getEnvInt("DB_CONN_MAX_LIFETIME_SECONDS", config.Database.ConnMaxLifetimeSeconds)
 	config.Database.ConnMaxIdleTimeSeconds = getEnvInt("DB_CONN_MAX_IDLE_TIME_SECONDS", config.Database.ConnMaxIdleTimeSeconds)
 

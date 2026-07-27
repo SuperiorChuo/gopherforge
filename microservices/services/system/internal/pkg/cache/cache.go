@@ -46,6 +46,8 @@ const (
 	KeyUserInfo             = "user:info:%d"
 	KeyUserPermissions      = "user:permissions:%d"
 	KeyUserPermissionsIndex = "user:permissions:index"
+	KeyUserRoles            = "user:roles:%d"
+	KeyUserRolesIndex       = "user:roles:index"
 )
 
 // Cache expiration durations.
@@ -55,6 +57,7 @@ const (
 	OAuthStateExpire      = 10 * time.Minute
 	UserInfoExpire        = 1 * time.Hour
 	UserPermissionsExpire = 1 * time.Hour
+	UserRolesExpire       = 1 * time.Hour
 )
 
 var (
@@ -231,6 +234,70 @@ func (s *CacheService) DelAllUserPermissionsContext(ctx context.Context) error {
 		pipe.Del(ctx, keys...)
 	}
 	pipe.Del(ctx, KeyUserPermissionsIndex)
+	_, err = pipe.Exec(ctx)
+	return err
+}
+
+// Role-code cache: same lifetime and same invalidation points as the permission
+// cache (see service/system/cache.go). PermissionMiddleware probes super_admin on
+// every permission-checked request, so leaving roles uncached defeats the
+// permission cache — the request path still queries users plus preloaded roles.
+func (s *CacheService) SetUserRolesContext(ctx context.Context, userID uint, roleCodes []string) error {
+	key := fmt.Sprintf(KeyUserRoles, userID)
+	pipe := s.redisClient().TxPipeline()
+	pipe.Del(ctx, key)
+	if len(roleCodes) > 0 {
+		pipe.SAdd(ctx, key, stringsToAny(roleCodes)...)
+		pipe.Expire(ctx, key, UserRolesExpire)
+		pipe.SAdd(ctx, KeyUserRolesIndex, key)
+	} else {
+		pipe.SRem(ctx, KeyUserRolesIndex, key)
+	}
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func (s *CacheService) GetUserRolesContext(ctx context.Context, userID uint) ([]string, error) {
+	key := fmt.Sprintf(KeyUserRoles, userID)
+	return s.redisClient().SMembers(ctx, key).Result()
+}
+
+func (s *CacheService) DelUserRolesContext(ctx context.Context, userID uint) error {
+	key := fmt.Sprintf(KeyUserRoles, userID)
+	pipe := s.redisClient().TxPipeline()
+	pipe.Del(ctx, key)
+	pipe.SRem(ctx, KeyUserRolesIndex, key)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func (s *CacheService) DelUserRolesBatchContext(ctx context.Context, userIDs []uint) error {
+	if len(userIDs) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(userIDs))
+	for _, userID := range userIDs {
+		keys = append(keys, fmt.Sprintf(KeyUserRoles, userID))
+	}
+	pipe := s.redisClient().TxPipeline()
+	pipe.Del(ctx, keys...)
+	pipe.SRem(ctx, KeyUserRolesIndex, stringsToAny(keys)...)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func (s *CacheService) DelAllUserRolesContext(ctx context.Context) error {
+	keys, err := s.redisClient().SMembers(ctx, KeyUserRolesIndex).Result()
+	if err != nil {
+		return err
+	}
+
+	pipe := s.redisClient().TxPipeline()
+	if len(keys) > 0 {
+		pipe.Del(ctx, keys...)
+	}
+	pipe.Del(ctx, KeyUserRolesIndex)
 	_, err = pipe.Exec(ctx)
 	return err
 }

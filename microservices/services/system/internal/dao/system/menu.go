@@ -120,16 +120,17 @@ func (d *MenuDAO) AssignPermissionsContext(ctx context.Context, menuID uint, per
 			return err
 		}
 
-		for _, permissionID := range permissionIDs {
-			menuPermission := model.MenuPermission{
-				MenuID:       menuID,
-				PermissionID: permissionID,
-			}
-			if err := tx.Create(&menuPermission).Error; err != nil {
-				return err
-			}
+		if len(permissionIDs) == 0 {
+			return nil
 		}
 
-		return nil
+		menuPermissions := make([]model.MenuPermission, 0, len(permissionIDs))
+		for _, permissionID := range permissionIDs {
+			menuPermissions = append(menuPermissions, model.MenuPermission{
+				MenuID:       menuID,
+				PermissionID: permissionID,
+			})
+		}
+		return tx.Create(&menuPermissions).Error
 	})
 }
