@@ -33,10 +33,11 @@ services:
       - go_admin_kit_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 20
+      retries: 6
       start_period: 30s
+      start_interval: 5s
     networks:
       - go-admin-kit-net
 
@@ -59,9 +60,11 @@ services:
       - go_admin_kit_redis_data:/data
     healthcheck:
       test: ["CMD-SHELL", "if [ -n \"$${REDIS_PASSWORD}\" ]; then redis-cli -a \"$${REDIS_PASSWORD}\" ping; else redis-cli ping; fi"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 20
+      retries: 6
+      start_period: 30s
+      start_interval: 5s
     networks:
       - go-admin-kit-net
 
@@ -79,9 +82,11 @@ services:
       - go_admin_kit_nats_data:/data
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8222/healthz >/dev/null 2>&1"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 20
+      retries: 6
+      start_period: 30s
+      start_interval: 5s
     networks:
       - go-admin-kit-net
 
@@ -103,10 +108,11 @@ services:
       - go_admin_kit_minio_data:/data
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null || exit 1"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 20
-      start_period: 10s
+      retries: 6
+      start_period: 30s
+      start_interval: 5s
     networks:
       - go-admin-kit-net
 
