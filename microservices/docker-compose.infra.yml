@@ -45,11 +45,15 @@ services:
     image: redis:7-alpine
     container_name: go-admin-kit-redis
     restart: unless-stopped
+    # maxmemory 护栏：无上限时 Redis 可一路吃满宿主内存。驱逐策略用
+    # volatile-lru 而非 allkeys-lru——JWT 黑名单/OAuth state 被驱逐等于已
+    # 吊销令牌复活；本项目缓存键全部带 TTL，volatile-lru 只驱逐这些。
+    # AOF 保留：黑名单不是可再生缓存，崩溃丢失有安全语义。
     command: >
       sh -c 'if [ -n "$$REDIS_PASSWORD" ]; then
-        redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD";
+        redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy volatile-lru --requirepass "$$REDIS_PASSWORD";
       else
-        redis-server --appendonly yes;
+        redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy volatile-lru;
       fi'
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}

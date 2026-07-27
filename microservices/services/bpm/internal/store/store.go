@@ -34,10 +34,11 @@ type Store struct {
 }
 
 func Open(dsn string) (*Store, error) {
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{PrepareStmt: true})
 	if err != nil {
 		return nil, err
 	}
+	applyConnPool(db)
 	return NewWithDB(db)
 }
 

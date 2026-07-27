@@ -225,35 +225,41 @@ func (d *LoginLogDAO) GetLoginTrendInScopeContext(ctx context.Context, days int,
 }
 
 func (d *LoginLogDAO) getLoginTrendContext(ctx context.Context, days int) ([]LoginTrendItem, error) {
-	result := make([]LoginTrendItem, days)
 	now := time.Now()
-	for i := days - 1; i >= 0; i-- {
-		date := now.AddDate(0, 0, -i)
-		dateStr := date.Format("2006-01-02")
-		startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-		endOfDay := startOfDay.Add(24 * time.Hour)
+	startOfWindow := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -(days - 1))
+	endOfWindow := startOfWindow.AddDate(0, 0, days)
 
-		var total, success int64
-		base := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.LoginLog{}), ctx)
-		if err := base.
-			Where("created_at >= ? AND created_at < ?", startOfDay, endOfDay).
-			Count(&total).Error; err != nil {
-			return nil, err
-		}
+	// 整窗一条 GROUP BY（旧实现按天循环，days=30 时单请求 60 条 COUNT）。
+	// date_trunc 的天界随会话时区走，DSN 已钉 TimeZone=Asia/Shanghai，与此处
+	// time.Date 的本地天界同口径；空缺天在内存补零，返回形状与旧实现一致。
+	var rows []struct {
+		Day     time.Time
+		Total   int64
+		Success int64
+	}
+	if err := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.LoginLog{}), ctx).
+		Where("created_at >= ? AND created_at < ?", startOfWindow, endOfWindow).
+		Select("date_trunc('day', created_at) AS day, COUNT(*) AS total, SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS success").
+		Group("day").
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
 
-		if err := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.LoginLog{}), ctx).
-			Where("created_at >= ? AND created_at < ? AND status = 1", startOfDay, endOfDay).
-			Count(&success).Error; err != nil {
-			return nil, err
-		}
-
-		result[days-1-i] = LoginTrendItem{
-			Date:    dateStr,
-			Count:   total,
-			Success: success,
-			Failed:  total - success,
+	byDate := make(map[string]LoginTrendItem, len(rows))
+	for _, r := range rows {
+		byDate[r.Day.Format("2006-01-02")] = LoginTrendItem{
+			Count:   r.Total,
+			Success: r.Success,
+			Failed:  r.Total - r.Success,
 		}
 	}
 
+	result := make([]LoginTrendItem, 0, days)
+	for i := 0; i < days; i++ {
+		dateStr := startOfWindow.AddDate(0, 0, i).Format("2006-01-02")
+		item := byDate[dateStr]
+		item.Date = dateStr
+		result = append(result, item)
+	}
 	return result, nil
 }

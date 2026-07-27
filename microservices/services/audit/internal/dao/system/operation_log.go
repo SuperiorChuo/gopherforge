@@ -67,7 +67,10 @@ func (d *OperationLogDAO) GetLogListContext(
 		return nil, 0, err
 	}
 
+	// 列表页不展示请求/响应正文（详情另走按 id 接口），这两个 text 列
+	// 单条上限各 4KB，page_size=100 时一页能背 ~800KB——列表裁掉。
 	result := query.
+		Omit("request_body", "response_body").
 		Scopes(pagination.Paginate(req)).
 		Order("created_at DESC").
 		Find(&logs)

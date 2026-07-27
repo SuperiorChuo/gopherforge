@@ -193,15 +193,17 @@ func (d *RoleDAO) AssignPermissionsContext(ctx context.Context, roleID uint, per
 			return err
 		}
 
+		if len(permissionIDs) == 0 {
+			return nil
+		}
+
+		rolePermissions := make([]model.RolePermission, 0, len(permissionIDs))
 		for _, permissionID := range permissionIDs {
-			rolePermission := model.RolePermission{
+			rolePermissions = append(rolePermissions, model.RolePermission{
 				RoleID:       roleID,
 				PermissionID: permissionID,
-			}
-			if err := tx.Create(&rolePermission).Error; err != nil {
-				return err
-			}
+			})
 		}
-		return nil
+		return tx.Create(&rolePermissions).Error
 	})
 }

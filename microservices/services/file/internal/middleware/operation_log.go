@@ -89,7 +89,10 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 		start := time.Now()
 
 		var requestBody string
-		if opts.RecordRequestBody && c.Request.Body != nil {
+		// GET/HEAD carry no business payload; skip the body-read wrapper
+		// (the old behavior only ever recorded an empty string for them).
+		if opts.RecordRequestBody && c.Request.Body != nil &&
+			c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
 			bodyPreview, restoredBody, err := readRequestBodyForLog(c.Request.Body, opts.MaxRequestBodySize)
 			c.Request.Body = restoredBody
 			if err == nil {
@@ -97,7 +100,6 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 			}
 		}
 
-		requestBody = filterSensitiveFields(requestBody)
 
 		var responseBody string
 		if opts.RecordResponseBody {
@@ -153,6 +155,10 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 		if tenantID == 0 {
 			tenantID = tenant.IDFromContext(c.Request.Context())
 		}
+
+		// Masking runs after the response is written: the full JSON
+		// unmarshal/marshal no longer counts against request latency.
+		requestBody = filterSensitiveFields(requestBody)
 
 		log := &model.OperationLog{
 			TenantID:     tenantID,
