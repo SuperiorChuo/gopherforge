@@ -112,9 +112,9 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/api/v1/health/live >/dev/null || exit 1"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 20
+      retries: 6
       start_period: 20s
     networks:
       - go-admin-kit-net
@@ -177,9 +177,9 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/api/v1/health/live >/dev/null || exit 1"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 20
+      retries: 6
       start_period: 20s
     networks:
       - go-admin-kit-net
@@ -225,9 +225,9 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8083/api/v1/health/live >/dev/null || exit 1"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 20
+      retries: 6
       start_period: 20s
     networks:
       - go-admin-kit-net
@@ -289,9 +289,9 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8084/api/v1/health/live >/dev/null || exit 1"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 20
+      retries: 6
       start_period: 20s
     networks:
       - go-admin-kit-net
@@ -341,9 +341,9 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8085/api/v1/health/live >/dev/null || exit 1"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 20
+      retries: 6
       start_period: 20s
     networks:
       - go-admin-kit-net
@@ -406,9 +406,9 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8086/api/v1/health/live >/dev/null || exit 1"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 20
+      retries: 6
       start_period: 20s
     networks:
       - go-admin-kit-net
@@ -453,9 +453,9 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8096/api/v1/bpm/health/live >/dev/null || exit 1"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 20
+      retries: 6
       start_period: 20s
     networks:
       - go-admin-kit-net
@@ -524,9 +524,9 @@ services:
         condition: service_started
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 20
+      retries: 6
     networks:
       - go-admin-kit-net
 
