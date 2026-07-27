@@ -5,6 +5,37 @@
 
 ## [Unreleased]
 
+### 修复
+
+- **数据范围 SQL 的 MySQL 反引号**（2026-07-27 同步自主项目）：`ApplyOwnerScope`
+  生成的子查询写作 ``user_id IN (SELECT `id` FROM `users` ...)``，而全部服务都是
+  postgres 驱动——反引号在 PG 是标识符语法错误，数据范围为部门/部门树/自定义档的
+  用户查操作日志列表会直接失败。改为裸列名，各服务 sql/plugin/cache/dao 测试期望同步。
+
+### 性能
+
+- **一批后端性能同步**（2026-07-27 同步自主项目）：
+  - 连接池收敛：6 个配置服务默认 `MaxOpenConns 100→10 / MaxIdleConns 10→5` 并新增
+    `DB_MAX_OPEN_CONNS` / `DB_MAX_IDLE_CONNS` 环境变量覆盖（`.env.example` 已记）；
+    bpm 裸 `gorm.Open` 补 `connpool.go` 护栏（database/sql 默认 MaxOpen 无上限）
+  - GORM 全线开 `PrepareStmt`（语句按连接预编译复用）；`SkipDefaultTransaction`
+    刻意不开——取消关联写入隐式事务属语义变更
+  - 角色码缓存补齐到 system/audit/file/monitor/auth（此前只有 identity 有，
+    这些服务的 super_admin 前置判定仍每请求查库）；`role_cache_test.go` 守卫随行
+  - 登录趋势由按天循环 2×COUNT 改整窗一条 GROUP BY；角色/菜单分配权限改批量
+    INSERT；operation_logs 列表 `Omit` 掉两个 4KB text 列；操作日志中间件
+    GET/HEAD 跳过请求体读取、脱敏挪到响应写出后
+  - Redis 增加 `maxmemory 512mb` + `volatile-lru` 护栏（JWT 黑名单等安全键无 TTL
+    不受驱逐；AOF 保留）
+
+- **一批前端性能同步**（2026-07-27 同步自主项目）：
+  - nginx 开启 gzip（此前产物全量原文传输，JS 体积为压缩后 3-4 倍）
+  - `@ant-design/icons` 并成单个长缓存 chunk（此前拆成数十个 1-3KB 碎片，
+    进管理台一次触发几十个请求）
+  - BPM 流程设计器改 `lazy()` 懒加载，定义列表路由包不再背整个设计器
+  - 租户套餐权限 Tree 传 `height` 启用虚拟滚动；角色授权弹窗权限全集模块级缓存
+  - 新增 `useVisibilityInterval`：后台标签页暂停轮询（monitor/server 接入）
+
 ### 新增
 
 - **代码生成器补齐到主项目当前形态**（同步自主项目，补此前遗漏的整代升级）。

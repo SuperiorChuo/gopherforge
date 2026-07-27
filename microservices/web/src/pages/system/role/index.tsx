@@ -12,6 +12,21 @@ import type { ColumnsType } from 'antd/es/table'
 import type { SystemRole, Permission } from '@/types'
 import * as RoleAPI from '@/api/system/role'
 import { getPermissionList } from '@/api/system/permission'
+
+// 权限全集是准静态数据（只随迁移/代码生成变化），模块级缓存一次拉取结果，
+// 反复开授权弹窗不再重拉 500 条；失败不缓存，下次重试（同 useUserNameMap 范式）。
+let permListCache: Promise<Permission[]> | null = null
+function fetchAllPermissions(): Promise<Permission[]> {
+  if (!permListCache) {
+    permListCache = getPermissionList({ page: 1, page_size: 500 })
+      .then((res) => res.list)
+      .catch((err) => {
+        permListCache = null
+        throw err
+      })
+  }
+  return permListCache
+}
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
@@ -123,11 +138,11 @@ export default function RolePage() {
     setPermRole(record)
     setPermFilter('')
     try {
-      const [permsRes, assignedIds] = await Promise.all([
-        getPermissionList({ page: 1, page_size: 500 }),
+      const [perms, assignedIds] = await Promise.all([
+        fetchAllPermissions(),
         RoleAPI.getRolePermissions(record.id),
       ])
-      setAllPerms(permsRes.list)
+      setAllPerms(perms)
       setSelectedPerms(assignedIds)
     } catch {
       message.error('加载权限失败')

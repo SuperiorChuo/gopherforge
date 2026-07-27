@@ -283,12 +283,15 @@ export default function TenantPackagePage() {
               <Button size="small" onClick={() => setCheckedCodes(allCodes)}>全选</Button>
               <Button size="small" onClick={() => setCheckedCodes([])}>清空</Button>
             </Space>
-            <div style={{ maxHeight: 320, overflow: 'auto', border: '1px solid rgba(148, 163, 184, 0.25)', borderRadius: 8, padding: 8 }}>
+            <div style={{ border: '1px solid rgba(148, 163, 184, 0.25)', borderRadius: 8, padding: 8 }}>
+              {/* height 触发 antd Tree 内置虚拟滚动；外层 maxHeight+overflow 只能裁视口，
+                  500 条权限仍会全部进 DOM 且 defaultExpandAll 全展开 */}
               <Tree
                 checkable
                 checkStrictly
                 selectable={false}
                 defaultExpandAll
+                height={320}
                 treeData={treeData}
                 checkedKeys={{ checked: checkedCodes, halfChecked: [] }}
                 onCheck={(keys) => {

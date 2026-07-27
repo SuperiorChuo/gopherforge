@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Button, Card, Drawer, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd'
 import {
   ApartmentOutlined,
@@ -25,7 +25,9 @@ import {
   suspendDefinition,
   type BpmDefinition,
 } from '@/api/bpm'
-import FlowDesigner from '@/pages/bpm/designer'
+// 设计器是全项目最大的页面组件，只在点「编辑流程」时才需要——静态引入会把
+// 它整个拖进定义列表的路由包，改懒加载让列表页轻装。
+const FlowDesigner = lazy(() => import('@/pages/bpm/designer'))
 import BpmStatsPanel from '@/components/BpmStatsPanel'
 import { useAppSelector } from '@/hooks/store'
 import TableToolbar from '@/components/TableToolbar'
@@ -257,11 +259,13 @@ export default function BpmDefinitionsPage() {
   if (design) {
     return (
       <div className="page-list bpm-definitions-page">
-        <FlowDesigner
-          definitionId={design.id}
-          readOnly={design.readOnly}
-          onBack={() => setDesign(null)}
-        />
+        <Suspense fallback={null}>
+          <FlowDesigner
+            definitionId={design.id}
+            readOnly={design.readOnly}
+            onBack={() => setDesign(null)}
+          />
+        </Suspense>
       </div>
     )
   }
