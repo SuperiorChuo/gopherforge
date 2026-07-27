@@ -75,7 +75,7 @@ func TestApplyOwnerScopeSQL(t *testing.T) {
 		{
 			name:     "department scope filters through user department subquery",
 			scope:    UserDataScope{Scope: DataScopeDepartment, DepartmentIDs: []uint{20, 21}},
-			wantSQL:  "SELECT * FROM \"files\" WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2))",
+			wantSQL:  "SELECT * FROM \"files\" WHERE user_id IN (SELECT id FROM users WHERE department_id IN ($1,$2))",
 			wantVars: []any{uint(20), uint(21)},
 		},
 		{
