@@ -300,7 +300,7 @@ func TestApplyOwnerScopeUsesCurrentQueryDBForDepartmentSubquery(t *testing.T) {
 		_ = sqlDB.Close()
 	})
 
-	mock.ExpectQuery("SELECT \\* FROM \"files\" WHERE user_id IN \\(SELECT `id` FROM `users` WHERE department_id IN \\(\\$\\d+,\\$\\d+\\)\\)").
+	mock.ExpectQuery("SELECT \\* FROM \"files\" WHERE user_id IN \\(SELECT id FROM users WHERE department_id IN \\(\\$\\d+,\\$\\d+\\)\\)").
 		WithArgs(uint(10), uint(11)).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 

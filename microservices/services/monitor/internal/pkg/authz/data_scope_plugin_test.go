@@ -43,7 +43,7 @@ func TestDataScopePluginScopesOwnerQueries(t *testing.T) {
 	var files []model.File
 	stmt := db.WithContext(ctx).Model(&model.File{}).Find(&files).Statement
 
-	assertDataScopeSQL(t, stmt, "SELECT * FROM \"files\" WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2))", []any{uint(20), uint(21)})
+	assertDataScopeSQL(t, stmt, "SELECT * FROM \"files\" WHERE user_id IN (SELECT id FROM users WHERE department_id IN ($1,$2))", []any{uint(20), uint(21)})
 }
 
 func TestDataScopePluginDisableDirectiveNoOps(t *testing.T) {
@@ -96,7 +96,7 @@ func TestDataScopePluginOwnerScopeSubqueryDoesNotReenterPlugin(t *testing.T) {
 	stmt := db.WithContext(ctx).Model(&model.File{}).Find(&files).Statement
 
 	gotSQL := stmt.SQL.String()
-	wantSQL := "SELECT * FROM \"files\" WHERE user_id IN (SELECT `id` FROM `users` WHERE department_id IN ($1,$2))"
+	wantSQL := "SELECT * FROM \"files\" WHERE user_id IN (SELECT id FROM users WHERE department_id IN ($1,$2))"
 	if gotSQL != wantSQL {
 		t.Fatalf("sql = %q, want %q", gotSQL, wantSQL)
 	}

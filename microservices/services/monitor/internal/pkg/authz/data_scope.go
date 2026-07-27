@@ -267,7 +267,7 @@ func ApplyOwnerScope(query *gorm.DB, scope UserDataScope, userColumn string) *go
 		if len(scope.DepartmentIDs) == 0 {
 			return query.Where("1 = 0")
 		}
-		return query.Where(userColumn+" IN (SELECT `id` FROM `users` WHERE department_id IN ?)", scope.DepartmentIDs)
+		return query.Where(userColumn+" IN (SELECT id FROM users WHERE department_id IN ?)", scope.DepartmentIDs)
 	case DataScopeSelf:
 		if scope.UserID == 0 {
 			return query.Where("1 = 0")
