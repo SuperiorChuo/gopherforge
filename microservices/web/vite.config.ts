@@ -28,6 +28,11 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             { name: 'geo-data', test: /src[\\/]assets[\\/](china-provinces|world-countries)\.json/, priority: 40 },
+            // 图标不分组时被自动拆成大量 1-3KB 碎片，进管理台一次触发几十个
+            // 请求；并成单块后是一个长缓存文件（gzip 后约 35KB）。取舍：登录页
+            // 原本只拉自己用的两三个图标碎片，现在也拉整块——但该块与
+            // MainLayout 空闲预取共享缓存，等于把预取提前。
+            { name: 'icons', test: /node_modules[\\/]@ant-design[\\/]icons/, priority: 20 },
           ],
         },
       },

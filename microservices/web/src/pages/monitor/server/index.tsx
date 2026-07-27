@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { Card, Descriptions, Spin, Row, Col, Button, Space, Skeleton, Tag, Tooltip } from 'antd'
 import {
   ReloadOutlined,
@@ -11,6 +11,7 @@ import {
 import { getServerInfo, getServicesHealth, type ServiceHealthRow } from '@/api/monitor'
 import { formatBytes } from '@/utils/format'
 import MonitorGaugeCard from '@/components/MonitorGaugeCard'
+import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
 
 export default function ServerMonitorPage() {
   const [data, setData] = useState<Record<string, unknown>>({})
@@ -30,11 +31,7 @@ export default function ServerMonitorPage() {
     }
   }, [])
 
-  useEffect(() => {
-    fetchData()
-    const timer = setInterval(fetchData, 10000)
-    return () => clearInterval(timer)
-  }, [fetchData])
+  useVisibilityInterval(fetchData, 10000)
 
   const cpu = data.cpu as Record<string, unknown> | undefined
   const mem = data.memory as Record<string, unknown> | undefined
@@ -156,11 +153,7 @@ function ServicesHealthCard() {
     }
   }, [])
 
-  useEffect(() => {
-    load()
-    const timer = setInterval(load, 10000)
-    return () => clearInterval(timer)
-  }, [load])
+  useVisibilityInterval(load, 10000)
 
   const allUp = rows.length > 0 && healthy === rows.length
   return (
