@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+### 文档
+
+- **交互式系统架构图**（2026-07-28 同步自主项目）：架构总览中英文页面新增
+  Archify 演示，覆盖 React Admin、Traefik、7 个 Go 基础服务、状态层、NATS
+  JetStream 与可观测组件，并提供主题切换、导览、链路追踪和全屏查看。
+
 ### 修复
 
 - **数据范围 SQL 的 MySQL 反引号**（2026-07-27 同步自主项目）：`ApplyOwnerScope`
@@ -53,7 +59,7 @@
     `microservices` 根（Dockerfile 要拷 web 与迁移目录下的接入文件），并补
     `.dockerignore` 控制上下文体积。
   - 新增多对多关系与字典绑定；文档站代码生成器页（中英）按新形态重写——旧文档
-    的「不写入仓库」「产物为 server/<module>/ 四文件」「不支持字典」等描述均已失实。
+    的「不写入仓库」「产物为 `server/<module>/` 四文件」「不支持字典」等描述均已失实。
 
 - **OAuth2 服务端 B② 收尾：per-client 限流与 JWT 形态 access token**（同步自主项目）。
   客户端两个新字段都有默认值，存量行为不变。
