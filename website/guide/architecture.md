@@ -1,6 +1,32 @@
+---
+aside: false
+---
+
+<script setup lang="ts">
+import { withBase } from 'vitepress'
+
+const architectureDemoUrl = withBase('/architecture/gopherforge-system-architecture.html')
+</script>
+
 # 架构总览
 
 GopherForge 采用**真微服务架构**：后端按域拆分为 7 个 Go 服务，另有 `shared` 公共库；前端单页应用，Traefik 网关统一入口与鉴权，全部经 Docker Compose 编排。
+
+## 交互式系统架构
+
+<div class="architecture-demo">
+  <iframe
+    class="architecture-demo__frame"
+    :src="architectureDemoUrl"
+    title="GopherForge 交互式系统架构图"
+    loading="eager"
+    sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"
+    allowfullscreen
+  />
+  <div class="architecture-demo__actions">
+    <a :href="architectureDemoUrl" target="_blank" rel="noopener noreferrer">在新页面全屏打开</a>
+  </div>
+</div>
 
 ## 服务清单
 
@@ -56,3 +82,55 @@ CI（GitHub Actions）对每个服务独立跑 `go test` + `go vet`，前端 lin
 - **OpenAPI 契约漂移检测**：路由改了但 `openapi.json` 没更新会红。
 - **迁移彩排**：migration-rehearsal 在干净库上预演全部迁移。
 - **集成冒烟**：全栈 compose 拉起后 API 冒烟 + Playwright E2E。
+
+<style scoped>
+.architecture-demo {
+  margin: 24px 0 40px;
+  overflow: hidden;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background: var(--vp-c-bg-soft);
+}
+
+.architecture-demo__frame {
+  display: block;
+  width: 100%;
+  height: min(74vh, 760px);
+  min-height: 620px;
+  border: 0;
+  color-scheme: light dark;
+}
+
+.architecture-demo__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 14px;
+  border-top: 1px solid var(--vp-c-divider);
+}
+
+.architecture-demo__actions a {
+  color: var(--vp-c-brand-1);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.architecture-demo__actions a:hover {
+  color: var(--vp-c-brand-2);
+}
+
+@media (max-width: 768px) {
+  .architecture-demo {
+    margin-right: -16px;
+    margin-left: -16px;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .architecture-demo__frame {
+    height: 580px;
+    min-height: 580px;
+  }
+}
+</style>

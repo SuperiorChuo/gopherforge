@@ -1,6 +1,32 @@
+---
+aside: false
+---
+
+<script setup lang="ts">
+import { withBase } from 'vitepress'
+
+const architectureDemoUrl = withBase('/architecture/gopherforge-system-architecture.html')
+</script>
+
 # Architecture
 
 GopherForge is a **real microservices architecture**: 7 Go services split by domain plus a shared library, an SPA frontend, a Traefik gateway as the single entry with unified auth, all orchestrated by Docker Compose.
+
+## Interactive system architecture
+
+<div class="architecture-demo">
+  <iframe
+    class="architecture-demo__frame"
+    :src="architectureDemoUrl"
+    title="GopherForge interactive system architecture"
+    loading="eager"
+    sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"
+    allowfullscreen
+  />
+  <div class="architecture-demo__actions">
+    <a :href="architectureDemoUrl" target="_blank" rel="noopener noreferrer">Open full screen</a>
+  </div>
+</div>
 
 ## Services
 
@@ -42,3 +68,55 @@ React 19 + TypeScript + Vite 8 + Ant Design 6, Redux Toolkit, Axios interceptors
 ## CI gates
 
 Per-service `go test` + `go vet`, frontend lint/build/audit, plus three distinctive gates: **OpenAPI contract drift detection**, **migration rehearsal** on a clean database, and a full-stack **smoke + Playwright E2E** job.
+
+<style scoped>
+.architecture-demo {
+  margin: 24px 0 40px;
+  overflow: hidden;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background: var(--vp-c-bg-soft);
+}
+
+.architecture-demo__frame {
+  display: block;
+  width: 100%;
+  height: min(74vh, 760px);
+  min-height: 620px;
+  border: 0;
+  color-scheme: light dark;
+}
+
+.architecture-demo__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 14px;
+  border-top: 1px solid var(--vp-c-divider);
+}
+
+.architecture-demo__actions a {
+  color: var(--vp-c-brand-1);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.architecture-demo__actions a:hover {
+  color: var(--vp-c-brand-2);
+}
+
+@media (max-width: 768px) {
+  .architecture-demo {
+    margin-right: -16px;
+    margin-left: -16px;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .architecture-demo__frame {
+    height: 580px;
+    min-height: 580px;
+  }
+}
+</style>
