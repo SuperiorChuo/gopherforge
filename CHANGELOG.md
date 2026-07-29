@@ -5,7 +5,33 @@
 
 ## [Unreleased]
 
+### 安全
+
+- **多租户隔离与无鉴权下载修复**（2026-07-29 同步自主项目）：部门树缓存键补租户
+  维度（原全局单键会跨租户串数据）；角色删除后按受影响用户失效角色码缓存；在线
+  用户按租户建索引且索引键补 TTL（volatile-lru 下原永不淘汰）；file `/uploads`
+  直链收口——对象 key 补 crypto/rand 随机段、访问改 HMAC-SHA256 签名 URL（新增
+  `UPLOAD_URL_SIGN_SECRET` / `UPLOAD_URL_SIGN_TTL_SECONDS`，留空回退 JWT_SECRET）；
+  tenant 兜底插件补注册 system/audit/file。**行为变更**：`/uploads` 裸直链一律
+  404，须经 API 下发的签名 URL 访问。
+
+### 性能
+
+- **会话鉴权缓存与请求路径收敛**（2026-07-29 同步自主项目）：console_session 改
+  Redis 缓存 + last_seen 写节流（命中后每请求 0 次 DB 查询，原 3 查 1 写）；
+  admin/super_admin 数据范围短路复用角色码缓存；monitor 操作日志批量写；identity
+  用户导出 keyset 分页流式 xlsx；system 字典去 N+1 加缓存；users/sms_logs 补列表
+  复合索引（迁移 000031）；前端轮询接后台标签页停表与可见性暂停。
+- **构建提速**（2026-07-29 同步自主项目）：7 个服务 Dockerfile 依赖层只拷
+  go.mod/go.sum + BuildKit cache mount，增量构建分钟级降到秒级；`ARG MAIN_SRC`
+  双源支持本机交叉编译产物直接打包（缺省行为不变）。
+
 ### 变更
+
+- **shared 下沉**（2026-07-29 同步自主项目）：monitor 删 5 个本地包改引
+  shared/pkg 并补回漂移丢失的错误码；bpm 删 metrics/jobbeat 副本改引 shared
+  （构建上下文随之拓宽为 services/）；服务间内部 HTTP 统一走
+  shared/pkg/internalhttp（连接池复用 + 5xx/429 退避重试）。
 
 - **系统管理菜单拆组**（2026-07-29 同步自主项目）：原 19 个子菜单全堆在「系统管理」
   下，拆为 系统管理（组织+权限）/ 消息中心 / 日志审计 / 系统工具 四个一级分组。
