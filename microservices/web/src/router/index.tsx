@@ -56,6 +56,10 @@ const routes: RouteObject[] = [
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: lazyLoad(() => import('@/pages/dashboard')) },
+      // 种子里子项是 /dashboard/index，只因 MainLayout 把「单子项容器」折叠成
+      // 容器路径才一直没暴露。管理员给该容器加第二个子菜单就不再折叠，菜单会
+      // 按子项真实路径跳转——没有这条路由就当场 404。
+      { path: 'dashboard/index', element: lazyLoad(() => import('@/pages/dashboard')) },
       { path: 'profile', element: lazyLoad(() => import('@/pages/profile')) },
 
       // System

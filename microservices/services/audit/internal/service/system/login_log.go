@@ -151,40 +151,51 @@ func (s *LoginLogService) GetFailedLoginCountContext(ctx context.Context, userna
 func parseUserAgent(ua string) (device, os, browser string) {
 	ua = strings.ToLower(ua)
 
-	if strings.Contains(ua, "mobile") || strings.Contains(ua, "android") || strings.Contains(ua, "iphone") {
-		device = "Mobile"
-	} else if strings.Contains(ua, "tablet") || strings.Contains(ua, "ipad") {
+	// 平板先判：真实 iPad 的 UA 里带 "Mobile/15E148"，先判 mobile 会把平板
+	// 全记成手机。
+	if strings.Contains(ua, "ipad") || strings.Contains(ua, "tablet") {
 		device = "Tablet"
+	} else if strings.Contains(ua, "mobile") || strings.Contains(ua, "android") || strings.Contains(ua, "iphone") {
+		device = "Mobile"
 	} else {
 		device = "Desktop"
 	}
 
+	// 移动端必须先判：iOS 的 UA 含 "like Mac OS X"，Android 的含 "Linux"，
+	// 桌面关键字在前会把手机全部吞成 macOS / Linux——iOS 与 Android 两个
+	// 分支此前永远不可达。
 	switch {
+	case strings.Contains(ua, "iphone") || strings.Contains(ua, "ipad") || strings.Contains(ua, "ipod"):
+		os = "iOS"
+	case strings.Contains(ua, "android"):
+		os = "Android"
 	case strings.Contains(ua, "windows"):
 		os = "Windows"
-	case strings.Contains(ua, "mac os"):
+	case strings.Contains(ua, "mac os") || strings.Contains(ua, "macos"):
 		os = "macOS"
 	case strings.Contains(ua, "linux"):
 		os = "Linux"
-	case strings.Contains(ua, "android"):
-		os = "Android"
-	case strings.Contains(ua, "iphone") || strings.Contains(ua, "ipad"):
-		os = "iOS"
 	default:
 		os = "Unknown"
 	}
 
+	// iOS 上所有浏览器都套 WebKit，UA 一律含 "safari"，靠各自前缀区分：
+	// Chrome=CriOS、Firefox=FxiOS、Edge=EdgiOS，都必须排在 safari 之前。
 	switch {
-	case strings.Contains(ua, "chrome") && !strings.Contains(ua, "edg"):
+	case strings.Contains(ua, "crios"):
 		browser = "Chrome"
-	case strings.Contains(ua, "firefox"):
+	case strings.Contains(ua, "fxios"):
 		browser = "Firefox"
-	case strings.Contains(ua, "safari") && !strings.Contains(ua, "chrome"):
-		browser = "Safari"
-	case strings.Contains(ua, "edg"):
+	case strings.Contains(ua, "edg"): // 覆盖桌面 Edg/ 与 iOS EdgiOS/
 		browser = "Edge"
 	case strings.Contains(ua, "opera") || strings.Contains(ua, "opr"):
 		browser = "Opera"
+	case strings.Contains(ua, "chrome"):
+		browser = "Chrome"
+	case strings.Contains(ua, "firefox"):
+		browser = "Firefox"
+	case strings.Contains(ua, "safari"):
+		browser = "Safari"
 	case strings.Contains(ua, "msie") || strings.Contains(ua, "trident"):
 		browser = "IE"
 	default:
