@@ -3,10 +3,10 @@ import {
   Table, Button, Space, Tag, Card, Input, Select, Form, DatePicker, Modal, InputNumber, Tooltip, Segmented, Skeleton,
 } from 'antd'
 import { message } from '@/utils/feedback'
-import { SearchOutlined, ReloadOutlined, ClearOutlined } from '@ant-design/icons'
+import { SearchOutlined, ReloadOutlined, ClearOutlined, DownloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { LoginLog } from '@/types'
-import { getLoginLogList, clearLoginLogs, getLoginStats, getLoginGeoDistribution, type LoginLogStats, type LoginGeoItem } from '@/api/system/log'
+import { getLoginLogList, clearLoginLogs, getLoginStats, getLoginGeoDistribution, exportLoginLogs, type LoginLogStats, type LoginGeoItem } from '@/api/system/log'
 import GeoMap, { type GeoMapPoint } from '@/components/GeoMap'
 import { resolveGeoPoint, resolveProvinceShort } from '@/utils/chinaGeo'
 import TableToolbar from '@/components/TableToolbar'
@@ -40,6 +40,7 @@ export default function LoginLogPage() {
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [clearOpen, setClearOpen] = useState(false)
   const [clearing, setClearing] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [stats, setStats] = useState<LoginLogStats | null>(null)
   const [geoDays, setGeoDays] = useState(7)
   const [geoData, setGeoData] = useState<LoginGeoItem[] | null>(null)
@@ -156,6 +157,20 @@ export default function LoginLogPage() {
   const handleReset = () => {
     searchForm.resetFields()
     setParams({ page: 1, page_size: 10 })
+  }
+
+  // 导出走当前筛选条件（不带分页），与页面所见一致；后端封顶 1 万行
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const { page: _page, page_size: _pageSize, ...filters } = params
+      await exportLoginLogs(filters)
+      message.success('导出已开始，请查看浏览器下载')
+    } catch {
+      message.error('导出失败')
+    } finally {
+      setExporting(false)
+    }
   }
 
   const handleClear = async () => {
@@ -339,6 +354,11 @@ export default function LoginLogPage() {
           total={total}
           extra={
             <Space wrap>
+              {hasPerm('system:log:login') && (
+                <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
+                  导出 CSV
+                </Button>
+              )}
               {hasPerm('system:log:login') && (
                 <Button
                   danger

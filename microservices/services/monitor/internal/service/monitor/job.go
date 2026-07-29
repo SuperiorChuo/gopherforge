@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -24,7 +25,81 @@ const (
 var (
 	ErrInvalidCronExpression = errors.New("invalid cron expression")
 	ErrInvalidRetentionDays  = errors.New("retention_days must be greater than 0")
+	ErrUnknownInvokeTarget   = errors.New("unknown invoke target")
 )
+
+// JobTarget describes a built-in schedulable target for the console dropdown.
+type JobTarget struct {
+	Target      string `json:"target"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+// jobTargetHandler runs a built-in target and returns the execution-log message.
+type jobTargetHandler func(context.Context, *JobService) (string, error)
+
+// jobTargets is the single source of truth for schedulable targets: both the
+// executor's dispatch and the console dropdown read it. Dispatch used to be a
+// hardcoded switch while the console offered a free-text field, with nothing
+// tying them together — an unknown target persisted fine and only surfaced as
+// "unknown target" in the execution log on the next trigger.
+var jobTargets = map[string]struct {
+	meta    JobTarget
+	execute jobTargetHandler
+}{
+	"CleanExpiredLogs": {
+		// Title/Description stay English here: this package is guarded by
+		// TestMonitorServiceUsesEnglishSourceText. The console maps these
+		// target ids to localized labels and falls back to the id.
+		meta: JobTarget{
+			Target:      "CleanExpiredLogs",
+			Title:       "Clean expired job logs",
+			Description: fmt.Sprintf("Delete scheduled-job execution logs older than %d days", DefaultJobLogRetentionDays),
+		},
+		execute: func(ctx context.Context, s *JobService) (string, error) {
+			result, err := s.CleanupJobLogsContext(ctx, DefaultJobLogRetentionDays)
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("deleted %d job logs before %s", result.DeletedRows, result.CutoffTime.Format(time.RFC3339)), nil
+		},
+	},
+	"HealthCheck": {
+		meta: JobTarget{
+			Target:      "HealthCheck",
+			Title:       "Scheduler health check",
+			Description: fmt.Sprintf("Summarize job runs and failures over the last %d hours", DefaultJobHealthWindowHours),
+		},
+		execute: func(ctx context.Context, s *JobService) (string, error) {
+			health, err := s.CheckJobHealthContext(ctx, DefaultJobHealthWindowHours)
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("total=%d enabled=%d paused=%d recent_failed=%d abnormal=%d",
+				health.Total, health.Enabled, health.Paused, health.RecentFailed, len(health.AbnormalJobs)), nil
+		},
+	},
+}
+
+// ListJobTargets returns the built-in targets sorted by id, for the console
+// dropdown.
+func ListJobTargets() []JobTarget {
+	targets := make([]JobTarget, 0, len(jobTargets))
+	for _, entry := range jobTargets {
+		targets = append(targets, entry.meta)
+	}
+	sort.Slice(targets, func(i, j int) bool { return targets[i].Target < targets[j].Target })
+	return targets
+}
+
+// validateInvokeTarget rejects unknown targets at write time instead of
+// letting them fail silently on the next trigger.
+func validateInvokeTarget(target string) error {
+	if _, ok := jobTargets[strings.TrimSpace(target)]; !ok {
+		return fmt.Errorf("%w: %s", ErrUnknownInvokeTarget, target)
+	}
+	return nil
+}
 
 var jobCronParser = cron.NewParser(
 	cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor,
@@ -44,6 +119,7 @@ type jobDAO interface {
 	CountFailedJobLogsSinceContext(ctx context.Context, since time.Time) (int64, error)
 	GetLatestJobRunTimeContext(ctx context.Context) (*time.Time, error)
 	GetLatestJobLogContext(ctx context.Context, jobID uint) (*model.ScheduledJobLog, error)
+	GetJobLogListContext(ctx context.Context, req pagination.PageRequest, jobID uint, success *int8) ([]model.ScheduledJobLog, int64, error)
 }
 
 type JobService struct {
@@ -222,24 +298,19 @@ func (s *JobService) runTaskContext(ctx context.Context, job model.ScheduledJob)
 
 // executeTaskContext executes a specific job target.
 func (s *JobService) executeTaskContext(ctx context.Context, target string) (string, error) {
-	// Dispatch the built-in job targets.
-	switch target {
-	case "CleanExpiredLogs":
-		result, err := s.CleanupJobLogsContext(ctx, DefaultJobLogRetentionDays)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("deleted %d job logs before %s", result.DeletedRows, result.CutoffTime.Format(time.RFC3339)), nil
-	case "HealthCheck":
-		health, err := s.CheckJobHealthContext(ctx, DefaultJobHealthWindowHours)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("total=%d enabled=%d paused=%d recent_failed=%d abnormal=%d",
-			health.Total, health.Enabled, health.Paused, health.RecentFailed, len(health.AbnormalJobs)), nil
-	default:
-		return "", fmt.Errorf("unknown target: %s", target)
+	entry, ok := jobTargets[strings.TrimSpace(target)]
+	if !ok {
+		// Rows predating the write-time check may still hold an unlisted
+		// target; report it into the execution log rather than skipping.
+		return "", fmt.Errorf("%w: %s", ErrUnknownInvokeTarget, target)
 	}
+	return entry.execute(ctx, s)
+}
+
+// GetJobLogListContext pages through scheduled-job execution logs. jobID=0
+// means no job filter; a nil success means no status filter.
+func (s *JobService) GetJobLogListContext(ctx context.Context, req pagination.PageRequest, jobID uint, success *int8) ([]model.ScheduledJobLog, int64, error) {
+	return s.dao.GetJobLogListContext(ctx, req, jobID, success)
 }
 
 func (s *JobService) CleanupJobLogsContext(ctx context.Context, retentionDays int) (*JobLogCleanupResult, error) {
@@ -368,6 +439,9 @@ func (s *JobService) CreateJobContext(ctx context.Context, job *model.ScheduledJ
 	if err := validateCronExpression(job.CronExpression); err != nil {
 		return err
 	}
+	if err := validateInvokeTarget(job.InvokeTarget); err != nil {
+		return err
+	}
 
 	if err := s.dao.CreateJobContext(ctx, job); err != nil {
 		return err
@@ -390,6 +464,9 @@ func (s *JobService) UpdateJobContext(ctx context.Context, job *model.ScheduledJ
 
 	// Validate the cron expression.
 	if err := validateCronExpression(job.CronExpression); err != nil {
+		return err
+	}
+	if err := validateInvokeTarget(job.InvokeTarget); err != nil {
 		return err
 	}
 

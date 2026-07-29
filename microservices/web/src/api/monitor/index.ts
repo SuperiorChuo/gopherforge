@@ -83,3 +83,37 @@ export const runJob = (id: number) =>
 
 export const cleanupJobLogs = (retention_days: number) =>
   request.post<unknown, { deleted_rows: number }>('/api/v1/monitor/job-logs/cleanup', { retention_days })
+
+// 可调度的内置目标。后端与执行分发共用同一张表，所以下拉里出现的目标一定
+// 跑得起来；title/description 是英文（monitor 服务源码强制英文），中文标签
+// 由下面的 JOB_TARGET_LABELS 兜，缺映射时回落显示 target 本身。
+export interface JobTarget {
+  target: string
+  title: string
+  description: string
+}
+
+export const getJobTargets = () =>
+  request.get<unknown, { list: JobTarget[] }>('/api/v1/monitor/jobs/targets')
+
+export const JOB_TARGET_LABELS: Record<string, { label: string; hint: string }> = {
+  CleanExpiredLogs: { label: '清理过期任务日志', hint: '删除 30 天前的调度执行日志' },
+  HealthCheck: { label: '调度健康巡检', hint: '统计近 24 小时的任务运行与失败情况' },
+}
+
+export interface ScheduledJobLog {
+  id: number
+  job_id: number
+  job_name: string
+  // 1=成功 0=失败
+  status: number
+  message: string
+  // 毫秒
+  duration: number
+  created_at: string
+}
+
+type JobLogListParams = PageRequest & { job_id?: number; status?: number }
+
+export const getJobLogList = (params: JobLogListParams) =>
+  request.get<unknown, PageResponse<ScheduledJobLog>>('/api/v1/monitor/job-logs', { params })
