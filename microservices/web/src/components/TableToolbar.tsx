@@ -3,7 +3,9 @@ import {
   UserOutlined, TeamOutlined, SafetyOutlined, MenuOutlined, ApartmentOutlined,
   DatabaseOutlined, FileOutlined, NotificationOutlined, LoginOutlined,
   FileTextOutlined, AuditOutlined, WifiOutlined, ScheduleOutlined, BarsOutlined,
-  ClusterOutlined, IdcardOutlined,
+  ClusterOutlined, IdcardOutlined, AppstoreOutlined, WarningOutlined,
+  SafetyCertificateOutlined, KeyOutlined, MessageOutlined, FileDoneOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons'
 
 interface ToolbarPreset {
@@ -111,6 +113,48 @@ const PRESETS: Record<string, ToolbarPreset> = {
     gradient: 'linear-gradient(135deg, #fb7185, #e11d48)',
     glow: 'rgba(225, 29, 72, 0.4)',
     description: '多租户隔离、套餐与用户配额',
+  },
+  租户套餐: {
+    icon: <AppstoreOutlined />,
+    gradient: 'linear-gradient(135deg, #c084fc, #9333ea)',
+    glow: 'rgba(147, 51, 234, 0.4)',
+    description: '菜单权限、资源配额与租户能力组合',
+  },
+  错误码: {
+    icon: <WarningOutlined />,
+    gradient: 'linear-gradient(135deg, #fbbf24, #b45309)',
+    glow: 'rgba(180, 83, 9, 0.4)',
+    description: '业务异常编码、来源与提示文案',
+  },
+  'OAuth2 应用': {
+    icon: <SafetyCertificateOutlined />,
+    gradient: 'linear-gradient(135deg, #60a5fa, #2563eb)',
+    glow: 'rgba(37, 99, 235, 0.4)',
+    description: '客户端凭证、授权方式与回调地址',
+  },
+  已签发令牌: {
+    icon: <KeyOutlined />,
+    gradient: 'linear-gradient(135deg, #34d399, #047857)',
+    glow: 'rgba(4, 120, 87, 0.4)',
+    description: '访问令牌有效期、授权范围与吊销状态',
+  },
+  短信渠道: {
+    icon: <MessageOutlined />,
+    gradient: 'linear-gradient(135deg, #22d3ee, #0e7490)',
+    glow: 'rgba(14, 116, 144, 0.4)',
+    description: '短信服务商接入、签名与启停管理',
+  },
+  短信模板: {
+    icon: <FileDoneOutlined />,
+    gradient: 'linear-gradient(135deg, #a78bfa, #7e22ce)',
+    glow: 'rgba(126, 34, 206, 0.4)',
+    description: '验证码、通知与营销短信内容',
+  },
+  发送日志: {
+    icon: <HistoryOutlined />,
+    gradient: 'linear-gradient(135deg, #94a3b8, #475569)',
+    glow: 'rgba(71, 85, 105, 0.35)',
+    description: '发送结果、失败原因与通道回执',
   },
 }
 
