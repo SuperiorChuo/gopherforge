@@ -24,8 +24,8 @@ services:
   # PG 未就绪时等待重试，真实迁移错误在重试耗尽后以非零码失败。
   migrate:
     build:
-      context: ./services/monitor
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: monitor/Dockerfile
     image: ${IMAGE_PREFIX:-go-admin-kit}-monitor-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-migrate
     restart: "no"
@@ -43,8 +43,8 @@ services:
 
   monitor-service:
     build:
-      context: ./services/monitor
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: monitor/Dockerfile
     image: ${IMAGE_PREFIX:-go-admin-kit}-monitor-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-monitor
     restart: unless-stopped
@@ -418,8 +418,8 @@ services:
   # 终态经 HTTP 回调业务方（BPM_CALLBACK_<BIZTYPE> 注册，脚手架默认无回调目标）。
   bpm-service:
     build:
-      context: ./services/bpm
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: bpm/Dockerfile
     image: ${IMAGE_PREFIX:-go-admin-kit}-bpm-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-bpm
     restart: unless-stopped
@@ -467,6 +467,14 @@ services:
     image: ${IMAGE_PREFIX:-go-admin-kit}-frontend:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-frontend
     restart: unless-stopped
+    # 全栈唯一无探针的服务：nginx 配置写坏也能"起来就接流量"，补上探针
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -qO- http://127.0.0.1:80/ >/dev/null || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 6
     ports:
       - "${FRONTEND_PORT:-3000}:80"
     labels:

@@ -1,21 +1,30 @@
 # Build system-service with Go 1.26.
+# fast-deploy 快路径：--build-arg MAIN_SRC=prebuilt 时产物直接取本机交叉编译的 .bin/main，
+# BuildKit 只构建被引用的阶段，容器内编译（builder）整段跳过；缺省仍在容器内编译。
+ARG MAIN_SRC=builder
 FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
 ENV GOPROXY=https://goproxy.cn,direct
 ENV GOSUMDB=sum.golang.google.cn
 
-# 构建上下文是 microservices：shared 拷到 /shared，命中 go.mod 的 replace ../shared（/app/../shared）
-COPY services/shared/ /shared/
+# 构建上下文是 microservices：shared 拷到 /shared，命中 go.mod 的 replace ../shared（/app/../shared）。
+# 依赖下载层只拷两侧 go.mod/go.sum，改源码不打穿模块缓存；模块与编译缓存挂 BuildKit cache mount 做增量。
+COPY services/shared/go.mod services/shared/go.sum /shared/
 COPY services/system/go.mod services/system/go.sum ./
 
-RUN go mod download && go mod tidy
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
+COPY services/shared/ /shared/
 COPY services/system/ .
 
-RUN go build -trimpath -o main ./cmd/main.go
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -trimpath -o main ./cmd/main.go
 
 # 预检与 ZIP 只需要这些接入源文件；快照在构建时固化，不挂载宿主仓库。
+# 独立成阶段（不放 builder 里）：prebuilt 快路径也要快照，但不该为它触发容器内编译。
+FROM alpine:3.20 AS snapshot
 COPY services/system/internal/api/routes.go /repository-snapshot/microservices/services/system/internal/api/routes.go
 COPY web/src/router/index.tsx /repository-snapshot/microservices/web/src/router/index.tsx
 COPY web/src/layouts/MainLayout.tsx /repository-snapshot/microservices/web/src/layouts/MainLayout.tsx
@@ -24,6 +33,11 @@ COPY services/monitor/migrations/ /repository-snapshot/microservices/services/mo
 
 # Run the system-service on a pinned Alpine image as an unprivileged user.
 # Configuration is environment-only; migrations are owned by the monolith.
+FROM alpine:3.20 AS prebuilt
+COPY services/system/.bin/main /app/main
+
+FROM ${MAIN_SRC} AS main-src
+
 FROM alpine:3.20
 
 WORKDIR /app
@@ -33,8 +47,8 @@ WORKDIR /app
 RUN apk add --no-cache tzdata \
     && addgroup -S app && adduser -S app -G app && mkdir -p ./logs && chown -R app:app /app
 
-COPY --from=builder --chown=app:app /app/main .
-COPY --from=builder /repository-snapshot /app/repository-snapshot
+COPY --from=main-src --chown=app:app /app/main .
+COPY --from=snapshot /repository-snapshot /app/repository-snapshot
 
 ENV CODEGEN_REPO_ROOT=/app/repository-snapshot \
     CODEGEN_WRITE_ENABLED=false
