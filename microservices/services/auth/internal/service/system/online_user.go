@@ -350,34 +350,44 @@ func (s *OnlineUserService) redisClient() OnlineUserRedisClient {
 func ParseUserAgent(userAgent string) (browser, os string) {
 	ua := strings.ToLower(userAgent)
 
+	// iOS 上所有浏览器都套 WebKit，UA 一律含 "safari"，靠各自前缀区分：
+	// Chrome=CriOS、Firefox=FxiOS、Edge=EdgiOS，都必须排在 safari 之前。
+	// 另注意现代 Edge 的标记是 "Edg/" 而非 "edge"——按 "edge" 匹配会让
+	// Edge 全部落进 Chrome 分支。
 	switch {
-	case strings.Contains(ua, "chrome") && !strings.Contains(ua, "edge"):
+	case strings.Contains(ua, "crios"):
 		browser = "Chrome"
-	case strings.Contains(ua, "firefox"):
+	case strings.Contains(ua, "fxios"):
 		browser = "Firefox"
-	case strings.Contains(ua, "safari") && !strings.Contains(ua, "chrome"):
-		browser = "Safari"
-	case strings.Contains(ua, "edge"):
+	case strings.Contains(ua, "edg"): // 覆盖桌面 Edg/ 与 iOS EdgiOS/
 		browser = "Edge"
 	case strings.Contains(ua, "opera") || strings.Contains(ua, "opr"):
 		browser = "Opera"
+	case strings.Contains(ua, "chrome"):
+		browser = "Chrome"
+	case strings.Contains(ua, "firefox"):
+		browser = "Firefox"
+	case strings.Contains(ua, "safari"):
+		browser = "Safari"
 	case strings.Contains(ua, "msie") || strings.Contains(ua, "trident"):
 		browser = "IE"
 	default:
 		browser = "Unknown Browser"
 	}
 
+	// 移动端必须先判：iOS 的 UA 含 "like Mac OS X"，Android 的含 "Linux"，
+	// 桌面关键字在前会把手机全部吞成 macOS / Linux。
 	switch {
+	case strings.Contains(ua, "iphone") || strings.Contains(ua, "ipad") || strings.Contains(ua, "ipod"):
+		os = "iOS"
+	case strings.Contains(ua, "android"):
+		os = "Android"
 	case strings.Contains(ua, "windows"):
 		os = "Windows"
 	case strings.Contains(ua, "mac os") || strings.Contains(ua, "macos"):
 		os = "macOS"
 	case strings.Contains(ua, "linux"):
 		os = "Linux"
-	case strings.Contains(ua, "android"):
-		os = "Android"
-	case strings.Contains(ua, "iphone") || strings.Contains(ua, "ipad"):
-		os = "iOS"
 	default:
 		os = "Unknown OS"
 	}
