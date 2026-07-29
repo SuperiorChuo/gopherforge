@@ -160,7 +160,7 @@ export default function LoginPage() {
           tenant_code: values.tenant_code?.trim() || undefined,
         }),
       ).unwrap()
-      if (result.require_totp && result.totp_challenge_id) {
+      if (result.requires_totp && result.totp_challenge_id) {
         setChallengeId(result.totp_challenge_id)
         setTotpStep(true)
         totpForm.resetFields()

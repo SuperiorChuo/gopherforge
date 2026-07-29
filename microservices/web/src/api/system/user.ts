@@ -11,9 +11,16 @@ export const getUserList = (params: UserListParams) =>
 export const createUser = (data: UserCreateData) =>
   request.post<unknown, SystemUser>('/api/v1/users', data)
 
-// 后端支持更新 nickname/email/phone/avatar/post_ids；状态用 updateUserStatus，角色用 assignUserRoles
+// 后端支持更新 nickname/email/phone/avatar/post_ids/department_id（0=移出部门）；
+// 状态用 updateUserStatus，角色用 assignUserRoles
 export const updateUser = (id: number, data: UserUpdateData) =>
   request.put<unknown, SystemUser>(`/api/v1/users/${id}`, data)
+
+/** 管理员重置密码：后端会吊销该用户全部会话并强制其下次登录改密 */
+// 管理员重置他人密码。must_change 缺省为 true：管理员设的密码是临时凭据，
+// 强制下次登录改密是安全默认；重置会吊销该用户所有在线会话。
+export const resetUserPassword = (id: number, password: string, must_change = true) =>
+  request.put<unknown, void>(`/api/v1/users/${id}/password`, { password, must_change })
 
 export const deleteUser = (id: number) =>
   request.delete<unknown, void>(`/api/v1/users/${id}`)

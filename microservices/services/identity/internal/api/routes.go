@@ -70,6 +70,8 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		protected.PUT("/users/:id", middleware.PermissionMiddleware("system:user:update"), userMgmtAPI.UpdateUser)
 		protected.DELETE("/users/:id", middleware.PermissionMiddleware("system:user:delete"), userMgmtAPI.DeleteUser)
 		protected.PUT("/users/:id/status", middleware.PermissionMiddleware("system:user:update"), userMgmtAPI.UpdateUserStatus)
+		// 管理员重置密码复用更新权限；service 层会吊销该用户全部会话
+		protected.PUT("/users/:id/password", middleware.PermissionMiddleware("system:user:update"), userMgmtAPI.ResetUserPassword)
 		protected.POST("/users/:id/roles", middleware.PermissionMiddleware("system:user:update"), userMgmtAPI.AssignRoles)
 
 		protected.GET("/roles", middleware.PermissionMiddleware("system:role:list"), roleMgmtAPI.GetRoleList)
