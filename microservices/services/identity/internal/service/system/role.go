@@ -164,11 +164,23 @@ func (s *RoleService) DeleteRoleContext(ctx context.Context, id uint) error {
 		return err
 	}
 
-	if err := InvalidatePermissionCacheByRolesContext(ctx, s.permissionCacheDAO, id); err != nil {
+	// 受影响用户必须在删除前解析：DeleteRoleContext 在同一事务里清掉 user_roles，
+	// 删除后再反查只会得到空集。而失效必须在删除后执行，否则两者之间的并发请求
+	// 会因角色仍在库里而回源成功，把旧权限集重新写回缓存并续满 TTL。
+	var store PermissionCacheStore = s.permissionCacheDAO
+	if s.permissionCacheDAO == nil {
+		store = &systemdao.PermissionCacheDAO{}
+	}
+	userIDs, err := store.FindUserIDsByRoleIDsContext(ctx, []uint{id})
+	if err != nil {
 		return err
 	}
 
-	return s.roleDAO.DeleteRoleContext(ctx, id)
+	if err := s.roleDAO.DeleteRoleContext(ctx, id); err != nil {
+		return err
+	}
+
+	return InvalidatePermissionCacheForUsersContext(ctx, userIDs...)
 }
 
 func (s *RoleService) AssignPermissionsContext(ctx context.Context, roleID uint, req AssignPermissionsRequest) error {

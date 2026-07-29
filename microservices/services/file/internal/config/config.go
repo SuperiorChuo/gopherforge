@@ -165,6 +165,10 @@ type UploadConfig struct {
 	MaxSize       int // MB
 	AllowedTypes  []string
 	Image         ImageConfig
+	// URLSignSecret signs /uploads URLs (HMAC). Empty falls back to JWT.Secret.
+	URLSignSecret string
+	// URLSignTTLSeconds bounds how long a signed /uploads URL stays valid.
+	URLSignTTLSeconds int
 }
 
 type LocalStorageConfig struct {
@@ -313,7 +317,8 @@ func Defaults() Config {
 				SecretKey: "minioadmin",
 				UseSSL:    false,
 			},
-			MaxSize: 10,
+			MaxSize:           10,
+			URLSignTTLSeconds: 900,
 			AllowedTypes: []string{
 				".jpg", ".jpeg", ".png", ".gif", ".webp",
 				".pdf", ".doc", ".docx", ".xls", ".xlsx",
@@ -422,6 +427,8 @@ func applyEnv(config *Config) {
 	config.Upload.MinIO.SecretKey = getEnvString("UPLOAD_MINIO_SECRET_KEY", config.Upload.MinIO.SecretKey)
 	config.Upload.MinIO.UseSSL = getEnvBool("UPLOAD_MINIO_USE_SSL", config.Upload.MinIO.UseSSL)
 	config.Upload.MinIO.BucketLookup = getEnvString("UPLOAD_MINIO_BUCKET_LOOKUP", config.Upload.MinIO.BucketLookup)
+	config.Upload.URLSignSecret = getEnvString("UPLOAD_URL_SIGN_SECRET", config.Upload.URLSignSecret)
+	config.Upload.URLSignTTLSeconds = getEnvInt("UPLOAD_URL_SIGN_TTL_SECONDS", config.Upload.URLSignTTLSeconds)
 }
 
 func validate(cfg Config) error {

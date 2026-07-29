@@ -31,7 +31,6 @@ type AuditLogListQuery struct {
 	Action     string
 	TargetType string
 	TargetID   string
-	View       string
 	Keyword    string
 	SortBy     string
 	SortOrder  string
@@ -89,7 +88,7 @@ func (d *AuditLogDAO) ListLogsContext(ctx context.Context, req AuditLogListQuery
 		tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.AuditLog{}), ctx),
 		req,
 	)
-	listQuery := applyAuditViewFilter(baseQuery.Session(&gorm.Session{}), req.View)
+	listQuery := baseQuery.Session(&gorm.Session{})
 
 	if err := listQuery.Count(&result.Pagination.Total).Error; err != nil {
 		return result, err
@@ -110,7 +109,11 @@ func (d *AuditLogDAO) ListLogsContext(ctx context.Context, req AuditLogListQuery
 		return result, err
 	}
 
-	summary, err := d.BuildSummary(baseQuery.Session(&gorm.Session{}))
+	// The list and the summary count the same filtered set, so the count above is
+	// reused instead of issuing a second, byte-identical COUNT over the tenant's
+	// whole audit_logs table. Should the list ever gain a filter the summary does
+	// not share, BuildSummary must go back to counting for itself.
+	summary, err := d.BuildSummary(baseQuery.Session(&gorm.Session{}), result.Pagination.Total)
 	if err != nil {
 		return result, err
 	}
@@ -132,11 +135,8 @@ func (d *AuditLogDAO) ListLogsContext(ctx context.Context, req AuditLogListQuery
 	return result, nil
 }
 
-func (d *AuditLogDAO) BuildSummary(baseQuery *gorm.DB) (AuditLogSummary, error) {
-	var summary AuditLogSummary
-	if err := baseQuery.Session(&gorm.Session{}).Count(&summary.TotalLogs).Error; err != nil {
-		return summary, err
-	}
+func (d *AuditLogDAO) BuildSummary(baseQuery *gorm.DB, totalLogs int64) (AuditLogSummary, error) {
+	summary := AuditLogSummary{TotalLogs: totalLogs}
 
 	var err error
 	if summary.DistinctActions, err = countAuditDistinct(baseQuery.Session(&gorm.Session{}), "action"); err != nil {
@@ -195,10 +195,6 @@ func applyAuditBaseFilters(query *gorm.DB, req AuditLogListQuery) *gorm.DB {
 			pattern,
 		)
 	}
-	return query
-}
-
-func applyAuditViewFilter(query *gorm.DB, view string) *gorm.DB {
 	return query
 }
 

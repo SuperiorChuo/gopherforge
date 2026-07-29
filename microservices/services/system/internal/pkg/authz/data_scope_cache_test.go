@@ -16,6 +16,7 @@ import (
 	"github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/system/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
+	"github.com/go-admin-kit/services/system/internal/pkg/tenant"
 	goredis "github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -70,7 +71,7 @@ func TestInvalidateDepartmentTreeCacheRemovesCachedTree(t *testing.T) {
 	setupAuthzCacheTestRedis(t)
 
 	ctx := context.Background()
-	if err := redisstore.Client.Set(ctx, departmentTreeCacheKey, "[]", 0).Err(); err != nil {
+	if err := redisstore.Client.Set(ctx, departmentTreeCacheKey(0), "[]", 0).Err(); err != nil {
 		t.Fatalf("seed department tree cache: %v", err)
 	}
 
@@ -78,8 +79,51 @@ func TestInvalidateDepartmentTreeCacheRemovesCachedTree(t *testing.T) {
 		t.Fatalf("invalidate department tree cache: %v", err)
 	}
 
-	if redisstore.Client.Exists(ctx, departmentTreeCacheKey).Val() != 0 {
+	if redisstore.Client.Exists(ctx, departmentTreeCacheKey(0)).Val() != 0 {
 		t.Fatal("department tree cache should be removed")
+	}
+}
+
+// Guards the multi-tenant isolation of the department tree cache. The cached rows
+// come from a tenant-filtered query, so sharing one key across tenants lets the
+// first tenant to populate it dictate every other tenant's department scope —
+// silently widening or narrowing data permissions.
+func TestDepartmentTreeCacheIsolatesTenants(t *testing.T) {
+	setupAuthzCacheTestRedis(t)
+
+	cache := &layeredDepartmentTreeCache{localTTL: time.Minute}
+	ctxA := tenant.WithContext(context.Background(), 1)
+	ctxB := tenant.WithContext(context.Background(), 2)
+
+	if err := cache.SetDepartmentTree(ctxA, []model.Department{{ID: 10}, {ID: 11, ParentID: 10}}); err != nil {
+		t.Fatalf("SetDepartmentTree(tenant 1): %v", err)
+	}
+
+	if _, ok := cache.GetDepartmentTree(ctxB); ok {
+		t.Fatal("tenant 2 must not read tenant 1's cached department tree")
+	}
+
+	if err := cache.SetDepartmentTree(ctxB, []model.Department{{ID: 90}}); err != nil {
+		t.Fatalf("SetDepartmentTree(tenant 2): %v", err)
+	}
+
+	got, ok := cache.GetDepartmentTree(ctxA)
+	if !ok {
+		t.Fatal("tenant 1 lost its cached tree after tenant 2 wrote")
+	}
+	if len(got) != 2 || got[0].ID != 10 || got[1].ID != 11 {
+		t.Fatalf("tenant 1 tree = %#v, want the two rows it stored", got)
+	}
+
+	// Invalidating one tenant must not evict another's entry.
+	if err := cache.InvalidateDepartmentTree(ctxA); err != nil {
+		t.Fatalf("InvalidateDepartmentTree(tenant 1): %v", err)
+	}
+	if _, ok := cache.GetDepartmentTree(ctxA); ok {
+		t.Fatal("tenant 1 cache should be gone after invalidation")
+	}
+	if _, ok := cache.GetDepartmentTree(ctxB); !ok {
+		t.Fatal("tenant 2 cache must survive tenant 1's invalidation")
 	}
 }
 
@@ -125,10 +169,10 @@ func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenDeleteFails(t *
 	if !ok {
 		t.Fatal("expected layeredDepartmentTreeCache")
 	}
-	cache.setLocalRows([]departmentTreeCacheRow{{ID: 10}, {ID: 11, ParentID: 10}})
+	cache.setLocalRows(0, []departmentTreeCacheRow{{ID: 10}, {ID: 11, ParentID: 10}})
 
 	ctx := context.Background()
-	if err := redisstore.Client.Set(ctx, departmentTreeCacheKey, "[]", time.Hour).Err(); err != nil {
+	if err := redisstore.Client.Set(ctx, departmentTreeCacheKey(0), "[]", time.Hour).Err(); err != nil {
 		t.Fatalf("seed department tree cache: %v", err)
 	}
 
@@ -139,10 +183,10 @@ func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenDeleteFails(t *
 	if !errors.Is(err, injectedErr) {
 		t.Fatalf("InvalidateDepartmentTreeCacheContext() error = %v, want injected error", err)
 	}
-	if _, cached := cache.getLocalRows(); cached {
+	if _, cached := cache.getLocalRows(0); cached {
 		t.Fatal("local department tree cache should be cleared on delete failure")
 	}
-	if redisstore.Client.Exists(ctx, departmentTreeCacheKey).Val() != 1 {
+	if redisstore.Client.Exists(ctx, departmentTreeCacheKey(0)).Val() != 1 {
 		t.Fatal("remote department tree cache should remain when delete fails")
 	}
 }
@@ -154,10 +198,10 @@ func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenPublishFails(t 
 	if !ok {
 		t.Fatal("expected layeredDepartmentTreeCache")
 	}
-	cache.setLocalRows([]departmentTreeCacheRow{{ID: 10}, {ID: 11, ParentID: 10}})
+	cache.setLocalRows(0, []departmentTreeCacheRow{{ID: 10}, {ID: 11, ParentID: 10}})
 
 	ctx := context.Background()
-	if err := redisstore.Client.Set(ctx, departmentTreeCacheKey, "[]", time.Hour).Err(); err != nil {
+	if err := redisstore.Client.Set(ctx, departmentTreeCacheKey(0), "[]", time.Hour).Err(); err != nil {
 		t.Fatalf("seed department tree cache: %v", err)
 	}
 
@@ -168,10 +212,10 @@ func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenPublishFails(t 
 	if !errors.Is(err, injectedErr) {
 		t.Fatalf("InvalidateDepartmentTreeCacheContext() error = %v, want injected error", err)
 	}
-	if _, cached := cache.getLocalRows(); cached {
+	if _, cached := cache.getLocalRows(0); cached {
 		t.Fatal("local department tree cache should be cleared on publish failure")
 	}
-	if redisstore.Client.Exists(ctx, departmentTreeCacheKey).Val() != 0 {
+	if redisstore.Client.Exists(ctx, departmentTreeCacheKey(0)).Val() != 0 {
 		t.Fatal("remote department tree cache should be removed before publish failure")
 	}
 }
@@ -209,7 +253,7 @@ func TestDepartmentTreeInvalidationListenerClearsLocalCache(t *testing.T) {
 	for time.Now().Before(deadline) {
 		cache, ok := NewDataScopeResolver(nil).departmentTreeCache().(*layeredDepartmentTreeCache)
 		if ok {
-			if _, cached := cache.getLocalRows(); !cached {
+			if _, cached := cache.getLocalRows(0); !cached {
 				break
 			}
 		}
@@ -407,7 +451,7 @@ func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 
 func resetDefaultDepartmentTreeCache() {
 	if cache, ok := NewDataScopeResolver(nil).departmentTreeCache().(*layeredDepartmentTreeCache); ok {
-		cache.clearLocal()
+		cache.clearLocal(0)
 	}
 }
 
@@ -437,5 +481,57 @@ func (h redisCommandErrorHook) ProcessPipelineHook(next goredis.ProcessPipelineH
 			}
 		}
 		return next(ctx, cmds)
+	}
+}
+
+// Pins the admin fast path. resolveRoleDataScope grants DataScopeAll to
+// super_admin/admin on the role code alone, so once PermissionMiddleware has
+// memoized those codes the user+roles round trip is pure waste. sqlmock has no
+// expectations registered, so any query issued here fails the test.
+func TestResolveUserDataScopeFromContextSkipsQueriesForMemoizedAdmins(t *testing.T) {
+	for _, code := range []string{"super_admin", "admin"} {
+		t.Run(code, func(t *testing.T) {
+			mock := setupAuthzCacheTestDB(t)
+
+			ginCtx, _ := gin.CreateTestContext(nil)
+			ginCtx.Request = httptest.NewRequest("GET", "/", nil)
+			ginCtx.Set("user_id", uint(7))
+			ginCtx.Set(RoleCodesContextKey, []string{"viewer", code})
+
+			scope, err := ResolveUserDataScopeFromContext(ginCtx)
+			if err != nil {
+				t.Fatalf("ResolveUserDataScopeFromContext() error = %v", err)
+			}
+			if scope.Scope != DataScopeAll {
+				t.Fatalf("scope = %q, want %q", scope.Scope, DataScopeAll)
+			}
+			if scope.UserID != 7 {
+				t.Fatalf("scope.UserID = %d, want 7", scope.UserID)
+			}
+			if !scope.CanAccessAll() {
+				t.Fatal("CanAccessAll() = false, want true")
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatalf("unexpected database access on the admin fast path: %v", err)
+			}
+		})
+	}
+}
+
+// Non-admin codes must not take the fast path — they still need the database to
+// resolve department scope, so the request context must reach the store.
+func TestResolveUserDataScopeFromContextStillQueriesForNonAdmins(t *testing.T) {
+	setupAuthzCacheTestDB(t)
+
+	requestCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	ginCtx, _ := gin.CreateTestContext(nil)
+	ginCtx.Request = httptest.NewRequestWithContext(requestCtx, "GET", "/", nil)
+	ginCtx.Set("user_id", uint(7))
+	ginCtx.Set(RoleCodesContextKey, []string{"viewer", "dept_admin"})
+
+	if _, err := ResolveUserDataScopeFromContext(ginCtx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled (proving the store was reached)", err)
 	}
 }

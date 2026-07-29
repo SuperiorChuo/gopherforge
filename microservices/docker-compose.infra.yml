@@ -49,11 +49,13 @@ services:
     # volatile-lru 而非 allkeys-lru——JWT 黑名单/OAuth state 被驱逐等于已
     # 吊销令牌复活；本项目缓存键全部带 TTL，volatile-lru 只驱逐这些。
     # AOF 保留：黑名单不是可再生缓存，崩溃丢失有安全语义。
+    # --save "" 关掉默认 RDB（3600/300/60 规则仍会生效）：AOF 已覆盖持久化，
+    # RDB 只剩 BGSAVE fork 的峰值内存翻倍代价。
     command: >
       sh -c 'if [ -n "$$REDIS_PASSWORD" ]; then
-        redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy volatile-lru --requirepass "$$REDIS_PASSWORD";
+        redis-server --appendonly yes --save "" --maxmemory 512mb --maxmemory-policy volatile-lru --requirepass "$$REDIS_PASSWORD";
       else
-        redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy volatile-lru;
+        redis-server --appendonly yes --save "" --maxmemory 512mb --maxmemory-policy volatile-lru;
       fi'
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -76,14 +78,16 @@ services:
     image: nats:2.10-alpine
     container_name: go-admin-kit-nats
     restart: unless-stopped
+    # JetStream 存储上限走配置文件：2.10 的 CLI 没有 max_file_store /
+    # max_memory_store 开关，当 flag 传会直接启动失败（见 nats.conf 注释）。
     command:
-      - --jetstream
-      - --store_dir=/data
-      - --http_port=8222
+      - --config
+      - /etc/nats/nats.conf
     ports:
       - "${NATS_PORT:-4222}:4222"
     volumes:
       - go_admin_kit_nats_data:/data
+      - ../platform/deploy/nats/nats.conf:/etc/nats/nats.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8222/healthz >/dev/null 2>&1"]
       interval: 30s

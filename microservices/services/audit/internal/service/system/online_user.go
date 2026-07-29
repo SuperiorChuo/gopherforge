@@ -14,6 +14,12 @@ import (
 )
 
 type OnlineUser struct {
+	// TenantID scopes the session. Sessions written before this field existed
+	// decode as 0 and, per this codebase's 0-means-default convention, are
+	// attributed to the default tenant rather than hidden outright. On a
+	// multi-tenant deployment that briefly shows pre-upgrade sessions to the
+	// default tenant's operators; the window closes as those tokens expire.
+	TenantID             uint      `json:"tenant_id"`
 	UserID               uint      `json:"user_id"`
 	Username             string    `json:"username"`
 	Nickname             string    `json:"nickname"`
@@ -75,6 +81,17 @@ func (s *OnlineUserService) SetOnlineUserContext(ctx context.Context, user Onlin
 		Score:  score,
 		Member: user.TokenID,
 	})
+	// The index keys carry no TTL of their own, and members are only pruned by
+	// score on paths that may never run for a given user — a session that simply
+	// expires leaves its member behind forever. Redis runs volatile-lru here, and
+	// that policy never evicts a key without a TTL, so the leak is unbounded.
+	//
+	// NX then GT, not GT alone: Redis treats a key with no TTL as having infinite
+	// TTL when evaluating GT, so GT can never place the first expiry. NX sets it,
+	// GT afterwards only ever extends, so an index outliving a longer-lived member
+	// is never cut short.
+	pipe.ExpireNX(ctx, onlineUserUserIndexKey(user.UserID), expiration)
+	pipe.ExpireGT(ctx, onlineUserUserIndexKey(user.UserID), expiration)
 	_, err = pipe.Exec(ctx)
 	return err
 }

@@ -489,6 +489,9 @@ func (a *UserAPI) recordOnlineUser(c *gin.Context, accessToken string) {
 	}
 
 	onlineUser := system.OnlineUser{
+		// Normalized so the stored value matches what the console's tenant filter
+		// compares against; an unnormalized 0 would make the session invisible.
+		TenantID:             jwt.NormalizeTenantID(claims.TenantID),
 		UserID:               user.ID,
 		Username:             user.Username,
 		Nickname:             user.Nickname,

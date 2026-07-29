@@ -14,6 +14,12 @@ import (
 )
 
 type OnlineUser struct {
+	// TenantID scopes the session. Sessions written before this field existed
+	// decode as 0 and, per this codebase's 0-means-default convention, are
+	// attributed to the default tenant rather than hidden outright. On a
+	// multi-tenant deployment that briefly shows pre-upgrade sessions to the
+	// default tenant's operators; the window closes as those tokens expire.
+	TenantID             uint      `json:"tenant_id"`
 	UserID               uint      `json:"user_id"`
 	Username             string    `json:"username"`
 	Nickname             string    `json:"nickname"`
@@ -56,6 +62,10 @@ const (
 	onlineUserPrefix          = "online_user:"
 	onlineUserIndexKey        = "online_users"
 	onlineUserUserIndexPrefix = "online_users:user:"
+	// Per-tenant index consumed by system-service's console. auth-service is the
+	// only writer of sessions, so if this bookkeeping is missing here the console
+	// reads an index nothing ever fills and shows an empty list.
+	onlineUserTenantIndexPrefix = "online_users:tenant:"
 )
 
 func (s *OnlineUserService) SetOnlineUserContext(ctx context.Context, user OnlineUser, expiration time.Duration) error {
@@ -75,17 +85,35 @@ func (s *OnlineUserService) SetOnlineUserContext(ctx context.Context, user Onlin
 		Score:  score,
 		Member: user.TokenID,
 	})
+	// The index keys carry no TTL of their own, and members are only pruned by
+	// score on paths that may never run for a given user — a session that simply
+	// expires leaves its member behind forever. Redis runs volatile-lru here, and
+	// that policy never evicts a key without a TTL, so the leak is unbounded.
+	//
+	// NX then GT, not GT alone: Redis treats a key with no TTL as having infinite
+	// TTL when evaluating GT, so GT can never place the first expiry. NX sets it,
+	// GT afterwards only ever extends, so an index outliving a longer-lived member
+	// is never cut short.
+	pipe.ExpireNX(ctx, onlineUserUserIndexKey(user.UserID), expiration)
+	pipe.ExpireGT(ctx, onlineUserUserIndexKey(user.UserID), expiration)
+	pipe.ZAdd(ctx, onlineUserTenantIndexKey(normalizeOnlineUserTenantID(user.TenantID)), goredis.Z{
+		Score:  score,
+		Member: user.TokenID,
+	})
+	pipe.ExpireNX(ctx, onlineUserTenantIndexKey(normalizeOnlineUserTenantID(user.TenantID)), expiration)
+	pipe.ExpireGT(ctx, onlineUserTenantIndexKey(normalizeOnlineUserTenantID(user.TenantID)), expiration)
 	_, err = pipe.Exec(ctx)
 	return err
 }
 
 func (s *OnlineUserService) RemoveOnlineUserContext(ctx context.Context, tokenID string) error {
-	var userIndexKey string
+	var userIndexKey, tenantIndexKey string
 	client := s.redisClient()
 	if data, err := client.Get(ctx, onlineUserKey(tokenID)).Result(); err == nil {
 		var user OnlineUser
 		if json.Unmarshal([]byte(data), &user) == nil {
 			userIndexKey = onlineUserUserIndexKey(user.UserID)
+			tenantIndexKey = onlineUserTenantIndexKey(normalizeOnlineUserTenantID(user.TenantID))
 		}
 	} else if err != goredis.Nil {
 		return err
@@ -96,6 +124,9 @@ func (s *OnlineUserService) RemoveOnlineUserContext(ctx context.Context, tokenID
 	pipe.ZRem(ctx, onlineUserIndexKey, tokenID)
 	if userIndexKey != "" {
 		pipe.ZRem(ctx, userIndexKey, tokenID)
+	}
+	if tenantIndexKey != "" {
+		pipe.ZRem(ctx, tenantIndexKey, tokenID)
 	}
 	_, err := pipe.Exec(ctx)
 	return err
@@ -184,6 +215,7 @@ func (s *OnlineUserService) revokeUserOnlineTokensContext(ctx context.Context, u
 		pipe.Del(ctx, onlineUserKey(tokenID))
 		pipe.ZRem(ctx, onlineUserIndexKey, tokenID)
 		pipe.ZRem(ctx, userIndexKey, tokenID)
+		pipe.ZRem(ctx, onlineUserTenantIndexKey(normalizeOnlineUserTenantID(user.TenantID)), tokenID)
 	}
 	_, err = pipe.Exec(ctx)
 	return err
@@ -268,6 +300,20 @@ func (s *OnlineUserService) countIndexedOnlineUsersContext(ctx context.Context) 
 
 func onlineUserKey(tokenID string) string {
 	return onlineUserPrefix + tokenID
+}
+
+func onlineUserTenantIndexKey(tenantID uint) string {
+	return onlineUserTenantIndexPrefix + strconv.FormatUint(uint64(tenantID), 10)
+}
+
+// normalizeOnlineUserTenantID mirrors the tenant package's 0-means-default rule.
+// auth-service has no tenant package, so the rule is restated here; it must stay
+// in step with system-service's reader or sessions land in an unread shard.
+func normalizeOnlineUserTenantID(id uint) uint {
+	if id == 0 {
+		return 1
+	}
+	return id
 }
 
 func onlineUserUserIndexKey(userID uint) string {

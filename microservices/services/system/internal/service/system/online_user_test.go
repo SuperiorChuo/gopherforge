@@ -13,6 +13,7 @@ import (
 	"github.com/go-admin-kit/services/system/internal/config"
 	jwtpkg "github.com/go-admin-kit/services/system/internal/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
+	"github.com/go-admin-kit/services/system/internal/pkg/tenant"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -281,7 +282,9 @@ func TestOnlineUserCountUsesIndexCardinalityWithoutPayloadChecks(t *testing.T) {
 			Member: "indexed-token-" + strconv.Itoa(i),
 		})
 	}
-	if err := redisstore.Client.ZAdd(ctx, onlineUserIndexKey, indexedTokens...).Err(); err != nil {
+	// The console counts from the per-tenant index, so seed that one; the point
+	// of this guard is that counting stays constant-time regardless of size.
+	if err := redisstore.Client.ZAdd(ctx, testOnlineUserTenantIndexKey(1), indexedTokens...).Err(); err != nil {
 		t.Fatalf("index online users: %v", err)
 	}
 
@@ -319,12 +322,12 @@ func TestOnlineUserIndexPrunesExpiredSessions(t *testing.T) {
 		t.Fatalf("online user count = %d, want 0 after expiration", count)
 	}
 
-	zcard, err := redisstore.Client.ZCard(context.Background(), onlineUserIndexKey).Result()
+	zcard, err := redisstore.Client.ZCard(context.Background(), testOnlineUserTenantIndexKey(1)).Result()
 	if err != nil {
-		t.Fatalf("zcard online user index: %v", err)
+		t.Fatalf("zcard tenant online user index: %v", err)
 	}
 	if zcard != 0 {
-		t.Fatalf("online user index size = %d, want 0 after pruning", zcard)
+		t.Fatalf("tenant online user index size = %d, want 0 after pruning", zcard)
 	}
 }
 
@@ -465,4 +468,61 @@ func setOnlineUserJWTTestConfig(t *testing.T) {
 
 func testOnlineUserUserIndexKey(userID uint) string {
 	return "online_users:user:" + strconv.FormatUint(uint64(userID), 10)
+}
+
+func testOnlineUserTenantIndexKey(tenantID uint) string {
+	return "online_users:tenant:" + strconv.FormatUint(uint64(tenantID), 10)
+}
+
+// Guards multi-tenant isolation of the online-user console. The Redis session
+// index is platform-wide, so a missing tenant scope lets any operator holding
+// system:online-user:list read every tenant's usernames, IPs and token ids, and
+// kick their sessions via the token id it just learned.
+func TestOnlineUsersAreScopedToTheCallersTenant(t *testing.T) {
+	setupOnlineUserTestRedis(t)
+	setOnlineUserJWTTestConfig(t)
+
+	service := &OnlineUserService{}
+	ctxA := tenant.WithContext(context.Background(), 1)
+	ctxB := tenant.WithContext(context.Background(), 2)
+
+	sessionA := OnlineUser{TenantID: 1, UserID: 7, Username: "alice", TokenID: "token-a", AccessTokenExpiresAt: time.Now().Add(time.Hour)}
+	sessionB := OnlineUser{TenantID: 2, UserID: 9, Username: "bob", TokenID: "token-b", AccessTokenExpiresAt: time.Now().Add(time.Hour)}
+	for _, s := range []OnlineUser{sessionA, sessionB} {
+		if err := service.SetOnlineUserContext(context.Background(), s, time.Hour); err != nil {
+			t.Fatalf("set online user %s: %v", s.Username, err)
+		}
+	}
+
+	listA, err := service.GetOnlineUsersContext(ctxA)
+	if err != nil {
+		t.Fatalf("list tenant 1: %v", err)
+	}
+	if len(listA) != 1 || listA[0].Username != "alice" {
+		t.Fatalf("tenant 1 list = %#v, want only alice", listA)
+	}
+
+	countA, err := service.GetOnlineUserCountContext(ctxA)
+	if err != nil {
+		t.Fatalf("count tenant 1: %v", err)
+	}
+	if countA != 1 {
+		t.Fatalf("tenant 1 count = %d, want 1", countA)
+	}
+
+	// Knowing the other tenant's token id must not be enough to kick it.
+	if err := service.ForceLogoutContext(ctxA, "token-b"); !errors.Is(err, ErrOnlineUserForbidden) {
+		t.Fatalf("cross-tenant force logout error = %v, want ErrOnlineUserForbidden", err)
+	}
+	if listB, err := service.GetOnlineUsersContext(ctxB); err != nil || len(listB) != 1 {
+		t.Fatalf("tenant 2 session should survive a cross-tenant kick: list = %#v, err = %v", listB, err)
+	}
+
+	// Same-tenant kick still works.
+	if err := service.ForceLogoutContext(ctxA, "token-a"); err != nil {
+		t.Fatalf("same-tenant force logout: %v", err)
+	}
+	if listA, err := service.GetOnlineUsersContext(ctxA); err != nil || len(listA) != 0 {
+		t.Fatalf("tenant 1 list after kick = %#v, err = %v", listA, err)
+	}
 }
