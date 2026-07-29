@@ -37,7 +37,6 @@ type AuditLogListRequest struct {
 	Action     string `form:"action" json:"action"`
 	TargetType string `form:"target_type" json:"target_type"`
 	TargetID   string `form:"target_id" json:"target_id"`
-	View       string `form:"view" json:"view"`
 	Keyword    string `form:"keyword" json:"keyword"`
 	SortBy     string `form:"sort_by" json:"sort_by"`
 	SortOrder  string `form:"sort_order" json:"sort_order"`
@@ -84,7 +83,6 @@ func (s *AuditLogService) ListLogsContext(ctx context.Context, req AuditLogListR
 		Action:     normalized.Action,
 		TargetType: normalized.TargetType,
 		TargetID:   normalized.TargetID,
-		View:       normalized.View,
 		Keyword:    normalized.Keyword,
 		SortBy:     normalized.SortBy,
 		SortOrder:  normalized.SortOrder,
@@ -96,7 +94,6 @@ func NormalizeAuditLogListRequest(req AuditLogListRequest) AuditLogListRequest {
 	req.TargetType = strings.TrimSpace(req.TargetType)
 	req.TargetID = strings.TrimSpace(req.TargetID)
 	req.Keyword = strings.TrimSpace(req.Keyword)
-	req.View = NormalizeAuditView(req.View)
 	req.SortBy = NormalizeAuditSortBy(req.SortBy)
 	req.SortOrder = NormalizeAuditSortOrder(req.SortOrder)
 
@@ -119,15 +116,6 @@ func NormalizeAuditLogListRequest(req AuditLogListRequest) AuditLogListRequest {
 		req.Page = 1
 	}
 	return req
-}
-
-func NormalizeAuditView(value string) string {
-	switch strings.ToUpper(strings.TrimSpace(value)) {
-	case "ALL":
-		return "ALL"
-	default:
-		return "ALL"
-	}
 }
 
 func NormalizeAuditSortBy(value string) string {

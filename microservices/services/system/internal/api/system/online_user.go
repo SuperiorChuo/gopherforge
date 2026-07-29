@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -163,6 +164,10 @@ func (a *OnlineUserAPI) ForceLogout(c *gin.Context) {
 	}
 
 	if err := a.onlineUserService.ForceLogoutContext(c.Request.Context(), tokenID); err != nil {
+		if errors.Is(err, system.ErrOnlineUserForbidden) {
+			response.Forbidden(c, "session belongs to another tenant")
+			return
+		}
 		logOnlineUserError("failed to force logout", err)
 		response.InternalServerError(c, "failed to force logout")
 		return

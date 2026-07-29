@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/file/internal/pkg/redis"
+	"github.com/go-admin-kit/services/file/internal/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -28,12 +30,20 @@ const (
 )
 
 const (
-	departmentTreeCacheKey               = "authz:department_tree"
+	// departmentTreeCacheKeyPrefix is completed with the tenant id. The cached rows
+	// come from a tenant-filtered query (the gorm tenant plugin appends tenant_id),
+	// so a single shared key would let whichever tenant populated it first dictate
+	// every other tenant's department scope.
+	departmentTreeCacheKeyPrefix         = "authz:department_tree:"
 	departmentTreeCacheTTL               = 5 * time.Minute
 	departmentTreeLocalCacheTTL          = 30 * time.Second
 	departmentTreeInvalidateChannel      = "authz:department_tree:invalidate"
 	departmentTreeInvalidatePayloadClear = "clear"
 )
+
+func departmentTreeCacheKey(tenantID uint) string {
+	return fmt.Sprintf("%s%d", departmentTreeCacheKeyPrefix, tenantID)
+}
 
 type departmentTreeCacheRow struct {
 	ID       uint `json:"id"`
@@ -79,11 +89,15 @@ func NewDatabaseDataScopeStore(db *gorm.DB) DataScopeStore {
 	return databaseDataScopeStore{db: db}
 }
 
-type layeredDepartmentTreeCache struct {
-	mu        sync.RWMutex
+type departmentTreeLocalEntry struct {
 	rows      []departmentTreeCacheRow
 	expiresAt time.Time
-	localTTL  time.Duration
+}
+
+type layeredDepartmentTreeCache struct {
+	mu       sync.RWMutex
+	byTenant map[uint]departmentTreeLocalEntry
+	localTTL time.Duration
 }
 
 var defaultDepartmentTreeCache = &layeredDepartmentTreeCache{
@@ -209,6 +223,33 @@ func (s UserDataScope) CanAccessAll() bool {
 	return s.Scope == DataScopeAll
 }
 
+// RoleCodesContextKey is the Gin context key under which PermissionMiddleware
+// memoizes the caller's role codes for the duration of one request.
+const RoleCodesContextKey = "authz_role_codes"
+
+// RoleCodesFromGinContext returns the role codes memoized for this request.
+func RoleCodesFromGinContext(c *gin.Context) ([]string, bool) {
+	if c == nil {
+		return nil, false
+	}
+	value, exists := c.Get(RoleCodesContextKey)
+	if !exists {
+		return nil, false
+	}
+	codes, ok := value.([]string)
+	return codes, ok
+}
+
+// roleCodesGrantAllScope mirrors resolveRoleDataScope's unconditional grant.
+func roleCodesGrantAllScope(codes []string) bool {
+	for _, code := range codes {
+		if code == "super_admin" || code == "admin" {
+			return true
+		}
+	}
+	return false
+}
+
 // ResolveUserDataScopeFromContext resolves data permissions for the current Gin user_id.
 func ResolveUserDataScopeFromContext(c *gin.Context) (UserDataScope, error) {
 	userID, exists := c.Get("user_id")
@@ -219,6 +260,19 @@ func ResolveUserDataScopeFromContext(c *gin.Context) (UserDataScope, error) {
 	uid, ok := userID.(uint)
 	if !ok {
 		return UserDataScope{Scope: DataScopeNone}, fmt.Errorf("invalid user id in context")
+	}
+
+	// resolveRoleDataScope grants DataScopeAll to super_admin/admin on the role
+	// code alone — it never reads role.DataScope — and the caller returns as soon
+	// as that lands. So for those callers the user+roles round trip below can only
+	// restate what PermissionMiddleware already read from the role-code cache.
+	//
+	// This cannot widen access: the request reached this handler by passing
+	// PermissionMiddleware on the strength of these very codes, so trusting them
+	// again here adds no staleness window that was not already accepted upstream.
+	// Routes without PermissionMiddleware memoize nothing and fall through.
+	if codes, ok := RoleCodesFromGinContext(c); ok && roleCodesGrantAllScope(codes) {
+		return UserDataScope{Scope: DataScopeAll, UserID: uid, RoleCodes: codes}, nil
 	}
 
 	ctx := context.Background()
@@ -374,7 +428,8 @@ func cloneDepartmentTreeRows(rows []departmentTreeCacheRow) []departmentTreeCach
 }
 
 func (c *layeredDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]model.Department, bool) {
-	if rows, ok := c.getLocalRows(); ok {
+	tenantID := tenant.FromContext(ctx)
+	if rows, ok := c.getLocalRows(tenantID); ok {
 		return departmentRowsToModels(rows), true
 	}
 
@@ -385,24 +440,25 @@ func (c *layeredDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]m
 		ctx = context.Background()
 	}
 
-	data, err := redisstore.Client.Get(ctx, departmentTreeCacheKey).Bytes()
+	data, err := redisstore.Client.Get(ctx, departmentTreeCacheKey(tenantID)).Bytes()
 	if err != nil {
 		return nil, false
 	}
 
 	var rows []departmentTreeCacheRow
 	if err := json.Unmarshal(data, &rows); err != nil {
-		_ = c.deleteRemote(ctx)
+		_ = c.deleteRemote(ctx, tenantID)
 		return nil, false
 	}
 
-	c.setLocalRows(rows)
+	c.setLocalRows(tenantID, rows)
 	return departmentRowsToModels(rows), true
 }
 
 func (c *layeredDepartmentTreeCache) SetDepartmentTree(ctx context.Context, depts []model.Department) error {
+	tenantID := tenant.FromContext(ctx)
 	rows := departmentModelsToRows(depts)
-	c.setLocalRows(rows)
+	c.setLocalRows(tenantID, rows)
 
 	if redisstore.Client == nil {
 		return nil
@@ -415,7 +471,7 @@ func (c *layeredDepartmentTreeCache) SetDepartmentTree(ctx context.Context, dept
 	if err != nil {
 		return err
 	}
-	return redisstore.Client.Set(ctx, departmentTreeCacheKey, data, departmentTreeCacheTTL).Err()
+	return redisstore.Client.Set(ctx, departmentTreeCacheKey(tenantID), data, departmentTreeCacheTTL).Err()
 }
 
 func InvalidateDepartmentTreeCacheContext(ctx context.Context) error {
@@ -424,14 +480,23 @@ func InvalidateDepartmentTreeCacheContext(ctx context.Context) error {
 
 func StartDepartmentTreeInvalidationListener(ctx context.Context) (*redisstore.StringSubscriber, error) {
 	return redisstore.StartSubscriber(ctx, departmentTreeInvalidateChannel, func(_ context.Context, payload string) {
+		// "clear" is still honoured so that a peer running the pre-sharding build
+		// can invalidate this process during a rolling deploy.
 		if payload == departmentTreeInvalidatePayloadClear {
-			defaultDepartmentTreeCache.clearLocal()
+			defaultDepartmentTreeCache.clearAllLocal()
+			return
 		}
+		tenantID, err := strconv.ParseUint(payload, 10, 64)
+		if err != nil {
+			return
+		}
+		defaultDepartmentTreeCache.clearLocal(uint(tenantID))
 	})
 }
 
 func (c *layeredDepartmentTreeCache) InvalidateDepartmentTree(ctx context.Context) error {
-	c.clearLocal()
+	tenantID := tenant.FromContext(ctx)
+	c.clearLocal(tenantID)
 
 	if redisstore.Client == nil {
 		return nil
@@ -440,13 +505,13 @@ func (c *layeredDepartmentTreeCache) InvalidateDepartmentTree(ctx context.Contex
 		ctx = context.Background()
 	}
 
-	if err := c.deleteRemote(ctx); err != nil {
+	if err := c.deleteRemote(ctx, tenantID); err != nil {
 		return err
 	}
-	return redisstore.PublishString(ctx, departmentTreeInvalidateChannel, departmentTreeInvalidatePayloadClear)
+	return redisstore.PublishString(ctx, departmentTreeInvalidateChannel, strconv.FormatUint(uint64(tenantID), 10))
 }
 
-func (c *layeredDepartmentTreeCache) getLocalRows() ([]departmentTreeCacheRow, bool) {
+func (c *layeredDepartmentTreeCache) getLocalRows(tenantID uint) ([]departmentTreeCacheRow, bool) {
 	if c == nil {
 		return nil, false
 	}
@@ -455,16 +520,17 @@ func (c *layeredDepartmentTreeCache) getLocalRows() ([]departmentTreeCacheRow, b
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	if len(c.rows) == 0 && c.expiresAt.IsZero() {
+	entry, ok := c.byTenant[tenantID]
+	if !ok {
 		return nil, false
 	}
-	if !c.expiresAt.IsZero() && !now.Before(c.expiresAt) {
+	if !entry.expiresAt.IsZero() && !now.Before(entry.expiresAt) {
 		return nil, false
 	}
-	return cloneDepartmentTreeRows(c.rows), true
+	return cloneDepartmentTreeRows(entry.rows), true
 }
 
-func (c *layeredDepartmentTreeCache) setLocalRows(rows []departmentTreeCacheRow) {
+func (c *layeredDepartmentTreeCache) setLocalRows(tenantID uint, rows []departmentTreeCacheRow) {
 	if c == nil {
 		return
 	}
@@ -475,30 +541,44 @@ func (c *layeredDepartmentTreeCache) setLocalRows(rows []departmentTreeCacheRow)
 	}
 
 	c.mu.Lock()
-	c.rows = cloneDepartmentTreeRows(rows)
-	c.expiresAt = time.Now().Add(ttl)
+	if c.byTenant == nil {
+		c.byTenant = make(map[uint]departmentTreeLocalEntry)
+	}
+	c.byTenant[tenantID] = departmentTreeLocalEntry{
+		rows:      cloneDepartmentTreeRows(rows),
+		expiresAt: time.Now().Add(ttl),
+	}
 	c.mu.Unlock()
 }
 
-func (c *layeredDepartmentTreeCache) clearLocal() {
+func (c *layeredDepartmentTreeCache) clearLocal(tenantID uint) {
 	if c == nil {
 		return
 	}
 
 	c.mu.Lock()
-	c.rows = nil
-	c.expiresAt = time.Time{}
+	delete(c.byTenant, tenantID)
 	c.mu.Unlock()
 }
 
-func (c *layeredDepartmentTreeCache) deleteRemote(ctx context.Context) error {
+func (c *layeredDepartmentTreeCache) clearAllLocal() {
+	if c == nil {
+		return
+	}
+
+	c.mu.Lock()
+	c.byTenant = nil
+	c.mu.Unlock()
+}
+
+func (c *layeredDepartmentTreeCache) deleteRemote(ctx context.Context, tenantID uint) error {
 	if redisstore.Client == nil {
 		return nil
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return redisstore.Client.Del(ctx, departmentTreeCacheKey).Err()
+	return redisstore.Client.Del(ctx, departmentTreeCacheKey(tenantID)).Err()
 }
 
 func resolveRoleDataScope(role model.Role) DataScope {

@@ -9,11 +9,14 @@ import (
 	pathpkg "path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/file/internal/config"
+	"github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/authz"
 	"github.com/go-admin-kit/services/file/internal/pkg/upload"
+	"github.com/go-admin-kit/services/file/internal/pkg/urlsign"
 	"github.com/go-admin-kit/services/file/internal/service/system"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 )
@@ -51,6 +54,7 @@ func (a *FileAPI) Upload(c *gin.Context) {
 		return
 	}
 
+	signFileURLs(fileRecord)
 	response.SuccessWithMessage(c, "file uploaded successfully", fileRecord)
 }
 
@@ -71,6 +75,9 @@ func (a *FileAPI) UploadMultiple(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
 	results, errs := a.fileService.UploadMultipleContext(c.Request.Context(), files, userID.(uint))
+	for _, result := range results {
+		signFileURLs(result)
+	}
 
 	// Preserve per-file errors in a compact response.
 	var errMsgs []string
@@ -114,6 +121,7 @@ func (a *FileAPI) GetFileList(c *gin.Context) {
 		return
 	}
 
+	signFileListURLs(files)
 	response.PageSuccess(c, files, total, req.Page, req.PageSize)
 }
 
@@ -138,6 +146,7 @@ func (a *FileAPI) GetFile(c *gin.Context) {
 		return
 	}
 
+	signFileURLs(file)
 	response.Success(c, file)
 }
 
@@ -252,11 +261,17 @@ func (a *FileAPI) GetFileStats(c *gin.Context) {
 }
 
 // ServeStaticFiles registers /uploads serving for the configured storage.
-// Local storage keeps router.Static; object storage (minio/s3) registers a
-// dynamic handler that streams objects under the same /uploads URL shape, so
+// Objects stream under the same /uploads URL shape for every backend, so
 // PUBLIC_BASE_URL stays unchanged and the bucket never needs public access.
-// Objects missing from the bucket fall back to the local disk so legacy files
-// uploaded before the storage switch keep working without a migration.
+// Objects missing from the configured backend fall back to the local disk so
+// legacy files uploaded before a storage switch keep working.
+//
+// Access control: /uploads cannot rely on the Authorization header (browsers
+// load these URLs from img tags), so every request must carry a valid signed
+// URL (expiry + HMAC query params, issued by the API together with the file
+// metadata). Unsigned, tampered, or expired requests get 404. Signing covers
+// only the object key, so legacy keys stored before this change remain
+// reachable through freshly signed URLs without any data migration.
 func ServeStaticFiles(router *gin.Engine) {
 	storageType := config.Cfg.Upload.EffectiveStorageType()
 	urlPrefix := config.Cfg.Upload.EffectiveLocalURLPrefix()
@@ -264,17 +279,23 @@ func ServeStaticFiles(router *gin.Engine) {
 
 	if storageType == "local" {
 		// Ensure the upload directory exists before registering the route.
-		if err := os.MkdirAll(uploadPath, 0755); err == nil {
-			router.Static(urlPrefix, uploadPath)
-		}
-		return
+		_ = os.MkdirAll(uploadPath, 0755)
 	}
 
 	uploader := upload.NewUploader()
 	router.GET(strings.TrimRight(urlPrefix, "/")+"/*filepath", func(c *gin.Context) {
 		key := strings.TrimPrefix(c.Param("filepath"), "/")
+
+		signer := newUploadURLSigner()
+		if err := signer.Verify(key, c.Query(urlsign.QueryExpires), c.Query(urlsign.QuerySignature), time.Now()); err != nil {
+			// 404 (not 401/403) so unauthenticated probes cannot tell
+			// missing objects apart from denied ones.
+			c.Status(http.StatusNotFound)
+			return
+		}
+
 		obj, err := uploader.OpenForStorageTypeContext(c.Request.Context(), storageType, key)
-		if err != nil {
+		if err != nil && storageType != "local" {
 			obj, err = uploader.OpenForStorageTypeContext(c.Request.Context(), "local", key)
 		}
 		if err != nil {
@@ -289,9 +310,45 @@ func ServeStaticFiles(router *gin.Engine) {
 		if obj.Size > 0 {
 			c.Header("Content-Length", strconv.FormatInt(obj.Size, 10))
 		}
+		// Signed URLs expire; shared caches must not serve them to others.
+		c.Header("Cache-Control", "private, max-age=300")
+		c.Header("X-Content-Type-Options", "nosniff")
 		c.Status(http.StatusOK)
 		_, _ = io.Copy(c.Writer, obj.Body)
 	})
+}
+
+// newUploadURLSigner builds the /uploads signer from configuration. A
+// dedicated UPLOAD_URL_SIGN_SECRET wins; otherwise the JWT secret keeps the
+// service self-contained without introducing a new mandatory setting.
+func newUploadURLSigner() *urlsign.Signer {
+	secret := strings.TrimSpace(config.Cfg.Upload.URLSignSecret)
+	if secret == "" {
+		secret = strings.TrimSpace(config.Cfg.JWT.Secret)
+	}
+	return urlsign.New(secret, time.Duration(config.Cfg.Upload.URLSignTTLSeconds)*time.Second)
+}
+
+// signFileURLs replaces the stored /uploads URLs on a file record with signed
+// ones before the record leaves the API. Stored values stay unsigned.
+func signFileURLs(file *model.File) {
+	if file == nil {
+		return
+	}
+	signer := newUploadURLSigner()
+	if !signer.Enabled() {
+		return
+	}
+	prefix := config.Cfg.Upload.EffectiveLocalURLPrefix()
+	now := time.Now()
+	file.URL = signer.SignURL(file.URL, prefix, now)
+	file.ThumbnailURL = signer.SignURL(file.ThumbnailURL, prefix, now)
+}
+
+func signFileListURLs(files []model.File) {
+	for i := range files {
+		signFileURLs(&files[i])
+	}
 }
 
 // Preview streams an image file inline.
@@ -357,6 +414,7 @@ func (a *FileAPI) CheckHash(c *gin.Context) {
 		return
 	}
 
+	signFileURLs(file)
 	response.Success(c, gin.H{
 		"exists": true,
 		"file":   file,
@@ -392,6 +450,7 @@ func (a *FileAPI) GetMyFiles(c *gin.Context) {
 		return
 	}
 
+	signFileListURLs(files)
 	response.PageSuccess(c, files, total, req.Page, req.PageSize)
 }
 

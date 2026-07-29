@@ -60,7 +60,47 @@ func NewWithDB(db *gorm.DB) (*Store, error) {
 	).Error; err != nil {
 		return nil, fmt.Errorf("补建部分唯一索引失败: %w", err)
 	}
+	if err := s.ensureIndexes(); err != nil {
+		return nil, err
+	}
 	return s, nil
+}
+
+// ensureIndexes 补建 gorm tag 表达不了的组合索引（列表都是 tenant_id 过滤
+// + id DESC 分页；统计按 tenant + definition_key / node_name 分组）。
+// IF NOT EXISTS 幂等；仅 PG 执行（测试注入 sqlite，DESC 索引对其无意义）。
+func (s *Store) ensureIndexes() error {
+	if s.db.Dialector.Name() != "postgres" {
+		return nil
+	}
+	for _, stmt := range indexStatements() {
+		if err := s.db.Exec(stmt).Error; err != nil {
+			return fmt.Errorf("ensure index (%s): %w", stmt, err)
+		}
+	}
+	return nil
+}
+
+// indexStatements 组合索引 DDL 清单（测试直接跑两遍验幂等）。
+func indexStatements() []string {
+	return []string{
+		// 实例列表分页 + 状态过滤（tag 里的 ix_bpm_inst_tenant 没带 id DESC）
+		`CREATE INDEX IF NOT EXISTS idx_bpm_inst_tenant_id ON bpm_process_instance (tenant_id, id DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_bpm_inst_tenant_status_id ON bpm_process_instance (tenant_id, status, id DESC)`,
+		// 统计：按定义分组的状态计数与平均时长（finished_at IS NOT NULL）
+		`CREATE INDEX IF NOT EXISTS idx_bpm_inst_tenant_def_status ON bpm_process_instance (tenant_id, definition_key, status)`,
+		`CREATE INDEX IF NOT EXISTS idx_bpm_inst_tenant_finished ON bpm_process_instance (tenant_id, definition_key) WHERE finished_at IS NOT NULL`,
+		// 近 30 天发起趋势
+		`CREATE INDEX IF NOT EXISTS idx_bpm_inst_tenant_created ON bpm_process_instance (tenant_id, created_at DESC)`,
+		// 任务列表分页 + 节点瓶颈分组（已处理任务）
+		`CREATE INDEX IF NOT EXISTS idx_bpm_task_tenant_id ON bpm_task (tenant_id, id DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_bpm_task_tenant_status_id ON bpm_task (tenant_id, status, id DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_bpm_task_tenant_node_acted ON bpm_task (tenant_id, node_name) WHERE acted_at IS NOT NULL`,
+		// 定义列表 + 抄送/日志按实例回放
+		`CREATE INDEX IF NOT EXISTS idx_bpm_def_tenant_id ON bpm_process_definition (tenant_id, id DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_bpm_cc_tenant_id ON bpm_cc_record (tenant_id, id DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_bpm_log_inst_id ON bpm_process_log (instance_id, id DESC)`,
+	}
 }
 
 func (s *Store) DB() *gorm.DB { return s.db }
@@ -732,8 +772,8 @@ type BpmStats struct {
 }
 
 // Stats 聚合审批统计：状态分布 / 近 30 天发起趋势 / 按定义通过率与均时长 /
-// 节点瓶颈。为保 sqlite 测试可移植，日期分桶与时长均在 Go 端计算，取数
-// 均有上限（趋势 5000 / 时长样本 1000/2000），大库下是近似值而非全量。
+// 节点瓶颈。平均时长已下推 SQL（AVG，全量精确，方言差异见 avgHoursExpr），
+// 日期分桶仍在 Go 端（趋势取数上限 5000，大库下为近似值）。
 func (s *Store) Stats(tenantID uint64) (*BpmStats, error) {
 	out := &BpmStats{StatusCounts: map[string]int64{}}
 
@@ -798,26 +838,24 @@ func (s *Store) Stats(tenantID uint64) (*BpmStats, error) {
 			item.Running += r.Cnt
 		}
 	}
+	// 平均时长下推 SQL（原实现是拉最近 1000 行进 Go 端累加）
 	type durRow struct {
 		DefinitionKey string
-		CreatedAt     time.Time
-		FinishedAt    *time.Time
+		AvgHours      float64
+		Cnt           int64
 	}
 	var durRows []durRow
 	if err := tenantQ(s.db.Model(&model.ProcessInstance{}), tenantID).
 		Where("finished_at IS NOT NULL").
-		Select("definition_key, created_at, finished_at").
-		Order("id DESC").Limit(1000).Scan(&durRows).Error; err != nil {
+		Select("definition_key, "+avgHoursExpr(s.db, "created_at", "finished_at")+" AS avg_hours, COUNT(*) AS cnt").
+		Group("definition_key").Scan(&durRows).Error; err != nil {
 		return nil, err
 	}
-	durSum := map[string]float64{}
+	durAvg := map[string]float64{}
 	durCnt := map[string]int64{}
 	for _, r := range durRows {
-		if r.FinishedAt == nil {
-			continue
-		}
-		durSum[r.DefinitionKey] += r.FinishedAt.Sub(r.CreatedAt).Hours()
-		durCnt[r.DefinitionKey]++
+		durAvg[r.DefinitionKey] = r.AvgHours
+		durCnt[r.DefinitionKey] = r.Cnt
 	}
 	// 定义名映射（每 key 最新版本名）
 	var defs []model.ProcessDefinition
@@ -829,7 +867,7 @@ func (s *Store) Stats(tenantID uint64) (*BpmStats, error) {
 	}
 	for key, item := range defItems {
 		if durCnt[key] > 0 {
-			item.AvgHours = round1(durSum[key] / float64(durCnt[key]))
+			item.AvgHours = round1(durAvg[key])
 		}
 		item.Name = nameByKey[key]
 		out.Definitions = append(out.Definitions, *item)
@@ -838,31 +876,23 @@ func (s *Store) Stats(tenantID uint64) (*BpmStats, error) {
 		return out.Definitions[i].Total > out.Definitions[j].Total
 	})
 
-	// 节点瓶颈：最近 2000 条已处理任务的平均等待时长（创建→处理）
+	// 节点瓶颈：已处理任务的平均等待时长（创建→处理），同样下推 SQL
+	// （原实现是拉最近 2000 行进 Go 端累加）
 	type taskRow struct {
-		NodeName  string
-		CreatedAt time.Time
-		ActedAt   *time.Time
+		NodeName string
+		AvgHours float64
+		Cnt      int64
 	}
 	var taskRows []taskRow
 	if err := tenantQ(s.db.Model(&model.Task{}), tenantID).
 		Where("acted_at IS NOT NULL").
-		Select("node_name, created_at, acted_at").
-		Order("id DESC").Limit(2000).Scan(&taskRows).Error; err != nil {
+		Select("node_name, "+avgHoursExpr(s.db, "created_at", "acted_at")+" AS avg_hours, COUNT(*) AS cnt").
+		Group("node_name").Scan(&taskRows).Error; err != nil {
 		return nil, err
 	}
-	nodeSum := map[string]float64{}
-	nodeCnt := map[string]int64{}
 	for _, r := range taskRows {
-		if r.ActedAt == nil {
-			continue
-		}
-		nodeSum[r.NodeName] += r.ActedAt.Sub(r.CreatedAt).Hours()
-		nodeCnt[r.NodeName]++
-	}
-	for name, cnt := range nodeCnt {
 		out.NodeBottlenecks = append(out.NodeBottlenecks, NodeStatsItem{
-			NodeName: name, Acted: cnt, AvgHours: round1(nodeSum[name] / float64(cnt)),
+			NodeName: r.NodeName, Acted: r.Cnt, AvgHours: round1(r.AvgHours),
 		})
 	}
 	sort.Slice(out.NodeBottlenecks, func(i, j int) bool {
@@ -875,6 +905,16 @@ func (s *Store) Stats(tenantID uint64) (*BpmStats, error) {
 }
 
 func round1(v float64) float64 { return math.Round(v*10) / 10 }
+
+// avgHoursExpr 生成「两个时间列差值的平均小时数」表达式，跨方言：
+// PG 用 EXTRACT(EPOCH FROM b - a)，sqlite 用 julianday 天差 × 24
+// （测试注入 sqlite，值域与 PG 一致，只是精度受存储格式限制）。
+func avgHoursExpr(db *gorm.DB, from, to string) string {
+	if db.Dialector.Name() == "postgres" {
+		return fmt.Sprintf("AVG(EXTRACT(EPOCH FROM (%s - %s)) / 3600.0)", to, from)
+	}
+	return fmt.Sprintf("AVG((julianday(%s) - julianday(%s)) * 24.0)", to, from)
+}
 
 // CanView 实例可见性（M1 从简）：发起人 ∪ 任务参与者（含转办转出人 M2、
 // 委派人与办结受托人 M3+）∪ 被抄送人。平台管理员放行由 handler 层判断

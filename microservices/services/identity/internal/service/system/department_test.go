@@ -14,7 +14,9 @@ import (
 	"gorm.io/gorm"
 )
 
-const departmentTreeCacheTestKey = "authz:department_tree"
+// Tests drive the service with context.Background(), i.e. tenant id 0, so the
+// sharded key resolves to the ":0" suffix.
+const departmentTreeCacheTestKey = "authz:department_tree:0"
 
 func TestDepartmentServiceCreateInvalidatesDepartmentTreeCache(t *testing.T) {
 	setupDepartmentServiceTestRedis(t)

@@ -466,3 +466,83 @@ func setOnlineUserJWTTestConfig(t *testing.T) {
 func testOnlineUserUserIndexKey(userID uint) string {
 	return "online_users:user:" + strconv.FormatUint(uint64(userID), 10)
 }
+
+// auth-service is the only writer of online sessions; system-service's console
+// reads them from the per-tenant index. If this bookkeeping regresses here, the
+// console silently shows an empty list — pin both the key shape and the
+// 0-means-default rule, which must match system-service's tenant.Normalize.
+func TestSetOnlineUserPopulatesTenantIndex(t *testing.T) {
+	setupOnlineUserTestRedis(t)
+
+	service := &OnlineUserService{}
+	ctx := context.Background()
+	sessions := []OnlineUser{
+		{TenantID: 4, UserID: 7, Username: "alice", TokenID: "token-a", AccessTokenExpiresAt: time.Now().Add(time.Hour)},
+		{TenantID: 0, UserID: 8, Username: "legacy", TokenID: "token-legacy", AccessTokenExpiresAt: time.Now().Add(time.Hour)},
+	}
+	for _, s := range sessions {
+		if err := service.SetOnlineUserContext(ctx, s, time.Hour); err != nil {
+			t.Fatalf("set online user %s: %v", s.Username, err)
+		}
+	}
+
+	if _, err := redisstore.Client.ZScore(ctx, "online_users:tenant:4", "token-a").Result(); err != nil {
+		t.Fatalf("session should be indexed under its tenant: %v", err)
+	}
+	// TenantID 0 must land in the default tenant's shard, not a ":0" shard nobody reads.
+	if _, err := redisstore.Client.ZScore(ctx, "online_users:tenant:1", "token-legacy").Result(); err != nil {
+		t.Fatalf("tenant-less session should fall back to the default tenant shard: %v", err)
+	}
+
+	if err := service.RemoveOnlineUserContext(ctx, "token-a"); err != nil {
+		t.Fatalf("remove online user: %v", err)
+	}
+	if _, err := redisstore.Client.ZScore(ctx, "online_users:tenant:4", "token-a").Result(); !errors.Is(err, goredis.Nil) {
+		t.Fatalf("tenant index entry error = %v, want redis nil after remove", err)
+	}
+}
+
+// The session index keys carry no TTL of their own and their members are only
+// pruned on paths that may never run for a given user, so a session that simply
+// expires used to leave its member behind forever. Redis is configured with
+// volatile-lru, which never evicts a key that has no TTL, making the leak
+// unbounded. Pin the TTL so the whole index disappears once its longest-lived
+// member would have expired.
+func TestSetOnlineUserGivesIndexKeysATTL(t *testing.T) {
+	store := setupOnlineUserTestRedis(t)
+
+	service := &OnlineUserService{}
+	ctx := context.Background()
+	if err := service.SetOnlineUserContext(ctx, OnlineUser{
+		TenantID:             1,
+		UserID:               7,
+		Username:             "alice",
+		TokenID:              "token-a",
+		AccessTokenExpiresAt: time.Now().Add(time.Hour),
+	}, time.Hour); err != nil {
+		t.Fatalf("set online user: %v", err)
+	}
+
+	for _, key := range []string{"online_users:user:7", "online_users:tenant:1"} {
+		ttl := store.TTL(key)
+		if ttl <= 0 {
+			t.Fatalf("%s has no TTL (%v); volatile-lru will never evict it", key, ttl)
+		}
+	}
+
+	// A shorter follow-up session must not cut the index short: ExpireGT only
+	// ever extends, so the hour-long member above stays covered.
+	before := store.TTL("online_users:user:7")
+	if err := service.SetOnlineUserContext(ctx, OnlineUser{
+		TenantID:             1,
+		UserID:               7,
+		Username:             "alice",
+		TokenID:              "token-b",
+		AccessTokenExpiresAt: time.Now().Add(time.Minute),
+	}, time.Minute); err != nil {
+		t.Fatalf("set second online user: %v", err)
+	}
+	if after := store.TTL("online_users:user:7"); after < before {
+		t.Fatalf("index TTL shrank from %v to %v after a shorter session", before, after)
+	}
+}

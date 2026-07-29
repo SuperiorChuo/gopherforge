@@ -15,6 +15,10 @@ import (
 	"gorm.io/gorm"
 )
 
+// userStatusEnabled is the users.status value for an active account; anything
+// else denies login (see AuthMiddleware's cookie-path check).
+const userStatusEnabled int8 = 1
+
 // UserService manages users for the system module.
 type UserService struct {
 	userDAO   systemdao.UserDAO
@@ -258,14 +262,36 @@ func (s *UserService) DeleteUserContext(ctx context.Context, id uint) error {
 	if _, err := s.GetUserByIDContext(ctx, id); err != nil {
 		return err
 	}
-	return s.userDAO.DeleteUserContext(ctx, id)
+	if err := s.userDAO.DeleteUserContext(ctx, id); err != nil {
+		return err
+	}
+	return revokeUserAccessContext(ctx, id)
 }
 
 func (s *UserService) UpdateUserStatusContext(ctx context.Context, id uint, status int8) error {
 	if _, err := s.GetUserByIDContext(ctx, id); err != nil {
 		return err
 	}
-	return s.userDAO.UpdateUserStatusContext(ctx, id, status)
+	if err := s.userDAO.UpdateUserStatusContext(ctx, id, status); err != nil {
+		return err
+	}
+	if status == userStatusEnabled {
+		return InvalidatePermissionCacheForUsersContext(ctx, id)
+	}
+	return revokeUserAccessContext(ctx, id)
+}
+
+// revokeUserAccessContext cuts off an account that was just disabled or deleted.
+// Dropping the permission cache alone is not enough: AuthMiddleware only re-reads
+// users.status on the cookie path, so an already-issued Bearer token would keep
+// working until it expires. Blacklisting the live tokens is what actually ends
+// the session; the cache drop stops a stale permission set from being served to
+// any token issued before the change.
+func revokeUserAccessContext(ctx context.Context, userID uint) error {
+	if err := InvalidatePermissionCacheForUsersContext(ctx, userID); err != nil {
+		return err
+	}
+	return NewOnlineUserService().RevokeUserTokensContext(ctx, userID)
 }
 
 func (s *UserService) AssignRolesContext(ctx context.Context, userID uint, req AssignRolesRequest) error {

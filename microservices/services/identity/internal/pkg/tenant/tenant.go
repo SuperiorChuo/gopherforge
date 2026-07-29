@@ -4,8 +4,12 @@
 // 模型自动隔离，DisableScope 为平台级跨租户操作的显式逃生口。手写 scope
 // 保留为第一道，插件是防漏挂的第二道网（双重过滤无害）。
 //
-// 已知边界：db.Raw / Exec 原生 SQL 不经回调，不受保护（identity DAO 全走
-// ORM）；Create 时 ctx 租户为权威值（显式跨租户写入需 DisableScope）。
+// 已知边界：db.Raw / Exec 原生 SQL 不经回调，不受保护；Create 时 ctx 租户为
+// 权威值（显式跨租户写入需 DisableScope）；无租户上下文（后台任务/系统操作/
+// 启动路径）不加过滤，与既有 DAO 语义一致。
+//
+// 本文件在 identity / ai / audit / file / system 五个服务间保持逐字节一致
+// （helpers 为各服务历史命名的并集），同步下游时整体覆盖即可。
 package tenant
 
 import (
@@ -19,6 +23,9 @@ import (
 
 // ContextKey is the request context key for the active tenant id (matches middleware string key).
 const ContextKey = "tenant_id"
+
+// DefaultID is the platform default tenant used when context has no tenant.
+const DefaultID uint = 1
 
 type disableScopeKey struct{}
 
@@ -68,10 +75,10 @@ func scopeDisabled(ctx context.Context) bool {
 	return v
 }
 
-// Normalize maps 0 → 1 (default tenant).
+// Normalize maps 0 → DefaultID.
 func Normalize(id uint) uint {
 	if id == 0 {
-		return 1
+		return DefaultID
 	}
 	return id
 }
@@ -83,6 +90,36 @@ func Require(ctx context.Context) (uint, error) {
 		return 0, fmt.Errorf("tenant context required")
 	}
 	return id, nil
+}
+
+// FromContextOrDefault returns tenant from context, or DefaultID when missing.
+func FromContextOrDefault(ctx context.Context) uint {
+	return Normalize(FromContext(ctx))
+}
+
+// IDFromContext returns the active tenant id, defaulting to DefaultID
+// (file-service 历史命名，等价于 FromContextOrDefault).
+func IDFromContext(ctx context.Context) uint {
+	return FromContextOrDefault(ctx)
+}
+
+// EnsureID keeps a positive existing tenant id; otherwise resolves from context
+// (defaulting to DefaultID). Used on create/write paths so async or event-driven
+// writers can stamp TenantID before context is lost.
+func EnsureID(ctx context.Context, existing uint) uint {
+	if existing > 0 {
+		return existing
+	}
+	return FromContextOrDefault(ctx)
+}
+
+// ApplyFilter constrains a query to the actor tenant in ctx (default tenant 1).
+// 手写第一道过滤；与插件叠加时双重过滤无害。
+func ApplyFilter(query *gorm.DB, ctx context.Context) *gorm.DB {
+	if query == nil {
+		return query
+	}
+	return query.Where("tenant_id = ?", FromContextOrDefault(ctx))
 }
 
 const tenantAppliedSetting = "go_admin_kit:tenant_scope_applied"
