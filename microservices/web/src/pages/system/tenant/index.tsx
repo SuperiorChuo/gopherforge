@@ -143,11 +143,12 @@ export default function TenantPage() {
   }
 
   const columns: ColumnsType<TenantInfo> = [
-    { title: 'ID', dataIndex: 'id', width: 70 },
+    { title: 'ID', dataIndex: 'id', width: 70, responsive: ['lg'] },
     {
       title: 'Code',
       dataIndex: 'code',
       width: 160,
+      responsive: ['sm'],
       render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
     },
     { title: '名称', dataIndex: 'name' },
@@ -155,6 +156,7 @@ export default function TenantPage() {
       title: '计费方案',
       dataIndex: 'plan',
       width: 110,
+      responsive: ['md'],
       render: (v: string) => (
         <Tag variant="filled" color={planColors[v] ?? 'default'}>{v || 'free'}</Tag>
       ),
@@ -163,6 +165,7 @@ export default function TenantPage() {
       title: '权限套餐',
       dataIndex: 'package_id',
       width: 130,
+      responsive: ['lg'],
       render: (v: number | null | undefined) => {
         if (!v) return <Tag variant="filled">不限</Tag>
         const pkg = packages.find((p) => p.id === v)
@@ -173,12 +176,14 @@ export default function TenantPage() {
       title: '用户上限',
       dataIndex: 'max_users',
       width: 100,
+      responsive: ['lg'],
       render: (v: number) => (v > 0 ? <span className="cell-mono">{v}</span> : '不限'),
     },
     {
       title: '状态',
       dataIndex: 'status',
       width: 100,
+      responsive: ['sm'],
       render: (v: number) =>
         v === 1 ? <StatusPill tone="success" label="启用" /> : <StatusPill tone="muted" label="停用" />,
     },

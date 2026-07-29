@@ -136,6 +136,7 @@ export default function BpmTasksPage() {
     title: '节点',
     dataIndex: 'node_name',
     width: 200,
+    responsive: ['sm'],
     render: (v: string, row) => (
       <Space size={4} wrap>
         <Tag>{v || '-'}</Tag>
@@ -148,11 +149,12 @@ export default function BpmTasksPage() {
   const todoColumns: ColumnsType<BpmTask> = [
     titleColumn,
     nodeColumn,
-    { title: '到达时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '到达时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['md'] },
     {
       title: '超时提醒',
       dataIndex: 'timeout_at',
       width: 170,
+      responsive: ['lg'],
       render: (v?: string) => {
         if (!v) return <span className="cell-muted">—</span>
         const overdue = new Date(v).getTime() < Date.now()
@@ -187,9 +189,10 @@ export default function BpmTasksPage() {
       title: '审批意见',
       dataIndex: 'comment',
       ellipsis: true,
+      responsive: ['md'],
       render: (v?: string) => v || <span className="cell-muted">—</span>,
     },
-    { title: '处理时间', dataIndex: 'acted_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '处理时间', dataIndex: 'acted_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
   ]
 
   const ccColumns: ColumnsType<BpmCcRecord> = [
@@ -215,15 +218,17 @@ export default function BpmTasksPage() {
       title: '抄送节点',
       dataIndex: 'node_name',
       width: 160,
+      responsive: ['sm'],
       render: (v: string) => <Tag>{v || '-'}</Tag>,
     },
     {
       title: '状态',
       dataIndex: 'read_at',
       width: 100,
+      responsive: ['md'],
       render: (v?: string) => (v ? <Tag>已读</Tag> : <Tag color="processing">未读</Tag>),
     },
-    { title: '抄送时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '抄送时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: '操作',
       width: 90,

@@ -194,7 +194,7 @@ export default function BpmInstanceTimeline({
       children: (
         <div className="bpm-timeline-doing">
           <Space size={6} wrap>
-            <Text strong style={{ color: '#1677ff' }}>
+            <Text strong style={{ color: 'var(--c-primary)' }}>
               等待审批
             </Text>
             <Tag color="processing">{doingName}</Tag>

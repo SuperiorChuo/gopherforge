@@ -145,6 +145,7 @@ export default function NotificationBell() {
     <Popover
       content={content}
       title="通知"
+      rootClassName="notice-bell-popover"
       trigger="click"
       placement="bottomRight"
       open={open}

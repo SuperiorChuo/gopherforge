@@ -109,11 +109,11 @@ function cardStyle(selected: boolean, invalid: boolean): CSSProperties {
     borderRadius: 10,
     overflow: 'hidden',
     cursor: 'pointer',
-    background: 'var(--ant-color-bg-container, #fff)',
+    background: 'var(--card-bg, rgba(18, 20, 34, 0.6))',
     boxShadow: selected
-      ? '0 0 0 2px #1677ff, 0 4px 12px rgba(22, 119, 255, 0.2)'
+      ? '0 0 0 2px var(--c-primary), 0 4px 12px rgba(99, 102, 241, 0.2)'
       : invalid
-        ? '0 0 0 2px #ff4d4f, 0 2px 8px rgba(255, 77, 79, 0.15)'
+        ? '0 0 0 2px var(--c-error), 0 2px 8px rgba(248, 113, 113, 0.15)'
         : '0 1px 4px rgba(0, 0, 0, 0.1)',
   }
 }
@@ -207,7 +207,7 @@ function NodeCard({
       <div
         style={{
           background: HEADER_GRADIENTS[node.type] ?? HEADER_GRADIENTS.approval,
-          color: '#fff',
+          color: 'var(--text-on-accent)',
           padding: '6px 12px',
           display: 'flex',
           justifyContent: 'space-between',
@@ -224,7 +224,7 @@ function NodeCard({
             <Button
               type="text"
               size="small"
-              style={{ color: '#fff' }}
+              style={{ color: 'var(--text-on-accent)' }}
               icon={<ArrowUpOutlined />}
               disabled={!canUp}
               onClick={onMoveUp}
@@ -232,13 +232,13 @@ function NodeCard({
             <Button
               type="text"
               size="small"
-              style={{ color: '#fff' }}
+              style={{ color: 'var(--text-on-accent)' }}
               icon={<ArrowDownOutlined />}
               disabled={!canDown}
               onClick={onMoveDown}
             />
             <Popconfirm title={removeTitle} onConfirm={onRemove}>
-              <Button type="text" size="small" style={{ color: '#fff' }} icon={<DeleteOutlined />} />
+              <Button type="text" size="small" style={{ color: 'var(--text-on-accent)' }} icon={<DeleteOutlined />} />
             </Popconfirm>
           </Space>
         )}
@@ -876,7 +876,7 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
             padding: '8px 0',
             borderRadius: 20,
             background: 'rgba(128, 128, 128, 0.12)',
-            color: 'var(--ant-color-text-secondary, #888)',
+            color: 'var(--text-secondary)',
             fontSize: 13,
           }}
         >

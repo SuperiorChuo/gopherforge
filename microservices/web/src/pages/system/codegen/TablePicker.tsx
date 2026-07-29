@@ -31,9 +31,9 @@ export default function TablePicker({ tables, loading, onRefresh, onConfigure }:
         </Space>
       ),
     },
-    { title: '主键', dataIndex: 'primary_key', width: 130, render: (value: string) => <Tag>{value}</Tag> },
-    { title: '字段', dataIndex: 'column_count', width: 90, align: 'right' },
-    { title: '关系', dataIndex: 'relation_count', width: 90, align: 'right' },
+    { title: '主键', dataIndex: 'primary_key', width: 130, responsive: ['sm'], render: (value: string) => <Tag>{value}</Tag> },
+    { title: '字段', dataIndex: 'column_count', width: 90, align: 'right', responsive: ['md'] },
+    { title: '关系', dataIndex: 'relation_count', width: 90, align: 'right', responsive: ['lg'] },
     {
       title: '操作',
       width: 96,
@@ -69,7 +69,6 @@ export default function TablePicker({ tables, loading, onRefresh, onConfigure }:
         loading={loading}
         pagination={{ pageSize: 15, showSizeChanger: false, hideOnSinglePage: true }}
         locale={{ emptyText: <GlassEmpty text={keyword ? '没有匹配的数据表' : '暂无可生成的数据表'} compact /> }}
-        scroll={{ x: 720 }}
       />
     </>
   )

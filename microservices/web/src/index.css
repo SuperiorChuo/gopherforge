@@ -7,6 +7,23 @@
   --dur-slow: 0.55s;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --blur-glass: blur(18px) saturate(1.35);
+
+  /* 语义色：暗色为默认值，亮色在 [data-theme='light'] 覆盖。 */
+  --c-primary: #6366f1;
+  --c-success: #34d399;
+  --c-success-strong: #10b981;
+  --c-warning: #fbbf24;
+  --c-orange: #fb923c;
+  --c-error: #f87171;
+  --c-error-strong: #ef4444;
+  --c-purple: #a78bfa;
+  --c-cyan: #22d3ee;
+  --c-gold: #fbbf24;
+  --text-on-accent: #fff;
+  --text-secondary: rgba(148, 163, 184, 0.85);
+  --text-tertiary: rgba(148, 163, 184, 0.6);
+  --text-disabled: rgba(148, 163, 184, 0.4);
+  --card-bg: rgba(18, 20, 34, 0.6);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -351,6 +368,10 @@ body {
   font-weight: 500;
   color: rgba(226, 232, 240, 0.88);
   font-size: 14px;
+}
+
+.app-mobile-title {
+  display: none;
 }
 
 .app-content {
@@ -3171,16 +3192,110 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
+  .user-drop-popup {
+    inset-inline-start: auto !important;
+    inset-inline-end: 8px !important;
+    max-width: calc(100vw - 16px);
+  }
+
+  .user-drop-popup .user-drop-menu.ant-dropdown-menu {
+    min-width: min(240px, calc(100vw - 16px));
+  }
+
+  .user-drop-popup .user-drop-menu .ant-dropdown-menu-item {
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .notice-bell-popover {
+    inset-inline: 8px !important;
+    width: auto;
+  }
+
+  .notice-bell-popover .notice-bell-panel {
+    width: 100%;
+    max-height: min(380px, calc(100dvh - 96px));
+  }
+
   .app-header {
-    padding: 0 12px !important;
+    height: calc(56px + env(safe-area-inset-top));
+    padding-left: calc(10px + env(safe-area-inset-left)) !important;
+    padding-right: calc(10px + env(safe-area-inset-right)) !important;
+    padding-top: env(safe-area-inset-top) !important;
+    gap: 8px;
+  }
+
+  .app-header-leading {
+    min-width: 0;
+    flex: 1;
+    gap: 8px !important;
+    overflow: hidden;
+  }
+
+  .app-header-leading > .ant-space-item:last-child {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .app-header-actions {
+    flex: none;
+    gap: 2px !important;
+  }
+
+  .app-mobile-title {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    gap: 7px;
+    color: rgba(241, 245, 249, 0.94);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    max-width: 100%;
+    flex: 1;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .app-mobile-title-icon {
+    display: inline-flex;
+    flex: none;
+    color: #a5b4fc;
+    font-size: 14px;
+  }
+
+  .app-mobile-title-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-header .app-user {
+    gap: 0;
+    padding: 4px;
+  }
+
+  .app-header .app-trigger,
+  .app-header .app-user {
+    min-width: 40px;
+    height: 40px;
+  }
+
+  .app-header .app-trigger {
+    width: 40px;
+    border-radius: 10px;
   }
 
   /* 窄屏收起低频操作:搜索提示/密度/全屏,保留核心导航 */
   .app-search-hint,
+  .app-density-trigger,
+  .app-fullscreen-trigger,
   .app-user-name,
   .ant-breadcrumb {
-    display: none;
+    display: none !important;
   }
 
   .app-content {
@@ -3188,9 +3303,35 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
   }
 
   .back-top-btn {
-    right: 16px;
-    bottom: 20px;
+    right: calc(16px + env(safe-area-inset-right));
+    bottom: calc(20px + env(safe-area-inset-bottom));
   }
+}
+
+@media (max-width: 360px) {
+  .app-header {
+    padding-left: calc(6px + env(safe-area-inset-left)) !important;
+    padding-right: calc(6px + env(safe-area-inset-right)) !important;
+    gap: 4px;
+  }
+
+  .app-header-leading,
+  .app-header-actions {
+    gap: 0 !important;
+  }
+
+  .app-mobile-title {
+    gap: 5px;
+    font-size: 14px;
+  }
+}
+
+[data-theme='light'] .app-mobile-title {
+  color: #0f172a;
+}
+
+[data-theme='light'] .app-mobile-title-icon {
+  color: #2563eb;
 }
 
 .table-count {
@@ -4654,6 +4795,20 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
 [data-theme='light'] {
   --app-bg: #edf3fb;
   --sider-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(242, 247, 255, 0.8) 100%);
+  --c-primary: #2563eb;
+  --c-success: #059669;
+  --c-success-strong: #047857;
+  --c-warning: #d97706;
+  --c-orange: #ea580c;
+  --c-error: #dc2626;
+  --c-error-strong: #b91c1c;
+  --c-purple: #7c3aed;
+  --c-cyan: #0891b2;
+  --c-gold: #b45309;
+  --text-secondary: rgba(71, 85, 105, 0.9);
+  --text-tertiary: rgba(100, 116, 139, 0.75);
+  --text-disabled: rgba(148, 163, 184, 0.8);
+  --card-bg: rgba(255, 255, 255, 0.72);
 }
 
 [data-theme='light'] body {
@@ -9673,6 +9828,44 @@ h6.ai-md-heading { font-size: 14px; }
   background-repeat: no-repeat;
 }
 
+/* 可读性收口：环境光留在容器外，表单内容保持稳定对比度。 */
+html:not([data-theme='light']) .login-aurora-3 { opacity: 0.14; }
+html:not([data-theme='light']) .login-shell.login-liquid { background: rgba(10, 11, 24, 0.82); }
+html:not([data-theme='light']) .login-shell.login-liquid > .login-form-panel {
+  background: linear-gradient(180deg, rgba(8, 10, 24, 0.48), rgba(12, 14, 32, 0.68));
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.025);
+}
+.login-headline,
+.login-form-title,
+.login-logo-name,
+.login-page .ant-btn-primary,
+.login-footer { letter-spacing: 0; }
+html:not([data-theme='light']) .login-form-sub { color: rgba(203, 213, 225, 0.72); }
+html:not([data-theme='light']) .login-tenant-toggle { color: rgba(199, 210, 254, 0.82); }
+html:not([data-theme='light']) .login-footer { color: rgba(148, 163, 184, 0.64); }
+html:not([data-theme='light']) .login-page .ant-input-affix-wrapper,
+html:not([data-theme='light']) .login-page .ant-input-outlined,
+html:not([data-theme='light']) .login-page .ant-input {
+  background: rgba(255, 255, 255, 0.075) !important;
+  border-color: rgba(148, 163, 184, 0.3) !important;
+}
+html:not([data-theme='light']) .login-page .ant-input-affix-wrapper > .ant-input {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+html:not([data-theme='light']) .login-page .ant-input-affix-wrapper:hover,
+html:not([data-theme='light']) .login-page .ant-input-outlined:hover {
+  background: rgba(255, 255, 255, 0.095) !important;
+  border-color: rgba(165, 180, 252, 0.48) !important;
+}
+html:not([data-theme='light']) .login-page .ant-input::placeholder { color: rgba(148, 163, 184, 0.7); }
+html:not([data-theme='light']) .login-page .ant-input-prefix,
+html:not([data-theme='light']) .login-page .ant-input-password-icon { color: rgba(165, 180, 252, 0.82); }
+[data-theme='light'] .login-shell.login-liquid > .login-form-panel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(239, 246, 255, 0.42));
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.55);
+}
+
 [data-theme='light'] .login-shell.login-liquid > .login-brand::after {
   background: linear-gradient(
     90deg,
@@ -10171,10 +10364,13 @@ h6.ai-md-heading { font-size: 14px; }
 }
 
 .dash-hero.liquid-dash > .dash-hero-content,
-.dash-hero.liquid-dash > .dash-hero-main,
+.dash-hero.liquid-dash > .dash-hero-main {
+  position: relative;
+  z-index: 1;
+}
+
 .dash-hero.liquid-dash > .dash-hero-orbit,
 .dash-hero.liquid-dash > .dash-hero-glow {
-  position: relative;
   z-index: 1;
 }
 
@@ -10569,9 +10765,26 @@ h6.ai-md-heading { font-size: 14px; }
   left: 0;
   bottom: 0;
   z-index: 100;
-  height: 100vh !important;
-  max-height: 100vh;
+  height: 100dvh !important;
+  max-height: 100dvh;
   box-shadow: 12px 0 40px rgba(0, 0, 0, 0.35);
+}
+
+.app-shell.is-mobile .app-sider .app-logo {
+  height: calc(60px + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+  padding-left: calc(20px + env(safe-area-inset-left));
+}
+
+.app-shell.is-mobile .app-sider .app-menu-scroll {
+  padding-left: env(safe-area-inset-left);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.app-shell.is-mobile .app-sider .ant-menu-item,
+.app-shell.is-mobile .app-sider .ant-menu-submenu-title {
+  height: 44px;
+  line-height: 44px;
 }
 
 .app-shell.is-mobile .app-sider.ant-layout-sider.ant-layout-sider-collapsed {

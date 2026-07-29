@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Card, Descriptions, Button, Row, Col, Space, Spin } from 'antd'
 import {
   ReloadOutlined,
@@ -11,6 +11,7 @@ import { getMySQLInfo } from '@/api/monitor'
 import { formatBytes, formatDuration } from '@/utils/format'
 import MonitorGaugeCard from '@/components/MonitorGaugeCard'
 import CountUpValue from '@/components/CountUpValue'
+import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
 
 export default function MySQLMonitorPage() {
   const [data, setData] = useState<Record<string, unknown>>({})
@@ -30,11 +31,8 @@ export default function MySQLMonitorPage() {
     }
   }, [])
 
-  useEffect(() => {
-    fetchData()
-    const timer = setInterval(fetchData, 10000)
-    return () => clearInterval(timer)
-  }, [fetchData])
+  // 首拉 + 10s 轮询；后台标签页暂停，回前台立即补一次
+  useVisibilityInterval(fetchData, 10000)
 
   const db = data.database as Record<string, unknown> | undefined
   const conn = data.connections as Record<string, unknown> | undefined

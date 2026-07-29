@@ -179,19 +179,19 @@ function ClientsTab() {
         <Text type="secondary" copyable={{ text: r.client_id }} style={{ fontSize: 12 }}>{r.client_id}</Text>
       </Space>
     ) },
-    { title: '类型', dataIndex: 'client_type', width: 90, render: (v) => (
+    { title: '类型', dataIndex: 'client_type', width: 90, responsive: ['sm'], render: (v) => (
       v === CLIENT_TYPE.PUBLIC ? <Tag color="orange">公开</Tag> : <Tag color="blue">机密</Tag>
     ) },
-    { title: '授权模式', dataIndex: 'grant_types', render: (v: string[]) => (
+    { title: '授权模式', dataIndex: 'grant_types', responsive: ['md'], render: (v: string[]) => (
       <Space wrap size={4}>{v.map((g) => <Tag key={g}>{GRANT_LABELS[g] || g}</Tag>)}</Space>
     ) },
-    { title: 'Scopes', dataIndex: 'scopes', render: (v: string[]) => (
+    { title: 'Scopes', dataIndex: 'scopes', responsive: ['lg'], render: (v: string[]) => (
       <Space wrap size={4}>{v.map((s) => <Tag key={s} color="geekblue">{s}</Tag>)}</Space>
     ) },
-    { title: '状态', dataIndex: 'status', width: 80, render: (v) => (
+    { title: '状态', dataIndex: 'status', width: 80, responsive: ['sm'], render: (v) => (
       v === 1 ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>
     ) },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, render: (v) => formatDateTime(v) },
+    { title: '创建时间', dataIndex: 'created_at', width: 170, responsive: ['lg'], render: (v) => formatDateTime(v) },
     {
       title: '操作', key: 'action', width: 220, fixed: 'right', render: (_, record) => (
         <Space size={4}>
@@ -238,7 +238,6 @@ function ClientsTab() {
         loading={loading}
         columns={columns}
         dataSource={list}
-        scroll={{ x: 900 }}
         locale={{ emptyText: <GlassEmpty text="还没有 OAuth2 应用" compact /> }}
         pagination={{
           current: params.page, pageSize: params.page_size, total,
@@ -370,9 +369,9 @@ function TokensTab() {
 
   const columns: ColumnsType<OAuth2AccessToken> = [
     { title: 'client_id', dataIndex: 'client_id', render: (v) => <Text copyable style={{ fontSize: 12 }}>{v}</Text> },
-    { title: '用户', dataIndex: 'username', render: (v) => v || <Text type="secondary">（应用自身）</Text> },
-    { title: '授权模式', dataIndex: 'grant_type', width: 140, render: (v) => GRANT_LABELS[v] || v },
-    { title: 'Scopes', dataIndex: 'scopes', render: (v: string[]) => (
+    { title: '用户', dataIndex: 'username', responsive: ['sm'], render: (v) => v || <Text type="secondary">（应用自身）</Text> },
+    { title: '授权模式', dataIndex: 'grant_type', width: 140, responsive: ['md'], render: (v) => GRANT_LABELS[v] || v },
+    { title: 'Scopes', dataIndex: 'scopes', responsive: ['lg'], render: (v: string[]) => (
       <Space wrap size={4}>{(v || []).map((s) => <Tag key={s} color="geekblue">{s}</Tag>)}</Space>
     ) },
     { title: '状态', key: 'state', width: 90, render: (_, r) => {
@@ -380,7 +379,7 @@ function TokensTab() {
       if (new Date(r.expires_at).getTime() < Date.now()) return <Tag color="orange">已过期</Tag>
       return <Tag color="green">有效</Tag>
     } },
-    { title: '过期时间', dataIndex: 'expires_at', width: 170, render: (v) => formatDateTime(v) },
+    { title: '过期时间', dataIndex: 'expires_at', width: 170, responsive: ['md'], render: (v) => formatDateTime(v) },
     {
       title: '操作', key: 'action', width: 100, fixed: 'right', render: (_, record) => (
         hasPerm('system:oauth2-token:delete') && !record.revoked_at ? (
@@ -414,7 +413,6 @@ function TokensTab() {
         loading={loading}
         columns={columns}
         dataSource={list}
-        scroll={{ x: 800 }}
         locale={{ emptyText: <GlassEmpty text="暂无签发的令牌" compact /> }}
         pagination={{
           current: params.page, pageSize: params.page_size, total,

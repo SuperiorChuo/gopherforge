@@ -175,12 +175,13 @@ export default function LoginLogPage() {
   }
 
   const columns: ColumnsType<LoginLog> = [
-    { title: 'ID', dataIndex: 'id', width: 60 },
+    { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
     { title: '用户名', dataIndex: 'username', width: 120 },
     {
       title: 'IP / 位置',
       dataIndex: 'ip',
       width: 200,
+      responsive: ['sm'],
       render: (v: string, record) => {
         const text = [v, record.location].filter(Boolean).join(' · ')
         return text ? <span className="cell-mono">{text}</span> : <span className="cell-muted">—</span>
@@ -205,12 +206,13 @@ export default function LoginLogPage() {
       title: '登录类型',
       dataIndex: 'login_type',
       width: 100,
+      responsive: ['md'],
       render: (v: number) => (
         <Tag color={loginTypeColors[v]} variant="filled">{loginTypeLabels[v] ?? v}</Tag>
       ),
     },
-    { title: '浏览器', dataIndex: 'browser', ellipsis: true },
-    { title: 'OS', dataIndex: 'os', width: 120 },
+    { title: '浏览器', dataIndex: 'browser', ellipsis: true, responsive: ['lg'] },
+    { title: 'OS', dataIndex: 'os', width: 120, responsive: ['lg'] },
     { title: '时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
   ]
 

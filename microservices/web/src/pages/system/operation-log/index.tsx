@@ -162,12 +162,13 @@ export default function OperationLogPage() {
   }
 
   const columns: ColumnsType<OperationLog> = [
-    { title: 'ID', dataIndex: 'id', width: 60 },
-    { title: '用户名', dataIndex: 'username', width: 120 },
+    { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
+    { title: '用户名', dataIndex: 'username', width: 120, responsive: ['sm'] },
     {
       title: '方法',
       dataIndex: 'method',
       width: 90,
+      responsive: ['md'],
       render: (v: string) => <Tag color={methodColors[v] ?? 'default'} variant="filled">{v}</Tag>,
     },
     {
@@ -176,18 +177,20 @@ export default function OperationLogPage() {
       ellipsis: true,
       render: (v: string) => <span className="cell-mono cell-dim">{v}</span>,
     },
-    { title: '模块', dataIndex: 'module', width: 100 },
-    { title: '动作', dataIndex: 'action', width: 100 },
+    { title: '模块', dataIndex: 'module', width: 100, responsive: ['md'] },
+    { title: '动作', dataIndex: 'action', width: 100, responsive: ['lg'] },
     {
       title: '状态',
       dataIndex: 'status',
       width: 80,
+      responsive: ['sm'],
       render: (v: number) => <Tag color={statusColor(v)}>{v}</Tag>,
     },
     {
       title: '耗时',
       dataIndex: 'latency',
       width: 90,
+      responsive: ['lg'],
       render: (v?: number) =>
         typeof v === 'number' ? (
           <span className={`cell-mono ${latencyClass(v)}`}>{v}ms</span>
@@ -195,7 +198,7 @@ export default function OperationLogPage() {
           <span className="cell-muted">—</span>
         ),
     },
-    { title: '时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['md'] },
     {
       title: '操作',
       width: 80,

@@ -167,6 +167,7 @@ export default function BpmInstancesPage() {
       title: '业务类型',
       dataIndex: 'biz_type',
       width: 130,
+      responsive: ['md'],
       render: (v?: string) => (v ? <Tag variant="filled">{v}</Tag> : <span className="cell-muted">—</span>),
     },
     ...(scope === 'all'
@@ -175,6 +176,7 @@ export default function BpmInstancesPage() {
             title: '发起人',
             dataIndex: 'initiator_id',
             width: 110,
+            responsive: ['sm'],
             render: (v: number, row: BpmInstance) =>
               row.initiator_name || displayUserName(userMap, v),
           } as ColumnsType<BpmInstance>[number],
@@ -184,17 +186,19 @@ export default function BpmInstancesPage() {
       title: '状态',
       dataIndex: 'status',
       width: 110,
+      responsive: ['sm'],
       render: (v: string) => {
         const meta = BPM_INSTANCE_STATUS_META[v] ?? { label: v, color: 'default' }
         return <Tag color={meta.color}>{meta.label}</Tag>
       },
     },
-    { title: '发起时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '发起时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['md'] },
     {
       title: '完成时间',
       dataIndex: 'finished_at',
       width: 170,
       className: 'cell-time',
+      responsive: ['lg'],
       render: (v?: string) => (v ? formatDateTime(v) : <span className="cell-muted">—</span>),
     },
     {

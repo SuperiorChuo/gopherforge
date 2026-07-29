@@ -209,6 +209,7 @@ export default function UserPage() {
       title: '联系方式',
       key: 'contact',
       ellipsis: true,
+      responsive: ['sm'],
       render: (_, record) => (
         <div className="user-contact">
           <div className="user-contact-main">
@@ -223,6 +224,7 @@ export default function UserPage() {
       dataIndex: 'department_id',
       width: 120,
       ellipsis: true,
+      responsive: ['md'],
       render: (id?: number) =>
         id && deptNameMap.get(id) ? (
           deptNameMap.get(id)
@@ -234,6 +236,7 @@ export default function UserPage() {
       title: '岗位',
       dataIndex: 'posts',
       width: 150,
+      responsive: ['lg'],
       render: (userPosts: UserRow['posts']) =>
         userPosts && userPosts.length > 0 ? (
           <Space size={[4, 4]} wrap>
@@ -249,11 +252,13 @@ export default function UserPage() {
       title: '状态',
       dataIndex: 'status',
       width: 96,
+      responsive: ['sm'],
       render: (v: number) => <EnableStatusPill value={v} />,
     },
     {
       title: '角色',
       dataIndex: 'roles',
+      responsive: ['md'],
       render: (roles: SystemUser['roles']) =>
         roles && roles.length > 0 ? (
           <Space size={[4, 4]} wrap>
@@ -272,12 +277,12 @@ export default function UserPage() {
       dataIndex: 'created_at',
       width: 168,
       className: 'cell-time',
+      responsive: ['lg'],
       render: formatDateTime,
     },
     {
       title: '操作',
       width: 132,
-      fixed: 'right',
       render: (_, record) => (
         <Space size={0} className="table-actions">
           {hasPerm('system:user:update') && (
@@ -381,7 +386,6 @@ export default function UserPage() {
           columns={columns}
           dataSource={list}
           loading={loading}
-          scroll={{ x: 980 }}
           locale={{ emptyText: <GlassEmpty text="暂无用户" compact /> }}
           pagination={{
             total,

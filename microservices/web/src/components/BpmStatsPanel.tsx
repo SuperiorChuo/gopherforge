@@ -5,11 +5,11 @@ import { getBpmStats, type BpmStats } from '@/api/bpm'
 const { Text } = Typography
 
 const STATUS_CARDS: { key: string; label: string; color?: string }[] = [
-  { key: 'running', label: '审批中', color: '#1677ff' },
-  { key: 'approved', label: '已通过', color: '#52c41a' },
-  { key: 'rejected', label: '已拒绝', color: '#ff4d4f' },
+  { key: 'running', label: '审批中', color: 'var(--c-primary)' },
+  { key: 'approved', label: '已通过', color: 'var(--c-success)' },
+  { key: 'rejected', label: '已拒绝', color: 'var(--c-error)' },
   { key: 'canceled', label: '已撤销' },
-  { key: 'suspended', label: '已挂起', color: '#faad14' },
+  { key: 'suspended', label: '已挂起', color: 'var(--c-warning)' },
 ]
 
 /**

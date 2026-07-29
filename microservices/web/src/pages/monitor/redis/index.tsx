@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Card, Descriptions, Button, Row, Col, Progress, Space, Spin, Tag } from 'antd'
 import {
   ReloadOutlined,
@@ -10,6 +10,7 @@ import {
 import { getRedisInfo } from '@/api/monitor'
 import { formatDuration } from '@/utils/format'
 import CountUpValue from '@/components/CountUpValue'
+import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
 
 interface MiniStat {
   label: string
@@ -38,11 +39,8 @@ export default function RedisMonitorPage() {
     }
   }, [])
 
-  useEffect(() => {
-    fetchData()
-    const timer = setInterval(fetchData, 10000)
-    return () => clearInterval(timer)
-  }, [fetchData])
+  // 首拉 + 10s 轮询；后台标签页暂停，回前台立即补一次
+  useVisibilityInterval(fetchData, 10000)
 
   const server = data.server as Record<string, unknown> | undefined
   const memory = data.memory as Record<string, unknown> | undefined

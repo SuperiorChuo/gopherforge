@@ -158,23 +158,25 @@ export default function TenantPackagePage() {
   }
 
   const columns: ColumnsType<TenantPackageInfo> = [
-    { title: 'ID', dataIndex: 'id', width: 70 },
+    { title: 'ID', dataIndex: 'id', width: 70, responsive: ['lg'] },
     { title: '名称', dataIndex: 'name', width: 200 },
     {
       title: '权限数',
       dataIndex: 'permission_codes',
       width: 100,
+      responsive: ['md'],
       render: (v: string[]) => <Tag variant="filled">{v?.length ?? 0}</Tag>,
     },
-    { title: '备注', dataIndex: 'remark', ellipsis: true },
+    { title: '备注', dataIndex: 'remark', ellipsis: true, responsive: ['lg'] },
     {
       title: '状态',
       dataIndex: 'status',
       width: 100,
+      responsive: ['sm'],
       render: (v: number) =>
         v === 1 ? <StatusPill tone="success" label="启用" /> : <StatusPill tone="muted" label="停用" />,
     },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: '操作',
       width: 160,

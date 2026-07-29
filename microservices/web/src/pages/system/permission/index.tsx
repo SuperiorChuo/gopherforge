@@ -117,20 +117,22 @@ export default function PermissionPage() {
   }
 
   const columns: ColumnsType<Permission> = [
-    { title: 'ID', dataIndex: 'id', width: 60 },
+    { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
     { title: '名称', dataIndex: 'name' },
     {
       title: '编码',
       dataIndex: 'code',
+      responsive: ['sm'],
       render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
     },
     {
       title: '类型',
       dataIndex: 'type',
       width: 80,
+      responsive: ['md'],
       render: (v: number) => <Tag variant="filled" color={typeColors[v]}>{typeLabels[v] ?? v}</Tag>,
     },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: '操作',
       width: 140,

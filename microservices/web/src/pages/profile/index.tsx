@@ -22,11 +22,11 @@ import type { LoginLog } from '@/types'
 import { formatDateTime } from '@/utils/format'
 
 const loginLogColumns: ColumnsType<LoginLog> = [
-  { title: '时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+  { title: '时间', dataIndex: 'created_at', width: 140, className: 'cell-time', render: formatDateTime },
   {
     title: 'IP',
     dataIndex: 'ip',
-    width: 140,
+    width: 110,
     render: (v: string) => (v ? <span className="cell-mono">{v}</span> : <span className="cell-muted">—</span>),
   },
   {
@@ -40,8 +40,8 @@ const loginLogColumns: ColumnsType<LoginLog> = [
         <StatusPill tone="danger" label="失败" />
       ),
   },
-  { title: '浏览器', dataIndex: 'browser', ellipsis: true },
-  { title: '系统', dataIndex: 'os', width: 140 },
+  { title: '浏览器', dataIndex: 'browser', ellipsis: true, responsive: ['md'] },
+  { title: '系统', dataIndex: 'os', width: 140, responsive: ['lg'] },
 ]
 
 export default function ProfilePage() {
