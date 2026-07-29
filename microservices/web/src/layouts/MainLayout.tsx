@@ -53,6 +53,7 @@ import {
   WarningOutlined,
   SunOutlined,
   MoonOutlined,
+  ToolOutlined,
   HomeOutlined,
   VerticalAlignTopOutlined,
   ColumnHeightOutlined,
@@ -157,6 +158,9 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   thunderbolt: <ThunderboltOutlined />,
   warning: <WarningOutlined />,
   idcard: <IdcardOutlined />,
+  'file-text': <FileTextOutlined />,
+  tool: <ToolOutlined />,
+  code: <CodeOutlined />,
 }
 
 function iconOf(name?: string): React.ReactNode {
@@ -187,6 +191,8 @@ function apiMenusToDefs(menus: ApiMenuItem[], topLevel = true): MenuDef[] {
 // 后端菜单为空（未播种/请求失败）时的静态兜底，与路由表保持一致
 const MENU_DEFS: MenuDef[] = [
   { label: '仪表盘', key: '/dashboard', icon: <DashboardOutlined /> },
+  // 与 menu_seed.go 的拆组一致：系统管理只留组织+权限，其余拆入 消息中心/日志审计/系统工具。
+  // 子菜单 path 不变，分组 key 不再是子路径前缀。
   {
     label: '系统管理',
     key: '/system',
@@ -198,20 +204,41 @@ const MENU_DEFS: MenuDef[] = [
       { label: '菜单管理', key: '/system/menu', icon: <MenuOutlined /> },
       { label: '部门管理', key: '/system/department', icon: <ApartmentOutlined /> },
       { label: '岗位管理', key: '/system/post', icon: <IdcardOutlined /> },
-      { label: '字典管理', key: '/system/dict', icon: <DatabaseOutlined /> },
-      { label: '文件管理', key: '/system/file', icon: <FileOutlined /> },
+      { label: '租户管理', key: '/system/tenant', icon: <TeamOutlined /> },
+      { label: '租户套餐', key: '/system/tenant-packages', icon: <AppstoreOutlined /> },
+      { label: '系统设置', key: '/system/setting', icon: <SettingOutlined /> },
+    ],
+  },
+  {
+    label: '消息中心',
+    key: '/msg',
+    icon: <NotificationOutlined />,
+    children: [
       { label: '公告管理', key: '/system/notice', icon: <NotificationOutlined /> },
-      { label: '登录日志', key: '/system/login-log', icon: <LoginOutlined /> },
+      { label: '短信管理', key: '/system/sms', icon: <MailOutlined /> },
+    ],
+  },
+  {
+    label: '日志审计',
+    key: '/logs',
+    icon: <FileTextOutlined />,
+    children: [
       { label: '操作日志', key: '/system/operation-log', icon: <FileTextOutlined /> },
+      { label: '登录日志', key: '/system/login-log', icon: <LoginOutlined /> },
       { label: '审计日志', key: '/system/audit-log', icon: <SafetyOutlined /> },
       { label: '在线用户', key: '/system/online-user', icon: <MonitorOutlined /> },
-      { label: '系统设置', key: '/system/setting', icon: <SettingOutlined /> },
-      { label: '租户管理', key: '/system/tenant', icon: <TeamOutlined /> },
+    ],
+  },
+  {
+    label: '系统工具',
+    key: '/tools',
+    icon: <ToolOutlined />,
+    children: [
       { label: '代码生成', key: '/system/codegen', icon: <CodeOutlined /> },
-      { label: '短信管理', key: '/system/sms', icon: <MailOutlined /> },
-      { label: 'OAuth2 应用', key: '/system/oauth2', icon: <ApiOutlined /> },
+      { label: '字典管理', key: '/system/dict', icon: <DatabaseOutlined /> },
+      { label: '文件管理', key: '/system/file', icon: <FileOutlined /> },
       { label: '错误码管理', key: '/system/errcodes', icon: <WarningOutlined /> },
-      { label: '租户套餐', key: '/system/tenant-packages', icon: <AppstoreOutlined /> },
+      { label: 'OAuth2 应用', key: '/system/oauth2', icon: <ApiOutlined /> },
     ],
   },
   {
@@ -306,6 +333,9 @@ const pathBreadcrumbMap: Record<string, string> = {
 // 分组 key（含前导 /）→ 面包屑上的分组名和图标
 const GROUP_META: Record<string, { label: string; icon: React.ReactNode }> = {
   '/system': { label: '系统管理', icon: <SettingOutlined /> },
+  '/msg': { label: '消息中心', icon: <NotificationOutlined /> },
+  '/logs': { label: '日志审计', icon: <FileTextOutlined /> },
+  '/tools': { label: '系统工具', icon: <ToolOutlined /> },
   '/monitor': { label: '运维监控', icon: <CloudServerOutlined /> },
   '/bpm': { label: '审批中心', icon: <AuditOutlined /> },
 }
@@ -326,6 +356,19 @@ export default function MainLayout() {
     const dynamic = apiMenusToDefs(menus)
     return dynamic.length > 0 ? dynamic : MENU_DEFS
   }, [menus])
+  // 叶子路径 → 祖先分组链（自顶向下）。系统管理拆组后子菜单路径前缀不再等于分组
+  // key（如 /system/login-log 挂在 /logs 下），展开与面包屑分组一律以菜单树为准
+  const menuTrails = useMemo(() => {
+    const map = new Map<string, MenuDef[]>()
+    const walk = (nodes: MenuDef[], trail: MenuDef[]) => {
+      nodes.forEach((d) => {
+        if (d.children) walk(d.children, [...trail, d])
+        else if (trail.length) map.set(d.key, trail)
+      })
+    }
+    walk(menuDefs, [])
+    return map
+  }, [menuDefs])
   const menuItems = useMemo(() => buildMenuItems(menuDefs, hasPerm), [menuDefs, hasPerm])
   const paletteItems = useMemo(() => buildPaletteItems(menuDefs, hasPerm), [menuDefs, hasPerm])
   const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
@@ -338,6 +381,20 @@ export default function MainLayout() {
   const [density, setDensity] = useState<'comfortable' | 'compact'>(
     () => (localStorage.getItem('app_density') === 'compact' ? 'compact' : 'comfortable'),
   )
+
+  useEffect(() => {
+    if (!isMobile || collapsed) return
+    const previousOverflow = document.body.style.overflow
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setCollapsed(true)
+    }
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [collapsed, isMobile])
 
   useEffect(() => {
     document.documentElement.dataset.density = density
@@ -369,23 +426,29 @@ export default function MainLayout() {
       })
     }
   }
-  // 分组 key 即父级路径：/system/user → /system
-  const groupOf = (p: string) => {
+  // 当前路径的分组链：优先按菜单树取祖先；树里查不到（带参数的子路由、隐藏页）
+  // 时回落到一级路径段匹配 GROUP_META
+  const trailOf = (p: string): MenuDef[] => {
+    const trail = menuTrails.get(p)
+    if (trail) return trail
     const seg = p.split('/')[1]
-    return seg && GROUP_META[`/${seg}`] ? `/${seg}` : null
+    const key = seg ? `/${seg}` : ''
+    const meta = key ? GROUP_META[key] : undefined
+    return meta ? [{ label: meta.label, key, icon: meta.icon }] : []
   }
-  const [openKeys, setOpenKeys] = useState<string[]>(() => {
-    const g = groupOf(pathname)
-    return g ? [g] : []
-  })
+  const [openKeys, setOpenKeys] = useState<string[]>(() => trailOf(pathname).map((d) => d.key))
 
-  // 直达子路由（面包屑/外部跳转）时自动展开所属分组
+  // 直达子路由（面包屑/外部跳转）或菜单树就绪时自动展开所属分组（含嵌套分组全链）
   useEffect(() => {
-    const group = groupOf(pathname)
-    if (group) {
-      setOpenKeys((keys) => (keys.includes(group) ? keys : [...keys, group]))
+    const keys = trailOf(pathname).map((d) => d.key)
+    if (keys.length) {
+      setOpenKeys((prev) => {
+        const missing = keys.filter((k) => !prev.includes(k))
+        return missing.length ? [...prev, ...missing] : prev
+      })
     }
-  }, [pathname])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, menuTrails])
 
   useEffect(() => {
     if (!token) {
@@ -483,8 +546,9 @@ export default function MainLayout() {
     return <Navigate to="/403" replace />
   }
   const breadcrumbTitle = pathBreadcrumbMap[currentPath] || ''
-  const groupKey = groupOf(currentPath)
-  const groupMeta = groupKey ? GROUP_META[groupKey] : null
+  // 面包屑分组取最近一层分组，与侧栏展开同源（菜单树驱动）
+  const groupTrail = trailOf(currentPath)
+  const groupMeta = groupTrail.length ? groupTrail[groupTrail.length - 1] : null
 
   const breadcrumbItems = [
     {
@@ -568,10 +632,19 @@ export default function MainLayout() {
 
       <Layout className="app-main">
         <Header className="app-header">
-          <Space size={16}>
+          <Space size={16} className="app-header-leading">
             <span
               className="app-trigger"
               onClick={() => setCollapsed(!collapsed)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return
+                event.preventDefault()
+                setCollapsed(!collapsed)
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label={collapsed ? '展开导航菜单' : '收起导航菜单'}
+              aria-expanded={!collapsed}
             >
               {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             </span>
@@ -579,10 +652,14 @@ export default function MainLayout() {
               className="app-breadcrumb"
               separator={<span className="app-bc-sep">/</span>}
               items={breadcrumbItems}
-            />
+             />
+            <span className="app-mobile-title">
+              <span className="app-mobile-title-icon">{groupMeta?.icon || <HomeOutlined />}</span>
+              <span className="app-mobile-title-text">{breadcrumbTitle || groupMeta?.label || 'Go Admin Kit'}</span>
+            </span>
           </Space>
 
-          <Space size={8}>
+          <Space size={8} className="app-header-actions">
             <span
               className="app-search-hint"
               onClick={() =>
@@ -606,13 +683,13 @@ export default function MainLayout() {
               {mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
             </span>
             <span
-              className="app-trigger"
+              className="app-trigger app-density-trigger"
               onClick={() => setDensity((d) => (d === 'compact' ? 'comfortable' : 'compact'))}
               title={density === 'compact' ? '切换为舒适密度' : '切换为紧凑密度'}
             >
               <ColumnHeightOutlined />
             </span>
-            <span className="app-trigger" onClick={toggleFullscreen} title={fullscreen ? '退出全屏' : '全屏'}>
+            <span className="app-trigger app-fullscreen-trigger" onClick={toggleFullscreen} title={fullscreen ? '退出全屏' : '全屏'}>
               {fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
             </span>
             <NotificationBell />
