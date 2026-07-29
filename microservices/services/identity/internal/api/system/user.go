@@ -173,6 +173,30 @@ func (a *UserManagementAPI) UpdateUserStatus(c *gin.Context) {
 	response.SuccessWithMessage(c, "user status updated successfully", nil)
 }
 
+// ResetUserPassword lets an admin set a new password for a user; the service
+// layer revokes the user's sessions and forces a password change on next login.
+func (a *UserManagementAPI) ResetUserPassword(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		response.BadRequest(c, "invalid user id")
+		return
+	}
+
+	var req system.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid request body")
+		return
+	}
+
+	if err := a.userService.ResetUserPasswordContext(c.Request.Context(), uint(id), req); err != nil {
+		writeSystemUserServiceError(c, "failed to reset user password", err)
+		return
+	}
+
+	response.SuccessWithMessage(c, "user password reset successfully", nil)
+}
+
 // AssignRoles assigns roles to a user.
 func (a *UserManagementAPI) AssignRoles(c *gin.Context) {
 	idStr := c.Param("id")

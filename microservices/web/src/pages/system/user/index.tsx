@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  Card, Row, Col, Avatar, Tooltip,
+  Card, Row, Col, Avatar, Tooltip, Switch,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, UserOutlined, EditOutlined, DeleteOutlined,
-  DownloadOutlined, UploadOutlined,
+  DownloadOutlined, UploadOutlined, KeyOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { SystemUser, SystemRole, Department } from '@/types'
@@ -56,7 +56,10 @@ export default function UserPage() {
   const [posts, setPosts] = useState<SystemPost[]>([])
   const [importOpen, setImportOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [resetRecord, setResetRecord] = useState<UserRow | null>(null)
+  const [resetting, setResetting] = useState(false)
   const [form] = Form.useForm()
+  const [resetForm] = Form.useForm()
   const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
 
@@ -136,6 +139,26 @@ export default function UserPage() {
     setModalOpen(true)
   }
 
+  const openReset = (record: UserRow) => {
+    setResetRecord(record)
+    resetForm.resetFields()
+  }
+
+  const submitReset = async () => {
+    const values = await resetForm.validateFields().catch(() => null)
+    if (!values || !resetRecord) return
+    setResetting(true)
+    try {
+      await UserAPI.resetUserPassword(resetRecord.id, values.password, values.must_change)
+      message.success('密码已重置，该用户的登录会话已全部失效')
+      setResetRecord(null)
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : '重置失败')
+    } finally {
+      setResetting(false)
+    }
+  }
+
   const handleDelete = async (id: number) => {
     try {
       await UserAPI.deleteUser(id)
@@ -157,7 +180,8 @@ export default function UserPage() {
     try {
       const { role_ids, ...rest } = values
       if (editRecord) {
-        await UserAPI.updateUser(editRecord.id, rest)
+        // 部门被清空时显式传 0（移出部门）；不传后端按"不修改"处理
+        await UserAPI.updateUser(editRecord.id, { ...rest, department_id: rest.department_id ?? 0 })
         if (typeof rest.status === 'number' && rest.status !== editRecord.status) {
           await UserAPI.updateUserStatus(editRecord.id, rest.status)
         }
@@ -282,13 +306,20 @@ export default function UserPage() {
     },
     {
       title: '操作',
-      width: 132,
+      width: 232,
       render: (_, record) => (
         <Space size={0} className="table-actions">
           {hasPerm('system:user:update') && (
             <Tooltip title="编辑">
               <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
                 编辑
+              </Button>
+            </Tooltip>
+          )}
+          {hasPerm('system:user:update') && (
+            <Tooltip title="重置密码">
+              <Button type="link" size="small" icon={<KeyOutlined />} onClick={() => openReset(record)}>
+                重置密码
               </Button>
             </Tooltip>
           )}
@@ -466,17 +497,12 @@ export default function UserPage() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item
-                name="department_id"
-                label="部门"
-                tooltip={editRecord ? '后端暂不支持修改已有用户的部门' : undefined}
-              >
+              <Form.Item name="department_id" label="部门">
                 <Select
                   allowClear
                   showSearch
                   placeholder="请选择部门"
                   optionFilterProp="label"
-                  disabled={!!editRecord}
                   options={depts.map((d) => ({ label: d.name, value: d.id }))}
                 />
               </Form.Item>
@@ -499,6 +525,51 @@ export default function UserPage() {
               options={posts.map((p) => ({ label: p.name, value: p.id, disabled: p.status !== 1 }))}
             />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={`重置密码 · ${resetRecord?.username ?? ''}`}
+        open={!!resetRecord}
+        onCancel={() => setResetRecord(null)}
+        onOk={submitReset}
+        confirmLoading={resetting}
+        okText="重置"
+        destroyOnClose
+      >
+        <Form form={resetForm} layout="vertical" preserve={false}>
+          <Form.Item
+            name="password"
+            label="新密码"
+            rules={[{ required: true, message: '请输入新密码' }, { min: 6, message: '至少 6 位' }]}
+          >
+            <Input.Password autoComplete="new-password" placeholder="须满足系统密码强度策略" />
+          </Form.Item>
+          <Form.Item
+            name="confirm"
+            label="确认新密码"
+            dependencies={['password']}
+            rules={[
+              { required: true, message: '请再次输入新密码' },
+              ({ getFieldValue }) => ({
+                validator: (_, value) =>
+                  !value || value === getFieldValue('password')
+                    ? Promise.resolve()
+                    : Promise.reject(new Error('两次输入的密码不一致')),
+              }),
+            ]}
+          >
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+          <Form.Item
+            name="must_change"
+            label="要求该用户下次登录后修改密码"
+            initialValue={true}
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+          <div className="form-hint">重置后该用户的所有登录会话会立即失效，需用新密码重新登录。</div>
         </Form>
       </Modal>
 

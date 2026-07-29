@@ -18,7 +18,7 @@ export interface CaptchaResponse {
 export interface LoginResponse {
   access_token?: string
   refresh_token?: string
-  require_totp?: boolean
+  requires_totp?: boolean
   totp_challenge_id?: string
   user?: UserInfo
 }

@@ -50,6 +50,15 @@ type UpdateUserRequest struct {
 	Phone    string  `json:"phone"`
 	Avatar   string  `json:"avatar"`
 	PostIDs  *[]uint `json:"post_ids"`
+	// 指针语义：nil = 不改；0 = 移出部门；>0 = 换部门（校验租户归属）
+	DepartmentID *uint `json:"department_id"`
+}
+
+type ResetPasswordRequest struct {
+	Password string `json:"password" binding:"required,min=6"`
+	// MustChange defaults to true when omitted: an admin-set password is a
+	// temporary credential, so forcing a change is the safe default.
+	MustChange *bool `json:"must_change"`
 }
 
 type AssignRolesRequest struct {
@@ -237,6 +246,17 @@ func (s *UserService) UpdateUserContext(ctx context.Context, id uint, req Update
 	if req.Avatar != "" {
 		user.Avatar = req.Avatar
 	}
+	if req.DepartmentID != nil {
+		if *req.DepartmentID > 0 {
+			if err := s.userDAO.AssertDepartmentInTenantContext(ctx, *req.DepartmentID, user.TenantID); err != nil {
+				if errors.Is(err, systemdao.ErrDepartmentNotInTenant) {
+					return nil, ErrDepartmentNotInTenant
+				}
+				return nil, err
+			}
+		}
+		user.DepartmentID = *req.DepartmentID
+	}
 
 	if err := s.userDAO.UpdateUserContext(ctx, user); err != nil {
 		return nil, err
@@ -279,6 +299,30 @@ func (s *UserService) UpdateUserStatusContext(ctx context.Context, id uint, stat
 		return InvalidatePermissionCacheForUsersContext(ctx, id)
 	}
 	return revokeUserAccessContext(ctx, id)
+}
+
+// ResetUserPasswordContext 管理员重置用户密码：校验强度、改密后吊销该用户
+// 全部会话，并置 must_change_password 强制其下次登录改密。
+func (s *UserService) ResetUserPasswordContext(ctx context.Context, id uint, req ResetPasswordRequest) error {
+	user, err := s.GetUserByIDContext(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := authsvc.ValidatePasswordStrength(req.Password); err != nil {
+		return err
+	}
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New("password hashing failed")
+	}
+	now := time.Now()
+	user.Password = string(hashed)
+	user.PasswordChangedAt = &now
+	user.MustChangePassword = req.MustChange == nil || *req.MustChange
+	if err := s.userDAO.UpdateUserContext(ctx, user); err != nil {
+		return err
+	}
+	return revokeUserAccessContext(ctx, user.ID)
 }
 
 // revokeUserAccessContext cuts off an account that was just disabled or deleted.
