@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  Card, InputNumber,
+  Card, InputNumber, Drawer, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
   PlusOutlined, ReloadOutlined, ClearOutlined, SearchOutlined,
   EditOutlined, DeleteOutlined, PlayCircleOutlined, PauseCircleOutlined, ThunderboltOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { ScheduledJob } from '@/types'
@@ -15,6 +16,8 @@ import {
   startJob, stopJob, runJob, cleanupJobLogs,
   getJobHealth, type JobHealth,
   getJobHeartbeats, type JobHeartbeat,
+  getJobTargets, type JobTarget, JOB_TARGET_LABELS,
+  getJobLogList, type ScheduledJobLog,
 } from '@/api/monitor'
 import TableToolbar from '@/components/TableToolbar'
 import StatusPill from '@/components/StatusPill'
@@ -41,6 +44,14 @@ export default function JobPage() {
   const [cleanupModalOpen, setCleanupModalOpen] = useState(false)
   const [cleanupSubmitting, setCleanupSubmitting] = useState(false)
   const [health, setHealth] = useState<JobHealth | null>(null)
+  const [targets, setTargets] = useState<JobTarget[]>([])
+  // 执行日志抽屉：logJob=null 表示关闭；job_id 为 0 时看全部任务的日志
+  const [logJob, setLogJob] = useState<ScheduledJob | null>(null)
+  const [logs, setLogs] = useState<ScheduledJobLog[]>([])
+  const [logTotal, setLogTotal] = useState(0)
+  const [logLoading, setLogLoading] = useState(false)
+  const [logPage, setLogPage] = useState(1)
+  const [logStatus, setLogStatus] = useState<number | undefined>(undefined)
   const [form] = Form.useForm()
   const [cleanupForm] = Form.useForm()
   const [searchForm] = Form.useForm()
@@ -67,6 +78,41 @@ export default function JobPage() {
   useEffect(() => {
     fetchList(params)
   }, [params, fetchList])
+
+  // 目标清单只在挂载时取一次：它由后端的调度分发表决定，运行期不会变。
+  useEffect(() => {
+    getJobTargets()
+      .then((res) => setTargets(res.list ?? []))
+      .catch(() => {
+        // 取不到就让表单退回可输入，不挡住用户建任务
+        setTargets([])
+      })
+  }, [])
+
+  const fetchLogs = useCallback(async (jobID: number, page: number, status?: number) => {
+    setLogLoading(true)
+    try {
+      const res = await getJobLogList({
+        page,
+        page_size: 10,
+        ...(jobID ? { job_id: jobID } : {}),
+        ...(status === undefined ? {} : { status }),
+      })
+      setLogs(res.list ?? [])
+      setLogTotal(res.total ?? 0)
+    } catch {
+      message.error('获取执行日志失败')
+    } finally {
+      setLogLoading(false)
+    }
+  }, [])
+
+  const openLogs = (record: ScheduledJob | null) => {
+    setLogJob(record ?? ({ id: 0, name: '全部任务' } as ScheduledJob))
+    setLogPage(1)
+    setLogStatus(undefined)
+    fetchLogs(record?.id ?? 0, 1, undefined)
+  }
 
   const handleSearch = (values: { name?: string; status?: number }) => {
     setParams({ ...params, page: 1, name: values.name, status: values.status })
@@ -192,7 +238,24 @@ export default function JobPage() {
     {
       title: '调用目标',
       dataIndex: 'invoke_target',
-      render: (v: string) => <span className="cell-mono cell-dim">{v}</span>,
+      render: (v: string) => {
+        const known = JOB_TARGET_LABELS[v]
+        // 历史数据可能存着白名单外的目标（写入校验是后加的），标出来而不是
+        // 让它看起来正常——它一触发就会失败。
+        const listed = targets.some((t) => t.target === v)
+        if (!known && !listed) {
+          return (
+            <Tooltip title="该目标不在调度器的内置清单里，任务触发时会直接失败；请改选一个有效目标">
+              <Tag color="error" className="cell-mono">{v} · 无效</Tag>
+            </Tooltip>
+          )
+        }
+        return (
+          <Tooltip title={known?.hint ?? targets.find((t) => t.target === v)?.description ?? v}>
+            <span className="cell-mono cell-dim">{known?.label ?? v}</span>
+          </Tooltip>
+        )
+      },
     },
     { title: '说明', dataIndex: 'description', ellipsis: true },
     {
@@ -212,7 +275,7 @@ export default function JobPage() {
     },
     {
       title: '操作',
-      width: 240,
+      width: 330,
       render: (_, record) => (
         <Space size={0} className="table-actions">
           {hasPerm('system:job:update') && (
@@ -228,6 +291,7 @@ export default function JobPage() {
           {hasPerm('system:job:run') && (
             <Button type="link" size="small" icon={<ThunderboltOutlined />} onClick={() => handleRun(record.id)}>立即执行</Button>
           )}
+          <Button type="link" size="small" icon={<HistoryOutlined />} onClick={() => openLogs(record)}>执行日志</Button>
           {hasPerm('system:job:delete') && (
             <Popconfirm title="确认删除该任务?" onConfirm={() => handleDelete(record.id)}>
               <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
@@ -286,6 +350,7 @@ export default function JobPage() {
           total={total}
           extra={
             <Space wrap>
+              <Button icon={<HistoryOutlined />} onClick={() => openLogs(null)}>执行日志</Button>
               {hasPerm('system:job:run') && (
                 <Button
                   icon={<ClearOutlined />}
@@ -339,8 +404,35 @@ export default function JobPage() {
           <Form.Item name="cron_expression" label="Cron表达式" rules={[{ required: true, message: '请输入Cron表达式' }]}>
             <Input placeholder="如: 0 * * * * *（秒 分 时 日 月 周）" />
           </Form.Item>
-          <Form.Item name="invoke_target" label="调用目标" rules={[{ required: true, message: '请输入调用目标' }]}>
-            <Input />
+          {/* 目标必须是调度器内置的，自由文本会存进库、等触发时才失败。
+              清单接口取不到时退回输入框，至少不挡住建任务（后端仍会校验）。 */}
+          <Form.Item
+            name="invoke_target"
+            label="调用目标"
+            rules={[{ required: true, message: '请选择调用目标' }]}
+            tooltip="仅可选择调度器内置的目标；后端会在保存时校验"
+          >
+            {targets.length > 0 ? (
+              <Select
+                placeholder="请选择调用目标"
+                optionLabelProp="label"
+                options={targets.map((t) => ({
+                  value: t.target,
+                  label: JOB_TARGET_LABELS[t.target]?.label ?? t.target,
+                  title: t.description,
+                }))}
+                optionRender={(option) => (
+                  <div>
+                    <div>{option.data.label}</div>
+                    <div className="cell-dim" style={{ fontSize: 12 }}>
+                      {JOB_TARGET_LABELS[option.data.value as string]?.hint ?? option.data.title}
+                    </div>
+                  </div>
+                )}
+              />
+            ) : (
+              <Input placeholder="目标清单加载失败，可手动输入（保存时后端仍会校验）" />
+            )}
           </Form.Item>
           <Form.Item name="description" label="说明">
             <Input />
@@ -373,6 +465,91 @@ export default function JobPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <Drawer
+        title={logJob?.id ? `执行日志 · ${logJob.name}` : '执行日志 · 全部任务'}
+        open={!!logJob}
+        onClose={() => setLogJob(null)}
+        width={760}
+        destroyOnClose
+      >
+        <Space style={{ marginBottom: 12 }} wrap>
+          <Select
+            allowClear
+            placeholder="执行结果"
+            style={{ width: 160 }}
+            value={logStatus}
+            onChange={(value) => {
+              setLogStatus(value)
+              setLogPage(1)
+              fetchLogs(logJob?.id ?? 0, 1, value)
+            }}
+            options={[
+              { value: 1, label: '成功' },
+              { value: 0, label: '失败' },
+            ]}
+          />
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => fetchLogs(logJob?.id ?? 0, logPage, logStatus)}
+          >
+            刷新
+          </Button>
+        </Space>
+        <Table
+          rowKey="id"
+          className="list-table"
+          size="small"
+          loading={logLoading}
+          dataSource={logs}
+          locale={{ emptyText: <GlassEmpty text="暂无执行日志（任务触发后自动记录）" compact /> }}
+          pagination={{
+            current: logPage,
+            pageSize: 10,
+            total: logTotal,
+            showSizeChanger: false,
+            onChange: (page) => {
+              setLogPage(page)
+              fetchLogs(logJob?.id ?? 0, page, logStatus)
+            },
+          }}
+          columns={[
+            ...(logJob?.id
+              ? []
+              : [{ title: '任务', dataIndex: 'job_name', width: 150, ellipsis: true }]),
+            {
+              title: '结果',
+              dataIndex: 'status',
+              width: 90,
+              render: (v: number) =>
+                v === 1 ? <Tag color="success">成功</Tag> : <Tag color="error">失败</Tag>,
+            },
+            {
+              title: '耗时',
+              dataIndex: 'duration',
+              width: 100,
+              render: (v: number) => <span className="cell-mono">{v} ms</span>,
+            },
+            {
+              title: '输出',
+              dataIndex: 'message',
+              ellipsis: true,
+              render: (v: string) => (
+                <Tooltip title={v}>
+                  <span className="cell-mono cell-dim">{v || '—'}</span>
+                </Tooltip>
+              ),
+            },
+            {
+              title: '时间',
+              dataIndex: 'created_at',
+              width: 170,
+              className: 'cell-time',
+              render: formatDateTime,
+            },
+          ]}
+        />
+      </Drawer>
 
       <HeartbeatsCard />
     </div>

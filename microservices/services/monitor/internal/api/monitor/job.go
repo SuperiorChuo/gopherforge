@@ -228,12 +228,75 @@ func parseJobID(c *gin.Context) (uint, bool) {
 	return uint(id), true
 }
 
+// GetJobTargets returns the built-in invoke targets the console may pick from.
+// Same source as the executor's dispatch table, so the dropdown can never drift
+// from what the scheduler actually knows how to run.
+func (a *JobAPI) GetJobTargets(c *gin.Context) {
+	response.Success(c, gin.H{"list": monitor.ListJobTargets()})
+}
+
+// GetJobLogList returns paginated scheduled-job execution logs. job_id=0 or an
+// absent status filter means "do not filter on that field".
+func (a *JobAPI) GetJobLogList(c *gin.Context) {
+	var req pagination.PageRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.BadRequest(c, invalidQueryParametersMessage)
+		return
+	}
+
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PageSize <= 0 {
+		req.PageSize = 10
+	}
+
+	var jobID uint
+	if raw := c.Query("job_id"); raw != "" {
+		parsed, err := strconv.ParseUint(raw, 10, 32)
+		if err != nil {
+			response.BadRequest(c, "job_id must be a positive integer")
+			return
+		}
+		jobID = uint(parsed)
+	}
+
+	var success *int8
+	if raw := c.Query("status"); raw != "" {
+		st, err := strconv.Atoi(raw)
+		if err != nil || (st != 0 && st != 1) {
+			response.BadRequest(c, "status must be 0 or 1")
+			return
+		}
+		st8 := int8(st)
+		success = &st8
+	}
+
+	logs, total, err := a.service.GetJobLogListContext(c.Request.Context(), req, jobID, success)
+	if err != nil {
+		a.handleError(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{
+		"list":      logs,
+		"total":     total,
+		"page":      req.Page,
+		"page_size": req.PageSize,
+	})
+}
+
 func (a *JobAPI) handleError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, monitor.ErrInvalidCronExpression):
 		response.BadRequest(c, monitor.ErrInvalidCronExpression.Error())
 	case errors.Is(err, monitor.ErrInvalidRetentionDays):
 		response.BadRequest(c, monitor.ErrInvalidRetentionDays.Error())
+	case errors.Is(err, monitor.ErrUnknownInvokeTarget):
+		// Caller input problem, not a server fault. The rejected value is
+		// deliberately not echoed back: forwarding raw error text is what
+		// TestAPIResponsesDoNotForwardRawErrors guards against.
+		response.BadRequest(c, monitor.ErrUnknownInvokeTarget.Error())
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		response.NotFound(c, "job not found")
 	default:

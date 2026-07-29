@@ -37,6 +37,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	{
 		protected.GET("/login-logs", middleware.PermissionMiddleware("system:log:login"), loginLogAPI.GetLoginLogs)
 		protected.GET("/login-logs/my", loginLogAPI.GetMyLoginLogs)
+		protected.GET("/login-logs/export", middleware.PermissionMiddleware("system:log:login"), loginLogAPI.ExportLoginLogs)
 		protected.GET("/login-logs/stats", middleware.PermissionMiddleware("system:log:login"), loginLogAPI.GetLoginStats)
 		protected.GET("/login-logs/trend", middleware.PermissionMiddleware("system:log:login"), loginLogAPI.GetLoginTrend)
 		protected.GET("/login-logs/last", loginLogAPI.GetLastLogin)

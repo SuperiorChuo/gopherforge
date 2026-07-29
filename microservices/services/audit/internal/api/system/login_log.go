@@ -1,7 +1,9 @@
 package system
 
 import (
+	"encoding/csv"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -60,6 +62,89 @@ func (a *LoginLogAPI) GetLoginLogs(c *gin.Context) {
 	}
 
 	response.PageSuccess(c, logs, total, req.Page, req.PageSize)
+}
+
+// ExportLoginLogs exports login logs as CSV, honouring the same filters and
+// data scope as the list endpoint.
+func (a *LoginLogAPI) ExportLoginLogs(c *gin.Context) {
+	var req system.LoginLogListRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.BadRequest(c, "invalid query parameters")
+		return
+	}
+
+	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
+	if err != nil {
+		logLoginLogError("failed to resolve login log export data scope", err)
+		response.InternalServerError(c, "failed to export login logs")
+		return
+	}
+	req.DataScope = dataScope
+
+	logs, err := a.logService.ExportLogsContext(c.Request.Context(), req)
+	if err != nil {
+		logLoginLogError("failed to export login logs", err)
+		response.InternalServerError(c, "failed to export login logs")
+		return
+	}
+
+	filename := fmt.Sprintf("login_logs_%s.csv", time.Now().Format("20060102150405"))
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+
+	// UTF-8 BOM: Excel on Windows otherwise reads the Chinese columns
+	// (location, message) as mojibake.
+	_, _ = c.Writer.WriteString("\xEF\xBB\xBF")
+
+	writer := csv.NewWriter(c.Writer)
+	defer writer.Flush()
+
+	_ = writer.Write([]string{
+		"ID", "User ID", "Username", "Login Type", "Status", "IP", "Location",
+		"Device", "OS", "Browser", "Message", "Created At",
+	})
+
+	for _, entry := range logs {
+		_ = writer.Write([]string{
+			strconv.FormatUint(uint64(entry.ID), 10),
+			strconv.FormatUint(uint64(entry.UserID), 10),
+			entry.Username,
+			loginTypeLabel(entry.LoginType),
+			loginStatusLabel(entry.Status),
+			entry.IP,
+			entry.Location,
+			entry.Device,
+			entry.OS,
+			entry.Browser,
+			entry.Message,
+			entry.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+}
+
+// loginTypeLabel maps the stored code to a readable name. Codes are defined by
+// events.LoginType* (1=password, 2=github, 3=wechat, 4=totp); an unknown code
+// falls back to the raw number rather than silently reading as a known type.
+func loginTypeLabel(loginType int8) string {
+	switch loginType {
+	case 1:
+		return "password"
+	case 2:
+		return "github"
+	case 3:
+		return "wechat"
+	case 4:
+		return "totp"
+	default:
+		return strconv.Itoa(int(loginType))
+	}
+}
+
+func loginStatusLabel(status int8) string {
+	if status == 1 {
+		return "success"
+	}
+	return "failed"
 }
 
 // GetMyLoginLogs returns login logs for the current user.

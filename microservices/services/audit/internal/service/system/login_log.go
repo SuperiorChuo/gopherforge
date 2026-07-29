@@ -56,6 +56,10 @@ type LoginInfo struct {
 
 var ErrLoginLogNotFound = errors.New("login log not found")
 
+// loginLogExportMaxRows 与操作日志导出保持同一上限：一次导出封顶 1 万行，
+// 超出的部分要靠时间范围筛选，避免无界查询把内存吃满。
+const loginLogExportMaxRows = 10000
+
 func (s *LoginLogService) RecordContext(ctx context.Context, info *LoginInfo) error {
 	device, os, browser := parseUserAgent(info.UserAgent)
 
@@ -91,6 +95,15 @@ func (s *LoginLogService) GetLogListContext(ctx context.Context, req LoginLogLis
 		req.EndTime,
 		req.DataScope,
 	)
+}
+
+// ExportLogsContext 取导出用的登录日志。与 OperationLogService.ExportLogsContext
+// 同构：复用列表查询并把页大小抬到导出上限，过滤条件与页面所见完全一致。
+func (s *LoginLogService) ExportLogsContext(ctx context.Context, req LoginLogListRequest) ([]model.LoginLog, error) {
+	req.Page = 1
+	req.PageSize = loginLogExportMaxRows
+	logs, _, err := s.GetLogListContext(ctx, req)
+	return logs, err
 }
 
 func (s *LoginLogService) GetUserLastLoginContext(ctx context.Context, userID uint) (*model.LoginLog, error) {

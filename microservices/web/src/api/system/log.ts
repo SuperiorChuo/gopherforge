@@ -7,6 +7,20 @@ type OperationLogListParams = PageRequest & { username?: string; method?: string
 export const getLoginLogList = (params: LoginLogListParams) =>
   request.get<unknown, PageResponse<LoginLog>>('/api/v1/login-logs', { params })
 
+// 按当前筛选条件导出 CSV（后端流式返回，走 blob 触发下载）
+export const exportLoginLogs = async (params: Omit<LoginLogListParams, 'page' | 'page_size'>) => {
+  const blob = await request.get<unknown, Blob>('/api/v1/login-logs/export', {
+    params,
+    responseType: 'blob',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `login_logs_${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 // 当前登录用户自己的登录记录（个人中心用）
 export const getMyLoginLogs = (params: PageRequest) =>
   request.get<unknown, PageResponse<LoginLog>>('/api/v1/login-logs/my', { params, silent: true })

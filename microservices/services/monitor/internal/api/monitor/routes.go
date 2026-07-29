@@ -60,6 +60,8 @@ func registerJobRoutes(group *gin.RouterGroup, jobAPI *JobAPI) {
 	startJob := unavailableMonitorHandler
 	stopJob := unavailableMonitorHandler
 	runJob := unavailableMonitorHandler
+	getJobTargets := unavailableMonitorHandler
+	getJobLogs := unavailableMonitorHandler
 	cleanupJobLogs := unavailableMonitorHandler
 	if jobAPI != nil {
 		getJobs = jobAPI.GetJobList
@@ -71,6 +73,8 @@ func registerJobRoutes(group *gin.RouterGroup, jobAPI *JobAPI) {
 		startJob = jobAPI.StartJob
 		stopJob = jobAPI.StopJob
 		runJob = jobAPI.RunJob
+		getJobTargets = jobAPI.GetJobTargets
+		getJobLogs = jobAPI.GetJobLogList
 		cleanupJobLogs = jobAPI.CleanupJobLogs
 	}
 
@@ -83,5 +87,7 @@ func registerJobRoutes(group *gin.RouterGroup, jobAPI *JobAPI) {
 	group.POST("/jobs/:id/start", middleware.PermissionMiddleware("system:job:run"), startJob)
 	group.POST("/jobs/:id/stop", middleware.PermissionMiddleware("system:job:run"), stopJob)
 	group.POST("/jobs/:id/run", middleware.PermissionMiddleware("system:job:run"), runJob)
+	group.GET("/jobs/targets", middleware.PermissionMiddleware("system:job:list"), getJobTargets)
+	group.GET("/job-logs", middleware.PermissionMiddleware("system:job:list"), getJobLogs)
 	group.POST("/job-logs/cleanup", middleware.PermissionMiddleware("system:job:run"), cleanupJobLogs)
 }

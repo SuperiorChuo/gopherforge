@@ -405,3 +405,23 @@ func (d *fakeJobDAO) GetLatestJobLogContext(ctx context.Context, jobID uint) (*m
 	}
 	return &latest, nil
 }
+
+// GetJobLogListContext 是分页查询桩：jobID=0 表示不过滤任务，success 为 nil
+// 表示不过滤结果。这里不实现真分页，够断言过滤条件被正确透传即可。
+func (d *fakeJobDAO) GetJobLogListContext(ctx context.Context, _ pagination.PageRequest, jobID uint, success *int8) ([]model.ScheduledJobLog, int64, error) {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+
+	matched := make([]model.ScheduledJobLog, 0)
+	for id, logs := range d.logs {
+		if jobID != 0 && id != jobID {
+			continue
+		}
+		for _, entry := range logs {
+			if success != nil && entry.Status != *success {
+				continue
+			}
+			matched = append(matched, entry)
+		}
+	}
+	return matched, int64(len(matched)), nil
+}
