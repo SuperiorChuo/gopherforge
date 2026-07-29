@@ -328,6 +328,7 @@ func PrometheusMetrics() string {
 
 	writeRuntimePrometheusMetrics(&b)
 	writeDatabasePoolPrometheusMetrics(&b)
+	writeOperationLogPrometheusMetrics(&b)
 	return b.String()
 }
 

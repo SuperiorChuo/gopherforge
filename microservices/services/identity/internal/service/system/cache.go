@@ -24,7 +24,13 @@ func InvalidatePermissionCacheForUsersContext(ctx context.Context, userIDs ...ui
 	if err := cacheService.DelUserPermissionsBatchContext(ctx, uniqueUserIDs); err != nil {
 		return err
 	}
-	return cacheService.DelUserRolesBatchContext(ctx, uniqueUserIDs)
+	if err := cacheService.DelUserRolesBatchContext(ctx, uniqueUserIDs); err != nil {
+		return err
+	}
+	// The console-session validation cache rides the same channel. It caches
+	// "this session is live and this account is enabled", which a disable or a
+	// delete falsifies — and both call this function.
+	return cacheService.DelConsoleSessionsForUsersContext(ctx, uniqueUserIDs)
 }
 
 func InvalidatePermissionCacheByRolesContext(ctx context.Context, store PermissionCacheStore, roleIDs ...uint) error {
@@ -66,7 +72,10 @@ func InvalidatePermissionCacheAllContext(ctx context.Context) error {
 	if err := cacheService.DelAllUserPermissionsContext(ctx); err != nil {
 		return err
 	}
-	return cacheService.DelAllUserRolesContext(ctx)
+	if err := cacheService.DelAllUserRolesContext(ctx); err != nil {
+		return err
+	}
+	return cacheService.DelAllConsoleSessionsContext(ctx)
 }
 
 func uniqueUint(values []uint) []uint {

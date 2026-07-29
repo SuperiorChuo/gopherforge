@@ -2,7 +2,6 @@ package system
 
 import (
 	"context"
-	"errors"
 
 	"gorm.io/gorm"
 
@@ -109,6 +108,80 @@ func (d *DictDAO) GetItemsByTypeCodeContext(ctx context.Context, code string, st
 	return d.GetItemsByTypeIDContext(ctx, dictType.ID, status)
 }
 
+// GetItemsByTypeIDsContext loads active items for many dict types in one
+// query, grouped by type id. Replaces the per-type loop that made /dicts/all
+// and /dicts?codes=… cost one query per code.
+func (d *DictDAO) GetItemsByTypeIDsContext(ctx context.Context, typeIDs []uint, status *int8) (map[uint][]model.DictItem, error) {
+	grouped := make(map[uint][]model.DictItem, len(typeIDs))
+	if len(typeIDs) == 0 {
+		return grouped, nil
+	}
+
+	var items []model.DictItem
+	query := d.dbWithContext(ctx).Where("dict_type_id IN ?", typeIDs)
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+	// Ordered by type first so each group comes out in the same
+	// (sort, created_at) order the single-type query produces.
+	if err := query.Order("dict_type_id ASC, sort ASC, created_at ASC").Find(&items).Error; err != nil {
+		return nil, err
+	}
+
+	for i := range items {
+		grouped[items[i].DictTypeID] = append(grouped[items[i].DictTypeID], items[i])
+	}
+	return grouped, nil
+}
+
+// GetTypesByCodesContext loads dict types for many codes in one query.
+func (d *DictDAO) GetTypesByCodesContext(ctx context.Context, codes []string, status *int8) ([]model.DictType, error) {
+	if len(codes) == 0 {
+		return nil, nil
+	}
+	var types []model.DictType
+	query := d.dbWithContext(ctx).Model(&model.DictType{}).Where("code IN ?", codes)
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+	err := query.Find(&types).Error
+	return types, err
+}
+
+// GetTypesWithItemsByCodesContext resolves code→active items for many codes in
+// exactly two queries (types by code, then all their items), regardless of how
+// many codes are asked for. Codes with no matching type are absent from the
+// result; the caller distinguishes "unknown code" from "known code, no items".
+func (d *DictDAO) GetTypesWithItemsByCodesContext(ctx context.Context, codes []string) (map[string][]model.DictItem, error) {
+	status := int8(1)
+	types, err := d.GetTypesByCodesContext(ctx, codes, &status)
+	if err != nil {
+		return nil, err
+	}
+	if len(types) == 0 {
+		return map[string][]model.DictItem{}, nil
+	}
+
+	typeIDs := make([]uint, 0, len(types))
+	for i := range types {
+		typeIDs = append(typeIDs, types[i].ID)
+	}
+	grouped, err := d.GetItemsByTypeIDsContext(ctx, typeIDs, &status)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string][]model.DictItem, len(types))
+	for i := range types {
+		items := grouped[types[i].ID]
+		if items == nil {
+			items = []model.DictItem{}
+		}
+		result[types[i].Code] = items
+	}
+	return result, nil
+}
+
 func (d *DictDAO) GetItemListContext(ctx context.Context, req pagination.PageRequest, typeID uint, keyword string, status *int8) ([]model.DictItem, int64, error) {
 	var items []model.DictItem
 	var total int64
@@ -161,24 +234,31 @@ func (d *DictDAO) GetTypeWithItemsContext(ctx context.Context, code string) (*mo
 	return dictType, nil
 }
 
+// GetAllTypesWithItemsContext returns every active type with its active items
+// in two queries (all types, then all their items) instead of the 1+N loop it
+// replaces.
 func (d *DictDAO) GetAllTypesWithItemsContext(ctx context.Context) ([]model.DictType, error) {
 	status := int8(1)
 	types, err := d.GetAllTypesContext(ctx, &status)
 	if err != nil {
 		return nil, err
 	}
-
-	for i := range types {
-		items, err := d.GetItemsByTypeIDContext(ctx, types[i].ID, &status)
-		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return nil, err
-			}
-			continue
-		}
-		types[i].Items = items
+	if len(types) == 0 {
+		return types, nil
 	}
 
+	typeIDs := make([]uint, 0, len(types))
+	for i := range types {
+		typeIDs = append(typeIDs, types[i].ID)
+	}
+	grouped, err := d.GetItemsByTypeIDsContext(ctx, typeIDs, &status)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range types {
+		types[i].Items = grouped[types[i].ID]
+	}
 	return types, nil
 }
 

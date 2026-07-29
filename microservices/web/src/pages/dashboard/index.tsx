@@ -226,7 +226,7 @@ async function loadWeather(): Promise<LiveWeather | null> {
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const { userInfo } = useAppSelector((s) => s.auth)
+  const userInfo = useAppSelector((s) => s.auth.userInfo)
   const { hasPerm } = usePermission()
   const [stats, setStats] = useState({ users: 0, roles: 0, permissions: 0, menus: 0 })
   const [loading, setLoading] = useState(true)

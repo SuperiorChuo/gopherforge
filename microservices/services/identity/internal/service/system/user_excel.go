@@ -8,8 +8,8 @@ import (
 	"context"
 	"errors"
 
+	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
 	"github.com/go-admin-kit/services/identity/internal/model"
-	"github.com/go-admin-kit/services/identity/internal/pkg/pagination"
 )
 
 const (
@@ -22,25 +22,82 @@ const (
 	UserImportDefaultPassword = "Init#12345"
 )
 
-// ExportUsersContext 按列表条件分页循环全量拉取（上限 UserExportCap）。
-// truncated=true 表示命中上限被截断。
-func (s *UserService) ExportUsersContext(ctx context.Context, req UserListRequest) (users []model.User, truncated bool, err error) {
-	page := 1
+// StreamExportUsersContext 按列表条件游标翻页，每页回调一次（上限
+// UserExportCap 行）。truncated=true 表示命中上限被截断。
+//
+// 三处与旧实现不同：
+//   - Keyset cursor 取代 LIMIT/OFFSET 循环，第 20 页与第 1 页同价；
+//   - 去掉每页一次的全表 COUNT，靠"短页即末页"判终止；
+//   - 去掉 Preload("Roles")/Preload("Posts")（导出列里没有角色/岗位，见
+//     api/system/user_excel.go 的表头）。
+//
+// 逐页回调而不是一次返回一万行：调用方把每页直接写进 excelize StreamWriter，
+// 内存里最多只留一页。
+func (s *UserService) StreamExportUsersContext(
+	ctx context.Context,
+	req UserListRequest,
+	emit func([]model.User) error,
+) (truncated bool, err error) {
+	var (
+		cursor  systemdao.ExportUserCursor
+		emitted int
+	)
 	for {
-		pr := pagination.PageRequest{Page: page, PageSize: userExportPageSize}
-		batch, total, err := s.userDAO.GetUserListContext(ctx, pr, req.Keyword, req.Status, req.DataScope)
+		// On the page that would reach the cap, ask for one row past it: that
+		// probe is what distinguishes "exactly UserExportCap rows exist"
+		// (nothing truncated) from "more rows remain" (truncated).
+		limit := userExportPageSize
+		remaining := UserExportCap - emitted
+		if remaining <= limit {
+			limit = remaining + 1
+		}
+
+		batch, err := s.userDAO.ExportUsersPageContext(ctx, cursor, limit, req.Keyword, req.Status, req.DataScope)
 		if err != nil {
-			return nil, false, err
+			return false, err
 		}
-		users = append(users, batch...)
-		if len(users) >= UserExportCap {
-			return users[:UserExportCap], int64(UserExportCap) < total, nil
+		if len(batch) == 0 {
+			return false, nil
 		}
-		if int64(len(users)) >= total || len(batch) == 0 {
-			return users, false, nil
+
+		over := emitted + len(batch) - UserExportCap
+		if over > 0 {
+			if err := emit(batch[:len(batch)-over]); err != nil {
+				return false, err
+			}
+			return true, nil
 		}
-		page++
+		if err := emit(batch); err != nil {
+			return false, err
+		}
+		emitted += len(batch)
+
+		if len(batch) < limit {
+			// A short page is the last page — no more rows exist.
+			return false, nil
+		}
+		if emitted == UserExportCap {
+			// Filled the cap on a full page; the probe above proved nothing
+			// follows, so this is a complete export.
+			return false, nil
+		}
+
+		last := batch[len(batch)-1]
+		cursor = systemdao.ExportUserCursor{CreatedAt: last.CreatedAt, ID: last.ID}
 	}
+}
+
+// ExportUsersContext 收集全部导出行到内存（保留给需要整份切片的调用方；
+// HTTP 导出走 StreamExportUsersContext）。
+func (s *UserService) ExportUsersContext(ctx context.Context, req UserListRequest) (users []model.User, truncated bool, err error) {
+	truncated, err = s.StreamExportUsersContext(ctx, req, func(batch []model.User) error {
+		users = append(users, batch...)
+		return nil
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	return users, truncated, nil
 }
 
 // DepartmentNameMapContext 当前租户的部门 id→名称映射（导出列 / 导入反解共用）。

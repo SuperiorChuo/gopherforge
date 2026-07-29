@@ -91,7 +91,7 @@ func TestOperationLogProcessorUsesTimeoutForRecordContext(t *testing.T) {
 	queue <- &model.OperationLog{Path: "/slow-write"}
 
 	recorder := newBlockingOperationLogRecorder()
-	done := processLogs(ctx, queue, recorder, 20*time.Millisecond)
+	done := processLogsBatched(ctx, queue, recorder, 20*time.Millisecond, operationLogBatchSize, 5*time.Millisecond)
 
 	select {
 	case <-recorder.started:

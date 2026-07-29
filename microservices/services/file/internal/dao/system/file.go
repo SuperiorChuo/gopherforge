@@ -109,10 +109,11 @@ func (d *FileDAO) DeleteByIDsContext(ctx context.Context, ids []uint) error {
 }
 
 // CountByFilePathExcludingIDContext counts storage references without tenant filter so
-// physical cleanup remains correct if paths are ever shared.
+// physical cleanup remains correct if paths are ever shared (tenant.DisableScope
+// 显式绕过 GORM 租户兜底插件，保持跨租户引用计数语义).
 func (d *FileDAO) CountByFilePathExcludingIDContext(ctx context.Context, storageType, filePath string, excludedID uint) (int64, error) {
 	var count int64
-	err := d.dbWithContext(authz.DisableDataScope(ctx)).
+	err := d.dbWithContext(tenant.DisableScope(authz.DisableDataScope(ctx))).
 		Model(&model.File{}).
 		Where("storage_type = ? AND file_path = ? AND id <> ?", storageType, filePath, excludedID).
 		Count(&count).Error
@@ -121,7 +122,7 @@ func (d *FileDAO) CountByFilePathExcludingIDContext(ctx context.Context, storage
 
 func (d *FileDAO) CountByThumbnailPathExcludingIDContext(ctx context.Context, storageType, thumbnailPath string, excludedID uint) (int64, error) {
 	var count int64
-	err := d.dbWithContext(authz.DisableDataScope(ctx)).
+	err := d.dbWithContext(tenant.DisableScope(authz.DisableDataScope(ctx))).
 		Model(&model.File{}).
 		Where("storage_type = ? AND thumbnail_path = ? AND id <> ?", storageType, thumbnailPath, excludedID).
 		Count(&count).Error

@@ -28,9 +28,15 @@ type CacheService struct {
 	client RedisClient
 }
 
-// NewCacheService creates a CacheService instance.
+// defaultCacheService is the package-level instance shared by callers that use
+// the package Redis client. CacheService holds no per-request state, so the auth
+// middlewares can reuse one value instead of allocating per request.
+var defaultCacheService = &CacheService{}
+
+// NewCacheService returns the shared CacheService backed by the package Redis
+// client. It is safe for concurrent use and allocates nothing.
 func NewCacheService() *CacheService {
-	return &CacheService{}
+	return defaultCacheService
 }
 
 // NewCacheServiceWithClient creates a CacheService backed by the provided Redis client.

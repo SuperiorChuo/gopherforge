@@ -68,13 +68,7 @@ func AuthMiddleware() gin.HandlerFunc {
 				c.Abort()
 				return
 			}
-			if _, err := deps.ConsoleSessions.ValidateActiveSessionContext(c.Request.Context(), claims.ID, claims.Username); err != nil {
-				response.UnauthorizedWithCode(c, response.ErrorCodeConsoleLoginRequired, "Console login required")
-				c.Abort()
-				return
-			}
-			user, err := deps.Users.GetUserWithRolesContext(c.Request.Context(), claims.UserID)
-			if err != nil || user.Status != 1 {
+			if !consoleSessionAuthorized(c.Request.Context(), deps, claims) {
 				response.UnauthorizedWithCode(c, response.ErrorCodeConsoleLoginRequired, "Console login required")
 				c.Abort()
 				return
@@ -112,6 +106,55 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+// consoleSessionAuthorized validates a cookie-borne console session.
+//
+// The uncached path costs three SELECTs and one UPDATE per request: the session
+// row, the user row with preloaded roles, and the last_seen_at touch. Both facts
+// it establishes — the session is live, and the account is enabled — change only
+// on explicit administrative action (logout, force-logout, disable/delete), and
+// every one of those paths already invalidates this cache. So the result is held
+// in Redis for a short TTL and the whole branch collapses to a single GET.
+//
+// Roles and permissions are deliberately not cached here. They stay on the
+// role/permission caches with their own invalidation, so a hit on this cache can
+// never hand back a privilege that was revoked.
+func consoleSessionAuthorized(ctx context.Context, deps AuthMiddlewareDependencies, claims *jwt.Claims) bool {
+	cacheService := cache.NewCacheService()
+	if identity, ok := cacheService.GetConsoleSessionContext(ctx, claims.ID); ok {
+		// Bind the cached entry to the presented token. Without this a session id
+		// collision or a re-issued token could ride another user's cached result.
+		if identity.UserID == claims.UserID &&
+			(claims.Username == "" || identity.Username == claims.Username) {
+			return true
+		}
+		_ = cacheService.DelConsoleSessionContext(ctx, claims.ID)
+	}
+
+	if _, err := deps.ConsoleSessions.ValidateActiveSessionContext(ctx, claims.ID, claims.Username); err != nil {
+		return false
+	}
+	user, err := deps.Users.GetUserWithRolesContext(ctx, claims.UserID)
+	if err != nil || user.Status != 1 {
+		return false
+	}
+
+	// Feed the role cache from the user we just loaded: RoleMiddleware and
+	// PermissionMiddleware would otherwise re-read the same row and roles a few
+	// microseconds later on this very request.
+	codes := make([]string, 0, len(user.Roles))
+	for _, role := range user.Roles {
+		codes = append(codes, role.Code)
+	}
+	_ = cacheService.SetUserRolesContext(ctx, claims.UserID, codes)
+
+	_ = cacheService.SetConsoleSessionContext(ctx, claims.ID, cache.ConsoleSessionIdentity{
+		UserID:   claims.UserID,
+		Username: claims.Username,
+		TenantID: jwt.NormalizeTenantID(claims.TenantID),
+	})
+	return true
 }
 
 // RoleMiddleware allows the request when the current user has any required role.
@@ -156,7 +199,7 @@ func PermissionMiddleware(requiredPermissions ...string) gin.HandlerFunc {
 			return
 		}
 
-		cacheService := cache.NewCacheService()
+		cacheService := cache.NewCacheService() // shared package-level instance
 		permissions, err := cacheService.GetUserPermissionsContext(c.Request.Context(), userID.(uint))
 		if err != nil || len(permissions) == 0 {
 			store := currentAuthDeps().Permissions

@@ -344,7 +344,12 @@ export default function MainLayout() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const location = useLocation()
-  const { userInfo, loading, permissions, menus } = useAppSelector((s) => s.auth)
+  // 分字段订阅：整片订阅下任一 auth action 都换 slice 引用，会让菜单树与
+  // 命令面板（都依赖 hasPerm/menus）无谓全量重建
+  const userInfo = useAppSelector((s) => s.auth.userInfo)
+  const loading = useAppSelector((s) => s.auth.loading)
+  const permissions = useAppSelector((s) => s.auth.permissions)
+  const menus = useAppSelector((s) => s.auth.menus)
   const { hasPerm, isSuperAdmin } = usePermission()
   const { mode, toggle: toggleTheme } = useThemeMode()
   const token = getToken()

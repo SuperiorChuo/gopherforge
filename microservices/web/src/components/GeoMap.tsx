@@ -1,5 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { normalizeProvince } from '@/utils/chinaGeo'
+// 只取 URL，不把 JSON 编成 JS 模块（见 loadGeoLayers）
+import worldGeoURL from '@/assets/world-countries.json?url'
+import chinaGeoURL from '@/assets/china-provinces.json?url'
 
 // 深空风格纯 SVG 世界地图：全球国家版图打底（太平洋居中，中国在视觉中心）+
 // 中国省界精细层（省级热度染色）+ 城市涟漪光点 + 汇聚枢纽的飞线动画。
@@ -65,13 +68,16 @@ let geoLayersPromise: Promise<{ world: GeoPath[]; china: GeoPath[] }> | null = n
 
 function loadGeoLayers() {
   if (!geoLayersPromise) {
+    // `?url` + fetch 而不是 import JSON：Vite 会把 JSON 编译成 JS 模块，
+    // 浏览器得为 266KB 付 JS 解析的代价；走 fetch 是原生 JSON.parse 快路径，
+    // 且产物按 application/json 落盘，能被 nginx 静态压缩。
     geoLayersPromise = Promise.all([
-      import('@/assets/world-countries.json'),
-      import('@/assets/china-provinces.json'),
+      fetch(worldGeoURL).then((r) => r.json() as Promise<{ features: GeoFeature[] }>),
+      fetch(chinaGeoURL).then((r) => r.json() as Promise<{ features: GeoFeature[] }>),
     ]).then(([worldRaw, chinaRaw]) => {
       geoLayersCache = {
-        world: toPaths((worldRaw.default as unknown as { features: GeoFeature[] }).features),
-        china: toPaths((chinaRaw.default as unknown as { features: GeoFeature[] }).features),
+        world: toPaths(worldRaw.features),
+        china: toPaths(chinaRaw.features),
       }
       return geoLayersCache
     })

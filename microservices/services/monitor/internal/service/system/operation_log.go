@@ -49,6 +49,13 @@ func (s *OperationLogService) RecordContext(ctx context.Context, log *model.Oper
 	return s.logDAO.CreateLogContext(ctx, log)
 }
 
+// RecordBatchContext persists a batch of operation logs in one round trip. It
+// satisfies middleware.OperationLogBatchRecorder so the async processor can
+// flush accumulated logs without one INSERT per entry.
+func (s *OperationLogService) RecordBatchContext(ctx context.Context, logs []*model.OperationLog) error {
+	return s.logDAO.CreateLogsContext(ctx, logs)
+}
+
 func (s *OperationLogService) GetLogByIDContext(ctx context.Context, id uint) (*model.OperationLog, error) {
 	log, err := s.logDAO.GetLogByIDContext(ctx, id)
 	if err != nil {

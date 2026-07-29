@@ -133,8 +133,10 @@ func (d *LoginLogDAO) DeleteBeforeContext(ctx context.Context, before time.Time)
 // DeleteAllTenantsBeforeContext 删除**所有租户**在 before 之前的登录日志。
 // 保留策略后台任务专用：后台协程没有租户上下文，走 ApplyFilter 会回落默认
 // 租户、漏删其余租户。请求链路一律用带租户过滤的 DeleteBeforeContext。
+// tenant.DisableScope 显式声明跨租户语义，防 GORM 租户兜底插件在带租户
+// ctx 的调用方处静默降级为单租户删除。
 func (d *LoginLogDAO) DeleteAllTenantsBeforeContext(ctx context.Context, before time.Time) (int64, error) {
-	result := d.dbWithContext(ctx).Where("created_at < ?", before).Delete(&model.LoginLog{})
+	result := d.dbWithContext(tenant.DisableScope(ctx)).Where("created_at < ?", before).Delete(&model.LoginLog{})
 	return result.RowsAffected, result.Error
 }
 

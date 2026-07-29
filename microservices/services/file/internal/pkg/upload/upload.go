@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
+	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -285,13 +286,21 @@ func (u *Uploader) calculateHash(file io.Reader) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-// generateObjectKey creates an object storage key.
+// generateObjectKey creates an object storage key. The date prefix keeps
+// archives browsable; the name embeds 128 bits from crypto/rand so keys are
+// not enumerable (a plain timestamp would be guessable).
 func (u *Uploader) generateObjectKey(ext string) string {
 	// Partition objects by date.
 	now := time.Now()
 	dateDir := now.Format("2006/01/02")
-	// Generate a unique filename.
-	fileName := fmt.Sprintf("%d%s", now.UnixNano(), ext)
+	// Generate an unguessable filename.
+	random := make([]byte, 16)
+	if _, err := rand.Read(random); err != nil {
+		// crypto/rand failing means the OS entropy source is broken; do not
+		// silently fall back to a guessable name.
+		panic(fmt.Sprintf("upload: crypto/rand unavailable: %v", err))
+	}
+	fileName := fmt.Sprintf("%d_%s%s", now.UnixNano(), hex.EncodeToString(random), ext)
 
 	return path.Join(dateDir, fileName)
 }
