@@ -24,13 +24,13 @@ import (
 	"github.com/go-admin-kit/server/internal/middleware"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
 	"github.com/go-admin-kit/server/internal/pkg/database"
-	"github.com/go-admin-kit/server/internal/pkg/logger"
 	"github.com/go-admin-kit/server/internal/pkg/observability"
 	"github.com/go-admin-kit/server/internal/pkg/redis"
 	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
 	authsvc "github.com/go-admin-kit/server/internal/service/auth"
 	monitorSvc "github.com/go-admin-kit/server/internal/service/monitor"
 	systemSvc "github.com/go-admin-kit/server/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 )
 
 // @title           Go Admin Kit API

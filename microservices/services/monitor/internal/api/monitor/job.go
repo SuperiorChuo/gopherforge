@@ -8,8 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
-	"github.com/go-admin-kit/server/internal/pkg/response"
 	"github.com/go-admin-kit/server/internal/service/monitor"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 	"gorm.io/gorm"
 )
 

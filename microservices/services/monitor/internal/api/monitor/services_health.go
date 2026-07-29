@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/pkg/response"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 // Services health overview: monitor pings every service's readiness endpoint
