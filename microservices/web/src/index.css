@@ -1240,11 +1240,13 @@ body {
 
 .table-toolbar-title {
   display: flex;
+  flex: 1 1 320px;
+  min-width: 0;
   align-items: center;
   gap: 10px;
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.3px;
+  letter-spacing: 0;
   color: rgba(255, 255, 255, 0.92);
 }
 
@@ -1281,6 +1283,7 @@ body {
 
 .table-toolbar-text {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 1px;
   min-width: 0;
@@ -1290,12 +1293,15 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  letter-spacing: 0;
 }
 
 .table-toolbar-desc {
   font-size: 12px;
   font-weight: 400;
-  letter-spacing: 0.3px;
+  line-height: 1.45;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
   color: rgba(148, 163, 184, 0.7);
 }
 
@@ -3346,9 +3352,27 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
 
 .table-toolbar-extra {
   display: flex;
+  flex: 0 1 auto;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+@media (max-width: 767px) {
+  .table-toolbar {
+    align-items: flex-start;
+  }
+
+  .table-toolbar-title,
+  .table-toolbar-extra {
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  .table-toolbar-extra {
+    justify-content: flex-start;
+  }
 }
 
 .cell-mono {
@@ -6142,6 +6166,43 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
   -webkit-backdrop-filter: blur(4px);
 }
 
+/* 弹层结构：标题、内容与操作区保持清晰分层。 */
+.ant-modal .ant-modal-header,
+.ant-drawer .ant-drawer-header {
+  border-bottom: 1px solid color-mix(in srgb, var(--text-secondary) 16%, transparent);
+}
+
+.ant-modal .ant-modal-header {
+  padding-bottom: 14px;
+}
+
+.ant-modal .ant-modal-footer {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--text-secondary) 16%, transparent);
+}
+
+.ant-drawer .ant-drawer-footer {
+  border-top-color: color-mix(in srgb, var(--text-secondary) 16%, transparent);
+}
+
+.ant-modal .ant-modal-close,
+.ant-drawer .ant-drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition:
+    color var(--dur-fast) ease,
+    background var(--dur-fast) ease,
+    box-shadow var(--dur-fast) ease;
+}
+
+.ant-modal .ant-modal-close:hover,
+.ant-drawer .ant-drawer-close:hover {
+  background: color-mix(in srgb, var(--c-primary) 12%, transparent);
+}
+
 /* ---- Dropdown / Popover / Select / DatePicker 面板 ----
    唯一真源在「悬浮层家族拉齐」块（搜 ant-select-dropdown 的 blur(32px) 版本）；
    Dropdown 菜单走 .ant-dropdown:not(.user-drop-popup) 的清晰实底。此处不再重复定义。 */
@@ -6356,6 +6417,31 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.3),
     0 4px 14px rgba(37, 99, 235, 0.3);
+}
+
+/* 分页与页签是高频键盘落点，焦点反馈不依赖浏览器默认细线。 */
+.ant-pagination .ant-pagination-item a:focus-visible,
+.ant-pagination .ant-pagination-prev button:focus-visible,
+.ant-pagination .ant-pagination-next button:focus-visible,
+.ant-pagination .ant-pagination-options input:focus-visible,
+.ant-tabs .ant-tabs-tab-btn:focus-visible {
+  outline: 2px solid rgba(129, 140, 248, 0.78);
+  outline-offset: 2px;
+  border-radius: 6px;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16);
+}
+
+[data-theme='light'] .ant-pagination .ant-pagination-item a:focus-visible,
+[data-theme='light'] .ant-pagination .ant-pagination-prev button:focus-visible,
+[data-theme='light'] .ant-pagination .ant-pagination-next button:focus-visible,
+[data-theme='light'] .ant-pagination .ant-pagination-options input:focus-visible,
+[data-theme='light'] .ant-tabs .ant-tabs-tab-btn:focus-visible {
+  outline-color: rgba(37, 99, 235, 0.72);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+}
+
+.ant-pagination .ant-pagination-disabled {
+  opacity: 0.42;
 }
 
 /* ============================================================
@@ -7577,6 +7663,10 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
   border-radius: 14px;
 }
 
+.glass-empty-compact .glass-empty-text {
+  margin-top: 12px;
+}
+
 .glass-empty-icon {
   position: relative;
   display: inline-flex;
@@ -7623,8 +7713,16 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
 .glass-empty-text {
   margin-top: 18px;
   font-size: 13px;
-  letter-spacing: 0.5px;
+  line-height: 1.5;
+  letter-spacing: 0;
   color: rgba(148, 163, 184, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-empty-icon::after {
+    animation: none;
+    opacity: 0.55;
+  }
 }
 
 [data-theme='light'] .glass-empty-icon {
@@ -7694,6 +7792,17 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .ant-skeleton .ant-skeleton-content .ant-skeleton-title,
+  .ant-skeleton .ant-skeleton-content .ant-skeleton-paragraph > li,
+  .ant-skeleton-button,
+  .ant-skeleton-input,
+  .ant-skeleton-avatar {
+    animation: none !important;
+    background-position: 50% 50% !important;
+  }
+}
+
 /* 表格加载遮罩:玻璃磨砂而不是纯白/纯黑罩 */
 .ant-table-wrapper .ant-spin-blur {
   opacity: 0.35;
@@ -7729,6 +7838,12 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
 
 .ant-table-tbody > tr:hover > td:first-child::before {
   opacity: 1;
+}
+
+@media (hover: none) {
+  .ant-table-tbody > tr > td:first-child::before {
+    display: none;
+  }
 }
 
 [data-theme='light'] .ant-table-tbody > tr > td:first-child::before {
