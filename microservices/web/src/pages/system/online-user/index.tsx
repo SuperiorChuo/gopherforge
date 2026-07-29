@@ -9,6 +9,7 @@ import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
+import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
 
 export default function OnlineUserPage() {
   const [list, setList] = useState<OnlineUser[]>([])
@@ -29,12 +30,14 @@ export default function OnlineUserPage() {
 
   useEffect(() => {
     fetchList()
-    // 在线会话有实时语义，静默轮询避免表格 loading 闪烁
-    const timer = setInterval(() => {
-      getOnlineUserList().then(setList).catch(() => {})
-    }, 30000)
-    return () => clearInterval(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 在线会话有实时语义，静默轮询避免表格 loading 闪烁；
+  // 后台标签页暂停，回前台立即补一次
+  useVisibilityInterval(() => {
+    getOnlineUserList().then(setList).catch(() => {})
+  }, 30000, false)
 
   const handleKick = async (tokenId: string) => {
     try {

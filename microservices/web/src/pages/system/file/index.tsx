@@ -186,27 +186,30 @@ export default function FilePage() {
   }
 
   const columns: ColumnsType<FileRecord> = [
-    { title: 'ID', dataIndex: 'id', width: 60 },
+    { title: 'ID', dataIndex: 'id', width: 60, responsive: ['md'] },
     { title: '文件名', dataIndex: 'file_name', ellipsis: true },
     {
       title: '文件类型',
       dataIndex: 'file_type',
       width: 120,
+      responsive: ['sm'],
       render: (v: string) => v && <Tag variant="filled" className="cell-mono">{v}</Tag>,
     },
     {
       title: '文件大小',
       dataIndex: 'file_size',
       width: 100,
+      responsive: ['md'],
       render: (v: number) => <span className="cell-mono">{formatSize(v)}</span>,
     },
     {
       title: '存储类型',
       dataIndex: 'storage_type',
       width: 100,
+      responsive: ['md'],
       render: (v: string) => v && <Tag color="geekblue" variant="filled">{v}</Tag>,
     },
-    { title: '上传时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '上传时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: '操作',
       width: 200,

@@ -170,15 +170,16 @@ export default function RolePage() {
     : allPerms
 
   const columns: ColumnsType<SystemRole> = [
-    { title: 'ID', dataIndex: 'id', width: 60 },
+    { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
     { title: '名称', dataIndex: 'name' },
     {
       title: '编码',
       dataIndex: 'code',
+      responsive: ['sm'],
       render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
     },
-    { title: '描述', dataIndex: 'description', ellipsis: true },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '描述', dataIndex: 'description', ellipsis: true, responsive: ['md'] },
+    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: '操作',
       width: 200,

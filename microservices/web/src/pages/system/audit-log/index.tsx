@@ -66,11 +66,12 @@ export default function AuditLogPage() {
   }
 
   const columns: ColumnsType<AuditLog> = [
-    { title: 'ID', dataIndex: 'id', width: 70 },
+    { title: 'ID', dataIndex: 'id', width: 70, responsive: ['lg'] },
     {
       title: '操作者',
       dataIndex: 'actor_id',
       width: 160,
+      responsive: ['sm'],
       render: (v: string, record) => (
         <Space size={4}>
           <Tag variant="filled">{record.actor_type}</Tag>
@@ -88,14 +89,15 @@ export default function AuditLogPage() {
       title: '目标',
       dataIndex: 'target_type',
       width: 180,
+      responsive: ['md'],
       render: (v: string, record) => (
         <span className="cell-mono cell-dim" style={{ fontSize: 12 }}>
           {v}#{record.target_id}
         </span>
       ),
     },
-    { title: '摘要', dataIndex: 'summary', ellipsis: true },
-    { title: '时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '摘要', dataIndex: 'summary', ellipsis: true, responsive: ['lg'] },
+    { title: '时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['md'] },
     {
       title: '操作',
       width: 80,

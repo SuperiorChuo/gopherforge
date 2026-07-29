@@ -3,7 +3,7 @@ import {
   UserOutlined, TeamOutlined, SafetyOutlined, MenuOutlined, ApartmentOutlined,
   DatabaseOutlined, FileOutlined, NotificationOutlined, LoginOutlined,
   FileTextOutlined, AuditOutlined, WifiOutlined, ScheduleOutlined, BarsOutlined,
-  ClusterOutlined,
+  ClusterOutlined, IdcardOutlined,
 } from '@ant-design/icons'
 
 interface ToolbarPreset {
@@ -45,6 +45,12 @@ const PRESETS: Record<string, ToolbarPreset> = {
     gradient: 'linear-gradient(135deg, #38bdf8, #0284c7)',
     glow: 'rgba(2, 132, 199, 0.4)',
     description: '组织层级与数据权限范围',
+  },
+  岗位列表: {
+    icon: <IdcardOutlined />,
+    gradient: 'linear-gradient(135deg, #2dd4bf, #0f766e)',
+    glow: 'rgba(15, 118, 110, 0.4)',
+    description: '岗位职责、编码与任职状态',
   },
   字典类型: {
     icon: <DatabaseOutlined />,

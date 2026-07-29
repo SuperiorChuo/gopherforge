@@ -162,12 +162,14 @@ export default function BpmDefinitionsPage() {
       title: '业务类型',
       dataIndex: 'biz_type',
       width: 150,
+      responsive: ['sm'],
       render: (v?: string) =>
         v ? <Tag variant="filled">{BPM_BIZ_TYPE_PRESETS[v]?.label ?? v}</Tag> : <span className="cell-muted">—</span>,
     },
     {
       title: '版本',
       width: 150,
+      responsive: ['md'],
       render: (_, row) => (
         <Space size={6}>
           <Tag>v{row.version}</Tag>
@@ -183,6 +185,7 @@ export default function BpmDefinitionsPage() {
       title: '状态',
       dataIndex: 'status',
       width: 110,
+      responsive: ['sm'],
       render: (v: string) => {
         const meta = BPM_DEFINITION_STATUS_META[v]
         return meta ? <StatusPill tone={meta.tone} label={meta.label} /> : <Tag>{v}</Tag>
@@ -192,6 +195,7 @@ export default function BpmDefinitionsPage() {
       title: '更新时间',
       width: 170,
       className: 'cell-time',
+      responsive: ['lg'],
       render: (_, row) => formatDateTime(row.updated_at || row.created_at),
     },
     {
