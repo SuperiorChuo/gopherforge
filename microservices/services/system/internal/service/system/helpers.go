@@ -2,7 +2,6 @@ package system
 
 import (
 	"context"
-	"errors"
 
 	"github.com/go-admin-kit/services/system/internal/pkg/cache"
 )
@@ -12,8 +11,4 @@ import (
 // simplest correct move. Mirrors the monolith's cache.go helper.
 func InvalidatePermissionCacheAllContext(ctx context.Context) error {
 	return cache.NewCacheService().DelAllUserPermissionsContext(ctx)
-}
-
-func isContextError(err error) bool {
-	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }

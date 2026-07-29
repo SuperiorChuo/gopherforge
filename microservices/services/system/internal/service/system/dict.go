@@ -3,20 +3,53 @@ package system
 import (
 	"context"
 	"errors"
+	"strings"
 
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
 	"github.com/go-admin-kit/services/system/internal/model"
+	cachepkg "github.com/go-admin-kit/services/system/internal/pkg/cache"
 	"github.com/go-admin-kit/services/system/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/system/internal/pkg/tenant"
 	"gorm.io/gorm"
 )
 
 type DictService struct {
 	dictDAO systemdao.DictDAO
+	cache   *cachepkg.CacheService
 }
 
 // NewDictServiceWithDB builds a DictService backed by an injected database handle.
 func NewDictServiceWithDB(db *gorm.DB) DictService {
-	return DictService{dictDAO: *systemdao.NewDictDAO(db)}
+	return DictService{
+		dictDAO: *systemdao.NewDictDAO(db),
+		cache:   cachepkg.NewCacheService(),
+	}
+}
+
+// NewDictServiceWithCache builds a DictService with an explicit cache handle
+// (tests inject a dedicated Redis client this way).
+func NewDictServiceWithCache(db *gorm.DB, cache *cachepkg.CacheService) DictService {
+	return DictService{
+		dictDAO: *systemdao.NewDictDAO(db),
+		cache:   cache,
+	}
+}
+
+// cacheService resolves the cache handle, falling back to the shared instance
+// so a zero-value DictService still behaves like the injected one.
+func (s *DictService) cacheService() *cachepkg.CacheService {
+	if s.cache != nil {
+		return s.cache
+	}
+	return cachepkg.NewCacheService()
+}
+
+// invalidateDictCache drops every cached dictionary payload. Called after each
+// dictionary write; see cache/dict.go for why invalidation is namespace-wide.
+func (s *DictService) invalidateDictCache(ctx context.Context) {
+	// Best effort: a cache that cannot be reached must not fail the write. The
+	// bounded TTL is the backstop.
+	_ = s.cacheService().DelAllDictDataContext(ctx)
 }
 
 type DictTypeListRequest struct {
@@ -91,6 +124,7 @@ func (s *DictService) CreateTypeContext(ctx context.Context, req CreateDictTypeR
 		return nil, err
 	}
 
+	s.invalidateDictCache(ctx)
 	return dictType, nil
 }
 
@@ -148,11 +182,16 @@ func (s *DictService) UpdateTypeContext(ctx context.Context, id uint, req Update
 		return nil, err
 	}
 
+	s.invalidateDictCache(ctx)
 	return dictType, nil
 }
 
 func (s *DictService) DeleteTypeContext(ctx context.Context, id uint) error {
-	return s.dictDAO.DeleteTypeContext(ctx, id)
+	if err := s.dictDAO.DeleteTypeContext(ctx, id); err != nil {
+		return err
+	}
+	s.invalidateDictCache(ctx)
+	return nil
 }
 
 func (s *DictService) CreateItemContext(ctx context.Context, req CreateDictItemRequest) (*model.DictItem, error) {
@@ -180,6 +219,7 @@ func (s *DictService) CreateItemContext(ctx context.Context, req CreateDictItemR
 		return nil, err
 	}
 
+	s.invalidateDictCache(ctx)
 	return item, nil
 }
 
@@ -241,45 +281,129 @@ func (s *DictService) UpdateItemContext(ctx context.Context, id uint, req Update
 		return nil, err
 	}
 
+	s.invalidateDictCache(ctx)
 	return item, nil
 }
 
 func (s *DictService) DeleteItemContext(ctx context.Context, id uint) error {
-	return s.dictDAO.DeleteItemContext(ctx, id)
-}
-
-func (s *DictService) GetDictDataContext(ctx context.Context, code string) ([]model.DictItem, error) {
-	return s.GetItemsByTypeCodeContext(ctx, code)
-}
-
-func (s *DictService) GetMultipleDictDataContext(ctx context.Context, codes []string) (map[string][]model.DictItem, error) {
-	result := make(map[string][]model.DictItem)
-	for _, code := range codes {
-		items, err := s.GetItemsByTypeCodeContext(ctx, code)
-		if err != nil {
-			if isContextError(err) {
-				return nil, err
-			}
-			if !errors.Is(err, ErrDictTypeNotFound) {
-				return nil, err
-			}
-			continue
-		}
-		result[code] = items
+	if err := s.dictDAO.DeleteItemContext(ctx, id); err != nil {
+		return err
 	}
+	s.invalidateDictCache(ctx)
+	return nil
+}
+
+// GetDictDataContext returns one code's active items, served from cache when
+// warm. GET /dicts/:code.
+func (s *DictService) GetDictDataContext(ctx context.Context, code string) ([]model.DictItem, error) {
+	resolved, err := s.resolveDictCodesContext(ctx, []string{code})
+	if err != nil {
+		return nil, err
+	}
+	items, found := resolved[code]
+	if !found {
+		return nil, ErrDictTypeNotFound
+	}
+	return items, nil
+}
+
+// GetMultipleDictDataContext returns active items for several codes at once.
+// GET /dicts?codes=a,b,c. Warm cache costs zero queries; a cold or partial
+// cache costs two queries total (types by code, then their items) instead of
+// the two-per-code it replaces. Unknown codes are omitted, as before.
+func (s *DictService) GetMultipleDictDataContext(ctx context.Context, codes []string) (map[string][]model.DictItem, error) {
+	return s.resolveDictCodesContext(ctx, codes)
+}
+
+// resolveDictCodesContext is the shared cache-aside path for the by-code
+// endpoints. Codes absent from the returned map have no active dict type.
+func (s *DictService) resolveDictCodesContext(ctx context.Context, codes []string) (map[string][]model.DictItem, error) {
+	wanted := normalizeDictCodes(codes)
+	result := make(map[string][]model.DictItem, len(wanted))
+	if len(wanted) == 0 {
+		return result, nil
+	}
+
+	tenantID := tenant.FromContextOrDefault(ctx)
+	cache := s.cacheService()
+
+	missing := wanted
+	if hits := cache.GetDictCodesContext(ctx, tenantID, wanted); len(hits) > 0 {
+		missing = missing[:0:0]
+		for _, code := range wanted {
+			entry, ok := hits[code]
+			if !ok {
+				missing = append(missing, code)
+				continue
+			}
+			// A cached miss (Found=false) is an answer too: the code has no
+			// active dict type, so it stays out of the result without a query.
+			if entry.Found {
+				result[code] = entry.Items
+			}
+		}
+	}
+	if len(missing) == 0 {
+		return result, nil
+	}
+
+	fetched, err := s.dictDAO.GetTypesWithItemsByCodesContext(ctx, missing)
+	if err != nil {
+		return nil, err
+	}
+
+	entries := make(map[string]cachepkg.DictEntry, len(missing))
+	for _, code := range missing {
+		items, found := fetched[code]
+		if found {
+			result[code] = items
+		}
+		entries[code] = cachepkg.DictEntry{Found: found, Items: items}
+	}
+	// Best effort: a cache write failure only costs the next request a query.
+	_ = cache.SetDictCodesContext(ctx, tenantID, entries)
+
 	return result, nil
 }
 
+// GetAllDictDataContext returns every active code with its active items.
+// GET /dicts/all. Two queries on a cold cache (down from 1+N), zero when warm.
 func (s *DictService) GetAllDictDataContext(ctx context.Context) (map[string][]model.DictItem, error) {
+	tenantID := tenant.FromContextOrDefault(ctx)
+	cache := s.cacheService()
+	if cached, ok := cache.GetAllDictDataContext(ctx, tenantID); ok {
+		return cached, nil
+	}
+
 	types, err := s.dictDAO.GetAllTypesWithItemsContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make(map[string][]model.DictItem)
+	result := make(map[string][]model.DictItem, len(types))
 	for _, t := range types {
 		result[t.Code] = t.Items
 	}
 
+	_ = cache.SetAllDictDataContext(ctx, tenantID, result)
 	return result, nil
+}
+
+// normalizeDictCodes trims, drops empties and de-duplicates the requested
+// codes so a repeated code cannot multiply the cache round trip.
+func normalizeDictCodes(codes []string) []string {
+	seen := make(map[string]struct{}, len(codes))
+	normalized := make([]string, 0, len(codes))
+	for _, code := range codes {
+		code = strings.TrimSpace(code)
+		if code == "" {
+			continue
+		}
+		if _, dup := seen[code]; dup {
+			continue
+		}
+		seen[code] = struct{}{}
+		normalized = append(normalized, code)
+	}
+	return normalized
 }

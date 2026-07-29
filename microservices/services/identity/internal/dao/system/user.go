@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"errors"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -64,6 +65,86 @@ func (d *UserDAO) GetUserListContext(ctx context.Context, req pagination.PageReq
 		Find(&users)
 
 	return users, total, result.Error
+}
+
+// ExportUserCursor is the keyset position of the last exported row.
+// Zero value means "start from the newest row".
+type ExportUserCursor struct {
+	CreatedAt time.Time
+	ID        uint
+}
+
+// Valid reports whether the cursor points at a real row.
+func (c ExportUserCursor) Valid() bool {
+	return c.ID > 0
+}
+
+// exportUserColumns are the columns the export writes. Selecting explicitly
+// keeps password hashes and TOTP secrets out of the result set entirely.
+var exportUserColumns = []string{
+	"users.id", "users.username", "users.nickname", "users.email",
+	"users.phone", "users.department_id", "users.status", "users.created_at",
+}
+
+// ExportUsersPageContext returns one keyset page of the user list for export,
+// in the same (created_at DESC, id DESC) order the list endpoint shows.
+//
+// Three things differ from GetUserListContext on purpose:
+//
+//   - Keyset instead of OFFSET. The old export walked 20 pages with LIMIT 500
+//     OFFSET n*500, so the last page made Postgres scan and discard 9500 rows.
+//     The (created_at, id) row-value comparison rides idx_users_tenant_created
+//     and costs the same on page 20 as on page 1.
+//   - No COUNT. The loop ran one full-table COUNT per page; the cursor tells
+//     the caller when it is done (a short page means the end).
+//   - No Preload("Roles") / Preload("Posts") and an explicit column list. The
+//     export sheet writes ID / 用户名 / 昵称 / 邮箱 / 手机号 / 部门 / 状态 /
+//     创建时间 (see api/system/user_excel.go) — no role or post column exists,
+//     so those two extra queries per page fetched rows nobody read.
+//
+// Ties on created_at are broken by id, so the composite cursor cannot skip or
+// repeat a row — which plain OFFSET over a non-unique sort key could.
+func (d *UserDAO) ExportUsersPageContext(
+	ctx context.Context,
+	cursor ExportUserCursor,
+	limit int,
+	keyword string,
+	status *int8,
+	dataScope authz.UserDataScope,
+) ([]model.User, error) {
+	if limit <= 0 {
+		limit = 500
+	}
+
+	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).
+		Model(&model.User{}).
+		Select(exportUserColumns)
+
+	// Multi-tenant isolation (explicit; GORM tenant plugin also applies when registered).
+	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+		query = query.Where("users.tenant_id = ?", tid)
+	}
+
+	if keyword != "" {
+		query = query.Where("username LIKE ? OR nickname LIKE ? OR email LIKE ? OR phone LIKE ?",
+			"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+	}
+
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+
+	if cursor.Valid() {
+		// Row-value comparison: strictly "older than the last row we emitted".
+		query = query.Where("(users.created_at, users.id) < (?, ?)", cursor.CreatedAt, cursor.ID)
+	}
+
+	var users []model.User
+	err := query.
+		Order("users.created_at DESC, users.id DESC").
+		Limit(limit).
+		Find(&users).Error
+	return users, err
 }
 
 // GetUserWithRolesPostsContext loads a user together with roles and posts.

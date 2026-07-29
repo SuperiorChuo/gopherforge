@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
 	"github.com/go-admin-kit/services/identity/internal/service/system"
 	"github.com/go-admin-kit/services/shared/pkg/excel"
@@ -47,11 +48,8 @@ func (a *UserManagementAPI) ExportUsers(c *gin.Context) {
 	}
 	req.DataScope = dataScope
 
-	users, truncated, err := a.userService.ExportUsersContext(c.Request.Context(), req)
-	if err != nil {
-		internalServerError(c, "failed to export users", err)
-		return
-	}
+	// 部门名映射先取（一次查询），再边翻页边写 sheet：内存里最多只留一页
+	// 用户，而不是先把一万行攒在切片里。
 	deptNames, err := a.userService.DepartmentNameMapContext(c.Request.Context())
 	if err != nil {
 		internalServerError(c, "failed to load departments", err)
@@ -63,18 +61,26 @@ func (a *UserManagementAPI) ExportUsers(c *gin.Context) {
 		internalServerError(c, "failed to build excel", err)
 		return
 	}
-	for i := range users {
-		u := &users[i]
-		statusText := "启用"
-		if u.Status != 1 {
-			statusText = "禁用"
-		}
-		if err := sheet.AppendRow(u.ID, u.Username, u.Nickname, u.Email, u.Phone,
-			deptNames[u.DepartmentID], statusText,
-			u.CreatedAt.Format("2006-01-02 15:04:05")); err != nil {
-			internalServerError(c, "failed to build excel", err)
-			return
-		}
+
+	truncated, err := a.userService.StreamExportUsersContext(c.Request.Context(), req,
+		func(batch []model.User) error {
+			for i := range batch {
+				u := &batch[i]
+				statusText := "启用"
+				if u.Status != 1 {
+					statusText = "禁用"
+				}
+				if err := sheet.AppendRow(u.ID, u.Username, u.Nickname, u.Email, u.Phone,
+					deptNames[u.DepartmentID], statusText,
+					u.CreatedAt.Format("2006-01-02 15:04:05")); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	if err != nil {
+		internalServerError(c, "failed to export users", err)
+		return
 	}
 	if truncated {
 		_ = sheet.AppendRow(fmt.Sprintf("…已达导出上限 %d 行，请缩小筛选范围分批导出", system.UserExportCap))

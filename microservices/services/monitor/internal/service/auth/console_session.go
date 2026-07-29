@@ -3,6 +3,8 @@ package auth
 import (
 	"context"
 	"errors"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +17,11 @@ var (
 	ErrConsoleSessionInvalid = errors.New("console session is invalid")
 	ErrConsoleSessionRevoked = errors.New("console session has been revoked")
 	ErrConsoleSessionExpired = errors.New("console session has expired")
+)
+
+const (
+	defaultConsoleSessionTouchInterval = 60 * time.Second
+	envConsoleSessionTouchInterval     = "CONSOLE_SESSION_TOUCH_INTERVAL_SECONDS"
 )
 
 // ConsoleSessionService persists and validates web-console cookie sessions.
@@ -61,9 +68,24 @@ func (s ConsoleSessionService) ValidateActiveSessionContext(ctx context.Context,
 	}
 
 	now := time.Now().UTC()
-	if err := sessionDAO.TouchContext(ctx, record.SessionID, now); err != nil {
+	if err := sessionDAO.TouchContext(ctx, record.SessionID, now, ConsoleSessionTouchInterval()); err != nil {
 		return nil, err
 	}
 	record.LastSeenAt = &now
 	return record, nil
+}
+
+// ConsoleSessionTouchInterval is the minimum age of last_seen_at before a
+// validation refreshes it. Configurable via CONSOLE_SESSION_TOUCH_INTERVAL_SECONDS;
+// 0 restores a write on every request.
+func ConsoleSessionTouchInterval() time.Duration {
+	raw := strings.TrimSpace(os.Getenv(envConsoleSessionTouchInterval))
+	if raw == "" {
+		return defaultConsoleSessionTouchInterval
+	}
+	seconds, err := strconv.Atoi(raw)
+	if err != nil || seconds < 0 {
+		return defaultConsoleSessionTouchInterval
+	}
+	return time.Duration(seconds) * time.Second
 }

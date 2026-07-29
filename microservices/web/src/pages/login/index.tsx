@@ -45,7 +45,7 @@ export default function LoginPage() {
 
   // 登录成功后立刻要用管理台骨架，趁用户填账密的空档预取
   useEffect(() => prefetchMainLayout(), [])
-  const { loading } = useAppSelector((s) => s.auth)
+  const loading = useAppSelector((s) => s.auth.loading)
   const [form] = Form.useForm()
   const [totpForm] = Form.useForm()
   const [error, setError] = useState<string | null>(null)

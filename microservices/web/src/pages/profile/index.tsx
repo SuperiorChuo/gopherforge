@@ -46,7 +46,7 @@ const loginLogColumns: ColumnsType<LoginLog> = [
 
 export default function ProfilePage() {
   const dispatch = useAppDispatch()
-  const { userInfo } = useAppSelector((s) => s.auth)
+  const userInfo = useAppSelector((s) => s.auth.userInfo)
 
   const [profileForm] = Form.useForm()
   const [pwdForm] = Form.useForm()

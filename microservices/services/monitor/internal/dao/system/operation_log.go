@@ -30,6 +30,22 @@ func (d *OperationLogDAO) CreateLogContext(ctx context.Context, log *model.Opera
 	return d.dbWithContext(ctx).Create(log).Error
 }
 
+// operationLogInsertChunkSize caps how many rows go into a single multi-row
+// INSERT so a large flush cannot blow past the driver placeholder limit.
+const operationLogInsertChunkSize = 100
+
+// CreateLogsContext persists a batch of operation logs with multi-row INSERTs
+// instead of one round trip per record.
+func (d *OperationLogDAO) CreateLogsContext(ctx context.Context, logs []*model.OperationLog) error {
+	if len(logs) == 0 {
+		return nil
+	}
+	if len(logs) == 1 {
+		return d.CreateLogContext(ctx, logs[0])
+	}
+	return d.dbWithContext(ctx).CreateInBatches(logs, operationLogInsertChunkSize).Error
+}
+
 func (d *OperationLogDAO) GetLogByIDContext(ctx context.Context, id uint) (*model.OperationLog, error) {
 	var log model.OperationLog
 	result := d.dbWithContext(authz.DisableDataScope(ctx)).First(&log, id)

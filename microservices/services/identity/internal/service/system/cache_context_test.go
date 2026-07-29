@@ -48,6 +48,32 @@ func TestInvalidatePermissionCacheAlsoDropsRoleCache(t *testing.T) {
 	}
 }
 
+// 同一失效通道还要带走会话校验缓存：账号被禁用 / 删除时会走到这里，
+// 而该缓存记的正是"会话有效且账号启用"，禁用后必须立刻不认。
+func TestInvalidatePermissionCacheAlsoDropsConsoleSessionCache(t *testing.T) {
+	setupDepartmentServiceTestRedis(t)
+
+	ctx := context.Background()
+	cacheService := cache.NewCacheService()
+	if err := cacheService.SetConsoleSessionContext(ctx, "session-5", cache.ConsoleSessionIdentity{
+		UserID:   5,
+		Username: "alice",
+	}); err != nil {
+		t.Fatalf("seed console session cache: %v", err)
+	}
+	if _, ok := cacheService.GetConsoleSessionContext(ctx, "session-5"); !ok {
+		t.Fatal("console session cache did not accept the seeded entry")
+	}
+
+	if err := InvalidatePermissionCacheForUsersContext(ctx, 5); err != nil {
+		t.Fatalf("InvalidatePermissionCacheForUsersContext() error = %v", err)
+	}
+
+	if _, ok := cacheService.GetConsoleSessionContext(ctx, "session-5"); ok {
+		t.Fatal("console session cache survived invalidation; a disabled account would stay logged in")
+	}
+}
+
 func TestInvalidatePermissionCacheAllAlsoDropsRoleCache(t *testing.T) {
 	setupDepartmentServiceTestRedis(t)
 
@@ -67,5 +93,26 @@ func TestInvalidatePermissionCacheAllAlsoDropsRoleCache(t *testing.T) {
 	}
 	if len(roles) != 0 {
 		t.Fatalf("role cache still holds %v after global invalidation", roles)
+	}
+}
+
+func TestInvalidatePermissionCacheAllAlsoDropsConsoleSessionCache(t *testing.T) {
+	setupDepartmentServiceTestRedis(t)
+
+	ctx := context.Background()
+	cacheService := cache.NewCacheService()
+	if err := cacheService.SetConsoleSessionContext(ctx, "session-11", cache.ConsoleSessionIdentity{
+		UserID:   11,
+		Username: "bob",
+	}); err != nil {
+		t.Fatalf("seed console session cache: %v", err)
+	}
+
+	if err := InvalidatePermissionCacheAllContext(ctx); err != nil {
+		t.Fatalf("InvalidatePermissionCacheAllContext() error = %v", err)
+	}
+
+	if _, ok := cacheService.GetConsoleSessionContext(ctx, "session-11"); ok {
+		t.Fatal("console session cache survived global invalidation")
 	}
 }

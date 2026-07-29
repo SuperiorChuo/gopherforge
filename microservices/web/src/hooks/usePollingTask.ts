@@ -9,21 +9,21 @@ type Options<T> = {
   intervalMs?: number
   onTick?: (t: T) => void
   onFinish?: (t: T) => void
+  /** 连续请求失败自动停止时回调；调用方应清掉 taskId，否则同 id 无法重启轮询 */
+  onError?: () => void
 }
 
 /**
  * 轮询后台任务状态：GEO 跑题、SEO 排名检查共用。
  * - in-flight 标志防请求堆叠（上一次未返回则跳过本 tick）
  * - 组件卸载 / taskId 变化时自动清理
- * - 连续 3 次请求失败自动停止
+ * - 连续 3 次请求失败自动停止并回调 onError
  */
-export function usePollingTask<T>({ taskId, fetcher, isDone, intervalMs = 2000, onTick, onFinish }: Options<T>) {
+export function usePollingTask<T>({ taskId, fetcher, isDone, intervalMs = 2000, onTick, onFinish, onError }: Options<T>) {
   const [data, setData] = useState<T | null>(null)
   const [polling, setPolling] = useState(false)
-  const inFlight = useRef(false)
-  const failures = useRef(0)
-  const cbRef = useRef({ fetcher, isDone, onTick, onFinish })
-  cbRef.current = { fetcher, isDone, onTick, onFinish }
+  const cbRef = useRef({ fetcher, isDone, onTick, onFinish, onError })
+  cbRef.current = { fetcher, isDone, onTick, onFinish, onError }
 
   useEffect(() => {
     if (taskId == null) {
@@ -32,42 +32,73 @@ export function usePollingTask<T>({ taskId, fetcher, isDone, intervalMs = 2000, 
     }
     setData(null)
     setPolling(true)
-    failures.current = 0
+    // in-flight/failures 必须是本 effect 的局部量：跨 taskId 用 ref 会让
+    // 新任务的首轮 tick 被上一个任务未返回的请求阻塞
+    let inFlight = false
+    let failures = 0
     let stopped = false
     let timer: ReturnType<typeof setInterval> | null = null
 
     const tick = async () => {
-      if (inFlight.current || stopped) return
-      inFlight.current = true
+      if (inFlight || stopped) return
+      inFlight = true
       try {
         const t = await cbRef.current.fetcher(taskId)
-        failures.current = 0
+        failures = 0
         if (stopped) return
         setData(t)
         cbRef.current.onTick?.(t)
         if (cbRef.current.isDone(t)) {
           stopped = true
-          if (timer) clearInterval(timer)
+          stop()
           setPolling(false)
           cbRef.current.onFinish?.(t)
         }
       } catch {
-        failures.current += 1
-        if (failures.current >= 3) {
+        failures += 1
+        if (failures >= 3 && !stopped) {
           stopped = true
-          if (timer) clearInterval(timer)
+          stop()
           setPolling(false)
+          cbRef.current.onError?.()
         }
       } finally {
-        inFlight.current = false
+        inFlight = false
+      }
+    }
+
+    // 后台标签页停表：任务有终态会自停，但用户切走后仍以 2s 打接口纯属浪费。
+    // 回前台立刻补一次再恢复节奏（终态可能在后台期间已经到达）。
+    const start = () => {
+      if (timer === null && !stopped) {
+        timer = setInterval(() => void tick(), intervalMs)
+      }
+    }
+    const stop = () => {
+      if (timer !== null) {
+        clearInterval(timer)
+        timer = null
+      }
+    }
+    const onVisibility = () => {
+      if (stopped) return
+      if (document.visibilityState === 'visible') {
+        void tick()
+        start()
+      } else {
+        stop()
       }
     }
 
     void tick()
-    timer = setInterval(() => void tick(), intervalMs)
+    if (document.visibilityState === 'visible') {
+      start()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
     return () => {
       stopped = true
-      if (timer) clearInterval(timer)
+      stop()
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [taskId, intervalMs])
 

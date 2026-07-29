@@ -48,11 +48,12 @@ export default function MySQLMonitorPage() {
   const bytesReceived = Number(traffic?.bytes_received ?? 0)
   const bytesSent = Number(traffic?.bytes_sent ?? 0)
 
+  // 颜色取主题变量，亮/暗深浅由 index.css 的 --c-* 负责，无需再分两档
   const queryStats = [
-    { label: 'SELECT', value: Number(query?.selects ?? 0), color: '#818cf8', lightColor: '#4f46e5' },
-    { label: 'INSERT', value: Number(query?.inserts ?? 0), color: '#34d399', lightColor: '#059669' },
-    { label: 'UPDATE', value: Number(query?.updates ?? 0), color: '#fbbf24', lightColor: '#d97706' },
-    { label: 'DELETE', value: Number(query?.deletes ?? 0), color: '#f87171', lightColor: '#dc2626' },
+    { label: 'SELECT', value: Number(query?.selects ?? 0), color: 'var(--c-primary)' },
+    { label: 'INSERT', value: Number(query?.inserts ?? 0), color: 'var(--c-success)' },
+    { label: 'UPDATE', value: Number(query?.updates ?? 0), color: 'var(--c-warning)' },
+    { label: 'DELETE', value: Number(query?.deletes ?? 0), color: 'var(--c-error)' },
   ]
 
   // 连接数比 CPU 类指标更敏感，用 80/60 阈值分档
@@ -195,7 +196,7 @@ export default function MySQLMonitorPage() {
                 <div
                   key={q.label}
                   className="query-stat-tile"
-                  style={{ '--qs': q.color, '--qs-light': q.lightColor } as React.CSSProperties}
+                  style={{ '--qs': q.color } as React.CSSProperties}
                 >
                   <div className="query-stat-label">{q.label}</div>
                   <div className="query-stat-value"><CountUpValue value={q.value} /></div>

@@ -135,11 +135,11 @@ export default function RedisMonitorPage() {
             style={{ height: '100%', '--i': 4 } as React.CSSProperties}
           >
             <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0' }}>
-              <div className="monitor-gauge-halo" style={{ '--halo': '#34d399' } as React.CSSProperties}>
+              <div className="monitor-gauge-halo" style={{ '--halo': 'var(--c-success)' } as React.CSSProperties}>
                 <Progress
                   type="circle"
                   percent={Math.round(hitRate * 100) / 100}
-                  strokeColor={{ '0%': '#6366f1', '100%': '#34d399' }}
+                  strokeColor={{ '0%': 'var(--c-primary)', '100%': 'var(--c-success)' }}
                   size={160}
                   format={(p) => (
                     <span className="monitor-gauge-value" style={{ fontSize: 24 }}>{p}%</span>

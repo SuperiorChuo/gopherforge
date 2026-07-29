@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/model"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 )
 
 // Operation module mapping.
@@ -99,7 +102,6 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 			}
 		}
 
-
 		var responseBody string
 		if opts.RecordResponseBody {
 			blw := &responseBodyWriter{body: bytes.NewBufferString(""), ResponseWriter: c.Writer}
@@ -172,6 +174,9 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 		select {
 		case logChan <- log:
 		default:
+			// The queue is full: never drop silently, or a saturated write
+			// path looks exactly like "no traffic" from the outside.
+			noteOperationLogDropped()
 		}
 	}
 }
@@ -209,14 +214,88 @@ const logChanBufferSize = 1000
 
 const operationLogWriteTimeout = 2 * time.Second
 
+const (
+	// operationLogBatchSize is the number of queued logs that triggers an
+	// immediate flush.
+	operationLogBatchSize = 200
+	// operationLogFlushInterval bounds how long a partial batch waits before
+	// being written, so low-traffic deployments still persist promptly.
+	operationLogFlushInterval = 500 * time.Millisecond
+	// operationLogDropWarnInterval throttles the "queue full" warning so a
+	// sustained overload cannot flood the log itself.
+	operationLogDropWarnInterval = 10 * time.Second
+)
+
 var logChan = make(chan *model.OperationLog, logChanBufferSize)
+
+var (
+	operationLogDroppedTotal atomic.Uint64
+	operationLogDropWarnedAt atomic.Int64
+)
 
 // OperationLogRecorder persists operation logs queued by the middleware.
 type OperationLogRecorder interface {
 	RecordContext(context.Context, *model.OperationLog) error
 }
 
+// OperationLogBatchRecorder persists several queued operation logs in a single
+// round trip. Recorders that implement it get batched writes; the rest fall
+// back to one RecordContext call per entry.
+type OperationLogBatchRecorder interface {
+	RecordBatchContext(context.Context, []*model.OperationLog) error
+}
+
 type operationLogRecorder = OperationLogRecorder
+
+// noteOperationLogDropped counts a dropped operation log and emits a throttled
+// warning so buffer saturation is observable instead of silent.
+func noteOperationLogDropped() {
+	dropped := operationLogDroppedTotal.Add(1)
+
+	now := time.Now().UnixNano()
+	last := operationLogDropWarnedAt.Load()
+	if now-last < int64(operationLogDropWarnInterval) && last != 0 {
+		return
+	}
+	if !operationLogDropWarnedAt.CompareAndSwap(last, now) {
+		return
+	}
+	// The counter above is the durable signal; the log line is best effort and
+	// must not panic before InitLogger has run (tests, early startup).
+	if logger.Logger == nil {
+		return
+	}
+	logger.Warn(
+		"operation log queue full, dropping entries",
+		logger.Int64("dropped_total", int64(dropped)),
+		logger.Int("queue_capacity", logChanBufferSize),
+	)
+}
+
+// OperationLogDroppedTotal reports how many operation logs were discarded
+// because the async queue was full.
+func OperationLogDroppedTotal() uint64 {
+	return operationLogDroppedTotal.Load()
+}
+
+// OperationLogQueueLength reports the current depth of the async queue.
+func OperationLogQueueLength() int {
+	return len(logChan)
+}
+
+// writeOperationLogPrometheusMetrics appends operation-log queue metrics to the
+// Prometheus exposition body.
+func writeOperationLogPrometheusMetrics(b *strings.Builder) {
+	b.WriteString("# HELP go_admin_kit_operation_log_dropped_total Operation logs discarded because the async queue was full.\n")
+	b.WriteString("# TYPE go_admin_kit_operation_log_dropped_total counter\n")
+	fmt.Fprintf(b, "go_admin_kit_operation_log_dropped_total %d\n", OperationLogDroppedTotal())
+	b.WriteString("# HELP go_admin_kit_operation_log_queue_length Operation logs currently waiting to be persisted.\n")
+	b.WriteString("# TYPE go_admin_kit_operation_log_queue_length gauge\n")
+	fmt.Fprintf(b, "go_admin_kit_operation_log_queue_length %d\n", OperationLogQueueLength())
+	b.WriteString("# HELP go_admin_kit_operation_log_queue_capacity Capacity of the async operation log queue.\n")
+	b.WriteString("# TYPE go_admin_kit_operation_log_queue_capacity gauge\n")
+	fmt.Fprintf(b, "go_admin_kit_operation_log_queue_capacity %d\n", logChanBufferSize)
+}
 
 // StartOperationLogProcessor starts the background operation log processor
 // backed by the injected recorder.
@@ -224,38 +303,127 @@ func StartOperationLogProcessor(ctx context.Context, recorder OperationLogRecord
 	return processLogs(ctx, logChan, recorder, operationLogWriteTimeout)
 }
 
-// processLogs persists queued operation logs until ctx is canceled.
+// processLogs persists queued operation logs until ctx is canceled, using the
+// default batch size and flush interval.
 func processLogs(ctx context.Context, queue <-chan *model.OperationLog, recorder operationLogRecorder, writeTimeout time.Duration) <-chan struct{} {
+	return processLogsBatched(ctx, queue, recorder, writeTimeout, operationLogBatchSize, operationLogFlushInterval)
+}
+
+// processLogsBatched accumulates queued logs and writes them in batches, either
+// when batchSize entries are pending or when flushInterval elapses. Whatever is
+// still buffered at shutdown is drained and flushed before returning.
+func processLogsBatched(
+	ctx context.Context,
+	queue <-chan *model.OperationLog,
+	recorder operationLogRecorder,
+	writeTimeout time.Duration,
+	batchSize int,
+	flushInterval time.Duration,
+) <-chan struct{} {
+	if batchSize <= 0 {
+		batchSize = operationLogBatchSize
+	}
+	if flushInterval <= 0 {
+		flushInterval = operationLogFlushInterval
+	}
+
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
+
+		batch := make([]*model.OperationLog, 0, batchSize)
+		ticker := time.NewTicker(flushInterval)
+		defer ticker.Stop()
+
+		flush := func(parent context.Context) {
+			if len(batch) == 0 {
+				return
+			}
+			recordOperationLogBatch(parent, recorder, batch, writeTimeout)
+			batch = batch[:0]
+		}
+
 		for {
 			select {
 			case <-ctx.Done():
-				drainOperationLogs(queue, recorder, writeTimeout)
+				// Shutdown: pull everything still queued and land it with a
+				// context that is not already canceled.
+				batch = drainOperationLogs(queue, recorder, writeTimeout, batch, batchSize)
+				flush(context.Background())
 				return
 			case log, ok := <-queue:
 				if !ok {
+					flush(context.Background())
 					return
 				}
-				recordOperationLog(ctx, recorder, log, writeTimeout)
+				if log == nil {
+					continue
+				}
+				batch = append(batch, log)
+				if len(batch) >= batchSize {
+					flush(ctx)
+					ticker.Reset(flushInterval)
+				}
+			case <-ticker.C:
+				flush(ctx)
 			}
 		}
 	}()
 	return done
 }
 
-func drainOperationLogs(queue <-chan *model.OperationLog, recorder operationLogRecorder, writeTimeout time.Duration) {
+// drainOperationLogs pulls every immediately available log out of the queue,
+// flushing whenever the pending batch reaches batchSize. Returns the leftover
+// partial batch for the caller to flush.
+func drainOperationLogs(
+	queue <-chan *model.OperationLog,
+	recorder operationLogRecorder,
+	writeTimeout time.Duration,
+	batch []*model.OperationLog,
+	batchSize int,
+) []*model.OperationLog {
+	if batchSize <= 0 {
+		batchSize = operationLogBatchSize
+	}
 	for {
 		select {
 		case log, ok := <-queue:
 			if !ok {
-				return
+				return batch
 			}
-			recordOperationLog(context.Background(), recorder, log, writeTimeout)
+			if log == nil {
+				continue
+			}
+			batch = append(batch, log)
+			if len(batch) >= batchSize {
+				recordOperationLogBatch(context.Background(), recorder, batch, writeTimeout)
+				batch = batch[:0]
+			}
 		default:
-			return
+			return batch
 		}
+	}
+}
+
+// recordOperationLogBatch writes a batch through the recorder's batch API when
+// available, falling back to per-entry writes otherwise.
+func recordOperationLogBatch(parent context.Context, recorder operationLogRecorder, logs []*model.OperationLog, writeTimeout time.Duration) {
+	if recorder == nil || len(logs) == 0 {
+		return
+	}
+	if writeTimeout <= 0 {
+		writeTimeout = operationLogWriteTimeout
+	}
+
+	if batcher, ok := recorder.(OperationLogBatchRecorder); ok {
+		ctx, cancel := context.WithTimeout(parent, writeTimeout)
+		defer cancel()
+		_ = batcher.RecordBatchContext(ctx, logs)
+		return
+	}
+
+	for _, log := range logs {
+		recordOperationLog(parent, recorder, log, writeTimeout)
 	}
 }
 

@@ -1,10 +1,11 @@
 import { Card, Progress } from 'antd'
-import { useThemeMode } from '@/theme/ThemeContext'
 
-// 用量三档色,亮色主题用更深一号保证对比度
+// 用量三档色。取主题变量，亮/暗各自的深浅由 index.css 里的 --c-* 决定，
+// 这里不再按 mode 分两张表。
 const USAGE_COLORS = {
-  dark: { high: '#f87171', mid: '#fbbf24', low: '#818cf8' },
-  light: { high: '#dc2626', mid: '#d97706', low: '#2563eb' },
+  high: 'var(--c-error)',
+  mid: 'var(--c-warning)',
+  low: 'var(--c-primary)',
 }
 
 // 玻璃透光色:同色但极低透明度,由 .stat-card 的 --tint 消费
@@ -29,10 +30,9 @@ interface MonitorGaugeCardProps {
 }
 
 export default function MonitorGaugeCard({ title, icon, percent, footer, index, level }: MonitorGaugeCardProps) {
-  const { mode } = useThemeMode()
   const pct = Math.round(percent)
   const lv = level ?? usageLevel(pct)
-  const color = USAGE_COLORS[mode][lv]
+  const color = USAGE_COLORS[lv]
   return (
     <Card
       className="monitor-gauge-card stat-card glass-rise"
