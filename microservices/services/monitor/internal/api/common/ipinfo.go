@@ -3,8 +3,8 @@ package common
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/server/internal/pkg/ipinfo"
-	"github.com/go-admin-kit/server/internal/pkg/logger"
-	"github.com/go-admin-kit/server/internal/pkg/response"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 const ipInfoLookupFailedMessage = "failed to lookup IP information"

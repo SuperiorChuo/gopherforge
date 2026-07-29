@@ -6,8 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
 	"github.com/go-admin-kit/server/internal/middleware"
-	"github.com/go-admin-kit/server/internal/pkg/response"
 	monitorsvc "github.com/go-admin-kit/server/internal/service/monitor"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 // RegisterProtectedRoutes mounts authenticated system monitoring routes.

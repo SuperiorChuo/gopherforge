@@ -2,8 +2,8 @@ package monitor
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/pkg/logger"
-	"github.com/go-admin-kit/server/internal/pkg/response"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 
 func internalServerError(c *gin.Context, message string, err error) {

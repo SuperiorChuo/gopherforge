@@ -22,10 +22,10 @@ import (
 	"github.com/go-admin-kit/services/bpm/internal/callback"
 	"github.com/go-admin-kit/services/bpm/internal/config"
 	"github.com/go-admin-kit/services/bpm/internal/engine"
-	"github.com/go-admin-kit/services/bpm/internal/metrics"
 	"github.com/go-admin-kit/services/bpm/internal/notifyclient"
-	"github.com/go-admin-kit/services/bpm/internal/jobbeat"
 	"github.com/go-admin-kit/services/bpm/internal/store"
+	"github.com/go-admin-kit/services/shared/pkg/jobbeat"
+	"github.com/go-admin-kit/services/shared/pkg/metrics"
 )
 
 func main() {
