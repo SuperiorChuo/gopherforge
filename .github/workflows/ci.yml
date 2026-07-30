@@ -15,6 +15,33 @@ env:
   GO_VERSION: '1.26.5'
 
 jobs:
+  # 公开仓卫生门禁：内部协作文件引用 / 内部路径形态 / 密钥形态 / 业务残留 / 真实 .env。
+  # 禁词只含通用样式；测试假样例与带免责声明的设计文档在白名单里。
+  hygiene:
+    name: Repo Hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: redline scan
+        run: |
+          set -euo pipefail
+          ALLOW='iploc.*_test\.go|mask_test\.go|setting_context_test\.go|^\.gitignore|docs/design/bpm-approval-flow\.md|\.github/workflows/ci\.yml'
+          hit=0
+          for p in \
+            'AGENTS\.md|CLAUDE\.md|CODEX_|SYNC_LOG' \
+            '/www/|root@' \
+            'sk-[a-zA-Z0-9]{20}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{20}|gho_[a-zA-Z0-9]{20}|xox[bp]-' \
+            'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----$' \
+            'freeswitch-cc|cc-service|crm-service|im-service|mp-service|pay-service|ticket-service|visibility-service' \
+          ; do
+            out=$(git grep -nE "$p" -- . | grep -vE "$ALLOW" || true)
+            if [ -n "$out" ]; then hit=1; echo "== 命中：$p =="; echo "$out" | head -10; fi
+          done
+          envs=$(git ls-files | grep -E '(^|/)\.env(\.|$)' | grep -v '\.env\.example$' || true)
+          [ -n "$envs" ] && { hit=1; echo "== 跟踪了 .env =="; echo "$envs"; }
+          [ "$hit" = 0 ] && echo "hygiene clean"
+          exit $hit
+
   workspace:
     name: Micro Workspace
     runs-on: ubuntu-latest
