@@ -12,9 +12,9 @@
 #      没修复版本的、MEDIUM 及以下的，只进报告不拦门。
 #      配置错误（misconfig）与密钥扫描（secret）永远只报告不拦门：前者对
 #      Dockerfile/compose 的默认规则噪音大，后者仓里已有 pre-commit 钩子兜底。
-#   3. npm audit —— CI 与定时扫描统一用 --omit=dev --audit-level=high，
-#      高危及以上阻断；中低危保留在完整报告里，避免门禁因当前无可用修复的
-#      非运行路径公告长期失去信号价值。
+#   3. npm audit —— CI 与定时扫描统一审计完整依赖树并按 high 阻断；不能省略
+#      devDependencies，因为 Vite/PostCSS 等构建工具同样属于发布供应链。中低危
+#      保留在完整报告里，避免门禁因当前无可用修复的公告长期失去信号价值。
 #
 # 【为什么 trivy 用官方镜像而不是 aquasecurity/trivy-action】
 #   2026-03 trivy-action / setup-trivy 的 tag 被劫持过（76 个 tag 被强推成
@@ -272,7 +272,7 @@ jobs:
             "$IMAGE_REF"
 
   npm-audit:
-    name: npm audit · 前端生产依赖
+    name: npm audit · 前端完整依赖
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -287,16 +287,16 @@ jobs:
           cache-dependency-path: microservices/web/package-lock.json
 
       - name: 高危及以上阻断
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --audit-level=high
 
       - name: 完整报告（含低危，只写摘要不阻断）
         if: always()
         run: |
           set -euo pipefail
           {
-            echo "### npm audit（生产依赖，全等级）"
+            echo "### npm audit（完整依赖，全等级）"
             echo ""
             echo '```'
-            npm audit --omit=dev || true
+            npm audit || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
