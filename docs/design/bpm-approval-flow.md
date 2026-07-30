@@ -341,9 +341,9 @@ advance(instance):
 ### 3.5 超时提醒
 
 - **不引入新调度设施**，两条现成路径二选一，M1 推荐 (a)：
-  - (a) **服务内 ticker 循环**：与 `crm/cmd/main.go` 的 followup-due 扫描、ticket 的 overdue 扫描完全同构——bpm 服务启动一个每 5 分钟的 goroutine，扫 `bpm_task WHERE status='pending' AND timeout_at <= now() AND reminded_at IS NULL`（命中 `ix_bpm_task_timeout` 部分索引），逐条发站内信并回填 `reminded_at`。
+  - (a) **服务内 ticker 循环**：与上游完整版既有的服务内周期扫描惯例同构——bpm 服务启动一个每 5 分钟的 goroutine，扫 `bpm_task WHERE status='pending' AND timeout_at <= now() AND reminded_at IS NULL`（命中 `ix_bpm_task_timeout` 部分索引），逐条发站内信并回填 `reminded_at`。
   - (b) monitor 服务的 `ScheduledJob`（robfig/cron）注册动态任务调 bpm 内部接口。M1 不选：多一跳内部调用、多一处配置，收益仅是可视化 cron 管理。
-- **通知落地**：调用 notify-service `POST /api/v1/notify/internal/send`（`X-Internal-Token`，惯例同 CRM 的 `notifyclient`），新增模板：
+- **通知落地**：调用 notify-service `POST /api/v1/notify/internal/send`（`X-Internal-Token`，独立 `notifyclient` 薄封装惯例），新增模板：
   - `bpm.task_assigned`（新待办）：Vars `{instance_title, node_name, initiator_name}`，`Link=/bpm/todo?taskId={{task_id}}`，`RefType=bpm_task`，`RefID=task_id`。
   - `bpm.task_timeout`（超时提醒）：同上加 `{hours}`。notify 自带"24h 同模板+RefID 去重"，天然防提醒轰炸。
   - `bpm.cc`（抄送）、`bpm.result`（发起人收终态通知）。
@@ -499,8 +499,8 @@ advance(instance):
 | R2 | **会签并发双推进**：两人同时点同意 | 实例行 `FOR UPDATE` 锁 + 单事务推进（§3.1），并对任务状态做 `WHERE status='pending'` 条件更新（乐观兜底） |
 | R3 | **定义被删/改导致在途实例失稳** | 实例冻结 `definition_id`；active 版本禁编辑；定义只允许 suspend/archive 不允许物理删除（有实例引用时） |
 | R4 | **审批人解析结果为空**（角色无人/主管缺失/用户已禁用） | 节点级 `emptyFallback` 三策略（§2.2），默认 `suspend` + 管理员通知，绝不静默跳过 |
-| R5 | **ID 类型不一致**：identity/system 用户主键 `uint`，CRM/bpm 用 `uint64` | bpm 全部以 `uint64/BIGINT` 承载，跨服务只传数值 JSON，不共享 Go 类型；文档化约定即可 |
-| R6 | **notify-service 在建（另一会话）**：接口形态可能微调 | bpm 侧仿 CRM 建独立 `notifyclient` 薄封装，仅依赖 `internal/send` 契约；通知失败不阻断审批主流程（与现有惯例一致） |
+| R5 | **ID 类型不一致**：identity/system 用户主键 `uint`，bpm 用 `uint64` | bpm 全部以 `uint64/BIGINT` 承载，跨服务只传数值 JSON，不共享 Go 类型；文档化约定即可 |
+| R6 | **notify-service 属外部服务**：接口形态可能演进 | bpm 侧建独立 `notifyclient` 薄封装，仅依赖 `internal/send` 契约；通知失败不阻断审批主流程（与现有惯例一致） |
 | R7 | **范围蔓延**：ruoyi 功能面大（加签/委派/监听器/表达式），容易被对标裹挟 | 非目标清单（§1.2）+ 里程碑闸门，新诉求一律进 M3+ 评审 |
 
 ### 开放问题（实施前需拍板）

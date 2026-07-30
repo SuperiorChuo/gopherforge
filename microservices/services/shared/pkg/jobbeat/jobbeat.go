@@ -5,7 +5,7 @@
 // 用法（循环体每轮收尾）：
 //
 //	defer jobbeat.Report(db, jobbeat.Run{
-//	    Key: "cc.balance_warn", Service: "cc-service",
+//	    Key: "ops.disk_cleanup", Service: "my-service",
 //	    Description: "余额预警/欠费冻结扫描", IntervalSec: 3600,
 //	    StartedAt: start, Err: err,
 //	})
