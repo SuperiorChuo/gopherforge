@@ -76,7 +76,9 @@ func TestConsoleSessionExpireRejectsGarbageAndCaps(t *testing.T) {
 // NewCacheService is called on the hot auth path; it must not allocate a new
 // value per request.
 func TestNewCacheServiceReturnsSharedInstance(t *testing.T) {
-	if NewCacheService() != NewCacheService() {
+	first := NewCacheService()
+	second := NewCacheService()
+	if first != second {
 		t.Fatal("NewCacheService() allocated a new instance per call")
 	}
 }

@@ -69,6 +69,10 @@
 
 ### 修复
 
+- **接口契约与代码质量门禁恢复**（2026-07-30 同步自主项目）：重新生成 monitor
+  的 OpenAPI 与 TypeScript 契约，补齐任务日志和调度目标接口，避免接口已实现但生成物
+  漂移导致 CI 失败；同时修正 monitor 的静态检查问题，恢复服务端 lint 门禁。
+
 - **数据范围 SQL 的 MySQL 反引号**（2026-07-27 同步自主项目）：`ApplyOwnerScope`
   生成的子查询写作 ``user_id IN (SELECT `id` FROM `users` ...)``，而全部服务都是
   postgres 驱动——反引号在 PG 是标识符语法错误，数据范围为部门/部门树/自定义档的
