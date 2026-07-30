@@ -480,7 +480,7 @@ func InvalidateDepartmentTreeCacheContext(ctx context.Context) error {
 
 func StartDepartmentTreeInvalidationListener(ctx context.Context) (*redisstore.StringSubscriber, error) {
 	return redisstore.StartSubscriber(ctx, departmentTreeInvalidateChannel, func(_ context.Context, payload string) {
-		// "clear" is still honoured so that a peer running the pre-sharding build
+		// "clear" is still honored so that a peer running the pre-sharding build
 		// can invalidate this process during a rolling deploy.
 		if payload == departmentTreeInvalidatePayloadClear {
 			defaultDepartmentTreeCache.clearAllLocal()

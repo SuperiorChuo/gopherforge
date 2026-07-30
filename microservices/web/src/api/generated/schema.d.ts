@@ -29,6 +29,9 @@ export interface paths {
   "/api/v1/metrics/json": {
     get: operations["getApiV1MetricsJson"];
   };
+  "/api/v1/monitor/job-logs": {
+    get: operations["getApiV1MonitorJobLogs"];
+  };
   "/api/v1/monitor/job-logs/cleanup": {
     post: operations["postApiV1MonitorJobLogsCleanup"];
   };
@@ -41,6 +44,9 @@ export interface paths {
   };
   "/api/v1/monitor/jobs/heartbeats": {
     get: operations["getApiV1MonitorJobsHeartbeats"];
+  };
+  "/api/v1/monitor/jobs/targets": {
+    get: operations["getApiV1MonitorJobsTargets"];
   };
   "/api/v1/monitor/jobs/{id}": {
     delete: operations["deleteApiV1MonitorJobsId"];
@@ -286,6 +292,36 @@ export interface operations {
       };
     };
   };
+  "getApiV1MonitorJobLogs": {
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
   "postApiV1MonitorJobLogsCleanup": {
     parameters: {
       query: {
@@ -483,6 +519,36 @@ export interface operations {
         };
       };
       "503": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorJobsTargets": {
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
