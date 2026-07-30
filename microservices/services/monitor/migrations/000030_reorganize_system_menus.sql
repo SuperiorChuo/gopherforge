@@ -2,17 +2,20 @@
 -- 系统管理菜单拆组：原 19 个子菜单全堆在 /system 下，拆为 4 个一级分组
 --   系统管理（组织+权限）/ 消息中心(/msg) / 日志审计(/logs) / 系统工具(/tools)。
 -- 子菜单 path/component/id 全部不变（保住既有关联与书签），只 UPDATE parent_id 与 sort。
--- 新分组容器用显式 id 42-44 与 menu_seed.go 对齐：seed 按 id 去重、本处按 path 去重，
--- 任一侧先落库另一侧都会跳过（同 000024 的约定）；显式 id 止于 41，两头不撞。
+-- 新分组容器沿用主项目的显式 id 134-136，与 menu_seed.go 对齐：seed 按 id 去重、
+-- 本处按 path 去重。42 起的 identity id 已被租户/OAuth2 等迁移占用，不能复用。
 
 INSERT INTO menus (id, name, title, icon, path, component, parent_id, sort, status, hidden, permission, created_at, updated_at)
 SELECT v.id, v.name, v.title, v.icon, v.path, 'Layout', 0, v.sort, 1, 0, '', NOW(), NOW()
 FROM (VALUES
-  (42, 'msg-center', '消息中心', 'notification', '/msg',   2),
-  (43, 'log-audit',  '日志审计', 'file-text',    '/logs',  3),
-  (44, 'sys-tools',  '系统工具', 'tool',         '/tools', 4)
+  (135, 'msg-center', '消息中心', 'notification', '/msg',   2),
+  (134, 'log-audit',  '日志审计', 'file-text',    '/logs',  3),
+  (136, 'sys-tools',  '系统工具', 'tool',         '/tools', 4)
 ) AS v(id, name, title, icon, path, sort)
 WHERE NOT EXISTS (SELECT 1 FROM menus m WHERE m.path = v.path);
+
+-- 显式 id 不会自动推进 identity sequence；避免后续自动菜单最终撞到 134-136。
+SELECT setval(pg_get_serial_sequence('menus','id'), (SELECT COALESCE(MAX(id),1) FROM menus));
 
 -- 消息中心：通知公告 / 短信
 UPDATE menus SET

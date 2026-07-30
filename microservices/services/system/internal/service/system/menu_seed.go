@@ -33,8 +33,8 @@ var defaultMenuSeed = []model.Menu{
 	// ============ 系统管理拆组（2026-07-29，迁移 000030 同步已有库） ============
 	// 原 19 个子菜单全堆在 /system 下，拆为 4 个一级分组：系统管理（组织+权限）/
 	// 消息中心 / 日志审计 / 系统工具。子菜单 path/component/ID 全部不变（保住权限
-	// 关联与书签），只动 ParentID 与 Sort。分组容器 ID 用 42-44（种子与迁移的显式
-	// ID 都止于 41，000024 的 oauth2 菜单走自增，两头不撞）。
+	// 关联与书签），只动 ParentID 与 Sort。分组容器沿用主项目的 ID 134-136；
+	// 42 起的 identity id 已被租户/OAuth2 等迁移占用，不能复用。
 	{ID: 10, Name: "system", Title: "系统管理", Icon: "setting", Path: "/system", Component: "Layout", ParentID: 0, Sort: 1, Status: 1, Hidden: 0},
 	{ID: 11, Name: "user", Title: "用户管理", Icon: "user", Path: "/system/user", Component: "system/user/index", ParentID: 10, Sort: 1, Status: 1, Hidden: 0, Permission: "system:user:list"},
 	{ID: 12, Name: "role", Title: "角色管理", Icon: "user-safety", Path: "/system/role", Component: "system/role/index", ParentID: 10, Sort: 2, Status: 1, Hidden: 0, Permission: "system:role:list"},
@@ -49,27 +49,27 @@ var defaultMenuSeed = []model.Menu{
 	{ID: 23, Name: "setting", Title: "系统设置", Icon: "setting", Path: "/system/setting", Component: "system/setting/index", ParentID: 10, Sort: 9, Status: 1, Hidden: 0, Permission: "system:setting:list"},
 
 	// 消息中心：通知公告 / 短信
-	{ID: 42, Name: "msg-center", Title: "消息中心", Icon: "notification", Path: "/msg", Component: "Layout", ParentID: 0, Sort: 2, Status: 1, Hidden: 0},
-	{ID: 18, Name: "notice", Title: "通知公告", Icon: "notification", Path: "/system/notice", Component: "system/notice/index", ParentID: 42, Sort: 1, Status: 1, Hidden: 0, Permission: "system:notice:list"},
+	{ID: 135, Name: "msg-center", Title: "消息中心", Icon: "notification", Path: "/msg", Component: "Layout", ParentID: 0, Sort: 2, Status: 1, Hidden: 0},
+	{ID: 18, Name: "notice", Title: "通知公告", Icon: "notification", Path: "/system/notice", Component: "system/notice/index", ParentID: 135, Sort: 1, Status: 1, Hidden: 0, Permission: "system:notice:list"},
 	// 短信管理：渠道/模板/发送日志
-	{ID: 26, Name: "sms", Title: "短信管理", Icon: "mail", Path: "/system/sms", Component: "system/sms/index", ParentID: 42, Sort: 2, Status: 1, Hidden: 0, Permission: "system:sms-channel:list"},
+	{ID: 26, Name: "sms", Title: "短信管理", Icon: "mail", Path: "/system/sms", Component: "system/sms/index", ParentID: 135, Sort: 2, Status: 1, Hidden: 0, Permission: "system:sms-channel:list"},
 
 	// 日志审计：三种日志 + 在线用户，纯查看
-	{ID: 43, Name: "log-audit", Title: "日志审计", Icon: "file-text", Path: "/logs", Component: "Layout", ParentID: 0, Sort: 3, Status: 1, Hidden: 0},
-	{ID: 20, Name: "operation-log", Title: "操作日志", Icon: "time", Path: "/system/operation-log", Component: "system/operation-log/index", ParentID: 43, Sort: 1, Status: 1, Hidden: 0, Permission: "system:log:operation"},
-	{ID: 21, Name: "login-log", Title: "登录日志", Icon: "time", Path: "/system/login-log", Component: "system/login-log/index", ParentID: 43, Sort: 2, Status: 1, Hidden: 0, Permission: "system:log:login"},
-	{ID: 22, Name: "audit-log", Title: "审计日志", Icon: "secured", Path: "/system/audit-log", Component: "system/audit-log/index", ParentID: 43, Sort: 3, Status: 1, Hidden: 0, Permission: "system:log:audit"},
-	{ID: 19, Name: "online-user", Title: "在线用户", Icon: "user-list", Path: "/system/online-user", Component: "system/online-user/index", ParentID: 43, Sort: 4, Status: 1, Hidden: 0, Permission: "system:online-user:list"},
+	{ID: 134, Name: "log-audit", Title: "日志审计", Icon: "file-text", Path: "/logs", Component: "Layout", ParentID: 0, Sort: 3, Status: 1, Hidden: 0},
+	{ID: 20, Name: "operation-log", Title: "操作日志", Icon: "time", Path: "/system/operation-log", Component: "system/operation-log/index", ParentID: 134, Sort: 1, Status: 1, Hidden: 0, Permission: "system:log:operation"},
+	{ID: 21, Name: "login-log", Title: "登录日志", Icon: "time", Path: "/system/login-log", Component: "system/login-log/index", ParentID: 134, Sort: 2, Status: 1, Hidden: 0, Permission: "system:log:login"},
+	{ID: 22, Name: "audit-log", Title: "审计日志", Icon: "secured", Path: "/system/audit-log", Component: "system/audit-log/index", ParentID: 134, Sort: 3, Status: 1, Hidden: 0, Permission: "system:log:audit"},
+	{ID: 19, Name: "online-user", Title: "在线用户", Icon: "user-list", Path: "/system/online-user", Component: "system/online-user/index", ParentID: 134, Sort: 4, Status: 1, Hidden: 0, Permission: "system:online-user:list"},
 
 	// 系统工具：开发者/运维工具，普通管理员低频
-	{ID: 44, Name: "sys-tools", Title: "系统工具", Icon: "tool", Path: "/tools", Component: "Layout", ParentID: 0, Sort: 4, Status: 1, Hidden: 0},
-	{ID: 25, Name: "codegen", Title: "代码生成", Icon: "code", Path: "/system/codegen", Component: "system/codegen/index", ParentID: 44, Sort: 1, Status: 1, Hidden: 0, Permission: "system:codegen:list"},
-	{ID: 17, Name: "dict", Title: "字典管理", Icon: "data-base", Path: "/system/dict", Component: "system/dict/index", ParentID: 44, Sort: 2, Status: 1, Hidden: 0, Permission: "system:dict:list"},
-	{ID: 16, Name: "file", Title: "文件管理", Icon: "file", Path: "/system/file", Component: "system/file/index", ParentID: 44, Sort: 3, Status: 1, Hidden: 0, Permission: "system:file:list"},
+	{ID: 136, Name: "sys-tools", Title: "系统工具", Icon: "tool", Path: "/tools", Component: "Layout", ParentID: 0, Sort: 4, Status: 1, Hidden: 0},
+	{ID: 25, Name: "codegen", Title: "代码生成", Icon: "code", Path: "/system/codegen", Component: "system/codegen/index", ParentID: 136, Sort: 1, Status: 1, Hidden: 0, Permission: "system:codegen:list"},
+	{ID: 17, Name: "dict", Title: "字典管理", Icon: "data-base", Path: "/system/dict", Component: "system/dict/index", ParentID: 136, Sort: 2, Status: 1, Hidden: 0, Permission: "system:dict:list"},
+	{ID: 16, Name: "file", Title: "文件管理", Icon: "file", Path: "/system/file", Component: "system/file/index", ParentID: 136, Sort: 3, Status: 1, Hidden: 0, Permission: "system:file:list"},
 	// 错误码管理：错误文案在线改，30s 热生效
-	{ID: 27, Name: "errcodes", Title: "错误码管理", Icon: "warning", Path: "/system/errcodes", Component: "system/errcodes/index", ParentID: 44, Sort: 4, Status: 1, Hidden: 0, Permission: "system:errcode:list"},
+	{ID: 27, Name: "errcodes", Title: "错误码管理", Icon: "warning", Path: "/system/errcodes", Component: "system/errcodes/index", ParentID: 136, Sort: 4, Status: 1, Hidden: 0, Permission: "system:errcode:list"},
 	// 注意：/system/oauth2 刻意不在本表里。它由 000024_add_oauth2_server.sql 用自增 ID
-	// 插入，000030 已把它改挂系统工具（44）Sort 5。本 seed 只按 ID 去重、不按 path 去重，
+	// 插入，000030 已把它改挂系统工具（136）Sort 5。本 seed 只按 ID 去重、不按 path 去重，
 	// 再加一条会在同一路径上种出第二个菜单。
 
 	{ID: 30, Name: "monitor", Title: "系统监控", Icon: "chart-analytics", Path: "/monitor", Component: "Layout", ParentID: 0, Sort: 5, Status: 1, Hidden: 0},
