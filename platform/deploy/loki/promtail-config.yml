@@ -15,12 +15,12 @@ scrape_configs:
       - host: unix:///var/run/docker.sock
         refresh_interval: 15s
     relabel_configs:
-      # 容器名（去掉前导 /）；swarm task 名形如 gak_cc-service.1.xxx → 取服务段
+      # 容器名（去掉前导 /）；swarm task 名形如 <stack>_<服务>-service.1.xxx → 取服务段
       - source_labels: [__meta_docker_container_name]
         regex: /(.*)
         target_label: container
       - source_labels: [container]
-        regex: (?:gak_)?([a-zA-Z0-9-]+?)(?:-service)?(?:\.\d+\..+)?$
+        regex: (?:[a-z0-9]+_)?([a-zA-Z0-9-]+?)(?:-service)?(?:\.\d+\..+)?$
         target_label: service
       - source_labels: [__meta_docker_container_log_stream]
         target_label: stream

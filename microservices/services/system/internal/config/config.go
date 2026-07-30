@@ -8,6 +8,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -393,6 +394,14 @@ func validate(cfg Config) error {
 	if cfg.Security.PasswordHistoryCount < 0 {
 		return fmt.Errorf("PASSWORD_HISTORY_COUNT must be greater than or equal to 0")
 	}
+	if cfg.Codegen.WriteEnabled {
+		if strings.TrimSpace(cfg.App.Env) != "development" {
+			return fmt.Errorf("CODEGEN_WRITE_ENABLED requires APP_ENV=development")
+		}
+		if err := validateCodegenRepoRoot(cfg.Codegen.RepoRoot); err != nil {
+			return err
+		}
+	}
 	if isProductionEnv(cfg.App.Env) {
 		// Collect every secret problem before failing so an operator fixes the
 		// whole set in one pass instead of one restart per issue.
@@ -450,6 +459,34 @@ func smtpAuthConfigured(email EmailConfig) bool {
 // unrelated callers.
 func IsSMTPAuthUnsafe(env string, email EmailConfig) bool {
 	return isProductionEnv(env) && smtpAuthConfigured(email) && isWeakCredential(email.Password)
+}
+
+func validateCodegenRepoRoot(root string) error {
+	if strings.TrimSpace(root) == "" {
+		return fmt.Errorf("CODEGEN_REPO_ROOT is required when repository write is enabled")
+	}
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return fmt.Errorf("CODEGEN_REPO_ROOT is invalid")
+	}
+	canonical, err := filepath.EvalSymlinks(absolute)
+	if err != nil {
+		return fmt.Errorf("CODEGEN_REPO_ROOT is invalid")
+	}
+	info, err := os.Stat(canonical)
+	if err != nil || !info.IsDir() {
+		return fmt.Errorf("CODEGEN_REPO_ROOT is not a directory")
+	}
+	for _, required := range []string{
+		".git",
+		filepath.Join("microservices", "services", "system"),
+		filepath.Join("microservices", "web"),
+	} {
+		if _, err := os.Stat(filepath.Join(canonical, required)); err != nil {
+			return fmt.Errorf("CODEGEN_REPO_ROOT is missing required repository paths")
+		}
+	}
+	return nil
 }
 
 func isProductionEnv(env string) bool {
