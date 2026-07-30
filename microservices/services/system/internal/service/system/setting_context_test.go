@@ -105,6 +105,38 @@ func TestSettingServiceMasksProtectedKeyInList(t *testing.T) {
 	}
 }
 
+func TestSettingServiceMasksSecretsAndRestoresRedactedValues(t *testing.T) {
+	db, mock := setupSystemUserServiceContextTestDB(t)
+	svc := NewSettingServiceWithDB(db)
+
+	masked := maskSettingValue(map[string]any{
+		"api_key": "test-secret", "nested": map[string]any{"password": "nested-secret"},
+		"name": "provider",
+	})
+	if masked["api_key"] != "********" || masked["name"] != "provider" {
+		t.Fatalf("masked setting = %v", masked)
+	}
+	nested, _ := masked["nested"].(map[string]any)
+	if nested["password"] != "********" {
+		t.Fatalf("nested password was not masked: %v", nested)
+	}
+
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "system_settings" WHERE setting_key = $1 ORDER BY "system_settings"."setting_key" LIMIT $2`)).
+		WithArgs("provider.config", 1).
+		WillReturnRows(sqlmock.NewRows([]string{"setting_key", "value_json", "updated_at"}).
+			AddRow("provider.config", `{"api_key":"stored-secret","enabled":true}`, time.Now()))
+
+	restored, err := (&svc).restoreRedactedSettingValueContext(context.Background(), "provider.config", map[string]any{
+		"api_key": "********", "enabled": false,
+	})
+	if err != nil {
+		t.Fatalf("restore redacted setting: %v", err)
+	}
+	if restored["api_key"] != "stored-secret" || restored["enabled"] != false {
+		t.Fatalf("restored setting = %v", restored)
+	}
+}
+
 func TestSettingServiceUpsertSecurityPolicyRefreshesRuntimeConfig(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	mock.ExpectBegin()

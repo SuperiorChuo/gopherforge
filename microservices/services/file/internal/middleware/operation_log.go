@@ -3,7 +3,6 @@ package middleware
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/mask"
 )
 
 // Operation module mapping.
@@ -99,7 +99,6 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 				requestBody = bodyPreview
 			}
 		}
-
 
 		var responseBody string
 		if opts.RecordResponseBody {
@@ -322,48 +321,7 @@ func getAction(method, path string) string {
 
 // filterSensitiveFields masks sensitive JSON fields.
 func filterSensitiveFields(body string) string {
-	if body == "" {
-		return body
-	}
-
-	var payload any
-	if err := json.Unmarshal([]byte(body), &payload); err != nil {
-		return body
-	}
-
-	maskSensitivePayload(payload)
-
-	masked, err := json.Marshal(payload)
-	if err != nil {
-		return body
-	}
-	return string(masked)
-}
-
-func maskSensitivePayload(payload any) {
-	switch value := payload.(type) {
-	case map[string]any:
-		for key, item := range value {
-			if isSensitiveField(key) {
-				value[key] = "***"
-				continue
-			}
-			maskSensitivePayload(item)
-		}
-	case []any:
-		for _, item := range value {
-			maskSensitivePayload(item)
-		}
-	}
-}
-
-func isSensitiveField(field string) bool {
-	switch strings.ToLower(field) {
-	case "password", "old_password", "new_password", "current_password", "token", "access_token", "refresh_token", "secret":
-		return true
-	default:
-		return false
-	}
+	return mask.RedactJSON(body)
 }
 
 // truncateString truncates a string to maxLen bytes.

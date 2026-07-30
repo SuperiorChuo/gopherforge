@@ -5,11 +5,13 @@ package verify
 
 import (
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
+	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
 	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
 	"github.com/go-admin-kit/services/shared/pkg/response"
@@ -21,7 +23,10 @@ const (
 	HeaderUsername      = "X-Auth-Username"
 	HeaderTenantID      = "X-Auth-Tenant-ID"
 	HeaderPlatformAdmin = "X-Auth-Platform-Admin"
+	HeaderPermissions   = "X-Auth-Permissions"
 )
+
+const maxPermissionsHeaderBytes = 16 * 1024
 
 // Handler verifies bearer tokens and console session cookies with the exact
 // semantics of middleware.AuthMiddleware, except that a request carrying no
@@ -30,11 +35,12 @@ const (
 type Handler struct {
 	consoleSessions middleware.ConsoleSessionValidator
 	users           middleware.AuthUserStore
+	permissions     middleware.AuthPermissionStore
 }
 
 // NewHandler creates a forwardAuth verification handler.
-func NewHandler(consoleSessions middleware.ConsoleSessionValidator, users middleware.AuthUserStore) *Handler {
-	return &Handler{consoleSessions: consoleSessions, users: users}
+func NewHandler(consoleSessions middleware.ConsoleSessionValidator, users middleware.AuthUserStore, permissions middleware.AuthPermissionStore) *Handler {
+	return &Handler{consoleSessions: consoleSessions, users: users, permissions: permissions}
 }
 
 // Verify handles GET /internal/verify.
@@ -101,5 +107,77 @@ func (h *Handler) Verify(c *gin.Context) {
 	} else {
 		c.Header(HeaderPlatformAdmin, "0")
 	}
+	permissionsHeader, err := h.resolvePermissionsHeader(c, claims.UserID)
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "failed to resolve user permissions")
+		return
+	}
+	if permissionsHeader != "" {
+		c.Header(HeaderPermissions, permissionsHeader)
+	}
 	c.Status(http.StatusOK)
+}
+
+func (h *Handler) resolvePermissionsHeader(c *gin.Context, userID uint) (string, error) {
+	if h == nil || h.users == nil || h.permissions == nil {
+		return "", nil
+	}
+
+	cacheService := cache.NewCacheService()
+	roleCodes, err := cacheService.GetUserRolesContext(c.Request.Context(), userID)
+	if err != nil || len(roleCodes) == 0 {
+		user, loadErr := h.users.GetUserWithRolesContext(c.Request.Context(), userID)
+		if loadErr != nil {
+			return "", loadErr
+		}
+		roleCodes = make([]string, 0, len(user.Roles))
+		for _, role := range user.Roles {
+			roleCodes = append(roleCodes, role.Code)
+		}
+		_ = cacheService.SetUserRolesContext(c.Request.Context(), userID, roleCodes)
+	}
+	for _, code := range roleCodes {
+		if code == "super_admin" {
+			return "*", nil
+		}
+	}
+
+	permissionCodes, err := cacheService.GetUserPermissionsContext(c.Request.Context(), userID)
+	if err != nil || len(permissionCodes) == 0 {
+		permissionCodes, err = h.permissions.GetUserPermissionsContext(c.Request.Context(), userID)
+		if err != nil {
+			return "", err
+		}
+		_ = cacheService.SetUserPermissionsContext(c.Request.Context(), userID, permissionCodes)
+	}
+
+	permissionCodes = normalizedPermissionCodes(permissionCodes)
+	header := strings.Join(permissionCodes, ",")
+	if len(header) > maxPermissionsHeaderBytes {
+		return "", errPermissionsHeaderTooLarge
+	}
+	return header, nil
+}
+
+var errPermissionsHeaderTooLarge = &permissionsHeaderError{}
+
+type permissionsHeaderError struct{}
+
+func (*permissionsHeaderError) Error() string { return "permissions header exceeds safe limit" }
+
+func normalizedPermissionCodes(codes []string) []string {
+	unique := make(map[string]struct{}, len(codes))
+	for _, code := range codes {
+		code = strings.TrimSpace(code)
+		if code == "" || strings.ContainsAny(code, ",\r\n") {
+			continue
+		}
+		unique[code] = struct{}{}
+	}
+	normalized := make([]string, 0, len(unique))
+	for code := range unique {
+		normalized = append(normalized, code)
+	}
+	sort.Strings(normalized)
+	return normalized
 }
