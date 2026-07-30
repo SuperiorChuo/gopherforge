@@ -45,8 +45,8 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 // required", mirroring middleware.AuthMiddleware without dependencies.
 func newVerifyHandlerFromDeps(deps sharedapi.Dependencies) *verify.Handler {
 	if deps.DB == nil {
-		return verify.NewHandler(nil, nil)
+		return verify.NewHandler(nil, nil, nil)
 	}
 	sessions := authsvc.NewConsoleSessionServiceWithDB(deps.DB)
-	return verify.NewHandler(&sessions, authDAO.NewUserDAO(deps.DB))
+	return verify.NewHandler(&sessions, authDAO.NewUserDAO(deps.DB), authDAO.NewPermissionDAO(deps.DB))
 }

@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/go-admin-kit/services/shared/pkg/mask"
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
 	"github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
@@ -71,7 +72,9 @@ func (s *SettingService) ListSettingsContext(ctx context.Context, group string) 
 	for i := range settings {
 		if isProtectedSettingKey(settings[i].SettingKey) {
 			settings[i].ValueJSON = maskedSettingValue
+			continue
 		}
+		settings[i].ValueJSON = maskSettingValue(settings[i].ValueJSON)
 	}
 	return settings, nil
 }
@@ -90,6 +93,7 @@ func (s *SettingService) GetSettingContext(ctx context.Context, key string) (*mo
 		}
 		return nil, err
 	}
+	setting.ValueJSON = maskSettingValue(setting.ValueJSON)
 	return setting, nil
 }
 
@@ -103,15 +107,19 @@ func (s *SettingService) UpsertSettingContext(ctx context.Context, req UpsertSet
 	if req.ValueJSON == nil {
 		req.ValueJSON = map[string]any{}
 	}
+	valueJSON, err := s.restoreRedactedSettingValueContext(ctx, req.SettingKey, req.ValueJSON)
+	if err != nil {
+		return nil, err
+	}
 	setting := &model.SystemSetting{
 		SettingKey: req.SettingKey,
-		ValueJSON:  req.ValueJSON,
+		ValueJSON:  valueJSON,
 	}
 	if err := s.settingDAO.UpsertContext(ctx, setting); err != nil {
 		return nil, err
 	}
 	s.refreshRuntimeConfigIfNeeded(ctx, req.SettingKey)
-	return setting, nil
+	return maskedSetting(setting), nil
 }
 
 func (s *SettingService) BatchUpsertSettingsContext(ctx context.Context, req BatchUpsertSettingsRequest) ([]model.SystemSetting, error) {
@@ -126,9 +134,13 @@ func (s *SettingService) BatchUpsertSettingsContext(ctx context.Context, req Bat
 		if item.ValueJSON == nil {
 			item.ValueJSON = map[string]any{}
 		}
+		valueJSON, err := s.restoreRedactedSettingValueContext(ctx, item.SettingKey, item.ValueJSON)
+		if err != nil {
+			return nil, err
+		}
 		settings = append(settings, model.SystemSetting{
 			SettingKey: item.SettingKey,
-			ValueJSON:  item.ValueJSON,
+			ValueJSON:  valueJSON,
 		})
 	}
 	if err := s.settingDAO.BatchUpsertContext(ctx, settings); err != nil {
@@ -137,7 +149,39 @@ func (s *SettingService) BatchUpsertSettingsContext(ctx context.Context, req Bat
 	for _, setting := range settings {
 		s.refreshRuntimeConfigIfNeeded(ctx, setting.SettingKey)
 	}
+	for i := range settings {
+		settings[i].ValueJSON = maskSettingValue(settings[i].ValueJSON)
+	}
 	return settings, nil
+}
+
+func (s *SettingService) restoreRedactedSettingValueContext(ctx context.Context, key string, incoming map[string]any) (map[string]any, error) {
+	if !mask.ContainsRedactedSensitiveValue(incoming) {
+		return incoming, nil
+	}
+	stored := map[string]any{}
+	existing, err := s.settingDAO.GetByKeyContext(ctx, key)
+	if err == nil {
+		stored = existing.ValueJSON
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	restored, _ := mask.RestoreRedactedSensitiveValues(incoming, stored).(map[string]any)
+	return restored, nil
+}
+
+func maskedSetting(setting *model.SystemSetting) *model.SystemSetting {
+	if setting == nil {
+		return nil
+	}
+	masked := *setting
+	masked.ValueJSON = maskSettingValue(setting.ValueJSON)
+	return &masked
+}
+
+func maskSettingValue(value map[string]any) map[string]any {
+	masked, _ := mask.MaskSensitiveValue(value).(map[string]any)
+	return masked
 }
 
 func (s *SettingService) DeleteSettingContext(ctx context.Context, key string) error {

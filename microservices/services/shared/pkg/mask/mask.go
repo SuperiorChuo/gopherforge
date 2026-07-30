@@ -1,6 +1,7 @@
 package mask
 
 import (
+	"encoding/json"
 	"net/netip"
 	"path/filepath"
 	"reflect"
@@ -8,6 +9,205 @@ import (
 	"strings"
 	"sync"
 )
+
+const (
+	// RedactedValue is the stable placeholder returned for secret values.
+	RedactedValue = "********"
+	// InvalidJSONRedactedValue replaces bodies that cannot be parsed safely.
+	InvalidJSONRedactedValue = "[request body redacted: invalid or truncated JSON]"
+)
+
+var sensitiveFieldNames = map[string]struct{}{
+	"password":          {},
+	"old_password":      {},
+	"new_password":      {},
+	"current_password":  {},
+	"token":             {},
+	"access_token":      {},
+	"refresh_token":     {},
+	"id_token":          {},
+	"secret":            {},
+	"api_key":           {},
+	"amap_key":          {},
+	"secret_key":        {},
+	"access_key_secret": {},
+	"client_secret":     {},
+	"private_key":       {},
+	"signing_key":       {},
+	"authorization":     {},
+}
+
+// IsSensitiveField reports whether a JSON field conventionally contains a secret.
+func IsSensitiveField(field string) bool {
+	normalized := normalizeFieldName(field)
+	if _, ok := sensitiveFieldNames[normalized]; ok {
+		return true
+	}
+	for _, suffix := range []string{"_password", "_token", "_secret", "_api_key", "_private_key", "_signing_key"} {
+		if strings.HasSuffix(normalized, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsRedactedValue reports whether a client sent back one of the supported
+// display-only placeholders instead of a new secret.
+func IsRedactedValue(value any) bool {
+	text, ok := value.(string)
+	if !ok {
+		return false
+	}
+	switch strings.TrimSpace(text) {
+	case "***", RedactedValue, "[REDACTED]":
+		return true
+	default:
+		return false
+	}
+}
+
+// RedactJSON masks nested secret fields. Invalid or truncated JSON is replaced
+// wholesale because partially parsed data cannot be proven secret-free.
+func RedactJSON(body string) string {
+	if body == "" {
+		return body
+	}
+	var payload any
+	if err := json.Unmarshal([]byte(body), &payload); err != nil {
+		return InvalidJSONRedactedValue
+	}
+	masked := MaskSensitiveValue(payload)
+	encoded, err := json.Marshal(masked)
+	if err != nil {
+		return InvalidJSONRedactedValue
+	}
+	return string(encoded)
+}
+
+// MaskSensitiveValue returns a deep copy with nested secret fields redacted.
+func MaskSensitiveValue(value any) any {
+	switch current := value.(type) {
+	case map[string]any:
+		masked := make(map[string]any, len(current))
+		for key, item := range current {
+			if IsSensitiveField(key) {
+				masked[key] = RedactedValue
+				continue
+			}
+			masked[key] = MaskSensitiveValue(item)
+		}
+		return masked
+	case []any:
+		masked := make([]any, len(current))
+		for i, item := range current {
+			masked[i] = MaskSensitiveValue(item)
+		}
+		return masked
+	default:
+		return current
+	}
+}
+
+// ContainsRedactedSensitiveValue detects display placeholders that must not be
+// persisted as real credentials.
+func ContainsRedactedSensitiveValue(value any) bool {
+	switch current := value.(type) {
+	case map[string]any:
+		for key, item := range current {
+			if IsSensitiveField(key) && IsRedactedValue(item) {
+				return true
+			}
+			if ContainsRedactedSensitiveValue(item) {
+				return true
+			}
+		}
+	case []any:
+		for _, item := range current {
+			if ContainsRedactedSensitiveValue(item) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// RestoreRedactedSensitiveValues returns a deep copy of incoming. Secret
+// placeholders are replaced with the corresponding stored value; placeholders
+// without a stored counterpart are omitted instead of becoming credentials.
+func RestoreRedactedSensitiveValues(incoming, stored any) any {
+	switch current := incoming.(type) {
+	case map[string]any:
+		storedMap, _ := stored.(map[string]any)
+		restored := make(map[string]any, len(current))
+		for key, item := range current {
+			storedItem, hasStored := storedMap[key]
+			if IsSensitiveField(key) && IsRedactedValue(item) {
+				if hasStored {
+					restored[key] = cloneJSONValue(storedItem)
+				}
+				continue
+			}
+			restored[key] = RestoreRedactedSensitiveValues(item, storedItem)
+		}
+		return restored
+	case []any:
+		storedSlice, _ := stored.([]any)
+		restored := make([]any, len(current))
+		for i, item := range current {
+			var storedItem any
+			if i < len(storedSlice) {
+				storedItem = storedSlice[i]
+			}
+			restored[i] = RestoreRedactedSensitiveValues(item, storedItem)
+		}
+		return restored
+	default:
+		return current
+	}
+}
+
+func cloneJSONValue(value any) any {
+	switch current := value.(type) {
+	case map[string]any:
+		cloned := make(map[string]any, len(current))
+		for key, item := range current {
+			cloned[key] = cloneJSONValue(item)
+		}
+		return cloned
+	case []any:
+		cloned := make([]any, len(current))
+		for i, item := range current {
+			cloned[i] = cloneJSONValue(item)
+		}
+		return cloned
+	default:
+		return current
+	}
+}
+
+func normalizeFieldName(field string) string {
+	runes := []rune(strings.TrimSpace(field))
+	var normalized strings.Builder
+	for i, r := range runes {
+		if r >= 'A' && r <= 'Z' {
+			previousIsLowerOrDigit := i > 0 && ((runes[i-1] >= 'a' && runes[i-1] <= 'z') || (runes[i-1] >= '0' && runes[i-1] <= '9'))
+			nextIsLower := i+1 < len(runes) && runes[i+1] >= 'a' && runes[i+1] <= 'z'
+			if i > 0 && (previousIsLowerOrDigit || nextIsLower) {
+				normalized.WriteByte('_')
+			}
+			normalized.WriteRune(r + ('a' - 'A'))
+			continue
+		}
+		if r == '-' || r == '.' || r == ' ' {
+			if normalized.Len() > 0 {
+				normalized.WriteByte('_')
+			}
+			continue
+		}
+		normalized.WriteRune(r)
+	}
+	return strings.ToLower(normalized.String())
+}
 
 type fieldMetadata struct {
 	index    int

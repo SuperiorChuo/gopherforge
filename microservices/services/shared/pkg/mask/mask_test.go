@@ -1,9 +1,65 @@
 package mask
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestIsSensitiveFieldSupportsSettingsAndCamelCaseNames(t *testing.T) {
+	for _, field := range []string{"api_key", "apiKey", "accessKeySecret", "smtp-password", "nested.private_key"} {
+		if !IsSensitiveField(field) {
+			t.Errorf("IsSensitiveField(%q) = false, want true", field)
+		}
+	}
+	for _, field := range []string{"setting_key", "public_key", "monkey", "username"} {
+		if IsSensitiveField(field) {
+			t.Errorf("IsSensitiveField(%q) = true, want false", field)
+		}
+	}
+}
+
+func TestRedactJSONMasksNestedSecretsAndFailsClosed(t *testing.T) {
+	body := `{"api_key":"top-secret","nested":{"accessKeySecret":"also-secret"},"name":"provider"}`
+	got := RedactJSON(body)
+	if strings.Contains(got, "top-secret") || strings.Contains(got, "also-secret") {
+		t.Fatalf("RedactJSON() leaked a secret: %s", got)
+	}
+	if !strings.Contains(got, `"api_key":"********"`) || !strings.Contains(got, `"accessKeySecret":"********"`) {
+		t.Fatalf("RedactJSON() did not mask expected fields: %s", got)
+	}
+
+	if got := RedactJSON(`{"api_key":"secret"...[truncated]`); got != InvalidJSONRedactedValue {
+		t.Fatalf("RedactJSON(invalid) = %q, want fail-closed marker", got)
+	}
+}
+
+func TestRestoreRedactedSensitiveValuesPreservesStoredSecrets(t *testing.T) {
+	stored := map[string]any{
+		"api_key": "stored-secret",
+		"nested":  map[string]any{"password": "stored-password", "enabled": true},
+	}
+	incoming := map[string]any{
+		"api_key":    RedactedValue,
+		"nested":     map[string]any{"password": "***", "enabled": false},
+		"new_secret": RedactedValue,
+	}
+
+	got, ok := RestoreRedactedSensitiveValues(incoming, stored).(map[string]any)
+	if !ok {
+		t.Fatalf("RestoreRedactedSensitiveValues() type = %T, want map", got)
+	}
+	if got["api_key"] != "stored-secret" {
+		t.Fatalf("api_key = %v, want stored value", got["api_key"])
+	}
+	nested := got["nested"].(map[string]any)
+	if nested["password"] != "stored-password" || nested["enabled"] != false {
+		t.Fatalf("nested value = %#v, want secret preserved and regular value updated", nested)
+	}
+	if _, exists := got["new_secret"]; exists {
+		t.Fatalf("placeholder without stored value must be omitted: %#v", got)
+	}
+}
 
 func TestMaskValue(t *testing.T) {
 	tests := []struct {

@@ -66,6 +66,15 @@ type fakeUserStore struct {
 	err  error
 }
 
+type fakePermissionStore struct {
+	codes []string
+	err   error
+}
+
+func (f *fakePermissionStore) GetUserPermissionsContext(context.Context, uint) ([]string, error) {
+	return f.codes, f.err
+}
+
 func (f *fakeUserStore) GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error) {
 	if f.err != nil {
 		return nil, f.err
@@ -90,7 +99,7 @@ func performVerify(t *testing.T, handler *Handler, mutate func(*http.Request)) *
 }
 
 func TestVerifyAnonymousRequestPassesThrough(t *testing.T) {
-	recorder := performVerify(t, NewHandler(nil, nil), nil)
+	recorder := performVerify(t, NewHandler(nil, nil, nil), nil)
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -109,7 +118,7 @@ func TestVerifyValidBearerTokenInjectsIdentityHeaders(t *testing.T) {
 		t.Fatalf("generate token: %v", err)
 	}
 
-	recorder := performVerify(t, NewHandler(nil, nil), func(req *http.Request) {
+	recorder := performVerify(t, NewHandler(nil, nil, nil), func(req *http.Request) {
 		req.Header.Set("Authorization", "Bearer "+accessToken)
 	})
 
@@ -127,7 +136,7 @@ func TestVerifyValidBearerTokenInjectsIdentityHeaders(t *testing.T) {
 func TestVerifyInvalidBearerTokenIsRejected(t *testing.T) {
 	setVerifyJWTConfig(t)
 
-	recorder := performVerify(t, NewHandler(nil, nil), func(req *http.Request) {
+	recorder := performVerify(t, NewHandler(nil, nil, nil), func(req *http.Request) {
 		req.Header.Set("Authorization", "Bearer not-a-jwt")
 	})
 
@@ -139,7 +148,7 @@ func TestVerifyInvalidBearerTokenIsRejected(t *testing.T) {
 func TestVerifyMalformedAuthorizationHeaderIsRejected(t *testing.T) {
 	setVerifyJWTConfig(t)
 
-	recorder := performVerify(t, NewHandler(nil, nil), func(req *http.Request) {
+	recorder := performVerify(t, NewHandler(nil, nil, nil), func(req *http.Request) {
 		req.Header.Set("Authorization", "Basic abc")
 	})
 
@@ -164,7 +173,7 @@ func TestVerifyRevokedTokenIsRejected(t *testing.T) {
 		t.Fatalf("revoke token: %v", err)
 	}
 
-	recorder := performVerify(t, NewHandler(nil, nil), func(req *http.Request) {
+	recorder := performVerify(t, NewHandler(nil, nil, nil), func(req *http.Request) {
 		req.Header.Set("Authorization", "Bearer "+accessToken)
 	})
 
@@ -186,7 +195,7 @@ func TestVerifyCookieTokenValidatesConsoleSession(t *testing.T) {
 	activeUser.ID = 42
 
 	recorder := performVerify(t,
-		NewHandler(&fakeSessionValidator{}, &fakeUserStore{user: activeUser}),
+		NewHandler(&fakeSessionValidator{}, &fakeUserStore{user: activeUser}, nil),
 		func(req *http.Request) {
 			req.AddCookie(&http.Cookie{Name: consoleauth.SessionCookieName, Value: accessToken})
 		})
@@ -209,12 +218,60 @@ func TestVerifyCookieTokenWithRevokedSessionIsRejected(t *testing.T) {
 	}
 
 	recorder := performVerify(t,
-		NewHandler(&fakeSessionValidator{err: errors.New("session revoked")}, &fakeUserStore{}),
+		NewHandler(&fakeSessionValidator{err: errors.New("session revoked")}, &fakeUserStore{}, nil),
 		func(req *http.Request) {
 			req.AddCookie(&http.Cookie{Name: consoleauth.SessionCookieName, Value: accessToken})
 		})
 
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestVerifyInjectsSortedPermissionsHeader(t *testing.T) {
+	setVerifyJWTConfig(t)
+	setupVerifyTestRedis(t)
+
+	accessToken, _, err := jwtpkg.GenerateToken(42, "alice")
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	activeUser := &model.User{Username: "alice", Status: 1}
+	activeUser.ID = 42
+
+	recorder := performVerify(t,
+		NewHandler(nil, &fakeUserStore{user: activeUser}, &fakePermissionStore{codes: []string{"crm:write", "crm:read", "crm:read"}}),
+		func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+accessToken) },
+	)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body = %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if got := recorder.Header().Get(HeaderPermissions); got != "crm:read,crm:write" {
+		t.Fatalf("%s = %q, want sorted unique permissions", HeaderPermissions, got)
+	}
+}
+
+func TestVerifyCompressesSuperAdminPermissions(t *testing.T) {
+	setVerifyJWTConfig(t)
+	setupVerifyTestRedis(t)
+
+	accessToken, _, err := jwtpkg.GenerateToken(42, "root")
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	activeUser := &model.User{Username: "root", Status: 1, Roles: []model.Role{{Code: "super_admin"}}}
+	activeUser.ID = 42
+
+	recorder := performVerify(t,
+		NewHandler(nil, &fakeUserStore{user: activeUser}, &fakePermissionStore{}),
+		func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+accessToken) },
+	)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body = %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if got := recorder.Header().Get(HeaderPermissions); got != "*" {
+		t.Fatalf("%s = %q, want wildcard", HeaderPermissions, got)
 	}
 }

@@ -105,7 +105,7 @@ services:
       traefik.enable: "true"
       traefik.http.routers.monitor.rule: "PathPrefix(`/api`) || PathPrefix(`/uploads`)"
       traefik.http.routers.monitor.entrypoints: web
-      traefik.http.routers.monitor.middlewares: auth-verify
+      traefik.http.routers.monitor.middlewares: auth-chain
       traefik.http.services.monitor.loadbalancer.server.port: "8081"
     depends_on:
       migrate:
@@ -171,7 +171,13 @@ services:
       traefik.http.routers.auth.priority: "100"
       traefik.http.services.auth.loadbalancer.server.port: "8082"
       traefik.http.middlewares.auth-verify.forwardauth.address: "http://go-admin-kit-auth:8082/internal/verify"
-      traefik.http.middlewares.auth-verify.forwardauth.authResponseHeaders: "X-Auth-User-ID,X-Auth-Username,X-Auth-Tenant-ID,X-Auth-Platform-Admin"
+      traefik.http.middlewares.auth-verify.forwardauth.authResponseHeaders: "X-Auth-User-ID,X-Auth-Username,X-Auth-Tenant-ID,X-Auth-Platform-Admin,X-Auth-Permissions"
+      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-User-ID: ""
+      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Username: ""
+      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Tenant-ID: ""
+      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Platform-Admin: ""
+      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Permissions: ""
+      traefik.http.middlewares.auth-chain.chain.middlewares: "auth-sanitize,auth-verify"
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -42,7 +42,7 @@ func TestFilterSensitiveFieldsMasksCurrentPassword(t *testing.T) {
 	if strings.Contains(got, "Secret123") || strings.Contains(got, "NestedSecret1") {
 		t.Fatalf("filterSensitiveFields() leaked current_password: %s", got)
 	}
-	if !strings.Contains(got, `"current_password":"***"`) {
+	if !strings.Contains(got, `"current_password":"********"`) {
 		t.Fatalf("filterSensitiveFields() did not mask current_password: %s", got)
 	}
 }
