@@ -43,7 +43,7 @@
 
 ## 硬规则
 
-1. 共享仅限：`platform/` 监控模板、仓库级规范（`AGENTS.md` / `CONTRIBUTING.md`）。
+1. 共享仅限：`platform/` 监控模板、仓库级规范（`CONTRIBUTING.md`）。
 2. 新增业务服务时，网关路由规则需同步补齐，否则经网关会 404。
 
 ## 迁移真源

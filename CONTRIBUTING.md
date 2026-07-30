@@ -121,8 +121,6 @@ feat: add auth service
 Tabs ink bar becomes a glowing gradient strip...
 ```
 
-更完整的约定见仓库根目录 `AGENTS.md`（供人与 AI 编码助手共同遵守）。
-
 ## 代码约定
 
 - 后端接口、权限码、菜单种子和 OpenAPI 契约需要同步更新。
