@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # PG 每日全量备份：主库(go-admin-kit-postgres)。
-# 部署在 109 的 root crontab（安装：scripts/ops/install-ops-cron.sh）。
-# 产物：/www/backups/pgsql/<库>-YYYYmmdd-HHMM.sql.gz，保留 RETAIN_DAYS 天。
+# 由部署服务器 crontab 调度（安装：scripts/ops/install-ops-cron.sh）。
+# 产物：$BACKUP_DIR/<库>-YYYYmmdd-HHMM.sql.gz，保留 RETAIN_DAYS 天。
 set -euo pipefail
 
-BACKUP_DIR=${BACKUP_DIR:-/www/backups/pgsql}
+BACKUP_DIR=${BACKUP_DIR:-/var/backups/go-admin-kit/pgsql}
 RETAIN_DAYS=${RETAIN_DAYS:-7}
 STAMP=$(date +%Y%m%d-%H%M)
 mkdir -p "$BACKUP_DIR"

@@ -2,9 +2,9 @@
 # 部署快照与回滚：
 #   snapshot —— 部署前给当前运行镜像打 prev 标签（rollback 的还原点）
 #   rollback <服务名...> —— 把服务镜像回滚到 prev 标签并重启（不 build）
-# 用法（109 上）：
-#   cd /www/go-admin-kit/src/microservices && ops/rollback.sh snapshot
-#   cd /www/go-admin-kit/src/microservices && ops/rollback.sh rollback system-service
+# 用法（部署服务器上，进入仓库的 microservices/ 目录）：
+#   cd <仓库路径>/microservices && ../scripts/ops/rollback.sh snapshot
+#   cd <仓库路径>/microservices && ../scripts/ops/rollback.sh rollback system-service
 set -euo pipefail
 
 ACTION=${1:-}
