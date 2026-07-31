@@ -22,6 +22,7 @@ import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import { EnableStatusPill } from '@/components/StatusPill'
+import './styles.css'
 
 const avatarPalette = [
   'linear-gradient(135deg, #818cf8, #4f46e5)',
@@ -42,6 +43,39 @@ interface SearchParams {
 
 // 用户行：后端用户列表 / 详情会附带岗位摘要（posts）与岗位 id 数组（post_ids）
 type UserRow = SystemUser & { posts?: SystemPost[]; post_ids?: number[] }
+
+function UserTagList({
+  items,
+  emptyText = '—',
+  colorize = false,
+}: {
+  items?: Array<{ id: number; name?: string; code?: string }>
+  emptyText?: string
+  colorize?: boolean
+}) {
+  if (!items?.length) return <span className="cell-muted">{emptyText}</span>
+
+  const visible = items.slice(0, 2)
+  const remaining = items.length - visible.length
+  return (
+    <Space size={6} className="user-tag-list">
+      {visible.map((item, index) => (
+        <Tag
+          key={item.id}
+          color={colorize ? roleTagPalette[index % roleTagPalette.length] : undefined}
+          variant="filled"
+        >
+          {item.name || item.code}
+        </Tag>
+      ))}
+      {remaining > 0 && (
+        <Tooltip title={items.slice(2).map((item) => item.name || item.code).join('、')}>
+          <Tag className="user-tag-more" variant="filled">+{remaining}</Tag>
+        </Tooltip>
+      )}
+    </Space>
+  )
+}
 
 export default function UserPage() {
   const [list, setList] = useState<UserRow[]>([])
@@ -232,6 +266,7 @@ export default function UserPage() {
     {
       title: '联系方式',
       key: 'contact',
+      width: 240,
       ellipsis: true,
       responsive: ['sm'],
       render: (_, record) => (
@@ -246,7 +281,7 @@ export default function UserPage() {
     {
       title: '部门',
       dataIndex: 'department_id',
-      width: 120,
+      width: 140,
       ellipsis: true,
       responsive: ['md'],
       render: (id?: number) =>
@@ -259,18 +294,9 @@ export default function UserPage() {
     {
       title: '岗位',
       dataIndex: 'posts',
-      width: 150,
+      width: 180,
       responsive: ['lg'],
-      render: (userPosts: UserRow['posts']) =>
-        userPosts && userPosts.length > 0 ? (
-          <Space size={[4, 4]} wrap>
-            {userPosts.map((p) => (
-              <Tag key={p.id} variant="filled">{p.name}</Tag>
-            ))}
-          </Space>
-        ) : (
-          <span className="cell-muted">—</span>
-        ),
+      render: (userPosts: UserRow['posts']) => <UserTagList items={userPosts} />,
     },
     {
       title: '状态',
@@ -282,19 +308,11 @@ export default function UserPage() {
     {
       title: '角色',
       dataIndex: 'roles',
+      width: 220,
       responsive: ['md'],
-      render: (roles: SystemUser['roles']) =>
-        roles && roles.length > 0 ? (
-          <Space size={[4, 4]} wrap>
-            {roles.map((r, i) => (
-              <Tag key={r.id} color={roleTagPalette[i % roleTagPalette.length]} variant="filled">
-                {r.name || r.code}
-              </Tag>
-            ))}
-          </Space>
-        ) : (
-          <span className="cell-muted">未分配</span>
-        ),
+      render: (roles: SystemUser['roles']) => (
+        <UserTagList items={roles} emptyText="未分配" colorize />
+      ),
     },
     {
       title: '创建时间',
@@ -306,28 +324,24 @@ export default function UserPage() {
     },
     {
       title: '操作',
-      width: 232,
+      width: 132,
       render: (_, record) => (
-        <Space size={0} className="table-actions">
+        <Space size={4} className="table-actions user-row-actions">
           {hasPerm('system:user:update') && (
             <Tooltip title="编辑">
-              <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
-                编辑
-              </Button>
+              <Button type="text" size="small" aria-label="编辑用户" icon={<EditOutlined />} onClick={() => openEdit(record)} />
             </Tooltip>
           )}
           {hasPerm('system:user:update') && (
             <Tooltip title="重置密码">
-              <Button type="link" size="small" icon={<KeyOutlined />} onClick={() => openReset(record)}>
-                重置密码
-              </Button>
+              <Button type="text" size="small" aria-label="重置用户密码" icon={<KeyOutlined />} onClick={() => openReset(record)} />
             </Tooltip>
           )}
           {hasPerm('system:user:delete') && (
             <Popconfirm title="确认删除该用户？" description="删除后不可恢复" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
+              <Tooltip title="删除">
+                <Button type="text" size="small" danger aria-label="删除用户" icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -417,6 +431,8 @@ export default function UserPage() {
           columns={columns}
           dataSource={list}
           loading={loading}
+          rowClassName={(record) => (record.status === 0 ? 'user-row-disabled' : '')}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无用户" compact /> }}
           pagination={{
             total,
