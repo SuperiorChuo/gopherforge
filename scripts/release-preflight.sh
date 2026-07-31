@@ -3,7 +3,11 @@
 # 用法：bash scripts/release-preflight.sh v0.4.0
 # 全绿才允许 git tag；配合 release.yml 的 CHANGELOG 段落门禁使用。
 set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
+# 仓库根按脚本自身位置定位，不看调用方 cwd：从仓外调用时 git rev-parse 会失败，
+# 而各项检查在缺文件上会静默"通过"——门禁假绿比没门禁更危险。
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[ -f "$ROOT/CHANGELOG.md" ] || { echo "✗ 定位仓库根失败：$ROOT"; exit 2; }
+cd "$ROOT"
 
 VER="${1:?用法: release-preflight.sh vX.Y.Z}"
 VER_NUM="${VER#v}"
@@ -23,16 +27,17 @@ stale=$(grep -rnE "v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+" README.md README.en.md LO
 if [ -z "$stale" ]; then ok "无 rc 版本残留"; else fail "rc 残留：$stale"; fi
 
 # 4. IMAGE_TAG 示例应指向本版本（部署文档手动口径）
+tag_bad=0
 for f in website/reference/deployment.md website/en/reference/deployment.md docs/deployment.md; do
   [ -f "$f" ] || continue
   if grep -q "IMAGE_TAG=" "$f" && ! grep -q "IMAGE_TAG=$VER" "$f"; then
-    fail "$f 的 IMAGE_TAG 示例不是 ${VER}（当前：$(grep -o 'IMAGE_TAG=v[0-9.]*' "$f" | head -1)）"
+    tag_bad=1; fail "$f 的 IMAGE_TAG 示例不是 ${VER}（当前：$(grep -o 'IMAGE_TAG=v[0-9.]*' "$f" | head -1)）"
   fi
 done
-[ "$hit" = 0 ] && ok "IMAGE_TAG 示例口径一致"
+[ "$tag_bad" = 0 ] && ok "IMAGE_TAG 示例口径一致"
 
 # 5. 卫生门禁（与 pre-push 同一套）
-if bash scripts/git-hooks/pre-push >/dev/null 2>&1; then ok "卫生扫描干净"; else fail "卫生扫描有命中（单独跑 scripts/git-hooks/pre-push 看详情）"; fi
+if (cd "$ROOT" && bash scripts/git-hooks/pre-push) >/dev/null 2>&1; then ok "卫生扫描干净"; else fail "卫生扫描有命中（单独跑 scripts/git-hooks/pre-push 看详情）"; fi
 
 # 6. 工作区干净（发版点必须是已提交状态）
 if [ -z "$(git status --porcelain)" ]; then ok "工作区干净"; else fail "工作区有未提交改动"; fi
