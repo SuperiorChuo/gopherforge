@@ -38,6 +38,7 @@ export const ROUTE_PERMISSIONS: Record<string, string> = {
   '/monitor/mysql': 'system:monitor:mysql',
   '/monitor/redis': 'system:monitor:redis',
   '/monitor/job': 'system:job:list',
+  '/monitor/alerts': 'system:alert:list',
   // 审批流：只有流程定义（设计器入口）要权限，我的待办/发起等不拦
   '/bpm/definitions': 'bpm:definition:list',
 }

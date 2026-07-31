@@ -14,6 +14,117 @@ export const getMySQLInfo = () =>
 export const getRedisInfo = () =>
   request.get<unknown, Record<string, unknown>>('/api/v1/monitor/redis')
 
+export type AlertOperator = 'gt' | 'gte' | 'lt' | 'lte'
+export type AlertSeverity = 'info' | 'warning' | 'critical'
+export type AlertRuleState = 'ok' | 'pending' | 'firing' | 'error'
+export type AlertEventStatus = 'firing' | 'resolved'
+export type AlertNotifyStatus = 'pending' | 'sent' | 'skipped' | 'failed'
+
+export interface AlertMetricDefinition {
+  key: string
+  title: string
+  unit: 'percent' | 'bytes' | 'count' | string
+  description: string
+  operators: AlertOperator[]
+}
+
+export interface MonitorAlertRule {
+  id: number
+  name: string
+  metric: string
+  operator: AlertOperator
+  threshold: number
+  duration_seconds: number
+  severity: AlertSeverity
+  enabled: boolean
+  notify_on_resolve: boolean
+  state: AlertRuleState
+  pending_since?: string | null
+  firing_since?: string | null
+  last_value?: number | null
+  last_evaluated_at?: string | null
+  last_error: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MonitorAlertEvent {
+  id: number
+  rule_id?: number | null
+  rule_name: string
+  metric: string
+  severity: AlertSeverity
+  status: AlertEventStatus
+  value: number
+  threshold: number
+  message: string
+  notify_status: AlertNotifyStatus
+  notify_error: string
+  notified_at?: string | null
+  created_at: string
+}
+
+export interface MonitorAlertSummary {
+  total: number
+  enabled: number
+  firing: number
+  pending: number
+  error: number
+  checked_at: string
+}
+
+export interface AlertRulePayload {
+  name: string
+  metric: string
+  operator: AlertOperator
+  threshold: number
+  duration_seconds: number
+  severity: AlertSeverity
+  enabled: boolean
+  notify_on_resolve: boolean
+}
+
+export type AlertRuleListParams = PageRequest & {
+  name?: string
+  metric?: string
+  state?: AlertRuleState
+  enabled?: boolean
+}
+
+export type AlertEventListParams = PageRequest & {
+  rule_id?: number
+  rule_name?: string
+  status?: AlertEventStatus
+  severity?: AlertSeverity
+  notify_status?: AlertNotifyStatus
+}
+
+export const getAlertMetrics = () =>
+  request.get<unknown, { list: AlertMetricDefinition[] }>('/api/v1/monitor/alert-metrics')
+
+export const getAlertSummary = () =>
+  request.get<unknown, MonitorAlertSummary>('/api/v1/monitor/alert-summary')
+
+export const getAlertRules = (params: AlertRuleListParams) =>
+  request.get<unknown, PageResponse<MonitorAlertRule>>('/api/v1/monitor/alert-rules', { params })
+
+export const createAlertRule = (data: AlertRulePayload) =>
+  request.post<unknown, MonitorAlertRule>('/api/v1/monitor/alert-rules', data)
+
+export const updateAlertRule = (id: number, data: AlertRulePayload) =>
+  request.put<unknown, MonitorAlertRule>(`/api/v1/monitor/alert-rules/${id}`, data)
+
+export const deleteAlertRule = (id: number) =>
+  request.delete<unknown, void>(`/api/v1/monitor/alert-rules/${id}`)
+
+export const evaluateAlertRule = (id: number) =>
+  request.post<unknown, { rule: MonitorAlertRule; event?: MonitorAlertEvent | null }>(
+    `/api/v1/monitor/alert-rules/${id}/evaluate`,
+  )
+
+export const getAlertEvents = (params: AlertEventListParams) =>
+  request.get<unknown, PageResponse<MonitorAlertEvent>>('/api/v1/monitor/alert-events', { params })
+
 export const getJobList = (params: JobListParams) =>
   request.get<unknown, PageResponse<ScheduledJob>>('/api/v1/monitor/jobs', { params })
 

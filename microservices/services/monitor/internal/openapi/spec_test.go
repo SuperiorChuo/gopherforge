@@ -203,6 +203,53 @@ func TestBuildSpecAddsTypedCoreSchemas(t *testing.T) {
 	assertJSONResponseRef(t, cleanupOp, "#/components/schemas/JobLogCleanupResultEnvelope")
 }
 
+func TestBuildSpecAddsAlertContracts(t *testing.T) {
+	spec := BuildSpec([]gin.RouteInfo{
+		{Method: "GET", Path: "/api/v1/monitor/alert-metrics"},
+		{Method: "GET", Path: "/api/v1/monitor/alert-summary"},
+		{Method: "GET", Path: "/api/v1/monitor/alert-rules"},
+		{Method: "POST", Path: "/api/v1/monitor/alert-rules"},
+		{Method: "PUT", Path: "/api/v1/monitor/alert-rules/:id"},
+		{Method: "DELETE", Path: "/api/v1/monitor/alert-rules/:id"},
+		{Method: "POST", Path: "/api/v1/monitor/alert-rules/:id/evaluate"},
+		{Method: "GET", Path: "/api/v1/monitor/alert-events"},
+	}, Options{})
+
+	alertRule := spec.Components.Schemas["MonitorAlertRule"]
+	assertRequired(t, alertRule.Required,
+		"id", "name", "metric", "operator", "threshold", "duration_seconds",
+		"severity", "enabled", "notify_on_resolve", "state", "created_at", "updated_at",
+	)
+	assertPropertyType(t, alertRule, "threshold", "number")
+	assertPropertyType(t, alertRule, "enabled", "boolean")
+
+	alertRulesOp := spec.Paths["/api/v1/monitor/alert-rules"]["get"]
+	assertJSONResponseRef(t, alertRulesOp, "#/components/schemas/AlertRuleListEnvelope")
+	if got := queryParameter(t, alertRulesOp, "enabled").Schema.Type; got != "boolean" {
+		t.Fatalf("alert rule enabled query type = %q, want boolean", got)
+	}
+	createAlertOp := spec.Paths["/api/v1/monitor/alert-rules"]["post"]
+	assertJSONRequestRef(t, createAlertOp, "#/components/schemas/SaveAlertRuleRequest")
+	assertJSONResponseRef(t, createAlertOp, "#/components/schemas/AlertRuleEnvelope")
+	evaluateAlertOp := spec.Paths["/api/v1/monitor/alert-rules/{id}/evaluate"]["post"]
+	assertJSONResponseRef(t, evaluateAlertOp, "#/components/schemas/AlertEvaluationEnvelope")
+	assertJSONResponseRefAtStatus(t, evaluateAlertOp, "404", "#/components/schemas/ApiResponse")
+	assertJSONResponseRefAtStatus(t, evaluateAlertOp, "503", "#/components/schemas/ApiResponse")
+	if evaluateAlertOp.RequestBody != nil {
+		t.Fatal("evaluate alert operation should not document a request body")
+	}
+	alertSummaryOp := spec.Paths["/api/v1/monitor/alert-summary"]["get"]
+	assertJSONResponseRef(t, alertSummaryOp, "#/components/schemas/AlertSummaryEnvelope")
+	alertEventsOp := spec.Paths["/api/v1/monitor/alert-events"]["get"]
+	assertSchemaMinimum(t, queryParameter(t, alertEventsOp, "rule_id").Schema, 1)
+	if got := queryParameter(t, alertEventsOp, "status").Schema.Type; got != "string" {
+		t.Fatalf("alert event status query type = %q, want string", got)
+	}
+	if got := evaluateAlertOp.Responses["404"].Description; got != "Resource not found" {
+		t.Fatalf("alert evaluate 404 description = %q, want Resource not found", got)
+	}
+}
+
 func TestBuildSpecAddsHeartbeatAndServicesContracts(t *testing.T) {
 	spec := BuildSpec([]gin.RouteInfo{
 		{Method: "GET", Path: "/api/v1/monitor/jobs/heartbeats"},

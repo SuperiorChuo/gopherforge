@@ -143,6 +143,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   mail: <MailOutlined />,
   clock: <ClockCircleOutlined />,
   bell: <BellOutlined />,
+  alert: <BellOutlined />,
   chart: <BarChartOutlined />,
   money: <PayCircleOutlined />,
   safety: <SafetyCertificateOutlined />,
@@ -250,6 +251,7 @@ const MENU_DEFS: MenuDef[] = [
       { label: '数据库监控', key: '/monitor/mysql', icon: <DatabaseOutlined /> },
       { label: 'Redis 监控', key: '/monitor/redis', icon: <BarsOutlined /> },
       { label: '定时任务', key: '/monitor/job', icon: <ScheduleOutlined /> },
+      { label: '告警规则', key: '/monitor/alerts', icon: <BellOutlined /> },
     ],
   },
   {
@@ -325,6 +327,7 @@ const pathBreadcrumbMap: Record<string, string> = {
   '/monitor/mysql': '数据库监控',
   '/monitor/redis': 'Redis 监控',
   '/monitor/job': '定时任务',
+  '/monitor/alerts': '告警规则',
   '/bpm/tasks': '待办中心',
   '/bpm/instances': '我发起的',
   '/bpm/definitions': '流程定义',

@@ -7,12 +7,13 @@ import (
 )
 
 func TestMonitorDAOUsesEnglishSourceText(t *testing.T) {
-	content, err := os.ReadFile("job.go")
-	if err != nil {
-		t.Fatalf("read job DAO source: %v", err)
-	}
-
-	if regexp.MustCompile(`\p{Han}`).Find(content) != nil {
-		t.Fatal("job.go contains non-English source text")
+	for _, filename := range []string{"alert.go", "job.go"} {
+		content, err := os.ReadFile(filename)
+		if err != nil {
+			t.Fatalf("read %s: %v", filename, err)
+		}
+		if regexp.MustCompile(`\p{Han}`).Find(content) != nil {
+			t.Fatalf("%s contains non-English source text", filename)
+		}
 	}
 }
