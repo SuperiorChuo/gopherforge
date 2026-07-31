@@ -350,7 +350,16 @@ func run(ctx context.Context) error {
 	router.Use(middleware.ErrorHandler())
 	setupCORS(router)
 	jobScheduler := monitorSvc.InitJobService(database.DB)
+	alertService := monitorSvc.NewAlertService(database.DB, redis.Client)
+	alertEvaluator := monitorSvc.StartAlertEvaluator(lifecycleCtx, alertService, monitorSvc.DefaultAlertEvaluationInterval)
 	api.SetupRoutesWithDeps(router, sharedapi.Dependencies{DB: database.DB, Redis: redis.Client})
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := alertEvaluator.Shutdown(shutdownCtx); err != nil {
+			logger.Warn("alert evaluator shutdown timeout", logger.Err(err))
+		}
+	}()
 	defer func() {
 		if err := shutdownJobScheduler(jobScheduler, 5*time.Second); err != nil {
 			logger.Warn("job scheduler shutdown timeout", logger.Err(err))

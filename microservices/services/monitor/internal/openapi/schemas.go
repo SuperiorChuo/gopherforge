@@ -13,6 +13,74 @@ type routeContract struct {
 func coreSchemas() map[string]Schema {
 	schemas := map[string]Schema{
 		"EmptyResponse": objectSchema(map[string]Schema{}, nil),
+		"AlertMetricDefinition": objectSchema(map[string]Schema{
+			"key":         stringSchema(),
+			"title":       stringSchema(),
+			"unit":        stringSchema(),
+			"description": stringSchema(),
+			"operators":   arraySchema(stringSchema()),
+		}, []string{"key", "title", "unit", "description", "operators"}),
+		"AlertMetricList": objectSchema(map[string]Schema{
+			"list": arraySchema(refSchema("AlertMetricDefinition")),
+		}, []string{"list"}),
+		"MonitorAlertSummary": objectSchema(map[string]Schema{
+			"total":      integerSchema(),
+			"enabled":    integerSchema(),
+			"firing":     integerSchema(),
+			"pending":    integerSchema(),
+			"error":      integerSchema(),
+			"checked_at": dateTimeSchema(),
+		}, []string{"total", "enabled", "firing", "pending", "error", "checked_at"}),
+		"MonitorAlertRule": objectSchema(map[string]Schema{
+			"id":                integerSchema(),
+			"name":              stringSchema(),
+			"metric":            stringSchema(),
+			"operator":          stringSchema(),
+			"threshold":         numberSchema(),
+			"duration_seconds":  integerSchema(),
+			"severity":          stringSchema(),
+			"enabled":           booleanSchema(),
+			"notify_on_resolve": booleanSchema(),
+			"state":             stringSchema(),
+			"pending_since":     dateTimeSchema(),
+			"firing_since":      dateTimeSchema(),
+			"last_value":        numberSchema(),
+			"last_evaluated_at": dateTimeSchema(),
+			"last_error":        stringSchema(),
+			"created_at":        dateTimeSchema(),
+			"updated_at":        dateTimeSchema(),
+		}, []string{"id", "name", "metric", "operator", "threshold", "duration_seconds", "severity", "enabled", "notify_on_resolve", "state", "created_at", "updated_at"}),
+		"SaveAlertRuleRequest": objectSchema(map[string]Schema{
+			"name":              stringSchema(),
+			"metric":            stringSchema(),
+			"operator":          stringSchema(),
+			"threshold":         numberSchema(),
+			"duration_seconds":  integerSchema(),
+			"severity":          stringSchema(),
+			"enabled":           booleanSchema(),
+			"notify_on_resolve": booleanSchema(),
+		}, []string{"name", "metric", "operator", "threshold"}),
+		"AlertRuleListResponse": pageSchema(refSchema("MonitorAlertRule")),
+		"MonitorAlertEvent": objectSchema(map[string]Schema{
+			"id":            integerSchema(),
+			"rule_id":       integerSchema(),
+			"rule_name":     stringSchema(),
+			"metric":        stringSchema(),
+			"severity":      stringSchema(),
+			"status":        stringSchema(),
+			"value":         numberSchema(),
+			"threshold":     numberSchema(),
+			"message":       stringSchema(),
+			"notify_status": stringSchema(),
+			"notify_error":  stringSchema(),
+			"notified_at":   dateTimeSchema(),
+			"created_at":    dateTimeSchema(),
+		}, []string{"id", "rule_name", "metric", "severity", "status", "value", "threshold", "message", "notify_status", "created_at"}),
+		"AlertEventListResponse": pageSchema(refSchema("MonitorAlertEvent")),
+		"AlertEvaluationResult": objectSchema(map[string]Schema{
+			"rule":  refSchema("MonitorAlertRule"),
+			"event": refSchema("MonitorAlertEvent"),
+		}, []string{"rule"}),
 		"ScheduledJob": objectSchema(map[string]Schema{
 			"id":              integerSchema(),
 			"name":            stringSchema(),
@@ -247,6 +315,12 @@ func coreSchemas() map[string]Schema {
 
 	for envelopeName, schemaName := range map[string]string{
 		"EmptyEnvelope":               "EmptyResponse",
+		"AlertMetricListEnvelope":     "AlertMetricList",
+		"AlertSummaryEnvelope":        "MonitorAlertSummary",
+		"AlertRuleEnvelope":           "MonitorAlertRule",
+		"AlertRuleListEnvelope":       "AlertRuleListResponse",
+		"AlertEventListEnvelope":      "AlertEventListResponse",
+		"AlertEvaluationEnvelope":     "AlertEvaluationResult",
 		"JobEnvelope":                 "ScheduledJob",
 		"JobListEnvelope":             "JobListResponse",
 		"JobHealthEnvelope":           "JobHealthCheck",
@@ -265,20 +339,28 @@ func coreSchemas() map[string]Schema {
 
 func contractFor(method, path string) (routeContract, bool) {
 	contracts := map[string]routeContract{
-		"GET /api/v1/monitor/server":            {ResponseSchema: "ServerInfoEnvelope"},
-		"GET /api/v1/monitor/mysql":             {ResponseSchema: "MySQLInfoEnvelope", UnavailableResponse: true},
-		"GET /api/v1/monitor/redis":             {ResponseSchema: "RedisInfoEnvelope"},
-		"GET /api/v1/monitor/jobs":              {ResponseSchema: "JobListEnvelope", QueryParams: pagingQueryParams("name", "status"), UnavailableResponse: true},
-		"GET /api/v1/monitor/jobs/health":       {ResponseSchema: "JobHealthEnvelope", QueryParams: []Parameter{queryParam("window_hours", minimumIntegerSchema(1))}, UnavailableResponse: true},
-		"GET /api/v1/monitor/jobs/heartbeats":   {ResponseSchema: "JobHeartbeatsEnvelope", UnavailableResponse: true},
-		"GET /api/v1/monitor/services":          {ResponseSchema: "ServicesHealthEnvelope"},
-		"POST /api/v1/monitor/jobs":             {RequestSchema: "SaveJobRequest", ResponseSchema: "JobEnvelope", UnavailableResponse: true},
-		"PUT /api/v1/monitor/jobs/{id}":         {RequestSchema: "SaveJobRequest", ResponseSchema: "JobEnvelope", UnavailableResponse: true, NotFoundResponse: true},
-		"DELETE /api/v1/monitor/jobs/{id}":      {ResponseSchema: "EmptyEnvelope", UnavailableResponse: true, NotFoundResponse: true},
-		"POST /api/v1/monitor/jobs/{id}/start":  {ResponseSchema: "EmptyEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
-		"POST /api/v1/monitor/jobs/{id}/stop":   {ResponseSchema: "EmptyEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
-		"POST /api/v1/monitor/jobs/{id}/run":    {ResponseSchema: "EmptyEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
-		"POST /api/v1/monitor/job-logs/cleanup": {RequestSchema: "JobLogCleanupRequest", ResponseSchema: "JobLogCleanupResultEnvelope", QueryParams: []Parameter{queryParam("retention_days", minimumIntegerSchema(1))}, OptionalRequestBody: true, UnavailableResponse: true},
+		"GET /api/v1/monitor/server":                     {ResponseSchema: "ServerInfoEnvelope"},
+		"GET /api/v1/monitor/mysql":                      {ResponseSchema: "MySQLInfoEnvelope", UnavailableResponse: true},
+		"GET /api/v1/monitor/redis":                      {ResponseSchema: "RedisInfoEnvelope"},
+		"GET /api/v1/monitor/alert-metrics":              {ResponseSchema: "AlertMetricListEnvelope"},
+		"GET /api/v1/monitor/alert-summary":              {ResponseSchema: "AlertSummaryEnvelope"},
+		"GET /api/v1/monitor/alert-rules":                {ResponseSchema: "AlertRuleListEnvelope", QueryParams: alertRuleQueryParams()},
+		"POST /api/v1/monitor/alert-rules":               {RequestSchema: "SaveAlertRuleRequest", ResponseSchema: "AlertRuleEnvelope"},
+		"PUT /api/v1/monitor/alert-rules/{id}":           {RequestSchema: "SaveAlertRuleRequest", ResponseSchema: "AlertRuleEnvelope", NotFoundResponse: true},
+		"DELETE /api/v1/monitor/alert-rules/{id}":        {ResponseSchema: "EmptyEnvelope", NotFoundResponse: true},
+		"POST /api/v1/monitor/alert-rules/{id}/evaluate": {ResponseSchema: "AlertEvaluationEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
+		"GET /api/v1/monitor/alert-events":               {ResponseSchema: "AlertEventListEnvelope", QueryParams: alertEventQueryParams()},
+		"GET /api/v1/monitor/jobs":                       {ResponseSchema: "JobListEnvelope", QueryParams: pagingQueryParams("name", "status"), UnavailableResponse: true},
+		"GET /api/v1/monitor/jobs/health":                {ResponseSchema: "JobHealthEnvelope", QueryParams: []Parameter{queryParam("window_hours", minimumIntegerSchema(1))}, UnavailableResponse: true},
+		"GET /api/v1/monitor/jobs/heartbeats":            {ResponseSchema: "JobHeartbeatsEnvelope", UnavailableResponse: true},
+		"GET /api/v1/monitor/services":                   {ResponseSchema: "ServicesHealthEnvelope"},
+		"POST /api/v1/monitor/jobs":                      {RequestSchema: "SaveJobRequest", ResponseSchema: "JobEnvelope", UnavailableResponse: true},
+		"PUT /api/v1/monitor/jobs/{id}":                  {RequestSchema: "SaveJobRequest", ResponseSchema: "JobEnvelope", UnavailableResponse: true, NotFoundResponse: true},
+		"DELETE /api/v1/monitor/jobs/{id}":               {ResponseSchema: "EmptyEnvelope", UnavailableResponse: true, NotFoundResponse: true},
+		"POST /api/v1/monitor/jobs/{id}/start":           {ResponseSchema: "EmptyEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
+		"POST /api/v1/monitor/jobs/{id}/stop":            {ResponseSchema: "EmptyEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
+		"POST /api/v1/monitor/jobs/{id}/run":             {ResponseSchema: "EmptyEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
+		"POST /api/v1/monitor/job-logs/cleanup":          {RequestSchema: "JobLogCleanupRequest", ResponseSchema: "JobLogCleanupResultEnvelope", QueryParams: []Parameter{queryParam("retention_days", minimumIntegerSchema(1))}, OptionalRequestBody: true, UnavailableResponse: true},
 	}
 	contract, ok := contracts[method+" "+path]
 	return contract, ok
@@ -362,4 +444,27 @@ func pagingQueryParams(names ...string) []Parameter {
 		params = append(params, queryParam(name, schema))
 	}
 	return params
+}
+
+func alertRuleQueryParams() []Parameter {
+	return []Parameter{
+		queryParam("page", integerSchema()),
+		queryParam("page_size", integerSchema()),
+		queryParam("name", stringSchema()),
+		queryParam("metric", stringSchema()),
+		queryParam("state", stringSchema()),
+		queryParam("enabled", booleanSchema()),
+	}
+}
+
+func alertEventQueryParams() []Parameter {
+	return []Parameter{
+		queryParam("page", integerSchema()),
+		queryParam("page_size", integerSchema()),
+		queryParam("rule_id", minimumIntegerSchema(1)),
+		queryParam("rule_name", stringSchema()),
+		queryParam("status", stringSchema()),
+		queryParam("severity", stringSchema()),
+		queryParam("notify_status", stringSchema()),
+	}
 }

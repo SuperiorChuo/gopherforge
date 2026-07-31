@@ -8,6 +8,7 @@ import (
 
 func TestMonitorAPIUsesEnglishSourceText(t *testing.T) {
 	for _, filename := range []string{
+		"alert.go",
 		"job.go",
 		"server.go",
 		"mysql.go",
@@ -26,6 +27,7 @@ func TestMonitorAPIUsesEnglishSourceText(t *testing.T) {
 
 func TestMonitorAPIInternalErrorsDoNotExposeDetails(t *testing.T) {
 	for _, filename := range []string{
+		"alert.go",
 		"job.go",
 		"server.go",
 		"mysql.go",

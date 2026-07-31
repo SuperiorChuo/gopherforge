@@ -8,6 +8,10 @@ import (
 
 func TestMonitorServiceUsesEnglishSourceText(t *testing.T) {
 	for _, file := range []string{
+		"alert.go",
+		"alert_metric.go",
+		"alert_notification.go",
+		"alert_scheduler.go",
 		"job.go",
 		"mysql.go",
 		"redis.go",

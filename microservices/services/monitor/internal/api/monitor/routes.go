@@ -30,6 +30,7 @@ func RegisterProtectedRoutesWithDeps(r *gin.RouterGroup, deps sharedapi.Dependen
 	if deps.Redis != nil {
 		redisAPI = NewRedisAPIWithService(monitorsvc.NewRedisServiceWithClient(deps.Redis))
 	}
+	alertAPI := NewAlertAPIWithService(monitorsvc.NewAlertService(deps.DB, deps.Redis))
 
 	var jobAPI *JobAPI
 	if deps.DB != nil {
@@ -43,6 +44,14 @@ func RegisterProtectedRoutesWithDeps(r *gin.RouterGroup, deps sharedapi.Dependen
 	monitorGroup.GET("/services", middleware.PermissionMiddleware("system:monitor:server"), serverAPI.GetServicesHealth)
 	monitorGroup.GET("/mysql", middleware.PermissionMiddleware("system:monitor:mysql"), mysqlHandler)
 	monitorGroup.GET("/redis", middleware.PermissionMiddleware("system:monitor:redis"), redisAPI.GetRedisInfo)
+	monitorGroup.GET("/alert-metrics", middleware.PermissionMiddleware("system:alert:list"), alertAPI.GetMetrics)
+	monitorGroup.GET("/alert-summary", middleware.PermissionMiddleware("system:alert:list"), alertAPI.GetSummary)
+	monitorGroup.GET("/alert-rules", middleware.PermissionMiddleware("system:alert:list"), alertAPI.GetRules)
+	monitorGroup.POST("/alert-rules", middleware.PermissionMiddleware("system:alert:create"), alertAPI.CreateRule)
+	monitorGroup.PUT("/alert-rules/:id", middleware.PermissionMiddleware("system:alert:update"), alertAPI.UpdateRule)
+	monitorGroup.DELETE("/alert-rules/:id", middleware.PermissionMiddleware("system:alert:delete"), alertAPI.DeleteRule)
+	monitorGroup.POST("/alert-rules/:id/evaluate", middleware.PermissionMiddleware("system:alert:evaluate"), alertAPI.EvaluateRule)
+	monitorGroup.GET("/alert-events", middleware.PermissionMiddleware("system:alert:list"), alertAPI.GetEvents)
 	registerJobRoutes(monitorGroup, jobAPI)
 }
 

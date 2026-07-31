@@ -29,6 +29,26 @@ export interface paths {
   "/api/v1/metrics/json": {
     get: operations["getApiV1MetricsJson"];
   };
+  "/api/v1/monitor/alert-events": {
+    get: operations["getApiV1MonitorAlertEvents"];
+  };
+  "/api/v1/monitor/alert-metrics": {
+    get: operations["getApiV1MonitorAlertMetrics"];
+  };
+  "/api/v1/monitor/alert-rules": {
+    get: operations["getApiV1MonitorAlertRules"];
+    post: operations["postApiV1MonitorAlertRules"];
+  };
+  "/api/v1/monitor/alert-rules/{id}": {
+    delete: operations["deleteApiV1MonitorAlertRulesId"];
+    put: operations["putApiV1MonitorAlertRulesId"];
+  };
+  "/api/v1/monitor/alert-rules/{id}/evaluate": {
+    post: operations["postApiV1MonitorAlertRulesIdEvaluate"];
+  };
+  "/api/v1/monitor/alert-summary": {
+    get: operations["getApiV1MonitorAlertSummary"];
+  };
   "/api/v1/monitor/job-logs": {
     get: operations["getApiV1MonitorJobLogs"];
   };
@@ -281,6 +301,312 @@ export interface operations {
         };
       };
       "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorAlertEvents": {
+    parameters: {
+      query: {
+        page?: number;
+        page_size?: number;
+        rule_id?: number;
+        rule_name?: string;
+        status?: string;
+        severity?: string;
+        notify_status?: string;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["AlertEventListEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorAlertMetrics": {
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["AlertMetricListEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorAlertRules": {
+    parameters: {
+      query: {
+        page?: number;
+        page_size?: number;
+        name?: string;
+        metric?: string;
+        state?: string;
+        enabled?: boolean;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["AlertRuleListEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1MonitorAlertRules": {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SaveAlertRuleRequest"];
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["AlertRuleEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "deleteApiV1MonitorAlertRulesId": {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["EmptyEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "404": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "putApiV1MonitorAlertRulesId": {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SaveAlertRuleRequest"];
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["AlertRuleEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "404": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "postApiV1MonitorAlertRulesIdEvaluate": {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["AlertEvaluationEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "404": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorAlertSummary": {
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["AlertSummaryEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };
@@ -914,6 +1240,62 @@ export interface operations {
 
 export interface components {
   schemas: {
+    AlertEvaluationEnvelope: {
+      code: number;
+      data: components["schemas"]["AlertEvaluationResult"];
+      message: string;
+    };
+    AlertEvaluationResult: {
+      event?: components["schemas"]["MonitorAlertEvent"];
+      rule: components["schemas"]["MonitorAlertRule"];
+    };
+    AlertEventListEnvelope: {
+      code: number;
+      data: components["schemas"]["AlertEventListResponse"];
+      message: string;
+    };
+    AlertEventListResponse: {
+      list: components["schemas"]["MonitorAlertEvent"][];
+      page: number;
+      page_size: number;
+      total: number;
+    };
+    AlertMetricDefinition: {
+      description: string;
+      key: string;
+      operators: string[];
+      title: string;
+      unit: string;
+    };
+    AlertMetricList: {
+      list: components["schemas"]["AlertMetricDefinition"][];
+    };
+    AlertMetricListEnvelope: {
+      code: number;
+      data: components["schemas"]["AlertMetricList"];
+      message: string;
+    };
+    AlertRuleEnvelope: {
+      code: number;
+      data: components["schemas"]["MonitorAlertRule"];
+      message: string;
+    };
+    AlertRuleListEnvelope: {
+      code: number;
+      data: components["schemas"]["AlertRuleListResponse"];
+      message: string;
+    };
+    AlertRuleListResponse: {
+      list: components["schemas"]["MonitorAlertRule"][];
+      page: number;
+      page_size: number;
+      total: number;
+    };
+    AlertSummaryEnvelope: {
+      code: number;
+      data: components["schemas"]["MonitorAlertSummary"];
+      message: string;
+    };
     ApiResponse: {
       code: number;
       data?: Record<string, unknown>;
@@ -1003,6 +1385,48 @@ export interface components {
       code: number;
       data: components["schemas"]["JobLogCleanupResult"];
       message: string;
+    };
+    MonitorAlertEvent: {
+      created_at: string;
+      id: number;
+      message: string;
+      metric: string;
+      notified_at?: string;
+      notify_error?: string;
+      notify_status: string;
+      rule_id?: number;
+      rule_name: string;
+      severity: string;
+      status: string;
+      threshold: number;
+      value: number;
+    };
+    MonitorAlertRule: {
+      created_at: string;
+      duration_seconds: number;
+      enabled: boolean;
+      firing_since?: string;
+      id: number;
+      last_error?: string;
+      last_evaluated_at?: string;
+      last_value?: number;
+      metric: string;
+      name: string;
+      notify_on_resolve: boolean;
+      operator: string;
+      pending_since?: string;
+      severity: string;
+      state: string;
+      threshold: number;
+      updated_at: string;
+    };
+    MonitorAlertSummary: {
+      checked_at: string;
+      enabled: number;
+      error: number;
+      firing: number;
+      pending: number;
+      total: number;
     };
     MySQLConnectionInfo: {
       idle: number;
@@ -1122,6 +1546,16 @@ export interface components {
       ops: string;
       total_commands_processed?: number;
       total_connections_received?: number;
+    };
+    SaveAlertRuleRequest: {
+      duration_seconds?: number;
+      enabled?: boolean;
+      metric: string;
+      name: string;
+      notify_on_resolve?: boolean;
+      operator: string;
+      severity?: string;
+      threshold: number;
     };
     SaveJobRequest: {
       concurrent?: number;

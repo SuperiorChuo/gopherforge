@@ -217,7 +217,7 @@ func buildOperation(method, path string) Operation {
 		op.Responses["503"] = jsonResponse("Monitor dependency unavailable", refSchema("ApiResponse"))
 	}
 	if hasContract && contract.NotFoundResponse {
-		op.Responses["404"] = jsonResponse("Scheduled job not found", refSchema("ApiResponse"))
+		op.Responses["404"] = jsonResponse("Resource not found", refSchema("ApiResponse"))
 	}
 	if path == "/api/v1/metrics" {
 		op.Responses["200"] = Response{
