@@ -72,6 +72,9 @@ type AuditLogBreakdownSummary struct {
 }
 
 func (d *AuditLogDAO) CreateLogContext(ctx context.Context, log *model.AuditLog) error {
+	if log != nil {
+		log.TenantID = auditTenantID(ctx, log.TenantID)
+	}
 	return d.dbWithContext(ctx).Create(log).Error
 }
 
@@ -81,7 +84,11 @@ func (d *AuditLogDAO) ListLogsContext(ctx context.Context, req AuditLogListQuery
 	}
 
 	var result AuditLogListResult
-	baseQuery := applyAuditBaseFilters(d.dbWithContext(ctx).Model(&model.AuditLog{}), req)
+	baseQuery := applyAuditBaseFilters(
+		d.dbWithContext(ctx).Model(&model.AuditLog{}).
+			Where("tenant_id = ?", auditTenantID(ctx, 0)),
+		req,
+	)
 	listQuery := applyAuditViewFilter(baseQuery.Session(&gorm.Session{}), req.View)
 
 	if err := listQuery.Count(&result.Pagination.Total).Error; err != nil {
@@ -123,6 +130,33 @@ func (d *AuditLogDAO) ListLogsContext(ctx context.Context, req AuditLogListQuery
 	result.Summary = summary
 	result.Facets = facets
 	return result, nil
+}
+
+func auditTenantID(ctx context.Context, fallback uint) uint {
+	if ctx != nil {
+		switch id := ctx.Value("tenant_id").(type) {
+		case uint:
+			if id > 0 {
+				return id
+			}
+		case uint64:
+			if id > 0 {
+				return uint(id)
+			}
+		case int:
+			if id > 0 {
+				return uint(id)
+			}
+		case int64:
+			if id > 0 {
+				return uint(id)
+			}
+		}
+	}
+	if fallback > 0 {
+		return fallback
+	}
+	return 1
 }
 
 func (d *AuditLogDAO) BuildSummary(baseQuery *gorm.DB) (AuditLogSummary, error) {

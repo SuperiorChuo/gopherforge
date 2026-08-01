@@ -28,6 +28,7 @@ type OperationLog struct {
 // AuditLog stores business audit events.
 type AuditLog struct {
 	ID         uint           `gorm:"primaryKey" json:"id"`
+	TenantID   uint           `gorm:"not null;default:1;index" json:"tenant_id"`
 	ActorType  string         `gorm:"size:64;default:operator;index" json:"actor_type"`
 	ActorID    string         `gorm:"size:128;default:web-console;index" json:"actor_id"`
 	Action     string         `gorm:"size:128;not null;index" json:"action"`
