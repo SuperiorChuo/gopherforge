@@ -11,6 +11,7 @@ import (
 	"github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
+	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
@@ -54,6 +55,37 @@ func TestOAuthServiceFindOrCreateUserContextUsesInjectedStoresForExistingBinding
 	}
 	if bindings.createCalled || users.createCalled {
 		t.Fatal("existing binding path must not create a user or binding")
+	}
+}
+
+func TestOAuthServiceFindOrCreateUserContextAttributesProvisioning(t *testing.T) {
+	bindings := &stubOAuthBindingStore{}
+	users := &stubOAuthUserStore{}
+	svc := &OAuthService{
+		bindingDAO: bindings,
+		userDAO:    users,
+	}
+
+	user, err := svc.findOrCreateUserContext(
+		context.Background(),
+		"github",
+		"provider-user-123",
+		"alice",
+		"alice@example.com",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("findOrCreateUserContext() error = %v", err)
+	}
+	if user == nil || !users.createCalled || !bindings.createCalled {
+		t.Fatalf("provisioning result user=%#v user_create=%v binding_create=%v", user, users.createCalled, bindings.createCalled)
+	}
+	actor, ok := sharedaudit.ActorFromContext(users.createContext)
+	if !ok || actor.Type != "system" || actor.ID != "oauth-github-provisioning" {
+		t.Fatalf("provisioning actor = %#v, found=%v", actor, ok)
+	}
+	if tenantID, ok := sharedaudit.TenantIDFromContext(users.createContext); !ok || tenantID != 1 {
+		t.Fatalf("provisioning tenant = (%d, %v), want (1, true)", tenantID, ok)
 	}
 }
 
@@ -137,6 +169,13 @@ func TestOAuthServiceGithubCallbackContextMarksDefaultAdminPassword(t *testing.T
 	}
 	if !users.markCalled {
 		t.Fatal("default admin OAuth login should mark password change required")
+	}
+	actor, ok := sharedaudit.ActorFromContext(users.markContext)
+	if !ok || actor.Type != "user" || actor.ID != "admin" {
+		t.Fatalf("password-change actor = %#v, found=%v", actor, ok)
+	}
+	if tenantID, ok := sharedaudit.TenantIDFromContext(users.markContext); !ok || tenantID != 1 {
+		t.Fatalf("password-change tenant = (%d, %v), want (1, true)", tenantID, ok)
 	}
 	if !resp.User.MustChangePassword {
 		t.Fatal("OAuth response user should require password change")
@@ -389,13 +428,15 @@ func (s *stubOAuthBindingStore) DeleteByUserProviderContext(ctx context.Context,
 }
 
 type stubOAuthUserStore struct {
-	user         *model.User
-	getErr       error
-	markErr      error
-	createErr    error
-	getID        uint
-	createCalled bool
-	markCalled   bool
+	user          *model.User
+	getErr        error
+	markErr       error
+	createErr     error
+	getID         uint
+	createCalled  bool
+	markCalled    bool
+	createContext context.Context
+	markContext   context.Context
 }
 
 func (s *stubOAuthUserStore) GetUserByIDContext(ctx context.Context, id uint) (*model.User, error) {
@@ -408,6 +449,7 @@ func (s *stubOAuthUserStore) GetUserByIDContext(ctx context.Context, id uint) (*
 
 func (s *stubOAuthUserStore) CreateUserContext(ctx context.Context, user *model.User) error {
 	s.createCalled = true
+	s.createContext = ctx
 	if s.createErr != nil {
 		return s.createErr
 	}
@@ -427,6 +469,7 @@ func (s *stubOAuthUserStore) GetUserWithRolesAndPermissionsContext(ctx context.C
 
 func (s *stubOAuthUserStore) MarkPasswordChangeRequiredContext(ctx context.Context, userID uint) error {
 	s.markCalled = true
+	s.markContext = ctx
 	if s.markErr != nil {
 		return s.markErr
 	}

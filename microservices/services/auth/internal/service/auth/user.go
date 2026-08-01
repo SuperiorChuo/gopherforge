@@ -13,6 +13,7 @@ import (
 	"github.com/go-admin-kit/services/auth/internal/pkg/captcha"
 	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
+	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -181,6 +182,11 @@ func (s *UserService) LoginPasswordWithTenantContext(ctx context.Context, userna
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		return nil, ErrInvalidCredentials
 	}
+	tenantID := user.TenantID
+	if tenantID == 0 {
+		tenantID = tenant.ID
+	}
+	ctx = sharedaudit.WithTenantID(sharedaudit.WithActor(ctx, "user", user.Username), tenantID)
 
 	policy := s.securityPolicy(ctx)
 	passwordChangeRequired := shouldMarkDefaultAdminPassword(user, password) ||
@@ -198,10 +204,6 @@ func (s *UserService) LoginPasswordWithTenantContext(ctx context.Context, userna
 	}
 	if passwordChangeRequired {
 		user.MustChangePassword = true
-	}
-	tenantID := user.TenantID
-	if tenantID == 0 {
-		tenantID = tenant.ID
 	}
 	if user.TOTPEnabled {
 		challengeID, err := jwt.GenerateTOTPChallengeWithTenant(user.ID, user.Username, tenantID, 5*time.Minute)
@@ -230,6 +232,7 @@ func (s *UserService) LoginPasswordWithTenantContext(ctx context.Context, userna
 }
 
 func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) (*model.User, error) {
+	ctx = sharedaudit.WithTenantID(sharedaudit.WithActor(ctx, "anonymous", "self-registration"), 1)
 	_, err := s.userDAO.GetUserByUsernameContext(ctx, req.Username)
 	if err == nil {
 		return nil, ErrUsernameAlreadyExists

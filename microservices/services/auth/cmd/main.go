@@ -23,11 +23,13 @@ import (
 	systemDAO "github.com/go-admin-kit/services/auth/internal/dao/system"
 	"github.com/go-admin-kit/services/auth/internal/events"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
+	"github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/database"
 	"github.com/go-admin-kit/services/auth/internal/pkg/observability"
 	"github.com/go-admin-kit/services/auth/internal/pkg/redis"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	authsvc "github.com/go-admin-kit/services/auth/internal/service/auth"
+	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 )
@@ -166,6 +168,11 @@ func run(ctx context.Context) error {
 	logger.Info("initializing database")
 	if err := database.InitDatabase(); err != nil {
 		return fmt.Errorf("database initialization failed: %w", err)
+	}
+	if err := sharedaudit.Register(database.DB, sharedaudit.Config{
+		Targets: []sharedaudit.Target{sharedaudit.UserTarget(&model.User{})},
+	}); err != nil {
+		return fmt.Errorf("audit trail plugin registration failed: %w", err)
 	}
 	consoleSessionService := authsvc.NewConsoleSessionServiceWithDB(database.DB)
 	middleware.SetAuthMiddlewareDependencies(middleware.AuthMiddlewareDependencies{
