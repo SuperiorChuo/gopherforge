@@ -1,21 +1,18 @@
 package callback
 
-// 终态回调重试用例：前两次失败第三次成功 / 三次全失败 / 未注册 biz_type
-// 跳过 / 鉴权与租户头正确携带。
+// 终态回调单次投递用例：成功 / 失败 / 未注册 biz_type / 鉴权与租户头。
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
-	"sync/atomic"
 	"testing"
 	"time"
 )
 
 func fastDispatcher(target, token string) *Dispatcher {
-	d := New(map[string]string{"demo_expense": target}, token)
-	d.Delays = []time.Duration{0, 0, 0} // 测试免等
-	return d
+	return New(map[string]string{"demo_expense": target}, token)
 }
 
 func payload() Payload {
@@ -27,61 +24,36 @@ func payload() Payload {
 	}
 }
 
-// 前两次 500，第三次 200：重试后成功，总计三次请求。
-func TestRetrySucceedsOnThird(t *testing.T) {
-	var calls atomic.Int64
+func TestDeliverSuccess(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if calls.Add(1) < 3 {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
 
 	d := fastDispatcher(srv.URL, "tok")
-	if err := d.DispatchSync(1, payload()); err != nil {
-		t.Fatalf("第三次应成功: %v", err)
-	}
-	if calls.Load() != 3 {
-		t.Fatalf("应请求 3 次, got %d", calls.Load())
+	if err := d.Deliver(1, payload()); err != nil {
+		t.Fatalf("deliver: %v", err)
 	}
 }
 
-// 三次全失败：返回最终错误，不再多试。
-func TestRetryExhausted(t *testing.T) {
-	var calls atomic.Int64
+func TestDeliverFailure(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls.Add(1)
 		w.WriteHeader(http.StatusBadGateway)
 	}))
 	defer srv.Close()
 
 	d := fastDispatcher(srv.URL, "tok")
-	if err := d.DispatchSync(1, payload()); err == nil {
-		t.Fatal("三次全失败应返回错误")
-	}
-	if calls.Load() != 3 {
-		t.Fatalf("应请求 3 次, got %d", calls.Load())
+	if err := d.Deliver(1, payload()); err == nil {
+		t.Fatal("HTTP 失败应返回错误")
 	}
 }
 
-// 未注册 biz_type：静默跳过，不发请求。
-func TestUnregisteredBizSkipped(t *testing.T) {
-	var calls atomic.Int64
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls.Add(1)
-	}))
-	defer srv.Close()
-
-	d := fastDispatcher(srv.URL, "tok")
+func TestUnregisteredBizReturnsSentinel(t *testing.T) {
+	d := fastDispatcher("http://127.0.0.1", "tok")
 	p := payload()
 	p.BizType = "unknown_biz"
-	if err := d.DispatchSync(1, p); err != nil {
-		t.Fatalf("未注册应静默跳过: %v", err)
-	}
-	if calls.Load() != 0 {
-		t.Fatalf("不应发请求, got %d", calls.Load())
+	if err := d.Deliver(1, p); !errors.Is(err, ErrTargetNotRegistered) {
+		t.Fatalf("未注册应返回 sentinel: %v", err)
 	}
 }
 
@@ -98,7 +70,7 @@ func TestHeadersAndBody(t *testing.T) {
 	defer srv.Close()
 
 	d := fastDispatcher(srv.URL, "sec-token")
-	if err := d.DispatchSync(7, payload()); err != nil {
+	if err := d.Deliver(7, payload()); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
 	if gotToken != "sec-token" || gotTenant != "7" {

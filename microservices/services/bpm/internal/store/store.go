@@ -1,4 +1,4 @@
-// Package store 持久化 bpm 五张表。AutoMigrate 自管表（轻量服务同
+// Package store 持久化 bpm 五张表。AutoMigrate 实验线（与 im/ticket/crm 同
 // 约定），全部查询强制 tenant_id 隔离；防重的部分唯一索引在建表后补建
 // （AutoMigrate 不支持 WHERE 索引）。引擎推进事务见 internal/engine。
 package store
@@ -17,6 +17,7 @@ import (
 	"github.com/go-admin-kit/services/bpm/internal/model"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -47,7 +48,7 @@ func NewWithDB(db *gorm.DB) (*Store, error) {
 	s := &Store{db: db}
 	if err := db.AutoMigrate(
 		&model.ProcessDefinition{}, &model.ProcessInstance{},
-		&model.Task{}, &model.CcRecord{}, &model.ProcessLog{},
+		&model.Task{}, &model.CcRecord{}, &model.ProcessLog{}, &model.CallbackJob{},
 	); err != nil {
 		return nil, err
 	}
@@ -100,7 +101,62 @@ func indexStatements() []string {
 		`CREATE INDEX IF NOT EXISTS idx_bpm_def_tenant_id ON bpm_process_definition (tenant_id, id DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_bpm_cc_tenant_id ON bpm_cc_record (tenant_id, id DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_bpm_log_inst_id ON bpm_process_log (instance_id, id DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_bpm_callback_due ON bpm_callback_jobs (status, next_at, id)`,
 	}
+}
+
+// ClaimCallbackJobs 抢占到期任务并延长租约。PostgreSQL 使用 SKIP LOCKED，
+// 多副本不会重复领取；过期租约会重新进入可领取集合。
+func (s *Store) ClaimCallbackJobs(limit int, lease time.Duration) ([]model.CallbackJob, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	now := time.Now()
+	var jobs []model.CallbackJob
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		q := tx.Where("status = ? AND next_at <= ?", "pending", now).Order("id").Limit(limit)
+		if tx.Dialector.Name() == "postgres" {
+			q = q.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"})
+		}
+		if err := q.Find(&jobs).Error; err != nil {
+			return err
+		}
+		if len(jobs) == 0 {
+			return nil
+		}
+		ids := make([]uint64, 0, len(jobs))
+		for i := range jobs {
+			ids = append(ids, jobs[i].ID)
+		}
+		return tx.Model(&model.CallbackJob{}).Where("id IN ?", ids).
+			Update("next_at", now.Add(lease)).Error
+	})
+	return jobs, err
+}
+
+func (s *Store) FinishCallbackJob(id uint64) error {
+	return s.db.Delete(&model.CallbackJob{}, id).Error
+}
+
+// RetryCallbackJob 记录一次失败；达到上限后进入 dead，不再自动领取。
+func (s *Store) RetryCallbackJob(id uint64, attempts, maxAttempts int, lastErr string) error {
+	if len(lastErr) > 480 {
+		lastErr = lastErr[:480]
+	}
+	updates := map[string]any{"attempts": attempts, "last_error": lastErr}
+	if attempts >= maxAttempts {
+		updates["status"] = "dead"
+	} else {
+		shift := attempts - 1
+		if shift < 0 {
+			shift = 0
+		}
+		if shift > 6 {
+			shift = 6
+		}
+		updates["next_at"] = time.Now().Add(time.Duration(1<<uint(shift)) * time.Minute)
+	}
+	return s.db.Model(&model.CallbackJob{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (s *Store) DB() *gorm.DB { return s.db }

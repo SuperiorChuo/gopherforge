@@ -2,7 +2,7 @@ package engine
 
 // 引擎核心用例：发起推进 / 会签收敛 / 或签收敛（含救回）/ 拒绝终止 /
 // 角色解析与空候选人兜底 / 发起人自选 / 撤销 / 防重复发起 / 版本冻结 /
-// 发布校验。sqlite 内存库基架。
+// 发布校验。sqlite 内存库基架与 im/ticket/crm 测试同法。
 
 import (
 	"encoding/json"
@@ -152,6 +152,58 @@ func TestStartApproveToFinish(t *testing.T) {
 		if !actions[want] {
 			t.Fatalf("缺少日志 %s，已有 %v", want, actions)
 		}
+	}
+}
+
+// 终态事实与回调 outbox 必须在同一事务提交，进程退出后仍可恢复投递。
+func TestTerminalStateCreatesCallbackJobAtomically(t *testing.T) {
+	st, e := openTest(t)
+	tree := mustTree(t, &flow.Schema{Version: 1,
+		Start: startNode(approvalUsers("n-a1", "经理审批", flow.MultiOr, []uint64{2}, nil))})
+	seedDef(t, st, 1, "flow_callback_outbox", tree)
+
+	started := startInst(t, e, "flow_callback_outbox", "biz-callback", nil)
+	task := taskOf(t, started, 2)
+	finished, err := e.Approve(1, task.ID, 2, "同意")
+	if err != nil {
+		t.Fatalf("approve: %v", err)
+	}
+	var count int64
+	if err := st.DB().Table("bpm_callback_jobs").
+		Where("tenant_id = ? AND instance_id = ? AND status = ?", 1, finished.Instance.ID, "pending").
+		Count(&count).Error; err != nil {
+		t.Fatalf("count callback jobs: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("终态应原子创建一条回调任务，got %d", count)
+	}
+}
+
+func TestTerminalStateRollsBackWhenCallbackJobFails(t *testing.T) {
+	st, e := openTest(t)
+	tree := mustTree(t, &flow.Schema{Version: 1,
+		Start: startNode(approvalUsers("n-a1", "经理审批", flow.MultiOr, []uint64{2}, nil))})
+	seedDef(t, st, 1, "flow_callback_rollback", tree)
+	started := startInst(t, e, "flow_callback_rollback", "biz-rollback", nil)
+	task := taskOf(t, started, 2)
+
+	if err := st.DB().Exec(`CREATE TRIGGER reject_callback_job BEFORE INSERT ON bpm_callback_jobs
+		BEGIN SELECT RAISE(FAIL, 'callback outbox unavailable'); END`).Error; err != nil {
+		t.Fatalf("create trigger: %v", err)
+	}
+	if _, err := e.Approve(1, task.ID, 2, "同意"); err == nil {
+		t.Fatal("outbox 写入失败时审批事务应失败")
+	}
+	var gotTask model.Task
+	if err := st.DB().First(&gotTask, task.ID).Error; err != nil {
+		t.Fatalf("load task: %v", err)
+	}
+	var gotInst model.ProcessInstance
+	if err := st.DB().First(&gotInst, started.Instance.ID).Error; err != nil {
+		t.Fatalf("load instance: %v", err)
+	}
+	if gotTask.Status != model.TaskPending || gotInst.Status != model.InstRunning {
+		t.Fatalf("事务未完整回滚: task=%s instance=%s", gotTask.Status, gotInst.Status)
 	}
 }
 

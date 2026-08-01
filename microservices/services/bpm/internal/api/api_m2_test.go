@@ -13,7 +13,7 @@ import (
 
 // 链：start → 一级(用户2) → 二级(用户3, allowBackPrev) → 抄送(用户9) → 结束。
 func TestHTTPM2CcAndActions(t *testing.T) {
-	r, _ := newTestServer(t, nil)
+	r, _ := newTestServer(t)
 
 	tree := map[string]any{
 		"version": 1,

@@ -2,12 +2,14 @@
 // 定义/实例/任务/日志 AutoMigrate 自管表；推进为同步事务内函数调用；
 // 终态经 HTTP 回调业务方（BPM_CALLBACK_<BIZTYPE> 注册）；站内信经
 // notify internal API（未配 token 静默跳过）。超时提醒 ticker（M2）：
-// 与同类到期扫描 ticker 同构，周期由
+// 与 crm followup-due / ticket overdue 扫描同构，周期由
 // BPM_TIMEOUT_SCAN_INTERVAL 控制（默认 5m），随进程优雅退出。
 package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -22,6 +24,7 @@ import (
 	"github.com/go-admin-kit/services/bpm/internal/callback"
 	"github.com/go-admin-kit/services/bpm/internal/config"
 	"github.com/go-admin-kit/services/bpm/internal/engine"
+	"github.com/go-admin-kit/services/bpm/internal/model"
 	"github.com/go-admin-kit/services/bpm/internal/notifyclient"
 	"github.com/go-admin-kit/services/bpm/internal/store"
 	"github.com/go-admin-kit/services/shared/pkg/jobbeat"
@@ -55,7 +58,6 @@ func main() {
 		Secret:        cfg.JWTSecret,
 		InternalToken: cfg.InternalToken,
 		Notify:        notify,
-		Callback:      cb,
 	}
 
 	// 超时 ticker（收官项升级）：常开——自动通过/拒绝不依赖通知通道；
@@ -65,6 +67,8 @@ func main() {
 	defer stopScan()
 	go runTimeoutLoop(scanCtx, srv, st, notify, cfg.TimeoutScanInterval)
 	log.Printf("bpm timeout: scan enabled, interval=%s remind=%v", cfg.TimeoutScanInterval, notify.Enabled())
+	go runCallbackLoop(scanCtx, st, cb)
+	log.Printf("bpm callback: persistent worker enabled")
 
 	r := gin.New()
 	// HTTP 指标（GET /metrics，Prometheus 抓取）；先于 Logger 注册，抓取不刷访问日志
@@ -100,12 +104,75 @@ func main() {
 	_ = httpSrv.Shutdown(ctx)
 }
 
+const callbackMaxAttempts = 8
+
+func runCallbackLoop(ctx context.Context, st *store.Store, dispatcher *callback.Dispatcher) {
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+	for {
+		start := time.Now()
+		err := deliverCallbacksOnce(st, dispatcher)
+		jobbeat.Report(st.DB(), jobbeat.Run{
+			Key: "bpm.biz_callbacks", Service: "bpm-service",
+			Description: "审批终态业务回调投递", IntervalSec: 15,
+			StartedAt: start, Err: err,
+		})
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func deliverCallbacksOnce(st *store.Store, dispatcher *callback.Dispatcher) error {
+	jobs, err := st.ClaimCallbackJobs(50, 5*time.Minute)
+	if err != nil {
+		return err
+	}
+	var firstErr error
+	for i := range jobs {
+		job := &jobs[i]
+		var inst model.ProcessInstance
+		if err := st.DB().Where("id = ? AND tenant_id = ?", job.InstanceID, job.TenantID).
+			First(&inst).Error; err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			_ = st.RetryCallbackJob(job.ID, job.Attempts+1, callbackMaxAttempts, "instance load: "+err.Error())
+			continue
+		}
+		finishedAt := ""
+		if inst.FinishedAt != nil {
+			finishedAt = inst.FinishedAt.Format(time.RFC3339)
+		}
+		err := dispatcher.Deliver(inst.TenantID, callback.Payload{
+			InstanceID: inst.ID, DefinitionKey: inst.DefinitionKey,
+			BizType: inst.BizType, BizID: inst.BizID, Result: inst.Status,
+			FormSnapshot: json.RawMessage(inst.FormSnapshot), FinishedAt: finishedAt,
+		})
+		if err == nil || errors.Is(err, callback.ErrTargetNotRegistered) {
+			if finishErr := st.FinishCallbackJob(job.ID); finishErr != nil && firstErr == nil {
+				firstErr = finishErr
+			}
+			continue
+		}
+		log.Printf("bpm callback: 投递失败 instance=%d biz=%s/%s attempt=%d: %v",
+			inst.ID, inst.BizType, inst.BizID, job.Attempts+1, err)
+		if firstErr == nil {
+			firstErr = err
+		}
+		_ = st.RetryCallbackJob(job.ID, job.Attempts+1, callbackMaxAttempts, err.Error())
+	}
+	return firstErr
+}
+
 // runTimeoutLoop 扫描 pending 且 timeout_at 已到、未提醒过的任务：按节点
 // timeoutAction 分派——remind 记 reminded_at 并发 bpm.task_timeout（notify
 // 未启用则跳过留待补发）；auto_pass/auto_reject 由引擎以系统身份执行，
 // 效果经 applyEffects 完整分发（下一节点待办通知 + 终态回调）。
 func runTimeoutLoop(ctx context.Context, srv *api.Server, st *store.Store, notify *notifyclient.Client, interval time.Duration) {
-	// 错峰启动，等 notify-service 起来（错峰惯例）
+	// 错峰启动，等 notify-service 起来（与 crm/ticket 同惯例）
 	select {
 	case <-time.After(20 * time.Second):
 	case <-ctx.Done():
