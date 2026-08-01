@@ -25,7 +25,7 @@ jobs:
       - name: redline scan
         run: |
           set -euo pipefail
-          ALLOW='iploc.*_test\.go|mask_test\.go|setting_context_test\.go|^\.gitignore|docs/design/bpm-approval-flow\.md|\.github/workflows/ci\.yml'
+          ALLOW='iploc.*_test\.go|mask_test\.go|setting_context_test\.go|^\.gitignore|docs/design/bpm-approval-flow\.md|\.github/workflows/ci\.yml|scripts/git-hooks/pre-push'
           hit=0
           for p in \
             'AGENTS\.md|CLAUDE\.md|CODEX_|SYNC_LOG' \
