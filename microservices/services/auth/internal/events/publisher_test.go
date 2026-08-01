@@ -15,6 +15,13 @@ type recordingTransport struct {
 	done     chan struct{}
 }
 
+type blockingTransport struct{ started chan struct{} }
+
+func (b *blockingTransport) Publish(string, []byte) error {
+	b.started <- struct{}{}
+	select {}
+}
+
 func newRecordingTransport() *recordingTransport {
 	return &recordingTransport{
 		messages: make(map[string][]byte),
@@ -127,6 +134,23 @@ func TestPublishFailureDoesNotPropagate(t *testing.T) {
 	// Must not panic or block the caller even when the transport errors.
 	p.PublishLoginSuccess(LoginSuccessEvent{Username: "alice"})
 	transport.waitForPublish(t)
+}
+
+func TestPublisherDropsEventsWhenBlockedPublishesReachLimit(t *testing.T) {
+	transport := &blockingTransport{started: make(chan struct{}, 4)}
+	p := NewPublisherWithTransport(transport)
+	p.slots = make(chan struct{}, 2)
+	p.timeout = 10 * time.Millisecond
+	for i := 0; i < 20; i++ {
+		p.PublishLoginSuccess(LoginSuccessEvent{Username: "alice"})
+	}
+	time.Sleep(30 * time.Millisecond)
+	if got := len(p.slots); got != 2 {
+		t.Fatalf("active blocked publishes=%d, want bounded at 2", got)
+	}
+	if got := len(transport.started); got != 2 {
+		t.Fatalf("transport publishes=%d, want 2", got)
+	}
 }
 
 func TestSetDefaultInstallsAndRestoresPublisher(t *testing.T) {

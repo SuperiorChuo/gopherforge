@@ -1,7 +1,7 @@
 // Package callback 实例终态后的业务回写：执行一次 HTTP 投递。
 //
 // 回调目标按 biz_type 经环境变量注册（BPM_CALLBACK_<BIZTYPE>=完整 URL，
-// biz_type 小写化匹配，如 BPM_CALLBACK_DEMO_EXPENSE → demo_expense），
+// biz_type 小写化匹配，如 BPM_CALLBACK_CRM_CONTRACT → crm_contract），
 // 引擎对 biz_type 保持不透明字符串，不携带任何业务类型。
 //
 // 持久化、抢占和退避由 store/main 的 outbox worker 负责；业务侧仍须按
@@ -10,6 +10,7 @@ package callback
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -70,8 +71,8 @@ func TargetsFromEnv() map[string]string {
 func (d *Dispatcher) Targets() int { return len(d.targets) }
 
 // Deliver 执行一次投递。未注册目标返回 ErrTargetNotRegistered，由 worker
-// 视为无需通知并删除任务，避免无效任务永久堆积。
-func (d *Dispatcher) Deliver(tenantID uint64, p Payload) error {
+// 按失败重试并最终保留为 dead，避免配置暂缺时永久丢失业务回调。
+func (d *Dispatcher) Deliver(ctx context.Context, tenantID uint64, p Payload) error {
 	if d == nil {
 		return ErrTargetNotRegistered
 	}
@@ -83,11 +84,11 @@ func (d *Dispatcher) Deliver(tenantID uint64, p Payload) error {
 	if err != nil {
 		return err
 	}
-	return d.post(url, tenantID, body)
+	return d.post(ctx, url, tenantID, body)
 }
 
-func (d *Dispatcher) post(url string, tenantID uint64, body []byte) error {
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+func (d *Dispatcher) post(ctx context.Context, url string, tenantID uint64, body []byte) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}

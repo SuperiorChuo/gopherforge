@@ -31,6 +31,7 @@ const (
 )
 
 const publishTimeout = 2 * time.Second
+const maxConcurrentPublishes = 64
 
 // LoginSuccessEvent is published on subject auth.login.success.
 type LoginSuccessEvent struct {
@@ -73,6 +74,7 @@ type Publisher struct {
 	transport Transport
 	closer    func()
 	timeout   time.Duration
+	slots     chan struct{}
 }
 
 // Connect dials NATS and returns a Publisher. An empty URL disables event
@@ -102,7 +104,7 @@ func NewPublisherWithTransport(transport Transport) *Publisher {
 	if transport == nil {
 		return nil
 	}
-	return &Publisher{transport: transport, timeout: publishTimeout}
+	return &Publisher{transport: transport, timeout: publishTimeout, slots: make(chan struct{}, maxConcurrentPublishes)}
 }
 
 // Close releases the underlying connection, if any.
@@ -155,9 +157,22 @@ func (p *Publisher) publish(subject string, event any) {
 	if timeout <= 0 {
 		timeout = publishTimeout
 	}
+	if p.slots == nil {
+		p.slots = make(chan struct{}, maxConcurrentPublishes)
+	}
+	select {
+	case p.slots <- struct{}{}:
+	default:
+		warn("dropped auth event because publisher is saturated", subject, nil)
+		return
+	}
+	slots := p.slots
 	go func() {
 		done := make(chan error, 1)
-		go func() { done <- transport.Publish(subject, payload) }()
+		go func() {
+			defer func() { <-slots }()
+			done <- transport.Publish(subject, payload)
+		}()
 
 		timer := time.NewTimer(timeout)
 		defer timer.Stop()
