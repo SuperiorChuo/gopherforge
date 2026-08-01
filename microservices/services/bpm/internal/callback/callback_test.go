@@ -3,6 +3,7 @@ package callback
 // 终态回调单次投递用例：成功 / 失败 / 未注册 biz_type / 鉴权与租户头。
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -12,13 +13,13 @@ import (
 )
 
 func fastDispatcher(target, token string) *Dispatcher {
-	return New(map[string]string{"demo_expense": target}, token)
+	return New(map[string]string{"crm_contract": target}, token)
 }
 
 func payload() Payload {
 	return Payload{
-		InstanceID: 1, DefinitionKey: "demo_expense_approval",
-		BizType: "demo_expense", BizID: "42", Result: "approved",
+		InstanceID: 1, DefinitionKey: "crm_contract_approval",
+		BizType: "crm_contract", BizID: "42", Result: "approved",
 		FormSnapshot: json.RawMessage(`{"amount_cents":100}`),
 		FinishedAt:   time.Now().Format(time.RFC3339),
 	}
@@ -31,7 +32,7 @@ func TestDeliverSuccess(t *testing.T) {
 	defer srv.Close()
 
 	d := fastDispatcher(srv.URL, "tok")
-	if err := d.Deliver(1, payload()); err != nil {
+	if err := d.Deliver(context.Background(), 1, payload()); err != nil {
 		t.Fatalf("deliver: %v", err)
 	}
 }
@@ -43,7 +44,7 @@ func TestDeliverFailure(t *testing.T) {
 	defer srv.Close()
 
 	d := fastDispatcher(srv.URL, "tok")
-	if err := d.Deliver(1, payload()); err == nil {
+	if err := d.Deliver(context.Background(), 1, payload()); err == nil {
 		t.Fatal("HTTP 失败应返回错误")
 	}
 }
@@ -52,7 +53,7 @@ func TestUnregisteredBizReturnsSentinel(t *testing.T) {
 	d := fastDispatcher("http://127.0.0.1", "tok")
 	p := payload()
 	p.BizType = "unknown_biz"
-	if err := d.Deliver(1, p); !errors.Is(err, ErrTargetNotRegistered) {
+	if err := d.Deliver(context.Background(), 1, p); !errors.Is(err, ErrTargetNotRegistered) {
 		t.Fatalf("未注册应返回 sentinel: %v", err)
 	}
 }
@@ -70,13 +71,13 @@ func TestHeadersAndBody(t *testing.T) {
 	defer srv.Close()
 
 	d := fastDispatcher(srv.URL, "sec-token")
-	if err := d.Deliver(7, payload()); err != nil {
+	if err := d.Deliver(context.Background(), 7, payload()); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
 	if gotToken != "sec-token" || gotTenant != "7" {
 		t.Fatalf("headers: token=%q tenant=%q", gotToken, gotTenant)
 	}
-	if gotBody.BizType != "demo_expense" || gotBody.BizID != "42" ||
+	if gotBody.BizType != "crm_contract" || gotBody.BizID != "42" ||
 		gotBody.Result != "approved" || gotBody.InstanceID != 1 {
 		t.Fatalf("body: %+v", gotBody)
 	}

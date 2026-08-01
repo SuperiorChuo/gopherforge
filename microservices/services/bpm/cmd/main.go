@@ -9,7 +9,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -111,7 +110,7 @@ func runCallbackLoop(ctx context.Context, st *store.Store, dispatcher *callback.
 	defer ticker.Stop()
 	for {
 		start := time.Now()
-		err := deliverCallbacksOnce(st, dispatcher)
+		err := deliverCallbacksOnce(ctx, st, dispatcher)
 		jobbeat.Report(st.DB(), jobbeat.Run{
 			Key: "bpm.biz_callbacks", Service: "bpm-service",
 			Description: "审批终态业务回调投递", IntervalSec: 15,
@@ -125,7 +124,7 @@ func runCallbackLoop(ctx context.Context, st *store.Store, dispatcher *callback.
 	}
 }
 
-func deliverCallbacksOnce(st *store.Store, dispatcher *callback.Dispatcher) error {
+func deliverCallbacksOnce(ctx context.Context, st *store.Store, dispatcher *callback.Dispatcher) error {
 	jobs, err := st.ClaimCallbackJobs(50, 5*time.Minute)
 	if err != nil {
 		return err
@@ -146,12 +145,12 @@ func deliverCallbacksOnce(st *store.Store, dispatcher *callback.Dispatcher) erro
 		if inst.FinishedAt != nil {
 			finishedAt = inst.FinishedAt.Format(time.RFC3339)
 		}
-		err := dispatcher.Deliver(inst.TenantID, callback.Payload{
+		err := dispatcher.Deliver(ctx, inst.TenantID, callback.Payload{
 			InstanceID: inst.ID, DefinitionKey: inst.DefinitionKey,
 			BizType: inst.BizType, BizID: inst.BizID, Result: inst.Status,
 			FormSnapshot: json.RawMessage(inst.FormSnapshot), FinishedAt: finishedAt,
 		})
-		if err == nil || errors.Is(err, callback.ErrTargetNotRegistered) {
+		if err == nil {
 			if finishErr := st.FinishCallbackJob(job.ID); finishErr != nil && firstErr == nil {
 				firstErr = finishErr
 			}

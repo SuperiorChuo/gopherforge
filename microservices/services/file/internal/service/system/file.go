@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"strings"
@@ -211,16 +212,20 @@ func (s *FileService) DeleteFileContext(ctx context.Context, id uint, userID uin
 	if err != nil {
 		return err
 	}
-	if filePathReferences == 0 {
-		_ = s.uploader.DeleteForStorageTypeContext(ctx, file.StorageType, file.FilePath)
-	}
 	if file.ThumbnailPath != "" {
 		thumbnailPathReferences, err := s.fileDAO.CountByThumbnailPathExcludingIDContext(ctx, file.StorageType, file.ThumbnailPath, file.ID)
 		if err != nil {
 			return err
 		}
 		if thumbnailPathReferences == 0 {
-			_ = s.uploader.DeleteForStorageTypeContext(ctx, file.StorageType, file.ThumbnailPath)
+			if err := s.uploader.DeleteForStorageTypeContext(ctx, file.StorageType, file.ThumbnailPath); err != nil {
+				return fmt.Errorf("delete stored thumbnail: %w", err)
+			}
+		}
+	}
+	if filePathReferences == 0 {
+		if err := s.uploader.DeleteForStorageTypeContext(ctx, file.StorageType, file.FilePath); err != nil {
+			return fmt.Errorf("delete stored file: %w", err)
 		}
 	}
 	return s.fileDAO.DeleteContext(ctx, id)

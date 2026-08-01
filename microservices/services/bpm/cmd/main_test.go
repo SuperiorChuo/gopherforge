@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -39,8 +40,8 @@ func seedCallbackJob(t *testing.T, st *store.Store, tenantID uint64) model.Callb
 	t.Helper()
 	now := time.Now()
 	inst := model.ProcessInstance{
-		TenantID: tenantID, DefinitionID: 1, DefinitionKey: "expense_approval",
-		Title: "报销审批", BizType: "demo_expense", BizID: "42",
+		TenantID: tenantID, DefinitionID: 1, DefinitionKey: "contract_approval",
+		Title: "合同审批", BizType: "crm_contract", BizID: "42",
 		Status: model.InstApproved, FormSnapshot: model.JSONB(`{"amount":100}`),
 		InitiatorID: 1, FinishedAt: &now,
 	}
@@ -66,8 +67,8 @@ func TestDeliverCallbacksOnceDeletesSuccessfulJob(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	d := callback.New(map[string]string{"demo_expense": srv.URL}, "test-token")
-	if err := deliverCallbacksOnce(st, d); err != nil {
+	d := callback.New(map[string]string{"crm_contract": srv.URL}, "test-token")
+	if err := deliverCallbacksOnce(context.Background(), st, d); err != nil {
 		t.Fatalf("deliver: %v", err)
 	}
 	var count int64
@@ -87,8 +88,8 @@ func TestDeliverCallbacksOnceKeepsFailureForRetry(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	d := callback.New(map[string]string{"demo_expense": srv.URL}, "test-token")
-	if err := deliverCallbacksOnce(st, d); err == nil {
+	d := callback.New(map[string]string{"crm_contract": srv.URL}, "test-token")
+	if err := deliverCallbacksOnce(context.Background(), st, d); err == nil {
 		t.Fatal("failed delivery should be reported")
 	}
 	var got model.CallbackJob
@@ -96,6 +97,21 @@ func TestDeliverCallbacksOnceKeepsFailureForRetry(t *testing.T) {
 		t.Fatalf("load job: %v", err)
 	}
 	if got.Status != "pending" || got.Attempts != 1 || got.LastError == "" || !got.NextAt.After(time.Now()) {
+		t.Fatalf("retry state: %+v", got)
+	}
+}
+
+func TestDeliverCallbacksOnceKeepsUnregisteredTargetForRetry(t *testing.T) {
+	st := openWorkerStore(t)
+	job := seedCallbackJob(t, st, 11)
+	if err := deliverCallbacksOnce(context.Background(), st, callback.New(nil, "token")); err == nil {
+		t.Fatal("unregistered target should be reported")
+	}
+	var got model.CallbackJob
+	if err := st.DB().First(&got, job.ID).Error; err != nil {
+		t.Fatalf("load job: %v", err)
+	}
+	if got.Status != "pending" || got.Attempts != 1 || got.LastError == "" {
 		t.Fatalf("retry state: %+v", got)
 	}
 }
