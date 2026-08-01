@@ -266,6 +266,7 @@ services:
       IP2REGION_XDB: /app/data/ip2region.xdb
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8084
+      SYSTEM_INTERNAL_TOKEN: ${SYSTEM_INTERNAL_TOKEN:-}
       # 代码生成器：快照在镜像内固化；写入仓库默认关闭（高危能力，需显式开）
       CODEGEN_REPO_ROOT: ${CODEGEN_REPO_ROOT:-/app/repository-snapshot}
       CODEGEN_WRITE_ENABLED: ${CODEGEN_WRITE_ENABLED:-false}

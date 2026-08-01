@@ -4,12 +4,13 @@ import (
 	"github.com/gin-gonic/gin"
 	sharedapi "github.com/go-admin-kit/services/system/internal/api/shared"
 	"github.com/go-admin-kit/services/system/internal/api/system"
+	"github.com/go-admin-kit/services/system/internal/config"
 	"github.com/go-admin-kit/services/system/internal/middleware"
 )
 
 // registerSmsRoutes 挂载短信管理路由（渠道/模板/发送日志/发送入口）。
 // 独立成文件是为了并行开发时把 routes.go 的冲突面压到一行调用。
-func registerSmsRoutes(protected *gin.RouterGroup, deps sharedapi.Dependencies) {
+func registerSmsRoutes(router *gin.Engine, protected *gin.RouterGroup, deps sharedapi.Dependencies) {
 	smsAPI := system.NewSmsAPI()
 	if deps.DB != nil {
 		smsAPI = system.NewSmsAPIWithDB(deps.DB)
@@ -38,4 +39,5 @@ func registerSmsRoutes(protected *gin.RouterGroup, deps sharedapi.Dependencies) 
 
 	// 发送入口（业务发送与模板测试发送共用）
 	protected.POST("/sms/send", middleware.PermissionMiddleware("system:sms:send"), smsAPI.SendSms)
+	router.POST("/internal/v1/sms/send", smsAPI.InternalSendSms(config.Cfg.InternalToken))
 }

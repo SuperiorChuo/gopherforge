@@ -136,7 +136,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		protected.DELETE("/online-users/:token_id", middleware.PermissionMiddleware("system:online-user:kick"), onlineUserAPI.ForceLogout)
 
 		// 短信管理（渠道/模板/发送日志/发送），详见 routes_sms.go
-		registerSmsRoutes(protected, deps)
+		registerSmsRoutes(router, protected, deps)
 	}
 }
 

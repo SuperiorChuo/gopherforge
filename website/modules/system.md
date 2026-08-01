@@ -23,6 +23,11 @@ system 服务承载"轻配置态"运营能力，核心理念：**需要配置的
 
 渠道（provider 可插拔：debug/阿里云/腾讯云）+ 模板 + 发送日志三件套；debug 渠道本地开发零依赖联调。
 
+同一容器网络内的业务服务可调用 `POST /internal/v1/sms/send`，提交
+`tenant_id`、`mobile`、`template_code` 与 `params`，发送仍统一经过租户模板、
+渠道校验和日志落库。端点使用 `X-Internal-Token` 校验；
+`SYSTEM_INTERNAL_TOKEN` 留空时返回 503，生产环境拒绝弱值或占位值。
+
 ## 错误码管理
 
 错误码表 + 管理页，**在线改文案 30 秒热生效**（30s TTL），不用为改一句提示语重新发版。
