@@ -1,8 +1,8 @@
 package api
 
-// HTTP 全链路冒烟：走真实路由表 + sqlite 内存库（sqlite 内存库基架）。
+// HTTP 全链路冒烟：走真实路由表 + sqlite 内存库（与 crm 测试同法）。
 // 覆盖：定义创建/发布 → internal 发起（X-Internal-Token）→ 待办列表 →
-// 同意 → 终态 → 终态回调派发到业务方 mock；以及 internal 未配 token 503。
+// 同意 → 终态 → 终态回调 outbox 持久化；以及 internal 未配 token 503。
 
 import (
 	"bytes"
@@ -12,12 +12,11 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
-	"github.com/go-admin-kit/services/bpm/internal/callback"
 	"github.com/go-admin-kit/services/bpm/internal/engine"
+	"github.com/go-admin-kit/services/bpm/internal/model"
 	"github.com/go-admin-kit/services/bpm/internal/store"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -25,7 +24,7 @@ import (
 
 var dbSeq atomic.Int64
 
-func newTestServer(t *testing.T, cb *callback.Dispatcher) (*gin.Engine, *Server) {
+func newTestServer(t *testing.T) (*gin.Engine, *Server) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	dsn := fmt.Sprintf("file:bpmapi%d?mode=memory&cache=shared", dbSeq.Add(1))
@@ -45,7 +44,6 @@ func newTestServer(t *testing.T, cb *callback.Dispatcher) (*gin.Engine, *Server)
 		Engine:        engine.New(db),
 		Secret:        "test-secret-at-least-32-characters!!",
 		InternalToken: "itok",
-		Callback:      cb,
 	}
 	r := gin.New()
 	srv.RegisterRoutes(r)
@@ -88,19 +86,7 @@ func internalHdr() map[string]string {
 
 // 全链路：定义 → 发布 → internal 发起 → 待办 → 同意 → 终态回调。
 func TestHTTPFlowEndToEnd(t *testing.T) {
-	// 业务方回调 mock
-	var cbCalls atomic.Int64
-	var cbBody callback.Payload
-	bizSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cbCalls.Add(1)
-		_ = json.NewDecoder(r.Body).Decode(&cbBody)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer bizSrv.Close()
-	cb := callback.New(map[string]string{"demo_expense": bizSrv.URL}, "cbtok")
-	cb.Delays = []time.Duration{0, 0, 0}
-
-	r, _ := newTestServer(t, cb)
+	r, apiSrv := newTestServer(t)
 
 	// 1. 建定义 + 发布（管理员=用户 1）
 	tree := map[string]any{
@@ -209,16 +195,13 @@ func TestHTTPFlowEndToEnd(t *testing.T) {
 		t.Fatalf("instance_status: %s", acted.InstanceStatus)
 	}
 
-	// 6. 终态回调异步派发 → 等待 mock 收到
-	deadline := time.Now().Add(2 * time.Second)
-	for cbCalls.Load() == 0 && time.Now().Before(deadline) {
-		time.Sleep(10 * time.Millisecond)
+	// 6. 终态事务已持久化回调 outbox，投递由独立 worker 完成。
+	var jobs []model.CallbackJob
+	if err := apiSrv.Store.DB().Where("instance_id = ?", started.InstanceID).Find(&jobs).Error; err != nil {
+		t.Fatalf("load callback jobs: %v", err)
 	}
-	if cbCalls.Load() == 0 {
-		t.Fatal("终态回调未派发")
-	}
-	if cbBody.BizID != "42" || cbBody.Result != "approved" || cbBody.InstanceID != started.InstanceID {
-		t.Fatalf("回调体: %+v", cbBody)
+	if len(jobs) != 1 || jobs[0].TenantID != 1 || jobs[0].Status != "pending" {
+		t.Fatalf("callback jobs: %+v", jobs)
 	}
 
 	// 7. 时间线与流转图（发起人 9 可见；无关用户 8 不可见）
@@ -247,7 +230,7 @@ func TestHTTPFlowEndToEnd(t *testing.T) {
 
 // internal 鉴权：token 错 → 401；未配置 token → 503。
 func TestInternalAuth(t *testing.T) {
-	r, srv := newTestServer(t, nil)
+	r, srv := newTestServer(t)
 	if w, _ := call(t, r, "POST", "/api/v1/bpm/internal/instances", map[string]any{},
 		map[string]string{"X-Internal-Token": "wrong"}); w.Code != http.StatusUnauthorized {
 		t.Fatalf("错 token 应 401, got %d", w.Code)

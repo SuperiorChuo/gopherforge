@@ -638,9 +638,12 @@ func (e *Engine) Cancel(tenantID, instanceID, userID uint64) (*Effects, error) {
 		inst.CurrentNodeID = ""
 		inst.FinishedAt = &now
 		eff.FinalResult = model.InstCanceled
-		return tx.Model(inst).Updates(map[string]any{
+		if err := tx.Model(inst).Updates(map[string]any{
 			"status": inst.Status, "current_node_id": "", "finished_at": now,
-		}).Error
+		}).Error; err != nil {
+			return err
+		}
+		return enqueueCallback(tx, inst)
 	})
 	if err != nil {
 		return nil, err
@@ -820,7 +823,7 @@ func (e *Engine) HandleTimeout(tenantID, taskID uint64) (string, *Effects, error
 
 // Terminate 管理员强制终止：running / suspended 实例均可（挂起实例的管理
 // 出口），全部 pending 任务作废，实例落 canceled 终态——业务回调复用
-// canceled 语义（业务方按撤销回滚），时间线以 terminate 日志区分于撤销。
+// canceled 语义（业务方可按撤销回滚），时间线以 terminate 日志区分于撤销。
 func (e *Engine) Terminate(tenantID, instanceID, operatorID uint64, reason string) (*Effects, error) {
 	if strings.TrimSpace(reason) == "" {
 		return nil, ErrTerminateReason
@@ -848,9 +851,12 @@ func (e *Engine) Terminate(tenantID, instanceID, operatorID uint64, reason strin
 		inst.FinishedAt = &now
 		eff.FinalResult = model.InstCanceled
 		eff.ResultText = "已终止"
-		return tx.Model(inst).Updates(map[string]any{
+		if err := tx.Model(inst).Updates(map[string]any{
 			"status": inst.Status, "current_node_id": "", "finished_at": now,
-		}).Error
+		}).Error; err != nil {
+			return err
+		}
+		return enqueueCallback(tx, inst)
 	})
 	if err != nil {
 		return nil, err
@@ -1115,15 +1121,24 @@ func (e *Engine) finish(tx *gorm.DB, inst *model.ProcessInstance, result string,
 	}
 	writeLog(tx, inst, "", 0, action, 0, nil)
 	eff.FinalResult = result
-	return tx.Model(inst).Updates(map[string]any{
+	if err := tx.Model(inst).Updates(map[string]any{
 		"status": result, "current_node_id": "", "finished_at": now,
+	}).Error; err != nil {
+		return err
+	}
+	return enqueueCallback(tx, inst)
+}
+
+func enqueueCallback(tx *gorm.DB, inst *model.ProcessInstance) error {
+	return tx.Create(&model.CallbackJob{
+		TenantID: inst.TenantID, InstanceID: inst.ID, NextAt: time.Now(), Status: "pending",
 	}).Error
 }
 
 // ---------- 审批人解析 ----------
 
 // resolveRule 解析规则为候选人列表。roles 直读同库 identity 的
-// users/user_roles 表（过滤禁用用户 + 租户）。
+// users/user_roles 表（与 crm 数据权限解析同惯例，过滤禁用用户 + 租户）。
 func (e *Engine) resolveRule(tx *gorm.DB, inst *model.ProcessInstance, rule *flow.AssigneeRule, nodeID string) ([]uint64, error) {
 	if rule == nil {
 		return nil, errors.New("节点缺少人员规则")

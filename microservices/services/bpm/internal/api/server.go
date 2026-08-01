@@ -1,5 +1,5 @@
 // Package api 装配 bpm-service HTTP 处理器。
-// 鉴权约定：网关 auth-verify 注入的 X-Auth-* 头优先，
+// 鉴权与 ticket/crm 同约定：网关 auth-verify 注入的 X-Auth-* 头优先，
 // Bearer JWT 兜底；internal 端点走 X-Internal-Token 共享密钥（内网直连）。
 package api
 
@@ -14,7 +14,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/bpm/internal/authjwt"
-	"github.com/go-admin-kit/services/bpm/internal/callback"
 	"github.com/go-admin-kit/services/bpm/internal/engine"
 	"github.com/go-admin-kit/services/bpm/internal/model"
 	"github.com/go-admin-kit/services/bpm/internal/notifyclient"
@@ -30,8 +29,6 @@ type Server struct {
 	// Notify 站内信（bpm.task_assigned / bpm.cc / bpm.result）；nil 或未配
 	// token 时静默跳过。
 	Notify *notifyclient.Client
-	// Callback 终态回调分发器；nil=不回调。
-	Callback *callback.Dispatcher
 }
 
 // ---- envelope（统一 {code,message,data}，与核心服务一致）----
@@ -86,7 +83,7 @@ func (s *Server) requireUser(c *gin.Context) (*authjwt.AgentClaims, bool) {
 }
 
 // requireInternal 校验 X-Internal-Token；未配置密钥直接 503（拒绝裸奔），
-
+// 与 crm internal 端点同约定。
 func (s *Server) requireInternal(c *gin.Context) bool {
 	if s.InternalToken == "" {
 		fail(c, http.StatusServiceUnavailable, "internal endpoint disabled")
@@ -168,21 +165,6 @@ func (s *Server) applyEffects(eff *engine.Effects) {
 	}
 	if eff.FinalResult != "" {
 		s.notifyResult(inst, eff.ResultText)
-		if s.Callback != nil {
-			finishedAt := ""
-			if inst.FinishedAt != nil {
-				finishedAt = inst.FinishedAt.Format(time.RFC3339)
-			}
-			s.Callback.Dispatch(inst.TenantID, callback.Payload{
-				InstanceID:    inst.ID,
-				DefinitionKey: inst.DefinitionKey,
-				BizType:       inst.BizType,
-				BizID:         inst.BizID,
-				Result:        inst.Status,
-				FormSnapshot:  []byte(inst.FormSnapshot),
-				FinishedAt:    finishedAt,
-			})
-		}
 	}
 }
 

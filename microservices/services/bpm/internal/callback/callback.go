@@ -1,25 +1,27 @@
-// Package callback 实例终态后的业务回写：同步 HTTP 回调业务方内部端点。
+// Package callback 实例终态后的业务回写：执行一次 HTTP 投递。
 //
 // 回调目标按 biz_type 经环境变量注册（BPM_CALLBACK_<BIZTYPE>=完整 URL，
-// biz_type 小写化匹配，如 BPM_CALLBACK_ORDER → order），
+// biz_type 小写化匹配，如 BPM_CALLBACK_DEMO_EXPENSE → demo_expense），
 // 引擎对 biz_type 保持不透明字符串，不携带任何业务类型。
 //
-// 失败重试：立即 + 1 分钟 + 5 分钟共三次；仍失败仅日志告警（审批事实
-// 优先，不回滚终态），业务侧按 (biz_type,biz_id,instance_id) 幂等补偿。
+// 持久化、抢占和退避由 store/main 的 outbox worker 负责；业务侧仍须按
+// (biz_type,biz_id,instance_id) 幂等处理。
 package callback
 
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 )
+
+var ErrTargetNotRegistered = errors.New("callback target not registered")
 
 // Payload 终态回调体（契约见设计文档 §3.6；租户经 X-Tenant-ID 头传递）。
 type Payload struct {
@@ -36,8 +38,6 @@ type Dispatcher struct {
 	targets map[string]string
 	token   string
 	client  *http.Client
-	// Delays 各次尝试前的等待（默认 立即/1min/5min）；测试可注入短间隔。
-	Delays []time.Duration
 }
 
 func New(targets map[string]string, token string) *Dispatcher {
@@ -45,7 +45,6 @@ func New(targets map[string]string, token string) *Dispatcher {
 		targets: targets,
 		token:   strings.TrimSpace(token),
 		client:  &http.Client{Timeout: 10 * time.Second},
-		Delays:  []time.Duration{0, time.Minute, 5 * time.Minute},
 	}
 }
 
@@ -70,45 +69,21 @@ func TargetsFromEnv() map[string]string {
 // Targets 已注册回调的 biz_type 数（启动日志用）。
 func (d *Dispatcher) Targets() int { return len(d.targets) }
 
-// Dispatch 异步分发（事务提交后调用）；未注册回调的 biz_type 静默跳过。
-func (d *Dispatcher) Dispatch(tenantID uint64, p Payload) {
-	if d == nil || d.targets[p.BizType] == "" {
-		return
+// Deliver 执行一次投递。未注册目标返回 ErrTargetNotRegistered，由 worker
+// 视为无需通知并删除任务，避免无效任务永久堆积。
+func (d *Dispatcher) Deliver(tenantID uint64, p Payload) error {
+	if d == nil {
+		return ErrTargetNotRegistered
 	}
-	go func() {
-		if err := d.DispatchSync(tenantID, p); err != nil {
-			log.Printf("bpm callback: 最终失败（三次重试后放弃，需人工补偿）instance=%d biz=%s/%s: %v",
-				p.InstanceID, p.BizType, p.BizID, err)
-		}
-	}()
-}
-
-// DispatchSync 同步执行全部重试（测试直接调用；返回最终错误）。
-func (d *Dispatcher) DispatchSync(tenantID uint64, p Payload) error {
 	url := d.targets[p.BizType]
 	if url == "" {
-		return nil
+		return ErrTargetNotRegistered
 	}
 	body, err := json.Marshal(p)
 	if err != nil {
 		return err
 	}
-	var lastErr error
-	for i, delay := range d.Delays {
-		time.Sleep(delay)
-		if err := d.post(url, tenantID, body); err != nil {
-			lastErr = err
-			log.Printf("bpm callback: 第 %d/%d 次失败 instance=%d biz=%s/%s: %v",
-				i+1, len(d.Delays), p.InstanceID, p.BizType, p.BizID, err)
-			continue
-		}
-		if i > 0 {
-			log.Printf("bpm callback: 第 %d 次重试成功 instance=%d biz=%s/%s",
-				i+1, p.InstanceID, p.BizType, p.BizID)
-		}
-		return nil
-	}
-	return lastErr
+	return d.post(url, tenantID, body)
 }
 
 func (d *Dispatcher) post(url string, tenantID uint64, body []byte) error {

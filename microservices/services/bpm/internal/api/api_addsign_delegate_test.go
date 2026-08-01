@@ -11,7 +11,7 @@ import (
 
 // 链：start → 或签(用户2) → 结束。委派 2→5 → 5 办结 → 回 2 → 加签 6 → 2 同意。
 func TestHTTPAddSignDelegate(t *testing.T) {
-	r, _ := newTestServer(t, nil)
+	r, _ := newTestServer(t)
 
 	tree := map[string]any{
 		"version": 1,
@@ -130,7 +130,7 @@ func TestHTTPAddSignDelegate(t *testing.T) {
 
 // SEQ 依次节点：动作列表不含 add_sign，端点也拒绝。
 func TestHTTPAddSignSeqExcluded(t *testing.T) {
-	r, _ := newTestServer(t, nil)
+	r, _ := newTestServer(t)
 
 	tree := map[string]any{
 		"version": 1,

@@ -1,5 +1,5 @@
-// Package model 定义 bpm M1 五张核心表：流程定义（版本化）/ 流程实例 /
-// 审批任务 / 抄送记录 / 操作日志。全部含 tenant_id 隔离，主键 uint64，
+// Package model 定义 bpm 核心表：流程定义（版本化）/ 流程实例 /
+// 审批任务 / 抄送记录 / 操作日志 / 终态回调任务。全部含 tenant_id 隔离，主键 uint64，
 // JSON 字段以 JSONB 自定义类型落库（postgres=jsonb，sqlite 测试=text）。
 package model
 
@@ -245,3 +245,19 @@ type ProcessLog struct {
 }
 
 func (ProcessLog) TableName() string { return "bpm_process_log" }
+
+// CallbackJob 是实例终态回调 outbox。终态事务内创建，成功投递后删除；
+// 失败按 NextAt 退避重试，耗尽后保留 dead 记录供排障。URL 与密钥不入库。
+type CallbackJob struct {
+	ID         uint64    `gorm:"primaryKey" json:"id"`
+	TenantID   uint64    `gorm:"not null;default:1;index" json:"tenant_id"`
+	InstanceID uint64    `gorm:"not null;uniqueIndex" json:"instance_id"`
+	Attempts   int       `gorm:"not null;default:0" json:"attempts"`
+	NextAt     time.Time `gorm:"not null;index" json:"next_at"`
+	Status     string    `gorm:"size:16;not null;default:'pending';index" json:"status"`
+	LastError  string    `gorm:"size:500" json:"last_error"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+func (CallbackJob) TableName() string { return "bpm_callback_jobs" }
