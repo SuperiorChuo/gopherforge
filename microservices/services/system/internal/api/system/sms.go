@@ -2,11 +2,15 @@ package system
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
+	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/shared/pkg/response"
+	"github.com/go-admin-kit/services/system/internal/pkg/tenant"
 	systemsvc "github.com/go-admin-kit/services/system/internal/service/system"
 	"gorm.io/gorm"
 )
@@ -373,4 +377,35 @@ func (a *SmsAPI) SendSms(c *gin.Context) {
 		return
 	}
 	response.Success(c, result)
+}
+
+// InternalSendSms exposes the same audited send pipeline to trusted services.
+func (a *SmsAPI) InternalSendSms(token string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		expected := strings.TrimSpace(token)
+		provided := c.GetHeader("X-Internal-Token")
+		if expected == "" {
+			response.Error(c, http.StatusServiceUnavailable, "internal sms is not configured")
+			return
+		}
+		if subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
+			response.Unauthorized(c, "invalid internal token")
+			return
+		}
+		var req struct {
+			TenantID uint `json:"tenant_id" binding:"required"`
+			systemsvc.SendSmsRequest
+		}
+		if err := c.ShouldBindJSON(&req); err != nil || req.TenantID == 0 {
+			response.BadRequest(c, "invalid request body")
+			return
+		}
+		ctx := tenant.WithContext(c.Request.Context(), req.TenantID)
+		result, err := a.sendService.SendContext(ctx, req.SendSmsRequest)
+		if err != nil {
+			writeSmsServiceError(c, "failed to send sms", err)
+			return
+		}
+		response.Success(c, result)
+	}
 }

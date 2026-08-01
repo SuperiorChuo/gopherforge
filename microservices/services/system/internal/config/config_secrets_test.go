@@ -22,6 +22,14 @@ func TestValidateAcceptsConfiguredProduction(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsWeakConfiguredSystemInternalTokenInProduction(t *testing.T) {
+	cfg := prodConfig()
+	cfg.InternalToken = "change-me"
+	if err := validate(cfg); err == nil || !strings.Contains(err.Error(), "SYSTEM_INTERNAL_TOKEN") {
+		t.Fatalf("validate() error = %v, want SYSTEM_INTERNAL_TOKEN rejection", err)
+	}
+}
+
 // DB_PASSWORD 没有安全降级语义：空值、占位符、开发默认值一律拒绝启动。
 func TestValidateRejectsWeakDBPasswordInProduction(t *testing.T) {
 	for name, password := range map[string]string{

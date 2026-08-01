@@ -27,6 +27,7 @@ type Config struct {
 	Notification  NotificationConfig
 	NATS          NATSConfig
 	Codegen       CodegenConfig
+	InternalToken string
 }
 
 type NotificationConfig struct {
@@ -366,6 +367,7 @@ func applyEnv(config *Config) {
 	config.NATS.URL = getEnvString("NATS_URL", config.NATS.URL)
 	config.Codegen.WriteEnabled = getEnvBool("CODEGEN_WRITE_ENABLED", config.Codegen.WriteEnabled)
 	config.Codegen.RepoRoot = getEnvString("CODEGEN_REPO_ROOT", config.Codegen.RepoRoot)
+	config.InternalToken = getEnvString("SYSTEM_INTERNAL_TOKEN", config.InternalToken)
 
 	config.Notification.Email.Enabled = getEnvBool("EMAIL_NOTIFICATION_ENABLED", config.Notification.Email.Enabled)
 	config.Notification.Email.SMTPHost = getEnvString("EMAIL_SMTP_HOST", config.Notification.Email.SMTPHost)
@@ -414,6 +416,9 @@ func validate(cfg Config) error {
 		}
 		if isWeakCredential(cfg.Redis.Password) {
 			issues = append(issues, "REDIS_PASSWORD must not be empty, default, weak, or placeholder")
+		}
+		if cfg.InternalToken != "" && isWeakCredential(cfg.InternalToken) {
+			issues = append(issues, "SYSTEM_INTERNAL_TOKEN must not use a default, weak, or placeholder value")
 		}
 		// IsSMTPAuthUnsafe re-tests the environment itself, which is redundant
 		// inside this block on purpose: routing the startup gate through the
