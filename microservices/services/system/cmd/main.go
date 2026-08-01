@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 	"github.com/go-admin-kit/services/system/internal/api"
@@ -25,6 +26,7 @@ import (
 	authDAO "github.com/go-admin-kit/services/system/internal/dao/auth"
 	systemDAO "github.com/go-admin-kit/services/system/internal/dao/system"
 	"github.com/go-admin-kit/services/system/internal/middleware"
+	"github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/system/internal/pkg/authz"
 	"github.com/go-admin-kit/services/system/internal/pkg/database"
 	"github.com/go-admin-kit/services/system/internal/pkg/observability"
@@ -198,6 +200,11 @@ func run(ctx context.Context) error {
 	if err := tenantscope.Register(database.DB); err != nil {
 		return fmt.Errorf("tenant scope plugin registration failed: %w", err)
 	}
+	if err := sharedaudit.Register(database.DB, sharedaudit.Config{
+		Targets: []sharedaudit.Target{sharedaudit.MenuTarget(&model.Menu{})},
+	}); err != nil {
+		return fmt.Errorf("audit trail plugin registration failed: %w", err)
+	}
 	consoleSessionService := authsvc.NewConsoleSessionServiceWithDB(database.DB)
 	middleware.SetAuthMiddlewareDependencies(middleware.AuthMiddlewareDependencies{
 		Users:           authDAO.NewUserDAO(database.DB),
@@ -231,7 +238,11 @@ func run(ctx context.Context) error {
 	defer cancelLifecycle()
 
 	// system 服务是菜单数据的 owner，独占默认菜单播种（按 ID 补插缺失行）。
-	if menuResult, err := systemsvc.BootstrapDefaultMenusContext(ctx, database.DB); err != nil {
+	menuBootstrapCtx := sharedaudit.WithTenantID(
+		sharedaudit.WithActor(ctx, "system", "system-service/bootstrap"),
+		1,
+	)
+	if menuResult, err := systemsvc.BootstrapDefaultMenusContext(menuBootstrapCtx, database.DB); err != nil {
 		return fmt.Errorf("default menu bootstrap failed: %w", err)
 	} else if menuResult.Menus > 0 {
 		logger.Info("default menus bootstrapped", logger.Int("menus", menuResult.Menus))

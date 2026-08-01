@@ -19,9 +19,14 @@ const (
 
 var sensitiveFieldNames = map[string]struct{}{
 	"password":          {},
+	"password_hash":     {},
 	"old_password":      {},
 	"new_password":      {},
 	"current_password":  {},
+	"recovery_code":     {},
+	"recovery_codes":    {},
+	"backup_code":       {},
+	"backup_codes":      {},
 	"token":             {},
 	"access_token":      {},
 	"refresh_token":     {},
@@ -37,13 +42,32 @@ var sensitiveFieldNames = map[string]struct{}{
 	"authorization":     {},
 }
 
+var nonSensitiveFieldNames = map[string]struct{}{
+	"must_change_password": {},
+}
+
 // IsSensitiveField reports whether a JSON field conventionally contains a secret.
 func IsSensitiveField(field string) bool {
 	normalized := normalizeFieldName(field)
+	if _, ok := nonSensitiveFieldNames[normalized]; ok {
+		return false
+	}
 	if _, ok := sensitiveFieldNames[normalized]; ok {
 		return true
 	}
-	for _, suffix := range []string{"_password", "_token", "_secret", "_api_key", "_private_key", "_signing_key"} {
+	for _, suffix := range []string{
+		"_password",
+		"_password_hash",
+		"_recovery_code",
+		"_recovery_codes",
+		"_backup_code",
+		"_backup_codes",
+		"_token",
+		"_secret",
+		"_api_key",
+		"_private_key",
+		"_signing_key",
+	} {
 		if strings.HasSuffix(normalized, suffix) {
 			return true
 		}

@@ -22,6 +22,7 @@ import (
 	authDAO "github.com/go-admin-kit/services/identity/internal/dao/auth"
 	systemDAO "github.com/go-admin-kit/services/identity/internal/dao/system"
 	"github.com/go-admin-kit/services/identity/internal/middleware"
+	"github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
 	"github.com/go-admin-kit/services/identity/internal/pkg/database"
 	"github.com/go-admin-kit/services/identity/internal/pkg/observability"
@@ -30,6 +31,7 @@ import (
 	tenantscope "github.com/go-admin-kit/services/identity/internal/pkg/tenant"
 	authsvc "github.com/go-admin-kit/services/identity/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/identity/internal/service/system"
+	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 )
@@ -196,6 +198,15 @@ func run(ctx context.Context) error {
 	}
 	if err := tenantscope.Register(database.DB); err != nil {
 		return fmt.Errorf("tenant scope plugin registration failed: %w", err)
+	}
+	if err := sharedaudit.Register(database.DB, sharedaudit.Config{
+		Targets: []sharedaudit.Target{
+			sharedaudit.UserTarget(&model.User{}),
+			sharedaudit.RoleTarget(&model.Role{}),
+			sharedaudit.DepartmentTarget(&model.Department{}),
+		},
+	}); err != nil {
+		return fmt.Errorf("audit trail plugin registration failed: %w", err)
 	}
 	consoleSessionService := authsvc.NewConsoleSessionServiceWithDB(database.DB)
 	middleware.SetAuthMiddlewareDependencies(middleware.AuthMiddlewareDependencies{

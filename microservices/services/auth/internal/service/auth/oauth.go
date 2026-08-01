@@ -12,6 +12,7 @@ import (
 	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
 	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
+	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
@@ -225,6 +226,11 @@ func (s *OAuthService) buildOAuthLoginResponseContext(ctx context.Context, user 
 	if user.Status != 1 {
 		return nil, ErrUserDisabled
 	}
+	tenantID := user.TenantID
+	if tenantID == 0 {
+		tenantID = 1
+	}
+	ctx = sharedaudit.WithTenantID(sharedaudit.WithActor(ctx, "user", user.Username), tenantID)
 
 	userDAO := s.userStore()
 	policy := s.securityPolicy(ctx)
@@ -255,10 +261,6 @@ func (s *OAuthService) buildOAuthLoginResponseContext(ctx context.Context, user 
 		}, nil
 	}
 
-	tenantID := user.TenantID
-	if tenantID == 0 {
-		tenantID = 1
-	}
 	accessToken, refreshToken, err := jwt.GenerateTokenWithTenantPlatformAndAccessTTL(
 		user.ID, user.Username, tenantID, user.IsPlatformAdmin, 0,
 	)
@@ -298,7 +300,11 @@ func (s *OAuthService) findOrCreateUserContext(ctx context.Context, provider, pr
 	}
 
 	userDAO := s.userStore()
-	if err := userDAO.CreateUserContext(ctx, &user); err != nil {
+	createCtx := sharedaudit.WithTenantID(
+		sharedaudit.WithActor(ctx, "system", "oauth-"+provider+"-provisioning"),
+		1,
+	)
+	if err := userDAO.CreateUserContext(createCtx, &user); err != nil {
 		return nil, err
 	}
 

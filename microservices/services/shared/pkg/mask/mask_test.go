@@ -7,12 +7,31 @@ import (
 )
 
 func TestIsSensitiveFieldSupportsSettingsAndCamelCaseNames(t *testing.T) {
-	for _, field := range []string{"api_key", "apiKey", "accessKeySecret", "smtp-password", "nested.private_key"} {
+	for _, field := range []string{
+		"api_key",
+		"apiKey",
+		"accessKeySecret",
+		"smtp-password",
+		"nested.private_key",
+		"password_hash",
+		"credentialPasswordHash",
+		"recovery_code",
+		"mfaRecoveryCodes",
+		"backup_code",
+		"totpBackupCodes",
+	} {
 		if !IsSensitiveField(field) {
 			t.Errorf("IsSensitiveField(%q) = false, want true", field)
 		}
 	}
-	for _, field := range []string{"setting_key", "public_key", "monkey", "username"} {
+	for _, field := range []string{
+		"setting_key",
+		"public_key",
+		"monkey",
+		"username",
+		"must_change_password",
+		"mustChangePassword",
+	} {
 		if IsSensitiveField(field) {
 			t.Errorf("IsSensitiveField(%q) = true, want false", field)
 		}
