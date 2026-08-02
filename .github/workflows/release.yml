@@ -74,7 +74,7 @@ jobs:
       services: ${{ steps.matrix.outputs.services }}
       modules: ${{ steps.matrix.outputs.modules }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: 解析并校验 tag
         id: tag
@@ -231,8 +231,8 @@ jobs:
       run:
         working-directory: microservices/${{ matrix.module }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: microservices/${{ matrix.module }}/go.sum
@@ -248,8 +248,8 @@ jobs:
       run:
         working-directory: microservices/web
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -263,11 +263,11 @@ jobs:
     needs: meta
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: microservices/services/monitor/go.sum
@@ -311,7 +311,7 @@ jobs:
       max-parallel: 4
       matrix: ${{ fromJson(needs.meta.outputs.services) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # arm64 交叉构建依赖 QEMU（Go 服务与前端均可静态交叉，无本机依赖）
       - uses: docker/setup-qemu-action@v4
@@ -371,7 +371,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
