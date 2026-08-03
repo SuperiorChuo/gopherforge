@@ -187,6 +187,9 @@
   永远同步；Scalar 版本钉死不追 latest）。如实标注契约当前覆盖
   monitor + common，其余服务以模块页端点表为准。
 
+- **README 顶部新增微信交流群入口**：放回群二维码（新增
+  `docs/screenshots/wechat-group.png`），欢迎扫码加群交流使用与开发。
+
 ## [0.3.0] - 2026-07-26
 
 ### 新增
