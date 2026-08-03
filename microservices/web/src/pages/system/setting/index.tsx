@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  Tabs, Card, Input, Button, Form, InputNumber, Switch, Select, Collapse, Skeleton, Tag,
+  Tabs, Card, Input, Button, Form, InputNumber, Switch, Select, Collapse, Skeleton, Tag, Space, Alert,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -9,9 +9,10 @@ import {
 } from '@ant-design/icons'
 import GlassEmpty from '@/components/GlassEmpty'
 import type { SystemSetting } from '@/types'
-import { getSettingList, upsertSetting } from '@/api/system/setting'
+import { getSettingList, upsertSetting, getTenantSettingList, upsertTenantSetting, deleteTenantSetting } from '@/api/system/setting'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
+import { useAppSelector } from '@/hooks/store'
 
 // 后端按 setting_key 前缀过滤分组（LIKE 'group.%'）
 const GROUPS = [
@@ -150,15 +151,20 @@ function renderField(f: FieldDef) {
   }
 }
 
-// 已知键 → 结构化表单；保存时与原 JSON 合并，schema 之外的字段（如 recipient_groups）原样保留
-function SchemaSettingCard({ setting, canUpdate, onSaved }: {
+// 已知键 → 结构化表单；保存时与原 JSON 合并，schema 之外的字段（如 recipient_groups）原样保留。
+// save 缺省写平台级 system_settings；传 upsertTenantSetting 即写租户覆盖。
+function SchemaSettingCard({ setting, canUpdate, onSaved, save, onDelete }: {
   setting: SystemSetting
   canUpdate: boolean
   onSaved: () => void
+  save?: (key: string, value: Record<string, unknown>) => Promise<unknown>
+  onDelete?: (key: string) => Promise<void>
 }) {
   const schema = FIELD_SCHEMAS[setting.setting_key]
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const doSave = save ?? upsertSetting
 
   useEffect(() => {
     form.setFieldsValue(setting.value_json ?? {})
@@ -173,13 +179,27 @@ function SchemaSettingCard({ setting, canUpdate, onSaved }: {
     )
     setSaving(true)
     try {
-      await upsertSetting(setting.setting_key, { ...(setting.value_json ?? {}), ...normalized })
+      await doSave(setting.setting_key, { ...(setting.value_json ?? {}), ...normalized })
       message.success('保存成功')
       onSaved()
     } catch {
       message.error('保存失败')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!onDelete) return
+    setDeleting(true)
+    try {
+      await onDelete(setting.setting_key)
+      message.success('已删除覆盖，回落到平台默认')
+      onSaved()
+    } catch {
+      message.error('删除覆盖失败')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -232,9 +252,16 @@ function SchemaSettingCard({ setting, canUpdate, onSaved }: {
             wrapperCol={{ xs: { span: 24 }, sm: { offset: 7, span: 17 } }}
             style={{ marginBottom: 0 }}
           >
-            <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving}>
-              保存
-            </Button>
+            <Space>
+              <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving}>
+                保存
+              </Button>
+              {onDelete ? (
+                <Button danger icon={<ReloadOutlined />} onClick={handleDelete} loading={deleting}>
+                  删除覆盖（回落平台默认）
+                </Button>
+              ) : null}
+            </Space>
           </Form.Item>
         )}
       </Form>
@@ -382,9 +409,74 @@ function SettingGroupPanel({ group, refreshKey }: { group: string; refreshKey: n
   )
 }
 
+// 租户级配置覆盖：租户管理员配自己的 AI/邮件/天气（平台默认兜底）。
+const TENANT_KEYS = ['ai.provider', 'notification.email', 'weather.provider']
+
+function TenantSettingPanel() {
+  const [list, setList] = useState<SystemSetting[]>([])
+  const [loading, setLoading] = useState(false)
+  const { hasPerm } = usePermission()
+  const canUpdate = hasPerm('system:setting:update')
+
+  const fetchSettings = async () => {
+    setLoading(true)
+    try {
+      setList(await getTenantSettingList())
+    } catch {
+      message.error('加载租户设置失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchSettings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const byKey = new Map(list.map((s) => [s.setting_key, s]))
+  const cards: SystemSetting[] = TENANT_KEYS.map(
+    (key) => byKey.get(key) ?? { setting_key: key, value_json: {}, updated_at: '' },
+  )
+
+  return (
+    <div className="page-list">
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="租户级配置"
+        description="配置本租户的 AI / 邮件 / 天气覆盖；未覆盖的键自动使用平台默认值。保存后热生效。"
+      />
+      {loading && cards.length === 0 ? (
+        <Card>
+          <Skeleton active paragraph={{ rows: 4 }} />
+        </Card>
+      ) : (
+        cards.map((s) => (
+          <SchemaSettingCard
+            key={s.setting_key}
+            setting={s}
+            canUpdate={canUpdate}
+            onSaved={fetchSettings}
+            save={upsertTenantSetting}
+            onDelete={byKey.has(s.setting_key) ? deleteTenantSetting : undefined}
+          />
+        ))
+      )}
+    </div>
+  )
+}
+
 export default function SettingPage() {
   // 自增 key 让当前分组面板重新拉取
   const [refreshKey, setRefreshKey] = useState(0)
+  // 非平台管理员只能看到租户级配置；平台管理员看全量全局设置
+  const isPlatformAdmin = useAppSelector((s) => s.auth.userInfo?.is_platform_admin) ?? false
+
+  if (!isPlatformAdmin) {
+    return <TenantSettingPanel />
+  }
 
   return (
     <Tabs

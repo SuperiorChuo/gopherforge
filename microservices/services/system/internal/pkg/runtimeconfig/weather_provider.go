@@ -24,8 +24,9 @@ type WeatherStore interface {
 // CachedWeatherReader layers the weather.provider setting row over empty
 // defaults with a short TTL, refreshed instantly via the invalidation channel.
 type CachedWeatherReader struct {
-	store WeatherStore
-	ttl   time.Duration
+	store       WeatherStore
+	tenantStore TenantSettingStore
+	ttl         time.Duration
 
 	mu        sync.RWMutex
 	settings  weather.Settings
@@ -37,7 +38,7 @@ func NewCachedWeatherReader(store WeatherStore, ttl time.Duration) *CachedWeathe
 	if ttl <= 0 {
 		ttl = 30 * time.Second
 	}
-	return &CachedWeatherReader{store: store, ttl: ttl}
+	return &CachedWeatherReader{store: store, tenantStore: defaultTenantSettingStore{}, ttl: ttl}
 }
 
 var (
@@ -64,30 +65,45 @@ func (defaultWeatherStore) GetByKeyContext(ctx context.Context, key string) (*mo
 
 // WeatherSettings implements weather.SettingsReader.
 func (r *CachedWeatherReader) WeatherSettings(ctx context.Context) weather.Settings {
+	var settings weather.Settings
 	if r == nil {
-		return weather.Settings{}
+		return settings
 	}
 	now := time.Now()
 	r.mu.RLock()
 	if r.loaded && now.Before(r.expiresAt) {
-		settings := r.settings
+		settings = r.settings
 		r.mu.RUnlock()
-		return settings
+		return r.applyTenantOverride(ctx, settings)
 	}
 	r.mu.RUnlock()
 
 	if err := r.Refresh(ctx); err != nil {
 		r.mu.RLock()
-		defer r.mu.RUnlock()
-		if r.loaded {
-			return r.settings
+		settings = r.settings
+		loaded := r.loaded
+		r.mu.RUnlock()
+		if !loaded {
+			return weather.Settings{}
 		}
-		return weather.Settings{}
+	} else {
+		r.mu.RLock()
+		settings = r.settings
+		r.mu.RUnlock()
 	}
+	return r.applyTenantOverride(ctx, settings)
+}
 
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	return r.settings
+// applyTenantOverride 显式租户上下文命中 tenant_settings 覆盖时应用之；
+// 后台/无租户上下文维持平台默认。
+func (r *CachedWeatherReader) applyTenantOverride(ctx context.Context, settings weather.Settings) weather.Settings {
+	if r == nil || r.tenantStore == nil {
+		return settings
+	}
+	if override := tenantOverride(ctx, r.tenantStore, WeatherProviderSettingKey); override != nil {
+		settings = weather.ApplySetting(settings, override.ValueJSON)
+	}
+	return settings
 }
 
 func (r *CachedWeatherReader) Refresh(ctx context.Context) error {

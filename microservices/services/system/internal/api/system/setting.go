@@ -78,6 +78,54 @@ func (a *SettingAPI) DeleteSetting(c *gin.Context) {
 	response.SuccessWithMessage(c, "system setting deleted successfully", nil)
 }
 
+// ---------- 租户级配置覆盖（tenant_settings） ----------
+
+func (a *SettingAPI) GetTenantSettings(c *gin.Context) {
+	settings, err := a.settingService.ListTenantSettingsContext(c.Request.Context())
+	if err != nil {
+		writeTenantSettingServiceError(c, "failed to get tenant settings", err)
+		return
+	}
+	response.Success(c, settings)
+}
+
+func (a *SettingAPI) UpsertTenantSetting(c *gin.Context) {
+	var req systemsvc.UpsertSettingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid request body")
+		return
+	}
+	setting, err := a.settingService.UpsertTenantSettingContext(c.Request.Context(), c.Param("key"), req.ValueJSON)
+	if err != nil {
+		writeTenantSettingServiceError(c, "failed to update tenant setting", err)
+		return
+	}
+	response.Success(c, setting)
+}
+
+func (a *SettingAPI) DeleteTenantSetting(c *gin.Context) {
+	if err := a.settingService.DeleteTenantSettingContext(c.Request.Context(), c.Param("key")); err != nil {
+		writeTenantSettingServiceError(c, "failed to delete tenant setting", err)
+		return
+	}
+	response.SuccessWithMessage(c, "tenant setting deleted successfully", nil)
+}
+
+func writeTenantSettingServiceError(c *gin.Context, operation string, err error) {
+	switch {
+	case errors.Is(err, systemsvc.ErrTenantSettingNotConfigurable):
+		response.Forbidden(c, systemsvc.ErrTenantSettingNotConfigurable.Error())
+	case errors.Is(err, systemsvc.ErrTenantSettingNotFound):
+		response.NotFound(c, systemsvc.ErrTenantSettingNotFound.Error())
+	case errors.Is(err, systemsvc.ErrInvalidSystemSettingKey):
+		response.BadRequest(c, systemsvc.ErrInvalidSystemSettingKey.Error())
+	case errors.Is(err, systemsvc.ErrTenantContextRequired):
+		response.BadRequest(c, systemsvc.ErrTenantContextRequired.Error())
+	default:
+		internalServerError(c, operation, err)
+	}
+}
+
 func writeSystemSettingServiceError(c *gin.Context, operation string, err error) {
 	switch {
 	case errors.Is(err, systemsvc.ErrInvalidSystemSettingKey):

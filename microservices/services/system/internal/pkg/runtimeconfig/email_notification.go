@@ -43,8 +43,9 @@ type EmailNotificationStore interface {
 }
 
 type CachedEmailNotificationReader struct {
-	store EmailNotificationStore
-	ttl   time.Duration
+	store       EmailNotificationStore
+	tenantStore TenantSettingStore
+	ttl         time.Duration
 
 	mu        sync.RWMutex
 	policy    EmailNotification
@@ -56,7 +57,7 @@ func NewCachedEmailNotificationReader(store EmailNotificationStore, ttl time.Dur
 	if ttl <= 0 {
 		ttl = 30 * time.Second
 	}
-	return &CachedEmailNotificationReader{store: store, ttl: ttl}
+	return &CachedEmailNotificationReader{store: store, tenantStore: defaultTenantSettingStore{}, ttl: ttl}
 }
 
 var (
@@ -72,32 +73,45 @@ func DefaultEmailNotificationReader() *CachedEmailNotificationReader {
 }
 
 func (r *CachedEmailNotificationReader) EmailNotification(ctx context.Context) EmailNotification {
+	var policy EmailNotification
 	if r == nil {
-		return EmailNotificationFromConfig()
-	}
-	now := time.Now()
-	r.mu.RLock()
-	if r.loaded && now.Before(r.expiresAt) {
-		policy := r.policy
-		r.mu.RUnlock()
-		return policy
-	}
-	r.mu.RUnlock()
-
-	if err := r.Refresh(ctx); err != nil {
+		policy = EmailNotificationFromConfig()
+	} else {
+		now := time.Now()
 		r.mu.RLock()
-		if r.loaded {
-			policy := r.policy
+		if r.loaded && now.Before(r.expiresAt) {
+			policy = r.policy
 			r.mu.RUnlock()
-			return policy
+			return r.applyTenantOverride(ctx, policy)
 		}
 		r.mu.RUnlock()
-		return EmailNotificationFromConfig()
-	}
 
-	r.mu.RLock()
-	policy := r.policy
-	r.mu.RUnlock()
+		if err := r.Refresh(ctx); err != nil {
+			r.mu.RLock()
+			policy = r.policy
+			loaded := r.loaded
+			r.mu.RUnlock()
+			if !loaded {
+				policy = EmailNotificationFromConfig()
+			}
+		} else {
+			r.mu.RLock()
+			policy = r.policy
+			r.mu.RUnlock()
+		}
+	}
+	return r.applyTenantOverride(ctx, policy)
+}
+
+// applyTenantOverride 显式租户上下文命中 tenant_settings 覆盖时应用之；
+// 后台/无租户上下文维持平台默认。
+func (r *CachedEmailNotificationReader) applyTenantOverride(ctx context.Context, policy EmailNotification) EmailNotification {
+	if r == nil || r.tenantStore == nil {
+		return policy
+	}
+	if override := tenantOverride(ctx, r.tenantStore, EmailNotificationSettingKey); override != nil {
+		policy = applyEmailNotificationSetting(policy, override.ValueJSON)
+	}
 	return policy
 }
 
