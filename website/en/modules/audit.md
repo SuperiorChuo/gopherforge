@@ -16,6 +16,19 @@ The audit service centralises three log kinds: **operation logs** (every API req
 
 **IP geolocation**: offline `ip2region` first (download `ip2region.xdb` via `scripts/download-ip2region.sh`), falling back to ip-api.com (1 h cache); private/loopback IPs are tagged "internal". Missing the offline DB degrades gracefully.
 
+## Core permission tables: transactional audit (on by default)
+
+Single-row create/update/delete on `users`, `roles`, `departments` and `menus` is audited automatically via a GORM plugin (`shared/pkg/audittrail`) that snapshots before/after within the write transaction — **the audit row commits in the same transaction as the change, and a failed audit write rolls the business change back** (fail closed), so there is never a window where a permission change happens without a trace.
+
+- **Scope**: single-row CRUD on the four tables' own columns; join tables and raw SQL are out of scope.
+- **Masking**: passwords, TOTP, recovery codes and similar sensitive fields are recursively masked in snapshots — plaintext never lands.
+- **Attribution**: snapshots carry actor, tenant and before/after JSON, queryable from the console's audit-log page (keyword / action / target facets).
+- **How this differs from operation logs**: operation logs are middleware-level, async best-effort (a failed write never affects the request); this is same-transaction strong consistency — for permission changes that must be traceable and must not be lost.
+
+## Tenant isolation
+
+Audit rows are written with the **requesting tenant**, and list / summary / filter endpoints are always restricted to the current tenant — an admin can't read another tenant's audit data, and events are never mis-attributed to the default tenant. Retention cleanup runs across all tenants at the ops level, but reads stay tenant-scoped.
+
 ## Console pages
 
 `/system/operation-log` (rich filters + masked body detail) · `/system/login-log` (filters + **geo distribution map** + 7-day success/failure trend) · `/system/audit-log` (keyword/action/target facets).
