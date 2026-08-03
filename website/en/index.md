@@ -41,6 +41,12 @@ features:
 These docs describe the `v0.3.0` release ([release notes](/en/changelog)). It is still a 0.x release: APIs, database schemas and generated code formats may change. The Live Demo uses front-end-only mock data; start the [full stack](/en/guide/getting-started) for backend verification, or [deploy from the official images](/en/reference/deployment).
 :::
 
+## Doc Navigation
+
+- 🚀 Guide: [Getting Started](/en/guide/getting-started) · [Architecture](/en/guide/architecture) · [Extending: Add a Service](/en/guide/extend)
+- ⚛️ [Frontend](/en/frontend/overview): request layer · routing & permissions · page development · state · theme · demo mode
+- 📚 Reference: [Modules](/en/modules/auth) · [API Reference](/en/reference/api) · [Deployment](/en/reference/deployment) · [Database Schema](/en/reference/database)
+
 ## UI Preview
 
 Deep-space dark / light themes with one visual language:

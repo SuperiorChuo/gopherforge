@@ -47,7 +47,9 @@ Models carry `tenant_id` (`not null;default:1;index`); money is stored in **cent
 
 ## Step 5: Frontend
 
-API wrapper in `web/src/api/demo.ts`, pages under `web/src/pages/demo/`, a route entry in `router/index.tsx`, and a menu seed row. Button-level control via `usePermission().hasPerm(code)`.
+> Full frontend guide: see the [Frontend](/en/frontend/overview) section of the nav. **Read [Page Development](/en/frontend/page-dev) first** (list-page trio, shared components, theme conventions).
+
+API wrapper in `web/src/api/demo.ts`, pages under `web/src/pages/demo/`, a route entry in `router/index.tsx`, a permission entry in `route-permissions.ts`, and a menu seed row. Button-level control via `usePermission().hasPerm(code)` — see [Routing & Permissions](/en/frontend/routing).
 
 ## Step 6: Verify
 

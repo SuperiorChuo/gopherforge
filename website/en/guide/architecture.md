@@ -65,6 +65,8 @@ Security conventions: host ports bind loopback only, all external traffic goes t
 
 React 19 + TypeScript + Vite 8 + Ant Design 6, Redux Toolkit, Axios interceptors unwrapping the `{code, message, data}` envelope with transparent token refresh. Dual dark/light themes.
 
+Dedicated **Frontend** documentation (stack, directory layout, request layer, routing & permissions, page conventions, state & theme, demo mode) lives under the [Frontend](/en/frontend/overview) section of the nav. **Read [Page Development](/en/frontend/page-dev) before writing a new page** — the shared list-page trio and component conventions will save you rework.
+
 ## CI gates
 
 Per-service `go test` + `go vet`, frontend lint/build/audit, plus three distinctive gates: **OpenAPI contract drift detection**, **migration rehearsal** on a clean database, and a full-stack **smoke + Playwright E2E** job.
