@@ -62,9 +62,11 @@ Traefik 用**显式路径列表**路由（exact `Path()` + 子树 `PathPrefix()`
 
 ## 第 5 步：前端
 
-1. `web/src/api/demo.ts` 写接口封装（照 `api/bpm.ts` 惯例）。
+> 完整的前端开发指南见导航「[前端开发](/frontend/overview)」分组；**动手前先读[页面开发规范](/frontend/page-dev)**（列表页三件套、公共组件、主题约定）。
+
+1. `web/src/api/demo.ts` 写接口封装（照 `api/bpm.ts` 惯例，见[请求层](/frontend/request)）。
 2. `web/src/pages/demo/` 加页面（列表页三件套：TableToolbar + 过滤表单 + Table）。
-3. `web/src/router/index.tsx` 补路由，菜单种子补条目（页面按菜单权限显隐，`usePermission().hasPerm(code)` 控制按钮级）。
+3. `web/src/router/index.tsx` 补路由，`route-permissions.ts` 补权限码，菜单种子补条目（页面按菜单权限显隐，`usePermission().hasPerm(code)` 控制按钮级）。详见[路由与权限](/frontend/routing)。
 
 ## 第 6 步：验证清单
 

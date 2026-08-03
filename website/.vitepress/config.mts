@@ -15,6 +15,20 @@ const zhSidebar = {
       ],
     },
   ],
+  '/frontend/': [
+    {
+      text: '前端开发',
+      items: [
+        { text: '前端架构总览', link: '/frontend/overview' },
+        { text: '请求层与 API 封装', link: '/frontend/request' },
+        { text: '路由与权限', link: '/frontend/routing' },
+        { text: '页面开发规范', link: '/frontend/page-dev' },
+        { text: '状态管理', link: '/frontend/state' },
+        { text: '主题与样式', link: '/frontend/theme' },
+        { text: '演示模式', link: '/frontend/demo' },
+      ],
+    },
+  ],
   '/modules/': [
     {
       text: '功能模块',
@@ -55,6 +69,20 @@ const enSidebar = {
         { text: 'Getting Started (15 min)', link: '/en/guide/getting-started' },
         { text: 'Architecture', link: '/en/guide/architecture' },
         { text: 'Extending: Add a Service', link: '/en/guide/extend' },
+      ],
+    },
+  ],
+  '/en/frontend/': [
+    {
+      text: 'Frontend',
+      items: [
+        { text: 'Frontend Overview', link: '/en/frontend/overview' },
+        { text: 'Request Layer & API', link: '/en/frontend/request' },
+        { text: 'Routing & Permissions', link: '/en/frontend/routing' },
+        { text: 'Page Development', link: '/en/frontend/page-dev' },
+        { text: 'State Management', link: '/en/frontend/state' },
+        { text: 'Theme & Styling', link: '/en/frontend/theme' },
+        { text: 'Demo Mode', link: '/en/frontend/demo' },
       ],
     },
   ],
@@ -108,6 +136,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: '指南', link: '/guide/getting-started' },
+          { text: '前端开发', link: '/frontend/overview' },
           { text: '功能模块', link: '/modules/auth' },
           { text: '参考', link: '/reference/deployment' },
           { text: '更新日志', link: '/changelog' },
@@ -135,6 +164,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: 'Guide', link: '/en/guide/getting-started' },
+          { text: 'Frontend', link: '/en/frontend/overview' },
           { text: 'Modules', link: '/en/modules/auth' },
           { text: 'Reference', link: '/en/reference/deployment' },
           { text: 'Changelog', link: '/en/changelog' },

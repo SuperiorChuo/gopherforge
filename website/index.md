@@ -41,6 +41,12 @@ features:
 当前文档对应 `v0.3.0` 正式版（[Release notes](/changelog)）。项目仍处于 0.x 阶段，API、数据库表结构和生成代码格式可能变化；在线 Demo 使用纯前端假数据，完整能力请按[快速上手](/guide/getting-started)启动本地栈，或直接[拉官方镜像部署](/reference/deployment)。
 :::
 
+## 文档导航
+
+- 🚀 指南：[快速上手](/guide/getting-started) · [架构总览](/guide/architecture) · [二次开发：加一个业务服务](/guide/extend)
+- ⚛️ [前端开发](/frontend/overview)：请求层 / 路由与权限 / 页面开发规范 / 状态管理 / 主题 / 演示模式
+- 📚 参考：[功能模块](/modules/auth) · [API 参考](/reference/api) · [生产部署](/reference/deployment) · [数据库表结构](/reference/database)
+
 ## 界面预览
 
 深空暗色 / 白蓝亮色双主题，一套视觉语言：

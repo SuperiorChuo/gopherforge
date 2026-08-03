@@ -71,6 +71,8 @@ React 19 + TypeScript + Vite 8 + Ant Design 6，Redux Toolkit 状态管理，Axi
 
 菜单与路由：菜单由后端种子数据下发（RBAC 过滤），前端静态路由表映射组件；新增页面需要同时补路由与菜单种子（见[二次开发](/guide/extend)）。
 
+前端的技术栈、目录结构、请求层、路由权限、页面规范、状态与主题、演示模式的**专门文档**见导航「[前端开发](/frontend/overview)」分组。**写新页面之前请先读[页面开发规范](/frontend/page-dev)**——统一列表页三件套与组件约定，能省很多返工。
+
 ## 可观测（可选开启）
 
 Prometheus 指标 + Grafana 看板配置在 `platform/deploy/`；OpenTelemetry + Jaeger 链路追踪按 env 开关接入。每个服务暴露 `/api/v1/health/live` 与 `/ready`。
