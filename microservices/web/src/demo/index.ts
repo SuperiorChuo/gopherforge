@@ -91,6 +91,7 @@ const menuRows = [
   { id: 32, name: 'monitor-server', title: '服务器监控', icon: 'server', path: '/monitor/server', component: 'monitor/server/index', parent_id: 30, sort: 2, status: 1, hidden: 0, permission: 'system:monitor:server' },
   { id: 33, name: 'monitor-mysql', title: '数据库监控', icon: 'data-base', path: '/monitor/mysql', component: 'monitor/mysql/index', parent_id: 30, sort: 3, status: 1, hidden: 0, permission: 'system:monitor:mysql' },
   { id: 34, name: 'monitor-redis', title: '缓存监控', icon: 'data', path: '/monitor/redis', component: 'monitor/redis/index', parent_id: 30, sort: 4, status: 1, hidden: 0, permission: 'system:monitor:redis' },
+  { id: 42, name: 'monitor-alerts', title: '告警管理', icon: 'alert', path: '/monitor/alerts', component: 'monitor/alerts/index', parent_id: 30, sort: 5, status: 1, hidden: 0, permission: 'system:alert:list' },
   { id: 35, name: 'bpm', title: '审批中心', icon: 'audit', path: '/bpm', component: 'Layout', parent_id: 0, sort: 3, status: 1, hidden: 0 },
   { id: 36, name: 'bpm-tasks', title: '待办中心', icon: 'check', path: '/bpm/tasks', component: 'bpm/tasks/index', parent_id: 35, sort: 1, status: 1, hidden: 0 },
   { id: 37, name: 'bpm-instances', title: '我发起的', icon: 'send', path: '/bpm/instances', component: 'bpm/instances/index', parent_id: 35, sort: 2, status: 1, hidden: 0 },
@@ -317,6 +318,60 @@ const redisInfo = {
   pool: { hits: 5021, misses: 12, timeouts: 0, total_conns: 10, idle_conns: 8, stale_conns: 0 },
   keyspace: { dbsize: 1286, dbs: [{ name: 'db0', keys: 1286, expires: 320 }] },
 }
+
+// 告警规则（monitor 内置告警引擎）：示例覆盖 ok / pending / firing / error 四种状态
+const alertMetrics = [
+  { key: 'system.cpu.used_percent', title: 'CPU used', unit: 'percent', description: 'Host CPU utilization', operators: ['gt', 'gte', 'lt', 'lte'] },
+  { key: 'system.memory.used_percent', title: 'Memory used', unit: 'percent', description: 'Host memory utilization', operators: ['gt', 'gte', 'lt', 'lte'] },
+  { key: 'system.disk.used_percent', title: 'Disk used', unit: 'percent', description: 'Root filesystem utilization', operators: ['gt', 'gte', 'lt', 'lte'] },
+  { key: 'postgres.connections.percent', title: 'PostgreSQL connections', unit: 'percent', description: 'Used PostgreSQL connections as a percentage of max_connections', operators: ['gt', 'gte', 'lt', 'lte'] },
+  { key: 'redis.memory.used_bytes', title: 'Redis memory used', unit: 'bytes', description: 'Redis used_memory in bytes', operators: ['gt', 'gte', 'lt', 'lte'] },
+  { key: 'redis.clients.connected', title: 'Redis connected clients', unit: 'count', description: 'Connected Redis client count', operators: ['gt', 'gte', 'lt', 'lte'] },
+]
+
+type DemoAlertRule = {
+  id: number
+  name: string
+  metric: string
+  operator: string
+  threshold: number
+  duration_seconds: number
+  severity: string
+  enabled: boolean
+  notify_on_resolve: boolean
+  state: string
+  pending_since: string | null
+  firing_since: string | null
+  last_value: number | null
+  last_evaluated_at: string | null
+  last_error: string
+  created_at: string
+  updated_at: string
+}
+
+const alertRules: DemoAlertRule[] = [
+  { id: 1, name: 'CPU 使用率过高', metric: 'system.cpu.used_percent', operator: 'gte', threshold: 85, duration_seconds: 300, severity: 'critical', enabled: true, notify_on_resolve: true, state: 'firing', pending_since: null, firing_since: daysAgo(0, 2), last_value: 92.4, last_evaluated_at: now(), last_error: '', created_at: daysAgo(30), updated_at: now() },
+  { id: 2, name: '内存使用率告警', metric: 'system.memory.used_percent', operator: 'gte', threshold: 90, duration_seconds: 600, severity: 'warning', enabled: true, notify_on_resolve: true, state: 'pending', pending_since: daysAgo(0, 1), firing_since: null, last_value: 88.1, last_evaluated_at: now(), last_error: '', created_at: daysAgo(30), updated_at: now() },
+  { id: 3, name: '磁盘空间不足', metric: 'system.disk.used_percent', operator: 'gte', threshold: 80, duration_seconds: 0, severity: 'warning', enabled: true, notify_on_resolve: true, state: 'ok', pending_since: null, firing_since: null, last_value: 67.3, last_evaluated_at: now(), last_error: '', created_at: daysAgo(20), updated_at: now() },
+  { id: 4, name: 'PG 连接数峰值', metric: 'postgres.connections.percent', operator: 'gte', threshold: 75, duration_seconds: 300, severity: 'critical', enabled: true, notify_on_resolve: false, state: 'ok', pending_since: null, firing_since: null, last_value: 41.0, last_evaluated_at: now(), last_error: '', created_at: daysAgo(20), updated_at: now() },
+  { id: 5, name: 'Redis 客户端连接数', metric: 'redis.clients.connected', operator: 'gt', threshold: 200, duration_seconds: 60, severity: 'info', enabled: false, notify_on_resolve: true, state: 'error', pending_since: null, firing_since: null, last_value: null, last_evaluated_at: now(), last_error: 'metric unavailable: redis not reachable', created_at: daysAgo(10), updated_at: now() },
+]
+
+const alertEvents = [
+  { id: 1, rule_id: 1, rule_name: 'CPU 使用率过高', metric: 'system.cpu.used_percent', severity: 'critical', status: 'firing', value: 92.4, threshold: 85, message: 'CPU 使用率 92.4% >= 阈值 85%，持续 5 分钟', notify_status: 'sent', notify_error: '', notified_at: daysAgo(0, 2), created_at: daysAgo(0, 2) },
+  { id: 2, rule_id: 1, rule_name: 'CPU 使用率过高', metric: 'system.cpu.used_percent', severity: 'critical', status: 'resolved', value: 58.2, threshold: 85, message: 'CPU 使用率回落至 58.2%，告警恢复', notify_status: 'sent', notify_error: '', notified_at: daysAgo(1, 6), created_at: daysAgo(1, 6) },
+  { id: 3, rule_id: 2, rule_name: '内存使用率告警', metric: 'system.memory.used_percent', severity: 'warning', status: 'firing', value: 88.1, threshold: 90, message: '内存使用率 88.1% 接近阈值，等待确认中', notify_status: 'pending', notify_error: '', notified_at: null, created_at: daysAgo(0, 1) },
+  { id: 4, rule_id: 5, rule_name: 'Redis 客户端连接数', metric: 'redis.clients.connected', severity: 'info', status: 'resolved', value: 168, threshold: 200, message: '连接数回落至 168，告警恢复', notify_status: 'failed', notify_error: 'smtp auth failed', notified_at: daysAgo(3, 9), created_at: daysAgo(3, 9) },
+]
+
+const alertSummary = () => ({
+  total: alertRules.length,
+  enabled: alertRules.filter((r) => r.enabled).length,
+  firing: alertRules.filter((r) => r.state === 'firing').length,
+  pending: alertRules.filter((r) => r.state === 'pending').length,
+  error: alertRules.filter((r) => r.state === 'error').length,
+  checked_at: now(),
+})
 
 const codegenColumns = [
   { name: 'id', db_type: 'bigint', go_type: 'int64', ts_type: 'number', nullable: false, primary_key: true, go_field: 'ID', label: 'id' },
@@ -705,6 +760,35 @@ const routes: Array<[string, RegExp, Handler]> = [
     return {}
   }],
   ['post', /^\/api\/v1\/monitor\/job-logs\/cleanup$/, () => ({ deleted_rows: 128 })],
+
+  // 监控告警（monitor 内置告警引擎）
+  ['get', /^\/api\/v1\/monitor\/alert-metrics$/, () => ({ list: alertMetrics })],
+  ['get', /^\/api\/v1\/monitor\/alert-summary$/, () => alertSummary()],
+  ['get', /^\/api\/v1\/monitor\/alert-rules$/, (_m, _b, q) => paged(alertRules, q)],
+  ['post', /^\/api\/v1\/monitor\/alert-rules$/, (_m, body) => {
+    const r = { id: nextID(), name: '', metric: '', operator: 'gt', threshold: 0, duration_seconds: 0, severity: 'warning', enabled: true, notify_on_resolve: true, state: 'ok', pending_since: null, firing_since: null, last_value: null, last_evaluated_at: null, last_error: '', created_at: now(), updated_at: now(), ...body } as DemoAlertRule
+    alertRules.unshift(r)
+    return r
+  }],
+  ['put', /^\/api\/v1\/monitor\/alert-rules\/(\d+)$/, (m, body) => {
+    const i = alertRules.findIndex((x) => x.id === Number(m[1]))
+    if (i >= 0) alertRules[i] = { ...alertRules[i], ...body, updated_at: now() }
+    return alertRules[i] ?? {}
+  }],
+  ['delete', /^\/api\/v1\/monitor\/alert-rules\/(\d+)$/, (m) => {
+    const i = alertRules.findIndex((x) => x.id === Number(m[1]))
+    if (i >= 0) alertRules.splice(i, 1)
+    return {}
+  }],
+  ['post', /^\/api\/v1\/monitor\/alert-rules\/(\d+)\/evaluate$/, (m) => {
+    const r = alertRules.find((x) => x.id === Number(m[1]))
+    if (r) {
+      r.last_evaluated_at = now()
+      r.last_value = r.metric.includes('cpu') ? 90.5 : 60
+    }
+    return r ? { rule: r, event: null } : {}
+  }],
+  ['get', /^\/api\/v1\/monitor\/alert-events$/, (_m, _b, q) => paged(alertEvents, q)],
 
   // 代码生成器
   ['get', /^\/api\/v1\/codegen\/tables$/, () => ({ list: [{ name: 'demo_assets' }, { name: 'demo_orders' }, { name: 'users' }, { name: 'roles' }, { name: 'menus' }], total: 5 })],
