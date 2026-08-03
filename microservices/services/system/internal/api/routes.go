@@ -131,6 +131,12 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		protected.PUT("/system-settings/:key", settingGuard, middleware.PermissionMiddleware("system:setting:update"), settingAPI.UpsertSetting)
 		protected.DELETE("/system-settings/:key", settingGuard, middleware.PermissionMiddleware("system:setting:delete"), settingAPI.DeleteSetting)
 
+		// 租户级配置覆盖：租户管理员配自己的 AI/邮件/天气（平台默认仍在 system-settings，
+		// 不要求 PlatformAdmin；租户来自请求 ctx）。白名单外拒绝。
+		protected.GET("/tenant-settings", middleware.PermissionMiddleware("system:setting:list"), settingAPI.GetTenantSettings)
+		protected.PUT("/tenant-settings/:key", middleware.PermissionMiddleware("system:setting:update"), settingAPI.UpsertTenantSetting)
+		protected.DELETE("/tenant-settings/:key", middleware.PermissionMiddleware("system:setting:delete"), settingAPI.DeleteTenantSetting)
+
 		protected.GET("/online-users", middleware.PermissionMiddleware("system:online-user:list"), onlineUserAPI.GetOnlineUsers)
 		protected.GET("/online-users/count", middleware.PermissionMiddleware("system:online-user:list"), onlineUserAPI.GetOnlineUserCount)
 		protected.DELETE("/online-users/:token_id", middleware.PermissionMiddleware("system:online-user:kick"), onlineUserAPI.ForceLogout)

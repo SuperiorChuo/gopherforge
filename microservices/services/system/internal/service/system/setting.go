@@ -10,11 +10,13 @@ import (
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
 	"github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
+	"github.com/go-admin-kit/services/system/internal/pkg/tenant"
 	"gorm.io/gorm"
 )
 
 type SettingService struct {
 	settingDAO         systemdao.SettingDAO
+	tenantSettingDAO   systemdao.TenantSettingDAO
 	runtimeInvalidator runtimeconfig.SecurityPolicyInvalidator
 	emailInvalidator   runtimeconfig.EmailNotificationInvalidator
 }
@@ -22,7 +24,10 @@ type SettingService struct {
 // NewSettingServiceWithDB builds a SettingService backed by an injected
 // database handle. Invalidators keep their default implementations.
 func NewSettingServiceWithDB(db *gorm.DB) SettingService {
-	return SettingService{settingDAO: *systemdao.NewSettingDAO(db)}
+	return SettingService{
+		settingDAO:       *systemdao.NewSettingDAO(db),
+		tenantSettingDAO: *systemdao.NewTenantSettingDAO(db),
+	}
 }
 
 const runtimeConfigInvalidationTimeout = 2 * time.Second
@@ -201,6 +206,108 @@ func (s *SettingService) DeleteSettingContext(ctx context.Context, key string) e
 	return nil
 }
 
+// ---------- 租户级配置覆盖（tenant_settings） ----------
+
+var (
+	ErrTenantSettingNotConfigurable = errors.New("该配置不属于租户可配范围，仅平台可配")
+	ErrTenantSettingNotFound        = errors.New("tenant setting not found")
+	ErrTenantContextRequired        = errors.New("tenant context required")
+)
+
+// tenantConfigurableKeys 租户管理员可配置的键白名单。与三个请求路径消费方
+// （ai.provider / notification.email / weather.provider）一一对应；平台机密
+// （oidc.signing_key、security.policy）不进租户维度。
+var tenantConfigurableKeys = map[string]bool{
+	"ai.provider":        true,
+	"notification.email": true,
+	"weather.provider":   true,
+}
+
+func isTenantConfigurableKey(key string) bool {
+	return tenantConfigurableKeys[key]
+}
+
+// ListTenantSettingsContext 返回当前租户的全部覆盖行（value 已脱敏）。
+func (s *SettingService) ListTenantSettingsContext(ctx context.Context) ([]model.TenantSetting, error) {
+	tid := tenant.FromContext(ctx)
+	if tid == 0 {
+		return nil, ErrTenantContextRequired
+	}
+	settings, err := s.tenantSettingDAO.ListContext(ctx, tid)
+	if err != nil {
+		return nil, err
+	}
+	for i := range settings {
+		settings[i].ValueJSON = maskSettingValue(settings[i].ValueJSON)
+	}
+	return settings, nil
+}
+
+// UpsertTenantSettingContext 写当前租户对某键的覆盖。白名单外拒绝。
+func (s *SettingService) UpsertTenantSettingContext(ctx context.Context, key string, value map[string]any) (*model.TenantSetting, error) {
+	if !isValidSystemSettingKey(key) {
+		return nil, ErrInvalidSystemSettingKey
+	}
+	if !isTenantConfigurableKey(key) {
+		return nil, ErrTenantSettingNotConfigurable
+	}
+	tid := tenant.FromContext(ctx)
+	if tid == 0 {
+		return nil, ErrTenantContextRequired
+	}
+	if value == nil {
+		value = map[string]any{}
+	}
+	valueJSON, err := s.restoreRedactedTenantSettingValueContext(ctx, tid, key, value)
+	if err != nil {
+		return nil, err
+	}
+	setting := &model.TenantSetting{TenantID: tid, SettingKey: key, ValueJSON: valueJSON}
+	if err := s.tenantSettingDAO.UpsertContext(ctx, setting); err != nil {
+		return nil, err
+	}
+	masked := *setting
+	masked.ValueJSON = maskSettingValue(setting.ValueJSON)
+	return &masked, nil
+}
+
+// DeleteTenantSettingContext 删除当前租户对某键的覆盖，之后回落平台默认。
+func (s *SettingService) DeleteTenantSettingContext(ctx context.Context, key string) error {
+	if !isValidSystemSettingKey(key) {
+		return ErrInvalidSystemSettingKey
+	}
+	if !isTenantConfigurableKey(key) {
+		return ErrTenantSettingNotConfigurable
+	}
+	tid := tenant.FromContext(ctx)
+	if tid == 0 {
+		return ErrTenantContextRequired
+	}
+	if err := s.tenantSettingDAO.DeleteContext(ctx, tid, key); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrTenantSettingNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+// restoreRedactedTenantSettingValueContext 与平台版同语义，但读的是租户自己的覆盖行。
+func (s *SettingService) restoreRedactedTenantSettingValueContext(ctx context.Context, tid uint, key string, incoming map[string]any) (map[string]any, error) {
+	if !mask.ContainsRedactedSensitiveValue(incoming) {
+		return incoming, nil
+	}
+	stored := map[string]any{}
+	existing, err := s.tenantSettingDAO.GetByKeyContext(ctx, tid, key)
+	if err == nil {
+		stored = existing.ValueJSON
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	restored, _ := mask.RestoreRedactedSensitiveValues(incoming, stored).(map[string]any)
+	return restored, nil
+}
+
 func (s *SettingService) refreshRuntimeConfigIfNeeded(ctx context.Context, key string) {
 	switch key {
 	case runtimeconfig.SecurityPolicySettingKey:
@@ -222,7 +329,7 @@ func (s *SettingService) refreshRuntimeConfigIfNeeded(ctx context.Context, key s
 		_ = invalidator.Refresh(refreshCtx)
 		_ = runtimeconfig.PublishInvalidation(refreshCtx, key)
 	case runtimeconfig.AIProviderSettingKey:
-		// 配置变更只负责广播失效，由对应消费方按需刷新。
+		// AI 配置由 ai-service 消费，这里只负责把变更广播出去。
 		refreshCtx, cancel := runtimeConfigInvalidationContext(ctx)
 		defer cancel()
 		_ = runtimeconfig.PublishInvalidation(refreshCtx, key)
