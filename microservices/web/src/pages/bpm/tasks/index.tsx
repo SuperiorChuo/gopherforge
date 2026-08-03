@@ -169,6 +169,7 @@ export default function BpmTasksPage() {
     {
       title: '操作',
       width: 250,
+      responsive: ['md'],
       render: (_, row) => <BpmTaskActions task={row} actions={actionsMap[row.id]} onDone={refresh} />,
     },
   ]

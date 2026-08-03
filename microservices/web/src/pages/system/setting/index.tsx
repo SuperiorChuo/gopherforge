@@ -126,27 +126,27 @@ const FIELD_SCHEMAS: Record<string, { title: string; fields: FieldDef[] }> = {
 function renderField(f: FieldDef) {
   switch (f.type) {
     case 'number':
-      return <InputNumber min={f.min} style={{ width: 220 }} />
+      return <InputNumber min={f.min} style={{ width: '100%', maxWidth: 220 }} />
     case 'boolean':
       return <Switch />
     case 'emails':
       return (
         <Select
           mode="tags"
-          style={{ maxWidth: 520 }}
+          style={{ width: '100%', maxWidth: 520 }}
           placeholder="输入邮箱后回车，可添加多个"
           tokenSeparators={[',', ' ']}
           open={false}
         />
       )
     case 'textarea':
-      return <Input.TextArea rows={4} style={{ maxWidth: 520 }} />
+      return <Input.TextArea rows={4} style={{ width: '100%', maxWidth: 520 }} />
     case 'password':
-      return <Input.Password style={{ maxWidth: 520 }} placeholder={f.placeholder} autoComplete="new-password" />
+      return <Input.Password style={{ width: '100%', maxWidth: 520 }} placeholder={f.placeholder} autoComplete="new-password" />
     case 'select':
-      return <Select style={{ maxWidth: 520 }} options={f.options} allowClear placeholder={f.placeholder} />
+      return <Select style={{ width: '100%', maxWidth: 520 }} options={f.options} allowClear placeholder={f.placeholder} />
     default:
-      return <Input style={{ maxWidth: 520 }} placeholder={f.placeholder} />
+      return <Input style={{ width: '100%', maxWidth: 520 }} placeholder={f.placeholder} />
   }
 }
 
@@ -189,10 +189,11 @@ function SchemaSettingCard({ setting, canUpdate, onSaved }: {
 
   return (
     <Card
+      className="setting-config-card"
       title={
-        <span>
-          {schema.title}
-          <Tag variant="filled" className="cell-mono" style={{ marginLeft: 10 }}>{setting.setting_key}</Tag>
+        <span className="setting-card-title">
+          <span>{schema.title}</span>
+          <Tag variant="filled" className="cell-mono setting-card-key">{setting.setting_key}</Tag>
         </span>
       }
       extra={
@@ -201,7 +202,12 @@ function SchemaSettingCard({ setting, canUpdate, onSaved }: {
         </span>
       }
     >
-      <Form form={form} labelCol={{ span: 7 }} wrapperCol={{ span: 17 }} style={{ maxWidth: 760 }}>
+      <Form
+        form={form}
+        labelCol={{ xs: { span: 24 }, sm: { span: 7 } }}
+        wrapperCol={{ xs: { span: 24 }, sm: { span: 17 } }}
+        style={{ maxWidth: 760 }}
+      >
         {schema.fields.map((f) => (
           <Form.Item
             key={f.key}
@@ -221,7 +227,11 @@ function SchemaSettingCard({ setting, canUpdate, onSaved }: {
           </Form.Item>
         )}
         {canUpdate && (
-          <Form.Item wrapperCol={{ offset: 7, span: 17 }} style={{ marginBottom: 0 }}>
+          <Form.Item
+            className="setting-save-item"
+            wrapperCol={{ xs: { span: 24 }, sm: { offset: 7, span: 17 } }}
+            style={{ marginBottom: 0 }}
+          >
             <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving}>
               保存
             </Button>
@@ -267,7 +277,8 @@ function JsonSettingCard({ setting, canUpdate, onSaved }: {
 
   return (
     <Card
-      title={<Tag variant="filled" className="cell-mono">{setting.setting_key}</Tag>}
+      className="setting-config-card"
+      title={<Tag variant="filled" className="cell-mono setting-card-key">{setting.setting_key}</Tag>}
       extra={
         <span className="card-extra-note">
           更新于 {formatDateTime(setting.updated_at)}

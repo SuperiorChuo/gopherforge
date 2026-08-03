@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  Card,
+  Card, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -118,32 +118,44 @@ export default function PermissionPage() {
 
   const columns: ColumnsType<Permission> = [
     { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
-    { title: '名称', dataIndex: 'name' },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      width: 220,
+      ellipsis: true,
+      render: (value: string) => <span className="list-primary-cell">{value}</span>,
+    },
     {
       title: '编码',
       dataIndex: 'code',
+      width: 320,
       responsive: ['sm'],
-      render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
+      render: (v: string) => <Tag variant="filled" className="cell-mono list-code-tag">{v}</Tag>,
     },
+    { title: '描述', dataIndex: 'description', width: 260, ellipsis: true, responsive: ['md'] },
     {
       title: '类型',
       dataIndex: 'type',
-      width: 80,
-      responsive: ['md'],
-      render: (v: number) => <Tag variant="filled" color={typeColors[v]}>{typeLabels[v] ?? v}</Tag>,
+      width: 90,
+      render: (v: number) => <Tag variant="filled" color={typeColors[v]} className="list-type-tag">{typeLabels[v] ?? v}</Tag>,
     },
     { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: '操作',
-      width: 140,
+      width: 96,
+      fixed: 'right',
       render: (_, record) => (
-        <Space size={0} className="table-actions">
+        <Space size={4} className="table-actions compact-table-actions">
           {hasPerm('system:permission:update') && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
+            <Tooltip title="编辑">
+              <Button type="text" size="small" aria-label="编辑权限" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            </Tooltip>
           )}
           {hasPerm('system:permission:delete') && (
             <Popconfirm title="确认删除该权限?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              <Tooltip title="删除">
+                <Button type="text" size="small" danger aria-label="删除权限" icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -192,6 +204,7 @@ export default function PermissionPage() {
           columns={columns}
           dataSource={list}
           loading={loading}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无权限" compact /> }}
           pagination={{
             total,

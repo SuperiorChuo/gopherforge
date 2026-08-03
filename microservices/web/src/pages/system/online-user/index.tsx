@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Table, Button, Popconfirm, Card } from 'antd'
+import { Table, Button, Popconfirm, Card, Space, Tag, Tooltip } from 'antd'
 import { message } from '@/utils/feedback'
 import { ReloadOutlined, DisconnectOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -10,6 +10,11 @@ import GlassEmpty from '@/components/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
+
+function tokenFingerprint(tokenId: string): string {
+  if (tokenId.length <= 16) return tokenId
+  return `${tokenId.slice(0, 8)}...${tokenId.slice(-6)}`
+}
 
 export default function OnlineUserPage() {
   const [list, setList] = useState<OnlineUser[]>([])
@@ -53,24 +58,35 @@ export default function OnlineUserPage() {
     {
       title: '用户',
       dataIndex: 'username',
-      width: 180,
-      render: (v: string, record) => (
-        <span className="online-user-cell">
-          <span className="live-dot" />
-          {record.nickname ? `${v}（${record.nickname}）` : v}
-        </span>
-      ),
+      width: 220,
+      ellipsis: true,
+      render: (v: string, record) => {
+        const text = record.nickname ? `${v}（${record.nickname}）` : v
+        return (
+          <span className="online-user-cell">
+            <span className="live-dot" />
+            <span className="list-primary-cell">{text}</span>
+          </span>
+        )
+      },
     },
     {
       title: 'Token',
       dataIndex: 'token_id',
-      ellipsis: true,
-      render: (v: string) => <span className="cell-mono">{v}</span>,
+      width: 190,
+      responsive: ['lg'],
+      render: (v: string) => (
+        <Tooltip title={v}>
+          <Tag variant="filled" className="cell-mono list-code-tag">{tokenFingerprint(v)}</Tag>
+        </Tooltip>
+      ),
     },
     {
       title: 'IP / 位置',
       dataIndex: 'ip',
-      width: 180,
+      width: 220,
+      ellipsis: true,
+      responsive: ['sm'],
       render: (v: string, record) => {
         const text = [v, record.location].filter(Boolean).join(' · ')
         return text ? <span className="cell-mono">{text}</span> : <span className="cell-muted">—</span>
@@ -79,9 +95,13 @@ export default function OnlineUserPage() {
     {
       title: '浏览器 / 系统',
       dataIndex: 'browser',
-      width: 180,
-      render: (v: string, record) =>
-        [v, record.os].filter(Boolean).join(' / ') || <span className="cell-muted">—</span>,
+      width: 200,
+      ellipsis: true,
+      responsive: ['md'],
+      render: (v: string, record) => {
+        const text = [v, record.os].filter(Boolean).join(' / ')
+        return text || <span className="cell-muted">—</span>
+      },
     },
     {
       title: '登录时间',
@@ -95,20 +115,34 @@ export default function OnlineUserPage() {
       dataIndex: 'access_token_expires_at',
       width: 170,
       className: 'cell-time',
+      responsive: ['lg'],
       render: formatDateTime,
     },
     {
       title: '操作',
-      width: 100,
-      render: (_, record) =>
-        hasPerm('system:online-user:kick') && (
-          <Popconfirm
-            title="确认踢出该用户?"
-            onConfirm={() => handleKick(record.token_id)}
-          >
-            <Button type="link" size="small" danger icon={<DisconnectOutlined />}>踢出</Button>
-          </Popconfirm>
-        ),
+      width: 80,
+      fixed: 'right',
+      align: 'center',
+      render: (_, record) => (
+        <Space size={4} className="table-actions compact-table-actions">
+          {hasPerm('system:online-user:kick') && (
+            <Popconfirm
+              title="确认踢出该用户?"
+              onConfirm={() => handleKick(record.token_id)}
+            >
+              <Tooltip title="踢出">
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  aria-label="踢出在线用户"
+                  icon={<DisconnectOutlined />}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
+        </Space>
+      ),
     },
   ]
 
@@ -136,6 +170,7 @@ export default function OnlineUserPage() {
           columns={columns}
           dataSource={list}
           loading={loading}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="当前没有在线会话" compact /> }}
           pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }}
         />

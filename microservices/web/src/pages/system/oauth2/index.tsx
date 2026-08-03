@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select, Switch,
-  Card, Alert, Tabs, Typography, InputNumber,
+  Card, Alert, Tabs, Typography, InputNumber, Tooltip, Row, Col,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
   PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
-  KeyOutlined,
+  KeyOutlined, StopOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import * as OAuth2API from '@/api/oauth2'
@@ -14,8 +14,10 @@ import type { OAuth2Client, OAuth2AccessToken, OAuth2ClientSaveData } from '@/ap
 import { CLIENT_TYPE } from '@/api/oauth2'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
+import StatusPill from '@/components/StatusPill'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
+import './styles.css'
 
 const { Text, Paragraph } = Typography
 
@@ -23,6 +25,56 @@ const GRANT_LABELS: Record<string, string> = {
   authorization_code: '授权码',
   refresh_token: '刷新令牌',
   client_credentials: '客户端凭证',
+}
+
+function CompactTagList({
+  values,
+  color,
+  labels,
+}: {
+  values?: string[]
+  color?: string
+  labels?: Record<string, string>
+}) {
+  const items = values ?? []
+  const visible = items.slice(0, 2)
+  const remaining = items.slice(2)
+  const display = (value: string) => labels?.[value] ?? value
+  const remainingLabel = remaining.map(display).join('、')
+
+  if (items.length === 0) return <span className="cell-muted">—</span>
+
+  return (
+    <Space size={4} className="oauth2-tag-list">
+      {visible.map((value, index) => (
+        <Tooltip key={`${value}-${index}`} title={display(value)}>
+          <Tag variant="filled" color={color} className="oauth2-list-tag">
+            {display(value)}
+          </Tag>
+        </Tooltip>
+      ))}
+      {remaining.length > 0 && (
+        <Tooltip title={remainingLabel}>
+          <Tag
+            variant="filled"
+            className="oauth2-list-tag oauth2-tag-more"
+            tabIndex={0}
+            aria-label={`另有 ${remaining.length} 项：${remainingLabel}`}
+          >
+            +{remaining.length}
+          </Tag>
+        </Tooltip>
+      )}
+    </Space>
+  )
+}
+
+function CopyableCode({ value }: { value: string }) {
+  return (
+    <Text type="secondary" copyable={{ text: value }} className="oauth2-copyable-code">
+      <span className="oauth2-copyable-code-value">{value}</span>
+    </Text>
+  )
 }
 
 // 一次性密钥展示弹窗：创建/重置后仅此一次可见
@@ -35,7 +87,11 @@ function SecretModal({ secret, onClose }: { secret: string | null; onClose: () =
         style={{ marginBottom: 12 }}
         message="请立即复制并妥善保存。关闭后将无法再次查看，只能重置。"
       />
-      <Paragraph copyable={{ text: secret ?? '', onCopy: () => message.success('已复制') }} code>
+      <Paragraph
+        copyable={{ text: secret ?? '', onCopy: () => message.success('已复制') }}
+        code
+        className="oauth2-secret-value"
+      >
         {secret}
       </Paragraph>
     </Modal>
@@ -173,39 +229,51 @@ function ClientsTab() {
   }
 
   const columns: ColumnsType<OAuth2Client> = [
-    { title: '应用名称', dataIndex: 'name', render: (v, r) => (
-      <Space direction="vertical" size={0}>
-        <Text strong>{v}</Text>
-        <Text type="secondary" copyable={{ text: r.client_id }} style={{ fontSize: 12 }}>{r.client_id}</Text>
-      </Space>
-    ) },
+    {
+      title: '应用名称',
+      dataIndex: 'name',
+      width: 260,
+      ellipsis: true,
+      render: (v, r) => (
+        <div className="oauth2-client-cell">
+          <Text strong className="oauth2-client-name">{v}</Text>
+          <CopyableCode value={r.client_id} />
+        </div>
+      ),
+    },
     { title: '类型', dataIndex: 'client_type', width: 90, responsive: ['sm'], render: (v) => (
-      v === CLIENT_TYPE.PUBLIC ? <Tag color="orange">公开</Tag> : <Tag color="blue">机密</Tag>
+      v === CLIENT_TYPE.PUBLIC ? <Tag variant="filled" color="orange">公开</Tag> : <Tag variant="filled" color="blue">机密</Tag>
     ) },
-    { title: '授权模式', dataIndex: 'grant_types', responsive: ['md'], render: (v: string[]) => (
-      <Space wrap size={4}>{v.map((g) => <Tag key={g}>{GRANT_LABELS[g] || g}</Tag>)}</Space>
+    { title: '授权模式', dataIndex: 'grant_types', width: 220, responsive: ['md'], render: (v: string[]) => (
+      <CompactTagList values={v} labels={GRANT_LABELS} />
     ) },
-    { title: 'Scopes', dataIndex: 'scopes', responsive: ['lg'], render: (v: string[]) => (
-      <Space wrap size={4}>{v.map((s) => <Tag key={s} color="geekblue">{s}</Tag>)}</Space>
+    { title: 'Scopes', dataIndex: 'scopes', width: 220, responsive: ['lg'], render: (v: string[]) => (
+      <CompactTagList values={v} color="geekblue" />
     ) },
     { title: '状态', dataIndex: 'status', width: 80, responsive: ['sm'], render: (v) => (
-      v === 1 ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>
+      v === 1 ? <StatusPill tone="success" label="启用" /> : <StatusPill tone="muted" label="停用" />
     ) },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, responsive: ['lg'], render: (v) => formatDateTime(v) },
+    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', responsive: ['lg'], render: (v) => formatDateTime(v) },
     {
-      title: '操作', key: 'action', width: 220, fixed: 'right', render: (_, record) => (
-        <Space size={4}>
+      title: '操作', key: 'action', width: 132, fixed: 'right', render: (_, record) => (
+        <Space size={4} className="table-actions oauth2-row-actions">
           {hasPerm('system:oauth2-client:update') && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
+            <Tooltip title="编辑">
+              <Button type="text" size="small" aria-label="编辑 OAuth2 应用" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            </Tooltip>
           )}
           {hasPerm('system:oauth2-client:reset-secret') && record.client_type === CLIENT_TYPE.CONFIDENTIAL && (
             <Popconfirm title="重置密钥？现有令牌将全部失效" onConfirm={() => handleResetSecret(record)}>
-              <Button type="link" size="small" icon={<KeyOutlined />}>重置密钥</Button>
+              <Tooltip title="重置密钥">
+                <Button type="text" size="small" aria-label="重置 OAuth2 客户端密钥" icon={<KeyOutlined />} />
+              </Tooltip>
             </Popconfirm>
           )}
           {hasPerm('system:oauth2-client:delete') && (
             <Popconfirm title="删除该应用？令牌与授权将一并清除" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              <Tooltip title="删除">
+                <Button type="text" size="small" danger aria-label="删除 OAuth2 应用" icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -219,11 +287,11 @@ function ClientsTab() {
         title="OAuth2 应用"
         total={total}
         extra={(
-          <Space wrap>
+          <Space wrap className="oauth2-toolbar-actions">
             <Input.Search
               allowClear
               placeholder="搜索名称 / client_id"
-              style={{ width: 220 }}
+              className="oauth2-toolbar-search"
               onSearch={(v) => setParams((p) => ({ ...p, page: 1, keyword: v }))}
             />
             <Button icon={<ReloadOutlined />} onClick={fetchList}>刷新</Button>
@@ -238,6 +306,9 @@ function ClientsTab() {
         loading={loading}
         columns={columns}
         dataSource={list}
+        className="oauth2-table"
+        rowClassName={(record) => (record.status === 0 ? 'oauth2-row-disabled' : '')}
+        scroll={{ x: 'max-content' }}
         locale={{ emptyText: <GlassEmpty text="还没有 OAuth2 应用" compact /> }}
         pagination={{
           current: params.page, pageSize: params.page_size, total,
@@ -286,39 +357,49 @@ function ClientsTab() {
                 .map((g) => ({ value: g, label: GRANT_LABELS[g] || g }))}
             />
           </Form.Item>
-          <Space size="large" style={{ display: 'flex' }}>
-            <Form.Item name="access_token_ttl" label="访问令牌有效期（秒）">
-              <InputNumber min={60} style={{ width: 160 }} />
-            </Form.Item>
-            <Form.Item name="refresh_token_ttl" label="刷新令牌有效期（秒）">
-              <InputNumber min={60} style={{ width: 160 }} />
-            </Form.Item>
-            <Form.Item name="auto_approve" label="自动授权" valuePropName="checked" tooltip="跳过用户确认页（仅建议一方可信应用）">
-              <Switch />
-            </Form.Item>
-          </Space>
-          <Space size="large" style={{ display: 'flex' }}>
-            <Form.Item
-              name="access_token_format"
-              label="令牌形态"
-              tooltip="不透明：每次校验都回授权服务器，吊销立即生效（默认）。JWT：RFC 9068 自包含令牌，资源服务器可用 JWKS 离线验签，但离线验签方在过期前看不到吊销——选 JWT 时请把有效期配短。"
-            >
-              <Select
-                style={{ width: 220 }}
-                options={[
-                  { value: 'opaque', label: '不透明串（默认，吊销即时生效）' },
-                  { value: 'jwt', label: 'JWT（可离线验签）' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item
-              name="token_rate_per_minute"
-              label="令牌端点配额（次/分钟）"
-              tooltip="token 与 introspect 端点按本应用计的每分钟上限；0 表示使用服务端默认值。吊销端点不受限。"
-            >
-              <InputNumber min={0} style={{ width: 160 }} placeholder="0=默认" />
-            </Form.Item>
-          </Space>
+          <Row gutter={16}>
+            <Col xs={24} sm={9}>
+              <Form.Item name="access_token_ttl" label="访问令牌有效期（秒）">
+                <InputNumber min={60} className="oauth2-full-control" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={9}>
+              <Form.Item name="refresh_token_ttl" label="刷新令牌有效期（秒）">
+                <InputNumber min={60} className="oauth2-full-control" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={6}>
+              <Form.Item name="auto_approve" label="自动授权" valuePropName="checked" tooltip="跳过用户确认页（仅建议一方可信应用）">
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col xs={24} sm={14}>
+              <Form.Item
+                name="access_token_format"
+                label="令牌形态"
+                tooltip="不透明：每次校验都回授权服务器，吊销立即生效（默认）。JWT：RFC 9068 自包含令牌，资源服务器可用 JWKS 离线验签，但离线验签方在过期前看不到吊销——选 JWT 时请把有效期配短。"
+              >
+                <Select
+                  className="oauth2-full-control"
+                  options={[
+                    { value: 'opaque', label: '不透明串（默认，吊销即时生效）' },
+                    { value: 'jwt', label: 'JWT（可离线验签）' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={10}>
+              <Form.Item
+                name="token_rate_per_minute"
+                label="令牌端点配额（次/分钟）"
+                tooltip="token 与 introspect 端点按本应用计的每分钟上限；0 表示使用服务端默认值。吊销端点不受限。"
+              >
+                <InputNumber min={0} className="oauth2-full-control" placeholder="0=默认" />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={2} placeholder="展示在授权确认页" />
           </Form.Item>
@@ -368,23 +449,25 @@ function TokensTab() {
   }
 
   const columns: ColumnsType<OAuth2AccessToken> = [
-    { title: 'client_id', dataIndex: 'client_id', render: (v) => <Text copyable style={{ fontSize: 12 }}>{v}</Text> },
-    { title: '用户', dataIndex: 'username', responsive: ['sm'], render: (v) => v || <Text type="secondary">（应用自身）</Text> },
-    { title: '授权模式', dataIndex: 'grant_type', width: 140, responsive: ['md'], render: (v) => GRANT_LABELS[v] || v },
-    { title: 'Scopes', dataIndex: 'scopes', responsive: ['lg'], render: (v: string[]) => (
-      <Space wrap size={4}>{(v || []).map((s) => <Tag key={s} color="geekblue">{s}</Tag>)}</Space>
+    { title: 'client_id', dataIndex: 'client_id', width: 260, ellipsis: true, render: (v) => <CopyableCode value={v} /> },
+    { title: '用户', dataIndex: 'username', width: 160, responsive: ['sm'], render: (v) => v || <Text type="secondary">（应用自身）</Text> },
+    { title: '授权模式', dataIndex: 'grant_type', width: 160, responsive: ['md'], render: (v) => GRANT_LABELS[v] || v },
+    { title: 'Scopes', dataIndex: 'scopes', width: 220, responsive: ['lg'], render: (v: string[]) => (
+      <CompactTagList values={v} color="geekblue" />
     ) },
     { title: '状态', key: 'state', width: 90, render: (_, r) => {
-      if (r.revoked_at) return <Tag>已吊销</Tag>
-      if (new Date(r.expires_at).getTime() < Date.now()) return <Tag color="orange">已过期</Tag>
-      return <Tag color="green">有效</Tag>
+      if (r.revoked_at) return <StatusPill tone="muted" label="已吊销" />
+      if (new Date(r.expires_at).getTime() < Date.now()) return <StatusPill tone="warning" label="已过期" pulse={false} />
+      return <StatusPill tone="success" label="有效" />
     } },
-    { title: '过期时间', dataIndex: 'expires_at', width: 170, responsive: ['md'], render: (v) => formatDateTime(v) },
+    { title: '过期时间', dataIndex: 'expires_at', width: 170, className: 'cell-time', responsive: ['md'], render: (v) => formatDateTime(v) },
     {
-      title: '操作', key: 'action', width: 100, fixed: 'right', render: (_, record) => (
+      title: '操作', key: 'action', width: 64, fixed: 'right', render: (_, record) => (
         hasPerm('system:oauth2-token:delete') && !record.revoked_at ? (
           <Popconfirm title="吊销该令牌？" onConfirm={() => handleRevoke(record.id)}>
-            <Button type="link" size="small" danger>吊销</Button>
+            <Tooltip title="吊销">
+              <Button type="text" size="small" danger aria-label="吊销 OAuth2 令牌" icon={<StopOutlined />} className="oauth2-token-action" />
+            </Tooltip>
           </Popconfirm>
         ) : null
       ),
@@ -397,11 +480,11 @@ function TokensTab() {
         title="已签发令牌"
         total={total}
         extra={(
-          <Space wrap>
+          <Space wrap className="oauth2-toolbar-actions">
             <Input.Search
               allowClear
               placeholder="按 client_id 过滤"
-              style={{ width: 240 }}
+              className="oauth2-toolbar-search"
               onSearch={(v) => setParams((p) => ({ ...p, page: 1, client_id: v }))}
             />
             <Button icon={<ReloadOutlined />} onClick={fetchList}>刷新</Button>
@@ -413,6 +496,8 @@ function TokensTab() {
         loading={loading}
         columns={columns}
         dataSource={list}
+        className="oauth2-table"
+        scroll={{ x: 'max-content' }}
         locale={{ emptyText: <GlassEmpty text="暂无签发的令牌" compact /> }}
         pagination={{
           current: params.page, pageSize: params.page_size, total,
@@ -426,13 +511,13 @@ function TokensTab() {
 
 export default function OAuth2Page() {
   return (
-    <Card variant="borderless" styles={{ body: { padding: 0 } }}>
+    <Card variant="borderless" className="oauth2-page" styles={{ body: { padding: 0 } }}>
       <Tabs
         defaultActiveKey="clients"
         style={{ padding: '0 16px' }}
         items={[
-          { key: 'clients', label: '应用管理', children: <div style={{ paddingBottom: 16 }}><ClientsTab /></div> },
-          { key: 'tokens', label: '令牌管理', children: <div style={{ paddingBottom: 16 }}><TokensTab /></div> },
+          { key: 'clients', label: '应用管理', children: <div className="oauth2-tab-panel"><ClientsTab /></div> },
+          { key: 'tokens', label: '令牌管理', children: <div className="oauth2-tab-panel"><TokensTab /></div> },
         ]}
       />
     </Card>
