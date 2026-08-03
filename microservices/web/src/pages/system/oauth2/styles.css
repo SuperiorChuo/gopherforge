@@ -1,0 +1,164 @@
+.oauth2-page .oauth2-tab-panel {
+  min-width: 0;
+  padding-bottom: 16px;
+}
+
+.oauth2-page .oauth2-table .ant-table-thead > tr > th {
+  white-space: nowrap;
+}
+
+.oauth2-page .oauth2-client-cell {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.oauth2-page .oauth2-client-name {
+  display: block;
+  overflow: hidden;
+  color: rgba(248, 250, 252, 0.94);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oauth2-page .oauth2-copyable-code.ant-typography {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 0;
+  font-size: 12px;
+}
+
+.oauth2-page .oauth2-copyable-code-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oauth2-page .oauth2-copyable-code .ant-typography-copy {
+  flex: 0 0 auto;
+  margin-inline-start: 0;
+}
+
+.oauth2-page .oauth2-tag-list {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: nowrap;
+}
+
+.oauth2-page .oauth2-tag-list > .ant-space-item {
+  min-width: 0;
+}
+
+.oauth2-page .oauth2-list-tag {
+  max-width: 78px;
+  margin-inline-end: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oauth2-page .oauth2-tag-more {
+  min-width: 34px;
+  max-width: none;
+  flex: 0 0 auto;
+  cursor: help;
+  text-align: center;
+}
+
+.oauth2-page .oauth2-row-actions {
+  flex-wrap: nowrap;
+}
+
+.oauth2-page .oauth2-row-actions .ant-btn,
+.oauth2-page .oauth2-token-action {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding-inline: 0;
+  border: 1px solid transparent;
+}
+
+.oauth2-page .oauth2-row-actions .ant-btn:hover,
+.oauth2-page .oauth2-token-action:hover {
+  border-color: rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.oauth2-page .oauth2-row-disabled > td {
+  color: rgba(148, 163, 184, 0.68);
+  background: rgba(100, 116, 139, 0.045) !important;
+}
+
+.oauth2-page .oauth2-row-disabled .oauth2-client-name,
+.oauth2-page .oauth2-row-disabled .ant-typography {
+  color: rgba(148, 163, 184, 0.72);
+}
+
+.oauth2-page .oauth2-row-disabled .ant-tag {
+  opacity: 0.66;
+}
+
+.oauth2-page .oauth2-row-disabled .oauth2-row-actions {
+  opacity: 1;
+}
+
+.oauth2-page .oauth2-row-disabled:hover > td {
+  background: rgba(100, 116, 139, 0.08) !important;
+}
+
+.oauth2-page .oauth2-toolbar-search {
+  width: 240px;
+  max-width: 100%;
+}
+
+.oauth2-page .oauth2-full-control {
+  width: 100%;
+}
+
+.oauth2-secret-value.ant-typography {
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.oauth2-secret-value.ant-typography code {
+  white-space: normal;
+}
+
+[data-theme='light'] .oauth2-page .oauth2-client-name {
+  color: #1e293b;
+}
+
+[data-theme='light'] .oauth2-page .oauth2-row-disabled > td {
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.08) !important;
+}
+
+[data-theme='light'] .oauth2-page .oauth2-row-disabled .oauth2-client-name,
+[data-theme='light'] .oauth2-page .oauth2-row-disabled .ant-typography {
+  color: #64748b;
+}
+
+[data-theme='light'] .oauth2-page .oauth2-row-disabled:hover > td {
+  background: rgba(148, 163, 184, 0.13) !important;
+}
+
+@media (max-width: 575px) {
+  .oauth2-page .oauth2-toolbar-actions {
+    width: 100%;
+  }
+
+  .oauth2-page .oauth2-toolbar-actions > .ant-space-item:first-child {
+    flex: 1 1 100%;
+  }
+
+  .oauth2-page .oauth2-toolbar-search {
+    width: 100%;
+  }
+}

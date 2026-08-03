@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  Card, Tabs, InputNumber,
+  Card, Tabs, InputNumber, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -108,12 +108,20 @@ function DictTypeCRUD() {
   }
 
   const columns: ColumnsType<DictType> = [
-    { title: 'ID', dataIndex: 'id', width: 60 },
-    { title: '名称', dataIndex: 'name' },
+    { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      width: 220,
+      ellipsis: true,
+      render: (value: string) => <span className="list-primary-cell">{value}</span>,
+    },
     {
       title: '编码',
       dataIndex: 'code',
-      render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
+      width: 260,
+      responsive: ['sm'],
+      render: (v: string) => <Tag variant="filled" className="cell-mono list-code-tag">{v}</Tag>,
     },
     {
       title: '状态',
@@ -121,18 +129,23 @@ function DictTypeCRUD() {
       width: 80,
       render: (v: number) => <EnableStatusPill value={v} />,
     },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: '操作',
-      width: 140,
+      width: 96,
+      fixed: 'right',
       render: (_, record) => (
-        <Space size={0} className="table-actions">
+        <Space size={4} className="table-actions compact-table-actions">
           {hasPerm('system:dict:update') && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
+            <Tooltip title="编辑">
+              <Button type="text" size="small" aria-label="编辑字典类型" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            </Tooltip>
           )}
           {hasPerm('system:dict:delete') && (
             <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              <Tooltip title="删除">
+                <Button type="text" size="small" danger aria-label="删除字典类型" icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -180,6 +193,8 @@ function DictTypeCRUD() {
           columns={columns}
           dataSource={list}
           loading={loading}
+          rowClassName={(record) => record.status === 0 ? 'list-row-disabled' : ''}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无字典类型" compact /> }}
           pagination={{
             total,
@@ -230,6 +245,7 @@ function DictItemCRUD() {
   const [editRecord, setEditRecord] = useState<DictItem | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
+  const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
 
   useEffect(() => {
@@ -257,6 +273,15 @@ function DictItemCRUD() {
   useEffect(() => {
     if (selectedTypeId) fetchItems(selectedTypeId, params)
   }, [selectedTypeId, params])
+
+  const handleSearch = (values: { keyword?: string; status?: number }) => {
+    setParams({ ...params, page: 1, ...values })
+  }
+
+  const handleReset = () => {
+    searchForm.resetFields()
+    setParams({ page: 1, page_size: 10 })
+  }
 
   const openCreate = () => {
     setEditRecord(null)
@@ -313,14 +338,22 @@ function DictItemCRUD() {
   }
 
   const columns: ColumnsType<DictItem> = [
-    { title: 'ID', dataIndex: 'id', width: 60 },
-    { title: '标签', dataIndex: 'label' },
+    { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
+    {
+      title: '标签',
+      dataIndex: 'label',
+      width: 220,
+      ellipsis: true,
+      render: (value: string) => <span className="list-primary-cell">{value}</span>,
+    },
     {
       title: '值',
       dataIndex: 'value',
-      render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
+      width: 260,
+      responsive: ['sm'],
+      render: (v: string) => <Tag variant="filled" className="cell-mono list-code-tag">{v}</Tag>,
     },
-    { title: '排序', dataIndex: 'sort', width: 60 },
+    { title: '排序', dataIndex: 'sort', width: 70, responsive: ['md'] },
     {
       title: '状态',
       dataIndex: 'status',
@@ -329,15 +362,20 @@ function DictItemCRUD() {
     },
     {
       title: '操作',
-      width: 140,
+      width: 96,
+      fixed: 'right',
       render: (_, record) => (
-        <Space size={0} className="table-actions">
+        <Space size={4} className="table-actions compact-table-actions">
           {hasPerm('system:dict:update') && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
+            <Tooltip title="编辑">
+              <Button type="text" size="small" aria-label="编辑字典项" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            </Tooltip>
           )}
           {hasPerm('system:dict:delete') && (
             <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              <Tooltip title="删除">
+                <Button type="text" size="small" danger aria-label="删除字典项" icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -348,21 +386,37 @@ function DictItemCRUD() {
   return (
     <div className="page-list dict-item-page">
       <Card className="list-filter-card" bordered={false}>
-        <Space>
-          <span>选择字典类型：</span>
-          <Select
-            style={{ width: 240 }}
-            value={selectedTypeId}
-            onChange={(v) => { setSelectedTypeId(v); setParams({ page: 1, page_size: 10 }) }}
-            placeholder="请选择字典类型"
-            showSearch
-            optionFilterProp="children"
-          >
-            {dictTypes.map((t) => (
-              <Select.Option key={t.id} value={t.id}>{t.name} ({t.code})</Select.Option>
-            ))}
-          </Select>
-        </Space>
+        <Form form={searchForm} layout="inline" className="list-filter-form" onFinish={handleSearch}>
+          <div className="dict-type-picker">
+            <span className="dict-type-picker-label">字典类型</span>
+            <Select
+              value={selectedTypeId}
+              onChange={(v) => { setSelectedTypeId(v); setParams({ ...params, page: 1 }) }}
+              placeholder="请选择字典类型"
+              showSearch
+              optionFilterProp="children"
+            >
+              {dictTypes.map((t) => (
+                <Select.Option key={t.id} value={t.id}>{t.name} ({t.code})</Select.Option>
+              ))}
+            </Select>
+          </div>
+          <Form.Item name="keyword">
+            <Input placeholder="搜索标签 / 值" prefix={<SearchOutlined />} allowClear style={{ width: 220 }} />
+          </Form.Item>
+          <Form.Item name="status">
+            <Select placeholder="状态" style={{ width: 100 }} allowClear>
+              <Select.Option value={1}>启用</Select.Option>
+              <Select.Option value={0}>禁用</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item className="list-filter-actions">
+            <Space>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+            </Space>
+          </Form.Item>
+        </Form>
       </Card>
       <Card className="list-main-card" bordered={false}>
         <TableToolbar
@@ -391,6 +445,8 @@ function DictItemCRUD() {
           columns={columns}
           dataSource={list}
           loading={loading}
+          rowClassName={(record) => record.status === 0 ? 'list-row-disabled' : ''}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="该类型下暂无字典项" compact /> }}
           pagination={{
             total,
