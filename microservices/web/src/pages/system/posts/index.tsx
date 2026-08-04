@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  Card, InputNumber, Row, Col,
+  Card, InputNumber, Row, Col, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -132,18 +132,21 @@ export default function PostPage() {
     {
       title: '岗位名称',
       dataIndex: 'name',
+      width: 220,
+      ellipsis: true,
       render: (v: string) => (
-        <span style={{ fontWeight: 500 }}>
+        <span className="post-name-cell">
           <IdcardOutlined className="tree-title-icon" />
-          {v}
+          <span className="post-name-text">{v}</span>
         </span>
       ),
     },
     {
       title: '编码',
       dataIndex: 'code',
-      width: 180,
-      render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
+      width: 200,
+      responsive: ['sm'],
+      render: (v: string) => <Tag variant="filled" className="cell-mono post-code-tag">{v}</Tag>,
     },
     { title: '排序', dataIndex: 'sort', width: 70 },
     {
@@ -155,31 +158,40 @@ export default function PostPage() {
     {
       title: '备注',
       dataIndex: 'remark',
+      width: 280,
       ellipsis: true,
+      responsive: ['md'],
       render: (v: string) => v || <span className="cell-muted">—</span>,
     },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: '操作',
-      width: 200,
+      width: 132,
+      fixed: 'right',
       render: (_, record) => (
-        <Space size={0} className="table-actions">
+        <Space size={4} className="table-actions post-row-actions">
           {hasPerm('system:post:update') && (
-            <Button
-              type="link"
-              size="small"
-              icon={<PoweroffOutlined />}
-              onClick={() => handleToggleStatus(record)}
-            >
-              {record.status === 1 ? '停用' : '启用'}
-            </Button>
+            <Tooltip title={record.status === 1 ? '停用' : '启用'}>
+              <Button
+                type="text"
+                size="small"
+                className={record.status === 1 ? 'post-status-stop' : 'post-status-start'}
+                aria-label={`${record.status === 1 ? '停用' : '启用'}岗位`}
+                icon={<PoweroffOutlined />}
+                onClick={() => handleToggleStatus(record)}
+              />
+            </Tooltip>
           )}
           {hasPerm('system:post:update') && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
+            <Tooltip title="编辑">
+              <Button type="text" size="small" aria-label="编辑岗位" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            </Tooltip>
           )}
           {hasPerm('system:post:delete') && (
             <Popconfirm title="确认删除该岗位?" description="仍有用户关联时将无法删除" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              <Tooltip title="删除">
+                <Button type="text" size="small" danger aria-label="删除岗位" icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -203,7 +215,7 @@ export default function PostPage() {
           <Form.Item name="status">
             <Select placeholder="状态" style={{ width: 100 }} allowClear>
               <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>停用</Select.Option>
+              <Select.Option value={0}>禁用</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item className="list-filter-actions">
@@ -234,6 +246,8 @@ export default function PostPage() {
           columns={columns}
           dataSource={list}
           loading={loading}
+          rowClassName={(record) => (record.status === 0 ? 'post-row-disabled' : '')}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无岗位" compact /> }}
           pagination={{
             total,
@@ -258,28 +272,28 @@ export default function PostPage() {
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="name" label="岗位名称" rules={[{ required: true, message: '请输入岗位名称' }]}>
                 <Input placeholder="如：研发工程师" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="code" label="岗位编码" rules={[{ required: true, message: '请输入岗位编码' }]}>
                 <Input placeholder="如：dev" />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="sort" label="排序" initialValue={0}>
                 <InputNumber style={{ width: '100%' }} min={0} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="status" label="状态" initialValue={1}>
                 <Select>
                   <Select.Option value={1}>启用</Select.Option>
-                  <Select.Option value={0}>停用</Select.Option>
+                  <Select.Option value={0}>禁用</Select.Option>
                 </Select>
               </Form.Item>
             </Col>

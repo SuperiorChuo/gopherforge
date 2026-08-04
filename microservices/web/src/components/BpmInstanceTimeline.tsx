@@ -231,7 +231,7 @@ export default function BpmInstanceTimeline({
       {showForm && instance.form_snapshot && Object.keys(instance.form_snapshot).length > 0 && (
         <Descriptions
           size="small"
-          column={2}
+          column={{ xs: 1, sm: 2 }}
           bordered
           style={{ marginBottom: 16 }}
           items={(() => {
