@@ -2,7 +2,9 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 	"unicode"
@@ -21,12 +23,13 @@ import (
 // UserService handles user authentication.
 type UserService struct {
 	userDAO      auth.UserDAO
+	inviteDAO    *auth.InviteDAO
 	policyReader runtimeconfig.SecurityPolicyReader
 }
 
 // NewUserServiceWithDB builds a UserService backed by an injected database handle.
 func NewUserServiceWithDB(db *gorm.DB) UserService {
-	return UserService{userDAO: *auth.NewUserDAO(db)}
+	return UserService{userDAO: *auth.NewUserDAO(db), inviteDAO: auth.NewInviteDAO(db)}
 }
 
 // LoginRequest is the login request payload.
@@ -50,9 +53,10 @@ type LoginResponse struct {
 
 // RegisterRequest is the registration request payload.
 type RegisterRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
-	Email    string `json:"email" binding:"required,email"`
+	Username    string `json:"username" binding:"required"`
+	Password    string `json:"password" binding:"required"`
+	Email       string `json:"email" binding:"required,email"`
+	InviteToken string `json:"invite_token" binding:"required"` // 邀请制：无有效 token 拒绝
 }
 
 // ChangePasswordRequest is the password change request payload.
@@ -88,6 +92,8 @@ var (
 	ErrUsernameAlreadyExists = errors.New("username already exists")
 	// ErrEmailAlreadyExists indicates the email is used by another user.
 	ErrEmailAlreadyExists = errors.New("email already exists")
+	// ErrInviteInvalid indicates the invite token is missing/invalid/used/expired/revoked.
+	ErrInviteInvalid = errors.New("邀请链接无效或已使用，请联系管理员")
 	// ErrPhoneAlreadyExists indicates the phone number is used by another user.
 	ErrPhoneAlreadyExists = errors.New("phone already exists")
 )
@@ -232,8 +238,15 @@ func (s *UserService) LoginPasswordWithTenantContext(ctx context.Context, userna
 }
 
 func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) (*model.User, error) {
-	ctx = sharedaudit.WithTenantID(sharedaudit.WithActor(ctx, "anonymous", "self-registration"), 1)
-	_, err := s.userDAO.GetUserByUsernameContext(ctx, req.Username)
+	// 邀请制：必须携带有效邀请 token（无公开自注册路径）。
+	invite, err := s.consumeInvite(ctx, req.InviteToken)
+	if err != nil {
+		return nil, err
+	}
+	tenantID := invite.TenantID
+	ctx = sharedaudit.WithTenantID(sharedaudit.WithActor(ctx, "anonymous", "invited-registration"), tenantID)
+
+	_, err = s.userDAO.GetUserByUsernameContext(ctx, req.Username)
 	if err == nil {
 		return nil, ErrUsernameAlreadyExists
 	}
@@ -255,23 +268,55 @@ func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) 
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("password hashing failed")
 	}
 
 	now := time.Now()
 	user := &model.User{
-		Username:          req.Username,
-		Password:          string(hashedPassword),
-		Email:             req.Email,
-		Status:            1,
-		PasswordChangedAt: &now,
+		TenantID:           tenantID,
+		Username:           req.Username,
+		Password:           string(hashedPassword),
+		Email:              req.Email,
+		Status:             1,
+		MustChangePassword: true, // 首次登录强制改密
+		PasswordChangedAt:  &now,
 	}
 
 	if err := s.userDAO.CreateUserContext(ctx, user); err != nil {
 		return nil, err
 	}
+	if invite.RoleID > 0 {
+		if err := s.inviteDAO.AssignRoleContext(ctx, user.ID, invite.RoleID, tenantID); err != nil {
+			return nil, err
+		}
+	}
 
 	return user, nil
+}
+
+// consumeInvite 校验邀请 token 有效性并原子消费（并发双用仅一次成功）。
+func (s *UserService) consumeInvite(ctx context.Context, token string) (*model.Invite, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return nil, ErrInviteInvalid
+	}
+	hash := sha256.Sum256([]byte(token))
+	inv, err := s.inviteDAO.GetByTokenHashContext(ctx, fmt.Sprintf("%x", hash[:]))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInviteInvalid
+		}
+		return nil, err
+	}
+	now := time.Now()
+	if inv.UsedAt != nil || inv.RevokedAt != nil || now.After(inv.ExpiresAt) {
+		return nil, ErrInviteInvalid
+	}
+	// 原子消费：条件更新（未用/未撤销/未过期），并发下仅一次成功。
+	if err := s.inviteDAO.MarkUsedContext(ctx, inv.ID); err != nil {
+		return nil, ErrInviteInvalid
+	}
+	return inv, nil
 }
 
 func (s *UserService) GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error) {

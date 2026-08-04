@@ -30,6 +30,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	postAPI := system.NewPostAPI()
 	var tenantAPI *system.TenantAPI
 	var tenantPackageAPI *system.TenantPackageAPI
+	var inviteAPI *system.InviteAPI
 	if deps.DB != nil {
 		userMgmtAPI = system.NewUserManagementAPIWithService(systemsvc.NewUserServiceWithDB(deps.DB))
 		roleMgmtAPI = system.NewRoleManagementAPIWithService(systemsvc.NewRoleServiceWithDB(deps.DB))
@@ -38,6 +39,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		postAPI = system.NewPostAPIWithService(systemsvc.NewPostServiceWithDB(deps.DB))
 		tenantAPI = system.NewTenantAPIWithService(systemsvc.NewTenantServiceWithDB(deps.DB))
 		tenantPackageAPI = system.NewTenantPackageAPIWithService(systemsvc.NewTenantPackageServiceWithDB(deps.DB))
+		inviteAPI = system.NewInviteAPIWithService(systemsvc.NewInviteServiceWithDB(deps.DB))
 	}
 
 	protected := api.Group("/")
@@ -49,6 +51,13 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 			protected.GET("/tenants/:id", middleware.PermissionMiddleware("system:tenant:detail"), tenantAPI.GetTenant)
 			protected.PUT("/tenants/:id", middleware.PermissionMiddleware("system:tenant:update"), tenantAPI.UpdateTenant)
 			protected.DELETE("/tenants/:id", middleware.PermissionMiddleware("system:tenant:delete"), tenantAPI.DeleteTenant)
+		}
+
+		if inviteAPI != nil {
+			// 邀请注册：管理员发邀请（返回一次性链接），注册端消费。
+			protected.POST("/invites", middleware.PermissionMiddleware("system:user:create"), inviteAPI.CreateInvite)
+			protected.GET("/invites", middleware.PermissionMiddleware("system:user:list"), inviteAPI.ListInvites)
+			protected.DELETE("/invites/:id", middleware.PermissionMiddleware("system:user:create"), inviteAPI.RevokeInvite)
 		}
 
 		if tenantPackageAPI != nil {

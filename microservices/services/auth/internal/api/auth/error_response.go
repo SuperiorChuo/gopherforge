@@ -55,6 +55,8 @@ func writeAuthServiceError(c *gin.Context, operation string, err error) {
 		response.BadRequestWithCode(c, response.ErrorCodeAuthEmailAlreadyExists, authsvc.ErrEmailAlreadyExists.Error())
 	case errors.Is(err, authsvc.ErrPhoneAlreadyExists):
 		response.BadRequestWithCode(c, response.ErrorCodeAuthPhoneAlreadyExists, authsvc.ErrPhoneAlreadyExists.Error())
+	case errors.Is(err, authsvc.ErrInviteInvalid):
+		response.BadRequest(c, authsvc.ErrInviteInvalid.Error())
 	case errors.Is(err, authsvc.ErrUserNotFound):
 		response.NotFoundWithCode(c, response.ErrorCodeAuthUserNotFound, authsvc.ErrUserNotFound.Error())
 	case errors.Is(err, authsvc.ErrOAuthAlreadyBound):
