@@ -95,7 +95,18 @@ type DefaultAdminConfig struct {
 }
 
 type NotificationConfig struct {
-	Email EmailConfig `yaml:"email"`
+	Email EmailConfig          `yaml:"email"`
+	Alert AlertChannelsConfig  `yaml:"alert"`
+}
+
+// AlertChannelsConfig configures the additional alert notification channels
+// of the built-in rule engine: in-console station messages (notify service
+// internal endpoint) and WeCom robot webhook. Email lives in EmailConfig. A
+// channel whose required value is empty is treated as not configured/skipped.
+type AlertChannelsConfig struct {
+	StationBaseURL string `yaml:"station_base_url"`
+	StationToken   string `yaml:"station_token"`
+	WeComWebhook   string `yaml:"wecom_webhook"`
 }
 
 type EmailConfig struct {
@@ -524,6 +535,9 @@ func replaceEnvVars(config *Config) {
 	config.Notification.Email.BodyTemplate = getEnvString("EMAIL_BODY_TEMPLATE", config.Notification.Email.BodyTemplate)
 	config.Notification.Email.UseTLS = getEnvBool("EMAIL_USE_TLS", config.Notification.Email.UseTLS)
 	config.Notification.Email.StartTLS = getEnvBool("EMAIL_START_TLS", config.Notification.Email.StartTLS)
+	config.Notification.Alert.StationBaseURL = getEnvString("NOTIFY_INTERNAL_BASE_URL", config.Notification.Alert.StationBaseURL)
+	config.Notification.Alert.StationToken = getEnvString("NOTIFY_INTERNAL_TOKEN", config.Notification.Alert.StationToken)
+	config.Notification.Alert.WeComWebhook = getEnvString("ALERT_WECOM_WEBHOOK_URL", config.Notification.Alert.WeComWebhook)
 	config.Observability.RequestIDHeader = getEnvString("REQUEST_ID_HEADER", config.Observability.RequestIDHeader)
 	config.Observability.MetricsEnabled = getEnvBool("METRICS_ENABLED", config.Observability.MetricsEnabled)
 	config.Observability.Tracing.Enabled = getEnvBool("TRACING_ENABLED", config.Observability.Tracing.Enabled)

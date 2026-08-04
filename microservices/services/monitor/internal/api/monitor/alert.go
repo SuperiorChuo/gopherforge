@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
+	"github.com/go-admin-kit/server/internal/model"
 	"github.com/go-admin-kit/server/internal/pkg/pagination"
 	monitorsvc "github.com/go-admin-kit/server/internal/service/monitor"
 	"github.com/go-admin-kit/services/shared/pkg/response"
@@ -21,12 +23,14 @@ type AlertAPI struct {
 type saveAlertRuleRequest struct {
 	Name            string   `json:"name"`
 	Metric          string   `json:"metric"`
-	Operator        string   `json:"operator"`
-	Threshold       *float64 `json:"threshold"`
-	DurationSeconds *int64   `json:"duration_seconds"`
-	Severity        string   `json:"severity"`
-	Enabled         *bool    `json:"enabled"`
-	NotifyOnResolve *bool    `json:"notify_on_resolve"`
+	Operator        string           `json:"operator"`
+	Threshold       *float64         `json:"threshold"`
+	DurationSeconds *int64           `json:"duration_seconds"`
+	Severity        string           `json:"severity"`
+	Enabled         *bool            `json:"enabled"`
+	NotifyOnResolve *bool            `json:"notify_on_resolve"`
+	NotifyChannels  []string         `json:"notify_channels"`
+	SilenceUntil    *time.Time       `json:"silence_until"`
 }
 
 func NewAlertAPIWithService(service *monitorsvc.AlertService) *AlertAPI {
@@ -193,6 +197,8 @@ func bindAlertRuleRequest(c *gin.Context) (monitorsvc.AlertRuleInput, bool) {
 		Severity:        request.Severity,
 		Enabled:         enabled,
 		NotifyOnResolve: notifyOnResolve,
+		NotifyChannels:  append(model.NotifyChannelList(nil), request.NotifyChannels...),
+		SilenceUntil:    request.SilenceUntil,
 	}, true
 }
 

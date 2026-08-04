@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Card,
+  DatePicker,
   Form,
   Input,
   InputNumber,
@@ -15,6 +16,7 @@ import {
   Tag,
   Tooltip,
 } from 'antd'
+import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import {
   BellOutlined,
@@ -27,6 +29,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons'
 import {
+  ALERT_CHANNELS,
   createAlertRule,
   deleteAlertRule,
   evaluateAlertRule,
@@ -54,6 +57,9 @@ import { message } from '@/utils/feedback'
 import './style.css'
 
 type ViewMode = 'rules' | 'events'
+
+// 表单里 silence_until 由 DatePicker 持有为 dayjs，提交时再转 ISO 字符串
+type AlertRuleFormValues = Omit<AlertRulePayload, 'silence_until'> & { silence_until: dayjs.Dayjs | null }
 
 const OPERATOR_LABELS: Record<string, string> = {
   gt: '大于',
@@ -108,7 +114,7 @@ export default function AlertRulesPage() {
   const [editingRule, setEditingRule] = useState<MonitorAlertRule | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [evaluatingID, setEvaluatingID] = useState<number | null>(null)
-  const [form] = Form.useForm<AlertRulePayload>()
+  const [form] = Form.useForm<AlertRuleFormValues>()
   const [ruleFilterForm] = Form.useForm()
   const [eventFilterForm] = Form.useForm()
   const selectedMetricKey = Form.useWatch('metric', form)
@@ -180,6 +186,8 @@ export default function AlertRulesPage() {
       severity: 'warning',
       enabled: true,
       notify_on_resolve: true,
+      notify_channels: [],
+      silence_until: null,
     })
     setModalOpen(true)
   }
@@ -195,6 +203,8 @@ export default function AlertRulesPage() {
       severity: rule.severity,
       enabled: rule.enabled,
       notify_on_resolve: rule.notify_on_resolve,
+      notify_channels: rule.notify_channels ?? [],
+      silence_until: rule.silence_until ? dayjs(rule.silence_until) : null,
     })
     setModalOpen(true)
   }
@@ -202,13 +212,17 @@ export default function AlertRulesPage() {
   const submitRule = async () => {
     const values = await form.validateFields().catch(() => null)
     if (!values) return
+    const payload: AlertRulePayload = {
+      ...values,
+      silence_until: values.silence_until ? values.silence_until.toISOString() : null,
+    }
     setSubmitting(true)
     try {
       if (editingRule) {
-        await updateAlertRule(editingRule.id, values)
+        await updateAlertRule(editingRule.id, payload)
         message.success('告警规则已更新')
       } else {
-        await createAlertRule(values)
+        await createAlertRule(payload)
         message.success('告警规则已创建')
       }
       setModalOpen(false)
@@ -647,6 +661,19 @@ export default function AlertRulesPage() {
             </Form.Item>
             <Form.Item name="notify_on_resolve" label="恢复时通知" valuePropName="checked">
               <Switch />
+            </Form.Item>
+          </div>
+          <div className="alert-form-grid">
+            <Form.Item name="notify_channels" label="通知渠道" extra="不选则使用所有已配置渠道">
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder="全部已配置渠道"
+                options={ALERT_CHANNELS}
+              />
+            </Form.Item>
+            <Form.Item name="silence_until" label="静默至" extra="维护窗口内不评估、不通知">
+              <DatePicker showTime style={{ width: '100%' }} placeholder="不静默" />
             </Form.Item>
           </div>
         </Form>

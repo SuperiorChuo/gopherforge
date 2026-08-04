@@ -10,6 +10,7 @@ import {
 import { getRedisInfo } from '@/api/monitor'
 import { formatDuration } from '@/utils/format'
 import CountUpValue from '@/components/CountUpValue'
+import MetricTrendCard from '@/components/MetricTrendCard'
 import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
 
 interface MiniStat {
@@ -164,7 +165,7 @@ export default function RedisMonitorPage() {
             }
             style={{ height: '100%', '--i': 5 } as React.CSSProperties}
           >
-            <Descriptions column={2} bordered size="small">
+            <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
               <Descriptions.Item label="版本">{String(server?.version ?? '-')}</Descriptions.Item>
               <Descriptions.Item label="运行时间">
                 {formatDuration(Number(server?.uptime_seconds ?? 0))}
@@ -189,6 +190,15 @@ export default function RedisMonitorPage() {
               </Descriptions.Item>
             </Descriptions>
           </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[20, 20]}>
+        <Col xs={24} lg={12}>
+          <MetricTrendCard title="内存使用趋势" metric="redis.memory.used_bytes" />
+        </Col>
+        <Col xs={24} lg={12}>
+          <MetricTrendCard title="客户端连接趋势" metric="redis.clients.connected" />
         </Col>
       </Row>
     </div>

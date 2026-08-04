@@ -57,6 +57,8 @@ type AlertRuleInput struct {
 	Severity        string
 	Enabled         bool
 	NotifyOnResolve bool
+	NotifyChannels  model.NotifyChannelList
+	SilenceUntil    *time.Time
 }
 
 type AlertStore interface {
@@ -80,7 +82,10 @@ type AlertNotification struct {
 }
 
 type AlertNotifier interface {
-	NotifyContext(ctx context.Context, event *model.MonitorAlertEvent) AlertNotification
+	// NotifyContext delivers an alert event. rule carries the notify_channel
+	// selection; event is what fired/resolved. Returns a per-call result that
+	// is persisted back onto the event.
+	NotifyContext(ctx context.Context, rule *model.MonitorAlertRule, event *model.MonitorAlertEvent) AlertNotification
 }
 
 type AlertService struct {
@@ -98,7 +103,7 @@ func NewAlertService(db *gorm.DB, redisClient redis.UniversalClient) *AlertServi
 	return NewAlertServiceWithDependencies(
 		store,
 		NewDefaultAlertMetricCollector(db, redisClient),
-		DefaultAlertEmailNotifier(),
+		NewMultiChannelNotifier(),
 	)
 }
 
@@ -156,6 +161,8 @@ func (s *AlertService) CreateRuleContext(ctx context.Context, input AlertRuleInp
 		Severity:        input.Severity,
 		Enabled:         input.Enabled,
 		NotifyOnResolve: input.NotifyOnResolve,
+		NotifyChannels:  append(model.NotifyChannelList(nil), input.NotifyChannels...),
+		SilenceUntil:    input.SilenceUntil,
 		State:           AlertStateOK,
 	}
 	if err := s.store.CreateRuleContext(ctx, rule); err != nil {
@@ -197,6 +204,11 @@ func (s *AlertService) EvaluateRuleContext(ctx context.Context, id uint) (*model
 		return nil, nil, ErrAlertRuleDisabled
 	}
 	evaluatedAt := s.now().UTC()
+	// During a silence window (maintenance) the rule is not evaluated, so no
+	// transitions happen and no notification is sent until it ends.
+	if rule.SilenceUntil != nil && evaluatedAt.Before(*rule.SilenceUntil) {
+		return rule, nil, nil
+	}
 	value, err := s.collector.CollectContext(ctx, rule.Metric)
 	if err != nil {
 		message := truncateAlertText(err.Error())
@@ -232,7 +244,7 @@ func (s *AlertService) EvaluateRuleContext(ctx context.Context, id uint) (*model
 	notification := AlertNotification{Status: AlertNotifySkipped, NotifiedAt: s.now().UTC()}
 	if event.Status != AlertEventResolved || updated.NotifyOnResolve {
 		if s.notifier != nil {
-			notification = s.notifier.NotifyContext(ctx, event)
+			notification = s.notifier.NotifyContext(ctx, updated, event)
 		}
 	}
 	if notification.NotifiedAt.IsZero() {
@@ -329,6 +341,8 @@ func applyAlertRuleInput(rule *model.MonitorAlertRule, input AlertRuleInput) {
 	rule.Severity = input.Severity
 	rule.Enabled = input.Enabled
 	rule.NotifyOnResolve = input.NotifyOnResolve
+	rule.NotifyChannels = append(model.NotifyChannelList(nil), input.NotifyChannels...)
+	rule.SilenceUntil = input.SilenceUntil
 	if conditionChanged || !input.Enabled {
 		resetAlertRuleState(rule)
 	}

@@ -7,10 +7,20 @@ import {
   HddOutlined,
   CloudServerOutlined,
   CodeOutlined,
+  BellOutlined,
 } from '@ant-design/icons'
-import { getServerInfo, getServicesHealth, type ServiceHealthRow } from '@/api/monitor'
-import { formatBytes } from '@/utils/format'
+import {
+  getAlertEvents,
+  getAlertSummary,
+  getServerInfo,
+  getServicesHealth,
+  type MonitorAlertEvent,
+  type MonitorAlertSummary,
+  type ServiceHealthRow,
+} from '@/api/monitor'
+import { formatBytes, formatDateTime } from '@/utils/format'
 import MonitorGaugeCard from '@/components/MonitorGaugeCard'
+import MetricTrendCard from '@/components/MetricTrendCard'
 import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
 
 export default function ServerMonitorPage() {
@@ -58,6 +68,8 @@ export default function ServerMonitorPage() {
 
       <ServicesHealthCard />
 
+      <AlertOverviewCard />
+
       <Row gutter={[20, 20]}>
         <Col xs={24} md={12} lg={8}>
           <MonitorGaugeCard
@@ -85,6 +97,16 @@ export default function ServerMonitorPage() {
             index={2}
             footer={<>{formatBytes(Number(disk?.used ?? 0))} / {formatBytes(Number(disk?.total ?? 0))}</>}
           />
+        </Col>
+
+        <Col xs={24}>
+          <MetricTrendCard title="CPU 使用率趋势" metric="system.cpu.used_percent" />
+        </Col>
+        <Col xs={24} lg={12}>
+          <MetricTrendCard title="内存使用率趋势" metric="system.memory.used_percent" />
+        </Col>
+        <Col xs={24} lg={12}>
+          <MetricTrendCard title="磁盘使用率趋势" metric="system.disk.used_percent" />
         </Col>
 
         <Col xs={24} lg={12}>
@@ -193,6 +215,92 @@ function ServicesHealthCard() {
             </Tooltip>
           ))}
         </Space>
+      )}
+    </Card>
+  )
+}
+
+// 告警概览：内置告警引擎的摘要卡片 + 最近事件。随页 10 秒自刷。
+const ALERT_STATE_STATS: { key: keyof MonitorAlertSummary; label: string; tone: string }[] = [
+  { key: 'firing', label: '告警中', tone: 'var(--c-error-strong)' },
+  { key: 'pending', label: '等待确认', tone: 'var(--c-warning)' },
+  { key: 'error', label: '采集异常', tone: 'var(--c-orange)' },
+  { key: 'total', label: '规则总数', tone: 'var(--text-secondary)' },
+]
+
+function AlertOverviewCard() {
+  const [summary, setSummary] = useState<MonitorAlertSummary | null>(null)
+  const [events, setEvents] = useState<MonitorAlertEvent[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    try {
+      const [sum, ev] = await Promise.all([
+        getAlertSummary(),
+        getAlertEvents({ page: 1, page_size: 5 }),
+      ])
+      setSummary(sum)
+      setEvents(ev.list ?? [])
+    } catch {
+      // 告警引擎可能未就绪，保留上一轮结果
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useVisibilityInterval(load, 10000)
+
+  return (
+    <Card
+      className="glass-rise"
+      style={{ marginBottom: 20 }}
+      title={
+        <Space>
+          <BellOutlined className="card-title-icon" /> 告警概览
+          {summary && summary.firing > 0 && (
+            <Tag color="red" variant="filled">告警中 {summary.firing}</Tag>
+          )}
+        </Space>
+      }
+      extra={summary?.checked_at ? <span className="cell-muted">{formatDateTime(summary.checked_at)}</span> : null}
+    >
+      {loading ? (
+        <Skeleton active title={false} paragraph={{ rows: 2 }} />
+      ) : (
+        <Row gutter={[16, 16]} align="middle">
+          <Col xs={24} lg={10}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {ALERT_STATE_STATS.map((stat) => {
+                const value = summary ? Number(summary[stat.key] ?? 0) : 0
+                return (
+                  <div key={stat.key} className="alert-stat-pill">
+                    <span className="alert-stat-value" style={{ color: stat.tone }}>{value}</span>
+                    <span className="alert-stat-label">{stat.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </Col>
+          <Col xs={24} lg={14}>
+            {events.length === 0 ? (
+              <span className="cell-muted">暂无告警事件</span>
+            ) : (
+              <div className="alert-event-mini">
+                {events.map((e) => (
+                  <div key={e.id} className="alert-event-row">
+                    <Tag color={e.status === 'firing' ? 'red' : 'green'} style={{ marginInlineEnd: 8 }}>
+                      {e.status === 'firing' ? '告警' : '恢复'}
+                    </Tag>
+                    <span className="cell-ellipsis">{e.rule_name}</span>
+                    <span className="cell-muted" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                      {formatDateTime(e.created_at)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Col>
+        </Row>
       )}
     </Card>
   )

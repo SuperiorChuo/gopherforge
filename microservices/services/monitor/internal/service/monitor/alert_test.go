@@ -217,7 +217,7 @@ func TestAlertEmailNotifierRecordsSentSkippedAndFailed(t *testing.T) {
 				"alert": {"ops@example.com"},
 			},
 		}})
-		result := notifier.NotifyContext(context.Background(), event)
+		result := notifier.NotifyContext(context.Background(), nil, event)
 		if result.Status != AlertNotifySent || len(sender.messages) != 1 {
 			t.Fatalf("notification = %#v messages = %d, want sent once", result, len(sender.messages))
 		}
@@ -232,7 +232,7 @@ func TestAlertEmailNotifierRecordsSentSkippedAndFailed(t *testing.T) {
 			Enabled:        false,
 			AlertReceivers: []string{"ops@example.com"},
 		}})
-		result := notifier.NotifyContext(context.Background(), event)
+		result := notifier.NotifyContext(context.Background(), nil, event)
 		if result.Status != AlertNotifySkipped || len(sender.messages) != 0 {
 			t.Fatalf("notification = %#v messages = %d, want skipped", result, len(sender.messages))
 		}
@@ -245,7 +245,7 @@ func TestAlertEmailNotifierRecordsSentSkippedAndFailed(t *testing.T) {
 			Sender:         "alerts@example.com",
 			AlertReceivers: []string{"ops@example.com"},
 		}})
-		result := notifier.NotifyContext(context.Background(), event)
+		result := notifier.NotifyContext(context.Background(), nil, event)
 		if result.Status != AlertNotifyFailed || result.Error != "smtp unavailable" {
 			t.Fatalf("notification = %#v, want failed sender error", result)
 		}
@@ -268,4 +268,60 @@ type alertEmailReaderStub struct {
 
 func (s alertEmailReaderStub) EmailNotification(context.Context) runtimeconfig.EmailNotification {
 	return s.policy
+}
+
+type stubAlertStore struct {
+	rule *model.MonitorAlertRule
+}
+
+func (s *stubAlertStore) GetRuleByIDContext(context.Context, uint) (*model.MonitorAlertRule, error) {
+	return s.rule, nil
+}
+func (s *stubAlertStore) ListRulesContext(context.Context, pagination.PageRequest, monitordao.AlertRuleFilter) ([]model.MonitorAlertRule, int64, error) {
+	return nil, 0, nil
+}
+func (s *stubAlertStore) ListEnabledRuleIDsContext(context.Context) ([]uint, error) { return nil, nil }
+func (s *stubAlertStore) GetRuleSummaryContext(context.Context) (model.MonitorAlertSummary, error) {
+	return model.MonitorAlertSummary{}, nil
+}
+func (s *stubAlertStore) CreateRuleContext(context.Context, *model.MonitorAlertRule) error { return nil }
+func (s *stubAlertStore) UpdateRuleContext(context.Context, uint, monitordao.AlertRuleUpdate) (*model.MonitorAlertRule, error) {
+	return nil, nil
+}
+func (s *stubAlertStore) DeleteRuleContext(context.Context, uint) error { return nil }
+func (s *stubAlertStore) ApplyTransitionContext(context.Context, uint, monitordao.AlertTransition) (*model.MonitorAlertRule, *model.MonitorAlertEvent, error) {
+	return nil, nil, nil
+}
+func (s *stubAlertStore) RecordEvaluationErrorContext(context.Context, uint, string, time.Time, string) (*model.MonitorAlertRule, error) {
+	return nil, nil
+}
+func (s *stubAlertStore) ListEventsContext(context.Context, pagination.PageRequest, monitordao.AlertEventFilter) ([]model.MonitorAlertEvent, int64, error) {
+	return nil, 0, nil
+}
+func (s *stubAlertStore) UpdateEventNotificationContext(context.Context, uint64, string, string, time.Time) error {
+	return nil
+}
+
+func TestEvaluateRuleContextSkipsSilencedRule(t *testing.T) {
+	future := time.Now().Add(2 * time.Hour).UTC()
+	store := &stubAlertStore{rule: &model.MonitorAlertRule{
+		ID:           1,
+		Enabled:      true,
+		Metric:       "system.cpu.used_percent",
+		State:        AlertStateOK,
+		SilenceUntil: &future,
+	}}
+	svc := NewAlertServiceWithDependencies(store, &fakeAlertMetricCollector{}, nil)
+	svc.now = func() time.Time { return time.Now().UTC() }
+
+	rule, event, err := svc.EvaluateRuleContext(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("EvaluateRuleContext error = %v, want nil", err)
+	}
+	if event != nil {
+		t.Fatalf("event = %#v, want nil for a silenced rule", event)
+	}
+	if rule == nil || rule.ID != 1 {
+		t.Fatalf("rule = %#v, want the rule returned untouched", rule)
+	}
 }

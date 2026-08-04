@@ -20,6 +20,7 @@ import (
 	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
 	"github.com/go-admin-kit/server/internal/config"
 	authDAO "github.com/go-admin-kit/server/internal/dao/auth"
+	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
 	systemDAO "github.com/go-admin-kit/server/internal/dao/system"
 	"github.com/go-admin-kit/server/internal/middleware"
 	"github.com/go-admin-kit/server/internal/pkg/authz"
@@ -352,12 +353,21 @@ func run(ctx context.Context) error {
 	jobScheduler := monitorSvc.InitJobService(database.DB)
 	alertService := monitorSvc.NewAlertService(database.DB, redis.Client)
 	alertEvaluator := monitorSvc.StartAlertEvaluator(lifecycleCtx, alertService, monitorSvc.DefaultAlertEvaluationInterval)
+	metricSampler := monitorSvc.StartMetricSampler(
+		lifecycleCtx,
+		monitorSvc.NewDefaultAlertMetricCollector(database.DB, redis.Client),
+		monitordao.NewMetricSampleDAO(database.DB),
+		monitorSvc.DefaultSamplingInterval,
+	)
 	api.SetupRoutesWithDeps(router, sharedapi.Dependencies{DB: database.DB, Redis: redis.Client})
 	defer func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := alertEvaluator.Shutdown(shutdownCtx); err != nil {
 			logger.Warn("alert evaluator shutdown timeout", logger.Err(err))
+		}
+		if err := metricSampler.Shutdown(shutdownCtx); err != nil {
+			logger.Warn("metric sampler shutdown timeout", logger.Err(err))
 		}
 	}()
 	defer func() {

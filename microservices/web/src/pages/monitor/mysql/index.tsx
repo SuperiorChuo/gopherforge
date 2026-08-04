@@ -10,6 +10,7 @@ import {
 import { getMySQLInfo } from '@/api/monitor'
 import { formatBytes, formatDuration } from '@/utils/format'
 import MonitorGaugeCard from '@/components/MonitorGaugeCard'
+import MetricTrendCard from '@/components/MetricTrendCard'
 import CountUpValue from '@/components/CountUpValue'
 import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
 
@@ -151,6 +152,12 @@ export default function MySQLMonitorPage() {
         </Col>
       </Row>
 
+      <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
+        <Col xs={24}>
+          <MetricTrendCard title="连接使用率趋势" metric="postgres.connections.percent" />
+        </Col>
+      </Row>
+
       <Row gutter={[20, 20]}>
         <Col xs={24} lg={12}>
           <Card
@@ -203,7 +210,7 @@ export default function MySQLMonitorPage() {
                 </div>
               ))}
             </div>
-            <Descriptions column={2} size="small" style={{ marginTop: 16 }}>
+            <Descriptions column={{ xs: 1, sm: 2 }} size="small" style={{ marginTop: 16 }}>
               <Descriptions.Item label="连接池 打开">{String(conn?.open_conns ?? '-')}</Descriptions.Item>
               <Descriptions.Item label="连接池 使用中">{String(conn?.in_use ?? '-')}</Descriptions.Item>
               <Descriptions.Item label="连接池 空闲">{String(conn?.idle ?? '-')}</Descriptions.Item>

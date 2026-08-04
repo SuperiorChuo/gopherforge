@@ -14,11 +14,43 @@ export const getMySQLInfo = () =>
 export const getRedisInfo = () =>
   request.get<unknown, Record<string, unknown>>('/api/v1/monitor/redis')
 
+// 指标历史趋势：metric 与告警规则引擎同源（见 AlertMetricDefinition），
+// range 支持 1h / 24h / 7d，后端按桶降采样
+export interface TrendPoint {
+  t: number
+  value: number
+}
+
+export interface MetricTrend {
+  metric: string
+  range: '1h' | '24h' | '7d'
+  unit: string
+  points: TrendPoint[]
+}
+
+export type TrendRange = '1h' | '24h' | '7d'
+
+export const TREND_RANGES: { value: TrendRange; label: string }[] = [
+  { value: '1h', label: '1 小时' },
+  { value: '24h', label: '24 小时' },
+  { value: '7d', label: '7 天' },
+]
+
+export const getMetricTrends = (metric: string, range: TrendRange) =>
+  request.get<unknown, MetricTrend>(`/api/v1/monitor/metrics/trends`, { params: { metric, range } })
+
 export type AlertOperator = 'gt' | 'gte' | 'lt' | 'lte'
 export type AlertSeverity = 'info' | 'warning' | 'critical'
 export type AlertRuleState = 'ok' | 'pending' | 'firing' | 'error'
 export type AlertEventStatus = 'firing' | 'resolved'
 export type AlertNotifyStatus = 'pending' | 'sent' | 'skipped' | 'failed'
+export type AlertChannel = 'email' | 'station' | 'wecom'
+
+export const ALERT_CHANNELS: { value: AlertChannel; label: string }[] = [
+  { value: 'email', label: '邮件' },
+  { value: 'station', label: '站内信' },
+  { value: 'wecom', label: '企业微信' },
+]
 
 export interface AlertMetricDefinition {
   key: string
@@ -38,6 +70,8 @@ export interface MonitorAlertRule {
   severity: AlertSeverity
   enabled: boolean
   notify_on_resolve: boolean
+  notify_channels: AlertChannel[]
+  silence_until?: string | null
   state: AlertRuleState
   pending_since?: string | null
   firing_since?: string | null
@@ -82,6 +116,8 @@ export interface AlertRulePayload {
   severity: AlertSeverity
   enabled: boolean
   notify_on_resolve: boolean
+  notify_channels: AlertChannel[]
+  silence_until?: string | null
 }
 
 export type AlertRuleListParams = PageRequest & {
