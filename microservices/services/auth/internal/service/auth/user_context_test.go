@@ -94,6 +94,26 @@ func TestUserServiceRegisterContextRejectsMissingInvite(t *testing.T) {
 	}
 }
 
+func TestUserServiceRegisterContextChecksUsernameInInviteTenant(t *testing.T) {
+	db, mock := setupAuthServiceContextTestDB(t)
+	expectConsumedInvite(mock, 2)
+	// 关键断言：查重必须落在邀请租户（2），而非硬编码租户 1
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE tenant_id = $1 AND username = $2 ORDER BY "users"."id" LIMIT $3`)).
+		WithArgs(uint(2), "alice", 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(9))
+
+	svc := NewUserServiceWithDB(db)
+	_, err := svc.RegisterContext(context.Background(), RegisterRequest{
+		Username:    "alice",
+		Password:    "Password123",
+		Email:       "alice@example.com",
+		InviteToken: "tok",
+	})
+	if !errors.Is(err, ErrUsernameAlreadyExists) {
+		t.Fatalf("RegisterContext() error = %v, want ErrUsernameAlreadyExists (checked in invite tenant)", err)
+	}
+}
+
 func TestUserServiceRegisterContextReturnsUsernameLookupError(t *testing.T) {
 	db, mock := setupAuthServiceContextTestDB(t)
 	lookupErr := errors.New("database lookup failed")

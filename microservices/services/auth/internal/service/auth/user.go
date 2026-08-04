@@ -246,7 +246,8 @@ func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) 
 	tenantID := invite.TenantID
 	ctx = sharedaudit.WithTenantID(sharedaudit.WithActor(ctx, "anonymous", "invited-registration"), tenantID)
 
-	_, err = s.userDAO.GetUserByUsernameContext(ctx, req.Username)
+	// Username uniqueness is per tenant (ux_users_tenant_username); check inside the invite's tenant.
+	_, err = s.userDAO.GetUserByTenantUsernameContext(ctx, tenantID, req.Username)
 	if err == nil {
 		return nil, ErrUsernameAlreadyExists
 	}
