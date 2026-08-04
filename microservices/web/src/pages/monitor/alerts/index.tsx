@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Alert,
   Button,
   Card,
   DatePicker,
+  Dropdown,
   Form,
+  Grid,
   Input,
   InputNumber,
   Modal,
@@ -15,6 +18,7 @@ import {
   Table,
   Tag,
   Tooltip,
+  type MenuProps,
 } from 'antd'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -23,6 +27,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   HistoryOutlined,
+  MoreOutlined,
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
@@ -95,21 +100,20 @@ export default function AlertRulesPage() {
   const [view, setView] = useState<ViewMode>('rules')
   const [metrics, setMetrics] = useState<AlertMetricDefinition[]>([])
   const [rules, setRules] = useState<MonitorAlertRule[]>([])
-  const [summary, setSummary] = useState<MonitorAlertSummary>({
-    total: 0,
-    enabled: 0,
-    firing: 0,
-    pending: 0,
-    error: 0,
-    checked_at: '',
-  })
+  const [summary, setSummary] = useState<MonitorAlertSummary | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(true)
+  const [summaryFailed, setSummaryFailed] = useState(false)
   const [ruleTotal, setRuleTotal] = useState(0)
   const [ruleParams, setRuleParams] = useState<AlertRuleListParams>(defaultRuleParams)
   const [ruleLoading, setRuleLoading] = useState(false)
+  const [ruleLoaded, setRuleLoaded] = useState(false)
+  const [ruleFailed, setRuleFailed] = useState(false)
   const [events, setEvents] = useState<MonitorAlertEvent[]>([])
   const [eventTotal, setEventTotal] = useState(0)
   const [eventParams, setEventParams] = useState<AlertEventListParams>(defaultEventParams)
   const [eventLoading, setEventLoading] = useState(false)
+  const [eventLoaded, setEventLoaded] = useState(false)
+  const [eventFailed, setEventFailed] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingRule, setEditingRule] = useState<MonitorAlertRule | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -117,8 +121,14 @@ export default function AlertRulesPage() {
   const [form] = Form.useForm<AlertRuleFormValues>()
   const [ruleFilterForm] = Form.useForm()
   const [eventFilterForm] = Form.useForm()
+  const [confirmModal, confirmContextHolder] = Modal.useModal()
+  const ruleRequestRef = useRef(false)
+  const eventRequestRef = useRef(false)
+  const summaryRequestRef = useRef(false)
   const selectedMetricKey = Form.useWatch('metric', form)
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactTable = !screens.md
 
   const metricMap = useMemo(
     () => new Map(metrics.map((metric) => [metric.key, metric])),
@@ -127,29 +137,57 @@ export default function AlertRulesPage() {
   const selectedMetric = selectedMetricKey ? metricMap.get(selectedMetricKey) : undefined
 
   const fetchRules = useCallback(async (params: AlertRuleListParams, quiet = false) => {
+    if (ruleRequestRef.current) return
+    ruleRequestRef.current = true
     if (!quiet) setRuleLoading(true)
     try {
       const result = await getAlertRules(params)
       setRules(result.list ?? [])
       setRuleTotal(result.total ?? 0)
-      getAlertSummary().then(setSummary).catch(() => undefined)
+      setRuleLoaded(true)
+      setRuleFailed(false)
     } catch {
+      setRuleFailed(true)
       if (!quiet) message.error('获取告警规则失败')
     } finally {
+      ruleRequestRef.current = false
       if (!quiet) setRuleLoading(false)
     }
   }, [])
 
   const fetchEvents = useCallback(async (params: AlertEventListParams, quiet = false) => {
+    if (eventRequestRef.current) return
+    eventRequestRef.current = true
     if (!quiet) setEventLoading(true)
     try {
       const result = await getAlertEvents(params)
       setEvents(result.list ?? [])
       setEventTotal(result.total ?? 0)
+      setEventLoaded(true)
+      setEventFailed(false)
     } catch {
+      setEventFailed(true)
       if (!quiet) message.error('获取告警事件失败')
     } finally {
+      eventRequestRef.current = false
       if (!quiet) setEventLoading(false)
+    }
+  }, [])
+
+  const fetchSummary = useCallback(async (quiet = false) => {
+    if (summaryRequestRef.current) return
+    summaryRequestRef.current = true
+    if (!quiet) setSummaryLoading(true)
+    try {
+      const result = await getAlertSummary()
+      setSummary(result)
+      setSummaryFailed(false)
+    } catch {
+      setSummaryFailed(true)
+      if (!quiet) message.error('获取告警概览失败')
+    } finally {
+      summaryRequestRef.current = false
+      if (!quiet) setSummaryLoading(false)
     }
   }, [])
 
@@ -164,16 +202,21 @@ export default function AlertRulesPage() {
   }, [fetchRules, ruleParams])
 
   useEffect(() => {
+    void fetchSummary()
+  }, [fetchSummary])
+
+  useEffect(() => {
     void fetchEvents(eventParams)
   }, [eventParams, fetchEvents])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
       void fetchRules(ruleParams, true)
+      void fetchSummary(true)
       if (view === 'events') void fetchEvents(eventParams, true)
     }, 30_000)
     return () => window.clearInterval(timer)
-  }, [eventParams, fetchEvents, fetchRules, ruleParams, view])
+  }, [eventParams, fetchEvents, fetchRules, fetchSummary, ruleParams, view])
 
   const openCreate = () => {
     setEditingRule(null)
@@ -226,7 +269,7 @@ export default function AlertRulesPage() {
         message.success('告警规则已创建')
       }
       setModalOpen(false)
-      await fetchRules(ruleParams)
+      await Promise.all([fetchRules(ruleParams), fetchSummary(true)])
     } catch {
       message.error(editingRule ? '更新告警规则失败' : '创建告警规则失败')
     } finally {
@@ -240,7 +283,7 @@ export default function AlertRulesPage() {
       message.success('告警规则已删除')
       const nextPage = rules.length === 1 && ruleParams.page > 1 ? ruleParams.page - 1 : ruleParams.page
       setRuleParams({ ...ruleParams, page: nextPage })
-      void fetchEvents(eventParams, true)
+      void Promise.all([fetchSummary(true), fetchEvents(eventParams, true)])
     } catch {
       message.error('删除告警规则失败')
     }
@@ -257,7 +300,7 @@ export default function AlertRulesPage() {
       } else {
         message.success('评估完成')
       }
-      await Promise.all([fetchRules(ruleParams, true), fetchEvents(eventParams, true)])
+      await Promise.all([fetchRules(ruleParams, true), fetchSummary(true), fetchEvents(eventParams, true)])
     } catch {
       message.error('评估失败，规则状态已记录采集错误')
       void fetchRules(ruleParams, true)
@@ -266,14 +309,52 @@ export default function AlertRulesPage() {
     }
   }
 
-  const ruleColumns: ColumnsType<MonitorAlertRule> = [
+  const confirmRemoveRule = (rule: MonitorAlertRule) => {
+    confirmModal.confirm({
+      title: '删除告警规则',
+      content: `确认删除“${rule.name}”？历史告警事件仍会保留。`,
+      okText: '删除',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: () => removeRule(rule),
+    })
+  }
+
+  const compactRuleActions = (rule: MonitorAlertRule): MenuProps['items'] => [
+    hasPerm('system:alert:evaluate') ? {
+      key: 'evaluate',
+      icon: <ThunderboltOutlined />,
+      label: '立即评估',
+      disabled: !rule.enabled,
+    } : null,
+    hasPerm('system:alert:update') ? {
+      key: 'edit',
+      icon: <EditOutlined />,
+      label: '编辑规则',
+    } : null,
+    hasPerm('system:alert:delete') ? {
+      key: 'delete',
+      icon: <DeleteOutlined />,
+      label: '删除规则',
+      danger: true,
+    } : null,
+  ].filter((item): item is NonNullable<typeof item> => item !== null)
+
+  const runCompactRuleAction = (key: string, rule: MonitorAlertRule) => {
+    if (key === 'evaluate') void evaluateRule(rule)
+    if (key === 'edit') openEdit(rule)
+    if (key === 'delete') confirmRemoveRule(rule)
+  }
+
+  const desktopRuleColumns: ColumnsType<MonitorAlertRule> = [
     {
       title: '规则',
       dataIndex: 'name',
       width: 180,
+      ellipsis: { showTitle: false },
       render: (name: string, rule) => (
         <div className="alert-rule-name">
-          <span>{name}</span>
+          <Tooltip title={name} placement="topLeft"><span>{name}</span></Tooltip>
           {!rule.enabled && <Tag>停用</Tag>}
         </div>
       ),
@@ -281,7 +362,7 @@ export default function AlertRulesPage() {
     {
       title: '指标',
       dataIndex: 'metric',
-      width: 220,
+      width: 190,
       render: (metric: string) => (
         <Tooltip title={metricMap.get(metric)?.description ?? metric}>
           <span className="cell-mono">{metricMap.get(metric)?.title ?? metric}</span>
@@ -290,7 +371,7 @@ export default function AlertRulesPage() {
     },
     {
       title: '条件',
-      width: 150,
+      width: 135,
       render: (_, rule) => (
         <span className="alert-condition">
           {OPERATOR_LABELS[rule.operator]} {formatMetricValue(rule.threshold, metricMap.get(rule.metric)?.unit)}
@@ -300,13 +381,15 @@ export default function AlertRulesPage() {
     {
       title: '持续',
       dataIndex: 'duration_seconds',
-      width: 90,
+      width: 84,
+      responsive: ['xl'],
       render: (seconds: number) => seconds === 0 ? '立即' : `${seconds} 秒`,
     },
     {
       title: '级别',
       dataIndex: 'severity',
-      width: 90,
+      width: 80,
+      responsive: ['lg'],
       render: (severity: AlertSeverity) => (
         <Tag color={SEVERITY_META[severity].color}>{SEVERITY_META[severity].label}</Tag>
       ),
@@ -314,7 +397,7 @@ export default function AlertRulesPage() {
     {
       title: '状态',
       dataIndex: 'state',
-      width: 120,
+      width: 140,
       render: (state: AlertRuleState, rule) => (
         <Tooltip title={state === 'error' ? rule.last_error : undefined}>
           <span>
@@ -330,7 +413,7 @@ export default function AlertRulesPage() {
     {
       title: '最近值',
       dataIndex: 'last_value',
-      width: 120,
+      width: 118,
       render: (value: number | null | undefined, rule) =>
         value == null ? '-' : formatMetricValue(value, metricMap.get(rule.metric)?.unit),
     },
@@ -339,38 +422,52 @@ export default function AlertRulesPage() {
       dataIndex: 'last_evaluated_at',
       width: 170,
       className: 'cell-time',
+      responsive: ['xl'],
       render: formatDateTime,
     },
     {
       title: '操作',
-      width: 250,
-      fixed: 'right',
+      width: 116,
+      fixed: screens.lg ? 'right' : undefined,
+      align: 'center',
+      className: 'alert-rule-actions-cell',
       render: (_, rule) => (
-        <Space size={0} className="table-actions">
+        <Space size={2} className="table-actions compact-table-actions alert-rule-actions">
           {hasPerm('system:alert:evaluate') && (
             <Tooltip title={rule.enabled ? '立即使用真实指标评估' : '停用规则不能评估'}>
               <Button
-                type="link"
+                type="text"
                 size="small"
                 icon={<ThunderboltOutlined />}
+                aria-label={`评估告警规则 ${rule.name}`}
                 disabled={!rule.enabled}
                 loading={evaluatingID === rule.id}
                 onClick={() => evaluateRule(rule)}
-              >
-                评估
-              </Button>
+              />
             </Tooltip>
           )}
           {hasPerm('system:alert:update') && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(rule)}>
-              编辑
-            </Button>
+            <Tooltip title="编辑">
+              <Button
+                type="text"
+                size="small"
+                icon={<EditOutlined />}
+                aria-label={`编辑告警规则 ${rule.name}`}
+                onClick={() => openEdit(rule)}
+              />
+            </Tooltip>
           )}
           {hasPerm('system:alert:delete') && (
             <Popconfirm title="删除规则后历史事件仍会保留，确认删除?" onConfirm={() => removeRule(rule)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
+              <Tooltip title="删除">
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  aria-label={`删除告警规则 ${rule.name}`}
+                />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -378,7 +475,77 @@ export default function AlertRulesPage() {
     },
   ]
 
-  const eventColumns: ColumnsType<MonitorAlertEvent> = [
+  const compactRuleColumns: ColumnsType<MonitorAlertRule> = [
+    {
+      title: '规则',
+      width: 170,
+      render: (_, rule) => {
+        const metric = metricMap.get(rule.metric)
+        return (
+          <div className="alert-rule-compact-main">
+            <div className="alert-rule-name">
+              <Tooltip title={rule.name} placement="topLeft"><span>{rule.name}</span></Tooltip>
+              {!rule.enabled && <Tag>停用</Tag>}
+            </div>
+            <Tooltip title={metric?.description ?? rule.metric} placement="topLeft">
+              <span className="alert-rule-compact-meta">
+                {metric?.title ?? rule.metric} · {OPERATOR_LABELS[rule.operator]} {formatMetricValue(rule.threshold, metric?.unit)}
+              </span>
+            </Tooltip>
+          </div>
+        )
+      },
+    },
+    {
+      title: '状态',
+      width: 124,
+      render: (_, rule) => {
+        const metric = metricMap.get(rule.metric)
+        return (
+          <div className="alert-rule-compact-state">
+            <Tooltip title={rule.state === 'error' ? rule.last_error : undefined}>
+              <span>
+                <StatusPill
+                  tone={STATE_META[rule.state].tone}
+                  label={rule.state === 'error' && rule.firing_since ? '告警 / 异常' : STATE_META[rule.state].label}
+                  pulse={rule.state === 'firing' || (rule.state === 'error' && Boolean(rule.firing_since))}
+                />
+              </span>
+            </Tooltip>
+            <span>最近值 {rule.last_value == null ? '--' : formatMetricValue(rule.last_value, metric?.unit)}</span>
+            <span>{rule.last_evaluated_at ? dayjs(rule.last_evaluated_at).format('MM-DD HH:mm') : '尚未评估'}</span>
+          </div>
+        )
+      },
+    },
+    {
+      title: <Tooltip title="操作"><MoreOutlined /></Tooltip>,
+      width: 48,
+      align: 'center',
+      className: 'alert-rule-actions-cell',
+      render: (_, rule) => {
+        const items = compactRuleActions(rule) ?? []
+        return items.length > 0 ? (
+          <Dropdown
+            trigger={['click']}
+            menu={{ items, onClick: ({ key }) => runCompactRuleAction(key, rule) }}
+          >
+            <Button
+              type="text"
+              size="small"
+              icon={<MoreOutlined />}
+              aria-label={`更多操作：${rule.name}`}
+              loading={evaluatingID === rule.id}
+            />
+          </Dropdown>
+        ) : <span className="cell-muted">--</span>
+      },
+    },
+  ]
+
+  const ruleColumns = compactTable ? compactRuleColumns : desktopRuleColumns
+
+  const desktopEventColumns: ColumnsType<MonitorAlertEvent> = [
     {
       title: '时间',
       dataIndex: 'created_at',
@@ -386,7 +553,13 @@ export default function AlertRulesPage() {
       className: 'cell-time',
       render: formatDateTime,
     },
-    { title: '规则', dataIndex: 'rule_name', width: 180 },
+    {
+      title: '规则',
+      dataIndex: 'rule_name',
+      width: 180,
+      ellipsis: { showTitle: false },
+      render: (name: string) => <Tooltip title={name} placement="topLeft"><span>{name}</span></Tooltip>,
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -398,14 +571,15 @@ export default function AlertRulesPage() {
     {
       title: '级别',
       dataIndex: 'severity',
-      width: 90,
+      width: 80,
+      responsive: ['sm'],
       render: (severity: AlertSeverity) => (
         <Tag color={SEVERITY_META[severity].color}>{SEVERITY_META[severity].label}</Tag>
       ),
     },
     {
       title: '指标值',
-      width: 230,
+      width: 210,
       render: (_, event) => (
         <span className="cell-mono">
           {metricMap.get(event.metric)?.title ?? event.metric}: {formatMetricValue(event.value, metricMap.get(event.metric)?.unit)}
@@ -415,23 +589,112 @@ export default function AlertRulesPage() {
     {
       title: '通知',
       dataIndex: 'notify_status',
-      width: 110,
+      width: 100,
+      responsive: ['md'],
       render: (status: string, event) => (
         <Tooltip title={event.notify_error || undefined}>
           <Tag color={NOTIFY_META[status]?.color}>{NOTIFY_META[status]?.label ?? status}</Tag>
         </Tooltip>
       ),
     },
-    { title: '事件内容', dataIndex: 'message', ellipsis: true },
+    {
+      title: '事件内容',
+      dataIndex: 'message',
+      width: 300,
+      ellipsis: { showTitle: false },
+      responsive: ['lg'],
+      render: (value: string) => <Tooltip title={value} placement="topLeft"><span>{value}</span></Tooltip>,
+    },
   ]
+
+  const compactEventColumns: ColumnsType<MonitorAlertEvent> = [
+    {
+      title: '事件',
+      width: 202,
+      render: (_, event) => {
+        const metric = metricMap.get(event.metric)
+        return (
+          <div className="alert-event-compact-main">
+            <Tooltip title={event.rule_name} placement="topLeft">
+              <strong>{event.rule_name}</strong>
+            </Tooltip>
+            <span>{dayjs(event.created_at).format('MM-DD HH:mm:ss')}</span>
+            <span className="cell-mono">
+              {metric?.title ?? event.metric}: {formatMetricValue(event.value, metric?.unit)}
+            </span>
+            <Tooltip title={event.message} placement="topLeft">
+              <span className="alert-event-compact-message">{event.message}</span>
+            </Tooltip>
+          </div>
+        )
+      },
+    },
+    {
+      title: '状态',
+      width: 108,
+      render: (_, event) => (
+        <div className="alert-event-compact-state">
+          {event.status === 'firing'
+            ? <StatusPill tone="danger" label="触发" pulse />
+            : <StatusPill tone="success" label="恢复" pulse={false} />}
+          <Tag color={SEVERITY_META[event.severity].color}>{SEVERITY_META[event.severity].label}</Tag>
+          <Tooltip title={event.notify_error || undefined}>
+            <Tag color={NOTIFY_META[event.notify_status]?.color}>
+              {NOTIFY_META[event.notify_status]?.label ?? event.notify_status}
+            </Tag>
+          </Tooltip>
+        </div>
+      ),
+    },
+  ]
+
+  const eventColumns = compactTable ? compactEventColumns : desktopEventColumns
+
+  const summaryStatusClass = summaryFailed
+    ? summary
+      ? 'is-stale'
+      : 'is-error'
+    : summary
+      ? 'is-live'
+      : 'is-loading'
+  const summaryStatusText = summaryFailed
+    ? summary
+      ? `概览刷新中断 · 保留 ${dayjs(summary.checked_at).format('HH:mm:ss')} 数据`
+      : '告警概览暂不可用'
+    : summary
+      ? `概览更新于 ${dayjs(summary.checked_at).format('HH:mm:ss')}`
+      : '正在获取告警概览'
 
   return (
     <div className="page-list alert-rules-page">
-      <div className="alert-overview-strip" aria-label="告警状态摘要">
-        <div><span>启用规则</span><strong>{summary.enabled}</strong></div>
-        <div data-tone="danger"><span>告警中</span><strong>{summary.firing}</strong></div>
-        <div data-tone="warning"><span>等待确认</span><strong>{summary.pending}</strong></div>
-        <div data-tone="error"><span>采集异常</span><strong>{summary.error}</strong></div>
+      {confirmContextHolder}
+      <div className="alert-overview-block">
+        <div className="alert-overview-meta" aria-live="polite" aria-atomic="true">
+          <span className={`alert-overview-status ${summaryStatusClass}`}>
+            <span className="alert-overview-status-dot" />
+            {summaryStatusText}
+          </span>
+          <Tooltip title="刷新告警概览">
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined />}
+              aria-label="刷新告警概览"
+              loading={summaryLoading}
+              onClick={() => fetchSummary()}
+            />
+          </Tooltip>
+        </div>
+        <div
+          className={`alert-overview-strip ${summary ? '' : 'is-unavailable'}`}
+          aria-label="告警状态摘要"
+          aria-busy={summaryLoading}
+        >
+          <div><span>启用规则</span><strong>{summary?.enabled ?? '--'}</strong></div>
+          <div data-tone="danger"><span>告警中</span><strong>{summary?.firing ?? '--'}</strong></div>
+          <div data-tone="warning"><span>等待确认</span><strong>{summary?.pending ?? '--'}</strong></div>
+          <div data-tone="error"><span>采集异常</span><strong>{summary?.error ?? '--'}</strong></div>
+        </div>
       </div>
 
       <div className="alert-view-switch">
@@ -502,7 +765,7 @@ export default function AlertRulesPage() {
               title="告警规则"
               total={ruleTotal}
               extra={
-                <Space>
+                <Space wrap>
                   <Button icon={<ReloadOutlined />} onClick={() => fetchRules(ruleParams)}>刷新</Button>
                   {hasPerm('system:alert:create') && (
                     <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增规则</Button>
@@ -510,14 +773,29 @@ export default function AlertRulesPage() {
                 </Space>
               }
             />
+            {ruleFailed && (
+              <Alert
+                className="alert-list-state"
+                type={ruleLoaded ? 'warning' : 'error'}
+                showIcon
+                message={ruleLoaded ? '规则列表刷新失败，当前显示上次成功数据' : '告警规则列表暂不可用'}
+                action={(
+                  <Button size="small" icon={<ReloadOutlined />} onClick={() => fetchRules(ruleParams)}>
+                    重试
+                  </Button>
+                )}
+              />
+            )}
             <Table
               rowKey="id"
               className="list-table"
               columns={ruleColumns}
               dataSource={rules}
               loading={ruleLoading}
-              scroll={{ x: 1450 }}
-              locale={{ emptyText: <GlassEmpty text="暂无告警规则" compact /> }}
+              scroll={{ x: compactTable ? 342 : 'max-content' }}
+              locale={{
+                emptyText: <GlassEmpty text={ruleFailed && !ruleLoaded ? '告警规则暂不可用' : '暂无告警规则'} compact />,
+              }}
               pagination={{
                 total: ruleTotal,
                 current: ruleParams.page,
@@ -581,14 +859,29 @@ export default function AlertRulesPage() {
               total={eventTotal}
               extra={<Button icon={<ReloadOutlined />} onClick={() => fetchEvents(eventParams)}>刷新</Button>}
             />
+            {eventFailed && (
+              <Alert
+                className="alert-list-state"
+                type={eventLoaded ? 'warning' : 'error'}
+                showIcon
+                message={eventLoaded ? '事件列表刷新失败，当前显示上次成功数据' : '告警事件列表暂不可用'}
+                action={(
+                  <Button size="small" icon={<ReloadOutlined />} onClick={() => fetchEvents(eventParams)}>
+                    重试
+                  </Button>
+                )}
+              />
+            )}
             <Table
               rowKey="id"
               className="list-table"
               columns={eventColumns}
               dataSource={events}
               loading={eventLoading}
-              scroll={{ x: 1100 }}
-              locale={{ emptyText: <GlassEmpty text="暂无告警事件" compact /> }}
+              scroll={{ x: compactTable ? 310 : 'max-content' }}
+              locale={{
+                emptyText: <GlassEmpty text={eventFailed && !eventLoaded ? '告警事件暂不可用' : '暂无告警事件'} compact />,
+              }}
               pagination={{
                 total: eventTotal,
                 current: eventParams.page,
