@@ -4,6 +4,35 @@
 .compact-table-actions { flex-wrap: nowrap; }
 .compact-table-actions .ant-btn { width: 32px; min-width: 32px; height: 32px; padding-inline: 0; border: 1px solid transparent; }
 .compact-table-actions .ant-btn:hover { border-color: rgba(129,140,248,.2); background: rgba(99,102,241,.1); }
+/* Ant Design 6 uses logical fixed-column classes instead of fix-left/fix-right. */
+.ant-table-thead > tr > th.ant-table-cell-fix {
+  background: rgb(18, 20, 34) !important;
+}
+
+.ant-table-tbody > tr > td.ant-table-cell-fix {
+  background: rgb(18, 20, 34) !important;
+}
+
+.ant-table-tbody > tr:hover > td.ant-table-cell-fix {
+  background: color-mix(in srgb, #6366f1 10%, rgb(18, 20, 34)) !important;
+}
+
+.ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fix {
+  background: color-mix(in srgb, #6366f1 14%, rgb(18, 20, 34)) !important;
+}
+
+[data-theme='light'] .ant-table-thead > tr > th.ant-table-cell-fix,
+[data-theme='light'] .ant-table-tbody > tr > td.ant-table-cell-fix {
+  background: #fff !important;
+}
+
+[data-theme='light'] .ant-table-tbody > tr:hover > td.ant-table-cell-fix {
+  background: color-mix(in srgb, #2563eb 7%, white) !important;
+}
+
+[data-theme='light'] .ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fix {
+  background: color-mix(in srgb, #2563eb 10%, white) !important;
+}
 .list-table .list-row-disabled > td { background: rgba(100,116,139,.045) !important; }
 .list-table .list-row-disabled .list-primary-cell, .list-table .list-row-disabled .list-code-tag { color: rgba(148,163,184,.72); }
 .list-table .list-row-disabled .list-code-tag { opacity: .62; }

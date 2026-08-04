@@ -1,0 +1,228 @@
+.monitor-status-page {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.monitor-status-page .monitor-status-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.monitor-status-page .monitor-page-header {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px 12px;
+}
+
+.monitor-status-page .monitor-page-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  color: rgba(148, 163, 184, 0.82);
+  font-size: 12.5px;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.monitor-status-page .monitor-page-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.72);
+}
+
+.monitor-status-page .monitor-page-status.is-live {
+  color: #34d399;
+}
+
+.monitor-status-page .monitor-page-status.is-live .monitor-page-status-dot {
+  background: #34d399;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.1);
+  animation: monitor-status-pulse 2.4s ease-in-out infinite;
+}
+
+.monitor-status-page .monitor-page-status.is-error {
+  color: #f87171;
+}
+
+.monitor-status-page .monitor-page-status.is-error .monitor-page-status-dot {
+  background: #f87171;
+  box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.1);
+}
+
+.monitor-status-page .monitor-state-card .ant-card-body {
+  display: flex;
+  min-height: 240px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.monitor-status-page .monitor-state-icon {
+  color: #f87171;
+  font-size: 28px;
+}
+
+.monitor-status-page .monitor-state-title {
+  color: rgba(248, 250, 252, 0.94);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.monitor-status-page .monitor-state-copy {
+  max-width: 460px;
+  color: rgba(148, 163, 184, 0.82);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.monitor-status-page .stat-card-row {
+  min-width: 0;
+  gap: 16px;
+}
+
+.monitor-status-page .stat-card-row > :first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.monitor-status-page .stat-card-title,
+.monitor-status-page .stat-card-value,
+.monitor-status-page .query-stat-value,
+.monitor-status-page .monitor-gauge-foot {
+  max-width: 100%;
+  min-width: 0;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.monitor-status-page .stat-card-icon {
+  flex: 0 0 auto;
+}
+
+.monitor-status-page .monitor-query-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.monitor-status-page .monitor-query-grid .query-stat-tile {
+  min-width: 0;
+}
+
+.monitor-status-page .kv-row {
+  min-width: 0;
+  gap: 12px;
+}
+
+.monitor-status-page .kv-label {
+  min-width: 0;
+}
+
+.monitor-status-page .kv-pill {
+  min-width: 0;
+  max-width: 70%;
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.monitor-status-page .monitor-unknown-gauge {
+  display: grid;
+  width: 140px;
+  height: 140px;
+  place-items: center;
+  border: 10px solid rgba(148, 163, 184, 0.14);
+  border-radius: 50%;
+  color: rgba(148, 163, 184, 0.78);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.monitor-status-page .monitor-unknown-gauge.is-large {
+  width: 160px;
+  height: 160px;
+}
+
+.monitor-status-page .monitor-gauge-icon.is-unknown {
+  color: rgba(148, 163, 184, 0.78);
+}
+
+[data-theme='light'] .monitor-status-page .monitor-page-status {
+  color: #64748b;
+}
+
+[data-theme='light'] .monitor-status-page .monitor-page-status.is-live {
+  color: #059669;
+}
+
+[data-theme='light'] .monitor-status-page .monitor-page-status.is-error,
+[data-theme='light'] .monitor-status-page .monitor-state-icon {
+  color: #dc2626;
+}
+
+[data-theme='light'] .monitor-status-page .monitor-state-title {
+  color: #1e293b;
+}
+
+[data-theme='light'] .monitor-status-page .monitor-state-copy {
+  color: #64748b;
+}
+
+@keyframes monitor-status-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(0.92);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .monitor-status-page .monitor-page-status.is-live .monitor-page-status-dot {
+    animation: none;
+  }
+}
+
+@media (max-width: 575px) {
+  .monitor-status-page .monitor-page-header {
+    align-items: stretch;
+  }
+
+  .monitor-status-page .monitor-page-status {
+    flex: 1 1 100%;
+  }
+
+  .monitor-status-page .monitor-page-header .ant-btn {
+    margin-inline-start: auto;
+  }
+}
+
+@media (max-width: 360px) {
+  .monitor-status-page .monitor-query-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

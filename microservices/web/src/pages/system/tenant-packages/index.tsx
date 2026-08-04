@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Tree } from 'antd'
+import { useEffect, useMemo, useState, type Key } from 'react'
+import { Button, Card, Checkbox, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Tree } from 'antd'
 import {
   DeleteOutlined,
   EditOutlined,
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
+  ArrowsAltOutlined,
+  ShrinkOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { DataNode } from 'antd/es/tree'
@@ -19,6 +21,7 @@ import StatusPill from '@/components/StatusPill'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { usePermission } from '@/hooks/usePermission'
 import { formatDateTime } from '@/utils/format'
+import './styles.css'
 
 interface SearchParams {
   keyword?: string
@@ -56,12 +59,59 @@ export default function TenantPackagePage() {
   const [submitting, setSubmitting] = useState(false)
   const [allPerms, setAllPerms] = useState<Permission[]>([])
   const [checkedCodes, setCheckedCodes] = useState<string[]>([])
+  const [permissionKeyword, setPermissionKeyword] = useState('')
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false)
+  const [expandedKeys, setExpandedKeys] = useState<Key[]>([])
+  const [filteredExpandedKeys, setFilteredExpandedKeys] = useState<Key[]>([])
+  const [pendingInitialExpand, setPendingInitialExpand] = useState(false)
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
 
-  const treeData = useMemo(() => buildPermissionTree(allPerms), [allPerms])
   const allCodes = useMemo(() => allPerms.map((p) => p.code), [allPerms])
+  const rootCodes = useMemo(() => {
+    const ids = new Set(allPerms.map((p) => p.id))
+    return allPerms
+      .filter((p) => !p.parent_id || !ids.has(p.parent_id))
+      .map((p) => p.code)
+  }, [allPerms])
+  const visiblePerms = useMemo(() => {
+    const keyword = permissionKeyword.trim().toLowerCase()
+    if (!keyword && !showSelectedOnly) return allPerms
+
+    const byId = new Map(allPerms.map((p) => [p.id, p]))
+    const selected = new Set(checkedCodes)
+    const keepIds = new Set<number>()
+
+    for (const permission of allPerms) {
+      const matchesKeyword = !keyword
+        || permission.name.toLowerCase().includes(keyword)
+        || permission.code.toLowerCase().includes(keyword)
+      if (!matchesKeyword || (showSelectedOnly && !selected.has(permission.code))) continue
+
+      let current: Permission | undefined = permission
+      while (current && !keepIds.has(current.id)) {
+        keepIds.add(current.id)
+        current = current.parent_id ? byId.get(current.parent_id) : undefined
+      }
+    }
+
+    return allPerms.filter((p) => keepIds.has(p.id))
+  }, [allPerms, checkedCodes, permissionKeyword, showSelectedOnly])
+  const treeData = useMemo(() => buildPermissionTree(visiblePerms), [visiblePerms])
+  const visibleCodes = useMemo(() => visiblePerms.map((p) => p.code), [visiblePerms])
+  const permissionFilterActive = Boolean(permissionKeyword.trim() || showSelectedOnly)
+  const effectiveExpandedKeys = permissionFilterActive ? filteredExpandedKeys : expandedKeys
+
+  useEffect(() => {
+    if (permissionFilterActive) setFilteredExpandedKeys(visibleCodes)
+  }, [permissionFilterActive, visibleCodes])
+
+  useEffect(() => {
+    if (!modalOpen || !pendingInitialExpand || rootCodes.length === 0) return
+    setExpandedKeys(rootCodes)
+    setPendingInitialExpand(false)
+  }, [modalOpen, pendingInitialExpand, rootCodes])
 
   const fetchList = async (p: SearchParams) => {
     setLoading(true)
@@ -106,6 +156,10 @@ export default function TenantPackagePage() {
     form.resetFields()
     form.setFieldsValue({ status: 1 })
     setCheckedCodes([])
+    setPermissionKeyword('')
+    setShowSelectedOnly(false)
+    setExpandedKeys(rootCodes)
+    setPendingInitialExpand(rootCodes.length === 0)
     setModalOpen(true)
   }
 
@@ -113,7 +167,16 @@ export default function TenantPackagePage() {
     setEditRecord(row)
     form.setFieldsValue({ name: row.name, status: row.status, remark: row.remark })
     setCheckedCodes(row.permission_codes || [])
+    setPermissionKeyword('')
+    setShowSelectedOnly(false)
+    setExpandedKeys(rootCodes)
+    setPendingInitialExpand(rootCodes.length === 0)
     setModalOpen(true)
+  }
+
+  function updateExpandedKeys(keys: Key[]) {
+    if (permissionFilterActive) setFilteredExpandedKeys(keys)
+    else setExpandedKeys(keys)
   }
 
   async function onSubmit() {
@@ -159,7 +222,13 @@ export default function TenantPackagePage() {
 
   const columns: ColumnsType<TenantPackageInfo> = [
     { title: 'ID', dataIndex: 'id', width: 70, responsive: ['lg'] },
-    { title: '名称', dataIndex: 'name', width: 200 },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      width: 220,
+      ellipsis: true,
+      render: (value: string) => <span className="list-primary-cell">{value}</span>,
+    },
     {
       title: '权限数',
       dataIndex: 'permission_codes',
@@ -167,31 +236,31 @@ export default function TenantPackagePage() {
       responsive: ['md'],
       render: (v: string[]) => <Tag variant="filled">{v?.length ?? 0}</Tag>,
     },
-    { title: '备注', dataIndex: 'remark', ellipsis: true, responsive: ['lg'] },
+    { title: '备注', dataIndex: 'remark', width: 260, ellipsis: true, responsive: ['lg'] },
     {
       title: '状态',
       dataIndex: 'status',
-      width: 100,
-      responsive: ['sm'],
+      width: 90,
       render: (v: number) =>
         v === 1 ? <StatusPill tone="success" label="启用" /> : <StatusPill tone="muted" label="停用" />,
     },
     { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: '操作',
-      width: 160,
+      width: 96,
+      fixed: 'right',
       render: (_, row) => (
-        <Space size={0} className="table-actions">
+        <Space size={4} className="table-actions tenant-package-row-actions">
           {hasPerm('system:tenant-package:update') && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(row)}>
-              编辑
-            </Button>
+            <Tooltip title="编辑">
+              <Button type="text" size="small" aria-label={`编辑租户套餐 ${row.name}`} icon={<EditOutlined />} onClick={() => openEdit(row)} />
+            </Tooltip>
           )}
           {hasPerm('system:tenant-package:delete') && (
             <Popconfirm title="确定删除该套餐？有租户绑定时将拒绝删除。" onConfirm={() => void onDelete(row)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
+              <Tooltip title="删除">
+                <Button type="text" size="small" danger aria-label={`删除租户套餐 ${row.name}`} icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -242,6 +311,8 @@ export default function TenantPackagePage() {
           loading={loading}
           dataSource={list}
           columns={columns}
+          rowClassName={(row) => row.status === 1 ? '' : 'list-row-disabled'}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无套餐" compact /> }}
           pagination={{
             total,
@@ -281,26 +352,55 @@ export default function TenantPackagePage() {
             label={`套餐权限（已选 ${checkedCodes.length} 项）`}
             extra="严格勾选（父子不联动），与角色授权页的平铺勾选语义一致"
           >
-            <Space style={{ marginBottom: 8 }}>
-              <Button size="small" onClick={() => setCheckedCodes(allCodes)}>全选</Button>
-              <Button size="small" onClick={() => setCheckedCodes([])}>清空</Button>
-            </Space>
-            <div style={{ border: '1px solid rgba(148, 163, 184, 0.25)', borderRadius: 8, padding: 8 }}>
+            <div className="tenant-permission-toolbar">
+              <Input
+                value={permissionKeyword}
+                onChange={(event) => setPermissionKeyword(event.target.value)}
+                placeholder="搜索权限名称 / 编码"
+                prefix={<SearchOutlined />}
+                allowClear
+              />
+              <div className="tenant-permission-toolbar-actions">
+                <Checkbox checked={showSelectedOnly} onChange={(event) => setShowSelectedOnly(event.target.checked)}>
+                  只看已选
+                </Checkbox>
+                <Tooltip title="全部展开">
+                  <Button
+                    size="small"
+                    aria-label="全部展开套餐权限"
+                    icon={<ArrowsAltOutlined />}
+                    onClick={() => updateExpandedKeys(permissionFilterActive ? visibleCodes : allCodes)}
+                  />
+                </Tooltip>
+                <Tooltip title="全部收起">
+                  <Button size="small" aria-label="全部收起套餐权限" icon={<ShrinkOutlined />} onClick={() => updateExpandedKeys([])} />
+                </Tooltip>
+                <Button size="small" onClick={() => setCheckedCodes(allCodes)}>全选</Button>
+                <Button size="small" onClick={() => setCheckedCodes([])}>清空</Button>
+              </div>
+            </div>
+            <div className="tenant-permission-tree-frame">
               {/* height 触发 antd Tree 内置虚拟滚动；外层 maxHeight+overflow 只能裁视口，
                   500 条权限仍会全部进 DOM 且 defaultExpandAll 全展开 */}
-              <Tree
-                checkable
-                checkStrictly
-                selectable={false}
-                defaultExpandAll
-                height={320}
-                treeData={treeData}
-                checkedKeys={{ checked: checkedCodes, halfChecked: [] }}
-                onCheck={(keys) => {
-                  const checked = Array.isArray(keys) ? keys : keys.checked
-                  setCheckedCodes(checked.map(String))
-                }}
-              />
+              {treeData.length > 0 ? (
+                <Tree
+                  checkable
+                  checkStrictly
+                  selectable={false}
+                  height={320}
+                  treeData={treeData}
+                  expandedKeys={effectiveExpandedKeys}
+                  autoExpandParent={false}
+                  onExpand={updateExpandedKeys}
+                  checkedKeys={{ checked: checkedCodes, halfChecked: [] }}
+                  onCheck={(keys) => {
+                    const checked = Array.isArray(keys) ? keys : keys.checked
+                    setCheckedCodes(checked.map(String))
+                  }}
+                />
+              ) : (
+                <GlassEmpty text="没有匹配的权限" compact />
+              )}
             </div>
           </Form.Item>
         </Form>

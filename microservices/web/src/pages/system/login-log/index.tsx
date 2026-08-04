@@ -17,6 +17,7 @@ import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import dayjs from 'dayjs'
+import './styles.css'
 
 const { RangePicker } = DatePicker
 
@@ -190,22 +191,35 @@ export default function LoginLogPage() {
   }
 
   const columns: ColumnsType<LoginLog> = [
-    { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
-    { title: '用户名', dataIndex: 'username', width: 120 },
+    { title: 'ID', dataIndex: 'id', width: 64, responsive: ['lg'] },
+    {
+      title: '用户名',
+      dataIndex: 'username',
+      width: 132,
+      render: (v: string) => v ? (
+        <Tooltip title={v}>
+          <span className="login-log-ellipsis login-log-username">{v}</span>
+        </Tooltip>
+      ) : <span className="cell-muted">—</span>,
+    },
     {
       title: 'IP / 位置',
       dataIndex: 'ip',
-      width: 200,
+      width: 220,
       responsive: ['sm'],
       render: (v: string, record) => {
         const text = [v, record.location].filter(Boolean).join(' · ')
-        return text ? <span className="cell-mono">{text}</span> : <span className="cell-muted">—</span>
+        return text ? (
+          <Tooltip title={text}>
+            <span className="cell-mono login-log-ellipsis">{text}</span>
+          </Tooltip>
+        ) : <span className="cell-muted">—</span>
       },
     },
     {
       title: '状态',
       dataIndex: 'status',
-      width: 90,
+      width: 84,
       render: (v: number, record) =>
         v === 1 ? (
           <StatusPill tone="success" label="成功" pulse={false} />
@@ -218,23 +232,41 @@ export default function LoginLogPage() {
         ),
     },
     {
+      title: '失败原因',
+      dataIndex: 'message',
+      width: 220,
+      ellipsis: true,
+      responsive: ['md'],
+      render: (v: string | undefined, record) => record.status !== 1 && v ? (
+        <Tooltip title={v}>
+          <span className="login-log-ellipsis login-log-reason">{v}</span>
+        </Tooltip>
+      ) : <span className="cell-muted">—</span>,
+    },
+    {
       title: '登录类型',
       dataIndex: 'login_type',
-      width: 100,
+      width: 112,
       responsive: ['md'],
       render: (v: number) => (
         <Tag color={loginTypeColors[v]} variant="filled">{loginTypeLabels[v] ?? v}</Tag>
       ),
     },
-    { title: '浏览器', dataIndex: 'browser', ellipsis: true, responsive: ['lg'] },
-    { title: 'OS', dataIndex: 'os', width: 120, responsive: ['lg'] },
-    { title: '时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '浏览器', dataIndex: 'browser', width: 160, ellipsis: true, responsive: ['lg'] },
+    { title: 'OS', dataIndex: 'os', width: 140, ellipsis: true, responsive: ['lg'] },
+    {
+      title: '时间',
+      dataIndex: 'created_at',
+      width: 164,
+      className: 'cell-time',
+      render: (v?: string) => <span className="login-log-time">{formatDateTime(v)}</span>,
+    },
   ]
 
   return (
     <div className="page-list login-log-page">
       {stats && (
-        <Card className="list-filter-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
+        <Card className="list-filter-card login-log-stats-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
           <div className="log-stats-row">
             <div className="log-stat">
               <span className="log-stat-label">近 7 天登录</span>
@@ -353,31 +385,39 @@ export default function LoginLogPage() {
           title="登录日志"
           total={total}
           extra={
-            <Space wrap>
+            <Space wrap className="login-log-toolbar-actions">
               {hasPerm('system:log:login') && (
-                <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
-                  导出 CSV
-                </Button>
+                <Tooltip title="导出 CSV">
+                  <Button aria-label="导出登录日志 CSV" icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
+                    导出 CSV
+                  </Button>
+                </Tooltip>
               )}
               {hasPerm('system:log:login') && (
-                <Button
-                  danger
-                  icon={<ClearOutlined />}
-                  onClick={() => { clearForm.resetFields(); setClearOpen(true) }}
-                >
-                  清理日志
-                </Button>
+                <Tooltip title="清理日志">
+                  <Button
+                    danger
+                    aria-label="清理登录日志"
+                    icon={<ClearOutlined />}
+                    onClick={() => { clearForm.resetFields(); setClearOpen(true) }}
+                  >
+                    清理日志
+                  </Button>
+                </Tooltip>
               )}
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              <Tooltip title="刷新">
+                <Button aria-label="刷新登录日志" icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              </Tooltip>
             </Space>
           }
         />
         <Table
           rowKey="id"
-          className="list-table"
+          className="list-table login-log-table"
           columns={columns}
           dataSource={list}
           loading={loading}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无登录记录" compact /> }}
           pagination={{
             total,
