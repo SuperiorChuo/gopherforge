@@ -151,17 +151,17 @@
 
 | 能力 | 状态 |
 |------|:----:|
-| 🔐 登录 / JWT 刷新与撤销 / 验证码 / TOTP / OAuth | ✅ |
+| 🔐 登录 / 邀请制注册 / JWT 刷新与撤销 / 验证码 / TOTP / OAuth | ✅ |
 | 🪪 OAuth2 授权服务端 + OIDC（authorization_code+PKCE / client_credentials / id_token / JWKS / 发现文档，控制台管理应用与令牌） | ✅ |
 | 🛡️ RBAC（用户、角色、权限、部门、菜单） | ✅ |
-| 🏢 多租户（共享库 + tenant_id，登录带租户码） | ✅ |
+| 🏢 多租户（共享库 + tenant_id，登录带租户码；租户开通自动建初始管理员、级联删除、租户级设置覆盖） | ✅ |
 | 📚 字典、公告、系统设置（DB 热配置）、在线用户 | ✅ |
 | 📝 登录日志 / 操作日志 / 审计日志（可选按保留天数自动清理） | ✅ |
 | 📁 文件上传（MinIO / 本地） | ✅ |
 | 📨 短信管理（渠道 provider 可插拔 + 模板 + 发送日志；服务间内部发送契约 `SYSTEM_INTERNAL_TOKEN` 门控） | ✅ |
-| 🖥️ 服务器 / PostgreSQL / Redis / 定时任务监控 | ✅ |
+| 🖥️ 服务器 / PostgreSQL / Redis / 定时任务监控（60s 采样历史趋势 1h/24h/7d） | ✅ |
 | ❤️ 健康检查、Prometheus metrics、微服务健康总览（并发探测各服务 ready） | ✅ |
-| 🚨 告警（Prometheus 规则 + Alertmanager → 站内信；monitor 内置告警规则引擎：阈值规则 / 状态机 / SMTP 邮件通知 / 规则与事件管理页） | ✅ |
+| 🚨 告警（Prometheus 规则 + Alertmanager → 站内信；monitor 内置告警规则引擎：阈值规则 / 状态机 / 多通道通知（邮件 · 站内信 · 企业微信）+ 静默期 / 规则与事件管理页） | ✅ |
 | 💓 任务中心（分布式任务心跳上报 `shared/pkg/jobbeat`，超期即亮红） | ✅ |
 | 📋 审批流引擎（仿钉钉设计器 / 流程表单零代码发起 / 会签或签依次 / 条件分支 / 超时自动动作 / 加签委派 / 审批统计 / 终态回调） | ✅ |
 | 🚪 Traefik 网关 + ForwardAuth | ✅ |
