@@ -478,7 +478,7 @@ export default function AlertRulesPage() {
   const compactRuleColumns: ColumnsType<MonitorAlertRule> = [
     {
       title: '规则',
-      width: 170,
+      width: 156,
       render: (_, rule) => {
         const metric = metricMap.get(rule.metric)
         return (
@@ -498,7 +498,7 @@ export default function AlertRulesPage() {
     },
     {
       title: '状态',
-      width: 124,
+      width: 116,
       render: (_, rule) => {
         const metric = metricMap.get(rule.metric)
         return (
@@ -792,7 +792,8 @@ export default function AlertRulesPage() {
               columns={ruleColumns}
               dataSource={rules}
               loading={ruleLoading}
-              scroll={{ x: compactTable ? 342 : 'max-content' }}
+              tableLayout={compactTable ? 'fixed' : 'auto'}
+              scroll={{ x: compactTable ? 320 : 'max-content' }}
               locale={{
                 emptyText: <GlassEmpty text={ruleFailed && !ruleLoaded ? '告警规则暂不可用' : '暂无告警规则'} compact />,
               }}
@@ -878,6 +879,7 @@ export default function AlertRulesPage() {
               columns={eventColumns}
               dataSource={events}
               loading={eventLoading}
+              tableLayout={compactTable ? 'fixed' : 'auto'}
               scroll={{ x: compactTable ? 310 : 'max-content' }}
               locale={{
                 emptyText: <GlassEmpty text={eventFailed && !eventLoaded ? '告警事件暂不可用' : '暂无告警事件'} compact />,
