@@ -5,8 +5,40 @@ type JobListParams = PageRequest & { name?: string; status?: number }
 type JobCreateData = Omit<ScheduledJob, 'id' | 'created_at' | 'last_run_time' | 'next_run_time'>
 type JobUpdateData = Partial<JobCreateData>
 
+export interface ServerCPUInfo {
+  model_name: string
+  cores: number
+  used_percent: number
+}
+
+export interface ServerStorageInfo {
+  total: number
+  used: number
+  free: number
+  used_percent: number
+}
+
+export interface ServerOSInfo {
+  go_os: string
+  arch: string
+  compiler: string
+  go_version: string
+  num_goroutine: number
+  hostname: string
+  platform: string
+  boot_time: string
+}
+
+export interface ServerInfo {
+  cpu: ServerCPUInfo
+  memory: ServerStorageInfo
+  disk: ServerStorageInfo
+  os: ServerOSInfo
+  runtime?: ServerOSInfo
+}
+
 export const getServerInfo = () =>
-  request.get<unknown, Record<string, unknown>>('/api/v1/monitor/server')
+  request.get<unknown, ServerInfo>('/api/v1/monitor/server')
 
 export const getMySQLInfo = () =>
   request.get<unknown, Record<string, unknown>>('/api/v1/monitor/mysql')
