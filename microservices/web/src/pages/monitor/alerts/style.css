@@ -184,7 +184,10 @@
 .alert-event-compact-main,
 .alert-event-compact-state {
   display: flex;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
+  overflow: hidden;
   flex-direction: column;
 }
 
