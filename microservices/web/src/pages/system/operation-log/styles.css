@@ -1,0 +1,118 @@
+.operation-log-page .operation-log-table .ant-table-thead > tr > th {
+  white-space: nowrap;
+}
+
+.operation-log-page .operation-scan-text {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operation-log-page .operation-method-tag,
+.operation-log-page .operation-status-tag {
+  max-width: 100%;
+  margin-inline-end: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operation-log-page .operation-method-tag {
+  color: rgba(203, 213, 225, 0.88);
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.operation-log-page .operation-row-action {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding-inline: 0;
+  border: 1px solid transparent;
+}
+
+.operation-log-page .operation-row-action:hover {
+  border-color: rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.operation-log-page .operation-stat-tags {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.operation-log-page .operation-stat-tags .ant-tag {
+  margin-inline-end: 0;
+}
+
+.operation-log-page .operation-module-tag {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operation-log-page .operation-toolbar-actions {
+  max-width: 100%;
+}
+
+.operation-detail-content .ant-descriptions-item-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.operation-detail-content .operation-detail-long {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+[data-theme='light'] .operation-log-page .operation-method-tag {
+  color: #475569;
+  background: rgba(100, 116, 139, 0.09);
+  border-color: rgba(100, 116, 139, 0.14);
+}
+
+@media (max-width: 575px) {
+  .operation-log-page .operation-stats-card .ant-card-body {
+    padding: 14px 16px !important;
+  }
+
+  .operation-log-page .log-stats-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 14px 12px;
+  }
+
+  .operation-log-page .log-stat {
+    min-width: 0;
+  }
+
+  .operation-log-page .log-stat-divider {
+    display: none;
+  }
+
+  .operation-log-page .operation-toolbar-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .operation-log-page .operation-toolbar-actions > .ant-space-item {
+    min-width: 0;
+  }
+
+  .operation-log-page .operation-toolbar-actions .ant-btn {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 6px;
+  }
+}

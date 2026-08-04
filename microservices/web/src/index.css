@@ -4186,7 +4186,7 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
     padding-inline: 0;
   }
 
-  .user-page .table-actions .ant-btn > span:not(.anticon) {
+  .user-page .table-actions .ant-btn > span:not(.ant-btn-icon) {
     display: none;
   }
 
@@ -4434,7 +4434,7 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
     padding-inline: 0;
   }
 
-  .page-tabs > .ant-tabs-nav .ant-tabs-extra-content .ant-btn > span:not(.anticon) {
+  .page-tabs > .ant-tabs-nav .ant-tabs-extra-content .ant-btn > span:not(.ant-btn-icon) {
     display: none;
   }
 }

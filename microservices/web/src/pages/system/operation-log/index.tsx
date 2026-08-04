@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Table, Button, Space, Tag, Card, Input, Select, Form, Modal, Descriptions, DatePicker,
-  InputNumber, Drawer,
+  InputNumber, Drawer, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import { SearchOutlined, ReloadOutlined, EyeOutlined, DownloadOutlined, ClearOutlined } from '@ant-design/icons'
@@ -18,12 +18,9 @@ import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import dayjs from 'dayjs'
+import './styles.css'
 
 const { RangePicker } = DatePicker
-
-const methodColors: Record<string, string> = {
-  GET: 'blue', POST: 'green', PUT: 'gold', DELETE: 'red', PATCH: 'purple',
-}
 
 interface SearchParams {
   username?: string
@@ -54,6 +51,15 @@ function tryPrettyJson(raw: string): string {
 
 function latencyClass(ms: number): string {
   return ms > 1000 ? 'latency-high' : ms > 300 ? 'latency-mid' : 'latency-low'
+}
+
+function ScanText({ value, mono = false }: { value?: string; mono?: boolean }) {
+  const text = value || '—'
+  return (
+    <Tooltip title={value || undefined}>
+      <span className={`operation-scan-text${mono ? ' cell-mono' : ''}`}>{text}</span>
+    </Tooltip>
+  )
 }
 
 export default function OperationLogPage() {
@@ -163,28 +169,29 @@ export default function OperationLogPage() {
 
   const columns: ColumnsType<OperationLog> = [
     { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
-    { title: '用户名', dataIndex: 'username', width: 120, responsive: ['sm'] },
+    { title: '用户名', dataIndex: 'username', width: 160, ellipsis: true, responsive: ['sm'], render: (v: string) => <ScanText value={v} /> },
     {
       title: '方法',
       dataIndex: 'method',
       width: 90,
       responsive: ['md'],
-      render: (v: string) => <Tag color={methodColors[v] ?? 'default'} variant="filled">{v}</Tag>,
+      render: (v: string) => <Tag variant="filled" className="cell-mono operation-method-tag">{v}</Tag>,
     },
     {
       title: '路径',
       dataIndex: 'path',
+      width: 300,
       ellipsis: true,
-      render: (v: string) => <span className="cell-mono cell-dim">{v}</span>,
+      render: (v: string) => <ScanText value={v} mono />,
     },
-    { title: '模块', dataIndex: 'module', width: 100, responsive: ['md'] },
-    { title: '动作', dataIndex: 'action', width: 100, responsive: ['lg'] },
+    { title: '模块', dataIndex: 'module', width: 140, ellipsis: true, responsive: ['md'], render: (v: string) => <ScanText value={v} /> },
+    { title: '动作', dataIndex: 'action', width: 160, ellipsis: true, responsive: ['lg'], render: (v: string) => <ScanText value={v} mono /> },
     {
       title: '状态',
       dataIndex: 'status',
       width: 80,
       responsive: ['sm'],
-      render: (v: number) => <Tag color={statusColor(v)}>{v}</Tag>,
+      render: (v: number) => <Tag color={statusColor(v)} variant="filled" className="cell-mono operation-status-tag">{v}</Tag>,
     },
     {
       title: '耗时',
@@ -201,11 +208,19 @@ export default function OperationLogPage() {
     { title: '时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['md'] },
     {
       title: '操作',
-      width: 80,
+      width: 64,
+      fixed: 'right',
       render: (_, record) => (
-        <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record.id)}>
-          详情
-        </Button>
+        <Tooltip title="查看详情">
+          <Button
+            type="text"
+            size="small"
+            className="operation-row-action"
+            aria-label="查看操作日志详情"
+            icon={<EyeOutlined />}
+            onClick={() => openDetail(record.id)}
+          />
+        </Tooltip>
       ),
     },
   ]
@@ -217,7 +232,7 @@ export default function OperationLogPage() {
   return (
     <div className="page-list operation-log-page">
       {stats && (
-        <Card className="list-filter-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
+        <Card className="list-filter-card operation-stats-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
           <div className="log-stats-row">
             <div className="log-stat">
               <span className="log-stat-label">近 7 天操作</span>
@@ -234,9 +249,9 @@ export default function OperationLogPage() {
                 <div className="log-stat-divider" />
                 <div className="log-stat">
                   <span className="log-stat-label">方法分布</span>
-                  <span>
+                  <span className="operation-stat-tags">
                     {Object.entries(stats.by_method ?? {}).map(([m, n]) => (
-                      <Tag key={m} color={methodColors[m] ?? 'default'} variant="filled">
+                      <Tag key={m} variant="filled" className="cell-mono operation-method-tag">
                         {m} {n}
                       </Tag>
                     ))}
@@ -249,9 +264,11 @@ export default function OperationLogPage() {
                 <div className="log-stat-divider" />
                 <div className="log-stat">
                   <span className="log-stat-label">活跃模块 Top{topModules.length}</span>
-                  <span>
+                  <span className="operation-stat-tags">
                     {topModules.map(([m, n]) => (
-                      <Tag key={m}>{m} {n}</Tag>
+                      <Tooltip key={m} title={m}>
+                        <Tag variant="filled" className="operation-module-tag">{m} {n}</Tag>
+                      </Tooltip>
                     ))}
                   </span>
                 </div>
@@ -310,7 +327,7 @@ export default function OperationLogPage() {
           title="操作日志"
           total={total}
           extra={
-            <Space wrap>
+            <Space wrap className="operation-toolbar-actions">
               {hasPerm('system:log:operation:clear') && (
                 <Button
                   danger
@@ -329,10 +346,11 @@ export default function OperationLogPage() {
         />
         <Table
           rowKey="id"
-          className="list-table"
+          className="list-table operation-log-table"
           columns={columns}
           dataSource={list}
           loading={loading}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无操作记录" compact /> }}
           pagination={{
             total,
@@ -354,13 +372,13 @@ export default function OperationLogPage() {
         destroyOnHidden
       >
         {detail && (
-          <div>
-            <Descriptions column={2} bordered size="small">
+          <div className="operation-detail-content">
+            <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
               <Descriptions.Item label="用户">{detail.username || '-'}</Descriptions.Item>
               <Descriptions.Item label="时间">{formatDateTime(detail.created_at)}</Descriptions.Item>
               <Descriptions.Item label="方法 / 状态">
-                <Tag color={methodColors[detail.method] ?? 'default'} variant="filled">{detail.method}</Tag>
-                <Tag color={statusColor(detail.status)}>{detail.status}</Tag>
+                <Tag variant="filled" className="cell-mono operation-method-tag">{detail.method}</Tag>
+                <Tag color={statusColor(detail.status)} variant="filled" className="cell-mono operation-status-tag">{detail.status}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="耗时">
                 {typeof detail.latency === 'number' ? (
@@ -372,7 +390,7 @@ export default function OperationLogPage() {
                 )}
               </Descriptions.Item>
               <Descriptions.Item label="路径" span={2}>
-                <span className="cell-mono">
+                <span className="cell-mono operation-detail-long">
                   {detail.path}
                   {detail.query ? `?${detail.query}` : ''}
                 </span>
@@ -384,11 +402,11 @@ export default function OperationLogPage() {
                 <span className="cell-mono">{detail.ip || '-'}</span>
               </Descriptions.Item>
               <Descriptions.Item label="请求ID" span={2}>
-                <span className="cell-mono">{detail.request_id || '-'}</span>
+                <span className="cell-mono operation-detail-long">{detail.request_id || '-'}</span>
               </Descriptions.Item>
               {detail.user_agent && (
                 <Descriptions.Item label="User-Agent" span={2}>
-                  <span className="card-extra-note">{detail.user_agent}</span>
+                  <span className="card-extra-note operation-detail-long">{detail.user_agent}</span>
                 </Descriptions.Item>
               )}
             </Descriptions>

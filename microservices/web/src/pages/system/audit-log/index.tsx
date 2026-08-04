@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  Table, Button, Space, Tag, Card, Input, Select, Form, Drawer, Descriptions,
+  Table, Button, Space, Tag, Card, Input, Select, Form, Drawer, Descriptions, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import { SearchOutlined, ReloadOutlined, EyeOutlined } from '@ant-design/icons'
@@ -10,6 +10,7 @@ import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
+import './styles.css'
 
 interface SearchParams {
   keyword?: string
@@ -73,38 +74,55 @@ export default function AuditLogPage() {
       width: 160,
       responsive: ['sm'],
       render: (v: string, record) => (
-        <Space size={4}>
-          <Tag variant="filled">{record.actor_type}</Tag>
-          <span className="cell-mono" style={{ fontSize: 12 }}>{v}</span>
-        </Space>
+        <div className="audit-actor-cell">
+          <Tag variant="filled" className="audit-actor-type">{record.actor_type}</Tag>
+          <Tooltip title={v}>
+            <span className="cell-mono audit-actor-id">{v || '—'}</span>
+          </Tooltip>
+        </div>
       ),
     },
     {
       title: '动作',
       dataIndex: 'action',
-      width: 160,
-      render: (v: string) => <Tag color="geekblue" variant="filled" className="cell-mono">{v}</Tag>,
+      width: 200,
+      render: (v: string) => (
+        <Tooltip title={v}>
+          <Tag color="geekblue" variant="filled" className="cell-mono audit-action-tag">{v}</Tag>
+        </Tooltip>
+      ),
     },
     {
       title: '目标',
       dataIndex: 'target_type',
-      width: 180,
+      width: 220,
       responsive: ['md'],
-      render: (v: string, record) => (
-        <span className="cell-mono cell-dim" style={{ fontSize: 12 }}>
-          {v}#{record.target_id}
-        </span>
-      ),
+      render: (v: string, record) => {
+        const target = `${v}#${record.target_id}`
+        return (
+          <Tooltip title={target}>
+            <span className="cell-mono cell-dim audit-target-cell">{target}</span>
+          </Tooltip>
+        )
+      },
     },
-    { title: '摘要', dataIndex: 'summary', ellipsis: true, responsive: ['lg'] },
+    { title: '摘要', dataIndex: 'summary', width: 300, ellipsis: true, responsive: ['lg'] },
     { title: '时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['md'] },
     {
       title: '操作',
-      width: 80,
+      width: 64,
+      fixed: 'right',
       render: (_, record) => (
-        <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => setDetail(record)}>
-          详情
-        </Button>
+        <Tooltip title="查看详情">
+          <Button
+            type="text"
+            size="small"
+            className="audit-row-action"
+            aria-label="查看审计日志详情"
+            icon={<EyeOutlined />}
+            onClick={() => setDetail(record)}
+          />
+        </Tooltip>
       ),
     },
   ]
@@ -153,10 +171,11 @@ export default function AuditLogPage() {
         />
         <Table
           rowKey="id"
-          className="list-table"
+          className="list-table audit-log-table"
           columns={columns}
           dataSource={list}
           loading={loading}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无审计记录" compact /> }}
           pagination={{
             total,
@@ -178,19 +197,19 @@ export default function AuditLogPage() {
         destroyOnHidden
       >
         {detail && (
-          <div>
-            <Descriptions column={2} bordered size="small">
+          <div className="audit-detail-content">
+            <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
               <Descriptions.Item label="ID">{detail.id}</Descriptions.Item>
               <Descriptions.Item label="时间">{formatDateTime(detail.created_at)}</Descriptions.Item>
               <Descriptions.Item label="操作者">
                 <Tag variant="filled">{detail.actor_type}</Tag>
-                <span className="cell-mono">{detail.actor_id}</span>
+                <span className="cell-mono audit-detail-long">{detail.actor_id}</span>
               </Descriptions.Item>
               <Descriptions.Item label="动作">
-                <Tag color="geekblue" variant="filled" className="cell-mono">{detail.action}</Tag>
+                <Tag color="geekblue" variant="filled" className="cell-mono audit-detail-tag">{detail.action}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="目标" span={2}>
-                <span className="cell-mono">{detail.target_type}#{detail.target_id}</span>
+                <span className="cell-mono audit-detail-long">{detail.target_type}#{detail.target_id}</span>
               </Descriptions.Item>
               {detail.summary && (
                 <Descriptions.Item label="摘要" span={2}>{detail.summary}</Descriptions.Item>

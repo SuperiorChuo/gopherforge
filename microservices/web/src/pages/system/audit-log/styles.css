@@ -1,0 +1,81 @@
+.audit-log-page .audit-log-table .ant-table-thead > tr > th {
+  white-space: nowrap;
+}
+
+.audit-log-page .audit-actor-cell {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 6px;
+}
+
+.audit-log-page .audit-actor-type {
+  max-width: 72px;
+  margin-inline-end: 0;
+  overflow: hidden;
+  flex: 0 1 auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-log-page .audit-actor-id,
+.audit-log-page .audit-target-cell {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-log-page .audit-actor-id {
+  flex: 1 1 auto;
+}
+
+.audit-log-page .audit-action-tag {
+  display: block;
+  max-width: 100%;
+  margin-inline-end: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-log-page .audit-row-action {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding-inline: 0;
+  border: 1px solid transparent;
+}
+
+.audit-log-page .audit-row-action:hover {
+  border-color: rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.audit-detail-content .ant-descriptions-item-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.audit-detail-content .audit-detail-long,
+.audit-detail-content .audit-detail-tag {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.audit-detail-content .audit-detail-tag {
+  margin-inline-end: 0;
+  white-space: normal;
+}
+
+@media (max-width: 575px) {
+  .audit-log-page .table-toolbar-extra,
+  .audit-log-page .table-toolbar-extra .ant-btn {
+    width: 100%;
+  }
+}

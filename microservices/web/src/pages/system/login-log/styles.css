@@ -1,0 +1,83 @@
+.login-log-page .login-log-ellipsis {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.login-log-page .login-log-username {
+  font-weight: 600;
+}
+
+.login-log-page .login-log-reason {
+  color: rgba(248, 113, 113, 0.84);
+}
+
+.login-log-page .login-log-time {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.login-log-page .login-log-toolbar-actions {
+  flex-wrap: wrap;
+}
+
+[data-theme='light'] .login-log-page .login-log-reason {
+  color: #b91c1c;
+}
+
+@media (max-width: 575px) {
+  .login-log-page .login-log-stats-card .ant-card-body {
+    padding: 14px 16px !important;
+  }
+
+  .login-log-page .log-stats-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .login-log-page .log-stat {
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-radius: 8px;
+    background: rgba(100, 116, 139, 0.06);
+  }
+
+  [data-theme='light'] .login-log-page .log-stat {
+    border-color: rgba(100, 116, 139, 0.12);
+    background: rgba(148, 163, 184, 0.08);
+  }
+
+  .login-log-page .log-stat-label,
+  .login-log-page .log-stat-value {
+    letter-spacing: 0;
+  }
+
+  .login-log-page .log-stat-divider {
+    display: none;
+  }
+
+  .login-log-page .login-log-toolbar-actions {
+    width: 100%;
+  }
+
+  .login-log-page .login-log-toolbar-actions .ant-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    padding-inline: 0;
+  }
+
+  .login-log-page .login-log-toolbar-actions .ant-btn > span:not(.ant-btn-icon) {
+    display: none;
+  }
+
+  .login-log-page .login-log-table .ant-table-cell {
+    padding-inline: 10px;
+  }
+}

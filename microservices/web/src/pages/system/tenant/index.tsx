@@ -12,6 +12,7 @@ import StatusPill from '@/components/StatusPill'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { useAppSelector } from '@/hooks/store'
 import { clearActTenantId, getActTenantId, setActTenantId } from '@/utils/request'
+import './styles.css'
 
 interface SearchParams {
   keyword?: string
@@ -158,16 +159,34 @@ export default function TenantPage() {
     message.success('已取消租户切换，回到本账号所属租户')
   }
 
+  const activeTenant = list.find((row) => String(row.id) === actTenant)
+  const activeTenantLabel = activeTenant
+    ? `${activeTenant.name} (${activeTenant.code})`
+    : `ID=${actTenant}`
+
   const columns: ColumnsType<TenantInfo> = [
     { title: 'ID', dataIndex: 'id', width: 70, responsive: ['lg'] },
     {
       title: 'Code',
       dataIndex: 'code',
-      width: 160,
+      width: 180,
       responsive: ['sm'],
-      render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
+      render: (v: string) => <Tag variant="filled" className="cell-mono list-code-tag">{v}</Tag>,
     },
-    { title: '名称', dataIndex: 'name' },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      width: 220,
+      ellipsis: true,
+      render: (value: string, row) => (
+        <span className="tenant-name-cell">
+          <span className="list-primary-cell">{value}</span>
+          {actTenant === String(row.id) && (
+            <Tag color="blue" variant="filled" className="tenant-current-tag">当前</Tag>
+          )}
+        </span>
+      ),
+    },
     {
       title: '计费方案',
       dataIndex: 'plan',
@@ -198,29 +217,34 @@ export default function TenantPage() {
     {
       title: '状态',
       dataIndex: 'status',
-      width: 100,
-      responsive: ['sm'],
+      width: 90,
       render: (v: number) =>
         v === 1 ? <StatusPill tone="success" label="启用" /> : <StatusPill tone="muted" label="停用" />,
     },
     {
       title: '操作',
-      width: 200,
+      width: 144,
+      fixed: 'right',
       render: (_, row) => (
-        <Space size={0} className="table-actions">
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(row)}>
-            编辑
-          </Button>
+        <Space size={4} className="table-actions tenant-row-actions">
+          <Tooltip title="编辑">
+            <Button type="text" size="small" aria-label={`编辑租户 ${row.name}`} icon={<EditOutlined />} onClick={() => openEdit(row)} />
+          </Tooltip>
           {isPlatform && (
-            <Tooltip title="以该租户身份操作业务数据">
-              <Button
-                size="small"
-                type={actTenant === String(row.id) ? 'primary' : 'default'}
-                icon={<SwapOutlined />}
-                onClick={() => actAs(row)}
-              >
-                进入
-              </Button>
+            <Tooltip title={row.status === 1 ? '以该租户身份操作业务数据' : '停用租户不可进入'}>
+              <span>
+                <Button
+                  size="small"
+                  type={actTenant === String(row.id) ? 'primary' : 'default'}
+                  className="tenant-enter-button"
+                  aria-label={`进入租户 ${row.name}`}
+                  icon={<SwapOutlined />}
+                  disabled={row.status !== 1}
+                  onClick={() => actAs(row)}
+                >
+                  {actTenant === String(row.id) ? '当前' : '进入'}
+                </Button>
+              </span>
             </Tooltip>
           )}
           {isPlatform && row.id !== 1 && (
@@ -231,7 +255,9 @@ export default function TenantPage() {
               okButtonProps={{ danger: true }}
               onConfirm={() => void onDelete(row)}
             >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              <Tooltip title="删除">
+                <Button type="text" size="small" danger aria-label={`删除租户 ${row.name}`} icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -248,7 +274,7 @@ export default function TenantPage() {
           message="平台运营账号（platform_admin）"
           description={
             actTenant
-              ? `当前以租户 ID=${actTenant} 操作数据。用户/角色/部门等列表将只显示该租户。`
+              ? `当前以租户 ${activeTenantLabel} 操作数据。用户/角色/部门等列表将只显示该租户。`
               : '可点击「进入」切换操作租户；仅影响本机后续 API 的 X-Act-Tenant-ID。'
           }
           action={
@@ -300,6 +326,11 @@ export default function TenantPage() {
           loading={loading}
           dataSource={list}
           columns={columns}
+          rowClassName={(row) => {
+            if (row.status !== 1) return 'list-row-disabled'
+            return actTenant === String(row.id) ? 'tenant-row-active' : ''
+          }}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无租户" compact /> }}
           pagination={{
             total,
