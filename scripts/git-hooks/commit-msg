@@ -1,0 +1,17 @@
+#!/bin/bash
+# commit-msg 钩子：自动剥除 AI 署名 trailer（Co-Authored-By: Claude/Codex 等）。
+# 规则：提交不加 AI 署名，GitHub Contributors 只留人类。
+# AI 编码工具默认会追加该 trailer，靠人叮嘱挡不住（2026-08-04 曾连续 9 笔漏网），
+# 故做成确定性门禁：命中即剥除并提示，不阻断提交。人类协作者的 Co-Authored-By 不受影响。
+
+MSG_FILE="$1"
+[ -f "$MSG_FILE" ] || exit 0
+
+AI_TRAILER='^Co-Authored-By:.*([Cc]laude|[Aa]nthropic|[Cc]odex|[Cc]opilot|ChatGPT|[Oo]pen[Aa][Ii]|[Gg]emini|[Cc]ursor|[Dd]evin|[Aa]ider|\[bot\])'
+
+if grep -qE "$AI_TRAILER" "$MSG_FILE"; then
+  grep -vE "$AI_TRAILER" "$MSG_FILE" > "$MSG_FILE.tmp" && mv "$MSG_FILE.tmp" "$MSG_FILE"
+  echo "ℹ️ commit-msg 钩子：已自动剥除 AI 署名 trailer（本工作区规则：Contributors 只留人类）。" >&2
+fi
+
+exit 0
