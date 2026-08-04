@@ -25,7 +25,7 @@ func DefaultAlertEmailNotifier() *AlertEmailNotifier {
 	return NewAlertEmailNotifier(nil, runtimeconfig.DefaultEmailNotificationReader())
 }
 
-func (n *AlertEmailNotifier) NotifyContext(ctx context.Context, event *model.MonitorAlertEvent) AlertNotification {
+func (n *AlertEmailNotifier) NotifyContext(ctx context.Context, _ *model.MonitorAlertRule, event *model.MonitorAlertEvent) AlertNotification {
 	now := time.Now
 	if n != nil && n.now != nil {
 		now = n.now

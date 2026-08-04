@@ -339,6 +339,8 @@ type DemoAlertRule = {
   severity: string
   enabled: boolean
   notify_on_resolve: boolean
+  notify_channels?: string[]
+  silence_until?: string | null
   state: string
   pending_since: string | null
   firing_since: string | null
@@ -363,6 +365,38 @@ const alertEvents = [
   { id: 3, rule_id: 2, rule_name: '内存使用率告警', metric: 'system.memory.used_percent', severity: 'warning', status: 'firing', value: 88.1, threshold: 90, message: '内存使用率 88.1% 接近阈值，等待确认中', notify_status: 'pending', notify_error: '', notified_at: null, created_at: daysAgo(0, 1) },
   { id: 4, rule_id: 5, rule_name: 'Redis 客户端连接数', metric: 'redis.clients.connected', severity: 'info', status: 'resolved', value: 168, threshold: 200, message: '连接数回落至 168，告警恢复', notify_status: 'failed', notify_error: 'smtp auth failed', notified_at: daysAgo(3, 9), created_at: daysAgo(3, 9) },
 ]
+
+// 指标历史趋势：为告警/采样同源的 metric key 生成一段确定性波形假数据
+const metricTrendBase: Record<string, number> = {
+  'system.cpu.used_percent': 35,
+  'system.memory.used_percent': 62,
+  'system.disk.used_percent': 45,
+  'postgres.connections.percent': 40,
+  'redis.memory.used_bytes': 20 * 1024 * 1024,
+  'redis.clients.connected': 6,
+}
+
+const metricTrendStepMs: Record<string, number> = { '1h': 60_000, '24h': 300_000, '7d': 3_600_000 }
+const metricTrendCount: Record<string, number> = { '1h': 60, '24h': 288, '7d': 168 }
+const metricTrendUnit: Record<string, string> = {
+  'redis.memory.used_bytes': 'bytes',
+  'redis.clients.connected': 'count',
+}
+
+function metricTrendPoints(metric: string, range: string) {
+  const base = metricTrendBase[metric] ?? 50
+  const count = metricTrendCount[range] ?? 60
+  const step = metricTrendStepMs[range] ?? 60_000
+  const nowMs = Date.now()
+  const points: { t: number; value: number }[] = []
+  for (let i = 0; i < count; i++) {
+    const wave = Math.sin(i / 6) * (base * 0.15)
+    const jitter = (Math.sin(i * 1.7) * 0.5 + 0.5) * (base * 0.06)
+    const drift = (i / count) * (base * 0.2)
+    points.push({ t: nowMs - (count - i) * step, value: Math.max(0, base + wave + jitter + drift) })
+  }
+  return points
+}
 
 const alertSummary = () => ({
   total: alertRules.length,
@@ -763,6 +797,11 @@ const routes: Array<[string, RegExp, Handler]> = [
 
   // 监控告警（monitor 内置告警引擎）
   ['get', /^\/api\/v1\/monitor\/alert-metrics$/, () => ({ list: alertMetrics })],
+  ['get', /^\/api\/v1\/monitor\/metrics\/trends$/, (_m, _b, q) => {
+    const metric = q.get('metric') || ''
+    const range = q.get('range') || '1h'
+    return { metric, range, unit: metricTrendUnit[metric] ?? 'percent', points: metricTrendPoints(metric, range) }
+  }],
   ['get', /^\/api\/v1\/monitor\/alert-summary$/, () => alertSummary()],
   ['get', /^\/api\/v1\/monitor\/alert-rules$/, (_m, _b, q) => paged(alertRules, q)],
   ['post', /^\/api\/v1\/monitor\/alert-rules$/, (_m, body) => {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
+	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
 	"github.com/go-admin-kit/server/internal/middleware"
 	monitorsvc "github.com/go-admin-kit/server/internal/service/monitor"
 	"github.com/go-admin-kit/services/shared/pkg/response"
@@ -26,6 +27,11 @@ func RegisterProtectedRoutesWithDeps(r *gin.RouterGroup, deps sharedapi.Dependen
 		mysqlHandler = NewMySQLAPIWithService(monitorsvc.NewMySQLServiceWithDB(deps.DB)).GetMySQLInfo
 	}
 
+	trendsHandler := unavailableMonitorHandler
+	if deps.DB != nil {
+		trendsHandler = NewTrendsAPIWithService(monitorsvc.NewMetricTrendService(monitordao.NewMetricSampleDAO(deps.DB))).GetTrends
+	}
+
 	redisAPI := NewRedisAPI()
 	if deps.Redis != nil {
 		redisAPI = NewRedisAPIWithService(monitorsvc.NewRedisServiceWithClient(deps.Redis))
@@ -44,6 +50,7 @@ func RegisterProtectedRoutesWithDeps(r *gin.RouterGroup, deps sharedapi.Dependen
 	monitorGroup.GET("/services", middleware.PermissionMiddleware("system:monitor:server"), serverAPI.GetServicesHealth)
 	monitorGroup.GET("/mysql", middleware.PermissionMiddleware("system:monitor:mysql"), mysqlHandler)
 	monitorGroup.GET("/redis", middleware.PermissionMiddleware("system:monitor:redis"), redisAPI.GetRedisInfo)
+	monitorGroup.GET("/metrics/trends", middleware.PermissionMiddleware("system:monitor:server"), trendsHandler)
 	monitorGroup.GET("/alert-metrics", middleware.PermissionMiddleware("system:alert:list"), alertAPI.GetMetrics)
 	monitorGroup.GET("/alert-summary", middleware.PermissionMiddleware("system:alert:list"), alertAPI.GetSummary)
 	monitorGroup.GET("/alert-rules", middleware.PermissionMiddleware("system:alert:list"), alertAPI.GetRules)

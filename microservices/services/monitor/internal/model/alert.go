@@ -1,6 +1,45 @@
 package model
 
-import "time"
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
+	"time"
+)
+
+// NotifyChannelList is the set of alert notification channels a rule opts
+// into. Stored as a JSON-array TEXT column, but serializes to/from a []string
+// so the API and frontend see a plain array. Empty means "use every channel
+// that is configured".
+type NotifyChannelList []string
+
+func (l NotifyChannelList) Value() (driver.Value, error) {
+	return json.Marshal([]string(l))
+}
+
+func (l *NotifyChannelList) Scan(value any) error {
+	if value == nil {
+		*l = NotifyChannelList{}
+		return nil
+	}
+	raw, ok := value.([]byte)
+	if !ok {
+		if s, ok := value.(string); ok {
+			raw = []byte(s)
+		} else {
+			return errors.New("NotifyChannelList scan: unexpected value type")
+		}
+	}
+	return json.Unmarshal(raw, (*[]string)(l))
+}
+
+func (l NotifyChannelList) MarshalJSON() ([]byte, error) {
+	return json.Marshal([]string(l))
+}
+
+func (l *NotifyChannelList) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, (*[]string)(l))
+}
 
 // MonitorAlertRule stores an alert condition and its durable evaluation state.
 type MonitorAlertRule struct {
@@ -13,6 +52,8 @@ type MonitorAlertRule struct {
 	Severity        string     `gorm:"size:16;not null;default:warning;index" json:"severity"`
 	Enabled         bool       `gorm:"not null;default:true;index" json:"enabled"`
 	NotifyOnResolve bool       `gorm:"not null;default:true" json:"notify_on_resolve"`
+	NotifyChannels  NotifyChannelList `gorm:"type:text;not null;default:'[]'" json:"notify_channels"`
+	SilenceUntil    *time.Time `json:"silence_until"`
 	State           string     `gorm:"size:16;not null;default:ok;index" json:"state"`
 	PendingSince    *time.Time `json:"pending_since"`
 	FiringSince     *time.Time `json:"firing_since"`
