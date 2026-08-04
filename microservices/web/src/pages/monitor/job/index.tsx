@@ -25,6 +25,7 @@ import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
+import './styles.css'
 
 interface SearchParams {
   page: number
@@ -223,21 +224,45 @@ export default function JobPage() {
   }
 
   const columns: ColumnsType<ScheduledJob> = [
-    { title: 'ID', dataIndex: 'id', width: 60 },
-    { title: '名称', dataIndex: 'name' },
+    { title: 'ID', dataIndex: 'id', width: 70 },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      width: 180,
+      ellipsis: { showTitle: false },
+      render: (v: string) => (
+        <Tooltip title={v}>
+          <span className="job-cell-ellipsis list-primary-cell">{v}</span>
+        </Tooltip>
+      ),
+    },
     {
       title: '分组',
       dataIndex: 'group_name',
-      render: (v: string) => v && <Tag variant="filled">{v}</Tag>,
+      width: 120,
+      ellipsis: { showTitle: false },
+      render: (v: string) => v ? (
+        <Tooltip title={v}>
+          <Tag variant="filled" className="job-table-tag">{v}</Tag>
+        </Tooltip>
+      ) : <span className="cell-muted">—</span>,
     },
     {
       title: 'Cron表达式',
       dataIndex: 'cron_expression',
-      render: (v: string) => <Tag variant="filled" color="geekblue" className="cell-mono">{v}</Tag>,
+      width: 150,
+      ellipsis: { showTitle: false },
+      render: (v: string) => (
+        <Tooltip title={v}>
+          <Tag variant="filled" color="geekblue" className="cell-mono job-table-tag">{v}</Tag>
+        </Tooltip>
+      ),
     },
     {
       title: '调用目标',
       dataIndex: 'invoke_target',
+      width: 200,
+      ellipsis: { showTitle: false },
       render: (v: string) => {
         const known = JOB_TARGET_LABELS[v]
         // 历史数据可能存着白名单外的目标（写入校验是后加的），标出来而不是
@@ -246,18 +271,28 @@ export default function JobPage() {
         if (!known && !listed) {
           return (
             <Tooltip title="该目标不在调度器的内置清单里，任务触发时会直接失败；请改选一个有效目标">
-              <Tag color="error" className="cell-mono">{v} · 无效</Tag>
+              <Tag color="error" className="cell-mono job-table-tag">{v} · 无效</Tag>
             </Tooltip>
           )
         }
         return (
           <Tooltip title={known?.hint ?? targets.find((t) => t.target === v)?.description ?? v}>
-            <span className="cell-mono cell-dim">{known?.label ?? v}</span>
+            <span className="cell-mono cell-dim job-cell-ellipsis">{known?.label ?? v}</span>
           </Tooltip>
         )
       },
     },
-    { title: '说明', dataIndex: 'description', ellipsis: true },
+    {
+      title: '说明',
+      dataIndex: 'description',
+      width: 220,
+      ellipsis: { showTitle: false },
+      render: (v: string) => v ? (
+        <Tooltip title={v}>
+          <span className="job-cell-ellipsis">{v}</span>
+        </Tooltip>
+      ) : <span className="cell-muted">—</span>,
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -275,26 +310,42 @@ export default function JobPage() {
     },
     {
       title: '操作',
-      width: 330,
+      width: 200,
+      fixed: 'right',
+      align: 'center',
       render: (_, record) => (
-        <Space size={0} className="table-actions">
+        <Space size={2} className="table-actions compact-table-actions job-row-actions">
           {hasPerm('system:job:update') && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
+            <Tooltip title="编辑">
+              <Button type="text" size="small" aria-label="编辑定时任务" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            </Tooltip>
           )}
           {hasPerm('system:job:run') && (
             record.status === 0 ? (
-              <Button type="link" size="small" icon={<PlayCircleOutlined />} onClick={() => handleStart(record.id)}>启动</Button>
+              <Tooltip title="启动">
+                <Button type="text" size="small" aria-label="启动定时任务" icon={<PlayCircleOutlined />} onClick={() => handleStart(record.id)} />
+              </Tooltip>
             ) : (
-              <Button type="link" size="small" icon={<PauseCircleOutlined />} onClick={() => handleStop(record.id)}>停止</Button>
+              <Tooltip title="暂停">
+                <Button type="text" size="small" aria-label="暂停定时任务" icon={<PauseCircleOutlined />} onClick={() => handleStop(record.id)} />
+              </Tooltip>
             )
           )}
           {hasPerm('system:job:run') && (
-            <Button type="link" size="small" icon={<ThunderboltOutlined />} onClick={() => handleRun(record.id)}>立即执行</Button>
+            <Popconfirm title="确认立即执行该任务?" onConfirm={() => handleRun(record.id)}>
+              <Tooltip title="立即执行">
+                <Button type="text" size="small" aria-label="立即执行定时任务" icon={<ThunderboltOutlined />} />
+              </Tooltip>
+            </Popconfirm>
           )}
-          <Button type="link" size="small" icon={<HistoryOutlined />} onClick={() => openLogs(record)}>执行日志</Button>
+          <Tooltip title="执行日志">
+            <Button type="text" size="small" aria-label="查看定时任务执行日志" icon={<HistoryOutlined />} onClick={() => openLogs(record)} />
+          </Tooltip>
           {hasPerm('system:job:delete') && (
             <Popconfirm title="确认删除该任务?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              <Tooltip title="删除">
+                <Button type="text" size="small" danger aria-label="删除定时任务" icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -328,7 +379,7 @@ export default function JobPage() {
             </Space>
           </Form.Item>
           {health && (
-            <Form.Item style={{ marginInlineEnd: 0, marginLeft: 'auto' }}>
+            <Form.Item className="job-health-summary">
               <Space size={8} wrap>
                 <span className="health-pill">共 {health.total}</span>
                 <span className="health-pill health-pill-success">
@@ -349,7 +400,7 @@ export default function JobPage() {
           title="定时任务"
           total={total}
           extra={
-            <Space wrap>
+            <Space wrap className="job-toolbar-actions">
               <Button icon={<HistoryOutlined />} onClick={() => openLogs(null)}>执行日志</Button>
               {hasPerm('system:job:run') && (
                 <Button
@@ -372,6 +423,8 @@ export default function JobPage() {
           columns={columns}
           dataSource={list}
           loading={loading}
+          rowClassName={(record) => (record.status === 0 ? 'job-row-paused' : '')}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无定时任务" compact /> }}
           pagination={{
             total,
@@ -470,10 +523,11 @@ export default function JobPage() {
         title={logJob?.id ? `执行日志 · ${logJob.name}` : '执行日志 · 全部任务'}
         open={!!logJob}
         onClose={() => setLogJob(null)}
-        width={760}
-        destroyOnClose
+        size="min(760px, 100vw)"
+        rootClassName="job-log-drawer"
+        destroyOnHidden
       >
-        <Space style={{ marginBottom: 12 }} wrap>
+        <Space className="job-log-toolbar" style={{ marginBottom: 12 }} wrap>
           <Select
             allowClear
             placeholder="执行结果"
@@ -498,10 +552,11 @@ export default function JobPage() {
         </Space>
         <Table
           rowKey="id"
-          className="list-table"
+          className="list-table job-log-table"
           size="small"
           loading={logLoading}
           dataSource={logs}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无执行日志（任务触发后自动记录）" compact /> }}
           pagination={{
             current: logPage,
@@ -516,7 +571,17 @@ export default function JobPage() {
           columns={[
             ...(logJob?.id
               ? []
-              : [{ title: '任务', dataIndex: 'job_name', width: 150, ellipsis: true }]),
+              : [{
+                title: '任务',
+                dataIndex: 'job_name',
+                width: 170,
+                ellipsis: { showTitle: false },
+                render: (v: string) => (
+                  <Tooltip title={v}>
+                    <span className="job-cell-ellipsis">{v}</span>
+                  </Tooltip>
+                ),
+              }]),
             {
               title: '结果',
               dataIndex: 'status',
@@ -533,10 +598,11 @@ export default function JobPage() {
             {
               title: '输出',
               dataIndex: 'message',
-              ellipsis: true,
+              width: 260,
+              ellipsis: { showTitle: false },
               render: (v: string) => (
                 <Tooltip title={v}>
-                  <span className="cell-mono cell-dim">{v || '—'}</span>
+                  <span className="cell-mono cell-dim job-cell-ellipsis">{v || '—'}</span>
                 </Tooltip>
               ),
             },
@@ -588,21 +654,29 @@ function HeartbeatsCard() {
     {
       title: '任务',
       dataIndex: 'job_key',
-      width: 200,
+      width: 240,
       render: (v: string, r) => (
-        <Space direction="vertical" size={0}>
-          <span className="cell-mono">{v}</span>
-          <span className="cell-dim" style={{ fontSize: 12 }}>{r.description}</span>
-        </Space>
+        <div className="job-heartbeat-task">
+          <Tooltip title={v}>
+            <span className="cell-mono job-cell-ellipsis">{v}</span>
+          </Tooltip>
+          <Tooltip title={r.description}>
+            <span className="cell-dim job-cell-ellipsis job-heartbeat-description">{r.description || '—'}</span>
+          </Tooltip>
+        </div>
       ),
     },
     {
       title: '来源',
       dataIndex: 'service',
-      width: 120,
-      render: (v: string) => <Tag variant="filled">{v}</Tag>,
+      width: 130,
+      render: (v: string) => (
+        <Tooltip title={v}>
+          <Tag variant="filled" className="job-table-tag">{v}</Tag>
+        </Tooltip>
+      ),
     },
-    { title: '期望间隔', dataIndex: 'interval_sec', width: 100, render: fmtInterval },
+    { title: '期望间隔', dataIndex: 'interval_sec', width: 110, render: fmtInterval },
     {
       title: '上次运行',
       dataIndex: 'last_run_at',
@@ -626,7 +700,7 @@ function HeartbeatsCard() {
     {
       title: '累计（失败/总数）',
       key: 'beat_runs',
-      width: 140,
+      width: 150,
       render: (_, r) => (
         <span className="cell-mono">
           {r.fails > 0 ? <span style={{ color: '#cf1322' }}>{r.fails}</span> : 0} / {r.runs}
@@ -636,8 +710,13 @@ function HeartbeatsCard() {
     {
       title: '最近错误',
       dataIndex: 'last_error',
-      ellipsis: true,
-      render: (v: string) => v || <span className="cell-dim">—</span>,
+      width: 260,
+      ellipsis: { showTitle: false },
+      render: (v: string) => v ? (
+        <Tooltip title={v}>
+          <span className="cell-mono job-cell-ellipsis">{v}</span>
+        </Tooltip>
+      ) : <span className="cell-dim">—</span>,
     },
   ]
 
@@ -650,10 +729,12 @@ function HeartbeatsCard() {
       />
       <Table
         rowKey="job_key"
-        className="list-table"
+        className="list-table job-heartbeat-table"
         columns={columns}
         dataSource={list}
         loading={loading}
+        rowClassName={(record) => (record.stale || record.last_status === 'error' ? 'job-heartbeat-alert' : '')}
+        scroll={{ x: 'max-content' }}
         pagination={false}
         locale={{ emptyText: <GlassEmpty text="暂无任务心跳（各服务后台循环运行后自动上报）" compact /> }}
       />

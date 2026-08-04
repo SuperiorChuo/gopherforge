@@ -1,0 +1,117 @@
+.file-page .file-name-cell,
+.file-page .file-type-tag {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-page .file-name-cell {
+  font-weight: 550;
+}
+
+.file-page .file-type-tag {
+  margin-inline-end: 0;
+}
+
+.file-page .file-row-actions {
+  flex-wrap: nowrap;
+}
+
+.file-page .file-row-actions .ant-btn {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding-inline: 0;
+  border: 1px solid transparent;
+}
+
+.file-page .file-row-actions .ant-btn:not(:disabled):hover {
+  border-color: rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.file-page .file-row-actions .ant-btn-dangerous:not(:disabled):hover {
+  border-color: rgba(248, 113, 113, 0.22);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.file-page .file-stats-card .log-stats-row {
+  align-items: flex-start;
+}
+
+.file-page .file-type-stat {
+  min-width: 0;
+  flex: 1 1 360px;
+}
+
+.file-page .file-type-breakdown {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.file-page .file-type-breakdown .ant-tag {
+  max-width: 100%;
+  margin-inline-end: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-page .file-toolbar-actions {
+  max-width: 100%;
+  justify-content: flex-end;
+}
+
+.file-page .file-toolbar-actions > .ant-space-item {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .file-page .file-stats-card .log-stats-row {
+    gap: 12px 20px;
+  }
+
+  .file-page .file-stats-card .log-stat-divider {
+    display: none;
+  }
+
+  .file-page .file-type-stat {
+    width: 100%;
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 575px) {
+  .file-page .file-stats-card .ant-card-body {
+    padding: 12px 14px !important;
+  }
+
+  .file-page .table-toolbar-extra,
+  .file-page .file-toolbar-actions {
+    width: 100%;
+  }
+
+  .file-page .file-toolbar-actions > .ant-space-item {
+    flex: 1 1 120px;
+  }
+
+  .file-page .file-toolbar-actions .ant-btn,
+  .file-page .file-toolbar-actions .ant-upload-wrapper,
+  .file-page .file-toolbar-actions .ant-upload,
+  .file-page .file-toolbar-actions .ant-upload-select {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .file-page .file-toolbar-actions .ant-btn > span:not(.ant-btn-icon) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
