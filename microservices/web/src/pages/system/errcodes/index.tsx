@@ -16,6 +16,7 @@ import GlassEmpty from '@/components/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import { EnableStatusPill } from '@/components/StatusPill'
+import './styles.css'
 
 interface PageParams {
   page: number
@@ -129,25 +130,47 @@ export default function ErrCodesPage() {
   }
 
   const columns: ColumnsType<ErrorCodeItem> = [
-    { title: 'ID', dataIndex: 'id', width: 60 },
+    { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
     {
       title: '错误码',
       dataIndex: 'code',
       width: 260,
-      render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
+      ellipsis: { showTitle: false },
+      render: (v: string) => (
+        <Tooltip title={v} placement="topLeft">
+          <Tag variant="filled" className="cell-mono errcode-code-tag">{v}</Tag>
+        </Tooltip>
+      ),
     },
-    { title: '对外文案', dataIndex: 'message', ellipsis: true },
+    {
+      title: '对外文案',
+      dataIndex: 'message',
+      width: 320,
+      ellipsis: { showTitle: false },
+      render: (v: string) => (
+        <Tooltip title={v} placement="topLeft">
+          <span className="errcode-message-text">{v}</span>
+        </Tooltip>
+      ),
+    },
     {
       title: '来源',
       dataIndex: 'scope',
-      width: 90,
-      render: (v: string) => <Tag>{v || 'global'}</Tag>,
+      width: 110,
+      responsive: ['sm'],
+      render: (v: string) => <Tag className="cell-mono errcode-scope-tag">{v || 'global'}</Tag>,
     },
     {
       title: '内部备注',
       dataIndex: 'memo',
+      width: 300,
       ellipsis: { showTitle: false },
-      render: (v: string) => v ? <Tooltip title={v}>{v}</Tooltip> : '-',
+      responsive: ['md'],
+      render: (v: string) => v ? (
+        <Tooltip title={v} placement="topLeft">
+          <span className="errcode-memo-text">{v}</span>
+        </Tooltip>
+      ) : <span className="cell-muted">—</span>,
     },
     {
       title: '状态',
@@ -155,28 +178,40 @@ export default function ErrCodesPage() {
       width: 80,
       render: (v: number) => <EnableStatusPill value={v} />,
     },
-    { title: '更新时间', dataIndex: 'updated_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: '更新时间', dataIndex: 'updated_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: '操作',
-      width: 200,
+      width: 132,
+      fixed: 'right',
       render: (_, record) => (
-        <Space size={0} className="table-actions">
+        <Space size={2} className="table-actions errcode-row-actions">
           {hasPerm('system:errcode:update') && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
+            <Tooltip title="编辑">
+              <Button type="text" size="small" aria-label={`编辑错误码 ${record.code}`} icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            </Tooltip>
           )}
           {hasPerm('system:errcode:update') && (
             <Popconfirm
               title={record.status === 1 ? '停用后各服务将回落到默认文案，确认停用?' : '确认启用?'}
               onConfirm={() => handleToggleStatus(record)}
             >
-              <Button type="link" size="small" danger={record.status === 1} icon={<PoweroffOutlined />}>
-                {record.status === 1 ? '停用' : '启用'}
-              </Button>
+              <Tooltip title={record.status === 1 ? '停用' : '启用'}>
+                <Button
+                  type="text"
+                  size="small"
+                  danger={record.status === 1}
+                  className={record.status === 1 ? 'errcode-status-stop' : 'errcode-status-start'}
+                  aria-label={`${record.status === 1 ? '停用' : '启用'}错误码 ${record.code}`}
+                  icon={<PoweroffOutlined />}
+                />
+              </Tooltip>
             </Popconfirm>
           )}
           {hasPerm('system:errcode:delete') && (
             <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              <Tooltip title="删除">
+                <Button type="text" size="small" danger aria-label={`删除错误码 ${record.code}`} icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -187,22 +222,22 @@ export default function ErrCodesPage() {
   return (
     <div className="page-list errcode-page">
       <Alert
+        className="errcode-alert"
         type="info"
         showIcon
-        style={{ marginBottom: 12 }}
         message="错误文案在线修改，保存后各服务约 30 秒内热生效，无需重启"
         description="错误码标识（code）与后端代码对齐，创建后不可修改；停用或删除某错误码后，对应接口回落到代码里的默认文案。"
       />
       <Card className="list-filter-card" bordered={false}>
         <Form form={searchForm} layout="inline" className="list-filter-form" onFinish={handleSearch}>
-          <Form.Item name="keyword">
-            <Input placeholder="搜索错误码 / 文案 / 备注" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
+          <Form.Item name="keyword" className="errcode-filter-keyword">
+            <Input placeholder="搜索错误码 / 文案 / 备注" prefix={<SearchOutlined />} allowClear />
           </Form.Item>
-          <Form.Item name="scope">
-            <Input placeholder="来源(如 system)" allowClear style={{ width: 140 }} />
+          <Form.Item name="scope" className="errcode-filter-scope">
+            <Input placeholder="来源（如 system）" allowClear />
           </Form.Item>
-          <Form.Item name="status">
-            <Select placeholder="状态" style={{ width: 100 }} allowClear>
+          <Form.Item name="status" className="errcode-filter-status">
+            <Select placeholder="状态" allowClear>
               <Select.Option value={1}>启用</Select.Option>
               <Select.Option value={0}>禁用</Select.Option>
             </Select>
@@ -234,6 +269,8 @@ export default function ErrCodesPage() {
           columns={columns}
           dataSource={list}
           loading={loading}
+          rowClassName={(record) => record.status === 0 ? 'errcode-row-disabled' : ''}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无错误码" compact /> }}
           pagination={{
             total,

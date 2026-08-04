@@ -1,0 +1,133 @@
+.job-page .job-cell-ellipsis,
+.job-log-drawer .job-cell-ellipsis {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-page .job-table-tag {
+  max-width: 100%;
+  margin-inline-end: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.job-page .job-row-actions {
+  justify-content: center;
+}
+
+.job-page .job-row-paused > td {
+  color: rgba(148, 163, 184, 0.68);
+  background: rgba(100, 116, 139, 0.045) !important;
+}
+
+.job-page .job-row-paused > td.ant-table-cell-fix {
+  background: color-mix(in srgb, #64748b 7%, rgb(18, 20, 34)) !important;
+}
+
+.job-page .job-row-paused .ant-tag {
+  opacity: 0.66;
+}
+
+.job-page .list-table .ant-table-tbody > tr.job-row-paused.ant-table-row:hover > td {
+  background: rgba(100, 116, 139, 0.08) !important;
+}
+
+.job-page .list-table .ant-table-tbody > tr.job-row-paused.ant-table-row:hover > td.ant-table-cell-fix {
+  background: color-mix(in srgb, #64748b 10%, rgb(18, 20, 34)) !important;
+}
+
+.job-page .job-health-summary {
+  margin-inline-end: 0;
+  margin-left: auto;
+}
+
+.job-page .job-toolbar-actions {
+  justify-content: flex-end;
+}
+
+.job-log-drawer .job-log-table .ant-table-thead > tr > th,
+.job-page .job-heartbeat-table .ant-table-thead > tr > th {
+  white-space: nowrap;
+}
+
+.job-page .job-heartbeat-task {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.job-page .job-heartbeat-description {
+  font-size: 12px;
+}
+
+.job-page .job-heartbeat-alert > td {
+  background: rgba(248, 113, 113, 0.045) !important;
+}
+
+.job-page .list-table .ant-table-tbody > tr.job-heartbeat-alert.ant-table-row:hover > td {
+  background: rgba(248, 113, 113, 0.075) !important;
+}
+
+[data-theme='light'] .job-page .job-row-paused > td {
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.08) !important;
+}
+
+[data-theme='light'] .job-page .job-row-paused > td.ant-table-cell-fix {
+  background: color-mix(in srgb, #94a3b8 9%, white) !important;
+}
+
+[data-theme='light'] .job-page .list-table .ant-table-tbody > tr.job-row-paused.ant-table-row:hover > td {
+  background: rgba(148, 163, 184, 0.13) !important;
+}
+
+[data-theme='light'] .job-page .list-table .ant-table-tbody > tr.job-row-paused.ant-table-row:hover > td.ant-table-cell-fix {
+  background: color-mix(in srgb, #94a3b8 13%, white) !important;
+}
+
+[data-theme='light'] .job-page .job-heartbeat-alert > td {
+  background: rgba(220, 38, 38, 0.045) !important;
+}
+
+[data-theme='light'] .job-page .list-table .ant-table-tbody > tr.job-heartbeat-alert.ant-table-row:hover > td {
+  background: rgba(220, 38, 38, 0.075) !important;
+}
+
+@media (max-width: 767px) {
+  .job-page .job-health-summary {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .job-page .job-health-summary .ant-space {
+    display: flex;
+    width: 100%;
+  }
+
+  .job-page .job-toolbar-actions {
+    width: 100%;
+  }
+
+  .job-log-drawer .ant-drawer-body {
+    padding: 16px;
+  }
+
+  .job-log-drawer .job-log-toolbar {
+    width: 100%;
+  }
+}
+
+@media (max-width: 575px) {
+  .job-log-drawer .job-log-toolbar > .ant-space-item:first-child,
+  .job-log-drawer .job-log-toolbar .ant-select {
+    width: 100% !important;
+  }
+}

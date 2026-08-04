@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Table, Button, Space, Popconfirm, Card, Input, Form,
-  Upload, Tag, Image,
+  Upload, Tag, Image, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -16,6 +16,7 @@ import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
+import './styles.css'
 
 interface SearchParams {
   keyword?: string
@@ -187,13 +188,26 @@ export default function FilePage() {
 
   const columns: ColumnsType<FileRecord> = [
     { title: 'ID', dataIndex: 'id', width: 60, responsive: ['md'] },
-    { title: '文件名', dataIndex: 'file_name', ellipsis: true },
+    {
+      title: '文件名',
+      dataIndex: 'file_name',
+      width: 300,
+      ellipsis: { showTitle: false },
+      render: (value?: string) => (
+        <Tooltip title={value || undefined}>
+          <span className="file-name-cell">{value || '—'}</span>
+        </Tooltip>
+      ),
+    },
     {
       title: '文件类型',
       dataIndex: 'file_type',
-      width: 120,
-      responsive: ['sm'],
-      render: (v: string) => v && <Tag variant="filled" className="cell-mono">{v}</Tag>,
+      width: 150,
+      render: (value?: string) => value ? (
+        <Tooltip title={value}>
+          <Tag variant="filled" className="cell-mono file-type-tag">{value}</Tag>
+        </Tooltip>
+      ) : <span className="cell-muted">—</span>,
     },
     {
       title: '文件大小',
@@ -212,20 +226,41 @@ export default function FilePage() {
     { title: '上传时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: '操作',
-      width: 200,
+      width: 136,
+      fixed: 'right',
       render: (_, record) => (
-        <Space size={0} className="table-actions">
+        <Space size={4} className="table-actions file-row-actions">
           {record.file_type === 'image' && (
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handlePreview(record)}>
-              预览
-            </Button>
+            <Tooltip title="预览">
+              <Button
+                type="text"
+                size="small"
+                icon={<EyeOutlined />}
+                aria-label={`预览文件 ${record.file_name}`}
+                onClick={() => handlePreview(record)}
+              />
+            </Tooltip>
           )}
-          <Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(record)}>
-            下载
-          </Button>
+          <Tooltip title="下载">
+            <Button
+              type="text"
+              size="small"
+              icon={<DownloadOutlined />}
+              aria-label={`下载文件 ${record.file_name}`}
+              onClick={() => handleDownload(record)}
+            />
+          </Tooltip>
           {hasPerm('system:file:delete') && (
             <Popconfirm title="确认删除该文件?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              <Tooltip title="删除">
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  aria-label={`删除文件 ${record.file_name}`}
+                />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -251,7 +286,7 @@ export default function FilePage() {
         </div>
       )}
       {stats && stats.total > 0 && (
-        <Card className="list-filter-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
+        <Card className="list-filter-card file-stats-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
           <div className="log-stats-row">
             <div className="log-stat">
               <span className="log-stat-label">文件总数</span>
@@ -264,9 +299,9 @@ export default function FilePage() {
             {Object.keys(stats.by_type ?? {}).length > 0 && (
               <>
                 <div className="log-stat-divider" />
-                <div className="log-stat">
+                <div className="log-stat file-type-stat">
                   <span className="log-stat-label">类型分布</span>
-                  <span>
+                  <span className="file-type-breakdown">
                     {Object.entries(stats.by_type ?? {})
                       .sort((a, b) => b[1].count - a[1].count)
                       .map(([t, s]) => (
@@ -310,13 +345,13 @@ export default function FilePage() {
           title="文件列表"
           total={total}
           extra={
-            <Space wrap>
+            <Space wrap className="file-toolbar-actions">
               {selectedIds.length > 0 && hasPerm('system:file:delete') && (
                 <Popconfirm
                   title={`确认删除选中的 ${selectedIds.length} 个文件?`}
                   onConfirm={handleBatchDelete}
                 >
-                  <Button danger>批量删除 ({selectedIds.length})</Button>
+                  <Button danger icon={<DeleteOutlined />}>批量删除 ({selectedIds.length})</Button>
                 </Popconfirm>
               )}
               <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
@@ -336,6 +371,7 @@ export default function FilePage() {
           columns={columns}
           dataSource={list}
           loading={loading}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无文件，拖入文件即可上传" compact /> }}
           rowSelection={{
             selectedRowKeys: selectedIds,

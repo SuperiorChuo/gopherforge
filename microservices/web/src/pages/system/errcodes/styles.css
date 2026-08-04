@@ -1,0 +1,179 @@
+/* Error-code list readability and narrow-screen controls. */
+.errcode-page .errcode-code-tag {
+  display: block;
+  max-width: 228px;
+  margin-inline-end: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.errcode-page .errcode-message-text,
+.errcode-page .errcode-memo-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.errcode-page .errcode-message-text {
+  color: rgba(248, 250, 252, 0.92);
+  font-weight: 550;
+}
+
+.errcode-page .errcode-memo-text {
+  color: rgba(203, 213, 225, 0.76);
+}
+
+.errcode-page .errcode-scope-tag {
+  display: block;
+  max-width: 82px;
+  margin-inline-end: 0;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.errcode-page .errcode-row-actions {
+  flex-wrap: nowrap;
+}
+
+.errcode-page .errcode-row-actions .ant-btn {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding-inline: 0;
+  border: 1px solid transparent;
+}
+
+.errcode-page .errcode-row-actions .ant-btn:hover {
+  border-color: rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.errcode-page .errcode-row-actions .errcode-status-start {
+  color: #34d399;
+}
+
+.errcode-page .errcode-alert {
+  margin-bottom: 0;
+}
+
+.errcode-page .errcode-alert .ant-alert-message {
+  line-height: 1.45;
+}
+
+.errcode-page .errcode-alert .ant-alert-description {
+  line-height: 1.6;
+}
+
+.errcode-page .errcode-filter-keyword .ant-input-affix-wrapper {
+  width: 260px;
+}
+
+.errcode-page .errcode-filter-scope .ant-input {
+  width: 144px;
+}
+
+.errcode-page .errcode-filter-status .ant-select {
+  width: 104px;
+}
+
+/* Fixed cells need an opaque disabled-row surface or scrolled text shows through. */
+.errcode-page .list-table .errcode-row-disabled > td,
+.errcode-page .list-table .ant-table-tbody > tr.errcode-row-disabled > td.ant-table-cell-fix {
+  background: color-mix(in srgb, #64748b 6%, rgb(18, 20, 34)) !important;
+}
+
+.errcode-page .list-table .errcode-row-disabled:hover > td,
+.errcode-page .list-table .ant-table-tbody > tr.errcode-row-disabled:hover > td.ant-table-cell-fix {
+  background: color-mix(in srgb, #6366f1 9%, rgb(18, 20, 34)) !important;
+}
+
+.errcode-page .errcode-row-disabled .errcode-code-tag,
+.errcode-page .errcode-row-disabled .errcode-scope-tag {
+  opacity: 0.62;
+}
+
+.errcode-page .errcode-row-disabled .errcode-message-text,
+.errcode-page .errcode-row-disabled .errcode-memo-text {
+  color: rgba(148, 163, 184, 0.7);
+}
+
+[data-theme='light'] .errcode-page .errcode-message-text {
+  color: #1e293b;
+}
+
+[data-theme='light'] .errcode-page .errcode-memo-text {
+  color: #64748b;
+}
+
+[data-theme='light'] .errcode-page .errcode-row-actions .errcode-status-start {
+  color: #047857;
+}
+
+[data-theme='light'] .errcode-page .list-table .errcode-row-disabled > td,
+[data-theme='light'] .errcode-page .list-table .ant-table-tbody > tr.errcode-row-disabled > td.ant-table-cell-fix {
+  background: color-mix(in srgb, #94a3b8 10%, white) !important;
+}
+
+[data-theme='light'] .errcode-page .list-table .errcode-row-disabled:hover > td,
+[data-theme='light'] .errcode-page .list-table .ant-table-tbody > tr.errcode-row-disabled:hover > td.ant-table-cell-fix {
+  background: color-mix(in srgb, #2563eb 9%, white) !important;
+}
+
+[data-theme='light'] .errcode-page .errcode-row-disabled .errcode-message-text,
+[data-theme='light'] .errcode-page .errcode-row-disabled .errcode-memo-text {
+  color: #64748b;
+}
+
+@media (max-width: 575px) {
+  .errcode-page {
+    gap: 10px;
+  }
+
+  .errcode-page .errcode-alert.ant-alert {
+    padding: 10px 12px;
+  }
+
+  .errcode-page .errcode-alert .ant-alert-icon {
+    margin-top: 2px;
+  }
+
+  .errcode-page .errcode-alert .ant-alert-message {
+    font-size: 13px;
+  }
+
+  .errcode-page .errcode-alert .ant-alert-description {
+    margin-top: 3px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .errcode-page .list-filter-card .ant-card-body {
+    padding: 10px 12px !important;
+  }
+
+  .errcode-page .list-filter-form {
+    column-gap: 8px;
+    row-gap: 8px;
+  }
+
+  .errcode-page .list-filter-form .errcode-filter-keyword,
+  .errcode-page .list-filter-form .list-filter-actions {
+    width: 100% !important;
+  }
+
+  .errcode-page .list-filter-form .errcode-filter-scope,
+  .errcode-page .list-filter-form .errcode-filter-status {
+    width: calc(50% - 4px) !important;
+  }
+
+  .errcode-page .errcode-filter-keyword .ant-input-affix-wrapper,
+  .errcode-page .errcode-filter-scope .ant-input,
+  .errcode-page .errcode-filter-status .ant-select {
+    width: 100%;
+  }
+}
