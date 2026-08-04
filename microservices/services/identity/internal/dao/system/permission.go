@@ -61,6 +61,13 @@ func (d *PermissionManageDAO) GetPermissionListContext(ctx context.Context, req 
 	return permissions, total, result.Error
 }
 
+// ListAllContext 返回全部权限（开通租户时给未绑套餐的管理员角色授全量权限用）。
+func (d *PermissionManageDAO) ListAllContext(ctx context.Context) ([]model.Permission, error) {
+	var permissions []model.Permission
+	err := d.dbWithContext(ctx).Order("id ASC").Find(&permissions).Error
+	return permissions, err
+}
+
 func (d *PermissionManageDAO) GetPermissionTreeContext(ctx context.Context) ([]model.Permission, error) {
 	var permissions []model.Permission
 	result := d.dbWithContext(ctx).Order("parent_id ASC, created_at ASC").Find(&permissions)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Card, Form, Input, InputNumber, Modal, Select, Space, Table, Tag, Tooltip } from 'antd'
-import { PlusOutlined, ReloadOutlined, SwapOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons'
+import { Alert, Button, Card, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip } from 'antd'
+import { PlusOutlined, ReloadOutlined, SwapOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
 import type { ColumnsType } from 'antd/es/table'
 import type { TenantInfo, TenantPackageInfo } from '@/types'
@@ -29,6 +29,7 @@ export default function TenantPage() {
   const [loading, setLoading] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 20 })
   const [createOpen, setCreateOpen] = useState(false)
+  const [createdAdmin, setCreatedAdmin] = useState<TenantAPI.TenantCreateResult['admin']>(null)
   const [editRow, setEditRow] = useState<TenantInfo | null>(null)
   const [actTenant, setActTenant] = useState<string | null>(getActTenantId())
   const [packages, setPackages] = useState<TenantPackageInfo[]>([])
@@ -79,7 +80,7 @@ export default function TenantPage() {
     const values = await form.validateFields().catch(() => null)
     if (!values) return
     try {
-      await TenantAPI.createTenant({
+      const res = await TenantAPI.createTenant({
         code: values.code,
         name: values.name,
         plan: values.plan || 'free',
@@ -89,12 +90,27 @@ export default function TenantPage() {
         // 权限套餐：缺省 = 不限
         package_id: values.package_id,
       })
-      message.success('已创建租户')
       setCreateOpen(false)
       form.resetFields()
       setParams({ ...params, page: 1 })
+      if (res.admin) {
+        // 开通自动创建了初始管理员：一次性展示凭据，转交租户管理员后关闭
+        setCreatedAdmin(res.admin)
+      } else {
+        message.success('已创建租户')
+      }
     } catch (e: unknown) {
       message.error(e instanceof Error ? e.message : '创建失败')
+    }
+  }
+
+  async function onDelete(row: TenantInfo) {
+    try {
+      await TenantAPI.deleteTenant(row.id)
+      message.success(`已删除租户「${row.name}」及其账号体系数据`)
+      setParams({ ...params, page: 1 })
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '删除失败')
     }
   }
 
@@ -206,6 +222,17 @@ export default function TenantPage() {
                 进入
               </Button>
             </Tooltip>
+          )}
+          {isPlatform && row.id !== 1 && (
+            <Popconfirm
+              title={`删除租户「${row.name}」？`}
+              description="将级联删除该租户的用户/角色/部门/岗位及配置，且不可恢复。"
+              okText="删除"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => void onDelete(row)}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
           )}
         </Space>
       ),
@@ -323,6 +350,31 @@ export default function TenantPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {createdAdmin ? (
+        <Modal
+          title="租户已创建，请记录初始管理员凭据"
+          open
+          onCancel={() => setCreatedAdmin(null)}
+          footer={<Button type="primary" onClick={() => setCreatedAdmin(null)}>我已保存，关闭</Button>}
+          maskClosable={false}
+        >
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message="此凭据只显示这一次，请立即转交租户管理员并提醒首次登录后修改密码。"
+          />
+          <Card size="small">
+            <div className="cell-mono" style={{ fontSize: 14, marginBottom: 8 }}>
+              账号：{createdAdmin.username}
+            </div>
+            <div className="cell-mono" style={{ fontSize: 14 }}>
+              初始密码：{createdAdmin.initial_password}
+            </div>
+          </Card>
+        </Modal>
+      ) : null}
 
       <Modal
         title={editRow ? `编辑租户 #${editRow.id}` : '编辑'}

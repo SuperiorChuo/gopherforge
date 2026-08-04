@@ -73,7 +73,7 @@ func (a *TenantAPI) CreateTenant(c *gin.Context) {
 		response.BadRequest(c, "invalid body")
 		return
 	}
-	t, err := a.svc.Create(c.Request.Context(), req)
+	t, admin, err := a.svc.Create(c.Request.Context(), req)
 	if err != nil {
 		switch {
 		case errors.Is(err, systemsvc.ErrTenantCodeExists),
@@ -86,7 +86,27 @@ func (a *TenantAPI) CreateTenant(c *gin.Context) {
 		}
 		return
 	}
-	response.Success(c, t)
+	response.Success(c, gin.H{"tenant": t, "admin": admin})
+}
+
+func (a *TenantAPI) DeleteTenant(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		response.BadRequest(c, "invalid id")
+		return
+	}
+	if err := a.svc.Delete(c.Request.Context(), uint(id)); err != nil {
+		switch {
+		case errors.Is(err, systemsvc.ErrTenantNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, systemsvc.ErrDefaultTenantLocked):
+			response.BadRequest(c, err.Error())
+		default:
+			response.InternalServerError(c, err.Error())
+		}
+		return
+	}
+	response.SuccessWithMessage(c, "tenant deleted successfully", nil)
 }
 
 func (a *TenantAPI) UpdateTenant(c *gin.Context) {

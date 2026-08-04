@@ -2,12 +2,15 @@ package system
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/go-admin-kit/services/identity/internal/dao/system"
 	"github.com/go-admin-kit/services/identity/internal/model"
+	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
 	"github.com/go-admin-kit/services/identity/internal/pkg/pagination"
 	"github.com/go-admin-kit/services/identity/internal/pkg/tenant"
 	"gorm.io/gorm"
@@ -27,13 +30,22 @@ var tenantCodeRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,63}$`)
 type TenantService struct {
 	dao    *system.TenantDAO
 	pkgDAO *system.TenantPackageDAO
+	// db 供开通 provisioning / 删除级联的子服务与事务使用。
+	db *gorm.DB
 }
 
 func NewTenantServiceWithDB(db *gorm.DB) *TenantService {
 	return &TenantService{
 		dao:    system.NewTenantDAO(db),
 		pkgDAO: system.NewTenantPackageDAO(db),
+		db:     db,
 	}
+}
+
+// ProvisionedAdmin 是开通租户时自动创建的初始管理员凭据（一次性返回给平台管理员转交）。
+type ProvisionedAdmin struct {
+	Username        string `json:"username"`
+	InitialPassword string `json:"initial_password"`
 }
 
 // resolvePackageID 归一化套餐绑定入参：nil/0 → 不绑定（NULL）；>0 校验套餐存在后绑定。
@@ -109,20 +121,20 @@ func (s *TenantService) Get(ctx context.Context, id uint) (*model.Tenant, error)
 	return t, nil
 }
 
-func (s *TenantService) Create(ctx context.Context, req CreateTenantRequest) (*model.Tenant, error) {
+func (s *TenantService) Create(ctx context.Context, req CreateTenantRequest) (*model.Tenant, *ProvisionedAdmin, error) {
 	ctx = tenant.DisableScope(ctx)
 	code := strings.ToLower(strings.TrimSpace(req.Code))
 	name := strings.TrimSpace(req.Name)
 	if !tenantCodeRe.MatchString(code) {
-		return nil, ErrTenantCodeInvalid
+		return nil, nil, ErrTenantCodeInvalid
 	}
 	if name == "" {
-		return nil, ErrTenantNameRequired
+		return nil, nil, ErrTenantNameRequired
 	}
 	if _, err := s.dao.GetByCodeContext(ctx, code); err == nil {
-		return nil, ErrTenantCodeExists
+		return nil, nil, ErrTenantCodeExists
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
+		return nil, nil, err
 	}
 	status := req.Status
 	if status == 0 {
@@ -139,7 +151,7 @@ func (s *TenantService) Create(ctx context.Context, req CreateTenantRequest) (*m
 	}
 	packageID, err := s.resolvePackageID(ctx, req.PackageID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	t := &model.Tenant{
 		Code:      code,
@@ -150,9 +162,155 @@ func (s *TenantService) Create(ctx context.Context, req CreateTenantRequest) (*m
 		PackageID: packageID,
 	}
 	if err := s.dao.CreateContext(ctx, t); err != nil {
+		return nil, nil, err
+	}
+	// 开通：建初始管理员角色 + 授权 + 管理员用户。失败则回滚租户行，保持原子。
+	admin, err := s.provision(t)
+	if err != nil {
+		_ = s.dao.DeleteContext(tenant.WithContext(context.Background(), t.ID), t.ID)
+		return nil, nil, fmt.Errorf("租户已创建但开通失败（已回滚）：%w", err)
+	}
+	return t, admin, nil
+}
+
+// provision 为新建租户创建初始管理员角色/权限/用户，返回初始凭据。
+// 使用新租户自己的上下文（无 DisableScope、无 platform_admin 豁免），
+// 使租户插件正确过滤、套餐约束正常生效。
+func (s *TenantService) provision(t *model.Tenant) (*ProvisionedAdmin, error) {
+	if s.db == nil {
+		return nil, errors.New("tenant service db not configured")
+	}
+	pctx := tenant.WithContext(context.Background(), t.ID)
+	roleSvc := NewRoleServiceWithDB(s.db)
+	userSvc := NewUserServiceWithDB(s.db)
+	permDAO := system.NewPermissionManageDAO(s.db)
+
+	adminRole, err := roleSvc.CreateRoleContext(pctx, CreateRoleRequest{
+		Name:        "管理员",
+		Code:        "admin",
+		DataScope:   string(authz.DataScopeAll),
+		Description: "租户开通自动创建的管理员",
+	})
+	if err != nil {
 		return nil, err
 	}
-	return t, nil
+
+	// 权限：绑套餐 → 套餐内权限码；未绑 → 全量。天然 ⊆ 套餐约束。
+	var ids []uint
+	if t.PackageID != nil {
+		pkg, err := s.pkgDAO.GetByIDContext(pctx, *t.PackageID)
+		if err != nil {
+			return nil, err
+		}
+		for _, code := range pkg.PermissionCodes {
+			p, err := permDAO.GetPermissionByCodeContext(pctx, code)
+			if err != nil {
+				return nil, err
+			}
+			ids = append(ids, p.ID)
+		}
+	} else {
+		all, err := permDAO.ListAllContext(pctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range all {
+			ids = append(ids, p.ID)
+		}
+	}
+	if err := roleSvc.AssignPermissionsContext(pctx, adminRole.ID, AssignPermissionsRequest{PermissionIDs: ids}); err != nil {
+		return nil, err
+	}
+
+	initialPwd, err := randomStrongPassword()
+	if err != nil {
+		return nil, err
+	}
+	adminUser, err := userSvc.CreateUserContext(pctx, CreateUserRequest{
+		Username: "admin",
+		Password: initialPwd,
+		Nickname: "管理员",
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := userSvc.AssignRolesContext(pctx, adminUser.ID, AssignRolesRequest{RoleIDs: []uint{adminRole.ID}}); err != nil {
+		return nil, err
+	}
+	return &ProvisionedAdmin{Username: adminUser.Username, InitialPassword: initialPwd}, nil
+}
+
+// Delete 级联删除租户及其账号体系数据（users/roles/departments/posts/tenant_settings
+// + join 表）与租户行。审计日志保留（不可变审计）；业务域租户数据（file/hermes/notice
+// 等）不在此级联——平台先清业务数据或接受孤儿，注释以此为准。
+func (s *TenantService) Delete(ctx context.Context, id uint) error {
+	ctx = tenant.DisableScope(ctx)
+	if id == 1 {
+		return ErrDefaultTenantLocked
+	}
+	if _, err := s.Get(ctx, id); err != nil {
+		return err
+	}
+	if s.db == nil {
+		return errors.New("tenant service db not configured")
+	}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("tenant_id = ?", id).Delete(&model.TenantSetting{}).Error; err != nil {
+			return err
+		}
+		var userIDs []uint
+		if err := tx.Model(&model.User{}).Where("tenant_id = ?", id).Pluck("id", &userIDs).Error; err != nil {
+			return err
+		}
+		if len(userIDs) > 0 {
+			if err := tx.Where("user_id IN ?", userIDs).Delete(&model.UserPost{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("user_id IN ?", userIDs).Delete(&model.UserRole{}).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Where("tenant_id = ?", id).Delete(&model.User{}).Error; err != nil {
+			return err
+		}
+		var roleIDs []uint
+		if err := tx.Model(&model.Role{}).Where("tenant_id = ?", id).Pluck("id", &roleIDs).Error; err != nil {
+			return err
+		}
+		if len(roleIDs) > 0 {
+			if err := tx.Where("role_id IN ?", roleIDs).Delete(&model.RolePermission{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("role_id IN ?", roleIDs).Delete(&model.RoleDataScopeDepartment{}).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Where("tenant_id = ?", id).Delete(&model.Role{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("tenant_id = ?", id).Delete(&model.Department{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("tenant_id = ?", id).Delete(&model.Post{}).Error; err != nil {
+			return err
+		}
+		return tx.Where("id = ?", id).Delete(&model.Tenant{}).Error
+	})
+}
+
+// randomStrongPassword 生成满足 ValidatePasswordStrength 的初始密码
+// （≥8 位，含大小写 + 数字）。
+func randomStrongPassword() (string, error) {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	for i := range b {
+		b[i] = charset[int(b[i])%len(charset)]
+	}
+	// 显式保证含大写/小写/数字，过密码强度校验。
+	return "A" + string(b) + "a1", nil
 }
 
 func (s *TenantService) Update(ctx context.Context, id uint, req UpdateTenantRequest) (*model.Tenant, error) {

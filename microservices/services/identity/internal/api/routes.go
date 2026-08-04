@@ -48,6 +48,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 			protected.POST("/tenants", middleware.PermissionMiddleware("system:tenant:create"), tenantAPI.CreateTenant)
 			protected.GET("/tenants/:id", middleware.PermissionMiddleware("system:tenant:detail"), tenantAPI.GetTenant)
 			protected.PUT("/tenants/:id", middleware.PermissionMiddleware("system:tenant:update"), tenantAPI.UpdateTenant)
+			protected.DELETE("/tenants/:id", middleware.PermissionMiddleware("system:tenant:delete"), tenantAPI.DeleteTenant)
 		}
 
 		if tenantPackageAPI != nil {
