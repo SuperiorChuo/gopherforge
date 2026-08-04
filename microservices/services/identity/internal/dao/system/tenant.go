@@ -63,6 +63,18 @@ func (d *TenantDAO) UpdateContext(ctx context.Context, t *model.Tenant) error {
 	return d.dbWithContext(ctx).Save(t).Error
 }
 
+// DeleteContext 删除租户行（级联清理在 TenantService.Delete 内事务处理）。
+func (d *TenantDAO) DeleteContext(ctx context.Context, id uint) error {
+	result := d.dbWithContext(ctx).Where("id = ?", id).Delete(&model.Tenant{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 func (d *TenantDAO) CountUsersContext(ctx context.Context, tenantID uint) (int64, error) {
 	var n int64
 	err := d.dbWithContext(ctx).Model(&model.User{}).Where("tenant_id = ?", tenantID).Count(&n).Error
