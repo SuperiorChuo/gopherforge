@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Card, Descriptions, Spin, Row, Col, Button, Space, Skeleton, Tag, Tooltip } from 'antd'
 import {
   ReloadOutlined,
@@ -8,6 +8,7 @@ import {
   CloudServerOutlined,
   CodeOutlined,
   BellOutlined,
+  WarningOutlined,
 } from '@ant-design/icons'
 import {
   getAlertEvents,
@@ -16,26 +17,87 @@ import {
   getServicesHealth,
   type MonitorAlertEvent,
   type MonitorAlertSummary,
+  type ServerInfo,
   type ServiceHealthRow,
 } from '@/api/monitor'
 import { formatBytes, formatDateTime } from '@/utils/format'
 import MonitorGaugeCard from '@/components/MonitorGaugeCard'
 import MetricTrendCard from '@/components/MetricTrendCard'
 import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
+import '../monitor-page.css'
+import './styles.css'
+
+function metricNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function metricPercent(value: unknown): number | null {
+  const parsed = metricNumber(value)
+  return parsed !== null && parsed >= 0 && parsed <= 100 ? parsed : null
+}
+
+function metricText(value: unknown): string {
+  if (typeof value === 'string') return value.trim() || '--'
+  return value === null || value === undefined ? '--' : String(value)
+}
+
+function metricBytes(value: number | null): string {
+  return value === null ? '--' : formatBytes(value)
+}
+
+function updatedTime(value: Date): string {
+  return value.toLocaleTimeString('zh-CN', { hour12: false })
+}
+
+interface ServerGaugeProps {
+  title: string
+  icon: React.ReactNode
+  percent: number | null
+  footer: React.ReactNode
+  index: number
+}
+
+function ServerGaugeCard({ title, icon, percent, footer, index }: ServerGaugeProps) {
+  if (percent !== null) {
+    return <MonitorGaugeCard title={title} icon={icon} percent={percent} footer={footer} index={index} />
+  }
+
+  return (
+    <Card
+      className="monitor-gauge-card stat-card glass-rise"
+      style={{ '--tint': 'rgba(148, 163, 184, 0.08)', '--i': index } as React.CSSProperties}
+    >
+      <div className="monitor-gauge-head">
+        <span className="monitor-gauge-icon is-unknown">{icon}</span>
+        <span className="monitor-gauge-title">{title}</span>
+      </div>
+      <div className="monitor-gauge-body"><div className="monitor-unknown-gauge">--</div></div>
+      <div className="monitor-gauge-foot">{footer}</div>
+    </Card>
+  )
+}
 
 export default function ServerMonitorPage() {
-  const [data, setData] = useState<Record<string, unknown>>({})
+  const [data, setData] = useState<ServerInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [requestFailed, setRequestFailed] = useState(false)
+  const [lastSuccessAt, setLastSuccessAt] = useState<Date | null>(null)
+  const requestInFlightRef = useRef(false)
 
   const fetchData = useCallback(async () => {
+    if (requestInFlightRef.current) return
+    requestInFlightRef.current = true
     setRefreshing(true)
     try {
       const res = await getServerInfo()
       setData(res)
+      setRequestFailed(false)
+      setLastSuccessAt(new Date())
     } catch {
-      // ignore
+      setRequestFailed(true)
     } finally {
+      requestInFlightRef.current = false
       setLoading(false)
       setRefreshing(false)
     }
@@ -43,113 +105,160 @@ export default function ServerMonitorPage() {
 
   useVisibilityInterval(fetchData, 10000)
 
-  const cpu = data.cpu as Record<string, unknown> | undefined
-  const mem = data.memory as Record<string, unknown> | undefined
-  const disk = data.disk as Record<string, unknown> | undefined
-  const os = data.os as Record<string, unknown> | undefined
-
-  const cpuUsage = Number(cpu?.used_percent ?? 0)
-  const memUsage = Number(mem?.used_percent ?? 0)
-  const diskUsage = Number(disk?.used_percent ?? 0)
+  const cpuCores = metricNumber(data?.cpu?.cores)
+  const cpuUsage = cpuCores !== null && cpuCores > 0 ? metricPercent(data?.cpu?.used_percent) : null
+  const memTotal = metricNumber(data?.memory?.total)
+  const memAvailable = memTotal !== null && memTotal > 0
+  const memUsed = memAvailable ? metricNumber(data?.memory?.used) : null
+  const memFree = memAvailable ? metricNumber(data?.memory?.free) : null
+  const memUsage = memAvailable ? metricPercent(data?.memory?.used_percent) : null
+  const diskTotal = metricNumber(data?.disk?.total)
+  const diskAvailable = diskTotal !== null && diskTotal > 0
+  const diskUsed = diskAvailable ? metricNumber(data?.disk?.used) : null
+  const diskUsage = diskAvailable ? metricPercent(data?.disk?.used_percent) : null
+  const osAvailable = Boolean(
+    data?.os?.hostname?.trim()
+      && data.os.platform?.trim()
+      && data.os.boot_time?.trim()
+      && !data.os.boot_time.startsWith('1970-01-01'),
+  )
+  const hasPartialData = data !== null && (
+    cpuUsage === null || memUsage === null || diskUsage === null || !osAvailable
+  )
+  const statusText = requestFailed
+    ? lastSuccessAt
+      ? `数据中断 · 上次成功 ${updatedTime(lastSuccessAt)}`
+      : '数据中断 · 尚无成功数据'
+    : data && lastSuccessAt
+      ? hasPartialData
+        ? `连接正常 · 部分指标不可用 · 更新于 ${updatedTime(lastSuccessAt)}`
+        : `每 10 秒自动刷新 · 更新于 ${updatedTime(lastSuccessAt)}`
+      : '正在获取监控数据'
+  const statusTone = requestFailed ? 'is-error' : data ? hasPartialData ? 'is-warning' : 'is-live' : 'is-loading'
+  const statusAnnouncement = requestFailed
+    ? '服务器监控数据中断'
+    : hasPartialData
+      ? '服务器监控连接正常，部分指标不可用'
+      : data
+        ? '服务器监控连接正常'
+        : '正在连接服务器监控'
 
   return (
-    <Spin spinning={loading}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <Space>
-          <span className="auto-refresh-hint">
-            <span className="live-dot" />
-            每 10 秒自动刷新
-          </span>
-          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>
-            刷新
-          </Button>
-        </Space>
+    <div className="monitor-status-page server-monitor-page">
+      <span className="monitor-status-announcement" aria-live="polite" aria-atomic="true">
+        {statusAnnouncement}
+      </span>
+      <div className="monitor-page-header">
+        <span className={`monitor-page-status ${statusTone}`}>
+          <span className="monitor-page-status-dot" />
+          {statusText}
+        </span>
+        <Button icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>
+          刷新主机指标
+        </Button>
       </div>
 
       <ServicesHealthCard />
 
       <AlertOverviewCard />
 
-      <Row gutter={[20, 20]}>
-        <Col xs={24} md={12} lg={8}>
-          <MonitorGaugeCard
-            title="CPU 使用率"
-            icon={<DesktopOutlined />}
-            percent={cpuUsage}
-            index={0}
-            footer={<>{String(cpu?.cores ?? '-')} 核 · {String(cpu?.model_name || '未知型号')}</>}
-          />
-        </Col>
-        <Col xs={24} md={12} lg={8}>
-          <MonitorGaugeCard
-            title="内存使用率"
-            icon={<DatabaseOutlined />}
-            percent={memUsage}
-            index={1}
-            footer={<>{formatBytes(Number(mem?.used ?? 0))} / {formatBytes(Number(mem?.total ?? 0))}</>}
-          />
-        </Col>
-        <Col xs={24} md={12} lg={8}>
-          <MonitorGaugeCard
-            title="磁盘使用率"
-            icon={<HddOutlined />}
-            percent={diskUsage}
-            index={2}
-            footer={<>{formatBytes(Number(disk?.used ?? 0))} / {formatBytes(Number(disk?.total ?? 0))}</>}
-          />
-        </Col>
+      {loading && data === null ? (
+        <Card className="monitor-state-card glass-rise" bordered={false}>
+          <Spin size="large" />
+          <div className="monitor-state-title">正在连接服务器监控</div>
+          <div className="monitor-state-copy">首次监控数据返回后将展示资源用量和运行环境。</div>
+        </Card>
+      ) : requestFailed && data === null ? (
+        <Card className="monitor-state-card glass-rise" bordered={false} role="alert">
+          <WarningOutlined className="monitor-state-icon" />
+          <div className="monitor-state-title">主机数据中断</div>
+          <div className="monitor-state-copy">暂未获取到服务器监控数据，请检查监控服务后重新连接。</div>
+          <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>重新连接</Button>
+        </Card>
+      ) : (
+        <Row gutter={[20, 20]}>
+          <Col xs={24} md={12} lg={8}>
+            <ServerGaugeCard
+              title="CPU 使用率"
+              icon={<DesktopOutlined />}
+              percent={cpuUsage}
+              index={0}
+              footer={<>{cpuCores !== null && cpuCores > 0 ? `${cpuCores} 核` : '核心数 --'} · {metricText(data?.cpu?.model_name)}</>}
+            />
+          </Col>
+          <Col xs={24} md={12} lg={8}>
+            <ServerGaugeCard
+              title="内存使用率"
+              icon={<DatabaseOutlined />}
+              percent={memUsage}
+              index={1}
+              footer={<>{metricBytes(memUsed)} / {metricBytes(memAvailable ? memTotal : null)}</>}
+            />
+          </Col>
+          <Col xs={24} md={12} lg={8}>
+            <ServerGaugeCard
+              title="磁盘使用率"
+              icon={<HddOutlined />}
+              percent={diskUsage}
+              index={2}
+              footer={<>{metricBytes(diskUsed)} / {metricBytes(diskAvailable ? diskTotal : null)}</>}
+            />
+          </Col>
 
-        <Col xs={24}>
-          <MetricTrendCard title="CPU 使用率趋势" metric="system.cpu.used_percent" />
-        </Col>
-        <Col xs={24} lg={12}>
-          <MetricTrendCard title="内存使用率趋势" metric="system.memory.used_percent" />
-        </Col>
-        <Col xs={24} lg={12}>
-          <MetricTrendCard title="磁盘使用率趋势" metric="system.disk.used_percent" />
-        </Col>
+          <Col xs={24}>
+            <MetricTrendCard title="CPU 使用率趋势" metric="system.cpu.used_percent" />
+          </Col>
+          <Col xs={24} lg={12}>
+            <MetricTrendCard title="内存使用率趋势" metric="system.memory.used_percent" />
+          </Col>
+          <Col xs={24} lg={12}>
+            <MetricTrendCard title="磁盘使用率趋势" metric="system.disk.used_percent" />
+          </Col>
 
-        <Col xs={24} lg={12}>
-          <Card
-            className="glass-rise"
-            style={{ '--i': 3 } as React.CSSProperties}
-            title={
-              <Space>
-                <CloudServerOutlined className="card-title-icon" /> 操作系统
-              </Space>
-            }
-          >
-            <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="主机名">{String(os?.hostname ?? '-')}</Descriptions.Item>
-              <Descriptions.Item label="平台">{String(os?.platform ?? '-')}</Descriptions.Item>
-              <Descriptions.Item label="系统 / 架构">
-                {String(os?.go_os ?? '-')} / {String(os?.arch ?? '-')}
-              </Descriptions.Item>
-              <Descriptions.Item label="启动时间">{String(os?.boot_time ?? '-')}</Descriptions.Item>
-            </Descriptions>
-          </Card>
-        </Col>
+          <Col xs={24} lg={12}>
+            <Card
+              className="glass-rise"
+              style={{ '--i': 3 } as React.CSSProperties}
+              title={
+                <Space>
+                  <CloudServerOutlined className="card-title-icon" /> 操作系统
+                </Space>
+              }
+            >
+              <Descriptions column={1} bordered size="small">
+                <Descriptions.Item label="主机名">{metricText(data?.os?.hostname)}</Descriptions.Item>
+                <Descriptions.Item label="平台">{metricText(data?.os?.platform)}</Descriptions.Item>
+                <Descriptions.Item label="系统 / 架构">
+                  {metricText(data?.os?.go_os)} / {metricText(data?.os?.arch)}
+                </Descriptions.Item>
+                <Descriptions.Item label="启动时间">
+                  {osAvailable ? metricText(data?.os?.boot_time) : '--'}
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
+          </Col>
 
-        <Col xs={24} lg={12}>
-          <Card
-            className="glass-rise"
-            style={{ '--i': 4 } as React.CSSProperties}
-            title={
-              <Space>
-                <CodeOutlined className="card-title-icon" /> Go 运行时
-              </Space>
-            }
-          >
-            <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="Go 版本">{String(os?.go_version ?? '-')}</Descriptions.Item>
-              <Descriptions.Item label="Goroutines">{String(os?.num_goroutine ?? '-')}</Descriptions.Item>
-              <Descriptions.Item label="编译器">{String(os?.compiler ?? '-')}</Descriptions.Item>
-              <Descriptions.Item label="内存空闲">{formatBytes(Number(mem?.free ?? 0))}</Descriptions.Item>
-            </Descriptions>
-          </Card>
-        </Col>
-      </Row>
-    </Spin>
+          <Col xs={24} lg={12}>
+            <Card
+              className="glass-rise"
+              style={{ '--i': 4 } as React.CSSProperties}
+              title={
+                <Space>
+                  <CodeOutlined className="card-title-icon" /> Go 运行时
+                </Space>
+              }
+            >
+              <Descriptions column={1} bordered size="small">
+                <Descriptions.Item label="Go 版本">{metricText(data?.os?.go_version)}</Descriptions.Item>
+                <Descriptions.Item label="Goroutines">{metricText(data?.os?.num_goroutine)}</Descriptions.Item>
+                <Descriptions.Item label="编译器">{metricText(data?.os?.compiler)}</Descriptions.Item>
+                <Descriptions.Item label="内存空闲">{metricBytes(memFree)}</Descriptions.Item>
+              </Descriptions>
+            </Card>
+          </Col>
+        </Row>
+      )}
+    </div>
   )
 }
 
@@ -161,8 +270,11 @@ function ServicesHealthCard() {
   // 探测接口本身失败时保留上一轮结果，但要给出可见提示——
   // 监控页上「探测挂了」和「一切正常」不可混淆
   const [probeFailed, setProbeFailed] = useState(false)
+  const requestInFlightRef = useRef(false)
 
   const load = useCallback(async () => {
+    if (requestInFlightRef.current) return
+    requestInFlightRef.current = true
     try {
       const res = await getServicesHealth()
       setRows(res.list ?? [])
@@ -171,6 +283,7 @@ function ServicesHealthCard() {
     } catch {
       setProbeFailed(true)
     } finally {
+      requestInFlightRef.current = false
       setLoading(false)
     }
   }, [])
@@ -181,17 +294,18 @@ function ServicesHealthCard() {
   return (
     <Card
       className="glass-rise"
-      style={{ marginBottom: 20 }}
       title={
-        <Space>
+        <div className="server-card-title">
           <CloudServerOutlined className="card-title-icon" /> 微服务健康
           {rows.length > 0 && (
             <Tag color={allUp ? 'green' : 'red'} variant="filled">{healthy}/{rows.length}</Tag>
           )}
           {probeFailed && (
-            <Tag color="orange" variant="filled">探测接口异常，显示为上一轮结果</Tag>
+            <Tag className="server-card-warning" color="orange" variant="filled">
+              {rows.length > 0 ? '探测中断，显示上次结果' : '探测接口不可用'}
+            </Tag>
           )}
-        </Space>
+        </div>
       }
     >
       {loading ? (
@@ -206,11 +320,13 @@ function ServicesHealthCard() {
               title={r.ok ? `ready · ${r.latency_ms}ms` : r.error || `HTTP ${r.http_code}`}
             >
               <Tag
+                className="server-health-tag"
                 color={r.ok ? 'green' : 'red'}
                 variant={r.ok ? 'outlined' : 'filled'}
+                tabIndex={0}
                 style={{ marginInlineEnd: 0, cursor: 'default' }}
               >
-                {r.name}{r.ok ? '' : ' ✕'}
+                <span>{r.name}{r.ok ? '' : ' ✕'}</span>
               </Tag>
             </Tooltip>
           ))}
@@ -230,69 +346,96 @@ const ALERT_STATE_STATS: { key: keyof MonitorAlertSummary; label: string; tone: 
 
 function AlertOverviewCard() {
   const [summary, setSummary] = useState<MonitorAlertSummary | null>(null)
-  const [events, setEvents] = useState<MonitorAlertEvent[]>([])
+  const [events, setEvents] = useState<MonitorAlertEvent[] | null>(null)
   const [loading, setLoading] = useState(true)
+  const [summaryFailed, setSummaryFailed] = useState(false)
+  const [eventsFailed, setEventsFailed] = useState(false)
+  const requestInFlightRef = useRef(false)
 
   const load = useCallback(async () => {
-    try {
-      const [sum, ev] = await Promise.all([
-        getAlertSummary(),
-        getAlertEvents({ page: 1, page_size: 5 }),
-      ])
-      setSummary(sum)
-      setEvents(ev.list ?? [])
-    } catch {
-      // 告警引擎可能未就绪，保留上一轮结果
-    } finally {
-      setLoading(false)
+    if (requestInFlightRef.current) return
+    requestInFlightRef.current = true
+    const [summaryResult, eventsResult] = await Promise.allSettled([
+      getAlertSummary(),
+      getAlertEvents({ page: 1, page_size: 5 }),
+    ])
+
+    if (summaryResult.status === 'fulfilled') {
+      setSummary(summaryResult.value)
+      setSummaryFailed(false)
+    } else {
+      setSummaryFailed(true)
     }
+    if (eventsResult.status === 'fulfilled') {
+      setEvents(eventsResult.value.list ?? [])
+      setEventsFailed(false)
+    } else {
+      setEventsFailed(true)
+    }
+    requestInFlightRef.current = false
+    setLoading(false)
   }, [])
 
   useVisibilityInterval(load, 10000)
 
   return (
     <Card
-      className="glass-rise"
-      style={{ marginBottom: 20 }}
+      className="glass-rise server-alert-card"
       title={
-        <Space>
+        <div className="server-card-title">
           <BellOutlined className="card-title-icon" /> 告警概览
           {summary && summary.firing > 0 && (
             <Tag color="red" variant="filled">告警中 {summary.firing}</Tag>
           )}
-        </Space>
+          {(summaryFailed || eventsFailed) && (
+            <Tag className="server-card-warning" color="orange" variant="filled">
+              {summary || events ? '数据中断，显示可用结果' : '告警数据不可用'}
+            </Tag>
+          )}
+        </div>
       }
       extra={summary?.checked_at ? <span className="cell-muted">{formatDateTime(summary.checked_at)}</span> : null}
     >
-      {loading ? (
+      {loading && summary === null && events === null ? (
         <Skeleton active title={false} paragraph={{ rows: 2 }} />
+      ) : summary === null && events === null ? (
+        <div className="server-alert-unavailable" role="alert">
+          <WarningOutlined />
+          <span>暂未获取到告警摘要和最近事件。</span>
+        </div>
       ) : (
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} lg={10}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {ALERT_STATE_STATS.map((stat) => {
-                const value = summary ? Number(summary[stat.key] ?? 0) : 0
-                return (
-                  <div key={stat.key} className="alert-stat-pill">
-                    <span className="alert-stat-value" style={{ color: stat.tone }}>{value}</span>
-                    <span className="alert-stat-label">{stat.label}</span>
-                  </div>
-                )
-              })}
-            </div>
+            {summary === null ? (
+              <div className="server-alert-unavailable"><WarningOutlined /> 告警摘要暂不可用</div>
+            ) : (
+              <div className="server-alert-stats">
+                {ALERT_STATE_STATS.map((stat) => {
+                  const value = Number(summary[stat.key] ?? 0)
+                  return (
+                    <div key={stat.key} className="alert-stat-pill">
+                      <span className="alert-stat-value" style={{ color: stat.tone }}>{value}</span>
+                      <span className="alert-stat-label">{stat.label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </Col>
           <Col xs={24} lg={14}>
-            {events.length === 0 ? (
+            {events === null ? (
+              <div className="server-alert-unavailable"><WarningOutlined /> 最近事件暂不可用</div>
+            ) : events.length === 0 ? (
               <span className="cell-muted">暂无告警事件</span>
             ) : (
               <div className="alert-event-mini">
                 {events.map((e) => (
-                  <div key={e.id} className="alert-event-row">
+                  <div key={e.id} className="alert-event-row server-alert-event-row">
                     <Tag color={e.status === 'firing' ? 'red' : 'green'} style={{ marginInlineEnd: 8 }}>
                       {e.status === 'firing' ? '告警' : '恢复'}
                     </Tag>
                     <span className="cell-ellipsis">{e.rule_name}</span>
-                    <span className="cell-muted" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                    <span className="cell-muted server-alert-event-time">
                       {formatDateTime(e.created_at)}
                     </span>
                   </div>
