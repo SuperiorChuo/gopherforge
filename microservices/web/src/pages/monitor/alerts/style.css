@@ -4,6 +4,73 @@
   gap: 14px;
 }
 
+.alert-overview-block {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alert-overview-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.alert-overview-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.alert-overview-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.72);
+}
+
+.alert-overview-status.is-live {
+  color: #34d399;
+}
+
+.alert-overview-status.is-live .alert-overview-status-dot {
+  background: #34d399;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.1);
+}
+
+.alert-overview-status.is-stale {
+  color: #fbbf24;
+}
+
+.alert-overview-status.is-stale .alert-overview-status-dot {
+  background: #fbbf24;
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.1);
+}
+
+.alert-overview-status.is-error {
+  color: #f87171;
+}
+
+.alert-overview-status.is-error .alert-overview-status-dot {
+  background: #f87171;
+  box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.1);
+}
+
+.alert-overview-meta .ant-btn {
+  width: 32px;
+  min-width: 32px;
+  flex: 0 0 32px;
+  padding-inline: 0;
+}
+
 .alert-overview-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -66,6 +133,10 @@
   line-height: 1;
 }
 
+.alert-overview-strip.is-unavailable strong {
+  color: var(--text-tertiary);
+}
+
 .alert-view-switch {
   display: flex;
   justify-content: flex-start;
@@ -83,6 +154,7 @@
 }
 
 .alert-rule-name > span {
+  min-width: 0;
   overflow: hidden;
   font-weight: 600;
   text-overflow: ellipsis;
@@ -92,6 +164,77 @@
 .alert-condition {
   color: inherit;
   font-variant-numeric: tabular-nums;
+}
+
+.alert-list-state {
+  margin-bottom: 12px;
+}
+
+.alert-rule-actions-cell {
+  padding-inline: 8px !important;
+}
+
+.alert-rule-actions {
+  width: 100%;
+  justify-content: center;
+}
+
+.alert-rule-compact-main,
+.alert-rule-compact-state,
+.alert-event-compact-main,
+.alert-event-compact-state {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.alert-rule-compact-main {
+  gap: 5px;
+}
+
+.alert-rule-compact-meta,
+.alert-event-compact-main > span,
+.alert-rule-compact-state > span:not(:first-child) {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 11.5px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alert-rule-compact-state {
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.alert-event-compact-main {
+  gap: 3px;
+}
+
+.alert-event-compact-main > strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alert-event-compact-main .alert-event-compact-message {
+  color: var(--text-secondary);
+}
+
+.alert-event-compact-state {
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.alert-event-compact-state .ant-tag {
+  max-width: 100%;
+  margin-inline-end: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .alert-rule-form {
@@ -112,6 +255,18 @@
   border-radius: 8px;
 }
 
+[data-theme='light'] .alert-overview-status.is-live {
+  color: #059669;
+}
+
+[data-theme='light'] .alert-overview-status.is-stale {
+  color: #b45309;
+}
+
+[data-theme='light'] .alert-overview-status.is-error {
+  color: #dc2626;
+}
+
 @media (max-width: 900px) {
   .alert-overview-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -127,6 +282,14 @@
 }
 
 @media (max-width: 600px) {
+  .alert-overview-meta {
+    align-items: flex-start;
+  }
+
+  .alert-overview-status {
+    flex: 1 1 auto;
+  }
+
   .alert-overview-strip > div {
     padding: 12px;
   }
@@ -142,5 +305,17 @@
   .alert-form-grid,
   .alert-switch-row {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .alert-list-state .ant-alert-action {
+    width: 100%;
+  }
+
+  .alert-list-state .ant-alert-action .ant-btn {
+    width: 100%;
+  }
+
+  .alert-rule-actions-cell {
+    padding-inline: 6px !important;
   }
 }
