@@ -45,6 +45,11 @@ const routes: RouteObject[] = [
     element: lazyLoad(() => import('@/pages/login')),
   },
   {
+    // 邀请注册页：独立于 MainLayout（未登录），邀请链接 /register?invite=<token>
+    path: '/register',
+    element: lazyLoad(() => import('@/pages/register')),
+  },
+  {
     // OAuth2 授权确认页：面向第三方授权流程，刻意放在 MainLayout 之外
     // （第三方用户不应看到管理台骨架），与 /login 平级
     path: '/oauth/authorize',

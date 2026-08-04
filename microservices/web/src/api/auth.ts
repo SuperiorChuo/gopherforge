@@ -15,6 +15,10 @@ export const login = (data: LoginRequest) =>
 export const verifyTotpLogin = (data: VerifyTOTPLoginRequest) =>
   request.post<unknown, LoginResponse>('/api/v1/login/2fa/verify', data)
 
+// 邀请注册：必须携带邀请链接里的 invite_token（无公开自注册）
+export const register = (data: { username: string; password: string; email: string; invite_token: string }) =>
+  request.post<unknown, { user: UserInfo }>('/api/v1/register', data)
+
 export const logout = (data?: { refresh_token: string }) =>
   request.post('/api/v1/logout', data)
 

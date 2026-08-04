@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
+  Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select, Alert,
   Card, Row, Col, Avatar, Tooltip, Switch,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, UserOutlined, EditOutlined, DeleteOutlined,
-  DownloadOutlined, UploadOutlined, KeyOutlined,
+  DownloadOutlined, UploadOutlined, KeyOutlined, MailOutlined, TeamOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { SystemUser, SystemRole, Department } from '@/types'
 import * as UserAPI from '@/api/system/user'
+import { createInvite } from '@/api/system/invite'
 import { getRoleList } from '@/api/system/role'
 import { getDepartmentList } from '@/api/system/department'
 import { getAllPosts } from '@/api/system/posts'
@@ -89,12 +90,16 @@ export default function UserPage() {
   const [depts, setDepts] = useState<Department[]>([])
   const [posts, setPosts] = useState<SystemPost[]>([])
   const [importOpen, setImportOpen] = useState(false)
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const [inviting, setInviting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [resetRecord, setResetRecord] = useState<UserRow | null>(null)
   const [resetting, setResetting] = useState(false)
   const [form] = Form.useForm()
   const [resetForm] = Form.useForm()
   const [searchForm] = Form.useForm()
+  const [inviteForm] = Form.useForm()
   const { hasPerm } = usePermission()
 
   const deptNameMap = useMemo(() => {
@@ -349,6 +354,20 @@ export default function UserPage() {
     },
   ]
 
+  async function onInvite() {
+    const values = await inviteForm.validateFields().catch(() => null)
+    if (!values) return
+    setInviting(true)
+    try {
+      const res = await createInvite({ role_id: values.role_id, email: values.email })
+      setInviteLink(res.link)
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '创建邀请失败')
+    } finally {
+      setInviting(false)
+    }
+  }
+
   return (
     <div className="page-list user-page">
       <Card className="list-filter-card" bordered={false}>
@@ -420,6 +439,11 @@ export default function UserPage() {
               {hasPerm('system:user:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                   新增用户
+                </Button>
+              )}
+              {hasPerm('system:user:create') && (
+                <Button icon={<MailOutlined />} onClick={() => { setInviteLink(null); inviteForm.resetFields(); setInviteOpen(true) }}>
+                  邀请用户
                 </Button>
               )}
             </Space>
@@ -598,6 +622,59 @@ export default function UserPage() {
         downloadTemplate={UserAPI.downloadUserImportTemplate}
         doImport={UserAPI.importUsers}
       />
+
+      {inviteLink ? (
+        <Modal
+          title="邀请链接已生成"
+          open
+          onCancel={() => setInviteLink(null)}
+          footer={<Button type="primary" onClick={() => setInviteLink(null)}>我已复制，关闭</Button>}
+          maskClosable={false}
+        >
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message="此链接只显示这一次，请复制后发送给受邀人；对方通过链接注册后将自动加入当前租户。"
+          />
+          <Input.TextArea
+            rows={2}
+            readOnly
+            value={inviteLink}
+            onFocus={(e) => e.target.select()}
+            className="cell-mono"
+            style={{ fontSize: 12 }}
+          />
+        </Modal>
+      ) : (
+        <Modal
+          title="邀请用户"
+          open={inviteOpen}
+          onCancel={() => setInviteOpen(false)}
+          onOk={() => void onInvite()}
+          okText="生成邀请链接"
+          confirmLoading={inviting}
+          destroyOnHidden
+        >
+          <Form form={inviteForm} layout="vertical">
+            <Form.Item
+              name="role_id"
+              label="分配角色（可选）"
+              tooltip="受邀人注册后将自动获得该角色；不选则无角色"
+            >
+              <Select
+                allowClear
+                placeholder="选择角色"
+                options={roles.map((r) => ({ label: r.name, value: r.id }))}
+                prefix={<TeamOutlined />}
+              />
+            </Form.Item>
+            <Form.Item name="email" label="受邀人邮箱（可选）">
+              <Input placeholder="仅登记，不校验" allowClear />
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
     </div>
   )
 }
