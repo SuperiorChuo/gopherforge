@@ -5,6 +5,7 @@ import (
 	"errors"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/services/auth/internal/config"
@@ -69,26 +70,53 @@ func TestUserServiceLoginPasswordAttributesAutomaticPasswordFlag(t *testing.T) {
 	}
 }
 
-func TestUserServiceRegisterContextReturnsUsernameLookupError(t *testing.T) {
-	db, mock := setupAuthServiceContextTestDB(t)
-	lookupErr := errors.New("database lookup failed")
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE tenant_id = $1 AND username = $2 ORDER BY "users"."id" LIMIT $3`)).
-		WithArgs(uint(1), "alice", 1).
-		WillReturnError(lookupErr)
+// expectConsumedInvite 排队一次有效邀请的校验与原子消费（邀请制注册的前置 SQL）。
+func expectConsumedInvite(mock sqlmock.Sqlmock, tenantID uint) {
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "invites" WHERE token_hash = $1 ORDER BY "invites"."id" LIMIT $2`)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "tenant_id", "role_id", "expires_at"}).
+			AddRow(5, tenantID, 0, time.Now().Add(time.Hour)))
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "invites" SET`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+}
 
+func TestUserServiceRegisterContextRejectsMissingInvite(t *testing.T) {
+	db, _ := setupAuthServiceContextTestDB(t)
 	svc := NewUserServiceWithDB(db)
 	_, err := svc.RegisterContext(context.Background(), RegisterRequest{
 		Username: "alice",
 		Password: "Password123",
 		Email:    "alice@example.com",
 	})
+	if !errors.Is(err, ErrInviteInvalid) {
+		t.Fatalf("RegisterContext() error = %v, want ErrInviteInvalid", err)
+	}
+}
+
+func TestUserServiceRegisterContextReturnsUsernameLookupError(t *testing.T) {
+	db, mock := setupAuthServiceContextTestDB(t)
+	lookupErr := errors.New("database lookup failed")
+	expectConsumedInvite(mock, 1)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE tenant_id = $1 AND username = $2 ORDER BY "users"."id" LIMIT $3`)).
+		WithArgs(uint(1), "alice", 1).
+		WillReturnError(lookupErr)
+
+	svc := NewUserServiceWithDB(db)
+	_, err := svc.RegisterContext(context.Background(), RegisterRequest{
+		Username:    "alice",
+		Password:    "Password123",
+		Email:       "alice@example.com",
+		InviteToken: "tok",
+	})
 	if !errors.Is(err, lookupErr) {
 		t.Fatalf("RegisterContext() error = %v, want username lookup error", err)
 	}
 }
 
-func TestUserServiceRegisterContextAttributesSelfRegistration(t *testing.T) {
+func TestUserServiceRegisterContextAttributesInvitedRegistration(t *testing.T) {
 	db, mock := setupAuthServiceContextTestDB(t)
+	expectConsumedInvite(mock, 1)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE tenant_id = $1 AND username = $2 ORDER BY "users"."id" LIMIT $3`)).
 		WithArgs(uint(1), "alice", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
@@ -111,9 +139,10 @@ func TestUserServiceRegisterContextAttributesSelfRegistration(t *testing.T) {
 
 	svc := NewUserServiceWithDB(db)
 	user, err := svc.RegisterContext(context.Background(), RegisterRequest{
-		Username: "alice",
-		Password: "Password123",
-		Email:    "alice@example.com",
+		Username:    "alice",
+		Password:    "Password123",
+		Email:       "alice@example.com",
+		InviteToken: "tok",
 	})
 	if err != nil {
 		t.Fatalf("RegisterContext() error = %v", err)
@@ -122,7 +151,7 @@ func TestUserServiceRegisterContextAttributesSelfRegistration(t *testing.T) {
 		t.Fatalf("registered user id = %d, want 42", user.ID)
 	}
 	actor, ok := sharedaudit.ActorFromContext(createContext)
-	if !ok || actor.Type != "anonymous" || actor.ID != "self-registration" {
+	if !ok || actor.Type != "anonymous" || actor.ID != "invited-registration" {
 		t.Fatalf("registration actor = %#v, found=%v", actor, ok)
 	}
 	if tenantID, ok := sharedaudit.TenantIDFromContext(createContext); !ok || tenantID != 1 {

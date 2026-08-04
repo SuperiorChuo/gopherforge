@@ -81,6 +81,9 @@ export interface paths {
   "/api/v1/monitor/jobs/{id}/stop": {
     post: operations["postApiV1MonitorJobsIdStop"];
   };
+  "/api/v1/monitor/metrics/trends": {
+    get: operations["getApiV1MonitorMetricsTrends"];
+  };
   "/api/v1/monitor/mysql": {
     get: operations["getApiV1MonitorMysql"];
   };
@@ -1105,6 +1108,36 @@ export interface operations {
         };
       };
       "503": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorMetricsTrends": {
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
         content: {
           "application/json": components["schemas"]["ApiResponse"];
         };

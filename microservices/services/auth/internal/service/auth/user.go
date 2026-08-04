@@ -56,7 +56,7 @@ type RegisterRequest struct {
 	Username    string `json:"username" binding:"required"`
 	Password    string `json:"password" binding:"required"`
 	Email       string `json:"email" binding:"required,email"`
-	InviteToken string `json:"invite_token" binding:"required"` // 邀请制：无有效 token 拒绝
+	InviteToken string `json:"invite_token" binding:"required"` // invite-only: requests without a valid token are rejected
 }
 
 // ChangePasswordRequest is the password change request payload.
@@ -93,7 +93,7 @@ var (
 	// ErrEmailAlreadyExists indicates the email is used by another user.
 	ErrEmailAlreadyExists = errors.New("email already exists")
 	// ErrInviteInvalid indicates the invite token is missing/invalid/used/expired/revoked.
-	ErrInviteInvalid = errors.New("邀请链接无效或已使用，请联系管理员")
+	ErrInviteInvalid = errors.New("invite link is invalid or already used")
 	// ErrPhoneAlreadyExists indicates the phone number is used by another user.
 	ErrPhoneAlreadyExists = errors.New("phone already exists")
 )
@@ -238,7 +238,7 @@ func (s *UserService) LoginPasswordWithTenantContext(ctx context.Context, userna
 }
 
 func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) (*model.User, error) {
-	// 邀请制：必须携带有效邀请 token（无公开自注册路径）。
+	// Invite-only: a valid invite token is required (no public self-registration).
 	invite, err := s.consumeInvite(ctx, req.InviteToken)
 	if err != nil {
 		return nil, err
@@ -278,7 +278,7 @@ func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) 
 		Password:           string(hashedPassword),
 		Email:              req.Email,
 		Status:             1,
-		MustChangePassword: true, // 首次登录强制改密
+		MustChangePassword: true, // force password change on first login
 		PasswordChangedAt:  &now,
 	}
 
@@ -294,7 +294,7 @@ func (s *UserService) RegisterContext(ctx context.Context, req RegisterRequest) 
 	return user, nil
 }
 
-// consumeInvite 校验邀请 token 有效性并原子消费（并发双用仅一次成功）。
+// consumeInvite validates the invite token and consumes it atomically (only one of concurrent uses succeeds).
 func (s *UserService) consumeInvite(ctx context.Context, token string) (*model.Invite, error) {
 	token = strings.TrimSpace(token)
 	if token == "" {
@@ -312,7 +312,7 @@ func (s *UserService) consumeInvite(ctx context.Context, token string) (*model.I
 	if inv.UsedAt != nil || inv.RevokedAt != nil || now.After(inv.ExpiresAt) {
 		return nil, ErrInviteInvalid
 	}
-	// 原子消费：条件更新（未用/未撤销/未过期），并发下仅一次成功。
+	// Atomic consumption: conditional update (unused/unrevoked/unexpired); only one concurrent use succeeds.
 	if err := s.inviteDAO.MarkUsedContext(ctx, inv.ID); err != nil {
 		return nil, ErrInviteInvalid
 	}
