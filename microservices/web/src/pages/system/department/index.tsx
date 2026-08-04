@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  Card, InputNumber, Row, Col, TreeSelect, Segmented,
+  Card, InputNumber, Row, Col, TreeSelect, Segmented, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -190,18 +190,20 @@ export default function DepartmentPage() {
     {
       title: '名称',
       dataIndex: 'name',
+      width: 300,
+      ellipsis: true,
       render: (v: string) => (
-        <span style={{ fontWeight: 500 }}>
+        <span className="department-name-cell">
           <ApartmentOutlined className="tree-title-icon" />
-          {v}
+          <span className="department-name-text">{v}</span>
         </span>
       ),
     },
     {
       title: '编码',
       dataIndex: 'code',
-      width: 180,
-      render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
+      width: 200,
+      render: (v: string) => <Tag variant="filled" className="cell-mono department-code-tag">{v}</Tag>,
     },
     {
       title: '部门主管',
@@ -221,15 +223,19 @@ export default function DepartmentPage() {
     { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
     {
       title: '操作',
-      width: 140,
+      width: 96,
       render: (_, record) => (
-        <Space size={0} className="table-actions">
+        <Space size={4} className="table-actions department-row-actions">
           {hasPerm('system:department:update') && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
+            <Tooltip title="编辑">
+              <Button type="text" size="small" aria-label="编辑部门" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            </Tooltip>
           )}
           {hasPerm('system:department:delete') && (
             <Popconfirm title="确认删除该部门?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              <Tooltip title="删除">
+                <Button type="text" size="small" danger aria-label="删除部门" icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -296,6 +302,8 @@ export default function DepartmentPage() {
           columns={columns}
           dataSource={isTree ? tree : list}
           loading={loading}
+          rowClassName={(record) => (record.status === 0 ? 'department-row-disabled' : '')}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无部门" compact /> }}
           expandable={isTree ? { expandedRowKeys: expandedKeys, onExpandedRowsChange: setExpandedKeys } : undefined}
           pagination={

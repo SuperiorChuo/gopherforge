@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input,
-  Card, Checkbox,
+  Card, Checkbox, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -171,29 +171,42 @@ export default function RolePage() {
 
   const columns: ColumnsType<SystemRole> = [
     { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
-    { title: '名称', dataIndex: 'name' },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      width: 180,
+      ellipsis: true,
+      render: (value: string) => <span className="role-cell-name">{value}</span>,
+    },
     {
       title: '编码',
       dataIndex: 'code',
+      width: 220,
       responsive: ['sm'],
-      render: (v: string) => <Tag variant="filled" className="cell-mono">{v}</Tag>,
+      render: (v: string) => <Tag variant="filled" className="cell-mono role-code-tag">{v}</Tag>,
     },
-    { title: '描述', dataIndex: 'description', ellipsis: true, responsive: ['md'] },
+    { title: '描述', dataIndex: 'description', width: 280, ellipsis: true, responsive: ['md'] },
     { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: '操作',
-      width: 200,
+      width: 132,
       render: (_, record) => (
-        <Space size={0} className="table-actions">
+        <Space size={4} className="table-actions role-row-actions">
           {hasPerm('system:role:update') && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
+            <Tooltip title="编辑">
+              <Button type="text" size="small" aria-label="编辑角色" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            </Tooltip>
           )}
           {hasPerm('system:role:update') && (
-            <Button type="link" size="small" icon={<SafetyOutlined />} onClick={() => openPermModal(record)}>分配权限</Button>
+            <Tooltip title="分配权限">
+              <Button type="text" size="small" aria-label="分配角色权限" icon={<SafetyOutlined />} onClick={() => openPermModal(record)} />
+            </Tooltip>
           )}
           {hasPerm('system:role:delete') && (
             <Popconfirm title="确认删除该角色?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              <Tooltip title="删除">
+                <Button type="text" size="small" danger aria-label="删除角色" icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -242,6 +255,7 @@ export default function RolePage() {
           columns={columns}
           dataSource={list}
           loading={loading}
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无角色" compact /> }}
           pagination={{
             total,
