@@ -382,8 +382,8 @@ export default function MainLayout() {
     walk(menuDefs, [])
     return map
   }, [menuDefs])
-  const menuItems = useMemo(() => buildMenuItems(menuDefs, hasPerm), [menuDefs, hasPerm, locale])
-  const paletteItems = useMemo(() => buildPaletteItems(menuDefs, hasPerm), [menuDefs, hasPerm, locale])
+  const menuItems = useMemo(() => buildMenuItems(menuDefs, hasPerm), [menuDefs, hasPerm, locale, i18n.language])
+  const paletteItems = useMemo(() => buildPaletteItems(menuDefs, hasPerm), [menuDefs, hasPerm, locale, i18n.language])
   const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
 
   const [collapsed, setCollapsed] = useState(false)
