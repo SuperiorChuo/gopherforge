@@ -85,6 +85,10 @@ func TestPostDAODeleteContextDeletesWhenUnassigned(t *testing.T) {
 func TestUserDAOAssignPostsContextReplacesAssignments(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectBegin()
+	// 关联表审计：替换前先读现有关系集合（ctx 无 actor，审计行静默跳过）
+	mock.ExpectQuery(`SELECT "?post_id"? FROM "sys_user_posts" WHERE user_id = \$1`).
+		WithArgs(uint(5)).
+		WillReturnRows(sqlmock.NewRows([]string{"post_id"}))
 	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "sys_user_posts" WHERE user_id = $1`)).
 		WithArgs(uint(5)).
 		WillReturnResult(sqlmock.NewResult(0, 1))

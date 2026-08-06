@@ -2,10 +2,12 @@ package system
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 
 	"github.com/go-admin-kit/services/identity/internal/model"
+	"github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 )
 
@@ -95,7 +97,7 @@ func (d *RoleDAO) CreateRoleContext(ctx context.Context, role *model.Role) error
 		if err := tx.Create(role).Error; err != nil {
 			return err
 		}
-		if err := replaceRoleDataScopeDepartments(tx, role.ID, role.DataScope, role.DataScopeDepartmentIDs); err != nil {
+		if err := replaceRoleDataScopeDepartments(ctx, tx, role.ID, role.DataScope, role.DataScopeDepartmentIDs); err != nil {
 			return err
 		}
 		return reloadRoleDataScopeDepartmentIDs(tx, role)
@@ -107,7 +109,7 @@ func (d *RoleDAO) UpdateRoleContext(ctx context.Context, role *model.Role) error
 		if err := tx.Save(role).Error; err != nil {
 			return err
 		}
-		if err := replaceRoleDataScopeDepartments(tx, role.ID, role.DataScope, role.DataScopeDepartmentIDs); err != nil {
+		if err := replaceRoleDataScopeDepartments(ctx, tx, role.ID, role.DataScope, role.DataScopeDepartmentIDs); err != nil {
 			return err
 		}
 		return reloadRoleDataScopeDepartmentIDs(tx, role)
@@ -132,35 +134,48 @@ func (d *RoleDAO) DeleteRoleContext(ctx context.Context, id uint) error {
 	})
 }
 
-func replaceRoleDataScopeDepartments(tx *gorm.DB, roleID uint, dataScope string, departmentIDs []uint) error {
+func replaceRoleDataScopeDepartments(ctx context.Context, tx *gorm.DB, roleID uint, dataScope string, departmentIDs []uint) error {
+	before := make([]uint, 0)
+	if err := tx.Model(&model.RoleDataScopeDepartment{}).Where("role_id = ?", roleID).Pluck("department_id", &before).Error; err != nil {
+		return err
+	}
+
 	if err := tx.Where("role_id = ?", roleID).Delete(&model.RoleDataScopeDepartment{}).Error; err != nil {
 		return err
 	}
 
-	if dataScope != "custom" || len(departmentIDs) == 0 {
-		return nil
-	}
-
+	after := make([]uint, 0)
 	relations := make([]model.RoleDataScopeDepartment, 0, len(departmentIDs))
-	seen := make(map[uint]struct{}, len(departmentIDs))
-	for _, departmentID := range departmentIDs {
-		if departmentID == 0 {
-			continue
+	if dataScope == "custom" {
+		seen := make(map[uint]struct{}, len(departmentIDs))
+		for _, departmentID := range departmentIDs {
+			if departmentID == 0 {
+				continue
+			}
+			if _, ok := seen[departmentID]; ok {
+				continue
+			}
+			seen[departmentID] = struct{}{}
+			after = append(after, departmentID)
+			relations = append(relations, model.RoleDataScopeDepartment{
+				RoleID:       roleID,
+				DepartmentID: departmentID,
+			})
 		}
-		if _, ok := seen[departmentID]; ok {
-			continue
+	}
+	if len(after) > 0 {
+		if err := tx.Create(&relations).Error; err != nil {
+			return err
 		}
-		seen[departmentID] = struct{}{}
-		relations = append(relations, model.RoleDataScopeDepartment{
-			RoleID:       roleID,
-			DepartmentID: departmentID,
-		})
 	}
-	if len(relations) == 0 {
-		return nil
-	}
-
-	return tx.Create(&relations).Error
+	return audittrail.RecordAssociation(ctx, tx, audittrail.RecordAssociationRequest{
+		TargetType: "role_data_scope_departments",
+		TargetID:   fmt.Sprint(roleID),
+		Action:     "update",
+		Before:     map[string]any{"department_ids": append([]uint{}, before...)},
+		After:      map[string]any{"department_ids": append([]uint{}, after...)},
+		Summary:    fmt.Sprintf("update role %d data scope departments", roleID),
+	})
 }
 
 func fillRolesDataScopeDepartmentIDs(roles []model.Role) {
@@ -189,21 +204,34 @@ func reloadRoleDataScopeDepartmentIDs(tx *gorm.DB, role *model.Role) error {
 
 func (d *RoleDAO) AssignPermissionsContext(ctx context.Context, roleID uint, permissionIDs []uint) error {
 	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		before := make([]uint, 0)
+		if err := tx.Model(&model.RolePermission{}).Where("role_id = ?", roleID).Pluck("permission_id", &before).Error; err != nil {
+			return err
+		}
+
 		if err := tx.Where("role_id = ?", roleID).Delete(&model.RolePermission{}).Error; err != nil {
 			return err
 		}
 
-		if len(permissionIDs) == 0 {
-			return nil
+		if len(permissionIDs) > 0 {
+			rolePermissions := make([]model.RolePermission, 0, len(permissionIDs))
+			for _, permissionID := range permissionIDs {
+				rolePermissions = append(rolePermissions, model.RolePermission{
+					RoleID:       roleID,
+					PermissionID: permissionID,
+				})
+			}
+			if err := tx.Create(&rolePermissions).Error; err != nil {
+				return err
+			}
 		}
-
-		rolePermissions := make([]model.RolePermission, 0, len(permissionIDs))
-		for _, permissionID := range permissionIDs {
-			rolePermissions = append(rolePermissions, model.RolePermission{
-				RoleID:       roleID,
-				PermissionID: permissionID,
-			})
-		}
-		return tx.Create(&rolePermissions).Error
+		return audittrail.RecordAssociation(ctx, tx, audittrail.RecordAssociationRequest{
+			TargetType: "role_permissions",
+			TargetID:   fmt.Sprint(roleID),
+			Action:     "update",
+			Before:     map[string]any{"permission_ids": append([]uint{}, before...)},
+			After:      map[string]any{"permission_ids": append([]uint{}, permissionIDs...)},
+			Summary:    fmt.Sprintf("update role %d permissions", roleID),
+		})
 	})
 }

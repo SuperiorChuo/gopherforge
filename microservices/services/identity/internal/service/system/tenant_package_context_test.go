@@ -120,7 +120,10 @@ func TestRoleServiceAssignPermissionsAllowsPlatformAdmin(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "role_id", "department_id"}))
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "role_permissions" WHERE`)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "role_id", "permission_id"}))
-	// 分配事务：全删重建
+	// 分配事务：审计替换前先读现有关系集合（ctx 无 sharedaudit actor，审计行静默跳过）
+	mock.ExpectQuery(`SELECT "?permission_id"? FROM "role_permissions" WHERE role_id = \$1`).
+		WithArgs(uint(5)).
+		WillReturnRows(sqlmock.NewRows([]string{"permission_id"}))
 	mock.ExpectBegin()
 	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "role_permissions"`)).
 		WillReturnResult(sqlmock.NewResult(0, 0))
@@ -153,6 +156,10 @@ func TestRoleServiceAssignPermissionsUnboundTenantUnrestricted(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "role_id", "department_id"}))
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "role_permissions" WHERE`)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "role_id", "permission_id"}))
+	// 分配事务：审计替换前先读现有关系集合（ctx 无 sharedaudit actor，审计行静默跳过）
+	mock.ExpectQuery(`SELECT "?permission_id"? FROM "role_permissions" WHERE role_id = \$1`).
+		WithArgs(uint(5)).
+		WillReturnRows(sqlmock.NewRows([]string{"permission_id"}))
 	// package_id 为 NULL → 不限
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tenants" WHERE "tenants"."id" = $1`)).
 		WithArgs(2, 1).
