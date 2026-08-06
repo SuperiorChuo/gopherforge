@@ -1,4 +1,5 @@
 import { Button, Checkbox, Input, Select, Space, Table, Tag } from 'antd'
+import { useTranslation } from 'react-i18next'
 import type { ColumnsType } from 'antd/es/table'
 import type { CodegenColumn, CodegenFieldConfig, CodegenFormComponent } from '@/api/codegen'
 
@@ -23,6 +24,7 @@ const componentOptions: Array<{ label: string; value: CodegenFormComponent }> = 
 ]
 
 export default function FieldConfigTable({ columns, value, dictTypes, onChange, compact }: Props) {
+  const { t } = useTranslation()
   const byName = new Map(columns.map((column) => [column.name, column]))
 
   function update(name: string, patch: Partial<CodegenFieldConfig>) {
@@ -35,32 +37,32 @@ export default function FieldConfigTable({ columns, value, dictTypes, onChange, 
 
   const tableColumns: ColumnsType<CodegenFieldConfig> = [
     {
-      title: '字段', dataIndex: 'name', width: 160, fixed: 'left',
+      title: t('字段'), dataIndex: 'name', width: 160, fixed: 'left',
       render: (name: string) => <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{name}</span>,
     },
     {
-      title: '类型', width: 110,
+      title: t('类型'), width: 110,
       render: (_, field) => <Tag>{byName.get(field.name)?.db_type || '-'}</Tag>,
     },
     {
-      title: '显示名', dataIndex: 'label', width: 150,
-      render: (_, field) => <Input size="small" value={field.label} aria-label={`${field.name} 显示名`} onChange={(event) => update(field.name, { label: event.target.value })} />,
+      title: t('显示名'), dataIndex: 'label', width: 150,
+      render: (_, field) => <Input size="small" value={field.label} aria-label={t('{{name}} 显示名', { name: field.name })} onChange={(event) => update(field.name, { label: event.target.value })} />,
     },
     {
-      title: '控件', dataIndex: 'component', width: 140,
+      title: t('控件'), dataIndex: 'component', width: 140,
       render: (_, field) => (
         <Select
           size="small"
           value={field.component}
-          options={componentOptions}
-          aria-label={`${field.name} 控件`}
+          options={componentOptions.map((o) => ({ ...o, label: t(o.label) }))}
+          aria-label={t('{{name}} 控件', { name: field.name })}
           style={{ width: '100%' }}
           onChange={(component) => update(field.name, { component })}
         />
       ),
     },
     {
-      title: '字典', dataIndex: 'dict_type', width: 190,
+      title: t('字典'), dataIndex: 'dict_type', width: 190,
       render: (_, field) => (
         <Select
           allowClear
@@ -68,20 +70,20 @@ export default function FieldConfigTable({ columns, value, dictTypes, onChange, 
           size="small"
           value={field.dict_type || undefined}
           options={dictTypes}
-          aria-label={`${field.name} 字典`}
+          aria-label={t('{{name}} 字典', { name: field.name })}
           style={{ width: '100%' }}
           onChange={(dictType) => update(field.name, { dict_type: dictType || '', component: dictType ? 'select' : field.component })}
         />
       ),
     },
     ...(['in_list', 'in_search', 'in_form', 'required'] as const).map((key) => ({
-      title: ({ in_list: '列表', in_search: '搜索', in_form: '表单', required: '必填' })[key],
+      title: t(({ in_list: '列表', in_search: '搜索', in_form: '表单', required: '必填' })[key]),
       dataIndex: key,
       width: 72,
       align: 'center' as const,
       render: (_: unknown, field: CodegenFieldConfig) => (
         <Checkbox
-          aria-label={`${field.name} ${key}`}
+          aria-label={t('{{name}} {{key}}', { name: field.name, key })}
           checked={field[key]}
           disabled={key === 'in_search' && byName.get(field.name)?.go_type !== 'string'}
           onChange={(event) => update(field.name, { [key]: event.target.checked })}
@@ -94,10 +96,10 @@ export default function FieldConfigTable({ columns, value, dictTypes, onChange, 
     <>
       {!compact && (
         <Space style={{ marginBottom: 12 }} wrap>
-          <Button size="small" onClick={() => updateAll('in_list', true)}>列表全选</Button>
-          <Button size="small" onClick={() => updateAll('in_list', false)}>清空列表</Button>
-          <Button size="small" onClick={() => updateAll('in_form', true)}>表单全选</Button>
-          <Button size="small" onClick={() => updateAll('in_form', false)}>清空表单</Button>
+          <Button size="small" onClick={() => updateAll('in_list', true)}>{t('列表全选')}</Button>
+          <Button size="small" onClick={() => updateAll('in_list', false)}>{t('清空列表')}</Button>
+          <Button size="small" onClick={() => updateAll('in_form', true)}>{t('表单全选')}</Button>
+          <Button size="small" onClick={() => updateAll('in_form', false)}>{t('清空表单')}</Button>
         </Space>
       )}
       <Table

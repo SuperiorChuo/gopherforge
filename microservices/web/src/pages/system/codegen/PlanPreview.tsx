@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useLocale } from '@/i18n/LocaleContext'
 import { Alert, Button, Input, Modal, Select, Space, Tabs, Tag, Tooltip, Typography } from 'antd'
 import {
   CheckCircleOutlined,
@@ -19,13 +21,14 @@ type Props = {
 
 type ArtifactGroup = { key: string; label: string; artifacts: CodegenArtifact[] }
 
-function artifactStatus(artifact: CodegenArtifact) {
-  if (artifact.status === 'ready') return <Tag icon={<CheckCircleOutlined />} color="success">就绪</Tag>
-  if (artifact.status === 'conflict') return <Tag icon={<WarningOutlined />} color="warning">冲突</Tag>
-  return <Tag icon={<CloseCircleOutlined />} color="error">无效</Tag>
+function artifactStatus(artifact: CodegenArtifact, t: (key: string) => string) {
+  if (artifact.status === 'ready') return <Tag icon={<CheckCircleOutlined />} color="success">{t('就绪')}</Tag>
+  if (artifact.status === 'conflict') return <Tag icon={<WarningOutlined />} color="warning">{t('冲突')}</Tag>
+  return <Tag icon={<CloseCircleOutlined />} color="error">{t('无效')}</Tag>
 }
 
 function ArtifactViewer({ artifacts }: { artifacts: CodegenArtifact[] }) {
+  const { t } = useTranslation()
   const [selectedPath, setSelectedPath] = useState(artifacts[0]?.path)
   const selected = artifacts.find((artifact) => artifact.path === selectedPath) || artifacts[0]
   if (!selected) return null
@@ -38,7 +41,7 @@ function ArtifactViewer({ artifacts }: { artifacts: CodegenArtifact[] }) {
           onChange={setSelectedPath}
           style={{ width: 620, maxWidth: '100%' }}
         />
-        {artifactStatus(selected)}
+        {artifactStatus(selected, t)}
       </Space>
       <pre style={{
         height: 420,
@@ -60,16 +63,20 @@ function ArtifactViewer({ artifacts }: { artifacts: CodegenArtifact[] }) {
 }
 
 export default function PlanPreview({ plan, capabilities, loading, onDownload, onWrite }: Props) {
+  const { t } = useTranslation()
+  const { locale } = useLocale()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmation, setConfirmation] = useState('')
   const groups = useMemo<ArtifactGroup[]>(() => {
     const conflicts = plan.artifacts.filter((artifact) => artifact.status !== 'ready')
+    const createCount = plan.artifacts.filter((artifact) => artifact.operation === 'create' && artifact.status === 'ready').length
+    const patchCount = plan.artifacts.filter((artifact) => artifact.operation === 'patch' && artifact.status === 'ready').length
     return [
-      { key: 'create', label: `新增文件 ${plan.artifacts.filter((artifact) => artifact.operation === 'create' && artifact.status === 'ready').length}`, artifacts: plan.artifacts.filter((artifact) => artifact.operation === 'create' && artifact.status === 'ready') },
-      { key: 'patch', label: `接入修改 ${plan.artifacts.filter((artifact) => artifact.operation === 'patch' && artifact.status === 'ready').length}`, artifacts: plan.artifacts.filter((artifact) => artifact.operation === 'patch' && artifact.status === 'ready') },
-      { key: 'conflict', label: `冲突 ${conflicts.length}`, artifacts: conflicts },
+      { key: 'create', label: t('新增文件 {{n}}', { n: createCount }), artifacts: plan.artifacts.filter((artifact) => artifact.operation === 'create' && artifact.status === 'ready') },
+      { key: 'patch', label: t('接入修改 {{n}}', { n: patchCount }), artifacts: plan.artifacts.filter((artifact) => artifact.operation === 'patch' && artifact.status === 'ready') },
+      { key: 'conflict', label: t('冲突 {{n}}', { n: conflicts.length }), artifacts: conflicts },
     ].filter((group) => group.artifacts.length > 0)
-  }, [plan.artifacts])
+  }, [plan.artifacts, t, locale])
 
   const blocked = plan.diagnostics.some((diagnostic) => diagnostic.severity === 'error') ||
     plan.artifacts.some((artifact) => artifact.status !== 'ready')
@@ -91,20 +98,20 @@ export default function PlanPreview({ plan, capabilities, loading, onDownload, o
 
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 12 }} wrap>
         <Typography.Text type="secondary">
-          摘要 <Typography.Text code copyable>{plan.digest}</Typography.Text>
+          {t('摘要')} <Typography.Text code copyable>{plan.digest}</Typography.Text>
         </Typography.Text>
         <Space wrap>
-          <Tooltip title={!canDownload ? '计划存在冲突或当前环境未开放下载' : undefined}>
+          <Tooltip title={!canDownload ? t('计划存在冲突或当前环境未开放下载') : undefined}>
             <span>
               <Button disabled={!canDownload} loading={loading} icon={<CloudDownloadOutlined />} onClick={() => void onDownload()}>
-                下载 ZIP
+                {t('下载 ZIP')}
               </Button>
             </span>
           </Tooltip>
-          <Tooltip title={!canWrite ? '当前环境未开放仓库写入或计划存在冲突' : undefined}>
+          <Tooltip title={!canWrite ? t('当前环境未开放仓库写入或计划存在冲突') : undefined}>
             <span>
               <Button type="primary" disabled={!canWrite} loading={loading} icon={<SaveOutlined />} onClick={() => setConfirmOpen(true)}>
-                写入仓库
+                {t('写入仓库')}
               </Button>
             </span>
           </Tooltip>
@@ -120,10 +127,10 @@ export default function PlanPreview({ plan, capabilities, loading, onDownload, o
       />
 
       <Modal
-        title="确认写入仓库"
+        title={t('确认写入仓库')}
         open={confirmOpen}
-        okText="确认写入"
-        cancelText="取消"
+        okText={t('确认写入')}
+        cancelText={t('取消')}
         confirmLoading={loading}
         okButtonProps={{ disabled: confirmation !== plan.request.module }}
         onCancel={() => { setConfirmOpen(false); setConfirmation('') }}
@@ -134,11 +141,11 @@ export default function PlanPreview({ plan, capabilities, loading, onDownload, o
         }}
       >
         <Typography.Paragraph type="secondary">
-          输入模块名 <Typography.Text code>{plan.request.module}</Typography.Text> 以确认本次写入。
+          {t('输入模块名')} <Typography.Text code>{plan.request.module}</Typography.Text> {t('以确认本次写入。')}
         </Typography.Paragraph>
         <Input
           autoFocus
-          aria-label="确认模块名"
+          aria-label={t('确认模块名')}
           value={confirmation}
           onChange={(event) => setConfirmation(event.target.value)}
         />

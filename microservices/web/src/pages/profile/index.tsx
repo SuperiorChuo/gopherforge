@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Card, Row, Col, Form, Input, Button,
   Modal, Steps, Space, Avatar, Table,
@@ -21,32 +22,33 @@ import { getMyLoginLogs } from '@/api/system/log'
 import type { LoginLog } from '@/types'
 import { formatDateTime } from '@/utils/format'
 
-const loginLogColumns: ColumnsType<LoginLog> = [
-  { title: '时间', dataIndex: 'created_at', width: 140, className: 'cell-time', render: formatDateTime },
-  {
-    title: 'IP',
-    dataIndex: 'ip',
-    width: 110,
-    render: (v: string) => (v ? <span className="cell-mono">{v}</span> : <span className="cell-muted">—</span>),
-  },
-  {
-    title: '状态',
-    dataIndex: 'status',
-    width: 80,
-    render: (v: number) =>
-      v === 1 ? (
-        <StatusPill tone="success" label="成功" pulse={false} />
-      ) : (
-        <StatusPill tone="danger" label="失败" />
-      ),
-  },
-  { title: '浏览器', dataIndex: 'browser', ellipsis: true, responsive: ['md'] },
-  { title: '系统', dataIndex: 'os', width: 140, responsive: ['lg'] },
-]
-
 export default function ProfilePage() {
   const dispatch = useAppDispatch()
   const userInfo = useAppSelector((s) => s.auth.userInfo)
+  const { t } = useTranslation()
+
+  const loginLogColumns: ColumnsType<LoginLog> = [
+    { title: t('时间'), dataIndex: 'created_at', width: 140, className: 'cell-time', render: formatDateTime },
+    {
+      title: 'IP',
+      dataIndex: 'ip',
+      width: 110,
+      render: (v: string) => (v ? <span className="cell-mono">{v}</span> : <span className="cell-muted">—</span>),
+    },
+    {
+      title: t('状态'),
+      dataIndex: 'status',
+      width: 80,
+      render: (v: number) =>
+        v === 1 ? (
+          <StatusPill tone="success" label="成功" pulse={false} />
+        ) : (
+          <StatusPill tone="danger" label="失败" />
+        ),
+    },
+    { title: t('浏览器'), dataIndex: 'browser', ellipsis: true, responsive: ['md'] },
+    { title: t('系统'), dataIndex: 'os', width: 140, responsive: ['lg'] },
+  ]
 
   const [profileForm] = Form.useForm()
   const [pwdForm] = Form.useForm()
@@ -86,10 +88,10 @@ export default function ProfilePage() {
     setProfileLoading(true)
     try {
       await updateProfile(values)
-      message.success('保存成功')
+      message.success(t('保存成功'))
       dispatch(fetchCurrentUser())
     } catch {
-      message.error('保存失败')
+      message.error(t('保存失败'))
     } finally {
       setProfileLoading(false)
     }
@@ -101,10 +103,10 @@ export default function ProfilePage() {
     setPwdLoading(true)
     try {
       await changePassword({ old_password: values.old_password, new_password: values.new_password })
-      message.success('密码修改成功')
+      message.success(t('密码修改成功'))
       pwdForm.resetFields()
     } catch {
-      message.error('密码修改失败')
+      message.error(t('密码修改失败'))
     } finally {
       setPwdLoading(false)
     }
@@ -129,7 +131,7 @@ export default function ProfilePage() {
       setSetupPassword(values.current_password)
       setEnableStep(1)
     } catch {
-      message.error('获取二维码失败')
+      message.error(t('获取二维码失败'))
     } finally {
       setEnableLoading(false)
     }
@@ -141,7 +143,7 @@ export default function ProfilePage() {
     setEnableLoading(true)
     try {
       const res = await enableTotp({ code: values.code, current_password: setupPassword }) as unknown as { recovery_codes?: string[] } | null
-      message.success('TOTP 已启用')
+      message.success(t('TOTP 已启用'))
       setEnableTotpOpen(false)
       // 恢复码只在此刻返回一次，必须立即展示给用户保存
       if (res?.recovery_codes?.length) {
@@ -149,7 +151,7 @@ export default function ProfilePage() {
       }
       dispatch(fetchCurrentUser())
     } catch {
-      message.error('验证失败')
+      message.error(t('验证失败'))
     } finally {
       setEnableLoading(false)
     }
@@ -165,10 +167,10 @@ export default function ProfilePage() {
       if (res?.recovery_codes?.length) {
         setRecoveryCodes(res.recovery_codes)
       } else {
-        message.success('恢复码已重新生成')
+        message.success(t('恢复码已重新生成'))
       }
     } catch {
-      message.error('操作失败，请检查验证码和密码')
+      message.error(t('操作失败，请检查验证码和密码'))
     } finally {
       setRegenLoading(false)
     }
@@ -178,9 +180,9 @@ export default function ProfilePage() {
     if (!recoveryCodes) return
     try {
       await navigator.clipboard.writeText(recoveryCodes.join('\n'))
-      message.success('已复制到剪贴板')
+      message.success(t('已复制到剪贴板'))
     } catch {
-      message.error('复制失败，请手动选择复制')
+      message.error(t('复制失败，请手动选择复制'))
     }
   }
 
@@ -190,11 +192,11 @@ export default function ProfilePage() {
     setDisableLoading(true)
     try {
       await disableTotp(values)
-      message.success('TOTP 已禁用')
+      message.success(t('TOTP 已禁用'))
       setDisableTotpOpen(false)
       dispatch(fetchCurrentUser())
     } catch {
-      message.error('操作失败')
+      message.error(t('操作失败'))
     } finally {
       setDisableLoading(false)
     }
@@ -209,7 +211,7 @@ export default function ProfilePage() {
         <div className="profile-hero-info">
           <div className="profile-hero-name">
             {userInfo?.nickname || userInfo?.username}
-            {userInfo?.totp_enabled && <span className="profile-hero-2fa">2FA 已开启</span>}
+            {userInfo?.totp_enabled && <span className="profile-hero-2fa">{t('2FA 已开启')}</span>}
           </div>
           <Space size={20} wrap className="profile-hero-meta">
             <span><UserOutlined /> {userInfo?.username}</span>
@@ -222,7 +224,7 @@ export default function ProfilePage() {
       <Row gutter={[16, 14]}>
         <Col xs={24} lg={12}>
           <Card
-            title="个人信息"
+            title={t('个人信息')}
             className="glass-rise"
             style={{ height: '100%', '--i': 0 } as React.CSSProperties}
           >
@@ -235,18 +237,18 @@ export default function ProfilePage() {
                 phone: userInfo?.phone,
               }}
             >
-              <Form.Item name="nickname" label="昵称">
+              <Form.Item name="nickname" label={t('昵称')}>
                 <Input />
               </Form.Item>
-              <Form.Item name="email" label="邮箱">
+              <Form.Item name="email" label={t('邮箱')}>
                 <Input />
               </Form.Item>
-              <Form.Item name="phone" label="手机号">
+              <Form.Item name="phone" label={t('手机号')}>
                 <Input />
               </Form.Item>
               <Form.Item>
                 <Button type="primary" onClick={handleSaveProfile} loading={profileLoading}>
-                  保存
+                  {t('保存')}
                 </Button>
               </Form.Item>
             </Form>
@@ -255,29 +257,29 @@ export default function ProfilePage() {
 
         <Col xs={24} lg={12}>
           <Card
-            title="修改密码"
+            title={t('修改密码')}
             className="glass-rise"
             style={{ height: '100%', '--i': 1 } as React.CSSProperties}
           >
             <Form form={pwdForm} layout="vertical">
-              <Form.Item name="old_password" label="当前密码" rules={[{ required: true, message: '请输入当前密码' }]}>
+              <Form.Item name="old_password" label={t('当前密码')} rules={[{ required: true, message: t('请输入当前密码') }]}>
                 <Input.Password />
               </Form.Item>
-              <Form.Item name="new_password" label="新密码" rules={[{ required: true, message: '请输入新密码' }]}>
+              <Form.Item name="new_password" label={t('新密码')} rules={[{ required: true, message: t('请输入新密码') }]}>
                 <Input.Password />
               </Form.Item>
               <Form.Item
                 name="confirm_password"
-                label="确认密码"
+                label={t('确认密码')}
                 dependencies={['new_password']}
                 rules={[
-                  { required: true, message: '请确认新密码' },
+                  { required: true, message: t('请确认新密码') },
                   ({ getFieldValue }) => ({
                     validator(_, value) {
                       if (!value || getFieldValue('new_password') === value) {
                         return Promise.resolve()
                       }
-                      return Promise.reject(new Error('两次输入的密码不一致'))
+                      return Promise.reject(new Error(t('两次输入的密码不一致')))
                     },
                   }),
                 ]}
@@ -286,7 +288,7 @@ export default function ProfilePage() {
               </Form.Item>
               <Form.Item>
                 <Button type="primary" onClick={handleChangePassword} loading={pwdLoading}>
-                  保存
+                  {t('保存')}
                 </Button>
               </Form.Item>
             </Form>
@@ -295,7 +297,7 @@ export default function ProfilePage() {
       </Row>
 
       <Card
-        title={<span><HistoryOutlined className="card-title-icon" />最近登录记录</span>}
+        title={<span><HistoryOutlined className="card-title-icon" />{t('最近登录记录')}</span>}
         className="glass-rise"
         style={{ '--i': 2 } as React.CSSProperties}
       >
@@ -312,7 +314,7 @@ export default function ProfilePage() {
       </Card>
 
       <Card
-        title={<span><SafetyCertificateOutlined className="card-title-icon" />两步验证 (TOTP)</span>}
+        title={<span><SafetyCertificateOutlined className="card-title-icon" />{t('两步验证 (TOTP)')}</span>}
         className="glass-rise"
         style={{ '--i': 3 } as React.CSSProperties}
       >
@@ -322,27 +324,27 @@ export default function ProfilePage() {
           </div>
           <div className="totp-panel-info">
             <div className="totp-panel-state">
-              {userInfo?.totp_enabled ? '已启用' : '未启用'}
+              {userInfo?.totp_enabled ? t('已启用') : t('未启用')}
             </div>
             <div className="totp-panel-desc">
               {userInfo?.totp_enabled
-                ? '登录时需要输入 Authenticator 动态验证码，账号受两步验证保护。'
-                : '启用后，登录除密码外还需验证器动态验证码，可有效防止密码泄露带来的风险。'}
+                ? t('登录时需要输入 Authenticator 动态验证码，账号受两步验证保护。')
+                : t('启用后，登录除密码外还需验证器动态验证码，可有效防止密码泄露带来的风险。')}
             </div>
           </div>
           <div className="totp-panel-actions">
             {userInfo?.totp_enabled ? (
               <Space>
                 <Button danger onClick={() => { disableForm.resetFields(); setDisableTotpOpen(true) }}>
-                  禁用 TOTP
+                  {t('禁用 TOTP')}
                 </Button>
                 <Button onClick={() => { regenForm.resetFields(); setRegenOpen(true) }}>
-                  重新生成恢复码
+                  {t('重新生成恢复码')}
                 </Button>
               </Space>
             ) : (
               <Button type="primary" onClick={openEnableTotp}>
-                启用 TOTP
+                {t('启用 TOTP')}
               </Button>
             )}
           </div>
@@ -350,7 +352,7 @@ export default function ProfilePage() {
       </Card>
 
       <Modal
-        title="启用 TOTP"
+        title={t('启用 TOTP')}
         open={enableTotpOpen}
         onCancel={() => setEnableTotpOpen(false)}
         footer={null}
@@ -359,21 +361,21 @@ export default function ProfilePage() {
       >
         <Steps
           current={enableStep}
-          items={[{ title: '验证身份' }, { title: '扫描二维码' }]}
+          items={[{ title: t('验证身份') }, { title: t('扫描二维码') }]}
           style={{ marginBottom: 24 }}
         />
         {enableStep === 0 && (
           <Form form={enableForm} layout="vertical">
             <Form.Item
               name="current_password"
-              label="当前密码"
-              rules={[{ required: true, message: '请输入当前密码' }]}
+              label={t('当前密码')}
+              rules={[{ required: true, message: t('请输入当前密码') }]}
             >
               <Input.Password />
             </Form.Item>
             <Form.Item>
               <Button type="primary" onClick={handleEnableNext} loading={enableLoading}>
-                下一步
+                {t('下一步')}
               </Button>
             </Form.Item>
           </Form>
@@ -391,16 +393,16 @@ export default function ProfilePage() {
             <Form form={enableCodeForm} layout="vertical">
               <Form.Item
                 name="code"
-                label="验证码"
-                rules={[{ required: true, message: '请输入 6 位验证码' }]}
+                label={t('验证码')}
+                rules={[{ required: true, message: t('请输入 6 位验证码') }]}
               >
-                <Input maxLength={6} inputMode="numeric" placeholder="请输入 Authenticator 中的 6 位验证码" />
+                <Input maxLength={6} inputMode="numeric" placeholder={t('请输入 Authenticator 中的 6 位验证码')} />
               </Form.Item>
               <Form.Item>
                 <Space>
-                  <Button onClick={() => setEnableStep(0)}>上一步</Button>
+                  <Button onClick={() => setEnableStep(0)}>{t('上一步')}</Button>
                   <Button type="primary" onClick={handleEnableConfirm} loading={enableLoading}>
-                    确认启用
+                    {t('确认启用')}
                   </Button>
                 </Space>
               </Form.Item>
@@ -410,7 +412,7 @@ export default function ProfilePage() {
       </Modal>
 
       <Modal
-        title="禁用 TOTP"
+        title={t('禁用 TOTP')}
         open={disableTotpOpen}
         onOk={handleDisableTotp}
         onCancel={() => setDisableTotpOpen(false)}
@@ -420,15 +422,15 @@ export default function ProfilePage() {
         <Form form={disableForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="code"
-            label="TOTP 验证码"
-            rules={[{ required: true, message: '请输入验证码' }]}
+            label={t('TOTP 验证码')}
+            rules={[{ required: true, message: t('请输入验证码') }]}
           >
             <Input maxLength={6} inputMode="numeric" />
           </Form.Item>
           <Form.Item
             name="current_password"
-            label="当前密码"
-            rules={[{ required: true, message: '请输入当前密码' }]}
+            label={t('当前密码')}
+            rules={[{ required: true, message: t('请输入当前密码') }]}
           >
             <Input.Password />
           </Form.Item>
@@ -436,27 +438,27 @@ export default function ProfilePage() {
       </Modal>
 
       <Modal
-        title="重新生成恢复码"
+        title={t('重新生成恢复码')}
         open={regenOpen}
         onOk={handleRegenCodes}
         onCancel={() => setRegenOpen(false)}
         confirmLoading={regenLoading}
-        okText="确认生成"
+        okText={t('确认生成')}
         destroyOnHidden
       >
-        <div className="modal-note modal-note-warn">重新生成后，旧的恢复码将全部失效。</div>
+        <div className="modal-note modal-note-warn">{t('重新生成后，旧的恢复码将全部失效。')}</div>
         <Form form={regenForm} layout="vertical">
           <Form.Item
             name="code"
-            label="TOTP 验证码"
-            rules={[{ required: true, message: '请输入验证码' }]}
+            label={t('TOTP 验证码')}
+            rules={[{ required: true, message: t('请输入验证码') }]}
           >
             <Input maxLength={6} inputMode="numeric" />
           </Form.Item>
           <Form.Item
             name="current_password"
-            label="当前密码"
-            rules={[{ required: true, message: '请输入当前密码' }]}
+            label={t('当前密码')}
+            rules={[{ required: true, message: t('请输入当前密码') }]}
           >
             <Input.Password />
           </Form.Item>
@@ -464,17 +466,17 @@ export default function ProfilePage() {
       </Modal>
 
       <Modal
-        title="请保存您的恢复码"
+        title={t('请保存您的恢复码')}
         open={!!recoveryCodes}
         onOk={() => setRecoveryCodes(null)}
         onCancel={() => setRecoveryCodes(null)}
-        okText="我已保存"
+        okText={t('我已保存')}
         cancelButtonProps={{ style: { display: 'none' } }}
         maskClosable={false}
         width={440}
       >
         <div className="modal-note modal-note-danger">
-          恢复码仅显示这一次。丢失验证器设备时，它是找回账号的唯一途径，请妥善离线保存。
+          {t('恢复码仅显示这一次。丢失验证器设备时，它是找回账号的唯一途径，请妥善离线保存。')}
         </div>
         <div
           className="cell-mono glass-well"
@@ -492,7 +494,7 @@ export default function ProfilePage() {
           ))}
         </div>
         <Button block style={{ marginTop: 12 }} onClick={copyRecoveryCodes}>
-          复制全部
+          {t('复制全部')}
         </Button>
       </Modal>
     </div>

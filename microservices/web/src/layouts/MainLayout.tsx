@@ -86,6 +86,9 @@ import NotificationBell from '@/components/NotificationBell'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import CommandPalette, { type PaletteItem } from '@/components/CommandPalette'
 import { useThemeMode } from '@/theme/ThemeContext'
+import { useLocale } from '@/i18n/LocaleContext'
+import { useTranslation } from 'react-i18next'
+import i18n from '@/i18n/init'
 
 const { Header, Sider, Content } = Layout
 
@@ -276,9 +279,9 @@ function buildMenuItems(defs: MenuDef[], hasPerm: (code?: string) => boolean): M
     .map((d) => {
       if (d.children) {
         const children = buildMenuItems(d.children, hasPerm)
-        return children.length > 0 ? makeItem(d.label, d.key, d.icon, children) : null
+        return children.length > 0 ? makeItem(i18n.t(d.label), d.key, d.icon, children) : null
       }
-      return leafVisible(d, hasPerm) ? makeItem(d.label, d.key, d.icon) : null
+      return leafVisible(d, hasPerm) ? makeItem(i18n.t(d.label), d.key, d.icon) : null
     })
     .filter((item): item is MenuItem2 => item !== null)
 }
@@ -289,14 +292,14 @@ function buildPaletteItems(defs: MenuDef[], hasPerm: (code?: string) => boolean)
   const walk = (nodes: MenuDef[], group: string) => {
     nodes.forEach((d) => {
       if (d.children) {
-        walk(d.children, d.label)
+        walk(d.children, i18n.t(d.label))
       } else if (leafVisible(d, hasPerm)) {
-        result.push({ label: d.label, path: d.key, group, icon: d.icon })
+        result.push({ label: i18n.t(d.label), path: d.key, group, icon: d.icon })
       }
     })
   }
-  walk(defs, '导航')
-  result.push({ label: '个人中心', path: '/profile', group: '导航', icon: <UserOutlined /> })
+  walk(defs, i18n.t('导航'))
+  result.push({ label: i18n.t('个人中心'), path: '/profile', group: i18n.t('导航'), icon: <UserOutlined /> })
   return result
 }
 
@@ -355,6 +358,8 @@ export default function MainLayout() {
   const menus = useAppSelector((s) => s.auth.menus)
   const { hasPerm, isSuperAdmin } = usePermission()
   const { mode, toggle: toggleTheme } = useThemeMode()
+  const { locale, setLocale } = useLocale()
+  const { t } = useTranslation()
   const token = getToken()
   // super_admin 可不依赖 permissions 列表；普通用户需要 permissions 才渲染侧栏
   const authReady = !!userInfo && (isSuperAdmin || permissions.length > 0 || !Object.keys(ROUTE_PERMISSIONS).length)
@@ -377,8 +382,8 @@ export default function MainLayout() {
     walk(menuDefs, [])
     return map
   }, [menuDefs])
-  const menuItems = useMemo(() => buildMenuItems(menuDefs, hasPerm), [menuDefs, hasPerm])
-  const paletteItems = useMemo(() => buildPaletteItems(menuDefs, hasPerm), [menuDefs, hasPerm])
+  const menuItems = useMemo(() => buildMenuItems(menuDefs, hasPerm), [menuDefs, hasPerm, locale])
+  const paletteItems = useMemo(() => buildPaletteItems(menuDefs, hasPerm), [menuDefs, hasPerm, locale])
   const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
 
   const [collapsed, setCollapsed] = useState(false)
@@ -493,11 +498,11 @@ export default function MainLayout() {
     setForcePwdSubmitting(true)
     try {
       await changePassword({ old_password: values.old_password, new_password: values.new_password })
-      message.success('密码修改成功')
+      message.success(t('密码修改成功'))
       forcePwdForm.resetFields()
       dispatch(fetchCurrentUser())
     } catch {
-      message.error('密码修改失败，请检查当前密码是否正确')
+      message.error(t('密码修改失败，请检查当前密码是否正确'))
     } finally {
       setForcePwdSubmitting(false)
     }
@@ -528,20 +533,20 @@ export default function MainLayout() {
     {
       key: 'profile',
       icon: <UserOutlined />,
-      label: '个人中心',
+      label: t('个人中心'),
       onClick: () => navigate('/profile'),
     },
     {
       key: 'password',
       icon: <LockOutlined />,
-      label: '修改密码',
+      label: t('修改密码'),
       onClick: () => navigate('/profile'),
     },
     { type: 'divider' },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
-      label: '退出登录',
+      label: t('退出登录'),
       onClick: handleLogout,
       danger: true,
     },
@@ -565,10 +570,10 @@ export default function MainLayout() {
           type="button"
           className="app-bc-link"
           onClick={() => navigate('/dashboard')}
-          title="回到仪表盘"
+          title={t('回到仪表盘')}
         >
           <HomeOutlined />
-          <span>首页</span>
+          <span>{t('首页')}</span>
         </button>
       ),
     },
@@ -578,7 +583,7 @@ export default function MainLayout() {
             title: (
               <span className="app-bc-mid">
                 {groupMeta.icon}
-                <span>{groupMeta.label}</span>
+                <span>{t(groupMeta.label)}</span>
               </span>
             ),
           },
@@ -587,7 +592,7 @@ export default function MainLayout() {
     ...(breadcrumbTitle
       ? [
           {
-            title: <span className="app-bc-current">{breadcrumbTitle}</span>,
+            title: <span className="app-bc-current">{t(breadcrumbTitle)}</span>,
           },
         ]
       : []),
@@ -651,7 +656,7 @@ export default function MainLayout() {
               }}
               role="button"
               tabIndex={0}
-              aria-label={collapsed ? '展开导航菜单' : '收起导航菜单'}
+              aria-label={collapsed ? t('展开导航菜单') : t('收起导航菜单')}
               aria-expanded={!collapsed}
             >
               {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
@@ -663,7 +668,7 @@ export default function MainLayout() {
              />
             <span className="app-mobile-title">
               <span className="app-mobile-title-icon">{groupMeta?.icon || <HomeOutlined />}</span>
-              <span className="app-mobile-title-text">{breadcrumbTitle || groupMeta?.label || 'Go Admin Kit'}</span>
+              <span className="app-mobile-title-text">{breadcrumbTitle ? t(breadcrumbTitle) : groupMeta?.label ? t(groupMeta.label) : 'Go Admin Kit'}</span>
             </span>
           </Space>
 
@@ -677,7 +682,7 @@ export default function MainLayout() {
               }
             >
               <SearchOutlined />
-              搜索
+              {t('搜索')}
               <kbd>{isMac ? '⌘' : 'Ctrl'} K</kbd>
             </span>
             <span
@@ -686,18 +691,26 @@ export default function MainLayout() {
                 const rect = e.currentTarget.getBoundingClientRect()
                 toggleTheme({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
               }}
-              title={mode === 'dark' ? '切换为白蓝亮色' : '切换为深空暗色'}
+              title={mode === 'dark' ? t('切换为白蓝亮色') : t('切换为深空暗色')}
             >
               {mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
             </span>
             <span
               className="app-trigger app-density-trigger"
               onClick={() => setDensity((d) => (d === 'compact' ? 'comfortable' : 'compact'))}
-              title={density === 'compact' ? '切换为舒适密度' : '切换为紧凑密度'}
+              title={density === 'compact' ? t('切换为舒适密度') : t('切换为紧凑密度')}
             >
               <ColumnHeightOutlined />
             </span>
-            <span className="app-trigger app-fullscreen-trigger" onClick={toggleFullscreen} title={fullscreen ? '退出全屏' : '全屏'}>
+            <span
+              className="app-trigger app-lang-trigger"
+              onClick={() => setLocale(locale === 'en' ? 'zh' : 'en')}
+              title={t('切换语言')}
+            >
+              <GlobalOutlined />
+              {locale === 'zh' ? 'EN' : '中文'}
+            </span>
+            <span className="app-trigger app-fullscreen-trigger" onClick={toggleFullscreen} title={fullscreen ? t('退出全屏') : t('全屏')}>
               {fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
             </span>
             <NotificationBell />
@@ -736,47 +749,47 @@ export default function MainLayout() {
       </Layout>
 
       <Modal
-        title="首次登录请修改密码"
+        title={t('首次登录请修改密码')}
         open={!!userInfo.must_change_password}
         onOk={handleForcePwdSubmit}
         confirmLoading={forcePwdSubmitting}
         closable={false}
         maskClosable={false}
         keyboard={false}
-        okText="确认修改"
+        okText={t('确认修改')}
         cancelButtonProps={{ style: { display: 'none' } }}
         destroyOnHidden
       >
         <Form form={forcePwdForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="old_password"
-            label="当前密码"
-            rules={[{ required: true, message: '请输入当前密码' }]}
+            label={t('当前密码')}
+            rules={[{ required: true, message: t('请输入当前密码') }]}
           >
             <Input.Password autoComplete="current-password" />
           </Form.Item>
           <Form.Item
             name="new_password"
-            label="新密码"
+            label={t('新密码')}
             rules={[
-              { required: true, message: '请输入新密码' },
-              { min: 6, message: '密码至少 6 位' },
+              { required: true, message: t('请输入新密码') },
+              { min: 6, message: t('密码至少 6 位') },
             ]}
           >
             <Input.Password autoComplete="new-password" />
           </Form.Item>
           <Form.Item
             name="confirm_password"
-            label="确认新密码"
+            label={t('确认新密码')}
             dependencies={['new_password']}
             rules={[
-              { required: true, message: '请确认新密码' },
+              { required: true, message: t('请确认新密码') },
               ({ getFieldValue }) => ({
                 validator(_, value) {
                   if (!value || getFieldValue('new_password') === value) {
                     return Promise.resolve()
                   }
-                  return Promise.reject(new Error('两次输入的密码不一致'))
+                  return Promise.reject(new Error(t('两次输入的密码不一致')))
                 },
               }),
             ]}
@@ -792,7 +805,7 @@ export default function MainLayout() {
         <button
           type="button"
           className="back-top-btn"
-          aria-label="回到顶部"
+          aria-label={t('回到顶部')}
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         >
           <VerticalAlignTopOutlined />

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Button,
   Card,
@@ -38,6 +39,7 @@ import BpmResubmitModal from '@/components/BpmResubmitModal'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useAppSelector } from '@/hooks/store'
+import { useLocale } from '@/i18n/LocaleContext'
 import { displayUserName, useUserNameMap } from '@/hooks/useUserNameMap'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
@@ -48,12 +50,9 @@ interface SearchParams {
   page_size: number
 }
 
-const STATUS_OPTIONS = Object.entries(BPM_INSTANCE_STATUS_META).map(([value, meta]) => ({
-  value,
-  label: meta.label,
-}))
-
 export default function BpmInstancesPage() {
+  const { t } = useTranslation()
+  const { locale } = useLocale()
   const isPlatform = !!useAppSelector((s) => s.auth.userInfo)?.is_platform_admin
   const userMap = useUserNameMap()
   const [list, setList] = useState<BpmInstance[]>([])
@@ -74,6 +73,14 @@ export default function BpmInstancesPage() {
   const [resubmitable, setResubmitable] = useState<Record<number, boolean>>({})
   const [resubmitFor, setResubmitFor] = useState<number | null>(null)
 
+  const STATUS_OPTIONS = useMemo(
+    () => Object.entries(BPM_INSTANCE_STATUS_META).map(([value, meta]) => ({
+      value,
+      label: t(meta.label),
+    })),
+    [locale],
+  )
+
   const detectResubmitable = async (rows: BpmInstance[]) => {
     const running = new Set(rows.filter((i) => i.status === 'running').map((i) => i.id))
     if (!running.size) {
@@ -82,12 +89,12 @@ export default function BpmInstancesPage() {
     }
     try {
       const todo = await listTodoTasks({ page: 1, page_size: 100 }, true)
-      const candidates = (todo?.list ?? []).filter((t) => running.has(t.instance_id))
+      const candidates = (todo?.list ?? []).filter((task) => running.has(task.instance_id))
       const map: Record<number, boolean> = {}
       await Promise.all(
-        candidates.map(async (t) => {
-          const d = await getTask(t.id, true).catch(() => null)
-          if (d?.actions?.includes('resubmit')) map[t.instance_id] = true
+        candidates.map(async (task) => {
+          const d = await getTask(task.id, true).catch(() => null)
+          if (d?.actions?.includes('resubmit')) map[task.instance_id] = true
         }),
       )
       setResubmitable(map)
@@ -119,13 +126,13 @@ export default function BpmInstancesPage() {
   const onTerminate = async () => {
     if (!terminateFor) return
     if (!terminateReason.trim()) {
-      message.warning('请填写终止原因')
+      message.warning(t('请填写终止原因'))
       return
     }
     setTerminating(true)
     try {
       await terminateInstance(terminateFor.id, terminateReason.trim())
-      message.success('已终止')
+      message.success(t('已终止'))
       setTerminateFor(null)
       setTerminateReason('')
       setDetail(null)
@@ -140,7 +147,7 @@ export default function BpmInstancesPage() {
   const onCancel = async (row: BpmInstance) => {
     try {
       await cancelInstance(row.id)
-      message.success('已撤销')
+      message.success(t('已撤销'))
       setDetail(null)
       void fetchList(params)
     } catch {
@@ -150,7 +157,7 @@ export default function BpmInstancesPage() {
 
   const columns: ColumnsType<BpmInstance> = [
     {
-      title: '审批事项',
+      title: t('审批事项'),
       dataIndex: 'title',
       render: (v: string, row) => (
         <div>
@@ -164,7 +171,7 @@ export default function BpmInstancesPage() {
       ),
     },
     {
-      title: '业务类型',
+      title: t('业务类型'),
       dataIndex: 'biz_type',
       width: 130,
       responsive: ['md'],
@@ -173,7 +180,7 @@ export default function BpmInstancesPage() {
     ...(scope === 'all'
       ? [
           {
-            title: '发起人',
+            title: t('发起人'),
             dataIndex: 'initiator_id',
             width: 110,
             responsive: ['sm'],
@@ -183,18 +190,18 @@ export default function BpmInstancesPage() {
         ]
       : []),
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 110,
       responsive: ['sm'],
       render: (v: string) => {
         const meta = BPM_INSTANCE_STATUS_META[v] ?? { label: v, color: 'default' }
-        return <Tag color={meta.color}>{meta.label}</Tag>
+        return <Tag color={meta.color}>{t(meta.label)}</Tag>
       },
     },
-    { title: '发起时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['md'] },
+    { title: t('发起时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['md'] },
     {
-      title: '完成时间',
+      title: t('完成时间'),
       dataIndex: 'finished_at',
       width: 170,
       className: 'cell-time',
@@ -202,12 +209,12 @@ export default function BpmInstancesPage() {
       render: (v?: string) => (v ? formatDateTime(v) : <span className="cell-muted">—</span>),
     },
     {
-      title: '操作',
+      title: t('操作'),
       width: scope === 'all' ? 150 : 200,
       render: (_, row) => (
         <Space size={0} className="table-actions">
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => setDetail(row)}>
-            详情
+            {t('详情')}
           </Button>
           {scope === 'my' && row.status === 'running' && resubmitable[row.id] && (
             <Button
@@ -216,17 +223,17 @@ export default function BpmInstancesPage() {
               icon={<EditOutlined />}
               onClick={() => setResubmitFor(row.id)}
             >
-              重新提交
+              {t('重新提交')}
             </Button>
           )}
           {scope === 'my' && row.status === 'running' && (
             <Popconfirm
-              title="撤销该审批？"
-              description="仅在尚无人审批时可撤销"
+              title={t('撤销该审批？')}
+              description={t('仅在尚无人审批时可撤销')}
               onConfirm={() => void onCancel(row)}
             >
               <Button type="link" size="small" danger icon={<RollbackOutlined />}>
-                撤销
+                {t('撤销')}
               </Button>
             </Popconfirm>
           )}
@@ -241,7 +248,7 @@ export default function BpmInstancesPage() {
                 setTerminateFor(row)
               }}
             >
-              终止
+              {t('终止')}
             </Button>
           )}
         </Space>
@@ -269,8 +276,8 @@ export default function BpmInstancesPage() {
                 <Segmented
                   value={scope}
                   options={[
-                    { label: '我发起的', value: 'my' },
-                    { label: '全部（管理）', value: 'all' },
+                    { label: t('我发起的'), value: 'my' },
+                    { label: t('全部（管理）'), value: 'all' },
                   ]}
                   onChange={(v) => {
                     setScope(v as 'my' | 'all')
@@ -279,7 +286,7 @@ export default function BpmInstancesPage() {
                 />
               )}
               <Select
-                placeholder="状态"
+                placeholder={t('状态')}
                 allowClear
                 style={{ width: 120 }}
                 options={STATUS_OPTIONS}
@@ -287,7 +294,7 @@ export default function BpmInstancesPage() {
                 onChange={(v) => setParams({ ...params, page: 1, status: v })}
               />
               <Button icon={<ReloadOutlined />} onClick={() => void fetchList(params)}>
-                刷新
+                {t('刷新')}
               </Button>
             </Space>
           }
@@ -304,14 +311,14 @@ export default function BpmInstancesPage() {
             current: params.page,
             pageSize: params.page_size,
             showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
       </Card>
 
       <Drawer
-        title={detail ? detail.title : '审批详情'}
+        title={detail ? detail.title : t('审批详情')}
         open={!!detail}
         onClose={() => setDetail(null)}
         width={520}
@@ -326,17 +333,17 @@ export default function BpmInstancesPage() {
                   icon={<EditOutlined />}
                   onClick={() => setResubmitFor(detail.id)}
                 >
-                  重新提交
+                  {t('重新提交')}
                 </Button>
               )}
               {scope === 'my' && detail.status === 'running' && (
                 <Popconfirm
-                  title="撤销该审批？"
-                  description="仅在尚无人审批时可撤销"
+                  title={t('撤销该审批？')}
+                  description={t('仅在尚无人审批时可撤销')}
                   onConfirm={() => detail && void onCancel(detail)}
                 >
                   <Button danger size="small" icon={<RollbackOutlined />}>
-                    撤销
+                    {t('撤销')}
                   </Button>
                 </Popconfirm>
               )}
@@ -350,7 +357,7 @@ export default function BpmInstancesPage() {
                     setTerminateFor(detail)
                   }}
                 >
-                  终止
+                  {t('终止')}
                 </Button>
               )}
             </Space>
@@ -371,9 +378,9 @@ export default function BpmInstancesPage() {
       />
 
       <Modal
-        title={`终止审批：${terminateFor?.title ?? ''}`}
+        title={t('终止审批：{{title}}', { title: terminateFor?.title ?? '' })}
         open={!!terminateFor}
-        okText="确认终止"
+        okText={t('确认终止')}
         okButtonProps={{ danger: true, loading: terminating }}
         onOk={() => void onTerminate()}
         onCancel={() => {
@@ -384,12 +391,12 @@ export default function BpmInstancesPage() {
       >
         <Space direction="vertical" size={8} style={{ width: '100%' }}>
           <Typography.Text type="secondary">
-            管理员强制结束该流程：全部待办作废，业务侧按“已撤销”回滚；操作不可恢复。
+            {t('管理员强制结束该流程：全部待办作废，业务侧按“已撤销”回滚；操作不可恢复。')}
           </Typography.Text>
           <Input.TextArea
             rows={3}
             maxLength={200}
-            placeholder="终止原因（必填，将记入流转时间线）"
+            placeholder={t('终止原因（必填，将记入流转时间线）')}
             value={terminateReason}
             onChange={(e) => setTerminateReason(e.target.value)}
           />

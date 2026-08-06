@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Table, Button, Popconfirm, Card, Space, Tag, Tooltip } from 'antd'
 import { message } from '@/utils/feedback'
 import { ReloadOutlined, DisconnectOutlined } from '@ant-design/icons'
@@ -19,6 +20,7 @@ function tokenFingerprint(tokenId: string): string {
 export default function OnlineUserPage() {
   const [list, setList] = useState<OnlineUser[]>([])
   const [loading, setLoading] = useState(false)
+  const { t } = useTranslation()
   const { hasPerm } = usePermission()
 
   const fetchList = async () => {
@@ -27,7 +29,7 @@ export default function OnlineUserPage() {
       const res = await getOnlineUserList()
       setList(res)
     } catch {
-      message.error('获取在线用户列表失败')
+      message.error(t('获取在线用户列表失败'))
     } finally {
       setLoading(false)
     }
@@ -47,16 +49,16 @@ export default function OnlineUserPage() {
   const handleKick = async (tokenId: string) => {
     try {
       await kickUser(tokenId)
-      message.success('已踢出该用户')
+      message.success(t('已踢出该用户'))
       fetchList()
     } catch {
-      message.error('踢出失败')
+      message.error(t('踢出失败'))
     }
   }
 
   const columns: ColumnsType<OnlineUser> = [
     {
-      title: '用户',
+      title: t('用户'),
       dataIndex: 'username',
       width: 220,
       ellipsis: true,
@@ -82,7 +84,7 @@ export default function OnlineUserPage() {
       ),
     },
     {
-      title: 'IP / 位置',
+      title: t('IP / 位置'),
       dataIndex: 'ip',
       width: 220,
       ellipsis: true,
@@ -93,7 +95,7 @@ export default function OnlineUserPage() {
       },
     },
     {
-      title: '浏览器 / 系统',
+      title: t('浏览器 / 系统'),
       dataIndex: 'browser',
       width: 200,
       ellipsis: true,
@@ -104,14 +106,14 @@ export default function OnlineUserPage() {
       },
     },
     {
-      title: '登录时间',
+      title: t('登录时间'),
       dataIndex: 'login_time',
       width: 170,
       className: 'cell-time',
       render: formatDateTime,
     },
     {
-      title: '过期时间',
+      title: t('过期时间'),
       dataIndex: 'access_token_expires_at',
       width: 170,
       className: 'cell-time',
@@ -119,7 +121,7 @@ export default function OnlineUserPage() {
       render: formatDateTime,
     },
     {
-      title: '操作',
+      title: t('操作'),
       width: 80,
       fixed: 'right',
       align: 'center',
@@ -127,15 +129,15 @@ export default function OnlineUserPage() {
         <Space size={4} className="table-actions compact-table-actions">
           {hasPerm('system:online-user:kick') && (
             <Popconfirm
-              title="确认踢出该用户?"
+              title={t('确认踢出该用户?')}
               onConfirm={() => handleKick(record.token_id)}
             >
-              <Tooltip title="踢出">
+              <Tooltip title={t('踢出')}>
                 <Button
                   type="text"
                   size="small"
                   danger
-                  aria-label="踢出在线用户"
+                  aria-label={t('踢出在线用户')}
                   icon={<DisconnectOutlined />}
                 />
               </Tooltip>
@@ -156,10 +158,10 @@ export default function OnlineUserPage() {
             <>
               <span className="auto-refresh-hint">
                 <span className="live-dot" />
-                每 30 秒自动刷新
+                {t('每 30 秒自动刷新')}
               </span>
               <Button icon={<ReloadOutlined />} onClick={fetchList} loading={loading}>
-                刷新
+                {t('刷新')}
               </Button>
             </>
           }
@@ -172,7 +174,7 @@ export default function OnlineUserPage() {
           loading={loading}
           scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="当前没有在线会话" compact /> }}
-          pagination={{ showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }}
+          pagination={{ showTotal: (n) => t('共 {{n}} 条', { n }), showSizeChanger: true }}
         />
       </Card>
     </div>

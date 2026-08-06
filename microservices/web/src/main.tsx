@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import '@/i18n/init'
 import App from './App.tsx'
 import './index.css'
 import './list-pages.css'

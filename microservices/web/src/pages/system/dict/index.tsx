@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
   Card, Tabs, InputNumber, Tooltip,
@@ -34,6 +35,7 @@ function DictTypeCRUD() {
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
+  const { t } = useTranslation()
   const { hasPerm } = usePermission()
 
   const fetchList = async (p: PageParams) => {
@@ -43,7 +45,7 @@ function DictTypeCRUD() {
       setList(res.list)
       setTotal(res.total)
     } catch {
-      message.error('获取字典类型列表失败')
+      message.error(t('获取字典类型列表失败'))
     } finally {
       setLoading(false)
     }
@@ -75,14 +77,14 @@ function DictTypeCRUD() {
   const handleDelete = async (id: number) => {
     try {
       await DictAPI.deleteDictType(id)
-      message.success('删除成功')
+      message.success(t('删除成功'))
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
         fetchList(params)
       }
     } catch {
-      message.error('删除失败')
+      message.error(t('删除失败'))
     }
   }
 
@@ -93,15 +95,15 @@ function DictTypeCRUD() {
     try {
       if (editRecord) {
         await DictAPI.updateDictType(editRecord.id, values)
-        message.success('更新成功')
+        message.success(t('更新成功'))
       } else {
         await DictAPI.createDictType(values)
-        message.success('创建成功')
+        message.success(t('创建成功'))
       }
       setModalOpen(false)
       fetchList(params)
     } catch {
-      message.error('操作失败')
+      message.error(t('操作失败'))
     } finally {
       setSubmitting(false)
     }
@@ -110,41 +112,41 @@ function DictTypeCRUD() {
   const columns: ColumnsType<DictType> = [
     { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
     {
-      title: '名称',
+      title: t('名称'),
       dataIndex: 'name',
       width: 220,
       ellipsis: true,
       render: (value: string) => <span className="list-primary-cell">{value}</span>,
     },
     {
-      title: '编码',
+      title: t('编码'),
       dataIndex: 'code',
       width: 260,
       responsive: ['sm'],
       render: (v: string) => <Tag variant="filled" className="cell-mono list-code-tag">{v}</Tag>,
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 80,
       render: (v: number) => <EnableStatusPill value={v} />,
     },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
+    { title: t('创建时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
-      title: '操作',
+      title: t('操作'),
       width: 96,
       fixed: 'right',
       render: (_, record) => (
         <Space size={4} className="table-actions compact-table-actions">
           {hasPerm('system:dict:update') && (
-            <Tooltip title="编辑">
-              <Button type="text" size="small" aria-label="编辑字典类型" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Tooltip title={t('编辑')}>
+              <Button type="text" size="small" aria-label={t('编辑字典类型')} icon={<EditOutlined />} onClick={() => openEdit(record)} />
             </Tooltip>
           )}
           {hasPerm('system:dict:delete') && (
-            <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title="删除">
-                <Button type="text" size="small" danger aria-label="删除字典类型" icon={<DeleteOutlined />} />
+            <Popconfirm title={t('确认删除?')} onConfirm={() => handleDelete(record.id)}>
+              <Tooltip title={t('删除')}>
+                <Button type="text" size="small" danger aria-label={t('删除字典类型')} icon={<DeleteOutlined />} />
               </Tooltip>
             </Popconfirm>
           )}
@@ -158,18 +160,18 @@ function DictTypeCRUD() {
       <Card className="list-filter-card" bordered={false}>
         <Form form={searchForm} layout="inline" className="list-filter-form" onFinish={handleSearch}>
           <Form.Item name="keyword">
-            <Input placeholder="搜索名称 / 编码" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
+            <Input placeholder={t('搜索名称 / 编码')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
           <Form.Item name="status">
-            <Select placeholder="状态" style={{ width: 100 }} allowClear>
-              <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
+            <Select placeholder={t('状态')} style={{ width: 100 }} allowClear>
+              <Select.Option value={1}>{t('启用')}</Select.Option>
+              <Select.Option value={0}>{t('禁用')}</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
         </Form>
@@ -180,9 +182,9 @@ function DictTypeCRUD() {
           total={total}
           extra={
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
               {hasPerm('system:dict:create') && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增字典类型</Button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增字典类型')}</Button>
               )}
             </Space>
           }
@@ -202,13 +204,13 @@ function DictTypeCRUD() {
             pageSize: params.page_size,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
       </Card>
       <Modal
-        title={editRecord ? '编辑字典类型' : '新增字典类型'}
+        title={editRecord ? t('编辑字典类型') : t('新增字典类型')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
@@ -216,16 +218,16 @@ function DictTypeCRUD() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('请输入名称') }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="code" label="编码" rules={[{ required: true, message: '请输入编码' }]}>
+          <Form.Item name="code" label={t('编码')} rules={[{ required: true, message: t('请输入编码') }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue={1}>
+          <Form.Item name="status" label={t('状态')} initialValue={1}>
             <Select>
-              <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
+              <Select.Option value={1}>{t('启用')}</Select.Option>
+              <Select.Option value={0}>{t('禁用')}</Select.Option>
             </Select>
           </Form.Item>
         </Form>
@@ -246,6 +248,7 @@ function DictItemCRUD() {
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
+  const { t } = useTranslation()
   const { hasPerm } = usePermission()
 
   useEffect(() => {
@@ -254,7 +257,7 @@ function DictItemCRUD() {
       if (res.list.length > 0) {
         setSelectedTypeId(res.list[0].id)
       }
-    }).catch(() => message.error('加载字典类型失败'))
+    }).catch(() => message.error(t('加载字典类型失败')))
   }, [])
 
   const fetchItems = async (typeId: number, p: PageParams) => {
@@ -264,7 +267,7 @@ function DictItemCRUD() {
       setList(res.list)
       setTotal(res.total)
     } catch {
-      message.error('获取字典项列表失败')
+      message.error(t('获取字典项列表失败'))
     } finally {
       setLoading(false)
     }
@@ -305,14 +308,14 @@ function DictItemCRUD() {
   const handleDelete = async (id: number) => {
     try {
       await DictAPI.deleteDictItem(id)
-      message.success('删除成功')
+      message.success(t('删除成功'))
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else if (selectedTypeId) {
         fetchItems(selectedTypeId, params)
       }
     } catch {
-      message.error('删除失败')
+      message.error(t('删除失败'))
     }
   }
 
@@ -323,15 +326,15 @@ function DictItemCRUD() {
     try {
       if (editRecord) {
         await DictAPI.updateDictItem(editRecord.id, values)
-        message.success('更新成功')
+        message.success(t('更新成功'))
       } else {
         await DictAPI.createDictItem(values)
-        message.success('创建成功')
+        message.success(t('创建成功'))
       }
       setModalOpen(false)
       if (selectedTypeId) fetchItems(selectedTypeId, params)
     } catch {
-      message.error('操作失败')
+      message.error(t('操作失败'))
     } finally {
       setSubmitting(false)
     }
@@ -340,41 +343,41 @@ function DictItemCRUD() {
   const columns: ColumnsType<DictItem> = [
     { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
     {
-      title: '标签',
+      title: t('标签'),
       dataIndex: 'label',
       width: 220,
       ellipsis: true,
       render: (value: string) => <span className="list-primary-cell">{value}</span>,
     },
     {
-      title: '值',
+      title: t('值'),
       dataIndex: 'value',
       width: 260,
       responsive: ['sm'],
       render: (v: string) => <Tag variant="filled" className="cell-mono list-code-tag">{v}</Tag>,
     },
-    { title: '排序', dataIndex: 'sort', width: 70, responsive: ['md'] },
+    { title: t('排序'), dataIndex: 'sort', width: 70, responsive: ['md'] },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 80,
       render: (v: number) => <EnableStatusPill value={v} />,
     },
     {
-      title: '操作',
+      title: t('操作'),
       width: 96,
       fixed: 'right',
       render: (_, record) => (
         <Space size={4} className="table-actions compact-table-actions">
           {hasPerm('system:dict:update') && (
-            <Tooltip title="编辑">
-              <Button type="text" size="small" aria-label="编辑字典项" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Tooltip title={t('编辑')}>
+              <Button type="text" size="small" aria-label={t('编辑字典项')} icon={<EditOutlined />} onClick={() => openEdit(record)} />
             </Tooltip>
           )}
           {hasPerm('system:dict:delete') && (
-            <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title="删除">
-                <Button type="text" size="small" danger aria-label="删除字典项" icon={<DeleteOutlined />} />
+            <Popconfirm title={t('确认删除?')} onConfirm={() => handleDelete(record.id)}>
+              <Tooltip title={t('删除')}>
+                <Button type="text" size="small" danger aria-label={t('删除字典项')} icon={<DeleteOutlined />} />
               </Tooltip>
             </Popconfirm>
           )}
@@ -388,32 +391,32 @@ function DictItemCRUD() {
       <Card className="list-filter-card" bordered={false}>
         <Form form={searchForm} layout="inline" className="list-filter-form" onFinish={handleSearch}>
           <div className="dict-type-picker">
-            <span className="dict-type-picker-label">字典类型</span>
+            <span className="dict-type-picker-label">{t('字典类型')}</span>
             <Select
               value={selectedTypeId}
               onChange={(v) => { setSelectedTypeId(v); setParams({ ...params, page: 1 }) }}
-              placeholder="请选择字典类型"
+              placeholder={t('请选择字典类型')}
               showSearch
               optionFilterProp="children"
             >
-              {dictTypes.map((t) => (
-                <Select.Option key={t.id} value={t.id}>{t.name} ({t.code})</Select.Option>
+              {dictTypes.map((item) => (
+                <Select.Option key={item.id} value={item.id}>{item.name} ({item.code})</Select.Option>
               ))}
             </Select>
           </div>
           <Form.Item name="keyword">
-            <Input placeholder="搜索标签 / 值" prefix={<SearchOutlined />} allowClear style={{ width: 220 }} />
+            <Input placeholder={t('搜索标签 / 值')} prefix={<SearchOutlined />} allowClear style={{ width: 220 }} />
           </Form.Item>
           <Form.Item name="status">
-            <Select placeholder="状态" style={{ width: 100 }} allowClear>
-              <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
+            <Select placeholder={t('状态')} style={{ width: 100 }} allowClear>
+              <Select.Option value={1}>{t('启用')}</Select.Option>
+              <Select.Option value={0}>{t('禁用')}</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
         </Form>
@@ -429,11 +432,11 @@ function DictItemCRUD() {
                 onClick={() => selectedTypeId && fetchItems(selectedTypeId, params)}
                 disabled={!selectedTypeId}
               >
-                刷新
+                {t('刷新')}
               </Button>
               {hasPerm('system:dict:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} disabled={!selectedTypeId}>
-                  新增字典项
+                  {t('新增字典项')}
                 </Button>
               )}
             </Space>
@@ -454,13 +457,13 @@ function DictItemCRUD() {
             pageSize: params.page_size,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
       </Card>
       <Modal
-        title={editRecord ? '编辑字典项' : '新增字典项'}
+        title={editRecord ? t('编辑字典项') : t('新增字典项')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
@@ -471,19 +474,19 @@ function DictItemCRUD() {
           <Form.Item name="dict_type_id" hidden>
             <InputNumber />
           </Form.Item>
-          <Form.Item name="label" label="标签" rules={[{ required: true, message: '请输入标签' }]}>
+          <Form.Item name="label" label={t('标签')} rules={[{ required: true, message: t('请输入标签') }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="value" label="值" rules={[{ required: true, message: '请输入值' }]}>
+          <Form.Item name="value" label={t('值')} rules={[{ required: true, message: t('请输入值') }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="sort" label="排序" initialValue={0}>
+          <Form.Item name="sort" label={t('排序')} initialValue={0}>
             <InputNumber style={{ width: '100%' }} min={0} />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue={1}>
+          <Form.Item name="status" label={t('状态')} initialValue={1}>
             <Select>
-              <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
+              <Select.Option value={1}>{t('启用')}</Select.Option>
+              <Select.Option value={0}>{t('禁用')}</Select.Option>
             </Select>
           </Form.Item>
         </Form>
@@ -493,13 +496,14 @@ function DictItemCRUD() {
 }
 
 export default function DictPage() {
+  const { t } = useTranslation()
   return (
     <Tabs
       className="page-tabs"
       defaultActiveKey="type"
       items={[
-        { key: 'type', label: '字典类型', icon: <DatabaseOutlined />, children: <DictTypeCRUD /> },
-        { key: 'item', label: '字典项', icon: <BarsOutlined />, children: <DictItemCRUD /> },
+        { key: 'type', label: t('字典类型'), icon: <DatabaseOutlined />, children: <DictTypeCRUD /> },
+        { key: 'item', label: t('字典项'), icon: <BarsOutlined />, children: <DictItemCRUD /> },
       ]}
     />
   )

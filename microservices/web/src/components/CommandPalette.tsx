@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Modal, Input, Empty } from 'antd'
 import { SearchOutlined, EnterOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -27,6 +28,7 @@ function saveRecent(path: string) {
 }
 
 export default function CommandPalette({ items }: { items: PaletteItem[] }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -116,7 +118,7 @@ export default function CommandPalette({ items }: { items: PaletteItem[] }) {
           size="large"
           variant="borderless"
           prefix={<SearchOutlined className="cmdk-search-icon" />}
-          placeholder="搜索页面，↑↓ 选择，回车跳转…"
+          placeholder={t('搜索页面，↑↓ 选择，回车跳转…')}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value)
@@ -127,7 +129,7 @@ export default function CommandPalette({ items }: { items: PaletteItem[] }) {
       </div>
       <div className="cmdk-list">
         {filtered.length === 0 ? (
-          <Empty description="没有匹配的页面" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '32px 0' }} />
+          <Empty description={t('没有匹配的页面')} image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '32px 0' }} />
         ) : (
           filtered.map((it, i) => (
             <div
@@ -139,7 +141,7 @@ export default function CommandPalette({ items }: { items: PaletteItem[] }) {
               <span className="cmdk-item-icon">{it.icon}</span>
               <span className="cmdk-item-label">{it.label}</span>
               <span className="cmdk-item-group">
-                {!query && recentPaths.includes(it.path) ? '最近访问' : it.group}
+                {!query && recentPaths.includes(it.path) ? t('最近访问') : it.group}
               </span>
               {i === active && <EnterOutlined className="cmdk-item-enter" />}
             </div>
@@ -147,9 +149,9 @@ export default function CommandPalette({ items }: { items: PaletteItem[] }) {
         )}
       </div>
       <div className="cmdk-foot">
-        <span><kbd>↑</kbd><kbd>↓</kbd> 选择</span>
-        <span><kbd>↵</kbd> 跳转</span>
-        <span><kbd>Esc</kbd> 关闭</span>
+        <span><kbd>↑</kbd><kbd>↓</kbd> {t('选择')}</span>
+        <span><kbd>↵</kbd> {t('跳转')}</span>
+        <span><kbd>Esc</kbd> {t('关闭')}</span>
       </div>
     </Modal>
   )

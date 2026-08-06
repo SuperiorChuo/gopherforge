@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
   Card, Tooltip,
@@ -36,6 +37,7 @@ export default function PermissionPage() {
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
+  const { t } = useTranslation()
   const { hasPerm } = usePermission()
 
   const fetchList = async (p: SearchParams) => {
@@ -45,7 +47,7 @@ export default function PermissionPage() {
       setList(res.list)
       setTotal(res.total)
     } catch {
-      message.error('获取权限列表失败')
+      message.error(t('获取权限列表失败'))
     } finally {
       setLoading(false)
     }
@@ -84,14 +86,14 @@ export default function PermissionPage() {
   const handleDelete = async (id: number) => {
     try {
       await PermAPI.deletePermission(id)
-      message.success('删除成功')
+      message.success(t('删除成功'))
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
         fetchList(params)
       }
     } catch {
-      message.error('删除失败')
+      message.error(t('删除失败'))
     }
   }
 
@@ -102,15 +104,15 @@ export default function PermissionPage() {
     try {
       if (editRecord) {
         await PermAPI.updatePermission(editRecord.id, values)
-        message.success('更新成功')
+        message.success(t('更新成功'))
       } else {
         await PermAPI.createPermission(values)
-        message.success('创建成功')
+        message.success(t('创建成功'))
       }
       setModalOpen(false)
       fetchList(params)
     } catch {
-      message.error('操作失败')
+      message.error(t('操作失败'))
     } finally {
       setSubmitting(false)
     }
@@ -119,42 +121,42 @@ export default function PermissionPage() {
   const columns: ColumnsType<Permission> = [
     { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
     {
-      title: '名称',
+      title: t('名称'),
       dataIndex: 'name',
       width: 220,
       ellipsis: true,
       render: (value: string) => <span className="list-primary-cell">{value}</span>,
     },
     {
-      title: '编码',
+      title: t('编码'),
       dataIndex: 'code',
       width: 320,
       responsive: ['sm'],
       render: (v: string) => <Tag variant="filled" className="cell-mono list-code-tag">{v}</Tag>,
     },
-    { title: '描述', dataIndex: 'description', width: 260, ellipsis: true, responsive: ['md'] },
+    { title: t('描述'), dataIndex: 'description', width: 260, ellipsis: true, responsive: ['md'] },
     {
-      title: '类型',
+      title: t('类型'),
       dataIndex: 'type',
       width: 90,
-      render: (v: number) => <Tag variant="filled" color={typeColors[v]} className="list-type-tag">{typeLabels[v] ?? v}</Tag>,
+      render: (v: number) => <Tag variant="filled" color={typeColors[v]} className="list-type-tag">{typeLabels[v] ? t(typeLabels[v] ?? '') : v}</Tag>,
     },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
+    { title: t('创建时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
-      title: '操作',
+      title: t('操作'),
       width: 96,
       fixed: 'right',
       render: (_, record) => (
         <Space size={4} className="table-actions compact-table-actions">
           {hasPerm('system:permission:update') && (
-            <Tooltip title="编辑">
-              <Button type="text" size="small" aria-label="编辑权限" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Tooltip title={t('编辑')}>
+              <Button type="text" size="small" aria-label={t('编辑权限')} icon={<EditOutlined />} onClick={() => openEdit(record)} />
             </Tooltip>
           )}
           {hasPerm('system:permission:delete') && (
-            <Popconfirm title="确认删除该权限?" onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title="删除">
-                <Button type="text" size="small" danger aria-label="删除权限" icon={<DeleteOutlined />} />
+            <Popconfirm title={t('确认删除该权限?')} onConfirm={() => handleDelete(record.id)}>
+              <Tooltip title={t('删除')}>
+                <Button type="text" size="small" danger aria-label={t('删除权限')} icon={<DeleteOutlined />} />
               </Tooltip>
             </Popconfirm>
           )}
@@ -174,12 +176,12 @@ export default function PermissionPage() {
           initialValues={params}
         >
           <Form.Item name="keyword">
-            <Input placeholder="搜索名称 / 编码" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
+            <Input placeholder={t('搜索名称 / 编码')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
         </Form>
@@ -191,9 +193,9 @@ export default function PermissionPage() {
           total={total}
           extra={
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
               {hasPerm('system:permission:create') && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增权限</Button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增权限')}</Button>
               )}
             </Space>
           }
@@ -212,14 +214,14 @@ export default function PermissionPage() {
             pageSize: params.page_size,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
       </Card>
 
       <Modal
-        title={editRecord ? '编辑权限' : '新增权限'}
+        title={editRecord ? t('编辑权限') : t('新增权限')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
@@ -227,20 +229,20 @@ export default function PermissionPage() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('请输入名称') }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="code" label="编码" rules={[{ required: true, message: '请输入编码' }]}>
+          <Form.Item name="code" label={t('编码')} rules={[{ required: true, message: t('请输入编码') }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="type" label="类型" initialValue={1}>
+          <Form.Item name="type" label={t('类型')} initialValue={1}>
             <Select>
-              <Select.Option value={1}>菜单</Select.Option>
-              <Select.Option value={2}>按钮</Select.Option>
+              <Select.Option value={1}>{t('菜单')}</Select.Option>
+              <Select.Option value={2}>{t('按钮')}</Select.Option>
               <Select.Option value={3}>API</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item name="description" label="描述">
+          <Form.Item name="description" label={t('描述')}>
             <Input.TextArea rows={3} />
           </Form.Item>
         </Form>

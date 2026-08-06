@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card, Descriptions, Spin, Row, Col, Button, Space, Skeleton, Tag, Tooltip } from 'antd'
 import {
   ReloadOutlined,
@@ -78,6 +79,7 @@ function ServerGaugeCard({ title, icon, percent, footer, index }: ServerGaugePro
 }
 
 export default function ServerMonitorPage() {
+  const { t } = useTranslation()
   const [data, setData] = useState<ServerInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -127,21 +129,21 @@ export default function ServerMonitorPage() {
   )
   const statusText = requestFailed
     ? lastSuccessAt
-      ? `数据中断 · 上次成功 ${updatedTime(lastSuccessAt)}`
-      : '数据中断 · 尚无成功数据'
+      ? t('数据中断 · 上次成功 {{n}}', { n: updatedTime(lastSuccessAt) })
+      : t('数据中断 · 尚无成功数据')
     : data && lastSuccessAt
       ? hasPartialData
-        ? `连接正常 · 部分指标不可用 · 更新于 ${updatedTime(lastSuccessAt)}`
-        : `每 10 秒自动刷新 · 更新于 ${updatedTime(lastSuccessAt)}`
-      : '正在获取监控数据'
+        ? t('连接正常 · 部分指标不可用 · 更新于 {{n}}', { n: updatedTime(lastSuccessAt) })
+        : t('每 10 秒自动刷新 · 更新于 {{n}}', { n: updatedTime(lastSuccessAt) })
+      : t('正在获取监控数据')
   const statusTone = requestFailed ? 'is-error' : data ? hasPartialData ? 'is-warning' : 'is-live' : 'is-loading'
   const statusAnnouncement = requestFailed
-    ? '服务器监控数据中断'
+    ? t('服务器监控数据中断')
     : hasPartialData
-      ? '服务器监控连接正常，部分指标不可用'
+      ? t('服务器监控连接正常，部分指标不可用')
       : data
-        ? '服务器监控连接正常'
-        : '正在连接服务器监控'
+        ? t('服务器监控连接正常')
+        : t('正在连接服务器监控')
 
   return (
     <div className="monitor-status-page server-monitor-page">
@@ -154,7 +156,7 @@ export default function ServerMonitorPage() {
           {statusText}
         </span>
         <Button icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>
-          刷新主机指标
+          {t('刷新主机指标')}
         </Button>
       </div>
 
@@ -165,30 +167,30 @@ export default function ServerMonitorPage() {
       {loading && data === null ? (
         <Card className="monitor-state-card glass-rise" bordered={false}>
           <Spin size="large" />
-          <div className="monitor-state-title">正在连接服务器监控</div>
-          <div className="monitor-state-copy">首次监控数据返回后将展示资源用量和运行环境。</div>
+          <div className="monitor-state-title">{t('正在连接服务器监控')}</div>
+          <div className="monitor-state-copy">{t('首次监控数据返回后将展示资源用量和运行环境。')}</div>
         </Card>
       ) : requestFailed && data === null ? (
         <Card className="monitor-state-card glass-rise" bordered={false} role="alert">
           <WarningOutlined className="monitor-state-icon" />
-          <div className="monitor-state-title">主机数据中断</div>
-          <div className="monitor-state-copy">暂未获取到服务器监控数据，请检查监控服务后重新连接。</div>
-          <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>重新连接</Button>
+          <div className="monitor-state-title">{t('主机数据中断')}</div>
+          <div className="monitor-state-copy">{t('暂未获取到服务器监控数据，请检查监控服务后重新连接。')}</div>
+          <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>{t('重新连接')}</Button>
         </Card>
       ) : (
         <Row gutter={[20, 20]}>
           <Col xs={24} md={12} lg={8}>
             <ServerGaugeCard
-              title="CPU 使用率"
+              title={t('CPU 使用率')}
               icon={<DesktopOutlined />}
               percent={cpuUsage}
               index={0}
-              footer={<>{cpuCores !== null && cpuCores > 0 ? `${cpuCores} 核` : '核心数 --'} · {metricText(data?.cpu?.model_name)}</>}
+              footer={<>{cpuCores !== null && cpuCores > 0 ? t('{{n}} 核', { n: cpuCores }) : t('核心数 --')} · {metricText(data?.cpu?.model_name)}</>}
             />
           </Col>
           <Col xs={24} md={12} lg={8}>
             <ServerGaugeCard
-              title="内存使用率"
+              title={t('内存使用率')}
               icon={<DatabaseOutlined />}
               percent={memUsage}
               index={1}
@@ -197,7 +199,7 @@ export default function ServerMonitorPage() {
           </Col>
           <Col xs={24} md={12} lg={8}>
             <ServerGaugeCard
-              title="磁盘使用率"
+              title={t('磁盘使用率')}
               icon={<HddOutlined />}
               percent={diskUsage}
               index={2}
@@ -206,13 +208,13 @@ export default function ServerMonitorPage() {
           </Col>
 
           <Col xs={24}>
-            <MetricTrendCard title="CPU 使用率趋势" metric="system.cpu.used_percent" />
+            <MetricTrendCard title={t('CPU 使用率趋势')} metric="system.cpu.used_percent" />
           </Col>
           <Col xs={24} lg={12}>
-            <MetricTrendCard title="内存使用率趋势" metric="system.memory.used_percent" />
+            <MetricTrendCard title={t('内存使用率趋势')} metric="system.memory.used_percent" />
           </Col>
           <Col xs={24} lg={12}>
-            <MetricTrendCard title="磁盘使用率趋势" metric="system.disk.used_percent" />
+            <MetricTrendCard title={t('磁盘使用率趋势')} metric="system.disk.used_percent" />
           </Col>
 
           <Col xs={24} lg={12}>
@@ -221,17 +223,17 @@ export default function ServerMonitorPage() {
               style={{ '--i': 3 } as React.CSSProperties}
               title={
                 <Space>
-                  <CloudServerOutlined className="card-title-icon" /> 操作系统
+                  <CloudServerOutlined className="card-title-icon" /> {t('操作系统')}
                 </Space>
               }
             >
               <Descriptions column={1} bordered size="small">
-                <Descriptions.Item label="主机名">{metricText(data?.os?.hostname)}</Descriptions.Item>
-                <Descriptions.Item label="平台">{metricText(data?.os?.platform)}</Descriptions.Item>
-                <Descriptions.Item label="系统 / 架构">
+                <Descriptions.Item label={t('主机名')}>{metricText(data?.os?.hostname)}</Descriptions.Item>
+                <Descriptions.Item label={t('平台')}>{metricText(data?.os?.platform)}</Descriptions.Item>
+                <Descriptions.Item label={t('系统 / 架构')}>
                   {metricText(data?.os?.go_os)} / {metricText(data?.os?.arch)}
                 </Descriptions.Item>
-                <Descriptions.Item label="启动时间">
+                <Descriptions.Item label={t('启动时间')}>
                   {osAvailable ? metricText(data?.os?.boot_time) : '--'}
                 </Descriptions.Item>
               </Descriptions>
@@ -244,15 +246,15 @@ export default function ServerMonitorPage() {
               style={{ '--i': 4 } as React.CSSProperties}
               title={
                 <Space>
-                  <CodeOutlined className="card-title-icon" /> Go 运行时
+                  <CodeOutlined className="card-title-icon" /> {t('Go 运行时')}
                 </Space>
               }
             >
               <Descriptions column={1} bordered size="small">
-                <Descriptions.Item label="Go 版本">{metricText(data?.os?.go_version)}</Descriptions.Item>
+                <Descriptions.Item label={t('Go 版本')}>{metricText(data?.os?.go_version)}</Descriptions.Item>
                 <Descriptions.Item label="Goroutines">{metricText(data?.os?.num_goroutine)}</Descriptions.Item>
-                <Descriptions.Item label="编译器">{metricText(data?.os?.compiler)}</Descriptions.Item>
-                <Descriptions.Item label="内存空闲">{metricBytes(memFree)}</Descriptions.Item>
+                <Descriptions.Item label={t('编译器')}>{metricText(data?.os?.compiler)}</Descriptions.Item>
+                <Descriptions.Item label={t('内存空闲')}>{metricBytes(memFree)}</Descriptions.Item>
               </Descriptions>
             </Card>
           </Col>
@@ -264,6 +266,7 @@ export default function ServerMonitorPage() {
 
 // 微服务健康总览：并发探测 15 个服务 ready，不健康的排最前。10 秒随页自刷。
 function ServicesHealthCard() {
+  const { t } = useTranslation()
   const [rows, setRows] = useState<ServiceHealthRow[]>([])
   const [healthy, setHealthy] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -296,13 +299,13 @@ function ServicesHealthCard() {
       className="glass-rise"
       title={
         <div className="server-card-title">
-          <CloudServerOutlined className="card-title-icon" /> 微服务健康
+          <CloudServerOutlined className="card-title-icon" /> {t('微服务健康')}
           {rows.length > 0 && (
             <Tag color={allUp ? 'green' : 'red'} variant="filled">{healthy}/{rows.length}</Tag>
           )}
           {probeFailed && (
             <Tag className="server-card-warning" color="orange" variant="filled">
-              {rows.length > 0 ? '探测中断，显示上次结果' : '探测接口不可用'}
+              {rows.length > 0 ? t('探测中断，显示上次结果') : t('探测接口不可用')}
             </Tag>
           )}
         </div>
@@ -311,7 +314,7 @@ function ServicesHealthCard() {
       {loading ? (
         <Skeleton active title={false} paragraph={{ rows: 2 }} />
       ) : rows.length === 0 ? (
-        <span className="cell-muted">{probeFailed ? '健康探测接口不可用' : '暂无受监控的服务'}</span>
+        <span className="cell-muted">{probeFailed ? t('健康探测接口不可用') : t('暂无受监控的服务')}</span>
       ) : (
         <Space size={[8, 8]} wrap>
           {rows.map((r) => (
@@ -345,6 +348,7 @@ const ALERT_STATE_STATS: { key: keyof MonitorAlertSummary; label: string; tone: 
 ]
 
 function AlertOverviewCard() {
+  const { t } = useTranslation()
   const [summary, setSummary] = useState<MonitorAlertSummary | null>(null)
   const [events, setEvents] = useState<MonitorAlertEvent[] | null>(null)
   const [loading, setLoading] = useState(true)
@@ -383,13 +387,13 @@ function AlertOverviewCard() {
       className="glass-rise server-alert-card"
       title={
         <div className="server-card-title">
-          <BellOutlined className="card-title-icon" /> 告警概览
+          <BellOutlined className="card-title-icon" /> {t('告警概览')}
           {summary && summary.firing > 0 && (
-            <Tag color="red" variant="filled">告警中 {summary.firing}</Tag>
+            <Tag color="red" variant="filled">{t('告警中 {{n}}', { n: summary.firing })}</Tag>
           )}
           {(summaryFailed || eventsFailed) && (
             <Tag className="server-card-warning" color="orange" variant="filled">
-              {summary || events ? '数据中断，显示可用结果' : '告警数据不可用'}
+              {summary || events ? t('数据中断，显示可用结果') : t('告警数据不可用')}
             </Tag>
           )}
         </div>
@@ -401,13 +405,13 @@ function AlertOverviewCard() {
       ) : summary === null && events === null ? (
         <div className="server-alert-unavailable" role="alert">
           <WarningOutlined />
-          <span>暂未获取到告警摘要和最近事件。</span>
+          <span>{t('暂未获取到告警摘要和最近事件。')}</span>
         </div>
       ) : (
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} lg={10}>
             {summary === null ? (
-              <div className="server-alert-unavailable"><WarningOutlined /> 告警摘要暂不可用</div>
+              <div className="server-alert-unavailable"><WarningOutlined /> {t('告警摘要暂不可用')}</div>
             ) : (
               <div className="server-alert-stats">
                 {ALERT_STATE_STATS.map((stat) => {
@@ -415,7 +419,7 @@ function AlertOverviewCard() {
                   return (
                     <div key={stat.key} className="alert-stat-pill">
                       <span className="alert-stat-value" style={{ color: stat.tone }}>{value}</span>
-                      <span className="alert-stat-label">{stat.label}</span>
+                      <span className="alert-stat-label">{t(stat.label)}</span>
                     </div>
                   )
                 })}
@@ -424,15 +428,15 @@ function AlertOverviewCard() {
           </Col>
           <Col xs={24} lg={14}>
             {events === null ? (
-              <div className="server-alert-unavailable"><WarningOutlined /> 最近事件暂不可用</div>
+              <div className="server-alert-unavailable"><WarningOutlined /> {t('最近事件暂不可用')}</div>
             ) : events.length === 0 ? (
-              <span className="cell-muted">暂无告警事件</span>
+              <span className="cell-muted">{t('暂无告警事件')}</span>
             ) : (
               <div className="alert-event-mini">
                 {events.map((e) => (
                   <div key={e.id} className="alert-event-row server-alert-event-row">
                     <Tag color={e.status === 'firing' ? 'red' : 'green'} style={{ marginInlineEnd: 8 }}>
-                      {e.status === 'firing' ? '告警' : '恢复'}
+                      {e.status === 'firing' ? t('告警') : t('恢复')}
                     </Tag>
                     <span className="cell-ellipsis">{e.rule_name}</span>
                     <span className="cell-muted server-alert-event-time">

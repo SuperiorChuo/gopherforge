@@ -4,11 +4,15 @@ import { Provider } from 'react-redux'
 import { BrowserRouter, useRoutes } from 'react-router-dom'
 import { ConfigProvider, App as AntApp, theme as antdTheme, type ThemeConfig } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
+import enUS from 'antd/locale/en_US'
+import dayjs from 'dayjs'
 import { store } from '@/store'
 import routes from '@/router'
 import FeedbackBridge from '@/utils/feedback'
 import GlassEmpty from '@/components/GlassEmpty'
 import { ThemeContext, THEME_STORAGE_KEY, type ThemeMode } from '@/theme/ThemeContext'
+import { LocaleContext, LOCALE_STORAGE_KEY, type Locale } from '@/i18n/LocaleContext'
+import i18n from '@/i18n/init'
 import 'dayjs/locale/zh-cn'
 
 function AppRoutes() {
@@ -198,6 +202,17 @@ export default function App() {
     localStorage.setItem(THEME_STORAGE_KEY, mode)
   }, [mode])
 
+  const [locale, setLocale] = useState<Locale>(() =>
+    localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'zh',
+  )
+
+  useEffect(() => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+    i18n.changeLanguage(locale)
+    dayjs.locale(locale === 'en' ? 'en' : 'zh-cn')
+    document.documentElement.lang = locale === 'en' ? 'en' : 'zh-CN'
+  }, [locale])
+
   useGlassPointerLight()
 
   const toggle = useCallback((point?: { x: number; y: number }) => {
@@ -237,11 +252,12 @@ export default function App() {
   return (
     <Provider store={store}>
       <ThemeContext.Provider value={{ mode, toggle }}>
-        <ConfigProvider
-          locale={zhCN}
-          theme={mode === 'dark' ? darkTheme : lightTheme}
-          renderEmpty={() => <GlassEmpty />}
-        >
+        <LocaleContext.Provider value={{ locale, setLocale }}>
+          <ConfigProvider
+            locale={locale === 'en' ? enUS : zhCN}
+            theme={mode === 'dark' ? darkTheme : lightTheme}
+            renderEmpty={() => <GlassEmpty />}
+          >
           <AntApp>
             <FeedbackBridge />
             <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
@@ -259,7 +275,8 @@ export default function App() {
               </div>
             )}
           </AntApp>
-        </ConfigProvider>
+          </ConfigProvider>
+        </LocaleContext.Provider>
       </ThemeContext.Provider>
     </Provider>
   )

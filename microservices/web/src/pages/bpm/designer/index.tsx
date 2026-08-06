@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Alert,
   Button,
@@ -79,6 +80,7 @@ import {
   type StartNode,
 } from '@/api/bpm'
 import StatusPill from '@/components/StatusPill'
+import { useLocale } from '@/i18n/LocaleContext'
 
 const { Text } = Typography
 
@@ -131,6 +133,7 @@ type Selection =
 // ---------------------------------------------------------------------
 
 function Connector({ onAdd }: { onAdd?: (type: 'approval' | 'cc' | 'condition') => void }) {
+  const { t } = useTranslation()
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={connectorLineStyle} />
@@ -139,9 +142,9 @@ function Connector({ onAdd }: { onAdd?: (type: 'approval' | 'cc' | 'condition') 
           trigger={['click']}
           menu={{
             items: [
-              { key: 'approval', icon: <AuditOutlined />, label: '添加审批人' },
-              { key: 'cc', icon: <MailOutlined />, label: '添加抄送人' },
-              { key: 'condition', icon: <ForkOutlined />, label: '添加条件分支' },
+              { key: 'approval', icon: <AuditOutlined />, label: t('添加审批人') },
+              { key: 'cc', icon: <MailOutlined />, label: t('添加抄送人') },
+              { key: 'condition', icon: <ForkOutlined />, label: t('添加条件分支') },
             ],
             onClick: ({ key }) => onAdd(key as 'approval' | 'cc' | 'condition'),
           }}
@@ -186,6 +189,7 @@ function NodeCard({
   onMoveDown,
   onRemove,
 }: NodeCardProps) {
+  const { t } = useTranslation()
   const icon =
     node.type === 'start' ? (
       <UserOutlined />
@@ -198,10 +202,10 @@ function NodeCard({
     )
   const removeTitle =
     node.type === 'cc'
-      ? '删除该抄送节点？'
+      ? t('删除该抄送节点？')
       : node.type === 'condition'
-        ? '删除该条件分支（含分支内全部节点）？'
-        : '删除该审批节点？'
+        ? t('删除该条件分支（含分支内全部节点）？')
+        : t('删除该审批节点？')
   return (
     <div style={cardStyle(selected, !!invalidText)} onClick={onClick}>
       <div
@@ -217,7 +221,7 @@ function NodeCard({
       >
         <Space size={6}>
           {icon}
-          <span style={{ fontWeight: 600 }}>{node.name || '未命名节点'}</span>
+          <span style={{ fontWeight: 600 }}>{node.name || t('未命名节点')}</span>
         </Space>
         {!readOnly && node.type !== 'start' && (
           <Space size={0} onClick={(e) => e.stopPropagation()}>
@@ -273,6 +277,7 @@ function BranchCard({
   onClick: () => void
   onRemove: () => void
 }) {
+  const { t } = useTranslation()
   const isDefault = !branch.expr
   return (
     <div style={{ ...cardStyle(selected, !!invalidText), width: CARD_WIDTH - 40 }} onClick={onClick}>
@@ -288,13 +293,13 @@ function BranchCard({
       >
         <Space size={6}>
           <Tag color={isDefault ? 'default' : 'purple'} style={{ marginInlineEnd: 0 }}>
-            {isDefault ? '默认' : `优先级 ${index + 1}`}
+            {isDefault ? t('默认') : t('优先级 {{n}}', { n: index + 1 })}
           </Tag>
-          <span style={{ fontWeight: 600, fontSize: 13 }}>{branch.name || '未命名分支'}</span>
+          <span style={{ fontWeight: 600, fontSize: 13 }}>{branch.name || t('未命名分支')}</span>
         </Space>
         {!readOnly && canRemove && (
           <span onClick={(e) => e.stopPropagation()}>
-            <Popconfirm title="删除该分支（含分支内全部节点）？" onConfirm={onRemove}>
+            <Popconfirm title={t('删除该分支（含分支内全部节点）？')} onConfirm={onRemove}>
               <Button type="text" size="small" icon={<DeleteOutlined />} />
             </Popconfirm>
           </span>
@@ -361,6 +366,7 @@ function ChainView({
   onSelect,
   nodeSummary,
 }: ChainViewProps) {
+  const { t } = useTranslation()
   const minIndex = isBranch ? 0 : 1 // 主链 0 号位是 start，不可移不可删
 
   const insertAt = (index: number, type: 'approval' | 'cc' | 'condition') => {
@@ -389,7 +395,7 @@ function ChainView({
     if (node.type === 'cc') return validateCcNode(node)
     if (node.type === 'condition') {
       // 卡片只标节点级问题；分支级问题标在分支卡片上
-      if (!node.name?.trim()) return '节点名称不能为空'
+      if (!node.name?.trim()) return t('节点名称不能为空')
       return ''
     }
     return ''
@@ -469,7 +475,7 @@ function ChainView({
               nodeSummary={nodeSummary}
             />
             <Text type="secondary" style={{ fontSize: 12, marginTop: 4 }}>
-              ↓ 汇合
+              {t('↓ 汇合')}
             </Text>
           </div>
         ))}
@@ -493,7 +499,7 @@ function ChainView({
                 onSelect({ kind: 'branch', condId: cond.id, branchId: nb.id })
               }}
             >
-              添加分支
+              {t('添加分支')}
             </Button>
           </div>
         )}
@@ -527,7 +533,7 @@ function ChainView({
       ))}
       {isBranch && chain.length === 0 && (
         <Text type="secondary" style={{ fontSize: 12 }}>
-          空分支：直通汇合点
+          {t('空分支：直通汇合点')}
         </Text>
       )}
     </>
@@ -546,6 +552,8 @@ interface FlowDesignerProps {
 }
 
 export default function FlowDesigner({ definitionId, readOnly = false, onBack }: FlowDesignerProps) {
+  const { t } = useTranslation()
+  const { locale } = useLocale()
   const [def, setDef] = useState<BpmDefinition | null>(null)
   const [chain, setChain] = useState<AnyNode[]>([])
   // 表单构建器（M1）：流程表单 Schema，随定义保存；发布时前后端双重校验
@@ -596,14 +604,14 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
   const userNameOf = useMemo(() => {
     const map = new Map<number, string>()
     users.forEach((u) => map.set(u.id, u.nickname || u.username))
-    return (id: number) => map.get(id) || `用户 #${id}`
-  }, [users])
+    return (id: number) => map.get(id) || t('用户 #{{n}}', { n: id })
+  }, [users, locale])
 
   const roleNameOf = useMemo(() => {
     const map = new Map<number, string>()
     roles.forEach((r) => map.set(r.id, r.name))
-    return (id: number) => map.get(id) || `角色 #${id}`
-  }, [roles])
+    return (id: number) => map.get(id) || t('角色 #{{n}}', { n: id })
+  }, [roles, locale])
 
   // ---- 选中对象解析（节点在整树上按 id 定位） ----
 
@@ -636,18 +644,18 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
     if (!rule?.type) return ''
     if (rule.type === 'users') {
       const names = (rule.userIds ?? []).map(userNameOf)
-      return names.slice(0, 3).join('、') + (names.length > 3 ? ` 等 ${names.length} 人` : '')
+      return names.slice(0, 3).join('、') + (names.length > 3 ? t(' 等 {{n}} 人', { n: names.length }) : '')
     }
     if (rule.type === 'roles') {
       const names = (rule.roleIds ?? []).map(roleNameOf)
-      return names.slice(0, 3).join('、') + (names.length > 3 ? ` 等 ${names.length} 个角色` : '')
+      return names.slice(0, 3).join('、') + (names.length > 3 ? t(' 等 {{n}} 个角色', { n: names.length }) : '')
     }
     if (rule.type === 'dept_leader') {
       return (rule.deptLeaderBase ?? 'initiator') === 'form_field'
-        ? `按表单字段「${rule.deptFormField || '未填'}」取部门主管`
-        : '发起人所在部门的主管'
+        ? t('按表单字段「{{field}}」取部门主管', { field: rule.deptFormField || t('未填') })
+        : t('发起人所在部门的主管')
     }
-    if (rule.type === 'self_select') return '发起时由发起人指定'
+    if (rule.type === 'self_select') return t('发起时由发起人指定')
     return ''
   }
 
@@ -656,21 +664,21 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
     return (
       <Space direction="vertical" size={2}>
         <span>
-          <Text type="secondary">{BPM_ASSIGNEE_TYPE_META[rule?.type] ?? '未配置'}：</Text>
+          <Text type="secondary">{t(BPM_ASSIGNEE_TYPE_META[rule?.type] ?? '未配置')}：</Text>
           {ruleWhoText(rule) || '-'}
         </span>
         <Space size={6} wrap>
           <Tag>
-            {node.multiMode === 'AND' ? '会签' : node.multiMode === 'SEQ' ? '依次' : '或签'}
+            {node.multiMode === 'AND' ? t('会签') : node.multiMode === 'SEQ' ? t('依次') : t('或签')}
           </Tag>
           {node.timeoutHours ? (
             <Tag color={node.timeoutAction === 'auto_pass' ? 'green' : node.timeoutAction === 'auto_reject' ? 'red' : 'gold'}>
               {node.timeoutHours}h{' '}
-              {node.timeoutAction === 'auto_pass' ? '超时自动通过' : node.timeoutAction === 'auto_reject' ? '超时自动拒绝' : '超时提醒'}
+              {node.timeoutAction === 'auto_pass' ? t('超时自动通过') : node.timeoutAction === 'auto_reject' ? t('超时自动拒绝') : t('超时提醒')}
             </Tag>
           ) : null}
-          {node.onReject === 'back_to_start' ? <Tag color="orange">拒绝退回发起人</Tag> : null}
-          {node.allowBackPrev ? <Tag color="cyan">可退回上一节点</Tag> : null}
+          {node.onReject === 'back_to_start' ? <Tag color="orange">{t('拒绝退回发起人')}</Tag> : null}
+          {node.allowBackPrev ? <Tag color="cyan">{t('可退回上一节点')}</Tag> : null}
         </Space>
       </Space>
     )
@@ -681,8 +689,8 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
       const fields = (node as StartNode).formFields ?? []
       return (
         <span>
-          <Text type="secondary">表单字段：</Text>
-          {fields.length ? fields.map((f) => <Tag key={f} className="cell-mono">{f}</Tag>) : '无'}
+          <Text type="secondary">{t('表单字段：')}</Text>
+          {fields.length ? fields.map((f) => <Tag key={f} className="cell-mono">{f}</Tag>) : t('无')}
         </span>
       )
     }
@@ -691,21 +699,21 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
       const rule = node.targets
       return (
         <span>
-          <Text type="secondary">抄送给（{BPM_ASSIGNEE_TYPE_META[rule?.type] ?? '未配置'}）：</Text>
+          <Text type="secondary">{t('抄送给（{{type}}）：', { type: t(BPM_ASSIGNEE_TYPE_META[rule?.type] ?? '未配置') })}</Text>
           {ruleWhoText(rule) || '-'}
         </span>
       )
     }
     if (node.type === 'condition') {
-      const names = (node.branches ?? []).map((b) => b.name || '未命名')
+      const names = (node.branches ?? []).map((b) => b.name || t('未命名'))
       return (
         <span>
-          <Text type="secondary">排他分支（从上到下取第一个命中）：</Text>
+          <Text type="secondary">{t('排他分支（从上到下取第一个命中）：')}</Text>
           {names.join(' / ')}
         </span>
       )
     }
-    return <Text type="secondary">未知节点类型，保存时原样保留</Text>
+    return <Text type="secondary">{t('未知节点类型，保存时原样保留')}</Text>
   }
 
   const startFormFields = formSchema?.fields?.length
@@ -722,7 +730,7 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
     try {
       nodeTree = chainToFlow(chain, def?.node_tree?.version ?? 1)
     } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : '节点树结构异常')
+      message.error(e instanceof Error ? e.message : t('节点树结构异常'))
       return false
     }
     setSaving(true)
@@ -732,7 +740,7 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
         node_tree: nodeTree,
         form_schema: formSchema,
       })
-      if (!quiet) message.success('草稿已保存')
+      if (!quiet) message.success(t('草稿已保存'))
       return true
     } catch {
       // 后端/网络错误已由拦截器统一提示
@@ -746,7 +754,7 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
     const errors = [...validateFormSchema(formSchema), ...validateChain(chain)]
     if (errors.length) {
       setPublishErrors(errors)
-      message.warning('存在未完成的节点配置，请先修正')
+      message.warning(t('存在未完成的节点配置，请先修正'))
       return
     }
     setPublishErrors([])
@@ -754,7 +762,7 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
     try {
       if (!(await save(true))) return
       await publishDefinition(definitionId)
-      message.success('已发布，该版本立即生效')
+      message.success(t('已发布，该版本立即生效'))
       onBack()
     } catch {
       // 后端 Schema 校验失败等，拦截器已提示
@@ -776,10 +784,10 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
   const statusMeta = def ? BPM_DEFINITION_STATUS_META[def.status] : undefined
   const drawerTitle =
     selection?.kind === 'branch'
-      ? `分支配置：${selectedBranch?.name || '未命名'}`
+      ? t('分支配置：{{name}}', { name: selectedBranch?.name || t('未命名') })
       : selectedNode
-        ? `节点配置：${selectedNode.name || '未命名'}`
-        : '配置'
+        ? t('节点配置：{{name}}', { name: selectedNode.name || t('未命名') })
+        : t('配置')
 
   return (
     <Card className="list-main-card" bordered={false}>
@@ -795,7 +803,7 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
       >
         <Space size={10} wrap>
           <Button icon={<ArrowLeftOutlined />} onClick={onBack}>
-            返回列表
+            {t('返回列表')}
           </Button>
           {readOnly ? (
             <Text strong style={{ fontSize: 16 }}>{defName}</Text>
@@ -805,7 +813,7 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
               onChange={(e) => setDefName(e.target.value)}
               style={{ width: 220 }}
               maxLength={128}
-              placeholder="流程名称"
+              placeholder={t('流程名称')}
             />
           )}
           {def && <Tag className="cell-mono">{def.key}</Tag>}
@@ -815,18 +823,18 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
         {!readOnly && (
           <Space wrap>
             <Button icon={<FormOutlined />} onClick={() => setFormOpen(true)}>
-              表单设计{formSchema?.fields?.length ? `（${formSchema.fields.length}）` : ''}
+              {t('表单设计')}{formSchema?.fields?.length ? `（${formSchema.fields.length}）` : ''}
             </Button>
             <Button icon={<SaveOutlined />} loading={saving} onClick={() => void save()}>
-              保存草稿
+              {t('保存草稿')}
             </Button>
             <Popconfirm
-              title="发布该版本？"
-              description="发布后立即生效，同一 key 的旧生效版本将自动归档"
+              title={t('发布该版本？')}
+              description={t('发布后立即生效，同一 key 的旧生效版本将自动归档')}
               onConfirm={() => void publish()}
             >
               <Button type="primary" icon={<SendOutlined />} loading={publishing}>
-                发布
+                {t('发布')}
               </Button>
             </Popconfirm>
           </Space>
@@ -838,7 +846,7 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
           type="error"
           showIcon
           style={{ marginBottom: 12 }}
-          message="发布前请修正以下问题"
+          message={t('发布前请修正以下问题')}
           description={
             <ul style={{ margin: 0, paddingInlineStart: 18 }}>
               {publishErrors.map((err, i) => (
@@ -880,7 +888,7 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
             fontSize: 13,
           }}
         >
-          流程结束
+          {t('流程结束')}
         </div>
       </div>
 
@@ -915,7 +923,7 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
       </Drawer>
 
       <Drawer
-        title="表单设计（流程表单模式）"
+        title={t('表单设计（流程表单模式）')}
         open={formOpen}
         onClose={() => setFormOpen(false)}
         width={520}
@@ -944,6 +952,7 @@ function FormSchemaEditor({
   readOnly: boolean
   onChange: (next: BpmFormSchema | null) => void
 }) {
+  const { t } = useTranslation()
   const fields = value?.fields ?? []
   const commit = (next: BpmFormField[]) => {
     onChange(next.length ? { version: value?.version ?? 1, fields: next } : null)
@@ -964,7 +973,7 @@ function FormSchemaEditor({
       <Alert
         type="info"
         showIcon
-        message="配置发起表单后，本流程可在「发起申请」页零代码发起；发布时字段声明自动同步给条件分支求值。金额字段按分存储、元录入。"
+        message={t('配置发起表单后，本流程可在「发起申请」页零代码发起；发布时字段声明自动同步给条件分支求值。金额字段按分存储、元录入。')}
       />
       {fields.map((f, i) => (
         <Card key={i} size="small">
@@ -974,7 +983,7 @@ function FormSchemaEditor({
                 style={{ width: '38%' }}
                 className="cell-mono"
                 disabled={readOnly}
-                placeholder="key（如 amount_cents）"
+                placeholder={t('key（如 amount_cents）')}
                 value={f.key}
                 maxLength={64}
                 onChange={(e) => patch(i, { key: e.target.value.trim() })}
@@ -982,7 +991,7 @@ function FormSchemaEditor({
               <Input
                 style={{ width: '32%' }}
                 disabled={readOnly}
-                placeholder="显示名"
+                placeholder={t('显示名')}
                 value={f.label}
                 maxLength={64}
                 onChange={(e) => patch(i, { label: e.target.value })}
@@ -993,7 +1002,7 @@ function FormSchemaEditor({
                 value={f.type}
                 options={Object.entries(BPM_FORM_FIELD_TYPE_META).map(([v, l]) => ({
                   value: v,
-                  label: l,
+                  label: t(l),
                 }))}
                 onChange={(v) => patch(i, { type: v as BpmFormField['type'] })}
               />
@@ -1003,7 +1012,7 @@ function FormSchemaEditor({
                 mode="tags"
                 style={{ width: '100%' }}
                 disabled={readOnly}
-                placeholder="输入选项后回车，可多个"
+                placeholder={t('输入选项后回车，可多个')}
                 value={f.options ?? []}
                 open={false}
                 tokenSeparators={[',', '，']}
@@ -1013,7 +1022,7 @@ function FormSchemaEditor({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Space size={10}>
                 <span>
-                  <Text type="secondary" style={{ fontSize: 12 }}>必填</Text>{' '}
+                  <Text type="secondary" style={{ fontSize: 12 }}>{t('必填')}</Text>{' '}
                   <Switch
                     size="small"
                     disabled={readOnly}
@@ -1025,7 +1034,7 @@ function FormSchemaEditor({
                   size="small"
                   style={{ width: 180 }}
                   disabled={readOnly}
-                  placeholder="占位提示（可空）"
+                  placeholder={t('占位提示（可空）')}
                   value={f.placeholder ?? ''}
                   maxLength={64}
                   onChange={(e) => patch(i, { placeholder: e.target.value || undefined })}
@@ -1049,12 +1058,12 @@ function FormSchemaEditor({
           icon={<PlusOutlined />}
           onClick={() => commit([...fields, { key: '', label: '', type: 'input' }])}
         >
-          添加字段
+          {t('添加字段')}
         </Button>
       )}
       {!fields.length && (
         <Text type="secondary" style={{ fontSize: 12 }}>
-          未配置表单：本流程为"业务表单"模式，只能由业务后端经 internal 端点发起。
+          {t('未配置表单：本流程为"业务表单"模式，只能由业务后端经 internal 端点发起。')}
         </Text>
       )}
     </Space>
@@ -1081,6 +1090,7 @@ function BranchConfigPanel({
   fieldLabels?: Record<string, string>
   onChange: (patch: Partial<DesignerBranch>) => void
 }) {
+  const { t } = useTranslation()
   const isDefault = !branch.expr
   const draft = exprToDraft(branch.expr)
 
@@ -1097,13 +1107,13 @@ function BranchConfigPanel({
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <div>
-        <Text type="secondary">分支名称</Text>
+        <Text type="secondary">{t('分支名称')}</Text>
         <Input
           style={{ marginTop: 4 }}
           value={branch.name}
           disabled={readOnly}
           maxLength={64}
-          placeholder="如：金额 ≥ 10 万"
+          placeholder={t('如：金额 ≥ 10 万')}
           onChange={(e) => onChange({ name: e.target.value })}
         />
       </div>
@@ -1111,35 +1121,35 @@ function BranchConfigPanel({
         <Alert
           type="info"
           showIcon
-          message="默认兜底分支"
-          description="其余条件分支均未命中时进入此分支；默认分支不可配置条件、不可删除。"
+          message={t('默认兜底分支')}
+          description={t('其余条件分支均未命中时进入此分支；默认分支不可配置条件、不可删除。')}
         />
       ) : (
         <>
           <div>
-            <Text type="secondary">多条件组合方式</Text>
+            <Text type="secondary">{t('多条件组合方式')}</Text>
             <div style={{ marginTop: 6 }}>
               <Segmented
                 block
                 disabled={readOnly}
                 value={draft.logic}
                 options={[
-                  { label: '且（全部满足）', value: 'and' },
-                  { label: '或（任一满足）', value: 'or' },
+                  { label: t('且（全部满足）'), value: 'and' },
+                  { label: t('或（任一满足）'), value: 'or' },
                 ]}
                 onChange={(v) => commitRows(v as 'and' | 'or', draft.rows)}
               />
             </div>
           </div>
           <div>
-            <Text type="secondary">条件（按发起表单快照求值；金额字段单位为分）</Text>
+            <Text type="secondary">{t('条件（按发起表单快照求值；金额字段单位为分）')}</Text>
             <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 6 }}>
               {draft.rows.map((row, ri) => (
                 <Space.Compact key={ri} block>
                   <Select
                     style={{ width: '42%' }}
                     disabled={readOnly}
-                    placeholder="字段"
+                    placeholder={t('字段')}
                     value={row.field || undefined}
                     options={fieldOptions}
                     onChange={(v: string) => {
@@ -1151,7 +1161,7 @@ function BranchConfigPanel({
                     style={{ width: '30%' }}
                     disabled={readOnly}
                     value={row.op}
-                    options={LEAF_OPS.map((op) => ({ value: op, label: BPM_CONDITION_OP_META[op] }))}
+                    options={LEAF_OPS.map((op) => ({ value: op, label: t(BPM_CONDITION_OP_META[op]) }))}
                     onChange={(v: ConditionLeafOp) => {
                       const rows = draft.rows.map((r, i) => (i === ri ? { ...r, op: v } : r))
                       commitRows(draft.logic, rows)
@@ -1160,7 +1170,7 @@ function BranchConfigPanel({
                   <Input
                     style={{ width: '28%' }}
                     disabled={readOnly}
-                    placeholder={row.op === 'in' ? '多值逗号分隔' : '值'}
+                    placeholder={row.op === 'in' ? t('多值逗号分隔') : t('值')}
                     value={row.value}
                     onChange={(e) => {
                       const rows = draft.rows.map((r, i) =>
@@ -1189,12 +1199,12 @@ function BranchConfigPanel({
                     ])
                   }
                 >
-                  添加条件行
+                  {t('添加条件行')}
                 </Button>
               )}
               {!draft.rows.length && (
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  尚未配置条件；发布前必须至少一行完整条件
+                  {t('尚未配置条件；发布前必须至少一行完整条件')}
                 </Text>
               )}
             </Space>
@@ -1234,6 +1244,7 @@ function NodeConfigPanel({
   roleNameOf,
   onChange,
 }: NodeConfigPanelProps) {
+  const { t } = useTranslation()
   if (node.type === 'start') {
     const fields = (node as StartNode).formFields ?? []
     return (
@@ -1241,11 +1252,11 @@ function NodeConfigPanel({
         <Alert
           type="info"
           showIcon
-          message="发起节点"
-          description="表单由业务方自持，表单字段按业务类型预置，作展示与条件求值声明。"
+          message={t('发起节点')}
+          description={t('表单由业务方自持，表单字段按业务类型预置，作展示与条件求值声明。')}
         />
         <div>
-          <Text type="secondary">节点名称</Text>
+          <Text type="secondary">{t('节点名称')}</Text>
           <Input
             style={{ marginTop: 4 }}
             value={node.name}
@@ -1255,7 +1266,7 @@ function NodeConfigPanel({
           />
         </div>
         <div>
-          <Text type="secondary">表单字段声明（只读）</Text>
+          <Text type="secondary">{t('表单字段声明（只读）')}</Text>
           <div style={{ marginTop: 6 }}>
             {fields.length ? (
               fields.map((f) => (
@@ -1264,7 +1275,7 @@ function NodeConfigPanel({
                 </Tag>
               ))
             ) : (
-              <Text type="secondary">无</Text>
+              <Text type="secondary">{t('无')}</Text>
             )}
           </div>
         </div>
@@ -1278,17 +1289,17 @@ function NodeConfigPanel({
         <Alert
           type="info"
           showIcon
-          message="条件分支节点（排他）"
-          description="按发起表单快照从上到下求值各分支条件，进入第一个命中的分支；全不命中走默认分支。点击下方分支卡片配置各分支的条件。"
+          message={t('条件分支节点（排他）')}
+          description={t('按发起表单快照从上到下求值各分支条件，进入第一个命中的分支；全不命中走默认分支。点击下方分支卡片配置各分支的条件。')}
         />
         <div>
-          <Text type="secondary">节点名称</Text>
+          <Text type="secondary">{t('节点名称')}</Text>
           <Input
             style={{ marginTop: 4 }}
             value={node.name}
             disabled={readOnly}
             maxLength={128}
-            placeholder="如：金额分流"
+            placeholder={t('如：金额分流')}
             onChange={(e) => onChange({ name: e.target.value })}
           />
         </div>
@@ -1306,15 +1317,15 @@ function NodeConfigPanel({
           size="small"
           bordered
           items={[
-            { key: 'name', label: '节点名称', children: cc.name || '-' },
+            { key: 'name', label: t('节点名称'), children: cc.name || '-' },
             {
               key: 'type',
-              label: '抄送对象规则',
-              children: BPM_ASSIGNEE_TYPE_META[rule.type] ?? rule.type,
+              label: t('抄送对象规则'),
+              children: t(BPM_ASSIGNEE_TYPE_META[rule.type] ?? rule.type),
             },
             {
               key: 'who',
-              label: '抄送对象',
+              label: t('抄送对象'),
               children:
                 rule.type === 'users'
                   ? (rule.userIds ?? []).map(userNameOf).join('、') || '-'
@@ -1331,28 +1342,28 @@ function NodeConfigPanel({
         <Alert
           type="info"
           showIcon
-          message="抄送节点"
-          description="流程流转到此处时给抄送对象落抄送记录并发站内信，不阻塞流程推进。"
+          message={t('抄送节点')}
+          description={t('流程流转到此处时给抄送对象落抄送记录并发站内信，不阻塞流程推进。')}
         />
         <div>
-          <Text type="secondary">节点名称</Text>
+          <Text type="secondary">{t('节点名称')}</Text>
           <Input
             style={{ marginTop: 4 }}
             value={cc.name}
             maxLength={128}
-            placeholder="如：抄送财务"
+            placeholder={t('如：抄送财务')}
             onChange={(e) => onChange({ name: e.target.value })}
           />
         </div>
         <div>
-          <Text type="secondary">抄送对象规则（仅支持用户 / 角色）</Text>
+          <Text type="secondary">{t('抄送对象规则（仅支持用户 / 角色）')}</Text>
           <div style={{ marginTop: 6 }}>
             <Segmented
               block
               value={rule.type === 'roles' ? 'roles' : 'users'}
               options={[
-                { label: '指定用户', value: 'users' },
-                { label: '指定角色', value: 'roles' },
+                { label: t('指定用户'), value: 'users' },
+                { label: t('指定角色'), value: 'roles' },
               ]}
               onChange={(v) => onChange({ targets: { ...rule, type: v as 'users' | 'roles' } })}
             />
@@ -1360,13 +1371,13 @@ function NodeConfigPanel({
         </div>
         {rule.type !== 'roles' && (
           <div>
-            <Text type="secondary">抄送用户（多选）</Text>
+            <Text type="secondary">{t('抄送用户（多选）')}</Text>
             <Select
               mode="multiple"
               showSearch
               optionFilterProp="label"
               style={{ width: '100%', marginTop: 4 }}
-              placeholder="选择抄送用户"
+              placeholder={t('选择抄送用户')}
               value={rule.userIds ?? []}
               options={users.map((u) => ({ value: u.id, label: u.nickname || u.username }))}
               onChange={(v: number[]) => onChange({ targets: { ...rule, type: 'users', userIds: v } })}
@@ -1375,13 +1386,13 @@ function NodeConfigPanel({
         )}
         {rule.type === 'roles' && (
           <div>
-            <Text type="secondary">抄送角色（该角色下所有用户均收到抄送）</Text>
+            <Text type="secondary">{t('抄送角色（该角色下所有用户均收到抄送）')}</Text>
             <Select
               mode="multiple"
               showSearch
               optionFilterProp="label"
               style={{ width: '100%', marginTop: 4 }}
-              placeholder="选择抄送角色"
+              placeholder={t('选择抄送角色')}
               value={rule.roleIds ?? []}
               options={roles.map((r) => ({ value: r.id, label: r.name }))}
               onChange={(v: number[]) => onChange({ targets: { ...rule, type: 'roles', roleIds: v } })}
@@ -1397,8 +1408,8 @@ function NodeConfigPanel({
       <Alert
         type="warning"
         showIcon
-        message="暂不支持编辑"
-        description="简版设计器暂不支持编辑此类型节点；该节点将在保存时原样保留。"
+        message={t('暂不支持编辑')}
+        description={t('简版设计器暂不支持编辑此类型节点；该节点将在保存时原样保留。')}
       />
     )
   }
@@ -1413,15 +1424,15 @@ function NodeConfigPanel({
         size="small"
         bordered
         items={[
-          { key: 'name', label: '节点名称', children: approval.name || '-' },
+          { key: 'name', label: t('节点名称'), children: approval.name || '-' },
           {
             key: 'assignee',
-            label: '审批人规则',
-            children: BPM_ASSIGNEE_TYPE_META[rule.type] ?? rule.type,
+            label: t('审批人规则'),
+            children: t(BPM_ASSIGNEE_TYPE_META[rule.type] ?? rule.type),
           },
           {
             key: 'who',
-            label: '审批人',
+            label: t('审批人'),
             children:
               rule.type === 'users'
                 ? (rule.userIds ?? []).map(userNameOf).join('、') || '-'
@@ -1429,16 +1440,16 @@ function NodeConfigPanel({
                   ? (rule.roleIds ?? []).map(roleNameOf).join('、') || '-'
                   : rule.type === 'dept_leader'
                     ? (rule.deptLeaderBase ?? 'initiator') === 'form_field'
-                      ? `表单字段「${rule.deptFormField || '-'}」指定部门的主管`
-                      : '发起人所在部门的主管'
-                    : '发起时指定',
+                      ? t('表单字段「{{field}}」指定部门的主管', { field: rule.deptFormField || '-' })
+                      : t('发起人所在部门的主管')
+                    : t('发起时指定'),
           },
           ...(rule.type === 'dept_leader'
             ? [
                 {
                   key: 'fallback',
-                  label: '主管空缺兜底',
-                  children: `${BPM_EMPTY_FALLBACK_META[rule.emptyFallback ?? 'suspend'] ?? rule.emptyFallback}${
+                  label: t('主管空缺兜底'),
+                  children: `${t(BPM_EMPTY_FALLBACK_META[rule.emptyFallback ?? 'suspend'] ?? rule.emptyFallback)}${
                     rule.emptyFallback === 'to_users'
                       ? `：${(rule.fallbackUserIds ?? []).map(userNameOf).join('、') || '-'}`
                       : ''
@@ -1448,23 +1459,23 @@ function NodeConfigPanel({
             : []),
           {
             key: 'mode',
-            label: '多人模式',
-            children: BPM_MULTI_MODE_META[approval.multiMode] ?? approval.multiMode,
+            label: t('多人模式'),
+            children: t(BPM_MULTI_MODE_META[approval.multiMode] ?? approval.multiMode),
           },
           {
             key: 'onReject',
-            label: '拒绝后走向',
-            children: BPM_ON_REJECT_META[approval.onReject ?? 'reject'] ?? approval.onReject,
+            label: t('拒绝后走向'),
+            children: t(BPM_ON_REJECT_META[approval.onReject ?? 'reject'] ?? approval.onReject),
           },
           {
             key: 'backPrev',
-            label: '允许退回上一节点',
-            children: approval.allowBackPrev ? '允许' : '不允许',
+            label: t('允许退回上一节点'),
+            children: approval.allowBackPrev ? t('允许') : t('不允许'),
           },
           {
             key: 'timeout',
-            label: '超时提醒',
-            children: approval.timeoutHours ? `${approval.timeoutHours} 小时` : '不提醒',
+            label: t('超时提醒'),
+            children: approval.timeoutHours ? t('{{n}} 小时', { n: approval.timeoutHours }) : t('不提醒'),
           },
         ]}
       />
@@ -1474,27 +1485,27 @@ function NodeConfigPanel({
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <div>
-        <Text type="secondary">节点名称</Text>
+        <Text type="secondary">{t('节点名称')}</Text>
         <Input
           style={{ marginTop: 4 }}
           value={approval.name}
           maxLength={128}
-          placeholder="如：部门经理审批"
+          placeholder={t('如：部门经理审批')}
           onChange={(e) => onChange({ name: e.target.value })}
         />
       </div>
 
       <div>
-        <Text type="secondary">审批人规则</Text>
+        <Text type="secondary">{t('审批人规则')}</Text>
         <div style={{ marginTop: 6 }}>
           <Segmented
             block
             value={rule.type}
             options={[
-              { label: '指定用户', value: 'users' },
-              { label: '指定角色', value: 'roles' },
-              { label: '部门主管', value: 'dept_leader' },
-              { label: '发起人自选', value: 'self_select' },
+              { label: t('指定用户'), value: 'users' },
+              { label: t('指定角色'), value: 'roles' },
+              { label: t('部门主管'), value: 'dept_leader' },
+              { label: t('发起人自选'), value: 'self_select' },
             ]}
             onChange={(v) => {
               const type = v as AssigneeRule['type']
@@ -1517,13 +1528,13 @@ function NodeConfigPanel({
 
       {rule.type === 'users' && (
         <div>
-          <Text type="secondary">审批用户（多选；「依次」模式按此顺序逐个审批）</Text>
+          <Text type="secondary">{t('审批用户（多选；「依次」模式按此顺序逐个审批）')}</Text>
           <Select
             mode="multiple"
             showSearch
             optionFilterProp="label"
             style={{ width: '100%', marginTop: 4 }}
-            placeholder="选择审批用户"
+            placeholder={t('选择审批用户')}
             value={rule.userIds ?? []}
             options={users.map((u) => ({ value: u.id, label: u.nickname || u.username }))}
             onChange={(v: number[]) => onChange({ assignee: { ...rule, userIds: v } })}
@@ -1533,13 +1544,13 @@ function NodeConfigPanel({
 
       {rule.type === 'roles' && (
         <div>
-          <Text type="secondary">审批角色（该角色下所有用户为候选审批人）</Text>
+          <Text type="secondary">{t('审批角色（该角色下所有用户为候选审批人）')}</Text>
           <Select
             mode="multiple"
             showSearch
             optionFilterProp="label"
             style={{ width: '100%', marginTop: 4 }}
-            placeholder="选择审批角色"
+            placeholder={t('选择审批角色')}
             value={rule.roleIds ?? []}
             options={roles.map((r) => ({ value: r.id, label: r.name }))}
             onChange={(v: number[]) => onChange({ assignee: { ...rule, roleIds: v } })}
@@ -1550,14 +1561,14 @@ function NodeConfigPanel({
       {rule.type === 'dept_leader' && (
         <>
           <div>
-            <Text type="secondary">主管取自谁的部门（基准）</Text>
+            <Text type="secondary">{t('主管取自谁的部门（基准）')}</Text>
             <div style={{ marginTop: 6 }}>
               <Segmented
                 block
                 value={rule.deptLeaderBase ?? 'initiator'}
                 options={[
-                  { label: BPM_DEPT_LEADER_BASE_META.initiator, value: 'initiator' },
-                  { label: BPM_DEPT_LEADER_BASE_META.form_field, value: 'form_field' },
+                  { label: t(BPM_DEPT_LEADER_BASE_META.initiator), value: 'initiator' },
+                  { label: t(BPM_DEPT_LEADER_BASE_META.form_field), value: 'form_field' },
                 ]}
                 onChange={(v) =>
                   onChange({
@@ -1569,13 +1580,13 @@ function NodeConfigPanel({
           </div>
           {(rule.deptLeaderBase ?? 'initiator') === 'form_field' && (
             <div>
-              <Text type="secondary">部门来源字段名（表单快照中存部门 ID 的字段）</Text>
+              <Text type="secondary">{t('部门来源字段名（表单快照中存部门 ID 的字段）')}</Text>
               {formFields.length ? (
                 <Select
                   showSearch
                   allowClear
                   style={{ width: '100%', marginTop: 4 }}
-                  placeholder="选择表单字段"
+                  placeholder={t('选择表单字段')}
                   value={rule.deptFormField || undefined}
                   options={formFields.map((f) => ({ value: f, label: f }))}
                   onChange={(v?: string) =>
@@ -1586,7 +1597,7 @@ function NodeConfigPanel({
                 <Input
                   style={{ marginTop: 4 }}
                   className="cell-mono"
-                  placeholder="如 department_id"
+                  placeholder={t('如 department_id')}
                   maxLength={64}
                   value={rule.deptFormField ?? ''}
                   onChange={(e) =>
@@ -1597,28 +1608,28 @@ function NodeConfigPanel({
             </div>
           )}
           <div>
-            <Text type="secondary">找不到主管时的兜底（空结果处理）</Text>
+            <Text type="secondary">{t('找不到主管时的兜底（空结果处理）')}</Text>
             <div style={{ marginTop: 6 }}>
               <Radio.Group
                 value={rule.emptyFallback ?? 'suspend'}
                 onChange={(e) => onChange({ assignee: { ...rule, emptyFallback: e.target.value } })}
                 options={[
-                  { label: BPM_EMPTY_FALLBACK_META.auto_pass, value: 'auto_pass' },
-                  { label: BPM_EMPTY_FALLBACK_META.to_users, value: 'to_users' },
-                  { label: BPM_EMPTY_FALLBACK_META.suspend, value: 'suspend' },
+                  { label: t(BPM_EMPTY_FALLBACK_META.auto_pass), value: 'auto_pass' },
+                  { label: t(BPM_EMPTY_FALLBACK_META.to_users), value: 'to_users' },
+                  { label: t(BPM_EMPTY_FALLBACK_META.suspend), value: 'suspend' },
                 ]}
               />
             </div>
           </div>
           {rule.emptyFallback === 'to_users' && (
             <div>
-              <Text type="secondary">兜底审批人（多选）</Text>
+              <Text type="secondary">{t('兜底审批人（多选）')}</Text>
               <Select
                 mode="multiple"
                 showSearch
                 optionFilterProp="label"
                 style={{ width: '100%', marginTop: 4 }}
-                placeholder="主管空缺时转交这些人审批"
+                placeholder={t('主管空缺时转交这些人审批')}
                 value={rule.fallbackUserIds ?? []}
                 options={users.map((u) => ({ value: u.id, label: u.nickname || u.username }))}
                 onChange={(v: number[]) => onChange({ assignee: { ...rule, fallbackUserIds: v } })}
@@ -1632,55 +1643,55 @@ function NodeConfigPanel({
         <Alert
           type="info"
           showIcon
-          message="发起时由发起人指定审批人；仅允许配置在紧邻发起节点的第一个审批节点上。"
+          message={t('发起时由发起人指定审批人；仅允许配置在紧邻发起节点的第一个审批节点上。')}
         />
       )}
 
       <div>
-        <Text type="secondary">多人审批模式</Text>
+        <Text type="secondary">{t('多人审批模式')}</Text>
         <div style={{ marginTop: 6 }}>
           <Radio.Group
             value={approval.multiMode}
             onChange={(e) => onChange({ multiMode: e.target.value })}
             options={[
-              { label: BPM_MULTI_MODE_META.AND, value: 'AND' },
-              { label: BPM_MULTI_MODE_META.OR, value: 'OR' },
-              { label: BPM_MULTI_MODE_META.SEQ, value: 'SEQ' },
+              { label: t(BPM_MULTI_MODE_META.AND), value: 'AND' },
+              { label: t(BPM_MULTI_MODE_META.OR), value: 'OR' },
+              { label: t(BPM_MULTI_MODE_META.SEQ), value: 'SEQ' },
             ]}
           />
         </div>
         {approval.multiMode === 'SEQ' && (
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-            依次审批：同一时刻只有一个待办，前一人同意后流转给下一人；任一人拒绝即节点拒绝
+            {t('依次审批：同一时刻只有一个待办，前一人同意后流转给下一人；任一人拒绝即节点拒绝')}
           </Text>
         )}
       </div>
 
       <div>
-        <Text type="secondary">拒绝后走向</Text>
+        <Text type="secondary">{t('拒绝后走向')}</Text>
         <div style={{ marginTop: 6 }}>
           <Segmented
             block
             value={approval.onReject ?? 'reject'}
             options={[
-              { label: '结束流程', value: 'reject' },
-              { label: '退回发起人', value: 'back_to_start' },
+              { label: t('结束流程'), value: 'reject' },
+              { label: t('退回发起人'), value: 'back_to_start' },
             ]}
             onChange={(v) => onChange({ onReject: v as 'reject' | 'back_to_start' })}
           />
         </div>
         {approval.onReject === 'back_to_start' && (
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-            拒绝时不结束流程，退回发起人修改后可重新提交
+            {t('拒绝时不结束流程，退回发起人修改后可重新提交')}
           </Text>
         )}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <Text type="secondary">允许退回上一节点</Text>
+          <Text type="secondary">{t('允许退回上一节点')}</Text>
           <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
-            开启后审批人可将任务退回上一审批节点重审（按实际流转路径回溯）
+            {t('开启后审批人可将任务退回上一审批节点重审（按实际流转路径回溯）')}
           </Text>
         </div>
         <Switch
@@ -1690,12 +1701,12 @@ function NodeConfigPanel({
       </div>
 
       <div>
-        <Text type="secondary">超时（小时，留空不启用）</Text>
+        <Text type="secondary">{t('超时（小时，留空不启用）')}</Text>
         <InputNumber
           style={{ width: '100%', marginTop: 4 }}
           min={1}
           precision={0}
-          placeholder="如 24"
+          placeholder={t('如 24')}
           value={approval.timeoutHours ?? null}
           onChange={(v) =>
             onChange({
@@ -1707,15 +1718,15 @@ function NodeConfigPanel({
         />
         {!!approval.timeoutHours && (
           <div style={{ marginTop: 8 }}>
-            <Text type="secondary">到期动作</Text>
+            <Text type="secondary">{t('到期动作')}</Text>
             <div style={{ marginTop: 4 }}>
               <Segmented
                 block
                 value={approval.timeoutAction ?? 'remind'}
                 options={[
-                  { label: '仅提醒', value: 'remind' },
-                  { label: '自动通过', value: 'auto_pass' },
-                  { label: '自动拒绝', value: 'auto_reject' },
+                  { label: t('仅提醒'), value: 'remind' },
+                  { label: t('自动通过'), value: 'auto_pass' },
+                  { label: t('自动拒绝'), value: 'auto_reject' },
                 ]}
                 onChange={(v) =>
                   onChange({
@@ -1726,7 +1737,9 @@ function NodeConfigPanel({
             </div>
             {(approval.timeoutAction === 'auto_pass' || approval.timeoutAction === 'auto_reject') && (
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-                到期后由系统自动{approval.timeoutAction === 'auto_pass' ? '通过' : '拒绝'}该待办（时间线记系统操作）
+                {t('到期后由系统自动{{action}}该待办（时间线记系统操作）', {
+                  action: approval.timeoutAction === 'auto_pass' ? t('通过') : t('拒绝'),
+                })}
               </Text>
             )}
           </div>
@@ -1735,7 +1748,7 @@ function NodeConfigPanel({
 
       {(schemaFields?.length ?? 0) > 0 && (
         <div>
-          <Text type="secondary">表单字段可见性（对此节点隐藏的字段不出现在其任务详情）</Text>
+          <Text type="secondary">{t('表单字段可见性（对此节点隐藏的字段不出现在其任务详情）')}</Text>
           <Space direction="vertical" size={6} style={{ width: '100%', marginTop: 6 }}>
             {schemaFields!.map((f) => {
               const hidden = approval.fieldPerms?.[f.key] === 'hidden'
@@ -1752,8 +1765,8 @@ function NodeConfigPanel({
                   </span>
                   <Switch
                     size="small"
-                    checkedChildren="隐藏"
-                    unCheckedChildren="可见"
+                    checkedChildren={t('隐藏')}
+                    unCheckedChildren={t('可见')}
                     checked={hidden}
                     onChange={(checked) => {
                       const perms = { ...(approval.fieldPerms ?? {}) }

@@ -27,6 +27,7 @@ export function getTenantPackage(id: number) {
 export function createTenantPackage(data: {
   name: string
   permission_codes: string[]
+  storage_quota_mb?: number
   status?: number
   remark?: string
 }) {
@@ -35,7 +36,13 @@ export function createTenantPackage(data: {
 
 export function updateTenantPackage(
   id: number,
-  data: { name?: string; permission_codes?: string[]; status?: number; remark?: string },
+  data: {
+    name?: string
+    permission_codes?: string[]
+    storage_quota_mb?: number
+    status?: number
+    remark?: string
+  },
 ) {
   return request.put(`/api/v1/tenant-packages/${id}`, data) as Promise<TenantPackageInfo>
 }

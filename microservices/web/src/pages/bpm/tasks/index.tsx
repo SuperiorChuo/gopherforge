@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Badge, Button, Card, Drawer, Space, Table, Tabs, Tag, Typography } from 'antd'
 import { AuditOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -30,6 +31,7 @@ interface SearchParams {
 }
 
 export default function BpmTasksPage() {
+  const { t } = useTranslation()
   const [list, setList] = useState<BpmTask[]>([])
   const [ccList, setCcList] = useState<BpmCcRecord[]>([])
   const [total, setTotal] = useState(0)
@@ -46,9 +48,9 @@ export default function BpmTasksPage() {
 
   const loadActions = async (rows: BpmTask[]) => {
     const entries = await Promise.all(
-      rows.map(async (t) => {
-        const d = await getTask(t.id, true).catch(() => null)
-        return [t.id, d?.actions] as const
+      rows.map(async (task) => {
+        const d = await getTask(task.id, true).catch(() => null)
+        return [task.id, d?.actions] as const
       }),
     )
     setActionsMap((prev) => {
@@ -118,13 +120,13 @@ export default function BpmTasksPage() {
   }
 
   const titleColumn: ColumnsType<BpmTask>[number] = {
-    title: '审批事项',
+    title: t('审批事项'),
     render: (_, row) => (
       <div>
-        <span style={{ fontWeight: 500 }}>{row.instance_title || `实例 #${row.instance_id}`}</span>
+        <span style={{ fontWeight: 500 }}>{row.instance_title || t('实例 #{{n}}', { n: row.instance_id })}</span>
         <div>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {displayUserName(userMap, row.initiator_id)} 发起
+            {t('{{name}} 发起', { name: displayUserName(userMap, row.initiator_id) })}
             {row.biz_type ? ` · ${row.biz_type}` : ''}
           </Text>
         </div>
@@ -133,15 +135,15 @@ export default function BpmTasksPage() {
   }
 
   const nodeColumn: ColumnsType<BpmTask>[number] = {
-    title: '节点',
+    title: t('节点'),
     dataIndex: 'node_name',
     width: 200,
     responsive: ['sm'],
     render: (v: string, row) => (
       <Space size={4} wrap>
         <Tag>{v || '-'}</Tag>
-        {row.delegated_by ? <Tag color="geekblue">委派办理</Tag> : null}
-        {row.add_sign_by ? <Tag color="purple">加签</Tag> : null}
+        {row.delegated_by ? <Tag color="geekblue">{t('委派办理')}</Tag> : null}
+        {row.add_sign_by ? <Tag color="purple">{t('加签')}</Tag> : null}
       </Space>
     ),
   }
@@ -149,9 +151,9 @@ export default function BpmTasksPage() {
   const todoColumns: ColumnsType<BpmTask> = [
     titleColumn,
     nodeColumn,
-    { title: '到达时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['md'] },
+    { title: t('到达时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['md'] },
     {
-      title: '超时提醒',
+      title: t('超时提醒'),
       dataIndex: 'timeout_at',
       width: 170,
       responsive: ['lg'],
@@ -160,14 +162,14 @@ export default function BpmTasksPage() {
         const overdue = new Date(v).getTime() < Date.now()
         return (
           <Text type={overdue ? 'danger' : 'secondary'} style={{ fontSize: 13 }}>
-            {overdue ? '已超时 · ' : ''}
+            {overdue ? t('已超时 · ') : ''}
             {formatDateTime(v)}
           </Text>
         )
       },
     },
     {
-      title: '操作',
+      title: t('操作'),
       width: 250,
       responsive: ['md'],
       render: (_, row) => <BpmTaskActions task={row} actions={actionsMap[row.id]} onDone={refresh} />,
@@ -178,7 +180,7 @@ export default function BpmTasksPage() {
     titleColumn,
     nodeColumn,
     {
-      title: '处理结果',
+      title: t('处理结果'),
       dataIndex: 'status',
       width: 110,
       render: (v: string) => {
@@ -187,51 +189,51 @@ export default function BpmTasksPage() {
       },
     },
     {
-      title: '审批意见',
+      title: t('审批意见'),
       dataIndex: 'comment',
       ellipsis: true,
       responsive: ['md'],
       render: (v?: string) => v || <span className="cell-muted">—</span>,
     },
-    { title: '处理时间', dataIndex: 'acted_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
+    { title: t('处理时间'), dataIndex: 'acted_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
   ]
 
   const ccColumns: ColumnsType<BpmCcRecord> = [
     {
-      title: '审批事项',
+      title: t('审批事项'),
       render: (_, row) => (
         <div>
           <Space size={6}>
             {!row.read_at && <Badge status="processing" />}
             <span style={{ fontWeight: row.read_at ? 400 : 600 }}>
-              {row.instance_title || `实例 #${row.instance_id}`}
+              {row.instance_title || t('实例 #{{n}}', { n: row.instance_id })}
             </span>
           </Space>
           <div>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {displayUserName(userMap, row.initiator_id)} 发起
+              {t('{{name}} 发起', { name: displayUserName(userMap, row.initiator_id) })}
             </Text>
           </div>
         </div>
       ),
     },
     {
-      title: '抄送节点',
+      title: t('抄送节点'),
       dataIndex: 'node_name',
       width: 160,
       responsive: ['sm'],
       render: (v: string) => <Tag>{v || '-'}</Tag>,
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'read_at',
       width: 100,
       responsive: ['md'],
-      render: (v?: string) => (v ? <Tag>已读</Tag> : <Tag color="processing">未读</Tag>),
+      render: (v?: string) => (v ? <Tag>{t('已读')}</Tag> : <Tag color="processing">{t('未读')}</Tag>),
     },
-    { title: '抄送时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
+    { title: t('抄送时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
-      title: '操作',
+      title: t('操作'),
       width: 90,
       render: (_, row) => (
         <Button
@@ -243,7 +245,7 @@ export default function BpmTasksPage() {
             openCc(row)
           }}
         >
-          查看
+          {t('查看')}
         </Button>
       ),
     },
@@ -254,7 +256,7 @@ export default function BpmTasksPage() {
     current: params.page,
     pageSize: params.page_size,
     showSizeChanger: true,
-    showTotal: (t: number) => `共 ${t} 条`,
+    showTotal: (n: number) => t('共 {{n}} 条', { n }),
     onChange: (page: number, page_size: number) => setParams({ ...params, page, page_size }),
   }
 
@@ -270,7 +272,7 @@ export default function BpmTasksPage() {
           description="待我审批、我已处理与抄送我的审批；展开行可查看流转时间线"
           extra={
             <Button icon={<ReloadOutlined />} onClick={refresh}>
-              刷新
+              {t('刷新')}
             </Button>
           }
         />
@@ -278,13 +280,13 @@ export default function BpmTasksPage() {
           activeKey={tab}
           onChange={(key) => setParams({ ...params, tab: key, page: 1 })}
           items={[
-            { key: 'todo', label: '待我审批' },
-            { key: 'done', label: '我已处理' },
+            { key: 'todo', label: t('待我审批') },
+            { key: 'done', label: t('我已处理') },
             {
               key: 'cc',
               label: (
                 <Badge count={ccUnread} size="small" offset={[10, -2]}>
-                  抄送我的
+                  {t('抄送我的')}
                 </Badge>
               ),
             },
@@ -336,7 +338,7 @@ export default function BpmTasksPage() {
       </Card>
 
       <Drawer
-        title={ccDetail ? ccDetail.instance_title || `实例 #${ccDetail.instance_id}` : '审批详情'}
+        title={ccDetail ? ccDetail.instance_title || t('实例 #{{n}}', { n: ccDetail.instance_id }) : t('审批详情')}
         open={!!ccDetail}
         onClose={() => setCcDetail(null)}
         width={520}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
   Card, InputNumber, Row, Col, TreeSelect, Segmented, Tooltip,
@@ -65,6 +66,7 @@ export default function DepartmentPage() {
   const [expandedKeys, setExpandedKeys] = useState<readonly React.Key[]>([])
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
+  const { t } = useTranslation()
   const { hasPerm } = usePermission()
   // 部门主管选人与列表主管姓名展示共用一份用户映射（模块级缓存，403 静默降级）
   const userMap = useUserNameMap()
@@ -80,7 +82,7 @@ export default function DepartmentPage() {
       setList(res.list)
       setTotal(res.total)
     } catch {
-      message.error('获取部门列表失败')
+      message.error(t('获取部门列表失败'))
     } finally {
       setLoading(false)
     }
@@ -93,7 +95,7 @@ export default function DepartmentPage() {
       setTree(res ?? [])
       setExpandedKeys(collectExpandableKeys(res ?? []))
     } catch {
-      message.error('获取部门树失败')
+      message.error(t('获取部门树失败'))
     } finally {
       setLoading(false)
     }
@@ -156,10 +158,10 @@ export default function DepartmentPage() {
   const handleDelete = async (id: number) => {
     try {
       await DeptAPI.deleteDepartment(id)
-      message.success('删除成功')
+      message.success(t('删除成功'))
       refresh()
     } catch {
-      message.error('删除失败')
+      message.error(t('删除失败'))
     }
   }
 
@@ -172,15 +174,15 @@ export default function DepartmentPage() {
       const payload = { ...values, parent_id: values.parent_id ?? 0, leader_user_id: values.leader_user_id ?? 0 }
       if (editRecord) {
         await DeptAPI.updateDepartment(editRecord.id, payload)
-        message.success('更新成功')
+        message.success(t('更新成功'))
       } else {
         await DeptAPI.createDepartment(payload)
-        message.success('创建成功')
+        message.success(t('创建成功'))
       }
       setModalOpen(false)
       refresh()
     } catch {
-      message.error('操作失败')
+      message.error(t('操作失败'))
     } finally {
       setSubmitting(false)
     }
@@ -188,7 +190,7 @@ export default function DepartmentPage() {
 
   const columns: ColumnsType<Department> = [
     {
-      title: '名称',
+      title: t('名称'),
       dataIndex: 'name',
       width: 300,
       ellipsis: true,
@@ -200,41 +202,41 @@ export default function DepartmentPage() {
       ),
     },
     {
-      title: '编码',
+      title: t('编码'),
       dataIndex: 'code',
       width: 200,
       render: (v: string) => <Tag variant="filled" className="cell-mono department-code-tag">{v}</Tag>,
     },
     {
-      title: '部门主管',
+      title: t('部门主管'),
       dataIndex: 'leader_user_id',
       width: 130,
       // 优先展示主管选人（leader_user_id → 姓名），未设置时回退旧的负责人文本字段
       render: (v: number | undefined, record) =>
         v ? displayUserName(userMap, v) : record.leader || <span className="cell-muted">—</span>,
     },
-    { title: '排序', dataIndex: 'sort', width: 70 },
+    { title: t('排序'), dataIndex: 'sort', width: 70 },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 80,
       render: (v: number) => <EnableStatusPill value={v} />,
     },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
+    { title: t('创建时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
     {
-      title: '操作',
+      title: t('操作'),
       width: 96,
       render: (_, record) => (
         <Space size={4} className="table-actions department-row-actions">
           {hasPerm('system:department:update') && (
-            <Tooltip title="编辑">
-              <Button type="text" size="small" aria-label="编辑部门" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Tooltip title={t('编辑')}>
+              <Button type="text" size="small" aria-label={t('编辑部门')} icon={<EditOutlined />} onClick={() => openEdit(record)} />
             </Tooltip>
           )}
           {hasPerm('system:department:delete') && (
-            <Popconfirm title="确认删除该部门?" onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title="删除">
-                <Button type="text" size="small" danger aria-label="删除部门" icon={<DeleteOutlined />} />
+            <Popconfirm title={t('确认删除该部门?')} onConfirm={() => handleDelete(record.id)}>
+              <Tooltip title={t('删除')}>
+                <Button type="text" size="small" danger aria-label={t('删除部门')} icon={<DeleteOutlined />} />
               </Tooltip>
             </Popconfirm>
           )}
@@ -256,18 +258,18 @@ export default function DepartmentPage() {
           initialValues={params}
         >
           <Form.Item name="keyword">
-            <Input placeholder="搜索名称 / 编码" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
+            <Input placeholder={t('搜索名称 / 编码')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
           <Form.Item name="status">
-            <Select placeholder="状态" style={{ width: 100 }} allowClear>
-              <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
+            <Select placeholder={t('状态')} style={{ width: 100 }} allowClear>
+              <Select.Option value={1}>{t('启用')}</Select.Option>
+              <Select.Option value={0}>{t('禁用')}</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
           <Form.Item style={{ marginInlineEnd: 0, marginLeft: 'auto' }}>
@@ -275,8 +277,8 @@ export default function DepartmentPage() {
               value={view}
               onChange={(v) => setView(v as 'tree' | 'list')}
               options={[
-                { label: '树形', value: 'tree' },
-                { label: '列表', value: 'list' },
+                { label: t('树形'), value: 'tree' },
+                { label: t('列表'), value: 'list' },
               ]}
             />
           </Form.Item>
@@ -289,9 +291,9 @@ export default function DepartmentPage() {
           total={isTree ? countTree(tree) : total}
           extra={
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={refresh}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={refresh}>{t('刷新')}</Button>
               {hasPerm('system:department:create') && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增部门</Button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增部门')}</Button>
               )}
             </Space>
           }
@@ -315,7 +317,7 @@ export default function DepartmentPage() {
                   pageSize: params.page_size,
                   showSizeChanger: true,
                   showQuickJumper: true,
-                  showTotal: (t) => `共 ${t} 条`,
+                  showTotal: (n) => t('共 {{n}} 条', { n }),
                   onChange: (page, page_size) => setParams({ ...params, page, page_size }),
                 }
           }
@@ -323,7 +325,7 @@ export default function DepartmentPage() {
       </Card>
 
       <Modal
-        title={editRecord ? '编辑部门' : '新增部门'}
+        title={editRecord ? t('编辑部门') : t('新增部门')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
@@ -334,22 +336,22 @@ export default function DepartmentPage() {
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+              <Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('请输入名称') }]}>
                 <Input />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="code" label="编码" rules={[{ required: true, message: '请输入编码' }]}>
+              <Form.Item name="code" label={t('编码')} rules={[{ required: true, message: t('请输入编码') }]}>
                 <Input />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="parent_id" label="上级部门">
+              <Form.Item name="parent_id" label={t('上级部门')}>
                 <TreeSelect
                   treeData={treeSelectData}
-                  placeholder="不选则为顶级部门"
+                  placeholder={t('不选则为顶级部门')}
                   allowClear
                   showSearch
                   treeDefaultExpandAll
@@ -358,7 +360,7 @@ export default function DepartmentPage() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="sort" label="排序" initialValue={0}>
+              <Form.Item name="sort" label={t('排序')} initialValue={0}>
                 <InputNumber style={{ width: '100%' }} min={0} />
               </Form.Item>
             </Col>
@@ -367,42 +369,42 @@ export default function DepartmentPage() {
             <Col span={12}>
               <Form.Item
                 name="leader_user_id"
-                label="部门主管"
-                tooltip="审批流「部门主管」规则据此取主管；可清空"
+                label={t('部门主管')}
+                tooltip={t('审批流「部门主管」规则据此取主管；可清空')}
               >
                 <Select
                   showSearch
                   allowClear
                   optionFilterProp="label"
-                  placeholder="选择主管用户（可清空）"
+                  placeholder={t('选择主管用户（可清空）')}
                   options={userOptions}
                 />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="leader" label="负责人（备注名）">
+              <Form.Item name="leader" label={t('负责人（备注名）')}>
                 <Input />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="phone" label="电话">
+              <Form.Item name="phone" label={t('电话')}>
                 <Input />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="email" label="邮箱" rules={[{ type: 'email', message: '邮箱格式不正确' }]}>
+              <Form.Item name="email" label={t('邮箱')} rules={[{ type: 'email', message: t('邮箱格式不正确') }]}>
                 <Input />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="status" label="状态" initialValue={1}>
+              <Form.Item name="status" label={t('状态')} initialValue={1}>
                 <Select>
-                  <Select.Option value={1}>启用</Select.Option>
-                  <Select.Option value={0}>禁用</Select.Option>
+                  <Select.Option value={1}>{t('启用')}</Select.Option>
+                  <Select.Option value={0}>{t('禁用')}</Select.Option>
                 </Select>
               </Form.Item>
             </Col>

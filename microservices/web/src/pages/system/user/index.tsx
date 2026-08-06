@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select, Alert,
   Card, Row, Col, Avatar, Tooltip, Switch,
@@ -54,7 +55,8 @@ function UserTagList({
   emptyText?: string
   colorize?: boolean
 }) {
-  if (!items?.length) return <span className="cell-muted">{emptyText}</span>
+  const { t } = useTranslation()
+  if (!items?.length) return <span className="cell-muted">{t(emptyText)}</span>
 
   const visible = items.slice(0, 2)
   const remaining = items.length - visible.length
@@ -79,6 +81,7 @@ function UserTagList({
 }
 
 export default function UserPage() {
+  const { t } = useTranslation()
   const [list, setList] = useState<UserRow[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -115,7 +118,7 @@ export default function UserPage() {
       setList(res.list)
       setTotal(res.total)
     } catch {
-      message.error('获取用户列表失败')
+      message.error(t('获取用户列表失败'))
     } finally {
       setLoading(false)
     }
@@ -189,10 +192,10 @@ export default function UserPage() {
     setResetting(true)
     try {
       await UserAPI.resetUserPassword(resetRecord.id, values.password, values.must_change)
-      message.success('密码已重置，该用户的登录会话已全部失效')
+      message.success(t('密码已重置，该用户的登录会话已全部失效'))
       setResetRecord(null)
     } catch (err: unknown) {
-      message.error(err instanceof Error ? err.message : '重置失败')
+      message.error(err instanceof Error ? err.message : t('重置失败'))
     } finally {
       setResetting(false)
     }
@@ -201,14 +204,14 @@ export default function UserPage() {
   const handleDelete = async (id: number) => {
     try {
       await UserAPI.deleteUser(id)
-      message.success('删除成功')
+      message.success(t('删除成功'))
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
         fetchList(params)
       }
     } catch {
-      message.error('删除失败')
+      message.error(t('删除失败'))
     }
   }
 
@@ -227,18 +230,18 @@ export default function UserPage() {
         if (role_ids !== undefined) {
           await UserAPI.assignUserRoles(editRecord.id, role_ids ?? [])
         }
-        message.success('更新成功')
+        message.success(t('更新成功'))
       } else {
         const created = await UserAPI.createUser(rest)
         if (role_ids?.length) {
           await UserAPI.assignUserRoles(created.id, role_ids)
         }
-        message.success('创建成功')
+        message.success(t('创建成功'))
       }
       setModalOpen(false)
       fetchList(params)
     } catch {
-      message.error('操作失败')
+      message.error(t('操作失败'))
     } finally {
       setSubmitting(false)
     }
@@ -246,7 +249,7 @@ export default function UserPage() {
 
   const columns: ColumnsType<UserRow> = [
     {
-      title: '用户',
+      title: t('用户'),
       dataIndex: 'username',
       width: 220,
       render: (_, record) => (
@@ -262,14 +265,14 @@ export default function UserPage() {
           <div className="user-cell-text">
             <div className="user-cell-name">{record.username}</div>
             <div className="user-cell-sub">
-              {record.nickname || <span className="cell-muted">未设置昵称</span>}
+              {record.nickname || <span className="cell-muted">{t('未设置昵称')}</span>}
             </div>
           </div>
         </div>
       ),
     },
     {
-      title: '联系方式',
+      title: t('联系方式'),
       key: 'contact',
       width: 240,
       ellipsis: true,
@@ -284,7 +287,7 @@ export default function UserPage() {
       ),
     },
     {
-      title: '部门',
+      title: t('部门'),
       dataIndex: 'department_id',
       width: 140,
       ellipsis: true,
@@ -297,21 +300,21 @@ export default function UserPage() {
         ),
     },
     {
-      title: '岗位',
+      title: t('岗位'),
       dataIndex: 'posts',
       width: 180,
       responsive: ['lg'],
       render: (userPosts: UserRow['posts']) => <UserTagList items={userPosts} />,
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 96,
       responsive: ['sm'],
       render: (v: number) => <EnableStatusPill value={v} />,
     },
     {
-      title: '角色',
+      title: t('角色'),
       dataIndex: 'roles',
       width: 220,
       responsive: ['md'],
@@ -320,7 +323,7 @@ export default function UserPage() {
       ),
     },
     {
-      title: '创建时间',
+      title: t('创建时间'),
       dataIndex: 'created_at',
       width: 168,
       className: 'cell-time',
@@ -328,24 +331,24 @@ export default function UserPage() {
       render: formatDateTime,
     },
     {
-      title: '操作',
+      title: t('操作'),
       width: 132,
       render: (_, record) => (
         <Space size={4} className="table-actions user-row-actions">
           {hasPerm('system:user:update') && (
-            <Tooltip title="编辑">
-              <Button type="text" size="small" aria-label="编辑用户" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Tooltip title={t('编辑')}>
+              <Button type="text" size="small" aria-label={t('编辑用户')} icon={<EditOutlined />} onClick={() => openEdit(record)} />
             </Tooltip>
           )}
           {hasPerm('system:user:update') && (
-            <Tooltip title="重置密码">
-              <Button type="text" size="small" aria-label="重置用户密码" icon={<KeyOutlined />} onClick={() => openReset(record)} />
+            <Tooltip title={t('重置密码')}>
+              <Button type="text" size="small" aria-label={t('重置用户密码')} icon={<KeyOutlined />} onClick={() => openReset(record)} />
             </Tooltip>
           )}
           {hasPerm('system:user:delete') && (
-            <Popconfirm title="确认删除该用户？" description="删除后不可恢复" onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title="删除">
-                <Button type="text" size="small" danger aria-label="删除用户" icon={<DeleteOutlined />} />
+            <Popconfirm title={t('确认删除该用户？')} description={t('删除后不可恢复')} onConfirm={() => handleDelete(record.id)}>
+              <Tooltip title={t('删除')}>
+                <Button type="text" size="small" danger aria-label={t('删除用户')} icon={<DeleteOutlined />} />
               </Tooltip>
             </Popconfirm>
           )}
@@ -362,7 +365,7 @@ export default function UserPage() {
       const res = await createInvite({ role_id: values.role_id, email: values.email })
       setInviteLink(res.link)
     } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : '创建邀请失败')
+      message.error(e instanceof Error ? e.message : t('创建邀请失败'))
     } finally {
       setInviting(false)
     }
@@ -380,7 +383,7 @@ export default function UserPage() {
         >
           <Form.Item name="keyword">
             <Input
-              placeholder="搜索用户名 / 邮箱 / 手机"
+              placeholder={t('搜索用户名 / 邮箱 / 手机')}
               prefix={<SearchOutlined />}
               allowClear
               style={{ width: 260 }}
@@ -388,22 +391,22 @@ export default function UserPage() {
           </Form.Item>
           <Form.Item name="status">
             <Select
-              placeholder="全部状态"
+              placeholder={t('全部状态')}
               style={{ width: 128 }}
               allowClear
               options={[
-                { label: '启用', value: 1 },
-                { label: '禁用', value: 0 },
+                { label: t('启用'), value: 1 },
+                { label: t('禁用'), value: 0 },
               ]}
             />
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
               <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
-                查询
+                {t('查询')}
               </Button>
               <Button icon={<ReloadOutlined />} onClick={handleReset}>
-                重置
+                {t('重置')}
               </Button>
             </Space>
           </Form.Item>
@@ -417,7 +420,7 @@ export default function UserPage() {
           extra={
             <Space wrap>
               <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>
-                刷新
+                {t('刷新')}
               </Button>
               <Button
                 icon={<DownloadOutlined />}
@@ -429,21 +432,21 @@ export default function UserPage() {
                     .finally(() => setExporting(false))
                 }}
               >
-                导出
+                {t('导出')}
               </Button>
               {hasPerm('system:user:create') && (
                 <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
-                  导入
+                  {t('导入')}
                 </Button>
               )}
               {hasPerm('system:user:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-                  新增用户
+                  {t('新增用户')}
                 </Button>
               )}
               {hasPerm('system:user:create') && (
                 <Button icon={<MailOutlined />} onClick={() => { setInviteLink(null); inviteForm.resetFields(); setInviteOpen(true) }}>
-                  邀请用户
+                  {t('邀请用户')}
                 </Button>
               )}
             </Space>
@@ -464,7 +467,7 @@ export default function UserPage() {
             pageSize: params.page_size,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
@@ -472,25 +475,25 @@ export default function UserPage() {
 
       <Modal
         className="user-form-modal"
-        title={editRecord ? '编辑用户' : '新增用户'}
+        title={editRecord ? t('编辑用户') : t('新增用户')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
         confirmLoading={submitting}
         destroyOnHidden
         width={560}
-        okText={editRecord ? '保存' : '创建'}
+        okText={editRecord ? t('保存') : t('创建')}
       >
         <Form form={form} layout="vertical" className="user-form" style={{ marginTop: 8 }}>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
-                <Input disabled={!!editRecord} placeholder="登录账号" autoComplete="off" />
+              <Form.Item name="username" label={t('用户名')} rules={[{ required: true, message: t('请输入用户名') }]}>
+                <Input disabled={!!editRecord} placeholder={t('登录账号')} autoComplete="off" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="nickname" label="昵称">
-                <Input placeholder="显示名称" />
+              <Form.Item name="nickname" label={t('昵称')}>
+                <Input placeholder={t('显示名称')} />
               </Form.Item>
             </Col>
           </Row>
@@ -498,69 +501,69 @@ export default function UserPage() {
             <Col span={12}>
               <Form.Item
                 name="email"
-                label="邮箱"
+                label={t('邮箱')}
                 rules={[
-                  { type: 'email', message: '邮箱格式不正确' },
-                  ...(editRecord ? [{ required: true, message: '请输入邮箱' }] : []),
+                  { type: 'email', message: t('邮箱格式不正确') },
+                  ...(editRecord ? [{ required: true, message: t('请输入邮箱') }] : []),
                 ]}
               >
                 <Input placeholder="name@example.com" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="phone" label="手机号">
-                <Input placeholder="可选" />
+              <Form.Item name="phone" label={t('手机号')}>
+                <Input placeholder={t('可选')} />
               </Form.Item>
             </Col>
           </Row>
           {!editRecord && (
             <Form.Item
               name="password"
-              label="密码"
+              label={t('密码')}
               rules={[
-                { required: true, message: '请输入密码' },
-                { min: 6, message: '密码至少 6 位' },
+                { required: true, message: t('请输入密码') },
+                { min: 6, message: t('密码至少 6 位') },
               ]}
             >
-              <Input.Password placeholder="至少 6 位" autoComplete="new-password" />
+              <Input.Password placeholder={t('至少 6 位')} autoComplete="new-password" />
             </Form.Item>
           )}
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="status" label="状态" initialValue={1}>
+              <Form.Item name="status" label={t('状态')} initialValue={1}>
                 <Select
                   options={[
-                    { label: '启用', value: 1 },
-                    { label: '禁用', value: 0 },
+                    { label: t('启用'), value: 1 },
+                    { label: t('禁用'), value: 0 },
                   ]}
                 />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="department_id" label="部门">
+              <Form.Item name="department_id" label={t('部门')}>
                 <Select
                   allowClear
                   showSearch
-                  placeholder="请选择部门"
+                  placeholder={t('请选择部门')}
                   optionFilterProp="label"
                   options={depts.map((d) => ({ label: d.name, value: d.id }))}
                 />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="role_ids" label="角色">
+          <Form.Item name="role_ids" label={t('角色')}>
             <Select
               mode="multiple"
-              placeholder="请选择角色"
+              placeholder={t('请选择角色')}
               optionFilterProp="label"
               options={roles.map((r) => ({ label: r.name, value: r.id }))}
             />
           </Form.Item>
-          <Form.Item name="post_ids" label="岗位">
+          <Form.Item name="post_ids" label={t('岗位')}>
             <Select
               mode="multiple"
               allowClear
-              placeholder="请选择岗位"
+              placeholder={t('请选择岗位')}
               optionFilterProp="label"
               options={posts.map((p) => ({ label: p.name, value: p.id, disabled: p.status !== 1 }))}
             />
@@ -569,33 +572,33 @@ export default function UserPage() {
       </Modal>
 
       <Modal
-        title={`重置密码 · ${resetRecord?.username ?? ''}`}
+        title={t('重置密码 · {{name}}', { name: resetRecord?.username ?? '' })}
         open={!!resetRecord}
         onCancel={() => setResetRecord(null)}
         onOk={submitReset}
         confirmLoading={resetting}
-        okText="重置"
+        okText={t('重置')}
         destroyOnClose
       >
         <Form form={resetForm} layout="vertical" preserve={false}>
           <Form.Item
             name="password"
-            label="新密码"
-            rules={[{ required: true, message: '请输入新密码' }, { min: 6, message: '至少 6 位' }]}
+            label={t('新密码')}
+            rules={[{ required: true, message: t('请输入新密码') }, { min: 6, message: t('至少 6 位') }]}
           >
-            <Input.Password autoComplete="new-password" placeholder="须满足系统密码强度策略" />
+            <Input.Password autoComplete="new-password" placeholder={t('须满足系统密码强度策略')} />
           </Form.Item>
           <Form.Item
             name="confirm"
-            label="确认新密码"
+            label={t('确认新密码')}
             dependencies={['password']}
             rules={[
-              { required: true, message: '请再次输入新密码' },
+              { required: true, message: t('请再次输入新密码') },
               ({ getFieldValue }) => ({
                 validator: (_, value) =>
                   !value || value === getFieldValue('password')
                     ? Promise.resolve()
-                    : Promise.reject(new Error('两次输入的密码不一致')),
+                    : Promise.reject(new Error(t('两次输入的密码不一致'))),
               }),
             ]}
           >
@@ -603,20 +606,20 @@ export default function UserPage() {
           </Form.Item>
           <Form.Item
             name="must_change"
-            label="要求该用户下次登录后修改密码"
+            label={t('要求该用户下次登录后修改密码')}
             initialValue={true}
             valuePropName="checked"
           >
             <Switch />
           </Form.Item>
-          <div className="form-hint">重置后该用户的所有登录会话会立即失效，需用新密码重新登录。</div>
+          <div className="form-hint">{t('重置后该用户的所有登录会话会立即失效，需用新密码重新登录。')}</div>
         </Form>
       </Modal>
 
       <ExcelImportModal
         open={importOpen}
-        title="批量导入用户"
-        hint="请使用「下载导入模板」生成的 .xlsx 文件；密码留空用默认初始密码，部门须为已存在的部门名称"
+        title={t('批量导入用户')}
+        hint={t('请使用「下载导入模板」生成的 .xlsx 文件；密码留空用默认初始密码，部门须为已存在的部门名称')}
         onClose={() => setImportOpen(false)}
         onDone={() => fetchList(params)}
         downloadTemplate={UserAPI.downloadUserImportTemplate}
@@ -625,17 +628,17 @@ export default function UserPage() {
 
       {inviteLink ? (
         <Modal
-          title="邀请链接已生成"
+          title={t('邀请链接已生成')}
           open
           onCancel={() => setInviteLink(null)}
-          footer={<Button type="primary" onClick={() => setInviteLink(null)}>我已复制，关闭</Button>}
+          footer={<Button type="primary" onClick={() => setInviteLink(null)}>{t('我已复制，关闭')}</Button>}
           maskClosable={false}
         >
           <Alert
             type="warning"
             showIcon
             style={{ marginBottom: 12 }}
-            message="此链接只显示这一次，请复制后发送给受邀人；对方通过链接注册后将自动加入当前租户。"
+            message={t('此链接只显示这一次，请复制后发送给受邀人；对方通过链接注册后将自动加入当前租户。')}
           />
           <Input.TextArea
             rows={2}
@@ -648,29 +651,29 @@ export default function UserPage() {
         </Modal>
       ) : (
         <Modal
-          title="邀请用户"
+          title={t('邀请用户')}
           open={inviteOpen}
           onCancel={() => setInviteOpen(false)}
           onOk={() => void onInvite()}
-          okText="生成邀请链接"
+          okText={t('生成邀请链接')}
           confirmLoading={inviting}
           destroyOnHidden
         >
           <Form form={inviteForm} layout="vertical">
             <Form.Item
               name="role_id"
-              label="分配角色（可选）"
-              tooltip="受邀人注册后将自动获得该角色；不选则无角色"
+              label={t('分配角色（可选）')}
+              tooltip={t('受邀人注册后将自动获得该角色；不选则无角色')}
             >
               <Select
                 allowClear
-                placeholder="选择角色"
+                placeholder={t('选择角色')}
                 options={roles.map((r) => ({ label: r.name, value: r.id }))}
                 prefix={<TeamOutlined />}
               />
             </Form.Item>
-            <Form.Item name="email" label="受邀人邮箱（可选）">
-              <Input placeholder="仅登记，不校验" allowClear />
+            <Form.Item name="email" label={t('受邀人邮箱（可选）')}>
+              <Input placeholder={t('仅登记，不校验')} allowClear />
             </Form.Item>
           </Form>
         </Modal>

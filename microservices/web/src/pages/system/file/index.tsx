@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Popconfirm, Card, Input, Form,
   Upload, Tag, Image, Tooltip,
@@ -45,6 +46,7 @@ export default function FilePage() {
   // dragenter/leave 在子元素间反复触发,用深度计数判断是否真的离开页面
   const dragDepth = useRef(0)
   const [searchForm] = Form.useForm()
+  const { t } = useTranslation()
   const { hasPerm } = usePermission()
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function FilePage() {
       setList(res.list)
       setTotal(res.total)
     } catch {
-      message.error('获取文件列表失败')
+      message.error(t('获取文件列表失败'))
     } finally {
       setLoading(false)
     }
@@ -85,7 +87,7 @@ export default function FilePage() {
   const handleDelete = async (id: number) => {
     try {
       await FileAPI.deleteFile(id)
-      message.success('删除成功')
+      message.success(t('删除成功'))
       refreshStats()
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
@@ -93,7 +95,7 @@ export default function FilePage() {
         fetchList(params)
       }
     } catch {
-      message.error('删除失败')
+      message.error(t('删除失败'))
     }
   }
 
@@ -103,15 +105,15 @@ export default function FilePage() {
     try {
       if (files.length > 1) {
         await FileAPI.uploadFiles(files)
-        message.success(`已上传 ${files.length} 个文件`)
+        message.success(t('已上传 {{n}} 个文件', { n: files.length }))
       } else {
         await FileAPI.uploadFile(files[0])
-        message.success('上传成功')
+        message.success(t('上传成功'))
       }
       fetchList(params)
       refreshStats()
     } catch {
-      message.error('上传失败')
+      message.error(t('上传失败'))
     } finally {
       setUploading(false)
     }
@@ -152,7 +154,7 @@ export default function FilePage() {
     try {
       await FileAPI.downloadFile(record.id, record.file_name)
     } catch {
-      message.error('下载失败')
+      message.error(t('下载失败'))
     }
   }
 
@@ -161,7 +163,7 @@ export default function FilePage() {
       const url = await FileAPI.previewFile(record.id)
       setPreviewUrl(url)
     } catch {
-      message.error('预览失败')
+      message.error(t('预览失败'))
     }
   }
 
@@ -173,7 +175,7 @@ export default function FilePage() {
   const handleBatchDelete = async () => {
     try {
       await FileAPI.batchDeleteFiles(selectedIds)
-      message.success(`已删除 ${selectedIds.length} 个文件`)
+      message.success(t('已删除 {{n}} 个文件', { n: selectedIds.length }))
       setSelectedIds([])
       refreshStats()
       if (selectedIds.length >= list.length && params.page > 1) {
@@ -182,14 +184,14 @@ export default function FilePage() {
         fetchList(params)
       }
     } catch {
-      message.error('批量删除失败')
+      message.error(t('批量删除失败'))
     }
   }
 
   const columns: ColumnsType<FileRecord> = [
     { title: 'ID', dataIndex: 'id', width: 60, responsive: ['md'] },
     {
-      title: '文件名',
+      title: t('文件名'),
       dataIndex: 'file_name',
       width: 300,
       ellipsis: { showTitle: false },
@@ -200,7 +202,7 @@ export default function FilePage() {
       ),
     },
     {
-      title: '文件类型',
+      title: t('文件类型'),
       dataIndex: 'file_type',
       width: 150,
       render: (value?: string) => value ? (
@@ -210,55 +212,55 @@ export default function FilePage() {
       ) : <span className="cell-muted">—</span>,
     },
     {
-      title: '文件大小',
+      title: t('文件大小'),
       dataIndex: 'file_size',
       width: 100,
       responsive: ['md'],
       render: (v: number) => <span className="cell-mono">{formatSize(v)}</span>,
     },
     {
-      title: '存储类型',
+      title: t('存储类型'),
       dataIndex: 'storage_type',
       width: 100,
       responsive: ['md'],
       render: (v: string) => v && <Tag color="geekblue" variant="filled">{v}</Tag>,
     },
-    { title: '上传时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
+    { title: t('上传时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
-      title: '操作',
+      title: t('操作'),
       width: 136,
       fixed: 'right',
       render: (_, record) => (
         <Space size={4} className="table-actions file-row-actions">
           {record.file_type === 'image' && (
-            <Tooltip title="预览">
+            <Tooltip title={t('预览')}>
               <Button
                 type="text"
                 size="small"
                 icon={<EyeOutlined />}
-                aria-label={`预览文件 ${record.file_name}`}
+                aria-label={`${t('预览文件')} ${record.file_name}`}
                 onClick={() => handlePreview(record)}
               />
             </Tooltip>
           )}
-          <Tooltip title="下载">
+          <Tooltip title={t('下载')}>
             <Button
               type="text"
               size="small"
               icon={<DownloadOutlined />}
-              aria-label={`下载文件 ${record.file_name}`}
+              aria-label={`${t('下载文件')} ${record.file_name}`}
               onClick={() => handleDownload(record)}
             />
           </Tooltip>
           {hasPerm('system:file:delete') && (
-            <Popconfirm title="确认删除该文件?" onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title="删除">
+            <Popconfirm title={t('确认删除该文件?')} onConfirm={() => handleDelete(record.id)}>
+              <Tooltip title={t('删除')}>
                 <Button
                   type="text"
                   size="small"
                   danger
                   icon={<DeleteOutlined />}
-                  aria-label={`删除文件 ${record.file_name}`}
+                  aria-label={`${t('删除文件')} ${record.file_name}`}
                 />
               </Tooltip>
             </Popconfirm>
@@ -280,8 +282,8 @@ export default function FilePage() {
         <div className="file-drop-veil">
           <div className="file-drop-panel">
             <UploadOutlined className="file-drop-icon" />
-            <div className="file-drop-title">松手上传</div>
-            <div className="file-drop-sub">文件将上传到文件管理</div>
+            <div className="file-drop-title">{t('松手上传')}</div>
+            <div className="file-drop-sub">{t('文件将上传到文件管理')}</div>
           </div>
         </div>
       )}
@@ -289,18 +291,24 @@ export default function FilePage() {
         <Card className="list-filter-card file-stats-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
           <div className="log-stats-row">
             <div className="log-stat">
-              <span className="log-stat-label">文件总数</span>
+              <span className="log-stat-label">{t('文件总数')}</span>
               <span className="log-stat-value"><CountUpValue value={stats.total} /></span>
             </div>
             <div className="log-stat">
-              <span className="log-stat-label">占用空间</span>
+              <span className="log-stat-label">{t('占用空间')}</span>
               <span className="log-stat-value log-stat-accent">{formatSize(stats.total_size)}</span>
             </div>
+            {(stats.storage_quota_mb ?? 0) > 0 && (
+              <div className="log-stat">
+                <span className="log-stat-label">{t('存储配额')}</span>
+                <span className="log-stat-value">{formatSize((stats.storage_quota_mb ?? 0) * 1024 * 1024)}</span>
+              </div>
+            )}
             {Object.keys(stats.by_type ?? {}).length > 0 && (
               <>
                 <div className="log-stat-divider" />
                 <div className="log-stat file-type-stat">
-                  <span className="log-stat-label">类型分布</span>
+                  <span className="log-stat-label">{t('类型分布')}</span>
                   <span className="file-type-breakdown">
                     {Object.entries(stats.by_type ?? {})
                       .sort((a, b) => b[1].count - a[1].count)
@@ -326,15 +334,15 @@ export default function FilePage() {
           initialValues={params}
         >
           <Form.Item name="keyword">
-            <Input placeholder="搜索文件名" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
+            <Input placeholder={t('搜索文件名')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
           <Form.Item name="file_type">
-            <Input placeholder="文件类型" allowClear style={{ width: 140 }} />
+            <Input placeholder={t('文件类型')} allowClear style={{ width: 140 }} />
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
         </Form>
@@ -348,17 +356,17 @@ export default function FilePage() {
             <Space wrap className="file-toolbar-actions">
               {selectedIds.length > 0 && hasPerm('system:file:delete') && (
                 <Popconfirm
-                  title={`确认删除选中的 ${selectedIds.length} 个文件?`}
+                  title={t('确认删除选中的 {{n}} 个文件?', { n: selectedIds.length })}
                   onConfirm={handleBatchDelete}
                 >
-                  <Button danger icon={<DeleteOutlined />}>批量删除 ({selectedIds.length})</Button>
+                  <Button danger icon={<DeleteOutlined />}>{t('批量删除 ({{n}})', { n: selectedIds.length })}</Button>
                 </Popconfirm>
               )}
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
               {hasPerm('system:file:upload') && (
                 <Upload beforeUpload={beforeUpload} showUploadList={false} multiple>
                   <Button type="primary" icon={<UploadOutlined />} loading={uploading}>
-                    上传文件
+                    {t('上传文件')}
                   </Button>
                 </Upload>
               )}
@@ -383,7 +391,7 @@ export default function FilePage() {
             pageSize: params.page_size,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />

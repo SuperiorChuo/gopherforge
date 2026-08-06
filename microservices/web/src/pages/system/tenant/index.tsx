@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Alert, Button, Card, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip } from 'antd'
 import { PlusOutlined, ReloadOutlined, SwapOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
@@ -23,6 +24,7 @@ interface SearchParams {
 const planColors: Record<string, string> = { enterprise: 'gold', pro: 'blue' }
 
 export default function TenantPage() {
+  const { t } = useTranslation()
   const userInfo = useAppSelector((s) => s.auth.userInfo)
   const isPlatform = !!userInfo?.is_platform_admin
   const [list, setList] = useState<TenantInfo[]>([])
@@ -50,7 +52,7 @@ export default function TenantPage() {
       setList(rows)
       setTotal(data.total ?? rows.length)
     } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : '加载失败')
+      message.error(e instanceof Error ? e.message : t('加载失败'))
     } finally {
       setLoading(false)
     }
@@ -98,20 +100,20 @@ export default function TenantPage() {
         // 开通自动创建了初始管理员：一次性展示凭据，转交租户管理员后关闭
         setCreatedAdmin(res.admin)
       } else {
-        message.success('已创建租户')
+        message.success(t('已创建租户'))
       }
     } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : '创建失败')
+      message.error(e instanceof Error ? e.message : t('创建失败'))
     }
   }
 
   async function onDelete(row: TenantInfo) {
     try {
       await TenantAPI.deleteTenant(row.id)
-      message.success(`已删除租户「${row.name}」及其账号体系数据`)
+      message.success(t('已删除租户「{{name}}」及其账号体系数据', { name: row.name }))
       setParams({ ...params, page: 1 })
     } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : '删除失败')
+      message.error(e instanceof Error ? e.message : t('删除失败'))
     }
   }
 
@@ -139,24 +141,24 @@ export default function TenantPage() {
         // 清空选择 → 0（解绑）
         package_id: values.package_id ?? 0,
       })
-      message.success('已保存')
+      message.success(t('已保存'))
       setEditRow(null)
       fetchList(params)
     } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : '保存失败')
+      message.error(e instanceof Error ? e.message : t('保存失败'))
     }
   }
 
   function actAs(row: TenantInfo) {
     setActTenantId(row.id)
     setActTenant(String(row.id))
-    message.success(`已切换操作租户为 ${row.code}（后续请求带 X-Act-Tenant-ID）`)
+    message.success(t('已切换操作租户为 {{code}}（后续请求带 X-Act-Tenant-ID）', { code: row.code }))
   }
 
   function clearAct() {
     clearActTenantId()
     setActTenant(null)
-    message.success('已取消租户切换，回到本账号所属租户')
+    message.success(t('已取消租户切换，回到本账号所属租户'))
   }
 
   const activeTenant = list.find((row) => String(row.id) === actTenant)
@@ -174,7 +176,7 @@ export default function TenantPage() {
       render: (v: string) => <Tag variant="filled" className="cell-mono list-code-tag">{v}</Tag>,
     },
     {
-      title: '名称',
+      title: t('名称'),
       dataIndex: 'name',
       width: 220,
       ellipsis: true,
@@ -182,13 +184,13 @@ export default function TenantPage() {
         <span className="tenant-name-cell">
           <span className="list-primary-cell">{value}</span>
           {actTenant === String(row.id) && (
-            <Tag color="blue" variant="filled" className="tenant-current-tag">当前</Tag>
+            <Tag color="blue" variant="filled" className="tenant-current-tag">{t('当前')}</Tag>
           )}
         </span>
       ),
     },
     {
-      title: '计费方案',
+      title: t('计费方案'),
       dataIndex: 'plan',
       width: 110,
       responsive: ['md'],
@@ -197,66 +199,66 @@ export default function TenantPage() {
       ),
     },
     {
-      title: '权限套餐',
+      title: t('权限套餐'),
       dataIndex: 'package_id',
       width: 130,
       responsive: ['lg'],
       render: (v: number | null | undefined) => {
-        if (!v) return <Tag variant="filled">不限</Tag>
+        if (!v) return <Tag variant="filled">{t('不限')}</Tag>
         const pkg = packages.find((p) => p.id === v)
         return <Tag variant="filled" color="purple">{pkg ? pkg.name : `#${v}`}</Tag>
       },
     },
     {
-      title: '用户上限',
+      title: t('用户上限'),
       dataIndex: 'max_users',
       width: 100,
       responsive: ['lg'],
-      render: (v: number) => (v > 0 ? <span className="cell-mono">{v}</span> : '不限'),
+      render: (v: number) => (v > 0 ? <span className="cell-mono">{v}</span> : t('不限')),
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 90,
       render: (v: number) =>
         v === 1 ? <StatusPill tone="success" label="启用" /> : <StatusPill tone="muted" label="停用" />,
     },
     {
-      title: '操作',
+      title: t('操作'),
       width: 144,
       fixed: 'right',
       render: (_, row) => (
         <Space size={4} className="table-actions tenant-row-actions">
-          <Tooltip title="编辑">
-            <Button type="text" size="small" aria-label={`编辑租户 ${row.name}`} icon={<EditOutlined />} onClick={() => openEdit(row)} />
+          <Tooltip title={t('编辑')}>
+            <Button type="text" size="small" aria-label={t('编辑租户 {{name}}', { name: row.name })} icon={<EditOutlined />} onClick={() => openEdit(row)} />
           </Tooltip>
           {isPlatform && (
-            <Tooltip title={row.status === 1 ? '以该租户身份操作业务数据' : '停用租户不可进入'}>
+            <Tooltip title={row.status === 1 ? t('以该租户身份操作业务数据') : t('停用租户不可进入')}>
               <span>
                 <Button
                   size="small"
                   type={actTenant === String(row.id) ? 'primary' : 'default'}
                   className="tenant-enter-button"
-                  aria-label={`进入租户 ${row.name}`}
+                  aria-label={t('进入租户 {{name}}', { name: row.name })}
                   icon={<SwapOutlined />}
                   disabled={row.status !== 1}
                   onClick={() => actAs(row)}
                 >
-                  {actTenant === String(row.id) ? '当前' : '进入'}
+                  {actTenant === String(row.id) ? t('当前') : t('进入')}
                 </Button>
               </span>
             </Tooltip>
           )}
           {isPlatform && row.id !== 1 && (
             <Popconfirm
-              title={`删除租户「${row.name}」？`}
-              description="将级联删除该租户的用户/角色/部门/岗位及配置，且不可恢复。"
-              okText="删除"
+              title={t('删除租户「{{name}}」？', { name: row.name })}
+              description={t('将级联删除该租户的用户/角色/部门/岗位及配置，且不可恢复。')}
+              okText={t('删除')}
               okButtonProps={{ danger: true }}
               onConfirm={() => void onDelete(row)}
             >
-              <Tooltip title="删除">
-                <Button type="text" size="small" danger aria-label={`删除租户 ${row.name}`} icon={<DeleteOutlined />} />
+              <Tooltip title={t('删除')}>
+                <Button type="text" size="small" danger aria-label={t('删除租户 {{name}}', { name: row.name })} icon={<DeleteOutlined />} />
               </Tooltip>
             </Popconfirm>
           )}
@@ -271,16 +273,16 @@ export default function TenantPage() {
         <Alert
           type="info"
           showIcon
-          message="平台运营账号（platform_admin）"
+          message={t('平台运营账号（platform_admin）')}
           description={
             actTenant
-              ? `当前以租户 ${activeTenantLabel} 操作数据。用户/角色/部门等列表将只显示该租户。`
-              : '可点击「进入」切换操作租户；仅影响本机后续 API 的 X-Act-Tenant-ID。'
+              ? t('当前以租户 {{name}} 操作数据。用户/角色/部门等列表将只显示该租户。', { name: activeTenantLabel })
+              : t('可点击「进入」切换操作租户；仅影响本机后续 API 的 X-Act-Tenant-ID。')
           }
           action={
             actTenant ? (
               <Button size="small" onClick={clearAct}>
-                取消切换
+                {t('取消切换')}
               </Button>
             ) : null
           }
@@ -296,12 +298,12 @@ export default function TenantPage() {
           initialValues={params}
         >
           <Form.Item name="keyword">
-            <Input placeholder="搜索 Code / 名称" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
+            <Input placeholder={t('搜索 Code / 名称')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
         </Form>
@@ -313,9 +315,9 @@ export default function TenantPage() {
           total={total}
           extra={
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-                新建租户
+                {t('新建租户')}
               </Button>
             </Space>
           }
@@ -338,26 +340,26 @@ export default function TenantPage() {
             pageSize: params.page_size,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
       </Card>
 
-      <Modal title="新建租户" open={createOpen} onCancel={() => setCreateOpen(false)} onOk={() => void onCreate()}>
+      <Modal title={t('新建租户')} open={createOpen} onCancel={() => setCreateOpen(false)} onOk={() => void onCreate()}>
         <Form form={form} layout="vertical" initialValues={{ plan: 'free', max_users: 0 }}>
           <Form.Item
             name="code"
             label="Code"
-            rules={[{ required: true, message: '必填' }]}
-            extra="登录可用 tenant_code 或子域名 acme.example.com"
+            rules={[{ required: true, message: t('必填') }]}
+            extra={t('登录可用 tenant_code 或子域名 acme.example.com')}
           >
             <Input placeholder="acme" />
           </Form.Item>
-          <Form.Item name="name" label="名称" rules={[{ required: true }]}>
-            <Input placeholder="Acme 公司" />
+          <Form.Item name="name" label={t('名称')} rules={[{ required: true }]}>
+            <Input placeholder={t('Acme 公司')} />
           </Form.Item>
-          <Form.Item name="plan" label="计费方案" extra="max_users=0 时：free→10、pro→50、enterprise→不限">
+          <Form.Item name="plan" label={t('计费方案')} extra={t('max_users=0 时：free→10、pro→50、enterprise→不限')}>
             <Select
               options={[
                 { label: 'free', value: 'free' },
@@ -366,15 +368,15 @@ export default function TenantPage() {
               ]}
             />
           </Form.Item>
-          <Form.Item name="max_users" label="最大用户数（0=按计费方案默认）">
+          <Form.Item name="max_users" label={t('最大用户数（0=按计费方案默认）')}>
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="package_id" label="权限套餐" extra="不选 = 不限；绑定后租户内角色只能分配套餐内权限">
+          <Form.Item name="package_id" label={t('权限套餐')} extra={t('不选 = 不限；绑定后租户内角色只能分配套餐内权限')}>
             <Select
               allowClear
-              placeholder="不限"
+              placeholder={t('不限')}
               options={packages.map((p) => ({
-                label: p.status === 1 ? p.name : `${p.name}（已停用）`,
+                label: p.status === 1 ? p.name : t('{{name}}（已停用）', { name: p.name }),
                 value: p.id,
               }))}
             />
@@ -384,40 +386,40 @@ export default function TenantPage() {
 
       {createdAdmin ? (
         <Modal
-          title="租户已创建，请记录初始管理员凭据"
+          title={t('租户已创建，请记录初始管理员凭据')}
           open
           onCancel={() => setCreatedAdmin(null)}
-          footer={<Button type="primary" onClick={() => setCreatedAdmin(null)}>我已保存，关闭</Button>}
+          footer={<Button type="primary" onClick={() => setCreatedAdmin(null)}>{t('我已保存，关闭')}</Button>}
           maskClosable={false}
         >
           <Alert
             type="warning"
             showIcon
             style={{ marginBottom: 12 }}
-            message="此凭据只显示这一次，请立即转交租户管理员并提醒首次登录后修改密码。"
+            message={t('此凭据只显示这一次，请立即转交租户管理员并提醒首次登录后修改密码。')}
           />
           <Card size="small">
             <div className="cell-mono" style={{ fontSize: 14, marginBottom: 8 }}>
-              账号：{createdAdmin.username}
+              {t('账号')}：{createdAdmin.username}
             </div>
             <div className="cell-mono" style={{ fontSize: 14 }}>
-              初始密码：{createdAdmin.initial_password}
+              {t('初始密码')}：{createdAdmin.initial_password}
             </div>
           </Card>
         </Modal>
       ) : null}
 
       <Modal
-        title={editRow ? `编辑租户 #${editRow.id}` : '编辑'}
+        title={editRow ? t('编辑租户 #{{id}}', { id: editRow.id }) : t('编辑')}
         open={!!editRow}
         onCancel={() => setEditRow(null)}
         onOk={() => void onSaveEdit()}
       >
         <Form form={editForm} layout="vertical">
-          <Form.Item name="name" label="名称" rules={[{ required: true }]}>
+          <Form.Item name="name" label={t('名称')} rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="plan" label="计费方案">
+          <Form.Item name="plan" label={t('计费方案')}>
             <Select
               options={[
                 { label: 'free', value: 'free' },
@@ -426,24 +428,24 @@ export default function TenantPage() {
               ]}
             />
           </Form.Item>
-          <Form.Item name="max_users" label="最大用户数（0=不限）">
+          <Form.Item name="max_users" label={t('最大用户数（0=不限）')}>
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="package_id" label="权限套餐" extra="清空 = 解绑（不限）；改小套餐不回收存量角色权限，仅拦截新分配">
+          <Form.Item name="package_id" label={t('权限套餐')} extra={t('清空 = 解绑（不限）；改小套餐不回收存量角色权限，仅拦截新分配')}>
             <Select
               allowClear
-              placeholder="不限"
+              placeholder={t('不限')}
               options={packages.map((p) => ({
-                label: p.status === 1 ? p.name : `${p.name}（已停用）`,
+                label: p.status === 1 ? p.name : t('{{name}}（已停用）', { name: p.name }),
                 value: p.id,
               }))}
             />
           </Form.Item>
-          <Form.Item name="status" label="状态">
+          <Form.Item name="status" label={t('状态')}>
             <Select
               options={[
-                { label: '启用', value: 1 },
-                { label: '停用', value: 0 },
+                { label: t('启用'), value: 1 },
+                { label: t('停用'), value: 0 },
               ]}
             />
           </Form.Item>

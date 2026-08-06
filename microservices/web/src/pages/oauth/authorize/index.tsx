@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button, Spin, Avatar } from 'antd'
 import { SafetyOutlined, CheckCircleOutlined, UserOutlined, MailOutlined } from '@ant-design/icons'
 import { getToken } from '@/utils/request'
@@ -16,6 +17,7 @@ const SCOPE_LABELS: Record<string, { title: string; desc: string; icon: React.Re
  * 不应看到管理台骨架。沿用登录页的深空/极光/玻璃拟态风格。
  */
 export default function OAuth2AuthorizePage() {
+  const { t } = useTranslation()
   const search = window.location.search
   const [view, setView] = useState<OAuth2AuthorizeView | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -42,10 +44,10 @@ export default function OAuth2AuthorizePage() {
       // 跳回第三方应用（可能是外站，用整页跳转而非 SPA 路由）
       window.location.href = res.redirect_url
     } catch (err) {
-      setError(err instanceof Error ? err.message : '授权失败')
+      setError(err instanceof Error ? err.message : t('授权失败'))
       setSubmitting(false)
     }
-  }, [params])
+  }, [params, t])
 
   useEffect(() => {
     // 未登录：先去登录，带回跳参数回到本页
@@ -68,11 +70,11 @@ export default function OAuth2AuthorizePage() {
       })
       .catch((err) => {
         if (!alive) return
-        setError(err instanceof Error ? err.message : '授权请求无效')
+        setError(err instanceof Error ? err.message : t('授权请求无效'))
         setLoading(false)
       })
     return () => { alive = false }
-  }, [search, submit])
+  }, [search, submit, t])
 
   const renderBody = () => {
     if (loading) {
@@ -81,16 +83,16 @@ export default function OAuth2AuthorizePage() {
     if (error) {
       return (
         <div className="oauth-consent-error">
-          <h2 className="login-form-title">无法完成授权</h2>
+          <h2 className="login-form-title">{t('无法完成授权')}</h2>
           <p className="login-form-sub">{error}</p>
-          <p className="oauth-consent-hint">请返回应用重试，或联系应用方确认接入配置。</p>
+          <p className="oauth-consent-hint">{t('请返回应用重试，或联系应用方确认接入配置。')}</p>
         </div>
       )
     }
     if (!view) return null
     if (view.auto_approve || view.already_approved) {
       // 静默授权中：只显示一个过渡态
-      return <div className="oauth-consent-loading"><Spin size="large" tip="正在跳转…" /></div>
+      return <div className="oauth-consent-loading"><Spin size="large" tip={t('正在跳转…')} /></div>
     }
     const scopes = view.scopes.length ? view.scopes : ['profile']
     return (
@@ -103,7 +105,7 @@ export default function OAuth2AuthorizePage() {
             style={{ background: view.logo ? undefined : 'rgba(99,102,241,.28)' }}
           />
           <h2 className="login-form-title" style={{ marginTop: 12 }}>{view.client_name}</h2>
-          <p className="login-form-sub">请求访问你的 Go Admin Kit 账户</p>
+          <p className="login-form-sub">{t('请求访问你的 Go Admin Kit 账户')}</p>
           {view.description && <p className="oauth-consent-desc">{view.description}</p>}
         </div>
 
@@ -114,8 +116,8 @@ export default function OAuth2AuthorizePage() {
               <li key={s}>
                 <span className="oauth-consent-scope-icon">{meta?.icon ?? <CheckCircleOutlined />}</span>
                 <span>
-                  <b>{meta?.title ?? s}</b>
-                  <em>{meta?.desc ?? `授予 ${s} 权限`}</em>
+                  <b>{meta?.title ? t(meta.title) : s}</b>
+                  <em>{meta?.desc ? t(meta.desc) : t('授予 {{scope}} 权限', { scope: s })}</em>
                 </span>
               </li>
             )
@@ -123,13 +125,13 @@ export default function OAuth2AuthorizePage() {
         </ul>
 
         <div className="oauth-consent-actions">
-          <Button block size="large" onClick={() => submit(false)} disabled={submitting}>拒绝</Button>
+          <Button block size="large" onClick={() => submit(false)} disabled={submitting}>{t('拒绝')}</Button>
           <Button block size="large" type="primary" loading={submitting} onClick={() => submit(true)}>
-            授权
+            {t('授权')}
           </Button>
         </div>
         <p className="oauth-consent-foot">
-          授权后，你将被带回 <code>{safeHost(view.redirect_uri)}</code>
+          {t('授权后，你将被带回')} <code>{safeHost(view.redirect_uri)}</code>
         </p>
       </>
     )

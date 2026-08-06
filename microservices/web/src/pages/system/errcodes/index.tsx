@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
   Card, Alert, Tooltip,
@@ -36,6 +37,7 @@ export default function ErrCodesPage() {
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
+  const { t } = useTranslation()
   const { hasPerm } = usePermission()
 
   const fetchList = async (p: PageParams) => {
@@ -45,7 +47,7 @@ export default function ErrCodesPage() {
       setList(res.list)
       setTotal(res.total)
     } catch {
-      message.error('获取错误码列表失败')
+      message.error(t('获取错误码列表失败'))
     } finally {
       setLoading(false)
     }
@@ -83,14 +85,14 @@ export default function ErrCodesPage() {
   const handleDelete = async (id: number) => {
     try {
       await ErrCodeAPI.deleteErrCode(id)
-      message.success('删除成功')
+      message.success(t('删除成功'))
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
         fetchList(params)
       }
     } catch {
-      message.error('删除失败')
+      message.error(t('删除失败'))
     }
   }
 
@@ -99,10 +101,10 @@ export default function ErrCodesPage() {
     const next = record.status === 1 ? 0 : 1
     try {
       await ErrCodeAPI.updateErrCode(record.id, { status: next })
-      message.success(next === 1 ? '已启用' : '已停用')
+      message.success(next === 1 ? t('已启用') : t('已停用'))
       fetchList(params)
     } catch {
-      message.error('操作失败')
+      message.error(t('操作失败'))
     }
   }
 
@@ -115,15 +117,15 @@ export default function ErrCodesPage() {
         // code 是稳定标识不可改，更新时不提交
         const { code: _code, ...data } = values
         await ErrCodeAPI.updateErrCode(editRecord.id, data)
-        message.success('更新成功，约 30 秒内热生效')
+        message.success(t('更新成功，约 30 秒内热生效'))
       } else {
         await ErrCodeAPI.createErrCode(values)
-        message.success('创建成功，约 30 秒内热生效')
+        message.success(t('创建成功，约 30 秒内热生效'))
       }
       setModalOpen(false)
       fetchList(params)
     } catch {
-      message.error('操作失败')
+      message.error(t('操作失败'))
     } finally {
       setSubmitting(false)
     }
@@ -132,7 +134,7 @@ export default function ErrCodesPage() {
   const columns: ColumnsType<ErrorCodeItem> = [
     { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
     {
-      title: '错误码',
+      title: t('错误码'),
       dataIndex: 'code',
       width: 260,
       ellipsis: { showTitle: false },
@@ -143,7 +145,7 @@ export default function ErrCodesPage() {
       ),
     },
     {
-      title: '对外文案',
+      title: t('对外文案'),
       dataIndex: 'message',
       width: 320,
       ellipsis: { showTitle: false },
@@ -154,14 +156,14 @@ export default function ErrCodesPage() {
       ),
     },
     {
-      title: '来源',
+      title: t('来源'),
       dataIndex: 'scope',
       width: 110,
       responsive: ['sm'],
       render: (v: string) => <Tag className="cell-mono errcode-scope-tag">{v || 'global'}</Tag>,
     },
     {
-      title: '内部备注',
+      title: t('内部备注'),
       dataIndex: 'memo',
       width: 300,
       ellipsis: { showTitle: false },
@@ -173,44 +175,44 @@ export default function ErrCodesPage() {
       ) : <span className="cell-muted">—</span>,
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 80,
       render: (v: number) => <EnableStatusPill value={v} />,
     },
-    { title: '更新时间', dataIndex: 'updated_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
+    { title: t('更新时间'), dataIndex: 'updated_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
-      title: '操作',
+      title: t('操作'),
       width: 132,
       fixed: 'right',
       render: (_, record) => (
         <Space size={2} className="table-actions errcode-row-actions">
           {hasPerm('system:errcode:update') && (
-            <Tooltip title="编辑">
-              <Button type="text" size="small" aria-label={`编辑错误码 ${record.code}`} icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Tooltip title={t('编辑')}>
+              <Button type="text" size="small" aria-label={`${t('编辑错误码')} ${record.code}`} icon={<EditOutlined />} onClick={() => openEdit(record)} />
             </Tooltip>
           )}
           {hasPerm('system:errcode:update') && (
             <Popconfirm
-              title={record.status === 1 ? '停用后各服务将回落到默认文案，确认停用?' : '确认启用?'}
+              title={record.status === 1 ? t('停用后各服务将回落到默认文案，确认停用?') : t('确认启用?')}
               onConfirm={() => handleToggleStatus(record)}
             >
-              <Tooltip title={record.status === 1 ? '停用' : '启用'}>
+              <Tooltip title={record.status === 1 ? t('停用') : t('启用')}>
                 <Button
                   type="text"
                   size="small"
                   danger={record.status === 1}
                   className={record.status === 1 ? 'errcode-status-stop' : 'errcode-status-start'}
-                  aria-label={`${record.status === 1 ? '停用' : '启用'}错误码 ${record.code}`}
+                  aria-label={`${record.status === 1 ? t('停用') : t('启用')}${t('错误码')} ${record.code}`}
                   icon={<PoweroffOutlined />}
                 />
               </Tooltip>
             </Popconfirm>
           )}
           {hasPerm('system:errcode:delete') && (
-            <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title="删除">
-                <Button type="text" size="small" danger aria-label={`删除错误码 ${record.code}`} icon={<DeleteOutlined />} />
+            <Popconfirm title={t('确认删除?')} onConfirm={() => handleDelete(record.id)}>
+              <Tooltip title={t('删除')}>
+                <Button type="text" size="small" danger aria-label={`${t('删除错误码')} ${record.code}`} icon={<DeleteOutlined />} />
               </Tooltip>
             </Popconfirm>
           )}
@@ -225,27 +227,27 @@ export default function ErrCodesPage() {
         className="errcode-alert"
         type="info"
         showIcon
-        message="错误文案在线修改，保存后各服务约 30 秒内热生效，无需重启"
-        description="错误码标识（code）与后端代码对齐，创建后不可修改；停用或删除某错误码后，对应接口回落到代码里的默认文案。"
+        message={t('错误文案在线修改，保存后各服务约 30 秒内热生效，无需重启')}
+        description={t('错误码标识（code）与后端代码对齐，创建后不可修改；停用或删除某错误码后，对应接口回落到代码里的默认文案。')}
       />
       <Card className="list-filter-card" bordered={false}>
         <Form form={searchForm} layout="inline" className="list-filter-form" onFinish={handleSearch}>
           <Form.Item name="keyword" className="errcode-filter-keyword">
-            <Input placeholder="搜索错误码 / 文案 / 备注" prefix={<SearchOutlined />} allowClear />
+            <Input placeholder={t('搜索错误码 / 文案 / 备注')} prefix={<SearchOutlined />} allowClear />
           </Form.Item>
           <Form.Item name="scope" className="errcode-filter-scope">
-            <Input placeholder="来源（如 system）" allowClear />
+            <Input placeholder={t('来源（如 system）')} allowClear />
           </Form.Item>
           <Form.Item name="status" className="errcode-filter-status">
-            <Select placeholder="状态" allowClear>
-              <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
+            <Select placeholder={t('状态')} allowClear>
+              <Select.Option value={1}>{t('启用')}</Select.Option>
+              <Select.Option value={0}>{t('禁用')}</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
         </Form>
@@ -256,9 +258,9 @@ export default function ErrCodesPage() {
           total={total}
           extra={
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
               {hasPerm('system:errcode:create') && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增错误码</Button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增错误码')}</Button>
               )}
             </Space>
           }
@@ -278,13 +280,13 @@ export default function ErrCodesPage() {
             pageSize: params.page_size,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
       </Card>
       <Modal
-        title={editRecord ? '编辑错误码' : '新增错误码'}
+        title={editRecord ? t('编辑错误码') : t('新增错误码')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
@@ -294,25 +296,25 @@ export default function ErrCodesPage() {
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="code"
-            label="错误码标识"
-            tooltip="与后端 response.ErrorCode 常量对齐，如 DICT_TYPE_NOT_FOUND；创建后不可修改"
-            rules={[{ required: true, message: '请输入错误码标识' }]}
+            label={t('错误码标识')}
+            tooltip={t('与后端 response.ErrorCode 常量对齐，如 DICT_TYPE_NOT_FOUND；创建后不可修改')}
+            rules={[{ required: true, message: t('请输入错误码标识') }]}
           >
-            <Input placeholder="如 DICT_TYPE_NOT_FOUND" disabled={!!editRecord} className="cell-mono" />
+            <Input placeholder={t('如 DICT_TYPE_NOT_FOUND')} disabled={!!editRecord} className="cell-mono" />
           </Form.Item>
-          <Form.Item name="message" label="对外文案" rules={[{ required: true, message: '请输入对外文案' }]}>
-            <Input.TextArea rows={2} maxLength={512} showCount placeholder="用户可见的错误提示文案" />
+          <Form.Item name="message" label={t('对外文案')} rules={[{ required: true, message: t('请输入对外文案') }]}>
+            <Input.TextArea rows={2} maxLength={512} showCount placeholder={t('用户可见的错误提示文案')} />
           </Form.Item>
-          <Form.Item name="memo" label="内部备注">
-            <Input.TextArea rows={2} maxLength={255} placeholder="排查提示、默认文案对照等（不对外返回）" />
+          <Form.Item name="memo" label={t('内部备注')}>
+            <Input.TextArea rows={2} maxLength={255} placeholder={t('排查提示、默认文案对照等（不对外返回）')} />
           </Form.Item>
-          <Form.Item name="scope" label="来源" initialValue="global" tooltip="产生该错误码的服务/模块，便于筛选">
-            <Input placeholder="如 system / auth / global" />
+          <Form.Item name="scope" label={t('来源')} initialValue="global" tooltip={t('产生该错误码的服务/模块，便于筛选')}>
+            <Input placeholder={t('如 system / auth / global')} />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue={1}>
+          <Form.Item name="status" label={t('状态')} initialValue={1}>
             <Select>
-              <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
+              <Select.Option value={1}>{t('启用')}</Select.Option>
+              <Select.Option value={0}>{t('禁用')}</Select.Option>
             </Select>
           </Form.Item>
         </Form>
