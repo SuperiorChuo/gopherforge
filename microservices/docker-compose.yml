@@ -522,7 +522,7 @@ services:
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=go-admin-kit-net
       - --entrypoints.web.address=:80
-      - --entrypoints.web.http.middlewares=gateway-ratelimit
+      - --entrypoints.web.http.middlewares=gateway-ratelimit@docker
       # TLS-ready：websecure 端口 + 自签兜底；有域名配 ACME_EMAIL 启用 Let's Encrypt
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-}
