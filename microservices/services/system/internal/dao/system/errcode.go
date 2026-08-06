@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/go-admin-kit/services/system/internal/model"
-	"github.com/go-admin-kit/services/system/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
 )
 
 // ErrCodeDAO 错误码表数据访问层。

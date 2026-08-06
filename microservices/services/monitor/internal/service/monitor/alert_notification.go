@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/mailer"
+	"github.com/go-admin-kit/services/shared/pkg/mailer"
 	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
 )
 

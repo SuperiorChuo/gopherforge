@@ -181,6 +181,7 @@ func run(ctx context.Context) error {
 		ConsoleSessions: &consoleSessionService,
 	})
 	runtimeconfig.SetSecurityPolicyStore(systemDAO.NewSettingDAO(database.DB))
+	runtimeconfig.SetEmailNotificationStore(systemDAO.NewSettingDAO(database.DB))
 	defer func() {
 		if err := database.Close(); err != nil {
 			logger.Error("database close failed", logger.Err(err))

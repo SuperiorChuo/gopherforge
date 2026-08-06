@@ -28,6 +28,7 @@ import (
 var (
 	ErrFileEmpty          = errors.New("file is empty")
 	ErrFileTooLarge       = errors.New("file too large")
+	ErrStorageQuotaExceeded = errors.New("storage quota exceeded")
 	ErrFileTypeNotAllowed = errors.New("file type not allowed")
 )
 

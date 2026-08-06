@@ -51,5 +51,6 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		protected.DELETE("/operation-logs/clear", middleware.PermissionMiddleware("system:log:operation:clear"), opLogAPI.ClearOperationLogs)
 
 		protected.GET("/logs/audit", middleware.PermissionMiddleware("system:log:audit"), auditLogAPI.GetAuditLogs)
+		protected.GET("/logs/audit/export", middleware.PermissionMiddleware("system:log:audit"), auditLogAPI.ExportAuditLogs)
 	}
 }

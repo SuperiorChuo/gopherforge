@@ -31,6 +31,13 @@ export const getUserMenus = () =>
 export const changePassword = (data: ChangePasswordRequest) =>
   request.put('/api/v1/user/password', data)
 
+// 忘记密码：请求发送重置邮件；服务端对未知邮箱也返回成功（防枚举）。
+export const forgotPassword = (data: { email: string }) =>
+  request.post<unknown, { message: string }>('/api/v1/password/forgot', data)
+
+export const resetPassword = (data: { token: string; new_password: string }) =>
+  request.post<unknown, { message: string }>('/api/v1/password/reset', data)
+
 export const updateProfile = (data: UpdateProfileRequest) =>
   request.put('/api/v1/user/profile', data)
 

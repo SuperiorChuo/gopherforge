@@ -8,8 +8,8 @@ import (
 
 	"github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/authz"
-	"github.com/go-admin-kit/services/file/internal/pkg/pagination"
-	"github.com/go-admin-kit/services/file/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 )
 
 type OperationLogDAO struct {

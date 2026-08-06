@@ -51,6 +51,8 @@ func RegisterPublicRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies) {
 	r.POST("/register", userAPI.Register)
 	r.POST("/refresh", userAPI.RefreshToken)
 
+	RegisterPasswordResetPublicRoutes(r, deps)
+
 	captchaAPI := NewCaptchaAPI()
 	r.GET("/captcha", captchaAPI.GetCaptcha)
 	r.POST("/captcha/verify", captchaAPI.VerifyCaptcha)

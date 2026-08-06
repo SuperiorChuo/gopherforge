@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/go-admin-kit/services/audit/internal/model"
-	"github.com/go-admin-kit/services/audit/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -133,6 +133,33 @@ func (d *AuditLogDAO) ListLogsContext(ctx context.Context, req AuditLogListQuery
 	result.Summary = summary
 	result.Facets = facets
 	return result, nil
+}
+
+// maxExportRows bounds an export so a runaway filter can't dump the whole
+// table; the export handler streams rows as they are returned.
+const maxExportRows = 50000
+
+// ExportLogsContext returns up to maxExportRows audit rows honouring the same
+// filters as the list, without pagination. Audit logs are the compliance
+// surface — written tenant-scoped by the plugin and read across tenants by
+// platform admins, so no department data-scope is applied here (unlike
+// operation-log export, whose rows map to users).
+func (d *AuditLogDAO) ExportLogsContext(ctx context.Context, req AuditLogListQuery) ([]model.AuditLog, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	query := applyAuditBaseFilters(
+		tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.AuditLog{}), ctx),
+		req,
+	)
+	var logs []model.AuditLog
+	if err := query.
+		Order(auditOrderClause(req.SortBy, req.SortOrder)).
+		Limit(maxExportRows).
+		Find(&logs).Error; err != nil {
+		return nil, err
+	}
+	return logs, nil
 }
 
 func (d *AuditLogDAO) BuildSummary(baseQuery *gorm.DB, totalLogs int64) (AuditLogSummary, error) {

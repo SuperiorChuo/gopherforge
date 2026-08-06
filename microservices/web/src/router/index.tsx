@@ -50,6 +50,15 @@ const routes: RouteObject[] = [
     element: lazyLoad(() => import('@/pages/register')),
   },
   {
+    // 忘记密码 / 重置密码：独立于 MainLayout（未登录）
+    path: '/forgot-password',
+    element: lazyLoad(() => import('@/pages/forgot-password')),
+  },
+  {
+    path: '/reset-password',
+    element: lazyLoad(() => import('@/pages/reset-password')),
+  },
+  {
     // OAuth2 授权确认页：面向第三方授权流程，刻意放在 MainLayout 之外
     // （第三方用户不应看到管理台骨架），与 /login 平级
     path: '/oauth/authorize',

@@ -24,8 +24,9 @@ import (
 	"github.com/go-admin-kit/services/bpm/internal/config"
 	"github.com/go-admin-kit/services/bpm/internal/engine"
 	"github.com/go-admin-kit/services/bpm/internal/model"
-	"github.com/go-admin-kit/services/bpm/internal/notifyclient"
+	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
 	"github.com/go-admin-kit/services/bpm/internal/store"
+	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/go-admin-kit/services/shared/pkg/jobbeat"
 	"github.com/go-admin-kit/services/shared/pkg/metrics"
 )
@@ -39,6 +40,16 @@ func main() {
 	st, err := store.Open(cfg.DSN())
 	if err != nil {
 		log.Fatalf("db: %v", err)
+	}
+
+	// 数据变更审计：流程定义为单行写审计目标（管理面 Create/Update/Publish/
+	// NewVersion/Suspend 均已带 ctx + 事务）。实例/任务由引擎在事务内批量推进
+	// （AND 会签一次多条 Task），撞 MaxRows=1 安全模型，刻意不注册。
+	if err := sharedaudit.Register(st.DB(), sharedaudit.Config{Targets: []sharedaudit.Target{
+		{Model: &model.ProcessDefinition{}, Table: "bpm_process_definition", TargetType: "bpm_definition", TenantField: "tenant_id",
+			SnapshotFields: []string{"ID", "TenantID", "Key", "Name", "Version", "Status", "BizType", "Remark"}},
+	}}); err != nil {
+		log.Fatalf("audit trail plugin registration failed: %v", err)
 	}
 
 	notify := notifyclient.New(cfg.NotifyAPIBase, cfg.NotifyInternalToken)
@@ -73,7 +84,7 @@ func main() {
 	// HTTP 指标（GET /metrics，Prometheus 抓取）；先于 Logger 注册，抓取不刷访问日志
 	metrics.Install(r)
 	// 健康探针每 10s 一次；成功探测不进访问日志，失败（>=400）仍记录
-	r.Use(gin.Recovery(), gin.LoggerWithConfig(gin.LoggerConfig{
+	r.Use(gin.Recovery(), sharedaudit.AuditHeaderMiddleware(), gin.LoggerWithConfig(gin.LoggerConfig{
 		Skip: func(c *gin.Context) bool {
 			p := c.Request.URL.Path
 			return c.Writer.Status() < 400 &&

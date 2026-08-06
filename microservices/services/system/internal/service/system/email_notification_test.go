@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/go-admin-kit/services/system/internal/model"
-	"github.com/go-admin-kit/services/system/internal/pkg/mailer"
+	"github.com/go-admin-kit/services/shared/pkg/mailer"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
 )
 

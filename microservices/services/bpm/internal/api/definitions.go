@@ -56,7 +56,7 @@ func (s *Server) CreateDefinition(c *gin.Context) {
 		fail(c, http.StatusBadRequest, "invalid body")
 		return
 	}
-	d, err := s.Store.CreateDefinition(u.TenantID, store.CreateDefinitionInput{
+	d, err := s.Store.CreateDefinition(c.Request.Context(), u.TenantID, store.CreateDefinitionInput{
 		Key: req.Key, Name: req.Name, BizType: req.BizType,
 		NodeTree: req.NodeTree, FormSchema: req.FormSchema,
 		Remark: req.Remark, CreatedBy: u.UserID,
@@ -77,7 +77,7 @@ func (s *Server) GetDefinition(c *gin.Context) {
 	if !valid {
 		return
 	}
-	d, err := s.Store.GetDefinition(id, u.TenantID)
+	d, err := s.Store.GetDefinition(c.Request.Context(), id, u.TenantID)
 	if err != nil {
 		notFoundOr(c, err, "流程定义不存在")
 		return
@@ -107,7 +107,7 @@ func (s *Server) UpdateDefinition(c *gin.Context) {
 		fail(c, http.StatusBadRequest, "invalid body")
 		return
 	}
-	d, err := s.Store.UpdateDefinition(id, u.TenantID, store.UpdateDefinitionInput{
+	d, err := s.Store.UpdateDefinition(c.Request.Context(), id, u.TenantID, store.UpdateDefinitionInput{
 		Name: req.Name, BizType: req.BizType, NodeTree: req.NodeTree,
 		FormSchema: req.FormSchema, Remark: req.Remark,
 	})
@@ -127,7 +127,7 @@ func (s *Server) PublishDefinition(c *gin.Context) {
 	if !valid {
 		return
 	}
-	d, err := s.Store.Publish(id, u.TenantID)
+	d, err := s.Store.Publish(c.Request.Context(), id, u.TenantID)
 	if err != nil {
 		notFoundOr(c, err, "流程定义不存在")
 		return
@@ -144,7 +144,7 @@ func (s *Server) NewDefinitionVersion(c *gin.Context) {
 	if !valid {
 		return
 	}
-	d, err := s.Store.NewVersion(id, u.TenantID, u.UserID)
+	d, err := s.Store.NewVersion(c.Request.Context(), id, u.TenantID, u.UserID)
 	if err != nil {
 		notFoundOr(c, err, "流程定义不存在")
 		return
@@ -161,7 +161,7 @@ func (s *Server) SuspendDefinition(c *gin.Context) {
 	if !valid {
 		return
 	}
-	d, err := s.Store.Suspend(id, u.TenantID)
+	d, err := s.Store.Suspend(c.Request.Context(), id, u.TenantID)
 	if err != nil {
 		notFoundOr(c, err, "流程定义不存在")
 		return

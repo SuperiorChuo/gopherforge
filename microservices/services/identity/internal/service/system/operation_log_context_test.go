@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
-	"github.com/go-admin-kit/services/identity/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
 )
 

@@ -428,6 +428,7 @@ func applyEnv(config *Config) {
 	config.Upload.MinIO.UseSSL = getEnvBool("UPLOAD_MINIO_USE_SSL", config.Upload.MinIO.UseSSL)
 	config.Upload.MinIO.BucketLookup = getEnvString("UPLOAD_MINIO_BUCKET_LOOKUP", config.Upload.MinIO.BucketLookup)
 	config.Upload.URLSignSecret = getEnvString("UPLOAD_URL_SIGN_SECRET", config.Upload.URLSignSecret)
+	config.Upload.MaxSize = getEnvInt("UPLOAD_MAX_SIZE", config.Upload.MaxSize)
 	config.Upload.URLSignTTLSeconds = getEnvInt("UPLOAD_URL_SIGN_TTL_SECONDS", config.Upload.URLSignTTLSeconds)
 }
 

@@ -32,7 +32,7 @@ import (
 	"github.com/go-admin-kit/services/system/internal/pkg/observability"
 	"github.com/go-admin-kit/services/system/internal/pkg/redis"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
-	tenantscope "github.com/go-admin-kit/services/system/internal/pkg/tenant"
+	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 	authsvc "github.com/go-admin-kit/services/system/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/system/internal/service/system"
 )

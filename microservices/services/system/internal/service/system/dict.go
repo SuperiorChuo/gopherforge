@@ -8,8 +8,8 @@ import (
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
 	"github.com/go-admin-kit/services/system/internal/model"
 	cachepkg "github.com/go-admin-kit/services/system/internal/pkg/cache"
-	"github.com/go-admin-kit/services/system/internal/pkg/pagination"
-	"github.com/go-admin-kit/services/system/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 

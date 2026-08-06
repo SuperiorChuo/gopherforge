@@ -1,10 +1,10 @@
-// Package notifyclient 经 HTTP 调站内信服务的 internal send 端点发通知
-// （X-Internal-Token，内网直连）。base 或 token 未配置时 Enabled()=false，
-// 调用方静默跳过，不阻断审批主流程（脚手架默认无通知服务，两者留空即禁用）。
+// Package notifyclient 经 HTTP 调 notify-service internal send 发站内信
+// （X-Internal-Token，内网直连 notify 容器 :8095），bpm/ticket/crm/im/cc/pay/
+// visibility 共用。token 未配置时 Enabled()=false，调用方静默跳过，不阻断主流程。
 //
-// 传输层已下沉到 shared/pkg/internalhttp：连接池复用（原先各服务裸
-// http.Client 用 DefaultTransport，MaxIdleConnsPerHost 只有 2）与 5xx/429
-// 退避重试都在那里，本包只留 payload 定义与端点路径。
+// 传输层在 shared/pkg/internalhttp：连接池复用（裸 http.Client 用
+// DefaultTransport，MaxIdleConnsPerHost 只有 2）与 5xx/429 退避重试都在那里，
+// 本包只留 payload 定义与端点路径。
 package notifyclient
 
 import (

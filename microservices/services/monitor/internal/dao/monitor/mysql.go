@@ -33,6 +33,9 @@ type MySQLServerStats struct {
 	BlocksRead        int64 `gorm:"column:blocks_read"`
 	BlocksHit         int64 `gorm:"column:blocks_hit"`
 	TempBytes         int64 `gorm:"column:temp_bytes"`
+	// SlowQueries counts active queries running longer than 10s — the same
+	// dependency-free signal the alert engine's pg.slow_queries metric uses.
+	SlowQueries int64 `gorm:"column:slow_queries"`
 }
 
 func NewMySQLDAO(db *gorm.DB) *MySQLDAO {
@@ -79,6 +82,7 @@ func (d *MySQLDAO) GetServerStatsContext(ctx context.Context) (MySQLServerStats,
 		   EXTRACT(EPOCH FROM (now() - pg_postmaster_start_time()))::bigint AS uptime_seconds,
 		   (SELECT COUNT(*) FROM pg_stat_activity) AS connections,
 		   (SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active') AS active_connections,
+		   (SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active' AND query_start < NOW() - INTERVAL '10 seconds') AS slow_queries,
 		   current_setting('max_connections')::bigint AS max_connections,
 		   s.xact_commit AS commits,
 		   s.xact_rollback AS rollbacks,

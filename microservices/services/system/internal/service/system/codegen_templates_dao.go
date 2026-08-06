@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-admin-kit/services/system/internal/model"
 {{- if .NeedsTenant}}
-	"github.com/go-admin-kit/services/system/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 {{- end}}
 	"gorm.io/gorm"
 )

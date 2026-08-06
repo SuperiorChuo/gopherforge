@@ -8,7 +8,7 @@ import (
 	systemdao "github.com/go-admin-kit/services/audit/internal/dao/system"
 	"github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/audit/internal/pkg/authz"
-	"github.com/go-admin-kit/services/audit/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
 )
 

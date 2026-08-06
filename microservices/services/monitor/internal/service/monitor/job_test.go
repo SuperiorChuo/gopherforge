@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
 )

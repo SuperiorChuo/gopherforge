@@ -23,8 +23,8 @@ import { useAppDispatch, useAppSelector } from '@/hooks/store'
 import { fetchCurrentUser, login } from '@/store/slices/authSlice'
 import { getCaptcha } from '@/api/auth'
 import { setTokens } from '@/utils/request'
-import { prefetchMainLayout } from '@/router'
 import { useThemeMode } from '@/theme/ThemeContext'
+import { prefetchMainLayout } from '@/router'
 
 /**
  * 读取 ?redirect= 并做开放重定向防护：只接受站内绝对路径（单个前导斜杠，
@@ -222,8 +222,12 @@ export default function LoginPage() {
         className="login-theme-toggle"
         title={mode === 'dark' ? '切换亮色' : '切换深色'}
         aria-label={mode === 'dark' ? '切换亮色' : '切换深色'}
-        onClick={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect()
+        onClick={(event) => {
+          if (event.clientX || event.clientY) {
+            toggleTheme({ x: event.clientX, y: event.clientY })
+            return
+          }
+          const rect = event.currentTarget.getBoundingClientRect()
           toggleTheme({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
         }}
       >
@@ -242,7 +246,7 @@ export default function LoginPage() {
             <div className="login-logo-mark">
               <SafetyOutlined />
             </div>
-            <span className="login-logo-name">GopherForge</span>
+            <span className="login-logo-name">Go Admin Kit</span>
           </div>
 
           <div className="login-brand-copy">
@@ -360,6 +364,9 @@ export default function LoginPage() {
                     onBlur={() => setCapsLock(false)}
                   />
                 </Form.Item>
+                <div className="login-forgot-row">
+                  <a className="login-forgot-link" href="/forgot-password">忘记密码？</a>
+                </div>
                 {capsLock && (
                   <div className="login-caps-hint" role="status">
                     <WarningOutlined />
@@ -466,7 +473,7 @@ export default function LoginPage() {
               </Form>
             )}
 
-            <div className="login-footer">© {new Date().getFullYear()} GopherForge</div>
+            <div className="login-footer">© {new Date().getFullYear()} Go Admin Kit</div>
           </div>
         </div>
       </div>

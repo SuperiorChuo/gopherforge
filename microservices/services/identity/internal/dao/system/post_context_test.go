@@ -8,7 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/services/identity/internal/model"
-	"github.com/go-admin-kit/services/identity/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
 )
 
 func TestPostDAOGetListContextHonorsCanceledContext(t *testing.T) {

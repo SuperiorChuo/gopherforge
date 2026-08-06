@@ -10,7 +10,7 @@ import (
 
 	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )

@@ -16,7 +16,7 @@ import (
 	"github.com/go-admin-kit/services/bpm/internal/authjwt"
 	"github.com/go-admin-kit/services/bpm/internal/engine"
 	"github.com/go-admin-kit/services/bpm/internal/model"
-	"github.com/go-admin-kit/services/bpm/internal/notifyclient"
+	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
 	"github.com/go-admin-kit/services/bpm/internal/store"
 )
 

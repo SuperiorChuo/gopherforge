@@ -10,7 +10,7 @@ import (
 	sharedDAO "github.com/go-admin-kit/services/identity/internal/dao"
 	"github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
-	"github.com/go-admin-kit/services/identity/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
 )
 
 // UserDAO keeps system-management user queries while reusing shared user persistence methods.
