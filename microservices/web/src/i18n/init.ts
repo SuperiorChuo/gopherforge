@@ -20,9 +20,19 @@ i18n.use(initReactI18next).init({
   returnNull: false,
   interpolation: { escapeValue: false },
   react: { useSuspense: false },
-  // dev + en 下给未译串打 ⟦⟧ 标记；zh 模式永远返回 key 本身（渲染与迁移前逐字节一致）
-  parseMissingKeyHandler: (key) =>
-    import.meta.env.DEV && i18n.resolvedLanguage === 'en' ? `⟦${key}⟧` : key,
+  // message-as-key：zh 模式无 zh.json，key 走这里返回。必须用传入 options 对 key 插值，
+  // 否则 `t('近 {{n}} 天', { n: 7 })` 在 zh 模式返回字面 `{{n}}`（曾致全站插值泄漏）。
+  // dev + en 下给未译串打 ⟦⟧ 标记（同样先插值）。
+  parseMissingKeyHandler: (key, _defaultValue, options) => {
+    const interpolated = i18n.services.interpolator.interpolate(
+      key,
+      options ?? {},
+      i18n.resolvedLanguage ?? i18n.language,
+      i18n.options.interpolation ?? {},
+    )
+    if (import.meta.env.DEV && i18n.resolvedLanguage === 'en') return `⟦${interpolated}⟧`
+    return interpolated
+  },
   missingKeyHandler: (_lngs, _ns, key) => {
     if (typeof window !== 'undefined') {
       const w = window as unknown as { __GAK_MISSING?: Set<string> }
