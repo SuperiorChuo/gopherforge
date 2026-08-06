@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Tabs, Card, Input, Button, Form, InputNumber, Switch, Select, Collapse, Skeleton, Tag, Space, Alert,
 } from 'antd'
@@ -124,7 +125,7 @@ const FIELD_SCHEMAS: Record<string, { title: string; fields: FieldDef[] }> = {
   },
 }
 
-function renderField(f: FieldDef) {
+function renderField(f: FieldDef, t: (key: string) => string) {
   switch (f.type) {
     case 'number':
       return <InputNumber min={f.min} style={{ width: '100%', maxWidth: 220 }} />
@@ -135,7 +136,7 @@ function renderField(f: FieldDef) {
         <Select
           mode="tags"
           style={{ width: '100%', maxWidth: 520 }}
-          placeholder="输入邮箱后回车，可添加多个"
+          placeholder={t('输入邮箱后回车，可添加多个')}
           tokenSeparators={[',', ' ']}
           open={false}
         />
@@ -143,11 +144,11 @@ function renderField(f: FieldDef) {
     case 'textarea':
       return <Input.TextArea rows={4} style={{ width: '100%', maxWidth: 520 }} />
     case 'password':
-      return <Input.Password style={{ width: '100%', maxWidth: 520 }} placeholder={f.placeholder} autoComplete="new-password" />
+      return <Input.Password style={{ width: '100%', maxWidth: 520 }} placeholder={f.placeholder ? t(f.placeholder) : undefined} autoComplete="new-password" />
     case 'select':
-      return <Select style={{ width: '100%', maxWidth: 520 }} options={f.options} allowClear placeholder={f.placeholder} />
+      return <Select style={{ width: '100%', maxWidth: 520 }} options={f.options?.map((o) => ({ ...o, label: t(o.label) }))} allowClear placeholder={f.placeholder ? t(f.placeholder) : undefined} />
     default:
-      return <Input style={{ width: '100%', maxWidth: 520 }} placeholder={f.placeholder} />
+      return <Input style={{ width: '100%', maxWidth: 520 }} placeholder={f.placeholder ? t(f.placeholder) : undefined} />
   }
 }
 
@@ -160,6 +161,7 @@ function SchemaSettingCard({ setting, canUpdate, onSaved, save, onDelete }: {
   save?: (key: string, value: Record<string, unknown>) => Promise<unknown>
   onDelete?: (key: string) => Promise<void>
 }) {
+  const { t } = useTranslation()
   const schema = FIELD_SCHEMAS[setting.setting_key]
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
@@ -180,10 +182,10 @@ function SchemaSettingCard({ setting, canUpdate, onSaved, save, onDelete }: {
     setSaving(true)
     try {
       await doSave(setting.setting_key, { ...(setting.value_json ?? {}), ...normalized })
-      message.success('保存成功')
+      message.success(t('保存成功'))
       onSaved()
     } catch {
-      message.error('保存失败')
+      message.error(t('保存失败'))
     } finally {
       setSaving(false)
     }
@@ -194,10 +196,10 @@ function SchemaSettingCard({ setting, canUpdate, onSaved, save, onDelete }: {
     setDeleting(true)
     try {
       await onDelete(setting.setting_key)
-      message.success('已删除覆盖，回落到平台默认')
+      message.success(t('已删除覆盖，回落到平台默认'))
       onSaved()
     } catch {
-      message.error('删除覆盖失败')
+      message.error(t('删除覆盖失败'))
     } finally {
       setDeleting(false)
     }
@@ -212,13 +214,13 @@ function SchemaSettingCard({ setting, canUpdate, onSaved, save, onDelete }: {
       className="setting-config-card"
       title={
         <span className="setting-card-title">
-          <span>{schema.title}</span>
+          <span>{t(schema.title)}</span>
           <Tag variant="filled" className="cell-mono setting-card-key">{setting.setting_key}</Tag>
         </span>
       }
       extra={
         <span className="card-extra-note">
-          {setting.updated_at ? `更新于 ${formatDateTime(setting.updated_at)}` : '尚未保存，使用环境变量默认值'}
+          {setting.updated_at ? t('更新于 {{time}}', { time: formatDateTime(setting.updated_at) }) : t('尚未保存，使用环境变量默认值')}
         </span>
       }
     >
@@ -232,15 +234,15 @@ function SchemaSettingCard({ setting, canUpdate, onSaved, save, onDelete }: {
           <Form.Item
             key={f.key}
             name={f.key}
-            label={f.label}
-            tooltip={f.tooltip}
+            label={t(f.label)}
+            tooltip={f.tooltip ? t(f.tooltip) : undefined}
             valuePropName={f.type === 'boolean' ? 'checked' : 'value'}
           >
-            {renderField(f)}
+            {renderField(f, t)}
           </Form.Item>
         ))}
         {extraKeys.length > 0 && (
-          <Form.Item label="其他字段" tooltip="结构化表单未覆盖的字段，保存时原样保留">
+          <Form.Item label={t('其他字段')} tooltip={t('结构化表单未覆盖的字段，保存时原样保留')}>
             <span className="cell-mono card-extra-note">
               {extraKeys.join('、')}
             </span>
@@ -254,11 +256,11 @@ function SchemaSettingCard({ setting, canUpdate, onSaved, save, onDelete }: {
           >
             <Space>
               <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving}>
-                保存
+                {t('保存')}
               </Button>
               {onDelete ? (
                 <Button danger icon={<ReloadOutlined />} onClick={handleDelete} loading={deleting}>
-                  删除覆盖（回落平台默认）
+                  {t('删除覆盖（回落平台默认）')}
                 </Button>
               ) : null}
             </Space>
@@ -275,6 +277,7 @@ function JsonSettingCard({ setting, canUpdate, onSaved }: {
   canUpdate: boolean
   onSaved: () => void
 }) {
+  const { t } = useTranslation()
   const [raw, setRaw] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -287,16 +290,16 @@ function JsonSettingCard({ setting, canUpdate, onSaved }: {
     try {
       parsed = JSON.parse(raw)
     } catch {
-      message.error('JSON 格式错误，请检查输入')
+      message.error(t('JSON 格式错误，请检查输入'))
       return
     }
     setSaving(true)
     try {
       await upsertSetting(setting.setting_key, parsed)
-      message.success('保存成功')
+      message.success(t('保存成功'))
       onSaved()
     } catch {
-      message.error('保存失败')
+      message.error(t('保存失败'))
     } finally {
       setSaving(false)
     }
@@ -308,7 +311,7 @@ function JsonSettingCard({ setting, canUpdate, onSaved }: {
       title={<Tag variant="filled" className="cell-mono setting-card-key">{setting.setting_key}</Tag>}
       extra={
         <span className="card-extra-note">
-          更新于 {formatDateTime(setting.updated_at)}
+          {t('更新于 {{time}}', { time: formatDateTime(setting.updated_at) })}
         </span>
       }
     >
@@ -328,7 +331,7 @@ function JsonSettingCard({ setting, canUpdate, onSaved }: {
           loading={saving}
           style={{ marginTop: 12 }}
         >
-          保存
+          {t('保存')}
         </Button>
       )}
     </Card>
@@ -336,6 +339,7 @@ function JsonSettingCard({ setting, canUpdate, onSaved }: {
 }
 
 function SettingGroupPanel({ group, refreshKey }: { group: string; refreshKey: number }) {
+  const { t } = useTranslation()
   const [list, setList] = useState<SystemSetting[]>([])
   const [loading, setLoading] = useState(false)
   const { hasPerm } = usePermission()
@@ -347,7 +351,7 @@ function SettingGroupPanel({ group, refreshKey }: { group: string; refreshKey: n
       const res = await getSettingList(group)
       setList(res ?? [])
     } catch {
-      message.error('加载设置失败')
+      message.error(t('加载设置失败'))
     } finally {
       setLoading(false)
     }
@@ -393,7 +397,7 @@ function SettingGroupPanel({ group, refreshKey }: { group: string; refreshKey: n
           items={[
             {
               key: 'raw',
-              label: `其他设置项（JSON 编辑，${unknown.length} 个）`,
+              label: t('其他设置项（JSON 编辑，{{n}} 个）', { n: unknown.length }),
               children: (
                 <div className="page-list">
                   {unknown.map((s) => (
@@ -413,6 +417,7 @@ function SettingGroupPanel({ group, refreshKey }: { group: string; refreshKey: n
 const TENANT_KEYS = ['ai.provider', 'notification.email', 'weather.provider']
 
 function TenantSettingPanel() {
+  const { t } = useTranslation()
   const [list, setList] = useState<SystemSetting[]>([])
   const [loading, setLoading] = useState(false)
   const { hasPerm } = usePermission()
@@ -423,7 +428,7 @@ function TenantSettingPanel() {
     try {
       setList(await getTenantSettingList())
     } catch {
-      message.error('加载租户设置失败')
+      message.error(t('加载租户设置失败'))
     } finally {
       setLoading(false)
     }
@@ -445,8 +450,8 @@ function TenantSettingPanel() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="租户级配置"
-        description="配置本租户的 AI / 邮件 / 天气覆盖；未覆盖的键自动使用平台默认值。保存后热生效。"
+        message={t('租户级配置')}
+        description={t('配置本租户的 AI / 邮件 / 天气覆盖；未覆盖的键自动使用平台默认值。保存后热生效。')}
       />
       {loading && cards.length === 0 ? (
         <Card>
@@ -469,6 +474,7 @@ function TenantSettingPanel() {
 }
 
 export default function SettingPage() {
+  const { t } = useTranslation()
   // 自增 key 让当前分组面板重新拉取
   const [refreshKey, setRefreshKey] = useState(0)
   // 非平台管理员只能看到租户级配置；平台管理员看全量全局设置
@@ -484,12 +490,12 @@ export default function SettingPage() {
       defaultActiveKey={GROUPS[0].key}
       tabBarExtraContent={
         <Button size="small" icon={<ReloadOutlined />} onClick={() => setRefreshKey((k) => k + 1)}>
-          刷新
+          {t('刷新')}
         </Button>
       }
       items={GROUPS.map((g) => ({
         key: g.key,
-        label: g.label,
+        label: t(g.label),
         icon: g.icon,
         children: <SettingGroupPanel group={g.key} refreshKey={refreshKey} />,
       }))}

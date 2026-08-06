@@ -1,4 +1,5 @@
 import dayjs from 'dayjs'
+import i18n from '@/i18n/init'
 
 /** 把后端 RFC3339 时间格式化为 YYYY-MM-DD HH:mm:ss，空值显示 '-' */
 export const formatDateTime = (value?: string | null) =>
@@ -19,8 +20,8 @@ export const formatDuration = (seconds: number): string => {
   const h = Math.floor((seconds % 86400) / 3600)
   const m = Math.floor((seconds % 3600) / 60)
   const parts: string[] = []
-  if (d) parts.push(`${d}天`)
-  if (h) parts.push(`${h}小时`)
-  if (m || !parts.length) parts.push(`${m}分`)
+  if (d) parts.push(i18n.t('{{d}}天', { d }))
+  if (h) parts.push(i18n.t('{{h}}小时', { h }))
+  if (m || !parts.length) parts.push(i18n.t('{{m}}分', { m }))
   return parts.join(' ')
 }

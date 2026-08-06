@@ -64,6 +64,7 @@ export interface TenantPackageInfo {
   id: number
   name: string
   permission_codes: string[]
+  storage_quota_mb?: number
   status: number
   remark?: string
   created_at?: string

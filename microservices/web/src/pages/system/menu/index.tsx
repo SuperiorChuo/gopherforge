@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Popconfirm, Modal, Form, Input, Select,
   Card, InputNumber, Switch, TreeSelect, Segmented, Row, Col, Tooltip,
@@ -63,6 +64,7 @@ export default function MenuPage() {
   const [expandedKeys, setExpandedKeys] = useState<readonly React.Key[]>([])
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
+  const { t } = useTranslation()
   const { hasPerm } = usePermission()
 
   const fetchList = async (p: SearchParams) => {
@@ -72,7 +74,7 @@ export default function MenuPage() {
       setList(res.list)
       setTotal(res.total)
     } catch {
-      message.error('获取菜单列表失败')
+      message.error(t('获取菜单列表失败'))
     } finally {
       setLoading(false)
     }
@@ -85,7 +87,7 @@ export default function MenuPage() {
       setTree(res ?? [])
       setExpandedKeys(collectExpandableKeys(res ?? []))
     } catch {
-      message.error('获取菜单树失败')
+      message.error(t('获取菜单树失败'))
     } finally {
       setLoading(false)
     }
@@ -149,10 +151,10 @@ export default function MenuPage() {
   const handleDelete = async (id: number) => {
     try {
       await MenuAPI.deleteMenu(id)
-      message.success('删除成功')
+      message.success(t('删除成功'))
       refresh()
     } catch {
-      message.error('删除失败')
+      message.error(t('删除失败'))
     }
   }
 
@@ -165,15 +167,15 @@ export default function MenuPage() {
       const payload = { ...values, hidden: values.hidden ? 1 : 0, parent_id: values.parent_id ?? 0 }
       if (editRecord) {
         await MenuAPI.updateMenu(editRecord.id, payload)
-        message.success('更新成功')
+        message.success(t('更新成功'))
       } else {
         await MenuAPI.createMenu(payload)
-        message.success('创建成功')
+        message.success(t('创建成功'))
       }
       setModalOpen(false)
       refresh()
     } catch {
-      message.error('操作失败')
+      message.error(t('操作失败'))
     } finally {
       setSubmitting(false)
     }
@@ -181,7 +183,7 @@ export default function MenuPage() {
 
   const columns: ColumnsType<Menu> = [
     {
-      title: '标题',
+      title: t('标题'),
       dataIndex: 'title',
       width: 300,
       ellipsis: true,
@@ -192,24 +194,24 @@ export default function MenuPage() {
         </span>
       ),
     },
-    { title: '名称', dataIndex: 'name', width: 170, ellipsis: true, responsive: ['sm'], render: (v: string) => <span className="cell-mono menu-name-cell">{v}</span> },
+    { title: t('名称'), dataIndex: 'name', width: 170, ellipsis: true, responsive: ['sm'], render: (v: string) => <span className="cell-mono menu-name-cell">{v}</span> },
     {
-      title: '路径',
+      title: t('路径'),
       dataIndex: 'path',
       width: 260,
       ellipsis: true,
       responsive: ['md'],
       render: (v: string) => v ? <span className="cell-mono cell-dim menu-path-cell">{v}</span> : <span className="cell-muted">—</span>,
     },
-    { title: '排序', dataIndex: 'sort', width: 70 },
+    { title: t('排序'), dataIndex: 'sort', width: 70 },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 80,
       render: (v: number) => <EnableStatusPill value={v} />,
     },
     {
-      title: '隐藏',
+      title: t('隐藏'),
       dataIndex: 'hidden',
       width: 70,
       responsive: ['sm'],
@@ -221,20 +223,20 @@ export default function MenuPage() {
         ),
     },
     {
-      title: '操作',
+      title: t('操作'),
       width: 96,
       fixed: 'right',
       render: (_, record) => (
         <Space size={4} className="table-actions menu-row-actions">
           {hasPerm('system:menu:update') && (
-            <Tooltip title="编辑">
-              <Button type="text" size="small" aria-label="编辑菜单" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Tooltip title={t('编辑')}>
+              <Button type="text" size="small" aria-label={t('编辑菜单')} icon={<EditOutlined />} onClick={() => openEdit(record)} />
             </Tooltip>
           )}
           {hasPerm('system:menu:delete') && (
-            <Popconfirm title="确认删除该菜单?" description="存在子菜单时将无法删除" onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title="删除">
-                <Button type="text" size="small" danger aria-label="删除菜单" icon={<DeleteOutlined />} />
+            <Popconfirm title={t('确认删除该菜单?')} description={t('存在子菜单时将无法删除')} onConfirm={() => handleDelete(record.id)}>
+              <Tooltip title={t('删除')}>
+                <Button type="text" size="small" danger aria-label={t('删除菜单')} icon={<DeleteOutlined />} />
               </Tooltip>
             </Popconfirm>
           )}
@@ -256,18 +258,18 @@ export default function MenuPage() {
           initialValues={params}
         >
           <Form.Item name="keyword">
-            <Input placeholder="搜索名称 / 路径" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
+            <Input placeholder={t('搜索名称 / 路径')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
           <Form.Item name="status">
-            <Select placeholder="状态" style={{ width: 100 }} allowClear>
-              <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
+            <Select placeholder={t('状态')} style={{ width: 100 }} allowClear>
+              <Select.Option value={1}>{t('启用')}</Select.Option>
+              <Select.Option value={0}>{t('禁用')}</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
           <Form.Item className="menu-view-switch">
@@ -275,8 +277,8 @@ export default function MenuPage() {
               value={view}
               onChange={(v) => setView(v as 'tree' | 'list')}
               options={[
-                { label: '树形', value: 'tree' },
-                { label: '列表', value: 'list' },
+                { label: t('树形'), value: 'tree' },
+                { label: t('列表'), value: 'list' },
               ]}
             />
           </Form.Item>
@@ -291,17 +293,17 @@ export default function MenuPage() {
             <Space wrap>
               {isTree && (
                 <>
-                  <Tooltip title="全部展开">
-                    <Button aria-label="全部展开菜单" icon={<ArrowsAltOutlined />} onClick={() => setExpandedKeys(collectExpandableKeys(tree))} />
+                  <Tooltip title={t('全部展开')}>
+                    <Button aria-label={t('全部展开菜单')} icon={<ArrowsAltOutlined />} onClick={() => setExpandedKeys(collectExpandableKeys(tree))} />
                   </Tooltip>
-                  <Tooltip title="全部收起">
-                    <Button aria-label="全部收起菜单" icon={<ShrinkOutlined />} onClick={() => setExpandedKeys([])} />
+                  <Tooltip title={t('全部收起')}>
+                    <Button aria-label={t('全部收起菜单')} icon={<ShrinkOutlined />} onClick={() => setExpandedKeys([])} />
                   </Tooltip>
                 </>
               )}
-              <Button icon={<ReloadOutlined />} onClick={refresh}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={refresh}>{t('刷新')}</Button>
               {hasPerm('system:menu:create') && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增菜单</Button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增菜单')}</Button>
               )}
             </Space>
           }
@@ -325,7 +327,7 @@ export default function MenuPage() {
                   pageSize: params.page_size,
                   showSizeChanger: true,
                   showQuickJumper: true,
-                  showTotal: (t) => `共 ${t} 条`,
+                  showTotal: (n) => t('共 {{n}} 条', { n }),
                   onChange: (page, page_size) => setParams({ ...params, page, page_size }),
                 }
           }
@@ -333,7 +335,7 @@ export default function MenuPage() {
       </Card>
 
       <Modal
-        title={editRecord ? '编辑菜单' : '新增菜单'}
+        title={editRecord ? t('编辑菜单') : t('新增菜单')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
@@ -344,34 +346,34 @@ export default function MenuPage() {
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Row gutter={16}>
             <Col xs={24} sm={12}>
-              <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
-                <Input placeholder="菜单显示名，如：用户管理" />
+              <Form.Item name="title" label={t('标题')} rules={[{ required: true, message: t('请输入标题') }]}>
+                <Input placeholder={t('菜单显示名，如：用户管理')} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
-              <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
-                <Input placeholder="唯一标识，如：user" />
+              <Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('请输入名称') }]}>
+                <Input placeholder={t('唯一标识，如：user')} />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col xs={24} sm={12}>
-              <Form.Item name="path" label="路径">
+              <Form.Item name="path" label={t('路径')}>
                 <Input placeholder="/system/user" />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
-              <Form.Item name="component" label="组件">
+              <Form.Item name="component" label={t('组件')}>
                 <Input placeholder="pages/system/user" />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col xs={24} sm={12}>
-              <Form.Item name="parent_id" label="上级菜单">
+              <Form.Item name="parent_id" label={t('上级菜单')}>
                 <TreeSelect
                   treeData={treeSelectData}
-                  placeholder="不选则为顶级菜单"
+                  placeholder={t('不选则为顶级菜单')}
                   allowClear
                   showSearch
                   treeDefaultExpandAll
@@ -380,27 +382,27 @@ export default function MenuPage() {
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
-              <Form.Item name="icon" label="图标">
-                <Input placeholder="图标名称" />
+              <Form.Item name="icon" label={t('图标')}>
+                <Input placeholder={t('图标名称')} />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col xs={24} sm={8}>
-              <Form.Item name="sort" label="排序" initialValue={0}>
+              <Form.Item name="sort" label={t('排序')} initialValue={0}>
                 <InputNumber style={{ width: '100%' }} min={0} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={8}>
-              <Form.Item name="status" label="状态" initialValue={1}>
+              <Form.Item name="status" label={t('状态')} initialValue={1}>
                 <Select>
-                  <Select.Option value={1}>启用</Select.Option>
-                  <Select.Option value={0}>禁用</Select.Option>
+                  <Select.Option value={1}>{t('启用')}</Select.Option>
+                  <Select.Option value={0}>{t('禁用')}</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
             <Col xs={24} sm={8}>
-              <Form.Item name="hidden" label="隐藏" valuePropName="checked" initialValue={false}>
+              <Form.Item name="hidden" label={t('隐藏')} valuePropName="checked" initialValue={false}>
                 <Switch />
               </Form.Item>
             </Col>

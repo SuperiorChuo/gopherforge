@@ -30,6 +30,7 @@ export interface FileStats {
   total: number
   total_size: number
   by_type?: Record<string, { count: number; size: number }>
+  storage_quota_mb?: number
 }
 
 export const getFileStats = () =>

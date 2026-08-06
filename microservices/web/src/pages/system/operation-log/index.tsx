@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Card, Input, Select, Form, Modal, Descriptions, DatePicker,
   InputNumber, Drawer, Tooltip,
@@ -75,6 +76,7 @@ export default function OperationLogPage() {
   const [stats, setStats] = useState<OperationLogStats | null>(null)
   const [searchForm] = Form.useForm()
   const [clearForm] = Form.useForm()
+  const { t } = useTranslation()
   const { hasPerm } = usePermission()
 
   const loadStats = () => {
@@ -93,7 +95,7 @@ export default function OperationLogPage() {
       setList(res.list)
       setTotal(res.total)
     } catch {
-      message.error('获取操作日志失败')
+      message.error(t('获取操作日志失败'))
     } finally {
       setLoading(false)
     }
@@ -132,7 +134,7 @@ export default function OperationLogPage() {
       setDetail(res)
       setDetailOpen(true)
     } catch {
-      message.error('获取详情失败')
+      message.error(t('获取详情失败'))
     }
   }
 
@@ -141,9 +143,9 @@ export default function OperationLogPage() {
     try {
       const { page: _p, page_size: _ps, ...filters } = params
       await exportOperationLogs(filters)
-      message.success('导出成功')
+      message.success(t('导出成功'))
     } catch {
-      message.error('导出失败')
+      message.error(t('导出失败'))
     } finally {
       setExporting(false)
     }
@@ -155,13 +157,13 @@ export default function OperationLogPage() {
     setClearing(true)
     try {
       const res = await clearOperationLogs(values.days)
-      message.success(`清理成功，共删除 ${res.deleted_count} 条日志`)
+      message.success(t('清理成功，共删除 {{n}} 条日志', { n: res.deleted_count }))
       setClearOpen(false)
       fetchList({ ...params, page: 1 })
       // 顶部统计与列表同屏，清完必须一起刷新，否则两块数据互相矛盾
       loadStats()
     } catch {
-      message.error('清理失败')
+      message.error(t('清理失败'))
     } finally {
       setClearing(false)
     }
@@ -169,32 +171,32 @@ export default function OperationLogPage() {
 
   const columns: ColumnsType<OperationLog> = [
     { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
-    { title: '用户名', dataIndex: 'username', width: 160, ellipsis: true, responsive: ['sm'], render: (v: string) => <ScanText value={v} /> },
+    { title: t('用户名'), dataIndex: 'username', width: 160, ellipsis: true, responsive: ['sm'], render: (v: string) => <ScanText value={v} /> },
     {
-      title: '方法',
+      title: t('方法'),
       dataIndex: 'method',
       width: 90,
       responsive: ['md'],
       render: (v: string) => <Tag variant="filled" className="cell-mono operation-method-tag">{v}</Tag>,
     },
     {
-      title: '路径',
+      title: t('路径'),
       dataIndex: 'path',
       width: 300,
       ellipsis: true,
       render: (v: string) => <ScanText value={v} mono />,
     },
-    { title: '模块', dataIndex: 'module', width: 140, ellipsis: true, responsive: ['md'], render: (v: string) => <ScanText value={v} /> },
-    { title: '动作', dataIndex: 'action', width: 160, ellipsis: true, responsive: ['lg'], render: (v: string) => <ScanText value={v} mono /> },
+    { title: t('模块'), dataIndex: 'module', width: 140, ellipsis: true, responsive: ['md'], render: (v: string) => <ScanText value={v} /> },
+    { title: t('动作'), dataIndex: 'action', width: 160, ellipsis: true, responsive: ['lg'], render: (v: string) => <ScanText value={v} mono /> },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 80,
       responsive: ['sm'],
       render: (v: number) => <Tag color={statusColor(v)} variant="filled" className="cell-mono operation-status-tag">{v}</Tag>,
     },
     {
-      title: '耗时',
+      title: t('耗时'),
       dataIndex: 'latency',
       width: 90,
       responsive: ['lg'],
@@ -205,18 +207,18 @@ export default function OperationLogPage() {
           <span className="cell-muted">—</span>
         ),
     },
-    { title: '时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['md'] },
+    { title: t('时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['md'] },
     {
-      title: '操作',
+      title: t('操作'),
       width: 64,
       fixed: 'right',
       render: (_, record) => (
-        <Tooltip title="查看详情">
+        <Tooltip title={t('查看详情')}>
           <Button
             type="text"
             size="small"
             className="operation-row-action"
-            aria-label="查看操作日志详情"
+            aria-label={t('查看操作日志详情')}
             icon={<EyeOutlined />}
             onClick={() => openDetail(record.id)}
           />
@@ -235,11 +237,11 @@ export default function OperationLogPage() {
         <Card className="list-filter-card operation-stats-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
           <div className="log-stats-row">
             <div className="log-stat">
-              <span className="log-stat-label">近 7 天操作</span>
+              <span className="log-stat-label">{t('近 7 天操作')}</span>
               <span className="log-stat-value"><CountUpValue value={stats.total} /></span>
             </div>
             <div className="log-stat">
-              <span className="log-stat-label">异常请求</span>
+              <span className="log-stat-label">{t('异常请求')}</span>
               <span className={`log-stat-value ${stats.error_count > 0 ? 'log-stat-danger' : 'log-stat-success'}`}>
                 <CountUpValue value={stats.error_count} />
               </span>
@@ -248,7 +250,7 @@ export default function OperationLogPage() {
               <>
                 <div className="log-stat-divider" />
                 <div className="log-stat">
-                  <span className="log-stat-label">方法分布</span>
+                  <span className="log-stat-label">{t('方法分布')}</span>
                   <span className="operation-stat-tags">
                     {Object.entries(stats.by_method ?? {}).map(([m, n]) => (
                       <Tag key={m} variant="filled" className="cell-mono operation-method-tag">
@@ -263,7 +265,7 @@ export default function OperationLogPage() {
               <>
                 <div className="log-stat-divider" />
                 <div className="log-stat">
-                  <span className="log-stat-label">活跃模块 Top{topModules.length}</span>
+                  <span className="log-stat-label">{t('活跃模块 Top{{n}}', { n: topModules.length })}</span>
                   <span className="operation-stat-tags">
                     {topModules.map(([m, n]) => (
                       <Tooltip key={m} title={m}>
@@ -295,28 +297,28 @@ export default function OperationLogPage() {
           }}
         >
           <Form.Item name="username">
-            <Input placeholder="搜索用户名" prefix={<SearchOutlined />} allowClear style={{ width: 200 }} />
+            <Input placeholder={t('搜索用户名')} prefix={<SearchOutlined />} allowClear style={{ width: 200 }} />
           </Form.Item>
           <Form.Item name="method">
-            <Select placeholder="方法" style={{ width: 90 }} allowClear>
+            <Select placeholder={t('方法')} style={{ width: 90 }} allowClear>
               {['GET', 'POST', 'PUT', 'DELETE', 'PATCH'].map((m) => (
                 <Select.Option key={m} value={m}>{m}</Select.Option>
               ))}
             </Select>
           </Form.Item>
           <Form.Item name="path">
-            <Input placeholder="路径" allowClear style={{ width: 160 }} />
+            <Input placeholder={t('路径')} allowClear style={{ width: 160 }} />
           </Form.Item>
           <Form.Item name="module">
-            <Input placeholder="模块" allowClear style={{ width: 120 }} />
+            <Input placeholder={t('模块')} allowClear style={{ width: 120 }} />
           </Form.Item>
           <Form.Item name="dateRange">
             <RangePicker showTime format="YYYY-MM-DD HH:mm:ss" />
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
         </Form>
@@ -334,13 +336,13 @@ export default function OperationLogPage() {
                   icon={<ClearOutlined />}
                   onClick={() => { clearForm.resetFields(); setClearOpen(true) }}
                 >
-                  清理日志
+                  {t('清理日志')}
                 </Button>
               )}
               <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>
-                导出 CSV
+                {t('导出 CSV')}
               </Button>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
             </Space>
           }
         />
@@ -358,14 +360,14 @@ export default function OperationLogPage() {
             pageSize: params.page_size,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
       </Card>
 
       <Drawer
-        title="请求诊断"
+        title={t('请求诊断')}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width="min(720px, 100vw)"
@@ -374,13 +376,13 @@ export default function OperationLogPage() {
         {detail && (
           <div className="operation-detail-content">
             <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
-              <Descriptions.Item label="用户">{detail.username || '-'}</Descriptions.Item>
-              <Descriptions.Item label="时间">{formatDateTime(detail.created_at)}</Descriptions.Item>
-              <Descriptions.Item label="方法 / 状态">
+              <Descriptions.Item label={t('用户')}>{detail.username || '-'}</Descriptions.Item>
+              <Descriptions.Item label={t('时间')}>{formatDateTime(detail.created_at)}</Descriptions.Item>
+              <Descriptions.Item label={t('方法 / 状态')}>
                 <Tag variant="filled" className="cell-mono operation-method-tag">{detail.method}</Tag>
                 <Tag color={statusColor(detail.status)} variant="filled" className="cell-mono operation-status-tag">{detail.status}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="耗时">
+              <Descriptions.Item label={t('耗时')}>
                 {typeof detail.latency === 'number' ? (
                   <span className={`cell-mono ${latencyClass(detail.latency)}`}>
                     {detail.latency}ms
@@ -389,19 +391,19 @@ export default function OperationLogPage() {
                   '-'
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label="路径" span={2}>
+              <Descriptions.Item label={t('路径')} span={2}>
                 <span className="cell-mono operation-detail-long">
                   {detail.path}
                   {detail.query ? `?${detail.query}` : ''}
                 </span>
               </Descriptions.Item>
-              <Descriptions.Item label="模块 / 动作">
+              <Descriptions.Item label={t('模块 / 动作')}>
                 {[detail.module, detail.action].filter(Boolean).join(' / ') || '-'}
               </Descriptions.Item>
               <Descriptions.Item label="IP">
                 <span className="cell-mono">{detail.ip || '-'}</span>
               </Descriptions.Item>
-              <Descriptions.Item label="请求ID" span={2}>
+              <Descriptions.Item label={t('请求ID')} span={2}>
                 <span className="cell-mono operation-detail-long">{detail.request_id || '-'}</span>
               </Descriptions.Item>
               {detail.user_agent && (
@@ -413,19 +415,19 @@ export default function OperationLogPage() {
 
             {detail.error_msg && (
               <div className="log-detail-block log-detail-error">
-                <div className="log-detail-block-title">错误信息</div>
+                <div className="log-detail-block-title">{t('错误信息')}</div>
                 <pre>{detail.error_msg}</pre>
               </div>
             )}
             {detail.request_body && (
               <div className="log-detail-block">
-                <div className="log-detail-block-title">请求体</div>
+                <div className="log-detail-block-title">{t('请求体')}</div>
                 <pre>{tryPrettyJson(detail.request_body)}</pre>
               </div>
             )}
             {detail.response_body && (
               <div className="log-detail-block">
-                <div className="log-detail-block-title">响应体</div>
+                <div className="log-detail-block-title">{t('响应体')}</div>
                 <pre>{tryPrettyJson(detail.response_body)}</pre>
               </div>
             )}
@@ -434,20 +436,20 @@ export default function OperationLogPage() {
       </Drawer>
 
       <Modal
-        title="清理操作日志"
+        title={t('清理操作日志')}
         open={clearOpen}
         onOk={handleClear}
         onCancel={() => setClearOpen(false)}
         confirmLoading={clearing}
         okButtonProps={{ danger: true }}
-        okText="确认清理"
+        okText={t('确认清理')}
         destroyOnHidden
       >
         <Form form={clearForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="days"
-            label="保留最近天数（早于该范围的日志将被删除，不可恢复）"
-            rules={[{ required: true, message: '请输入保留天数' }]}
+            label={t('保留最近天数（早于该范围的日志将被删除，不可恢复）')}
+            rules={[{ required: true, message: t('请输入保留天数') }]}
             initialValue={30}
           >
             <InputNumber min={1} style={{ width: '100%' }} />

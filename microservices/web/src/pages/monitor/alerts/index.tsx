@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Alert,
   Button,
@@ -97,6 +98,7 @@ const defaultRuleParams: AlertRuleListParams = { page: 1, page_size: 10 }
 const defaultEventParams: AlertEventListParams = { page: 1, page_size: 10 }
 
 export default function AlertRulesPage() {
+  const { t } = useTranslation()
   const [view, setView] = useState<ViewMode>('rules')
   const [metrics, setMetrics] = useState<AlertMetricDefinition[]>([])
   const [rules, setRules] = useState<MonitorAlertRule[]>([])
@@ -148,12 +150,12 @@ export default function AlertRulesPage() {
       setRuleFailed(false)
     } catch {
       setRuleFailed(true)
-      if (!quiet) message.error('获取告警规则失败')
+      if (!quiet) message.error(t('获取告警规则失败'))
     } finally {
       ruleRequestRef.current = false
       if (!quiet) setRuleLoading(false)
     }
-  }, [])
+  }, [t])
 
   const fetchEvents = useCallback(async (params: AlertEventListParams, quiet = false) => {
     if (eventRequestRef.current) return
@@ -167,12 +169,12 @@ export default function AlertRulesPage() {
       setEventFailed(false)
     } catch {
       setEventFailed(true)
-      if (!quiet) message.error('获取告警事件失败')
+      if (!quiet) message.error(t('获取告警事件失败'))
     } finally {
       eventRequestRef.current = false
       if (!quiet) setEventLoading(false)
     }
-  }, [])
+  }, [t])
 
   const fetchSummary = useCallback(async (quiet = false) => {
     if (summaryRequestRef.current) return
@@ -184,18 +186,18 @@ export default function AlertRulesPage() {
       setSummaryFailed(false)
     } catch {
       setSummaryFailed(true)
-      if (!quiet) message.error('获取告警概览失败')
+      if (!quiet) message.error(t('获取告警概览失败'))
     } finally {
       summaryRequestRef.current = false
       if (!quiet) setSummaryLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     getAlertMetrics()
       .then((result) => setMetrics(result.list ?? []))
-      .catch(() => message.error('获取指标目录失败'))
-  }, [])
+      .catch(() => message.error(t('获取指标目录失败')))
+  }, [t])
 
   useEffect(() => {
     void fetchRules(ruleParams)
@@ -263,15 +265,15 @@ export default function AlertRulesPage() {
     try {
       if (editingRule) {
         await updateAlertRule(editingRule.id, payload)
-        message.success('告警规则已更新')
+        message.success(t('告警规则已更新'))
       } else {
         await createAlertRule(payload)
-        message.success('告警规则已创建')
+        message.success(t('告警规则已创建'))
       }
       setModalOpen(false)
       await Promise.all([fetchRules(ruleParams), fetchSummary(true)])
     } catch {
-      message.error(editingRule ? '更新告警规则失败' : '创建告警规则失败')
+      message.error(editingRule ? t('更新告警规则失败') : t('创建告警规则失败'))
     } finally {
       setSubmitting(false)
     }
@@ -280,12 +282,12 @@ export default function AlertRulesPage() {
   const removeRule = async (rule: MonitorAlertRule) => {
     try {
       await deleteAlertRule(rule.id)
-      message.success('告警规则已删除')
+      message.success(t('告警规则已删除'))
       const nextPage = rules.length === 1 && ruleParams.page > 1 ? ruleParams.page - 1 : ruleParams.page
       setRuleParams({ ...ruleParams, page: nextPage })
       void Promise.all([fetchSummary(true), fetchEvents(eventParams, true)])
     } catch {
-      message.error('删除告警规则失败')
+      message.error(t('删除告警规则失败'))
     }
   }
 
@@ -294,15 +296,15 @@ export default function AlertRulesPage() {
     try {
       const result = await evaluateAlertRule(rule.id)
       if (result.event?.status === 'firing') {
-        message.warning('评估完成，规则进入告警状态')
+        message.warning(t('评估完成，规则进入告警状态'))
       } else if (result.event?.status === 'resolved') {
-        message.success('评估完成，告警已恢复')
+        message.success(t('评估完成，告警已恢复'))
       } else {
-        message.success('评估完成')
+        message.success(t('评估完成'))
       }
       await Promise.all([fetchRules(ruleParams, true), fetchSummary(true), fetchEvents(eventParams, true)])
     } catch {
-      message.error('评估失败，规则状态已记录采集错误')
+      message.error(t('评估失败，规则状态已记录采集错误'))
       void fetchRules(ruleParams, true)
     } finally {
       setEvaluatingID(null)
@@ -311,10 +313,10 @@ export default function AlertRulesPage() {
 
   const confirmRemoveRule = (rule: MonitorAlertRule) => {
     confirmModal.confirm({
-      title: '删除告警规则',
-      content: `确认删除“${rule.name}”？历史告警事件仍会保留。`,
-      okText: '删除',
-      cancelText: '取消',
+      title: t('删除告警规则'),
+      content: t('确认删除“{{name}}”？历史告警事件仍会保留。', { name: rule.name }),
+      okText: t('删除'),
+      cancelText: t('取消'),
       okButtonProps: { danger: true },
       onOk: () => removeRule(rule),
     })
@@ -324,18 +326,18 @@ export default function AlertRulesPage() {
     hasPerm('system:alert:evaluate') ? {
       key: 'evaluate',
       icon: <ThunderboltOutlined />,
-      label: '立即评估',
+      label: t('立即评估'),
       disabled: !rule.enabled,
     } : null,
     hasPerm('system:alert:update') ? {
       key: 'edit',
       icon: <EditOutlined />,
-      label: '编辑规则',
+      label: t('编辑规则'),
     } : null,
     hasPerm('system:alert:delete') ? {
       key: 'delete',
       icon: <DeleteOutlined />,
-      label: '删除规则',
+      label: t('删除规则'),
       danger: true,
     } : null,
   ].filter((item): item is NonNullable<typeof item> => item !== null)
@@ -348,19 +350,19 @@ export default function AlertRulesPage() {
 
   const desktopRuleColumns: ColumnsType<MonitorAlertRule> = [
     {
-      title: '规则',
+      title: t('规则'),
       dataIndex: 'name',
       width: 180,
       ellipsis: { showTitle: false },
       render: (name: string, rule) => (
         <div className="alert-rule-name">
           <Tooltip title={name} placement="topLeft"><span>{name}</span></Tooltip>
-          {!rule.enabled && <Tag>停用</Tag>}
+          {!rule.enabled && <Tag>{t('停用')}</Tag>}
         </div>
       ),
     },
     {
-      title: '指标',
+      title: t('指标'),
       dataIndex: 'metric',
       width: 190,
       render: (metric: string) => (
@@ -370,32 +372,32 @@ export default function AlertRulesPage() {
       ),
     },
     {
-      title: '条件',
+      title: t('条件'),
       width: 135,
       render: (_, rule) => (
         <span className="alert-condition">
-          {OPERATOR_LABELS[rule.operator]} {formatMetricValue(rule.threshold, metricMap.get(rule.metric)?.unit)}
+          {t(OPERATOR_LABELS[rule.operator])} {formatMetricValue(rule.threshold, metricMap.get(rule.metric)?.unit)}
         </span>
       ),
     },
     {
-      title: '持续',
+      title: t('持续'),
       dataIndex: 'duration_seconds',
       width: 84,
       responsive: ['xl'],
-      render: (seconds: number) => seconds === 0 ? '立即' : `${seconds} 秒`,
+      render: (seconds: number) => seconds === 0 ? t('立即') : t('{{n}} 秒', { n: seconds }),
     },
     {
-      title: '级别',
+      title: t('级别'),
       dataIndex: 'severity',
       width: 80,
       responsive: ['lg'],
       render: (severity: AlertSeverity) => (
-        <Tag color={SEVERITY_META[severity].color}>{SEVERITY_META[severity].label}</Tag>
+        <Tag color={SEVERITY_META[severity].color}>{t(SEVERITY_META[severity].label)}</Tag>
       ),
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'state',
       width: 140,
       render: (state: AlertRuleState, rule) => (
@@ -411,14 +413,14 @@ export default function AlertRulesPage() {
       ),
     },
     {
-      title: '最近值',
+      title: t('最近值'),
       dataIndex: 'last_value',
       width: 118,
       render: (value: number | null | undefined, rule) =>
         value == null ? '-' : formatMetricValue(value, metricMap.get(rule.metric)?.unit),
     },
     {
-      title: '最近评估',
+      title: t('最近评估'),
       dataIndex: 'last_evaluated_at',
       width: 170,
       className: 'cell-time',
@@ -426,7 +428,7 @@ export default function AlertRulesPage() {
       render: formatDateTime,
     },
     {
-      title: '操作',
+      title: t('操作'),
       width: 116,
       fixed: screens.lg ? 'right' : undefined,
       align: 'center',
@@ -434,12 +436,12 @@ export default function AlertRulesPage() {
       render: (_, rule) => (
         <Space size={2} className="table-actions compact-table-actions alert-rule-actions">
           {hasPerm('system:alert:evaluate') && (
-            <Tooltip title={rule.enabled ? '立即使用真实指标评估' : '停用规则不能评估'}>
+            <Tooltip title={rule.enabled ? t('立即使用真实指标评估') : t('停用规则不能评估')}>
               <Button
                 type="text"
                 size="small"
                 icon={<ThunderboltOutlined />}
-                aria-label={`评估告警规则 ${rule.name}`}
+                aria-label={t('评估告警规则 {{name}}', { name: rule.name })}
                 disabled={!rule.enabled}
                 loading={evaluatingID === rule.id}
                 onClick={() => evaluateRule(rule)}
@@ -447,25 +449,25 @@ export default function AlertRulesPage() {
             </Tooltip>
           )}
           {hasPerm('system:alert:update') && (
-            <Tooltip title="编辑">
+            <Tooltip title={t('编辑')}>
               <Button
                 type="text"
                 size="small"
                 icon={<EditOutlined />}
-                aria-label={`编辑告警规则 ${rule.name}`}
+                aria-label={t('编辑告警规则 {{name}}', { name: rule.name })}
                 onClick={() => openEdit(rule)}
               />
             </Tooltip>
           )}
           {hasPerm('system:alert:delete') && (
-            <Popconfirm title="删除规则后历史事件仍会保留，确认删除?" onConfirm={() => removeRule(rule)}>
-              <Tooltip title="删除">
+            <Popconfirm title={t('删除规则后历史事件仍会保留，确认删除?')} onConfirm={() => removeRule(rule)}>
+              <Tooltip title={t('删除')}>
                 <Button
                   type="text"
                   size="small"
                   danger
                   icon={<DeleteOutlined />}
-                  aria-label={`删除告警规则 ${rule.name}`}
+                  aria-label={t('删除告警规则 {{name}}', { name: rule.name })}
                 />
               </Tooltip>
             </Popconfirm>
@@ -477,7 +479,7 @@ export default function AlertRulesPage() {
 
   const compactRuleColumns: ColumnsType<MonitorAlertRule> = [
     {
-      title: '规则',
+      title: t('规则'),
       width: 156,
       render: (_, rule) => {
         const metric = metricMap.get(rule.metric)
@@ -485,11 +487,11 @@ export default function AlertRulesPage() {
           <div className="alert-rule-compact-main">
             <div className="alert-rule-name">
               <Tooltip title={rule.name} placement="topLeft"><span>{rule.name}</span></Tooltip>
-              {!rule.enabled && <Tag>停用</Tag>}
+              {!rule.enabled && <Tag>{t('停用')}</Tag>}
             </div>
             <Tooltip title={metric?.description ?? rule.metric} placement="topLeft">
               <span className="alert-rule-compact-meta">
-                {metric?.title ?? rule.metric} · {OPERATOR_LABELS[rule.operator]} {formatMetricValue(rule.threshold, metric?.unit)}
+                {metric?.title ?? rule.metric} · {t(OPERATOR_LABELS[rule.operator])} {formatMetricValue(rule.threshold, metric?.unit)}
               </span>
             </Tooltip>
           </div>
@@ -497,7 +499,7 @@ export default function AlertRulesPage() {
       },
     },
     {
-      title: '状态',
+      title: t('状态'),
       width: 116,
       render: (_, rule) => {
         const metric = metricMap.get(rule.metric)
@@ -512,14 +514,14 @@ export default function AlertRulesPage() {
                 />
               </span>
             </Tooltip>
-            <span>最近值 {rule.last_value == null ? '--' : formatMetricValue(rule.last_value, metric?.unit)}</span>
-            <span>{rule.last_evaluated_at ? dayjs(rule.last_evaluated_at).format('MM-DD HH:mm') : '尚未评估'}</span>
+            <span>{t('最近值 {{n}}', { n: rule.last_value == null ? '--' : formatMetricValue(rule.last_value, metric?.unit) })}</span>
+            <span>{rule.last_evaluated_at ? dayjs(rule.last_evaluated_at).format('MM-DD HH:mm') : t('尚未评估')}</span>
           </div>
         )
       },
     },
     {
-      title: <Tooltip title="操作"><MoreOutlined /></Tooltip>,
+      title: <Tooltip title={t('操作')}><MoreOutlined /></Tooltip>,
       width: 48,
       align: 'center',
       className: 'alert-rule-actions-cell',
@@ -534,7 +536,7 @@ export default function AlertRulesPage() {
               type="text"
               size="small"
               icon={<MoreOutlined />}
-              aria-label={`更多操作：${rule.name}`}
+              aria-label={t('更多操作：{{name}}', { name: rule.name })}
               loading={evaluatingID === rule.id}
             />
           </Dropdown>
@@ -547,21 +549,21 @@ export default function AlertRulesPage() {
 
   const desktopEventColumns: ColumnsType<MonitorAlertEvent> = [
     {
-      title: '时间',
+      title: t('时间'),
       dataIndex: 'created_at',
       width: 170,
       className: 'cell-time',
       render: formatDateTime,
     },
     {
-      title: '规则',
+      title: t('规则'),
       dataIndex: 'rule_name',
       width: 180,
       ellipsis: { showTitle: false },
       render: (name: string) => <Tooltip title={name} placement="topLeft"><span>{name}</span></Tooltip>,
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 100,
       render: (status: MonitorAlertEvent['status']) => status === 'firing'
@@ -569,16 +571,16 @@ export default function AlertRulesPage() {
         : <StatusPill tone="success" label="恢复" pulse={false} />,
     },
     {
-      title: '级别',
+      title: t('级别'),
       dataIndex: 'severity',
       width: 80,
       responsive: ['sm'],
       render: (severity: AlertSeverity) => (
-        <Tag color={SEVERITY_META[severity].color}>{SEVERITY_META[severity].label}</Tag>
+        <Tag color={SEVERITY_META[severity].color}>{t(SEVERITY_META[severity].label)}</Tag>
       ),
     },
     {
-      title: '指标值',
+      title: t('指标值'),
       width: 210,
       render: (_, event) => (
         <span className="cell-mono">
@@ -587,18 +589,18 @@ export default function AlertRulesPage() {
       ),
     },
     {
-      title: '通知',
+      title: t('通知'),
       dataIndex: 'notify_status',
       width: 100,
       responsive: ['md'],
       render: (status: string, event) => (
         <Tooltip title={event.notify_error || undefined}>
-          <Tag color={NOTIFY_META[status]?.color}>{NOTIFY_META[status]?.label ?? status}</Tag>
+          <Tag color={NOTIFY_META[status]?.color}>{NOTIFY_META[status] ? t(NOTIFY_META[status].label) : status}</Tag>
         </Tooltip>
       ),
     },
     {
-      title: '事件内容',
+      title: t('事件内容'),
       dataIndex: 'message',
       width: 300,
       ellipsis: { showTitle: false },
@@ -609,7 +611,7 @@ export default function AlertRulesPage() {
 
   const compactEventColumns: ColumnsType<MonitorAlertEvent> = [
     {
-      title: '事件',
+      title: t('事件'),
       width: 202,
       render: (_, event) => {
         const metric = metricMap.get(event.metric)
@@ -630,17 +632,17 @@ export default function AlertRulesPage() {
       },
     },
     {
-      title: '状态',
+      title: t('状态'),
       width: 108,
       render: (_, event) => (
         <div className="alert-event-compact-state">
           {event.status === 'firing'
             ? <StatusPill tone="danger" label="触发" pulse />
             : <StatusPill tone="success" label="恢复" pulse={false} />}
-          <Tag color={SEVERITY_META[event.severity].color}>{SEVERITY_META[event.severity].label}</Tag>
+          <Tag color={SEVERITY_META[event.severity].color}>{t(SEVERITY_META[event.severity].label)}</Tag>
           <Tooltip title={event.notify_error || undefined}>
             <Tag color={NOTIFY_META[event.notify_status]?.color}>
-              {NOTIFY_META[event.notify_status]?.label ?? event.notify_status}
+              {NOTIFY_META[event.notify_status] ? t(NOTIFY_META[event.notify_status].label) : event.notify_status}
             </Tag>
           </Tooltip>
         </div>
@@ -659,11 +661,11 @@ export default function AlertRulesPage() {
       : 'is-loading'
   const summaryStatusText = summaryFailed
     ? summary
-      ? `概览刷新中断 · 保留 ${dayjs(summary.checked_at).format('HH:mm:ss')} 数据`
-      : '告警概览暂不可用'
+      ? t('概览刷新中断 · 保留 {{n}} 数据', { n: dayjs(summary.checked_at).format('HH:mm:ss') })
+      : t('告警概览暂不可用')
     : summary
-      ? `概览更新于 ${dayjs(summary.checked_at).format('HH:mm:ss')}`
-      : '正在获取告警概览'
+      ? t('概览更新于 {{n}}', { n: dayjs(summary.checked_at).format('HH:mm:ss') })
+      : t('正在获取告警概览')
 
   return (
     <div className="page-list alert-rules-page">
@@ -674,12 +676,12 @@ export default function AlertRulesPage() {
             <span className="alert-overview-status-dot" />
             {summaryStatusText}
           </span>
-          <Tooltip title="刷新告警概览">
+          <Tooltip title={t('刷新告警概览')}>
             <Button
               type="text"
               size="small"
               icon={<ReloadOutlined />}
-              aria-label="刷新告警概览"
+              aria-label={t('刷新告警概览')}
               loading={summaryLoading}
               onClick={() => fetchSummary()}
             />
@@ -687,13 +689,13 @@ export default function AlertRulesPage() {
         </div>
         <div
           className={`alert-overview-strip ${summary ? '' : 'is-unavailable'}`}
-          aria-label="告警状态摘要"
+          aria-label={t('告警状态摘要')}
           aria-busy={summaryLoading}
         >
-          <div><span>启用规则</span><strong>{summary?.enabled ?? '--'}</strong></div>
-          <div data-tone="danger"><span>告警中</span><strong>{summary?.firing ?? '--'}</strong></div>
-          <div data-tone="warning"><span>等待确认</span><strong>{summary?.pending ?? '--'}</strong></div>
-          <div data-tone="error"><span>采集异常</span><strong>{summary?.error ?? '--'}</strong></div>
+          <div><span>{t('启用规则')}</span><strong>{summary?.enabled ?? '--'}</strong></div>
+          <div data-tone="danger"><span>{t('告警中')}</span><strong>{summary?.firing ?? '--'}</strong></div>
+          <div data-tone="warning"><span>{t('等待确认')}</span><strong>{summary?.pending ?? '--'}</strong></div>
+          <div data-tone="error"><span>{t('采集异常')}</span><strong>{summary?.error ?? '--'}</strong></div>
         </div>
       </div>
 
@@ -702,8 +704,8 @@ export default function AlertRulesPage() {
           value={view}
           onChange={(value) => setView(value as ViewMode)}
           options={[
-            { value: 'rules', label: '规则', icon: <BellOutlined /> },
-            { value: 'events', label: '事件', icon: <HistoryOutlined /> },
+            { value: 'rules', label: t('规则'), icon: <BellOutlined /> },
+            { value: 'events', label: t('事件'), icon: <HistoryOutlined /> },
           ]}
         />
       </div>
@@ -718,11 +720,11 @@ export default function AlertRulesPage() {
               onFinish={(values) => setRuleParams({ ...defaultRuleParams, ...values })}
             >
               <Form.Item name="name">
-                <Input placeholder="规则名称" prefix={<SearchOutlined />} allowClear />
+                <Input placeholder={t('规则名称')} prefix={<SearchOutlined />} allowClear />
               </Form.Item>
               <Form.Item name="metric">
                 <Select
-                  placeholder="指标"
+                  placeholder={t('指标')}
                   allowClear
                   showSearch
                   optionFilterProp="label"
@@ -731,21 +733,21 @@ export default function AlertRulesPage() {
               </Form.Item>
               <Form.Item name="state">
                 <Select
-                  placeholder="状态"
+                  placeholder={t('状态')}
                   allowClear
-                  options={Object.entries(STATE_META).map(([value, meta]) => ({ value, label: meta.label }))}
+                  options={Object.entries(STATE_META).map(([value, meta]) => ({ value, label: t(meta.label) }))}
                 />
               </Form.Item>
               <Form.Item name="enabled">
                 <Select
-                  placeholder="启用状态"
+                  placeholder={t('启用状态')}
                   allowClear
-                  options={[{ value: true, label: '启用' }, { value: false, label: '停用' }]}
+                  options={[{ value: true, label: t('启用') }, { value: false, label: t('停用') }]}
                 />
               </Form.Item>
               <Form.Item className="list-filter-actions">
                 <Space>
-                  <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
+                  <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
                   <Button
                     icon={<ReloadOutlined />}
                     onClick={() => {
@@ -753,7 +755,7 @@ export default function AlertRulesPage() {
                       setRuleParams(defaultRuleParams)
                     }}
                   >
-                    重置
+                    {t('重置')}
                   </Button>
                 </Space>
               </Form.Item>
@@ -766,9 +768,9 @@ export default function AlertRulesPage() {
               total={ruleTotal}
               extra={
                 <Space wrap>
-                  <Button icon={<ReloadOutlined />} onClick={() => fetchRules(ruleParams)}>刷新</Button>
+                  <Button icon={<ReloadOutlined />} onClick={() => fetchRules(ruleParams)}>{t('刷新')}</Button>
                   {hasPerm('system:alert:create') && (
-                    <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增规则</Button>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增规则')}</Button>
                   )}
                 </Space>
               }
@@ -778,10 +780,10 @@ export default function AlertRulesPage() {
                 className="alert-list-state"
                 type={ruleLoaded ? 'warning' : 'error'}
                 showIcon
-                message={ruleLoaded ? '规则列表刷新失败，当前显示上次成功数据' : '告警规则列表暂不可用'}
+                message={ruleLoaded ? t('规则列表刷新失败，当前显示上次成功数据') : t('告警规则列表暂不可用')}
                 action={(
                   <Button size="small" icon={<ReloadOutlined />} onClick={() => fetchRules(ruleParams)}>
-                    重试
+                    {t('重试')}
                   </Button>
                 )}
               />
@@ -802,7 +804,7 @@ export default function AlertRulesPage() {
                 current: ruleParams.page,
                 pageSize: ruleParams.page_size,
                 showSizeChanger: true,
-                showTotal: (total) => `共 ${total} 条`,
+                showTotal: (n) => t('共 {{n}} 条', { n }),
                 onChange: (page, page_size) => setRuleParams({ ...ruleParams, page, page_size }),
               }}
             />
@@ -818,28 +820,28 @@ export default function AlertRulesPage() {
               onFinish={(values) => setEventParams({ ...defaultEventParams, ...values })}
             >
               <Form.Item name="rule_name">
-                <Input placeholder="规则名称" prefix={<SearchOutlined />} allowClear />
+                <Input placeholder={t('规则名称')} prefix={<SearchOutlined />} allowClear />
               </Form.Item>
               <Form.Item name="status">
-                <Select placeholder="事件状态" allowClear options={[{ value: 'firing', label: '触发' }, { value: 'resolved', label: '恢复' }]} />
+                <Select placeholder={t('事件状态')} allowClear options={[{ value: 'firing', label: t('触发') }, { value: 'resolved', label: t('恢复') }]} />
               </Form.Item>
               <Form.Item name="severity">
                 <Select
-                  placeholder="级别"
+                  placeholder={t('级别')}
                   allowClear
-                  options={Object.entries(SEVERITY_META).map(([value, meta]) => ({ value, label: meta.label }))}
+                  options={Object.entries(SEVERITY_META).map(([value, meta]) => ({ value, label: t(meta.label) }))}
                 />
               </Form.Item>
               <Form.Item name="notify_status">
                 <Select
-                  placeholder="通知结果"
+                  placeholder={t('通知结果')}
                   allowClear
-                  options={Object.entries(NOTIFY_META).map(([value, meta]) => ({ value, label: meta.label }))}
+                  options={Object.entries(NOTIFY_META).map(([value, meta]) => ({ value, label: t(meta.label) }))}
                 />
               </Form.Item>
               <Form.Item className="list-filter-actions">
                 <Space>
-                  <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
+                  <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
                   <Button
                     icon={<ReloadOutlined />}
                     onClick={() => {
@@ -847,7 +849,7 @@ export default function AlertRulesPage() {
                       setEventParams(defaultEventParams)
                     }}
                   >
-                    重置
+                    {t('重置')}
                   </Button>
                 </Space>
               </Form.Item>
@@ -858,17 +860,17 @@ export default function AlertRulesPage() {
             <TableToolbar
               title="告警事件"
               total={eventTotal}
-              extra={<Button icon={<ReloadOutlined />} onClick={() => fetchEvents(eventParams)}>刷新</Button>}
+              extra={<Button icon={<ReloadOutlined />} onClick={() => fetchEvents(eventParams)}>{t('刷新')}</Button>}
             />
             {eventFailed && (
               <Alert
                 className="alert-list-state"
                 type={eventLoaded ? 'warning' : 'error'}
                 showIcon
-                message={eventLoaded ? '事件列表刷新失败，当前显示上次成功数据' : '告警事件列表暂不可用'}
+                message={eventLoaded ? t('事件列表刷新失败，当前显示上次成功数据') : t('告警事件列表暂不可用')}
                 action={(
                   <Button size="small" icon={<ReloadOutlined />} onClick={() => fetchEvents(eventParams)}>
-                    重试
+                    {t('重试')}
                   </Button>
                 )}
               />
@@ -889,7 +891,7 @@ export default function AlertRulesPage() {
                 current: eventParams.page,
                 pageSize: eventParams.page_size,
                 showSizeChanger: true,
-                showTotal: (total) => `共 ${total} 条`,
+                showTotal: (n) => t('共 {{n}} 条', { n }),
                 onChange: (page, page_size) => setEventParams({ ...eventParams, page, page_size }),
               }}
             />
@@ -898,7 +900,7 @@ export default function AlertRulesPage() {
       )}
 
       <Modal
-        title={editingRule ? '编辑告警规则' : '新增告警规则'}
+        title={editingRule ? t('编辑告警规则') : t('新增告警规则')}
         open={modalOpen}
         onOk={submitRule}
         onCancel={() => setModalOpen(false)}
@@ -907,11 +909,11 @@ export default function AlertRulesPage() {
         width={620}
       >
         <Form form={form} layout="vertical" className="alert-rule-form">
-          <Form.Item name="name" label="规则名称" rules={[{ required: true, message: '请输入规则名称' }, { max: 100 }]}>
+          <Form.Item name="name" label={t('规则名称')} rules={[{ required: true, message: t('请输入规则名称') }, { max: 100 }]}>
             <Input maxLength={100} />
           </Form.Item>
           <div className="alert-form-grid">
-            <Form.Item name="metric" label="指标" rules={[{ required: true, message: '请选择指标' }]}>
+            <Form.Item name="metric" label={t('指标')} rules={[{ required: true, message: t('请选择指标') }]}>
               <Select
                 showSearch
                 optionFilterProp="label"
@@ -923,52 +925,52 @@ export default function AlertRulesPage() {
                 }}
               />
             </Form.Item>
-            <Form.Item name="operator" label="判断条件" rules={[{ required: true, message: '请选择判断条件' }]}>
+            <Form.Item name="operator" label={t('判断条件')} rules={[{ required: true, message: t('请选择判断条件') }]}>
               <Select
                 options={(selectedMetric?.operators ?? ['gt', 'gte', 'lt', 'lte']).map((operator) => ({
                   value: operator,
-                  label: OPERATOR_LABELS[operator],
+                  label: t(OPERATOR_LABELS[operator]),
                 }))}
               />
             </Form.Item>
-            <Form.Item name="threshold" label="阈值" rules={[{ required: true, message: '请输入阈值' }]}>
+            <Form.Item name="threshold" label={t('阈值')} rules={[{ required: true, message: t('请输入阈值') }]}>
               <InputNumber
                 style={{ width: '100%' }}
                 min={0}
                 max={selectedMetric?.unit === 'percent' ? 100 : undefined}
                 precision={selectedMetric?.unit === 'count' || selectedMetric?.unit === 'bytes' ? 0 : 2}
-                addonAfter={metricUnitLabel(selectedMetric?.unit)}
+                addonAfter={metricUnitLabel(selectedMetric?.unit, t)}
               />
             </Form.Item>
-            <Form.Item name="duration_seconds" label="持续时间" rules={[{ required: true, message: '请输入持续时间' }]}>
-              <InputNumber style={{ width: '100%' }} min={0} max={604800} precision={0} addonAfter="秒" />
+            <Form.Item name="duration_seconds" label={t('持续时间')} rules={[{ required: true, message: t('请输入持续时间') }]}>
+              <InputNumber style={{ width: '100%' }} min={0} max={604800} precision={0} addonAfter={t('秒')} />
             </Form.Item>
           </div>
-          <Form.Item name="severity" label="告警级别" rules={[{ required: true }]}>
+          <Form.Item name="severity" label={t('告警级别')} rules={[{ required: true }]}>
             <Segmented
               block
-              options={Object.entries(SEVERITY_META).map(([value, meta]) => ({ value, label: meta.label }))}
+              options={Object.entries(SEVERITY_META).map(([value, meta]) => ({ value, label: t(meta.label) }))}
             />
           </Form.Item>
           <div className="alert-switch-row">
-            <Form.Item name="enabled" label="启用规则" valuePropName="checked">
+            <Form.Item name="enabled" label={t('启用规则')} valuePropName="checked">
               <Switch />
             </Form.Item>
-            <Form.Item name="notify_on_resolve" label="恢复时通知" valuePropName="checked">
+            <Form.Item name="notify_on_resolve" label={t('恢复时通知')} valuePropName="checked">
               <Switch />
             </Form.Item>
           </div>
           <div className="alert-form-grid">
-            <Form.Item name="notify_channels" label="通知渠道" extra="不选则使用所有已配置渠道">
+            <Form.Item name="notify_channels" label={t('通知渠道')} extra={t('不选则使用所有已配置渠道')}>
               <Select
                 mode="multiple"
                 allowClear
-                placeholder="全部已配置渠道"
+                placeholder={t('全部已配置渠道')}
                 options={ALERT_CHANNELS}
               />
             </Form.Item>
-            <Form.Item name="silence_until" label="静默至" extra="维护窗口内不评估、不通知">
-              <DatePicker showTime style={{ width: '100%' }} placeholder="不静默" />
+            <Form.Item name="silence_until" label={t('静默至')} extra={t('维护窗口内不评估、不通知')}>
+              <DatePicker showTime style={{ width: '100%' }} placeholder={t('不静默')} />
             </Form.Item>
           </div>
         </Form>
@@ -977,10 +979,10 @@ export default function AlertRulesPage() {
   )
 }
 
-function metricUnitLabel(unit?: string) {
+function metricUnitLabel(unit: string | undefined, t: (s: string) => string) {
   if (unit === 'percent') return '%'
   if (unit === 'bytes') return 'Bytes'
-  if (unit === 'count') return '个'
+  if (unit === 'count') return t('个')
   return unit || '-'
 }
 

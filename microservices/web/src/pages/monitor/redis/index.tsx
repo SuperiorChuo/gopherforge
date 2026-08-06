@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card, Descriptions, Button, Row, Col, Progress, Space, Spin, Tag } from 'antd'
 import {
   ReloadOutlined,
@@ -33,9 +34,9 @@ function updatedTime(value: Date): string {
   return value.toLocaleTimeString('zh-CN', { hour12: false })
 }
 
-function metricDuration(value: number | null): string {
+function metricDuration(value: number | null, t: (s: string) => string): string {
   if (value === null) return '--'
-  return value === 0 ? '0分' : formatDuration(value)
+  return value === 0 ? t('0分') : formatDuration(value)
 }
 
 interface MiniStat {
@@ -48,6 +49,7 @@ interface MiniStat {
 }
 
 export default function RedisMonitorPage() {
+  const { t } = useTranslation()
   const [data, setData] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -100,7 +102,7 @@ export default function RedisMonitorPage() {
 
   const cards: MiniStat[] = [
     {
-      label: '连接客户端',
+      label: t('连接客户端'),
       value: connectedClients === null ? '--' : <CountUpValue value={connectedClients} />,
       icon: <TeamOutlined />,
       gradient: 'linear-gradient(135deg, #818cf8, #4f46e5)',
@@ -108,7 +110,7 @@ export default function RedisMonitorPage() {
       tint: 'rgba(99, 102, 241, 0.13)',
     },
     {
-      label: '已用内存',
+      label: t('已用内存'),
       value: metricText(memory?.used),
       icon: <DatabaseOutlined />,
       gradient: 'linear-gradient(135deg, #22d3ee, #0891b2)',
@@ -116,7 +118,7 @@ export default function RedisMonitorPage() {
       tint: 'rgba(6, 182, 212, 0.12)',
     },
     {
-      label: '每秒操作数',
+      label: t('每秒操作数'),
       value: operationsPerSecond === null ? '--' : <CountUpValue value={operationsPerSecond} />,
       icon: <ThunderboltOutlined />,
       gradient: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
@@ -124,7 +126,7 @@ export default function RedisMonitorPage() {
       tint: 'rgba(245, 158, 11, 0.11)',
     },
     {
-      label: 'Key 数量',
+      label: t('Key 数量'),
       value: keyCount === null ? '--' : <CountUpValue value={keyCount} />,
       icon: <KeyOutlined />,
       gradient: 'linear-gradient(135deg, #34d399, #059669)',
@@ -135,12 +137,12 @@ export default function RedisMonitorPage() {
 
   const statusText = requestFailed
     ? lastSuccessAt
-      ? `数据中断 · 上次成功 ${updatedTime(lastSuccessAt)}`
-      : '数据中断 · 尚无成功数据'
+      ? t('数据中断 · 上次成功 {{n}}', { n: updatedTime(lastSuccessAt) })
+      : t('数据中断 · 尚无成功数据')
     : data && lastSuccessAt
-      ? `每 10 秒自动刷新 · 更新于 ${updatedTime(lastSuccessAt)}`
-      : '正在获取监控数据'
-  const statusAnnouncement = requestFailed ? 'Redis 监控数据中断' : data ? 'Redis 监控连接正常' : '正在连接 Redis'
+      ? t('每 10 秒自动刷新 · 更新于 {{n}}', { n: updatedTime(lastSuccessAt) })
+      : t('正在获取监控数据')
+  const statusAnnouncement = requestFailed ? t('Redis 监控数据中断') : data ? t('Redis 监控连接正常') : t('正在连接 Redis')
 
   return (
     <div className="monitor-status-page redis-monitor-page">
@@ -153,22 +155,22 @@ export default function RedisMonitorPage() {
           {statusText}
         </span>
         <Button icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>
-          刷新
+          {t('刷新')}
         </Button>
       </div>
 
       {loading && data === null ? (
         <Card className="monitor-state-card glass-rise" bordered={false}>
           <Spin size="large" />
-          <div className="monitor-state-title">正在连接 Redis</div>
-          <div className="monitor-state-copy">首次监控数据返回后将展示内存、连接和缓存指标。</div>
+          <div className="monitor-state-title">{t('正在连接 Redis')}</div>
+          <div className="monitor-state-copy">{t('首次监控数据返回后将展示内存、连接和缓存指标。')}</div>
         </Card>
       ) : requestFailed && data === null ? (
         <Card className="monitor-state-card glass-rise" bordered={false} role="alert">
           <WarningOutlined className="monitor-state-icon" />
-          <div className="monitor-state-title">数据中断</div>
-          <div className="monitor-state-copy">暂未获取到 Redis 监控数据，请检查服务状态后重新连接。</div>
-          <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>重新连接</Button>
+          <div className="monitor-state-title">{t('数据中断')}</div>
+          <div className="monitor-state-copy">{t('暂未获取到 Redis 监控数据，请检查服务状态后重新连接。')}</div>
+          <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>{t('重新连接')}</Button>
         </Card>
       ) : (
       <>
@@ -199,7 +201,7 @@ export default function RedisMonitorPage() {
       <Row gutter={[20, 20]}>
         <Col xs={24} lg={8}>
           <Card
-            title="缓存命中率"
+            title={t('缓存命中率')}
             className="glass-rise"
             style={{ height: '100%', '--i': 4 } as React.CSSProperties}
           >
@@ -221,7 +223,7 @@ export default function RedisMonitorPage() {
               )}
             </div>
             <div className="monitor-gauge-foot" style={{ textAlign: 'center' }}>
-              命中 {metricCount(hits)} · 未命中 {metricCount(misses)}
+              {t('命中 {{n}} · 未命中 {{m}}', { n: metricCount(hits), m: metricCount(misses) })}
             </div>
           </Card>
         </Col>
@@ -231,33 +233,33 @@ export default function RedisMonitorPage() {
             className="glass-rise"
             title={
               <Space>
-                Redis 详情
+                {t('Redis 详情')}
                 <Tag color={server?.mode ? 'processing' : 'default'}>{metricText(server?.mode)}</Tag>
               </Space>
             }
             style={{ height: '100%', '--i': 5 } as React.CSSProperties}
           >
             <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
-              <Descriptions.Item label="版本">{metricText(server?.version)}</Descriptions.Item>
-              <Descriptions.Item label="运行时间">
-                {metricDuration(uptimeSeconds)}
+              <Descriptions.Item label={t('版本')}>{metricText(server?.version)}</Descriptions.Item>
+              <Descriptions.Item label={t('运行时间')}>
+                {metricDuration(uptimeSeconds, t)}
               </Descriptions.Item>
-              <Descriptions.Item label="系统">{metricText(server?.os)}</Descriptions.Item>
-              <Descriptions.Item label="端口">{metricText(server?.tcp_port)}</Descriptions.Item>
-              <Descriptions.Item label="内存峰值">{metricText(memory?.peak)}</Descriptions.Item>
-              <Descriptions.Item label="内存上限">{metricText(memory?.maxmemory)}</Descriptions.Item>
-              <Descriptions.Item label="碎片率">{metricText(memory?.fragmentation)}</Descriptions.Item>
-              <Descriptions.Item label="阻塞客户端">{metricText(clients?.blocked)}</Descriptions.Item>
-              <Descriptions.Item label="累计连接">
+              <Descriptions.Item label={t('系统')}>{metricText(server?.os)}</Descriptions.Item>
+              <Descriptions.Item label={t('端口')}>{metricText(server?.tcp_port)}</Descriptions.Item>
+              <Descriptions.Item label={t('内存峰值')}>{metricText(memory?.peak)}</Descriptions.Item>
+              <Descriptions.Item label={t('内存上限')}>{metricText(memory?.maxmemory)}</Descriptions.Item>
+              <Descriptions.Item label={t('碎片率')}>{metricText(memory?.fragmentation)}</Descriptions.Item>
+              <Descriptions.Item label={t('阻塞客户端')}>{metricText(clients?.blocked)}</Descriptions.Item>
+              <Descriptions.Item label={t('累计连接')}>
                 {metricCount(metricNumber(stats?.total_connections_received))}
               </Descriptions.Item>
-              <Descriptions.Item label="累计命令">
+              <Descriptions.Item label={t('累计命令')}>
                 {metricCount(metricNumber(stats?.total_commands_processed))}
               </Descriptions.Item>
-              <Descriptions.Item label="过期 Key">
+              <Descriptions.Item label={t('过期 Key')}>
                 {metricCount(metricNumber(stats?.expired_keys))}
               </Descriptions.Item>
-              <Descriptions.Item label="淘汰 Key">
+              <Descriptions.Item label={t('淘汰 Key')}>
                 {metricCount(metricNumber(stats?.evicted_keys))}
               </Descriptions.Item>
             </Descriptions>
@@ -267,10 +269,10 @@ export default function RedisMonitorPage() {
 
       <Row gutter={[20, 20]}>
         <Col xs={24} lg={12}>
-          <MetricTrendCard title="内存使用趋势" metric="redis.memory.used_bytes" />
+          <MetricTrendCard title={t('内存使用趋势')} metric="redis.memory.used_bytes" />
         </Col>
         <Col xs={24} lg={12}>
-          <MetricTrendCard title="客户端连接趋势" metric="redis.clients.connected" />
+          <MetricTrendCard title={t('客户端连接趋势')} metric="redis.clients.connected" />
         </Col>
       </Row>
       </>

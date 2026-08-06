@@ -1,6 +1,7 @@
 import { Component, type ReactNode } from 'react'
 import { Button } from 'antd'
 import SpaceResult from '@/components/SpaceResult'
+import i18n from '@/i18n/init'
 
 interface Props {
   children: ReactNode
@@ -27,11 +28,11 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <SpaceResult
           code="Oops"
-          title="页面出错了"
-          description="页面渲染发生异常，请刷新重试。如果反复出现请联系管理员。"
+          title={i18n.t('页面出错了')}
+          description={i18n.t('页面渲染发生异常，请刷新重试。如果反复出现请联系管理员。')}
           actions={
             <Button type="primary" onClick={() => { this.handleReset(); window.location.reload() }}>
-              刷新页面
+              {i18n.t('刷新页面')}
             </Button>
           }
         />

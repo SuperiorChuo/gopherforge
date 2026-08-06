@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card, Descriptions, Button, Row, Col, Space, Spin } from 'antd'
 import {
   ReloadOutlined,
@@ -34,12 +35,13 @@ function updatedTime(value: Date): string {
   return value.toLocaleTimeString('zh-CN', { hour12: false })
 }
 
-function metricDuration(value: number | null): string {
+function metricDuration(value: number | null, t: (s: string) => string): string {
   if (value === null) return '--'
-  return value === 0 ? '0分' : formatDuration(value)
+  return value === 0 ? t('0分') : formatDuration(value)
 }
 
 export default function MySQLMonitorPage() {
+  const { t } = useTranslation()
   const [data, setData] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -97,12 +99,12 @@ export default function MySQLMonitorPage() {
   const connLevel = connUsage === null ? undefined : connUsage > 80 ? 'high' : connUsage > 60 ? 'mid' : 'low'
   const statusText = requestFailed
     ? lastSuccessAt
-      ? `数据中断 · 上次成功 ${updatedTime(lastSuccessAt)}`
-      : '数据中断 · 尚无成功数据'
+      ? t('数据中断 · 上次成功 {{n}}', { n: updatedTime(lastSuccessAt) })
+      : t('数据中断 · 尚无成功数据')
     : data && lastSuccessAt
-      ? `每 10 秒自动刷新 · 更新于 ${updatedTime(lastSuccessAt)}`
-      : '正在获取监控数据'
-  const statusAnnouncement = requestFailed ? 'MySQL 监控数据中断' : data ? 'MySQL 监控连接正常' : '正在连接 MySQL'
+      ? t('每 10 秒自动刷新 · 更新于 {{n}}', { n: updatedTime(lastSuccessAt) })
+      : t('正在获取监控数据')
+  const statusAnnouncement = requestFailed ? t('MySQL 监控数据中断') : data ? t('MySQL 监控连接正常') : t('正在连接 MySQL')
 
   return (
     <div className="monitor-status-page mysql-monitor-page">
@@ -115,22 +117,22 @@ export default function MySQLMonitorPage() {
           {statusText}
         </span>
         <Button icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>
-          刷新
+          {t('刷新')}
         </Button>
       </div>
 
       {loading && data === null ? (
         <Card className="monitor-state-card glass-rise" bordered={false}>
           <Spin size="large" />
-          <div className="monitor-state-title">正在连接 MySQL</div>
-          <div className="monitor-state-copy">首次监控数据返回后将展示连接、流量和查询指标。</div>
+          <div className="monitor-state-title">{t('正在连接 MySQL')}</div>
+          <div className="monitor-state-copy">{t('首次监控数据返回后将展示连接、流量和查询指标。')}</div>
         </Card>
       ) : requestFailed && data === null ? (
         <Card className="monitor-state-card glass-rise" bordered={false} role="alert">
           <WarningOutlined className="monitor-state-icon" />
-          <div className="monitor-state-title">数据中断</div>
-          <div className="monitor-state-copy">暂未获取到 MySQL 监控数据，请检查服务状态后重新连接。</div>
-          <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>重新连接</Button>
+          <div className="monitor-state-title">{t('数据中断')}</div>
+          <div className="monitor-state-copy">{t('暂未获取到 MySQL 监控数据，请检查服务状态后重新连接。')}</div>
+          <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData} loading={refreshing}>{t('重新连接')}</Button>
         </Card>
       ) : (
       <>
@@ -143,21 +145,21 @@ export default function MySQLMonitorPage() {
             >
               <div className="monitor-gauge-head">
                 <span className="monitor-gauge-icon is-unknown"><ApiOutlined /></span>
-                <span className="monitor-gauge-title">连接使用率</span>
+                <span className="monitor-gauge-title">{t('连接使用率')}</span>
               </div>
               <div className="monitor-gauge-body"><div className="monitor-unknown-gauge">--</div></div>
               <div className="monitor-gauge-foot">
-                连接 {metricCount(threads)} / {metricCount(maxConns)} · 运行中 {metricCount(threadsRunning)}
+                {t('连接 {{n}} / {{m}} · 运行中 {{a}}', { n: metricCount(threads), m: metricCount(maxConns), a: metricCount(threadsRunning) })}
               </div>
             </Card>
           ) : (
             <MonitorGaugeCard
-              title="连接使用率"
+              title={t('连接使用率')}
               icon={<ApiOutlined />}
               percent={connUsage}
               index={0}
               level={connLevel}
-              footer={<>连接 {metricCount(threads)} / {metricCount(maxConns)} · 运行中 {metricCount(threadsRunning)}</>}
+              footer={<>{t('连接 {{n}} / {{m}} · 运行中 {{a}}', { n: metricCount(threads), m: metricCount(maxConns), a: metricCount(threadsRunning) })}</>}
             />
           )}
         </Col>
@@ -169,7 +171,7 @@ export default function MySQLMonitorPage() {
           >
             <div className="stat-card-row" style={{ marginBottom: 16 }}>
               <div>
-                <div className="stat-card-title">接收流量</div>
+                <div className="stat-card-title">{t('接收流量')}</div>
                 <div className="stat-card-value" style={{ fontSize: 22 }}>
                   {bytesReceived === null ? '--' : formatBytes(bytesReceived)}
                 </div>
@@ -183,7 +185,7 @@ export default function MySQLMonitorPage() {
             </div>
             <div className="stat-card-row">
               <div>
-                <div className="stat-card-title">发送流量</div>
+                <div className="stat-card-title">{t('发送流量')}</div>
                 <div className="stat-card-value" style={{ fontSize: 22 }}>
                   {bytesSent === null ? '--' : formatBytes(bytesSent)}
                 </div>
@@ -209,17 +211,17 @@ export default function MySQLMonitorPage() {
                 <span className={`kv-pill ${qps === null ? '' : 'kv-pill-info'}`}>{metricCount(qps)}</span>
               </div>
               <div className="kv-row">
-                <span className="kv-label">慢查询</span>
+                <span className="kv-label">{t('慢查询')}</span>
                 <span className={`kv-pill ${slowQueries === null ? '' : slowQueries > 0 ? 'kv-pill-danger' : 'kv-pill-success'}`}>
                   {metricCount(slowQueries)}
                 </span>
               </div>
               <div className="kv-row">
-                <span className="kv-label">表数量</span>
+                <span className="kv-label">{t('表数量')}</span>
                 <span className="kv-pill">{metricText(db?.table_count)}</span>
               </div>
               <div className="kv-row">
-                <span className="kv-label">库大小</span>
+                <span className="kv-label">{t('库大小')}</span>
                 <span className="kv-pill">{metricText(db?.size)}</span>
               </div>
             </div>
@@ -229,7 +231,7 @@ export default function MySQLMonitorPage() {
 
       <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
         <Col xs={24}>
-          <MetricTrendCard title="连接使用率趋势" metric="postgres.connections.percent" />
+          <MetricTrendCard title={t('连接使用率趋势')} metric="postgres.connections.percent" />
         </Col>
       </Row>
 
@@ -240,23 +242,23 @@ export default function MySQLMonitorPage() {
             style={{ '--i': 3 } as React.CSSProperties}
             title={
               <Space>
-                <DatabaseOutlined className="card-title-icon" /> 基本信息
+                <DatabaseOutlined className="card-title-icon" /> {t('基本信息')}
               </Space>
             }
           >
             <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="版本">{metricText(data?.version)}</Descriptions.Item>
-              <Descriptions.Item label="数据库">{metricText(db?.name)}</Descriptions.Item>
-              <Descriptions.Item label="地址">
+              <Descriptions.Item label={t('版本')}>{metricText(data?.version)}</Descriptions.Item>
+              <Descriptions.Item label={t('数据库')}>{metricText(db?.name)}</Descriptions.Item>
+              <Descriptions.Item label={t('地址')}>
                 <span className="cell-mono">{db?.host ? `${db.host}:${db.port ?? ''}` : '--'}</span>
               </Descriptions.Item>
-              <Descriptions.Item label="字符集 / 排序规则">
+              <Descriptions.Item label={t('字符集 / 排序规则')}>
                 {metricText(db?.charset)} / {metricText(db?.collation)}
               </Descriptions.Item>
-              <Descriptions.Item label="运行时间">
-                {metricDuration(uptimeSeconds)}
+              <Descriptions.Item label={t('运行时间')}>
+                {metricDuration(uptimeSeconds, t)}
               </Descriptions.Item>
-              <Descriptions.Item label="历史累计连接">
+              <Descriptions.Item label={t('历史累计连接')}>
                 {metricCount(metricNumber(conn?.total_connections))}
               </Descriptions.Item>
             </Descriptions>
@@ -269,7 +271,7 @@ export default function MySQLMonitorPage() {
             style={{ '--i': 4 } as React.CSSProperties}
             title={
               <Space>
-                <ThunderboltOutlined className="card-title-icon" /> 查询统计
+                <ThunderboltOutlined className="card-title-icon" /> {t('查询统计')}
               </Space>
             }
           >
@@ -288,10 +290,10 @@ export default function MySQLMonitorPage() {
               ))}
             </div>
             <Descriptions column={{ xs: 1, sm: 2 }} size="small" style={{ marginTop: 16 }}>
-              <Descriptions.Item label="连接池 打开">{metricText(conn?.open_conns)}</Descriptions.Item>
-              <Descriptions.Item label="连接池 使用中">{metricText(conn?.in_use)}</Descriptions.Item>
-              <Descriptions.Item label="连接池 空闲">{metricText(conn?.idle)}</Descriptions.Item>
-              <Descriptions.Item label="峰值连接">{metricText(conn?.max_used_connections)}</Descriptions.Item>
+              <Descriptions.Item label={t('连接池 打开')}>{metricText(conn?.open_conns)}</Descriptions.Item>
+              <Descriptions.Item label={t('连接池 使用中')}>{metricText(conn?.in_use)}</Descriptions.Item>
+              <Descriptions.Item label={t('连接池 空闲')}>{metricText(conn?.idle)}</Descriptions.Item>
+              <Descriptions.Item label={t('峰值连接')}>{metricText(conn?.max_used_connections)}</Descriptions.Item>
             </Descriptions>
           </Card>
         </Col>

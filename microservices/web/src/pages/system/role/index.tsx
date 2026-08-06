@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input,
   Card, Checkbox, Tooltip,
@@ -55,6 +56,7 @@ export default function RolePage() {
   const [permFilter, setPermFilter] = useState('')
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
+  const { t } = useTranslation()
   const { hasPerm } = usePermission()
 
   const fetchList = async (p: SearchParams) => {
@@ -64,7 +66,7 @@ export default function RolePage() {
       setList(res.list)
       setTotal(res.total)
     } catch {
-      message.error('获取角色列表失败')
+      message.error(t('获取角色列表失败'))
     } finally {
       setLoading(false)
     }
@@ -102,14 +104,14 @@ export default function RolePage() {
   const handleDelete = async (id: number) => {
     try {
       await RoleAPI.deleteRole(id)
-      message.success('删除成功')
+      message.success(t('删除成功'))
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
         fetchList(params)
       }
     } catch {
-      message.error('删除失败')
+      message.error(t('删除失败'))
     }
   }
 
@@ -120,15 +122,15 @@ export default function RolePage() {
     try {
       if (editRecord) {
         await RoleAPI.updateRole(editRecord.id, values)
-        message.success('更新成功')
+        message.success(t('更新成功'))
       } else {
         await RoleAPI.createRole(values)
-        message.success('创建成功')
+        message.success(t('创建成功'))
       }
       setModalOpen(false)
       fetchList(params)
     } catch {
-      message.error('操作失败')
+      message.error(t('操作失败'))
     } finally {
       setSubmitting(false)
     }
@@ -145,7 +147,7 @@ export default function RolePage() {
       setAllPerms(perms)
       setSelectedPerms(assignedIds)
     } catch {
-      message.error('加载权限失败')
+      message.error(t('加载权限失败'))
       return
     }
     setPermModalOpen(true)
@@ -156,10 +158,10 @@ export default function RolePage() {
     setPermSubmitting(true)
     try {
       await RoleAPI.assignRolePermissions(permRole.id, selectedPerms)
-      message.success('权限分配成功')
+      message.success(t('权限分配成功'))
       setPermModalOpen(false)
     } catch {
-      message.error('权限分配失败')
+      message.error(t('权限分配失败'))
     } finally {
       setPermSubmitting(false)
     }
@@ -172,40 +174,40 @@ export default function RolePage() {
   const columns: ColumnsType<SystemRole> = [
     { title: 'ID', dataIndex: 'id', width: 60, responsive: ['lg'] },
     {
-      title: '名称',
+      title: t('名称'),
       dataIndex: 'name',
       width: 180,
       ellipsis: true,
       render: (value: string) => <span className="role-cell-name">{value}</span>,
     },
     {
-      title: '编码',
+      title: t('编码'),
       dataIndex: 'code',
       width: 220,
       responsive: ['sm'],
       render: (v: string) => <Tag variant="filled" className="cell-mono role-code-tag">{v}</Tag>,
     },
-    { title: '描述', dataIndex: 'description', width: 280, ellipsis: true, responsive: ['md'] },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
+    { title: t('描述'), dataIndex: 'description', width: 280, ellipsis: true, responsive: ['md'] },
+    { title: t('创建时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
-      title: '操作',
+      title: t('操作'),
       width: 132,
       render: (_, record) => (
         <Space size={4} className="table-actions role-row-actions">
           {hasPerm('system:role:update') && (
-            <Tooltip title="编辑">
-              <Button type="text" size="small" aria-label="编辑角色" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Tooltip title={t('编辑')}>
+              <Button type="text" size="small" aria-label={t('编辑角色')} icon={<EditOutlined />} onClick={() => openEdit(record)} />
             </Tooltip>
           )}
           {hasPerm('system:role:update') && (
-            <Tooltip title="分配权限">
-              <Button type="text" size="small" aria-label="分配角色权限" icon={<SafetyOutlined />} onClick={() => openPermModal(record)} />
+            <Tooltip title={t('分配权限')}>
+              <Button type="text" size="small" aria-label={t('分配角色权限')} icon={<SafetyOutlined />} onClick={() => openPermModal(record)} />
             </Tooltip>
           )}
           {hasPerm('system:role:delete') && (
-            <Popconfirm title="确认删除该角色?" onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title="删除">
-                <Button type="text" size="small" danger aria-label="删除角色" icon={<DeleteOutlined />} />
+            <Popconfirm title={t('确认删除该角色?')} onConfirm={() => handleDelete(record.id)}>
+              <Tooltip title={t('删除')}>
+                <Button type="text" size="small" danger aria-label={t('删除角色')} icon={<DeleteOutlined />} />
               </Tooltip>
             </Popconfirm>
           )}
@@ -225,12 +227,12 @@ export default function RolePage() {
           initialValues={params}
         >
           <Form.Item name="keyword">
-            <Input placeholder="搜索名称 / 编码" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
+            <Input placeholder={t('搜索名称 / 编码')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
         </Form>
@@ -242,9 +244,9 @@ export default function RolePage() {
           total={total}
           extra={
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
               {hasPerm('system:role:create') && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增角色</Button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增角色')}</Button>
               )}
             </Space>
           }
@@ -263,14 +265,14 @@ export default function RolePage() {
             pageSize: params.page_size,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
       </Card>
 
       <Modal
-        title={editRecord ? '编辑角色' : '新增角色'}
+        title={editRecord ? t('编辑角色') : t('新增角色')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
@@ -278,25 +280,25 @@ export default function RolePage() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('请输入名称') }]}>
             <Input />
           </Form.Item>
           <Form.Item
             name="code"
-            label="编码"
-            rules={[{ required: true, message: '请输入编码' }]}
-            tooltip={editRecord ? '编码创建后不可修改' : undefined}
+            label={t('编码')}
+            rules={[{ required: true, message: t('请输入编码') }]}
+            tooltip={editRecord ? t('编码创建后不可修改') : undefined}
           >
             <Input disabled={!!editRecord} />
           </Form.Item>
-          <Form.Item name="description" label="描述">
+          <Form.Item name="description" label={t('描述')}>
             <Input.TextArea rows={3} />
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
-        title={`分配权限 - ${permRole?.name}`}
+        title={t('分配权限 - {{name}}', { name: permRole?.name })}
         open={permModalOpen}
         onOk={handleAssignPerms}
         onCancel={() => setPermModalOpen(false)}
@@ -305,7 +307,7 @@ export default function RolePage() {
       >
         <div className="perm-assign-bar">
           <Input
-            placeholder="搜索权限名称/编码"
+            placeholder={t('搜索权限名称/编码')}
             prefix={<SearchOutlined />}
             allowClear
             value={permFilter}
@@ -314,7 +316,7 @@ export default function RolePage() {
           />
           <Space>
             <span className="perm-assign-count">
-              已选 <b>{selectedPerms.length}</b> / {allPerms.length}
+              {t('已选')} <b>{selectedPerms.length}</b> / {allPerms.length}
             </span>
             <Button
               size="small"
@@ -322,9 +324,9 @@ export default function RolePage() {
                 setSelectedPerms(Array.from(new Set([...selectedPerms, ...filteredPerms.map((p) => p.id)])))
               }
             >
-              全选
+              {t('全选')}
             </Button>
-            <Button size="small" onClick={() => setSelectedPerms([])}>清空</Button>
+            <Button size="small" onClick={() => setSelectedPerms([])}>{t('清空')}</Button>
           </Space>
         </div>
         <div className="perm-assign-list">

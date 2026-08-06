@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Form, Input, Button, Spin } from 'antd'
 import type { InputRef } from 'antd'
 import { message } from '@/utils/feedback'
@@ -42,6 +43,7 @@ export default function LoginPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { mode, toggle: toggleTheme } = useThemeMode()
+  const { t } = useTranslation()
 
   // 登录成功后立刻要用管理台骨架，趁用户填账密的空档预取
   useEffect(() => prefetchMainLayout(), [])
@@ -81,11 +83,11 @@ export default function LoginPage() {
   /** 成功微过渡：按钮 ✓ + 卡片轻收，再跳转 */
   const finishWithSuccess = useCallback(() => {
     setSuccess(true)
-    message.success('登录成功')
+    message.success(t('登录成功'))
     window.setTimeout(() => {
       navigate(safeRedirectTarget(), { replace: true })
     }, 280)
-  }, [navigate])
+  }, [navigate, t])
 
   const refreshCaptcha = useCallback(async () => {
     setCaptchaLoading(true)
@@ -96,12 +98,12 @@ export default function LoginPage() {
       setCaptchaImg(res.image.startsWith('data:') ? res.image : `data:image/png;base64,${res.image}`)
       form.setFieldValue('captcha_code', '')
     } catch {
-      showError('验证码加载失败，请点击刷新')
+      showError(t('验证码加载失败，请点击刷新'))
     } finally {
       setCaptchaLoading(false)
       window.setTimeout(() => setCaptchaFlash(false), 450)
     }
-  }, [form, showError])
+  }, [form, showError, t])
 
   useEffect(() => {
     refreshCaptcha()
@@ -130,16 +132,16 @@ export default function LoginPage() {
   // 首焦：用户名
   useEffect(() => {
     if (!totpStep) {
-      const t = window.setTimeout(() => usernameRef.current?.focus(), 80)
-      return () => window.clearTimeout(t)
+      const timer = window.setTimeout(() => usernameRef.current?.focus(), 80)
+      return () => window.clearTimeout(timer)
     }
   }, [totpStep])
 
   // 2FA：进入后聚焦
   useEffect(() => {
     if (totpStep) {
-      const t = window.setTimeout(() => totpRef.current?.focus(), 80)
-      return () => window.clearTimeout(t)
+      const timer = window.setTimeout(() => totpRef.current?.focus(), 80)
+      return () => window.clearTimeout(timer)
     }
   }, [totpStep])
 
@@ -173,7 +175,7 @@ export default function LoginPage() {
       }
       finishWithSuccess()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '用户名或密码错误'
+      const msg = err instanceof Error ? err.message : t('用户名或密码错误')
       showError(msg)
       refreshCaptcha()
       // 失败后把焦点送回验证码框，重试免鼠标
@@ -194,7 +196,7 @@ export default function LoginPage() {
       }
       finishWithSuccess()
     } catch {
-      showError('验证码不正确，请重试')
+      showError(t('验证码不正确，请重试'))
       totpForm.setFieldValue('code', '')
       window.setTimeout(() => totpRef.current?.focus(), 40)
       setTotpLoading(false)
@@ -220,8 +222,8 @@ export default function LoginPage() {
       <button
         type="button"
         className="login-theme-toggle"
-        title={mode === 'dark' ? '切换亮色' : '切换深色'}
-        aria-label={mode === 'dark' ? '切换亮色' : '切换深色'}
+        title={mode === 'dark' ? t('切换亮色') : t('切换深色')}
+        aria-label={mode === 'dark' ? t('切换亮色') : t('切换深色')}
         onClick={(event) => {
           if (event.clientX || event.clientY) {
             toggleTheme({ x: event.clientX, y: event.clientY })
@@ -251,50 +253,52 @@ export default function LoginPage() {
 
           <div className="login-brand-copy">
             <h1 className="login-headline">
-              以工程之美，
+              {t('以工程之美，')}
               <br />
-              驱动<em>企业级</em>管理
+              {t('驱动')}
+              <em>{t('企业级')}</em>
+              {t('管理')}
             </h1>
             <p className="login-subline">
-              以克制的架构与现代交互，
+              {t('以克制的架构与现代交互，')}
               <br />
-              构筑可托付的企业级中台。
+              {t('构筑可托付的企业级中台。')}
             </p>
           </div>
 
           <ul className="login-features">
             <li>
               <span className="login-feature-icon"><ThunderboltOutlined /></span>
-              Go 与 React 协同 · 从容承载复杂业务
+              {t('Go 与 React 协同 · 从容承载复杂业务')}
             </li>
             <li>
               <span className="login-feature-icon"><SafetyCertificateOutlined /></span>
-              权限精密可控 · 身份双重守护
+              {t('权限精密可控 · 身份双重守护')}
             </li>
             <li>
               <span className="login-feature-icon"><RadarChartOutlined /></span>
-              全程可观测 · 每一次操作皆可追溯
+              {t('全程可观测 · 每一次操作皆可追溯')}
             </li>
           </ul>
         </div>
 
         <div className="login-form-panel">
           <div className="login-form-inner">
-            <p className="login-mobile-tagline">以工程之美，驱动企业级管理</p>
+            <p className="login-mobile-tagline">{t('以工程之美，驱动企业级管理')}</p>
             {!totpStep ? (
               <>
-                <h2 className="login-form-title">进入控制台</h2>
-                <p className="login-form-sub">使用企业账户继续</p>
+                <h2 className="login-form-title">{t('进入控制台')}</h2>
+                <p className="login-form-sub">{t('使用企业账户继续')}</p>
               </>
             ) : (
               <>
                 <div className="login-step-rail" aria-hidden="true">
-                  <span className="login-step done">1 凭证</span>
+                  <span className="login-step done">{t('1 凭证')}</span>
                   <span className="login-step-line" />
-                  <span className="login-step active">2 二次验证</span>
+                  <span className="login-step active">{t('2 二次验证')}</span>
                 </div>
-                <h2 className="login-form-title">身份核验</h2>
-                <p className="login-form-sub">请输入身份验证器中的 6 位动态码</p>
+                <h2 className="login-form-title">{t('身份核验')}</h2>
+                <p className="login-form-sub">{t('请输入身份验证器中的 6 位动态码')}</p>
               </>
             )}
 
@@ -304,7 +308,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   className="login-error-close"
-                  aria-label="关闭错误提示"
+                  aria-label={t('关闭错误提示')}
                   onClick={() => setError(null)}
                 >
                   ×
@@ -330,34 +334,34 @@ export default function LoginPage() {
                     aria-expanded={tenantOpen}
                   >
                     <CloudOutlined />
-                    <span>切换组织</span>
+                    <span>{t('切换组织')}</span>
                     {tenantOpen ? <UpOutlined /> : <DownOutlined />}
                   </button>
                   {tenantOpen && (
                     <Form.Item name="tenant_code" className="login-tenant-field">
                       <Input
                         prefix={<CloudOutlined />}
-                        placeholder="组织标识（可选，默认 default）"
-                        aria-label="组织标识"
+                        placeholder={t('组织标识（可选，默认 default）')}
+                        aria-label={t('组织标识')}
                       />
                     </Form.Item>
                   )}
                 </div>
 
-                <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
+                <Form.Item name="username" rules={[{ required: true, message: t('请输入用户名') }]}>
                   <Input
                     ref={usernameRef}
                     prefix={<UserOutlined />}
-                    placeholder="用户名"
-                    aria-label="用户名"
+                    placeholder={t('用户名')}
+                    aria-label={t('用户名')}
                     autoComplete="username"
                   />
                 </Form.Item>
-                <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
+                <Form.Item name="password" rules={[{ required: true, message: t('请输入密码') }]}>
                   <Input.Password
                     prefix={<LockOutlined />}
-                    placeholder="密码"
-                    aria-label="密码"
+                    placeholder={t('密码')}
+                    aria-label={t('密码')}
                     autoComplete="current-password"
                     onKeyDown={onPasswordKey}
                     onKeyUp={onPasswordKey}
@@ -365,37 +369,37 @@ export default function LoginPage() {
                   />
                 </Form.Item>
                 <div className="login-forgot-row">
-                  <a className="login-forgot-link" href="/forgot-password">忘记密码？</a>
+                  <a className="login-forgot-link" href="/forgot-password">{t('忘记密码？')}</a>
                 </div>
                 {capsLock && (
                   <div className="login-caps-hint" role="status">
                     <WarningOutlined />
-                    大写锁定已开启
+                    {t('大写锁定已开启')}
                   </div>
                 )}
                 <div className="login-captcha-row">
                   <Form.Item
                     name="captcha_code"
-                    rules={[{ required: true, message: '请输入验证码' }]}
+                    rules={[{ required: true, message: t('请输入验证码') }]}
                     className="login-captcha-field"
                   >
                     <Input
                       ref={captchaRef}
                       prefix={<SafetyOutlined />}
-                      placeholder="验证码"
+                      placeholder={t('验证码')}
                       maxLength={6}
-                      aria-label="验证码"
+                      aria-label={t('验证码')}
                     />
                   </Form.Item>
                   <button
                     type="button"
                     className={`login-captcha-img${captchaFlash ? ' is-flash' : ''}`}
                     onClick={refreshCaptcha}
-                    title="点击刷新验证码"
-                    aria-label="刷新验证码"
+                    title={t('点击刷新验证码')}
+                    aria-label={t('刷新验证码')}
                   >
                     {captchaImg && !captchaLoading ? (
-                      <img src={captchaImg} alt="图形验证码" />
+                      <img src={captchaImg} alt={t('图形验证码')} />
                     ) : (
                       <Spin size="small" indicator={<ReloadOutlined spin />} />
                     )}
@@ -411,7 +415,7 @@ export default function LoginPage() {
                     className={success ? 'is-success' : undefined}
                     icon={success ? <CheckOutlined /> : undefined}
                   >
-                    {success ? '已验证' : '登 录'}
+                    {success ? t('已验证') : t('登 录')}
                   </Button>
                 </Form.Item>
               </Form>
@@ -428,8 +432,8 @@ export default function LoginPage() {
                 <Form.Item
                   name="code"
                   rules={[
-                    { required: true, message: '请输入 6 位验证码' },
-                    { len: 6, message: '请输入 6 位数字' },
+                    { required: true, message: t('请输入 6 位验证码') },
+                    { len: 6, message: t('请输入 6 位数字') },
                   ]}
                 >
                   <Input
@@ -438,7 +442,7 @@ export default function LoginPage() {
                     placeholder="······"
                     maxLength={6}
                     inputMode="numeric"
-                    aria-label="6 位动态验证码"
+                    aria-label={t('6 位动态验证码')}
                     onChange={onTotpCodeChange}
                     disabled={success}
                   />
@@ -453,7 +457,7 @@ export default function LoginPage() {
                     className={success ? 'is-success' : undefined}
                     icon={success ? <CheckOutlined /> : undefined}
                   >
-                    {success ? '已验证' : '验 证'}
+                    {success ? t('已验证') : t('验 证')}
                   </Button>
                 </Form.Item>
                 <Button
@@ -468,7 +472,7 @@ export default function LoginPage() {
                     refreshCaptcha()
                   }}
                 >
-                  返回登录
+                  {t('返回登录')}
                 </Button>
               </Form>
             )}

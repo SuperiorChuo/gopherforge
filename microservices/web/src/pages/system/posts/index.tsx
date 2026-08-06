@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
   Card, InputNumber, Row, Col, Tooltip,
@@ -35,6 +36,7 @@ export default function PostPage() {
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
+  const { t } = useTranslation()
   const { hasPerm } = usePermission()
 
   const fetchList = async (p: SearchParams) => {
@@ -44,7 +46,7 @@ export default function PostPage() {
       setList(res.list)
       setTotal(res.total)
     } catch {
-      message.error('获取岗位列表失败')
+      message.error(t('获取岗位列表失败'))
     } finally {
       setLoading(false)
     }
@@ -84,7 +86,7 @@ export default function PostPage() {
   const handleDelete = async (id: number) => {
     try {
       await PostAPI.deletePost(id)
-      message.success('删除成功')
+      message.success(t('删除成功'))
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
@@ -100,7 +102,7 @@ export default function PostPage() {
     const next = record.status === 1 ? 0 : 1
     try {
       await PostAPI.updatePost(record.id, { status: next })
-      message.success(next === 1 ? '已启用' : '已停用')
+      message.success(next === 1 ? t('已启用') : t('已停用'))
       fetchList(params)
     } catch {
       // 错误提示由 request 拦截器统一弹出
@@ -114,10 +116,10 @@ export default function PostPage() {
     try {
       if (editRecord) {
         await PostAPI.updatePost(editRecord.id, values)
-        message.success('更新成功')
+        message.success(t('更新成功'))
       } else {
         await PostAPI.createPost(values)
-        message.success('创建成功')
+        message.success(t('创建成功'))
       }
       setModalOpen(false)
       fetchList(params)
@@ -130,7 +132,7 @@ export default function PostPage() {
 
   const columns: ColumnsType<SystemPost> = [
     {
-      title: '岗位名称',
+      title: t('岗位名称'),
       dataIndex: 'name',
       width: 220,
       ellipsis: true,
@@ -142,55 +144,55 @@ export default function PostPage() {
       ),
     },
     {
-      title: '编码',
+      title: t('编码'),
       dataIndex: 'code',
       width: 200,
       responsive: ['sm'],
       render: (v: string) => <Tag variant="filled" className="cell-mono post-code-tag">{v}</Tag>,
     },
-    { title: '排序', dataIndex: 'sort', width: 70 },
+    { title: t('排序'), dataIndex: 'sort', width: 70 },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 80,
       render: (v: number) => <EnableStatusPill value={v} />,
     },
     {
-      title: '备注',
+      title: t('备注'),
       dataIndex: 'remark',
       width: 280,
       ellipsis: true,
       responsive: ['md'],
       render: (v: string) => v || <span className="cell-muted">—</span>,
     },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
+    { title: t('创建时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
-      title: '操作',
+      title: t('操作'),
       width: 132,
       fixed: 'right',
       render: (_, record) => (
         <Space size={4} className="table-actions post-row-actions">
           {hasPerm('system:post:update') && (
-            <Tooltip title={record.status === 1 ? '停用' : '启用'}>
+            <Tooltip title={record.status === 1 ? t('停用') : t('启用')}>
               <Button
                 type="text"
                 size="small"
                 className={record.status === 1 ? 'post-status-stop' : 'post-status-start'}
-                aria-label={`${record.status === 1 ? '停用' : '启用'}岗位`}
+                aria-label={record.status === 1 ? t('停用岗位') : t('启用岗位')}
                 icon={<PoweroffOutlined />}
                 onClick={() => handleToggleStatus(record)}
               />
             </Tooltip>
           )}
           {hasPerm('system:post:update') && (
-            <Tooltip title="编辑">
-              <Button type="text" size="small" aria-label="编辑岗位" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Tooltip title={t('编辑')}>
+              <Button type="text" size="small" aria-label={t('编辑岗位')} icon={<EditOutlined />} onClick={() => openEdit(record)} />
             </Tooltip>
           )}
           {hasPerm('system:post:delete') && (
-            <Popconfirm title="确认删除该岗位?" description="仍有用户关联时将无法删除" onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title="删除">
-                <Button type="text" size="small" danger aria-label="删除岗位" icon={<DeleteOutlined />} />
+            <Popconfirm title={t('确认删除该岗位?')} description={t('仍有用户关联时将无法删除')} onConfirm={() => handleDelete(record.id)}>
+              <Tooltip title={t('删除')}>
+                <Button type="text" size="small" danger aria-label={t('删除岗位')} icon={<DeleteOutlined />} />
               </Tooltip>
             </Popconfirm>
           )}
@@ -210,18 +212,18 @@ export default function PostPage() {
           initialValues={params}
         >
           <Form.Item name="keyword">
-            <Input placeholder="搜索名称 / 编码" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
+            <Input placeholder={t('搜索名称 / 编码')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
           <Form.Item name="status">
-            <Select placeholder="状态" style={{ width: 100 }} allowClear>
-              <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
+            <Select placeholder={t('状态')} style={{ width: 100 }} allowClear>
+              <Select.Option value={1}>{t('启用')}</Select.Option>
+              <Select.Option value={0}>{t('禁用')}</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
         </Form>
@@ -233,9 +235,9 @@ export default function PostPage() {
           total={total}
           extra={
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
               {hasPerm('system:post:create') && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增岗位</Button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增岗位')}</Button>
               )}
             </Space>
           }
@@ -255,14 +257,14 @@ export default function PostPage() {
             pageSize: params.page_size,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
       </Card>
 
       <Modal
-        title={editRecord ? '编辑岗位' : '新增岗位'}
+        title={editRecord ? t('编辑岗位') : t('新增岗位')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
@@ -273,33 +275,33 @@ export default function PostPage() {
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Row gutter={16}>
             <Col xs={24} sm={12}>
-              <Form.Item name="name" label="岗位名称" rules={[{ required: true, message: '请输入岗位名称' }]}>
-                <Input placeholder="如：研发工程师" />
+              <Form.Item name="name" label={t('岗位名称')} rules={[{ required: true, message: t('请输入岗位名称') }]}>
+                <Input placeholder={t('如：研发工程师')} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
-              <Form.Item name="code" label="岗位编码" rules={[{ required: true, message: '请输入岗位编码' }]}>
-                <Input placeholder="如：dev" />
+              <Form.Item name="code" label={t('岗位编码')} rules={[{ required: true, message: t('请输入岗位编码') }]}>
+                <Input placeholder={t('如：dev')} />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col xs={24} sm={12}>
-              <Form.Item name="sort" label="排序" initialValue={0}>
+              <Form.Item name="sort" label={t('排序')} initialValue={0}>
                 <InputNumber style={{ width: '100%' }} min={0} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
-              <Form.Item name="status" label="状态" initialValue={1}>
+              <Form.Item name="status" label={t('状态')} initialValue={1}>
                 <Select>
-                  <Select.Option value={1}>启用</Select.Option>
-                  <Select.Option value={0}>禁用</Select.Option>
+                  <Select.Option value={1}>{t('启用')}</Select.Option>
+                  <Select.Option value={0}>{t('禁用')}</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={3} maxLength={500} placeholder="可选" />
+          <Form.Item name="remark" label={t('备注')}>
+            <Input.TextArea rows={3} maxLength={500} placeholder={t('可选')} />
           </Form.Item>
         </Form>
       </Modal>

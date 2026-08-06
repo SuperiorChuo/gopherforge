@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export interface TrendPoint {
   t: number
@@ -20,6 +21,7 @@ const PAD = { top: 14, right: 14, bottom: 26, left: 46 }
  * --text-tertiary labels, --card-bg tooltip).
  */
 export default function TrendChart({ points, height = 168, unit = '', loading }: TrendChartProps) {
+  const { t } = useTranslation()
   const wrapRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
 
@@ -64,10 +66,10 @@ export default function TrendChart({ points, height = 168, unit = '', loading }:
   }
 
   if (loading) {
-    return <div style={{ height, display: 'grid', placeItems: 'center' }} className="cell-muted">加载中…</div>
+    return <div style={{ height, display: 'grid', placeItems: 'center' }} className="cell-muted">{t('加载中…')}</div>
   }
   if (!chart || !points.length) {
-    return <div style={{ height, display: 'grid', placeItems: 'center' }} className="cell-muted">暂无采样数据</div>
+    return <div style={{ height, display: 'grid', placeItems: 'center' }} className="cell-muted">{t('暂无采样数据')}</div>
   }
 
   const gridY = [0, 0.5, 1]

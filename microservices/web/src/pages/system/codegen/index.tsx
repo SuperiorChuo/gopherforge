@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import axios from 'axios'
 import { Alert, Button, Form, Input, Radio, Space, Steps, Typography } from 'antd'
 import { EyeOutlined, LeftOutlined, ReloadOutlined, RightOutlined } from '@ant-design/icons'
@@ -62,6 +63,7 @@ function moduleFromTable(table: string) {
 }
 
 export default function CodegenPage() {
+  const { t } = useTranslation()
   const [step, setStep] = useState(0)
   const [tables, setTables] = useState<CodegenTable[]>([])
   const [schema, setSchema] = useState<CodegenSchema | null>(null)
@@ -80,7 +82,7 @@ export default function CodegenPage() {
       const response = await listCodegenTables()
       setTables(response.list || [])
     } catch {
-      message.error('加载表列表失败')
+      message.error(t('加载表列表失败'))
     } finally {
       setLoading(false)
     }
@@ -111,7 +113,7 @@ export default function CodegenPage() {
       })
       setStep(1)
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '加载表结构失败')
+      message.error(error instanceof Error ? error.message : t('加载表结构失败'))
     } finally {
       setLoading(false)
     }
@@ -149,11 +151,11 @@ export default function CodegenPage() {
     try {
       await form.validateFields()
       if (mode === 'tree' && (!relations.tree?.parent_field || !relations.tree.name_field)) {
-        message.error('请选择父级字段和显示字段')
+        message.error(t('请选择父级字段和显示字段'))
         return
       }
       if (mode === 'sub' && !relations.sub) {
-        message.error('请选择子表关系')
+        message.error(t('请选择子表关系'))
         return
       }
       setStep(2)
@@ -165,7 +167,7 @@ export default function CodegenPage() {
   async function preview() {
     const request = collectRequest()
     if (!request) {
-      message.error('生成配置不完整')
+      message.error(t('生成配置不完整'))
       return
     }
     setLoading(true)
@@ -173,7 +175,7 @@ export default function CodegenPage() {
       const nextPlan = await previewCodegen(request)
       setPlan(nextPlan)
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '预检失败')
+      message.error(error instanceof Error ? error.message : t('预检失败'))
     } finally {
       setLoading(false)
     }
@@ -185,7 +187,7 @@ export default function CodegenPage() {
       : axios.isAxiosError(error) ? error.response?.status : undefined
     if (status === 409) {
       setPlan(null)
-      message.error('生成计划已变化，请重新预检')
+      message.error(t('生成计划已变化，请重新预检'))
       return
     }
     message.error(error instanceof Error ? error.message : fallback)
@@ -202,9 +204,9 @@ export default function CodegenPage() {
       anchor.download = `codegen-${plan.request.module}.zip`
       anchor.click()
       URL.revokeObjectURL(url)
-      message.success('ZIP 已下载')
+      message.success(t('ZIP 已下载'))
     } catch (error) {
-      handleOutputError(error, '下载失败')
+      handleOutputError(error, t('下载失败'))
     } finally {
       setLoading(false)
     }
@@ -215,10 +217,10 @@ export default function CodegenPage() {
     setLoading(true)
     try {
       const result = await writeCodegen(plan.request, plan.digest, confirmation)
-      message.success(`已创建 ${result.created.length} 个文件并更新 ${result.patched.length} 个接入文件`)
+      message.success(t('已创建 {{a}} 个文件并更新 {{b}} 个接入文件', { a: result.created.length, b: result.patched.length }))
       setPlan(null)
     } catch (error) {
-      handleOutputError(error, '写入失败')
+      handleOutputError(error, t('写入失败'))
       throw error
     } finally {
       setLoading(false)
@@ -238,12 +240,12 @@ export default function CodegenPage() {
     <div className="page-detail" style={{ minWidth: 0 }}>
       <Steps
         current={step}
-        items={[{ title: '选择数据表' }, { title: '配置生成规则' }, { title: '预检产物' }]}
+        items={[{ title: t('选择数据表') }, { title: t('配置生成规则') }, { title: t('预检产物') }]}
         style={{ marginBottom: 24 }}
       />
 
       {capabilities && !capabilities.preview_enabled && (
-        <Alert type="warning" showIcon message="当前环境未提供仓库快照，预检暂不可用" style={{ marginBottom: 16 }} />
+        <Alert type="warning" showIcon message={t('当前环境未提供仓库快照，预检暂不可用')} style={{ marginBottom: 16 }} />
       )}
 
       {step === 0 && (
@@ -253,23 +255,23 @@ export default function CodegenPage() {
       {step === 1 && schema && (
         <Form form={form} layout="vertical">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <Form.Item name="module" label="模块名" rules={[{ required: true }, { pattern: /^[a-z][a-z0-9]{1,31}$/, message: '小写字母开头，2-32 个字符' }]}>
+            <Form.Item name="module" label={t('模块名')} rules={[{ required: true }, { pattern: /^[a-z][a-z0-9]{1,31}$/, message: t('小写字母开头，2-32 个字符') }]}>
               <Input />
             </Form.Item>
-            <Form.Item name="title" label="页面标题" rules={[{ required: true }]}>
+            <Form.Item name="title" label={t('页面标题')} rules={[{ required: true }]}>
               <Input />
             </Form.Item>
-            <Form.Item name="tpl_type" label="生成模式" initialValue="crud">
+            <Form.Item name="tpl_type" label={t('生成模式')} initialValue="crud">
               <Radio.Group
                 optionType="button"
                 buttonStyle="solid"
-                options={[{ label: '单表', value: 'crud' }, { label: '树表', value: 'tree' }, { label: '主子表', value: 'sub' }]}
+                options={[{ label: t('单表'), value: 'crud' }, { label: t('树表'), value: 'tree' }, { label: t('主子表'), value: 'sub' }]}
                 onChange={() => setPlan(null)}
               />
             </Form.Item>
           </div>
 
-          <Typography.Title level={5}>字段配置</Typography.Title>
+          <Typography.Title level={5}>{t('字段配置')}</Typography.Title>
           <FieldConfigTable columns={schema.columns} value={fieldConfigs} dictTypes={dictTypes} onChange={setFieldConfigs} />
 
           <div style={{ marginTop: 24 }}>
@@ -284,8 +286,8 @@ export default function CodegenPage() {
           </div>
 
           <Space style={{ marginTop: 24 }} wrap>
-            <Button icon={<LeftOutlined />} onClick={() => setStep(0)}>上一步</Button>
-            <Button type="primary" icon={<RightOutlined />} iconPosition="end" onClick={() => void nextStep()}>下一步</Button>
+            <Button icon={<LeftOutlined />} onClick={() => setStep(0)}>{t('上一步')}</Button>
+            <Button type="primary" icon={<RightOutlined />} iconPosition="end" onClick={() => void nextStep()}>{t('下一步')}</Button>
           </Space>
         </Form>
       )}
@@ -293,11 +295,11 @@ export default function CodegenPage() {
       {step === 2 && (
         <div>
           <Space wrap style={{ marginBottom: plan ? 16 : 0 }}>
-            <Button icon={<LeftOutlined />} onClick={() => setStep(1)}>上一步</Button>
+            <Button icon={<LeftOutlined />} onClick={() => setStep(1)}>{t('上一步')}</Button>
             <Button type="primary" icon={<EyeOutlined />} loading={loading} disabled={capabilities?.preview_enabled === false} onClick={() => void preview()}>
-              {plan ? '重新预检' : '预检代码'}
+              {plan ? t('重新预检') : t('预检代码')}
             </Button>
-            <Button icon={<ReloadOutlined />} onClick={reset}>重新选择</Button>
+            <Button icon={<ReloadOutlined />} onClick={reset}>{t('重新选择')}</Button>
           </Space>
           {plan && (
             <PlanPreview

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Alert, Button, Modal, Space, Table, Typography, Upload } from 'antd'
 import { DownloadOutlined, InboxOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
@@ -44,6 +45,7 @@ export default function ExcelImportModal({
   downloadTemplate,
   doImport,
 }: ExcelImportModalProps) {
+  const { t } = useTranslation()
   const [file, setFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState<ExcelImportResult | null>(null)
@@ -63,15 +65,15 @@ export default function ExcelImportModal({
 
   const run = async () => {
     if (!file) {
-      message.warning('请先选择 .xlsx 文件')
+      message.warning(t('请先选择 .xlsx 文件'))
       return
     }
     setImporting(true)
     try {
       const res = await doImport(file)
       setResult(res)
-      if (res.failed === 0) message.success(`导入完成：成功 ${res.success} 条`)
-      else message.warning(`导入完成：成功 ${res.success} 条，失败 ${res.failed} 条`)
+      if (res.failed === 0) message.success(t('导入完成：成功 {{n}} 条', { n: res.success }))
+      else message.warning(t('导入完成：成功 {{n}} 条，失败 {{m}} 条', { n: res.success, m: res.failed }))
     } catch {
       // 整体失败（表头不符/文件超限等）由拦截器提示
     } finally {
@@ -88,10 +90,10 @@ export default function ExcelImportModal({
       width={560}
       footer={[
         <Button key="close" onClick={close}>
-          关闭
+          {t('关闭')}
         </Button>,
         <Button key="run" type="primary" loading={importing} disabled={!file} onClick={() => void run()}>
-          开始导入
+          {t('开始导入')}
         </Button>,
       ]}
     >
@@ -100,7 +102,7 @@ export default function ExcelImportModal({
           icon={<DownloadOutlined />}
           onClick={() => void downloadTemplate().catch(() => {})}
         >
-          下载导入模板
+          {t('下载导入模板')}
         </Button>
         <Upload.Dragger
           accept=".xlsx"
@@ -118,7 +120,7 @@ export default function ExcelImportModal({
           <p className="ant-upload-drag-icon">
             <InboxOutlined />
           </p>
-          <p className="ant-upload-text">点击或拖拽 .xlsx 文件到此处</p>
+          <p className="ant-upload-text">{t('点击或拖拽 .xlsx 文件到此处')}</p>
           {hint && <p className="ant-upload-hint">{hint}</p>}
         </Upload.Dragger>
         {result && (
@@ -126,7 +128,7 @@ export default function ExcelImportModal({
             <Alert
               type={result.failed === 0 ? 'success' : 'warning'}
               showIcon
-              message={`共 ${result.total} 条：成功 ${result.success}，失败 ${result.failed}`}
+              message={t('共 {{n}} 条：成功 {{m}}，失败 {{k}}', { n: result.total, m: result.success, k: result.failed })}
             />
             {(result.errors?.length ?? 0) > 0 && (
               <Table
@@ -135,14 +137,14 @@ export default function ExcelImportModal({
                 dataSource={result.errors}
                 pagination={result.errors!.length > 8 ? { pageSize: 8 } : false}
                 columns={[
-                  { title: '行号', dataIndex: 'row', width: 70 },
+                  { title: t('行号'), dataIndex: 'row', width: 70 },
                   {
-                    title: '用户名',
+                    title: t('用户名'),
                     dataIndex: 'username',
                     width: 130,
                     render: (v?: string) => v || <Text type="secondary">—</Text>,
                   },
-                  { title: '失败原因', dataIndex: 'reason' },
+                  { title: t('失败原因'), dataIndex: 'reason' },
                 ]}
               />
             )}

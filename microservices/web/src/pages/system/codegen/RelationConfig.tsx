@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button, Divider, Form, Input, Select, Space, Tooltip, Typography } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import type {
@@ -51,6 +52,7 @@ function inferComponent(goType: string, dbType: string): CodegenFieldConfig['com
 }
 
 export default function RelationConfig({ mode, schema, dictTypes, value, loadSchema, onChange }: Props) {
+  const { t } = useTranslation()
   const [relatedSchemas, setRelatedSchemas] = useState<Record<string, CodegenSchema>>({})
   const integerColumns = schema.columns.filter((column) => !column.primary_key && column.go_type === 'int64' && !managedFields.has(column.name))
   const textColumns = schema.columns.filter((column) => !column.primary_key && column.go_type === 'string' && !managedFields.has(column.name))
@@ -112,27 +114,27 @@ export default function RelationConfig({ mode, schema, dictTypes, value, loadSch
     <div>
       {mode === 'tree' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-          <Form.Item label="父级字段" required>
+          <Form.Item label={t('父级字段')} required>
             <Select
               value={value.tree?.parent_field}
-              placeholder="选择父级字段"
+              placeholder={t('选择父级字段')}
               options={integerColumns.map((column) => ({ label: `${column.name} (${column.db_type})`, value: column.name }))}
               onChange={(parentField) => onChange({ ...value, tree: { ...value.tree, parent_field: parentField } })}
             />
           </Form.Item>
-          <Form.Item label="显示字段" required>
+          <Form.Item label={t('显示字段')} required>
             <Select
               value={value.tree?.name_field}
-              placeholder="选择显示字段"
+              placeholder={t('选择显示字段')}
               options={textColumns.map((column) => ({ label: `${column.name} (${column.db_type})`, value: column.name }))}
               onChange={(nameField) => onChange({ ...value, tree: { ...value.tree, name_field: nameField } })}
             />
           </Form.Item>
-          <Form.Item label="排序字段">
+          <Form.Item label={t('排序字段')}>
             <Select
               allowClear
               value={value.tree?.sort_field}
-              placeholder="默认按 ID"
+              placeholder={t('默认按 ID')}
               options={regularColumns.filter((column) => column.name !== value.tree?.parent_field).map((column) => ({ label: `${column.name} (${column.db_type})`, value: column.name }))}
               onChange={(sortField) => onChange({ ...value, tree: { ...value.tree, sort_field: sortField } })}
             />
@@ -142,11 +144,11 @@ export default function RelationConfig({ mode, schema, dictTypes, value, loadSch
 
       {mode === 'sub' && (
         <>
-          <Form.Item label="子表关系" required>
+          <Form.Item label={t('子表关系')} required>
             <Select
               showSearch
               value={value.sub?.table}
-              placeholder="选择已识别的一对多关系"
+              placeholder={t('选择已识别的一对多关系')}
               options={subCandidates.map((candidate) => ({
                 label: `${candidate.target_table} (${candidate.fk_field})`,
                 value: candidate.target_table,
@@ -156,7 +158,7 @@ export default function RelationConfig({ mode, schema, dictTypes, value, loadSch
           </Form.Item>
           {value.sub && relatedSchemas[value.sub.table] && (
             <>
-              <Typography.Title level={5}>子表字段</Typography.Title>
+              <Typography.Title level={5}>{t('子表字段')}</Typography.Title>
               <FieldConfigTable
                 compact
                 columns={relatedSchemas[value.sub.table].columns}
@@ -173,9 +175,9 @@ export default function RelationConfig({ mode, schema, dictTypes, value, loadSch
         <>
           {mode === 'tree' && <Divider />}
           <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 12 }} wrap>
-            <Typography.Title level={5} style={{ margin: 0 }}>多对多关系</Typography.Title>
+            <Typography.Title level={5} style={{ margin: 0 }}>{t('多对多关系')}</Typography.Title>
             <Button icon={<PlusOutlined />} disabled={unusedM2MCount === 0} onClick={() => void addM2M()}>
-              添加多对多关系
+              {t('添加多对多关系')}
             </Button>
           </Space>
           {value.m2ms.map((relation, index) => {
@@ -185,23 +187,23 @@ export default function RelationConfig({ mode, schema, dictTypes, value, loadSch
                 key={`${relation.join_table}-${relation.target_table}`}
                 style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1fr) minmax(140px, 1fr) minmax(180px, 1fr) 40px', gap: 12, alignItems: 'end', marginBottom: 12 }}
               >
-                <Form.Item label="关系名" style={{ marginBottom: 0 }}>
+                <Form.Item label={t('关系名')} style={{ marginBottom: 0 }}>
                   <Input value={relation.name} onChange={(event) => updateM2M(index, { name: event.target.value })} />
                 </Form.Item>
-                <Form.Item label="显示名" style={{ marginBottom: 0 }}>
+                <Form.Item label={t('显示名')} style={{ marginBottom: 0 }}>
                   <Input value={relation.label} onChange={(event) => updateM2M(index, { label: event.target.value })} />
                 </Form.Item>
-                <Form.Item label="显示字段" style={{ marginBottom: 0 }}>
+                <Form.Item label={t('显示字段')} style={{ marginBottom: 0 }}>
                   <Select
-                    aria-label={`${relation.target_table} 显示字段`}
+                    aria-label={t('{{name}} 显示字段', { name: relation.target_table })}
                     value={relation.display_field}
                     options={(target?.columns || []).filter((column) => !column.primary_key).map((column) => ({ label: column.name, value: column.name }))}
                     onChange={(displayField) => updateM2M(index, { display_field: displayField })}
                   />
                 </Form.Item>
-                <Tooltip title="删除关系">
+                <Tooltip title={t('删除关系')}>
                   <Button
-                    aria-label="删除关系"
+                    aria-label={t('删除关系')}
                     icon={<DeleteOutlined />}
                     danger
                     onClick={() => onChange({ ...value, m2ms: value.m2ms.filter((_, itemIndex) => itemIndex !== index) })}
@@ -210,7 +212,7 @@ export default function RelationConfig({ mode, schema, dictTypes, value, loadSch
               </div>
             )
           })}
-          {m2mCandidates.length === 0 && <Typography.Text type="secondary">当前表没有可配置的多对多关系</Typography.Text>}
+          {m2mCandidates.length === 0 && <Typography.Text type="secondary">{t('当前表没有可配置的多对多关系')}</Typography.Text>}
         </>
       )}
     </div>

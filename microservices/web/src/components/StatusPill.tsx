@@ -2,6 +2,8 @@
 // tone 决定点和文字的颜色语义；on=true 时点会呼吸(活性)。
 export type StatusTone = 'success' | 'muted' | 'danger' | 'info' | 'warning'
 
+import { useTranslation } from 'react-i18next'
+
 interface StatusPillProps {
   tone: StatusTone
   label: string
@@ -9,12 +11,14 @@ interface StatusPillProps {
   pulse?: boolean
 }
 
+// label 传中文 key，内部 t() 翻译（缺失回落中文）。
 export default function StatusPill({ tone, label, pulse }: StatusPillProps) {
+  const { t } = useTranslation()
   const active = pulse ?? tone === 'success'
   return (
     <span className={`status-pill status-pill-${tone}`}>
       <span className={`status-pill-dot ${active ? 'status-pill-dot-pulse' : ''}`} />
-      {label}
+      {t(label)}
     </span>
   )
 }

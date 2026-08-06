@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type Key } from 'react'
-import { Button, Card, Checkbox, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Tree } from 'antd'
+import { useTranslation } from 'react-i18next'
+import { Button, Card, Checkbox, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Tree } from 'antd'
 import {
   DeleteOutlined,
   EditOutlined,
@@ -50,6 +51,7 @@ function buildPermissionTree(perms: Permission[]): DataNode[] {
 }
 
 export default function TenantPackagePage() {
+  const { t } = useTranslation()
   const [list, setList] = useState<TenantPackageInfo[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -124,7 +126,7 @@ export default function TenantPackagePage() {
       setList(res.list || [])
       setTotal(res.total ?? 0)
     } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : '获取套餐列表失败')
+      message.error(e instanceof Error ? e.message : t('获取套餐列表失败'))
     } finally {
       setLoading(false)
     }
@@ -139,7 +141,7 @@ export default function TenantPackagePage() {
     // 权限树复用权限管理页的数据源（平铺列表，前端组树）
     getPermissionList({ page: 1, page_size: 500 })
       .then((res) => setAllPerms(res.list || []))
-      .catch(() => message.error('加载权限树失败'))
+      .catch(() => message.error(t('加载权限树失败')))
   }, [])
 
   const handleSearch = (values: { keyword?: string }) => {
@@ -165,7 +167,7 @@ export default function TenantPackagePage() {
 
   function openEdit(row: TenantPackageInfo) {
     setEditRecord(row)
-    form.setFieldsValue({ name: row.name, status: row.status, remark: row.remark })
+    form.setFieldsValue({ name: row.name, status: row.status, remark: row.remark, storage_quota_mb: row.storage_quota_mb ?? 0 })
     setCheckedCodes(row.permission_codes || [])
     setPermissionKeyword('')
     setShowSelectedOnly(false)
@@ -188,23 +190,25 @@ export default function TenantPackagePage() {
         await PackageAPI.updateTenantPackage(editRecord.id, {
           name: values.name,
           permission_codes: checkedCodes,
+          storage_quota_mb: values.storage_quota_mb ?? 0,
           status: values.status,
           remark: values.remark ?? '',
         })
-        message.success('套餐已更新（改小套餐不回收存量角色权限，仅拦截新分配）')
+        message.success(t('套餐已更新（改小套餐不回收存量角色权限，仅拦截新分配）'))
       } else {
         await PackageAPI.createTenantPackage({
           name: values.name,
           permission_codes: checkedCodes,
+          storage_quota_mb: values.storage_quota_mb ?? 0,
           status: values.status,
           remark: values.remark ?? '',
         })
-        message.success('套餐已创建')
+        message.success(t('套餐已创建'))
       }
       setModalOpen(false)
       fetchList(params)
     } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : '保存失败')
+      message.error(e instanceof Error ? e.message : t('保存失败'))
     } finally {
       setSubmitting(false)
     }
@@ -213,53 +217,53 @@ export default function TenantPackagePage() {
   async function onDelete(row: TenantPackageInfo) {
     try {
       await PackageAPI.deleteTenantPackage(row.id)
-      message.success('套餐已删除')
+      message.success(t('套餐已删除'))
       fetchList(params)
     } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : '删除失败（有租户绑定时需先解绑）')
+      message.error(e instanceof Error ? e.message : t('删除失败（有租户绑定时需先解绑）'))
     }
   }
 
   const columns: ColumnsType<TenantPackageInfo> = [
     { title: 'ID', dataIndex: 'id', width: 70, responsive: ['lg'] },
     {
-      title: '名称',
+      title: t('名称'),
       dataIndex: 'name',
       width: 220,
       ellipsis: true,
       render: (value: string) => <span className="list-primary-cell">{value}</span>,
     },
     {
-      title: '权限数',
+      title: t('权限数'),
       dataIndex: 'permission_codes',
       width: 100,
       responsive: ['md'],
       render: (v: string[]) => <Tag variant="filled">{v?.length ?? 0}</Tag>,
     },
-    { title: '备注', dataIndex: 'remark', width: 260, ellipsis: true, responsive: ['lg'] },
+    { title: t('备注'), dataIndex: 'remark', width: 260, ellipsis: true, responsive: ['lg'] },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 90,
       render: (v: number) =>
         v === 1 ? <StatusPill tone="success" label="启用" /> : <StatusPill tone="muted" label="停用" />,
     },
-    { title: '创建时间', dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
+    { title: t('创建时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
-      title: '操作',
+      title: t('操作'),
       width: 96,
       fixed: 'right',
       render: (_, row) => (
         <Space size={4} className="table-actions tenant-package-row-actions">
           {hasPerm('system:tenant-package:update') && (
-            <Tooltip title="编辑">
-              <Button type="text" size="small" aria-label={`编辑租户套餐 ${row.name}`} icon={<EditOutlined />} onClick={() => openEdit(row)} />
+            <Tooltip title={t('编辑')}>
+              <Button type="text" size="small" aria-label={t('编辑租户套餐 {{name}}', { name: row.name })} icon={<EditOutlined />} onClick={() => openEdit(row)} />
             </Tooltip>
           )}
           {hasPerm('system:tenant-package:delete') && (
-            <Popconfirm title="确定删除该套餐？有租户绑定时将拒绝删除。" onConfirm={() => void onDelete(row)}>
-              <Tooltip title="删除">
-                <Button type="text" size="small" danger aria-label={`删除租户套餐 ${row.name}`} icon={<DeleteOutlined />} />
+            <Popconfirm title={t('确定删除该套餐？有租户绑定时将拒绝删除。')} onConfirm={() => void onDelete(row)}>
+              <Tooltip title={t('删除')}>
+                <Button type="text" size="small" danger aria-label={t('删除租户套餐 {{name}}', { name: row.name })} icon={<DeleteOutlined />} />
               </Tooltip>
             </Popconfirm>
           )}
@@ -279,12 +283,12 @@ export default function TenantPackagePage() {
           initialValues={params}
         >
           <Form.Item name="keyword">
-            <Input placeholder="搜索套餐名称" prefix={<SearchOutlined />} allowClear style={{ width: 240 }} />
+            <Input placeholder={t('搜索套餐名称')} prefix={<SearchOutlined />} allowClear style={{ width: 240 }} />
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
         </Form>
@@ -296,10 +300,10 @@ export default function TenantPackagePage() {
           total={total}
           extra={
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
               {hasPerm('system:tenant-package:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-                  新建套餐
+                  {t('新建套餐')}
                 </Button>
               )}
             </Space>
@@ -319,14 +323,14 @@ export default function TenantPackagePage() {
             current: params.page,
             pageSize: params.page_size,
             showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
       </Card>
 
       <Modal
-        title={editRecord ? `编辑套餐 #${editRecord.id}` : '新建套餐'}
+        title={editRecord ? t('编辑套餐 #{{id}}', { id: editRecord.id }) : t('新建套餐')}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={() => void onSubmit()}
@@ -334,49 +338,52 @@ export default function TenantPackagePage() {
         width={640}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="套餐名称" rules={[{ required: true, message: '必填' }]}>
-            <Input placeholder="如：基础版 / 专业版" maxLength={128} />
+          <Form.Item name="name" label={t('套餐名称')} rules={[{ required: true, message: t('必填') }]}>
+            <Input placeholder={t('如：基础版 / 专业版')} maxLength={128} />
           </Form.Item>
-          <Form.Item name="status" label="状态">
+          <Form.Item name="status" label={t('状态')}>
             <Select
               options={[
-                { label: '启用', value: 1 },
-                { label: '停用', value: 0 },
+                { label: t('启用'), value: 1 },
+                { label: t('停用'), value: 0 },
               ]}
             />
           </Form.Item>
-          <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={2} maxLength={255} placeholder="套餐说明（可选）" />
+          <Form.Item name="remark" label={t('备注')}>
+            <Input.TextArea rows={2} maxLength={255} placeholder={t('套餐说明（可选）')} />
+          </Form.Item>
+          <Form.Item name="storage_quota_mb" label={t('存储配额（MB）')} extra={t('0 = 不限；租户累计文件大小超过配额后上传被拒')}>
+            <InputNumber min={0} style={{ width: '100%' }} placeholder={t('0 = 不限')} />
           </Form.Item>
           <Form.Item
-            label={`套餐权限（已选 ${checkedCodes.length} 项）`}
-            extra="严格勾选（父子不联动），与角色授权页的平铺勾选语义一致"
+            label={t('套餐权限（已选 {{n}} 项）', { n: checkedCodes.length })}
+            extra={t('严格勾选（父子不联动），与角色授权页的平铺勾选语义一致')}
           >
             <div className="tenant-permission-toolbar">
               <Input
                 value={permissionKeyword}
                 onChange={(event) => setPermissionKeyword(event.target.value)}
-                placeholder="搜索权限名称 / 编码"
+                placeholder={t('搜索权限名称 / 编码')}
                 prefix={<SearchOutlined />}
                 allowClear
               />
               <div className="tenant-permission-toolbar-actions">
                 <Checkbox checked={showSelectedOnly} onChange={(event) => setShowSelectedOnly(event.target.checked)}>
-                  只看已选
+                  {t('只看已选')}
                 </Checkbox>
-                <Tooltip title="全部展开">
+                <Tooltip title={t('全部展开')}>
                   <Button
                     size="small"
-                    aria-label="全部展开套餐权限"
+                    aria-label={t('全部展开套餐权限')}
                     icon={<ArrowsAltOutlined />}
                     onClick={() => updateExpandedKeys(permissionFilterActive ? visibleCodes : allCodes)}
                   />
                 </Tooltip>
-                <Tooltip title="全部收起">
-                  <Button size="small" aria-label="全部收起套餐权限" icon={<ShrinkOutlined />} onClick={() => updateExpandedKeys([])} />
+                <Tooltip title={t('全部收起')}>
+                  <Button size="small" aria-label={t('全部收起套餐权限')} icon={<ShrinkOutlined />} onClick={() => updateExpandedKeys([])} />
                 </Tooltip>
-                <Button size="small" onClick={() => setCheckedCodes(allCodes)}>全选</Button>
-                <Button size="small" onClick={() => setCheckedCodes([])}>清空</Button>
+                <Button size="small" onClick={() => setCheckedCodes(allCodes)}>{t('全选')}</Button>
+                <Button size="small" onClick={() => setCheckedCodes([])}>{t('清空')}</Button>
               </div>
             </div>
             <div className="tenant-permission-tree-frame">
