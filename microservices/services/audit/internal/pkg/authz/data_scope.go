@@ -13,7 +13,7 @@ import (
 	"github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/audit/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/audit/internal/pkg/redis"
-	"github.com/go-admin-kit/services/audit/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 

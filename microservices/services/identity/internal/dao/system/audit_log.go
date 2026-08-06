@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/go-admin-kit/services/identity/internal/model"
-	"github.com/go-admin-kit/services/identity/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 

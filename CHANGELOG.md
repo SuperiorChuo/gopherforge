@@ -5,6 +5,28 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **功能完善六批同步**（2026-08-06 同步自主项目）：
+  - **shared 收敛**：`mailer` / `pagination` / `tenant` / `notifyclient` 四包下沉
+    `shared/pkg`，monitor/system/audit/file/identity/bpm 等服务的本地副本删除改引
+    （pagination/tenant 各 5 份逐字节副本归一；notifyclient 统一走 internalhttp
+    连接池 + 5xx/429 退避）。
+  - **忘记密码邮件链路**：`POST /password/forgot`（防枚举 + IP 限频）与
+    `/password/reset`（token sha256 存库、30 分钟过期、原子消费防重放），邮件配置
+    复用 system_settings `notification.email`；迁移 `000060`；前端 login 页「忘记
+    密码」入口 + forgot/reset 两页。
+  - **审计收尾**：`bpm_process_definition` 接入事务审计（管理面五个写方法补 ctx +
+    事务化）；`GET /logs/audit/export` CSV 导出（UTF-8 BOM，上限 5 万行）。
+  - **网关加固**：entrypoint 级全局限流（average=100/s burst=200，env 可调）；
+    `websecure:443` TLS-ready（无证书自签兜底，ACME_EMAIL 配了即启用 LE）；
+    Dashboard 保持 loopback-only。
+  - **文件存储配额**：`tenant_packages.storage_quota_mb`（迁移 `000061`，0=不限），
+    上传前校验租户已用存储 + 本次大小；`UPLOAD_MAX_SIZE` env 化。
+  - **杂项修复**：identity 重置/创建密码 binding min=8 对齐服务端强度校验；
+    auth failed-login 事件按请求租户归因；`/monitor/mysql` 页 slow_queries 接真值
+    （pg_stat_activity >10s 活跃查询计数）。
+
 ## [0.4.0] - 2026-08-04
 
 ### 新增

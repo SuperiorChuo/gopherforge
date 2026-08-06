@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/shared/pkg/response"
-	"github.com/go-admin-kit/services/system/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	systemsvc "github.com/go-admin-kit/services/system/internal/service/system"
 	"gorm.io/gorm"
 )

@@ -151,6 +151,23 @@ func (s *UserService) EnsureTenantActiveContext(ctx context.Context, tenantID ui
 	return nil
 }
 
+// ResolveTenantIDByCodeContext maps a tenant code to its ID for event
+// attribution. Empty code means default; unknown codes fall back to the
+// default tenant (1) so best-effort event publishing never fails.
+func (s *UserService) ResolveTenantIDByCodeContext(ctx context.Context, tenantCode string) uint {
+	if s == nil {
+		return 1
+	}
+	if tenantCode == "" {
+		tenantCode = "default"
+	}
+	tenant, err := s.userDAO.GetTenantByCodeContext(ctx, tenantCode)
+	if err != nil || tenant == nil {
+		return 1
+	}
+	return tenant.ID
+}
+
 func (s *UserService) LoginPasswordWithTenantContext(ctx context.Context, username, password, tenantCode string, accessTTL time.Duration) (*LoginResponse, error) {
 	if tenantCode == "" {
 		tenantCode = "default"

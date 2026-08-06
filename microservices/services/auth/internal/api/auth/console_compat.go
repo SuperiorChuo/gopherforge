@@ -42,6 +42,7 @@ func (a *UserAPI) LoginConsole(c *gin.Context) {
 	if err != nil {
 		middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 		a.recordConsoleAuthAudit(c, "auth.login.failed", req.Username, nil, authSvc.ConsoleAuthAttemptSnapshot(consoleAuthRequestMetadata(c), req.Username, "FAILED", "invalid_credentials"))
+		// Console login is the platform entry (default tenant by design).
 		publishLoginFailed(c, req.Username, "invalid_credentials", 1)
 		response.Unauthorized(c, "Invalid console username or password")
 		return
@@ -78,7 +79,7 @@ func (a *UserAPI) VerifyConsoleTOTPLogin(c *gin.Context) {
 	if err != nil {
 		middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 		a.recordConsoleAuthAudit(c, "auth.login.failed", consoleTOTPChallengeUsername(req.ChallengeID), nil, authSvc.ConsoleAuthAttemptSnapshot(consoleAuthRequestMetadata(c), consoleTOTPChallengeUsername(req.ChallengeID), "FAILED", "invalid_totp"))
-		publishLoginFailed(c, consoleTOTPChallengeUsername(req.ChallengeID), "invalid_totp", 1)
+		publishLoginFailed(c, consoleTOTPChallengeUsername(req.ChallengeID), "invalid_totp", consoleTOTPChallengeTenantID(req.ChallengeID))
 		writeAuthServiceError(c, "failed to verify console totp login", err)
 		return
 	}
@@ -210,6 +211,17 @@ func consoleTOTPChallengeUsername(challengeID string) string {
 		return ""
 	}
 	return claims.Username
+}
+
+// consoleTOTPChallengeTenantID recovers the tenant from the challenge token
+// (set at password-verification time) so failed 2FA events attribute to the
+// real tenant; unparsable challenges fall back to the default tenant.
+func consoleTOTPChallengeTenantID(challengeID string) uint {
+	claims, err := jwt.ParseTOTPChallenge(strings.TrimSpace(challengeID))
+	if err != nil || claims.TenantID == 0 {
+		return 1
+	}
+	return claims.TenantID
 }
 
 func setConsoleSessionCookie(c *gin.Context, token string, ttlSec int) {

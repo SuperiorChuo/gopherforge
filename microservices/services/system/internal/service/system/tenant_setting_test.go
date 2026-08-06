@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-admin-kit/services/system/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 )
 
 // 白名单 / 租户上下文校验在 DB 访问前完成，nil db 即可测。

@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	dao "github.com/go-admin-kit/services/audit/internal/dao/system"
 	"github.com/go-admin-kit/services/audit/internal/model"
-	"github.com/go-admin-kit/services/audit/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -80,6 +80,20 @@ func (s *AuditLogService) ListLogsContext(ctx context.Context, req AuditLogListR
 	return s.logDAO.ListLogsContext(ctx, dao.AuditLogListQuery{
 		Page:       normalized.Page,
 		PageSize:   normalized.PageSize,
+		Action:     normalized.Action,
+		TargetType: normalized.TargetType,
+		TargetID:   normalized.TargetID,
+		Keyword:    normalized.Keyword,
+		SortBy:     normalized.SortBy,
+		SortOrder:  normalized.SortOrder,
+	})
+}
+
+// ExportLogsContext streams up to maxExportRows audit rows with the same
+// filters as the list, unpaginated, for CSV export.
+func (s *AuditLogService) ExportLogsContext(ctx context.Context, req AuditLogListRequest) ([]model.AuditLog, error) {
+	normalized := NormalizeAuditLogListRequest(req)
+	return s.logDAO.ExportLogsContext(ctx, dao.AuditLogListQuery{
 		Action:     normalized.Action,
 		TargetType: normalized.TargetType,
 		TargetID:   normalized.TargetID,

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

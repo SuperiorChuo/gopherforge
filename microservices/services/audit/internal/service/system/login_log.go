@@ -10,8 +10,8 @@ import (
 	"github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/audit/internal/pkg/authz"
 	"github.com/go-admin-kit/services/audit/internal/pkg/ipinfo"
-	"github.com/go-admin-kit/services/audit/internal/pkg/pagination"
-	"github.com/go-admin-kit/services/audit/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"github.com/go-admin-kit/services/shared/pkg/iploc"
 	"gorm.io/gorm"
 )

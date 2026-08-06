@@ -116,7 +116,7 @@ services:
     labels:
       traefik.enable: "true"
       traefik.http.routers.monitor.rule: "PathPrefix(`/api`) || PathPrefix(`/uploads`)"
-      traefik.http.routers.monitor.entrypoints: web
+      traefik.http.routers.monitor.entrypoints: web,websecure
       traefik.http.routers.monitor.middlewares: auth-chain
       traefik.http.services.monitor.loadbalancer.server.port: "8081"
     depends_on:
@@ -179,7 +179,7 @@ services:
       # capture `/api/v1/user/menus` (both monolith routes). Exact-path routes
       # use Path(); only true subtrees use PathPrefix() with a trailing slash.
       traefik.http.routers.auth.rule: "Path(`/api/v1/login`) || PathPrefix(`/api/v1/login/`) || Path(`/api/v1/register`) || Path(`/api/v1/refresh`) || Path(`/api/v1/logout`) || Path(`/api/v1/captcha`) || PathPrefix(`/api/v1/captcha/`) || PathPrefix(`/api/v1/oauth/`) || PathPrefix(`/api/v1/oauth2/`) || PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/console-routes`) || PathPrefix(`/api/v1/console-routes/`) || Path(`/api/v1/user/me`) || Path(`/api/v1/user/profile`) || Path(`/api/v1/user/password`) || PathPrefix(`/api/v1/user/2fa/`)"
-      traefik.http.routers.auth.entrypoints: web
+      traefik.http.routers.auth.entrypoints: web,websecure
       traefik.http.routers.auth.priority: "100"
       traefik.http.services.auth.loadbalancer.server.port: "8082"
       traefik.http.middlewares.auth-verify.forwardauth.address: "http://go-admin-kit-auth:8082/internal/verify"
@@ -190,6 +190,9 @@ services:
       traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Platform-Admin: ""
       traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Permissions: ""
       traefik.http.middlewares.auth-chain.chain.middlewares: "auth-sanitize,auth-verify"
+      # 网关层全局限流：挂在 entrypoint（web）上，覆盖全部服务一处配置。
+      traefik.http.middlewares.gateway-ratelimit.ratelimit.average: "${GATEWAY_RATE_AVERAGE:-100}"
+      traefik.http.middlewares.gateway-ratelimit.ratelimit.burst: "${GATEWAY_RATE_BURST:-200}"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -235,7 +238,7 @@ services:
       # subtrees use a trailing-slash PathPrefix(). `/user/...` (singular,
       # monolith + auth-service) must NOT match `/users`.
       traefik.http.routers.identity.rule: "Path(`/api/v1/users`) || PathPrefix(`/api/v1/users/`) || Path(`/api/v1/roles`) || PathPrefix(`/api/v1/roles/`) || Path(`/api/v1/permissions`) || PathPrefix(`/api/v1/permissions/`) || Path(`/api/v1/departments`) || PathPrefix(`/api/v1/departments/`) || Path(`/api/v1/tenants`) || PathPrefix(`/api/v1/tenants/`) || Path(`/api/v1/posts`) || PathPrefix(`/api/v1/posts/`) || Path(`/api/v1/tenant-packages`) || PathPrefix(`/api/v1/tenant-packages/`)"
-      traefik.http.routers.identity.entrypoints: web
+      traefik.http.routers.identity.entrypoints: web,websecure
       traefik.http.routers.identity.priority: "100"
       traefik.http.services.identity.loadbalancer.server.port: "8083"
     depends_on:
@@ -300,7 +303,7 @@ services:
       # Path(), subtrees use a trailing-slash PathPrefix(). `/user/menus` is
       # an exact path so it can't collide with auth's /user/me etc.
       traefik.http.routers.system.rule: "Path(`/api/v1/menus`) || PathPrefix(`/api/v1/menus/`) || Path(`/api/v1/user/menus`) || Path(`/api/v1/dict-types`) || PathPrefix(`/api/v1/dict-types/`) || Path(`/api/v1/dict-items`) || PathPrefix(`/api/v1/dict-items/`) || Path(`/api/v1/dicts`) || PathPrefix(`/api/v1/dicts/`) || Path(`/api/v1/notices`) || PathPrefix(`/api/v1/notices/`) || Path(`/api/v1/system-settings`) || PathPrefix(`/api/v1/system-settings/`) || Path(`/api/v1/online-users`) || PathPrefix(`/api/v1/online-users/`) || Path(`/api/v1/ws/notifications`) || PathPrefix(`/api/v1/ws/notifications/`) || Path(`/api/v1/system/weather`) || PathPrefix(`/api/v1/codegen/`) || PathPrefix(`/api/v1/sms/`) || Path(`/api/v1/error-codes`) || PathPrefix(`/api/v1/error-codes/`)"
-      traefik.http.routers.system.entrypoints: web
+      traefik.http.routers.system.entrypoints: web,websecure
       traefik.http.routers.system.priority: "100"
       traefik.http.services.system.loadbalancer.server.port: "8084"
     depends_on:
@@ -352,7 +355,7 @@ services:
     labels:
       traefik.enable: "true"
       traefik.http.routers.audit.rule: "Path(`/api/v1/login-logs`) || PathPrefix(`/api/v1/login-logs/`) || Path(`/api/v1/operation-logs`) || PathPrefix(`/api/v1/operation-logs/`) || Path(`/api/v1/logs/audit`)"
-      traefik.http.routers.audit.entrypoints: web
+      traefik.http.routers.audit.entrypoints: web,websecure
       traefik.http.routers.audit.priority: "100"
       traefik.http.services.audit.loadbalancer.server.port: "8085"
     depends_on:
@@ -417,7 +420,7 @@ services:
       # /uploads static subtree moves here from the monolith together with
       # the file APIs (priority 100 beats the backend's catch-all /uploads).
       traefik.http.routers.file.rule: "Path(`/api/v1/files`) || PathPrefix(`/api/v1/files/`) || PathPrefix(`/uploads/`)"
-      traefik.http.routers.file.entrypoints: web
+      traefik.http.routers.file.entrypoints: web,websecure
       traefik.http.routers.file.priority: "100"
       traefik.http.services.file.loadbalancer.server.port: "8086"
     depends_on:
@@ -464,7 +467,7 @@ services:
     labels:
       traefik.enable: "true"
       traefik.http.routers.bpm.rule: "Path(`/api/v1/bpm`) || PathPrefix(`/api/v1/bpm/`)"
-      traefik.http.routers.bpm.entrypoints: web
+      traefik.http.routers.bpm.entrypoints: web,websecure
       traefik.http.routers.bpm.priority: "100"
       traefik.http.services.bpm.loadbalancer.server.port: "8096"
     depends_on:
@@ -499,7 +502,7 @@ services:
     labels:
       traefik.enable: "true"
       traefik.http.routers.frontend.rule: "PathPrefix(`/`)"
-      traefik.http.routers.frontend.entrypoints: web
+      traefik.http.routers.frontend.entrypoints: web,websecure
       traefik.http.routers.frontend.priority: "1"
       traefik.http.services.frontend.loadbalancer.server.port: "80"
     depends_on:
@@ -519,6 +522,12 @@ services:
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=go-admin-kit-net
       - --entrypoints.web.address=:80
+      - --entrypoints.web.http.middlewares=gateway-ratelimit
+      # TLS-ready：websecure 端口 + 自签兜底；有域名配 ACME_EMAIL 启用 Let's Encrypt
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-}
+      - --certificatesresolvers.letsencrypt.acme.storage=/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
       - --ping=true
       - --accesslog=true
       - --log.level=INFO
@@ -527,6 +536,7 @@ services:
       - --api.insecure=true
     ports:
       - "${GATEWAY_PORT:-8000}:80"
+      - "${GATEWAY_TLS_PORT:-18443}:443"
       - "127.0.0.1:8090:8080"
     volumes:
       # Docker Desktop for Mac denies container access to /var/run/docker.sock;

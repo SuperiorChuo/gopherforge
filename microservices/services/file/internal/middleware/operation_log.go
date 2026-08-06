@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/file/internal/model"
-	"github.com/go-admin-kit/services/file/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"github.com/go-admin-kit/services/shared/pkg/mask"
 )
 

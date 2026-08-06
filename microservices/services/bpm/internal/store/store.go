@@ -4,6 +4,7 @@
 package store
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -194,7 +195,7 @@ type CreateDefinitionInput struct {
 
 // CreateDefinition 新建定义（version=1, status=draft）。node_tree 只做结构
 // 解析校验（可存半成品草稿），完整校验在发布时。
-func (s *Store) CreateDefinition(tenantID uint64, in CreateDefinitionInput) (*model.ProcessDefinition, error) {
+func (s *Store) CreateDefinition(ctx context.Context, tenantID uint64, in CreateDefinitionInput) (*model.ProcessDefinition, error) {
 	key := strings.TrimSpace(in.Key)
 	if key == "" || len(key) > 64 {
 		return nil, ErrEmptyKey
@@ -207,7 +208,7 @@ func (s *Store) CreateDefinition(tenantID uint64, in CreateDefinitionInput) (*mo
 		return nil, err
 	}
 	var cnt int64
-	if err := tenantQ(s.db.Model(&model.ProcessDefinition{}), tenantID).
+	if err := tenantQ(s.db.WithContext(ctx).Model(&model.ProcessDefinition{}), tenantID).
 		Where("key = ?", key).Count(&cnt).Error; err != nil {
 		return nil, err
 	}
@@ -220,15 +221,15 @@ func (s *Store) CreateDefinition(tenantID uint64, in CreateDefinitionInput) (*mo
 		FormSchema: model.JSONB(in.FormSchema), BizType: strings.TrimSpace(in.BizType),
 		Remark: strings.TrimSpace(in.Remark), CreatedBy: in.CreatedBy,
 	}
-	if err := s.db.Create(d).Error; err != nil {
+	if err := s.db.WithContext(ctx).Create(d).Error; err != nil {
 		return nil, err
 	}
 	return d, nil
 }
 
-func (s *Store) GetDefinition(id, tenantID uint64) (*model.ProcessDefinition, error) {
+func (s *Store) GetDefinition(ctx context.Context, id, tenantID uint64) (*model.ProcessDefinition, error) {
 	var d model.ProcessDefinition
-	if err := tenantQ(s.db, tenantID).Where("id = ?", id).First(&d).Error; err != nil {
+	if err := tenantQ(s.db.WithContext(ctx), tenantID).Where("id = ?", id).First(&d).Error; err != nil {
 		return nil, err
 	}
 	return &d, nil
@@ -243,8 +244,8 @@ type UpdateDefinitionInput struct {
 }
 
 // UpdateDefinition 修改草稿版本（active 版本不可改，需另存新版本）。
-func (s *Store) UpdateDefinition(id, tenantID uint64, in UpdateDefinitionInput) (*model.ProcessDefinition, error) {
-	d, err := s.GetDefinition(id, tenantID)
+func (s *Store) UpdateDefinition(ctx context.Context, id, tenantID uint64, in UpdateDefinitionInput) (*model.ProcessDefinition, error) {
+	d, err := s.GetDefinition(ctx, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +274,7 @@ func (s *Store) UpdateDefinition(id, tenantID uint64, in UpdateDefinitionInput) 
 	if len(in.FormSchema) > 0 {
 		d.FormSchema = model.JSONB(in.FormSchema)
 	}
-	if err := s.db.Save(d).Error; err != nil {
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error { return tx.Save(d).Error }); err != nil {
 		return nil, err
 	}
 	return d, nil
@@ -282,8 +283,8 @@ func (s *Store) UpdateDefinition(id, tenantID uint64, in UpdateDefinitionInput) 
 // Publish 发布：整树校验通过后本版本置 active，同 key 旧 active 置 archived。
 // 携带 form_schema（流程表单模式）时一并校验表单结构与节点字段权限，并以
 // Schema keys 覆盖 start.formFields（条件求值字段声明与表单同源）。
-func (s *Store) Publish(id, tenantID uint64) (*model.ProcessDefinition, error) {
-	d, err := s.GetDefinition(id, tenantID)
+func (s *Store) Publish(ctx context.Context, id, tenantID uint64) (*model.ProcessDefinition, error) {
+	d, err := s.GetDefinition(ctx, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +330,7 @@ func (s *Store) Publish(id, tenantID uint64) (*model.ProcessDefinition, error) {
 		}
 		d.NodeTree = model.JSONB(raw)
 	}
-	err = s.db.Transaction(func(tx *gorm.DB) error {
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tenantQ(tx.Model(&model.ProcessDefinition{}), tenantID).
 			Where("key = ? AND status = ? AND id <> ?", d.Key, model.DefActive, d.ID).
 			Update("status", model.DefArchived).Error; err != nil {
@@ -345,8 +346,8 @@ func (s *Store) Publish(id, tenantID uint64) (*model.ProcessDefinition, error) {
 }
 
 // NewVersion 以某版本为底复制出新 draft（version = 同 key 最大版本 + 1）。
-func (s *Store) NewVersion(id, tenantID, byUserID uint64) (*model.ProcessDefinition, error) {
-	src, err := s.GetDefinition(id, tenantID)
+func (s *Store) NewVersion(ctx context.Context, id, tenantID, byUserID uint64) (*model.ProcessDefinition, error) {
+	src, err := s.GetDefinition(ctx, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -368,8 +369,8 @@ func (s *Store) NewVersion(id, tenantID, byUserID uint64) (*model.ProcessDefinit
 }
 
 // Suspend 停用 active 版本（不再允许新发起，在途实例不受影响）。
-func (s *Store) Suspend(id, tenantID uint64) (*model.ProcessDefinition, error) {
-	d, err := s.GetDefinition(id, tenantID)
+func (s *Store) Suspend(ctx context.Context, id, tenantID uint64) (*model.ProcessDefinition, error) {
+	d, err := s.GetDefinition(ctx, id, tenantID)
 	if err != nil {
 		return nil, err
 	}

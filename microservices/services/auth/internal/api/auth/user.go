@@ -96,7 +96,9 @@ func (a *UserAPI) Login(c *gin.Context) {
 		if policy.LoginLimitEnabled {
 			middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 		}
-		publishLoginFailed(c, req.Username, err.Error(), 1)
+		// Attribute the failure to the tenant the caller targeted (body or
+		// host slug), not a hardcoded default.
+		publishLoginFailed(c, req.Username, err.Error(), a.userService.ResolveTenantIDByCodeContext(c.Request.Context(), req.TenantCode))
 		writeAuthServiceError(c, "login failed", err)
 		return
 	}
@@ -185,7 +187,7 @@ func (a *UserAPI) VerifyTOTPLogin(c *gin.Context) {
 		if policy.LoginLimitEnabled {
 			middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 		}
-		publishLoginFailed(c, consoleTOTPChallengeUsername(req.ChallengeID), err.Error(), 1)
+		publishLoginFailed(c, consoleTOTPChallengeUsername(req.ChallengeID), err.Error(), consoleTOTPChallengeTenantID(req.ChallengeID))
 		writeAuthServiceError(c, "failed to verify totp login", err)
 		return
 	}

@@ -94,7 +94,7 @@ func (s *MySQLService) GetMySQLInfoContext(ctx context.Context) (map[string]any,
 	data["queries"] = map[string]any{
 		"questions":    questions,
 		"qps":          calculateRate(questions, uptimeSeconds),
-		"slow_queries": int64(0),
+		"slow_queries": serverStats.SlowQueries,
 		"selects":      serverStats.RowsReturned,
 		"inserts":      serverStats.RowsInserted,
 		"updates":      serverStats.RowsUpdated,

@@ -6,8 +6,8 @@ import (
 
 	"github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/authz"
-	"github.com/go-admin-kit/services/file/internal/pkg/pagination"
-	"github.com/go-admin-kit/services/file/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -187,4 +187,31 @@ type FileStats struct {
 type TypeStat struct {
 	Count int64 `json:"count"`
 	Size  int64 `json:"size"`
+}
+
+// StorageQuota holds the tenant's storage limit and current usage.
+type StorageQuota struct {
+	QuotaMB  int64 `json:"quota_mb"`
+	UsedByte int64 `json:"used_bytes"`
+}
+
+// GetTenantStorageQuotaContext returns the current tenant's storage quota
+// (MB, 0 = unlimited) and their used bytes. The quota column lives on
+// tenant_packages (0 = no limit).
+func (d *FileDAO) GetTenantStorageQuotaContext(ctx context.Context, tenantID uint) (StorageQuota, error) {
+	var quotaMB int64
+	err := d.dbWithContext(ctx).Raw(
+		"SELECT COALESCE(storage_quota_mb, 0) FROM tenant_packages WHERE id = ?", tenantID,
+	).Scan(&quotaMB).Error
+	if err != nil {
+		return StorageQuota{}, err
+	}
+	var used int64
+	err = d.dbWithContext(ctx).Model(&model.File{}).
+		Where("tenant_id = ?", tenantID).
+		Select("COALESCE(SUM(file_size), 0)").Scan(&used).Error
+	if err != nil {
+		return StorageQuota{}, err
+	}
+	return StorageQuota{QuotaMB: quotaMB, UsedByte: used}, nil
 }

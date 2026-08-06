@@ -16,7 +16,7 @@ import (
 	"github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/identity/internal/pkg/redis"
-	"github.com/go-admin-kit/services/identity/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	goredis "github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

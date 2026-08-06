@@ -6,7 +6,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"github.com/go-admin-kit/services/identity/internal/model"
-	tenantscope "github.com/go-admin-kit/services/identity/internal/pkg/tenant"
+	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/go-admin-kit/services/shared/pkg/mask"
 	"gorm.io/gorm"

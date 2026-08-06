@@ -12,8 +12,8 @@ import (
 	systemdao "github.com/go-admin-kit/services/file/internal/dao/system"
 	"github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/authz"
-	"github.com/go-admin-kit/services/file/internal/pkg/pagination"
-	"github.com/go-admin-kit/services/file/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"github.com/go-admin-kit/services/file/internal/pkg/upload"
 	"gorm.io/gorm"
 )
@@ -63,6 +63,10 @@ func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHea
 		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	if err := s.enforceStorageQuota(ctx, file.Size); err != nil {
 		return nil, err
 	}
 
@@ -140,6 +144,30 @@ func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHea
 	}
 
 	return fileRecord, nil
+}
+
+// enforceStorageQuota rejects an upload that would push the tenant past its
+// storage quota. quota 0 (default) means unlimited. Runs before the object is
+// stored so a rejected file is never written.
+func (s *FileService) enforceStorageQuota(ctx context.Context, size int64) error {
+	tenantID := tenant.IDFromContext(ctx)
+	if tenantID == 0 {
+		tenantID = 1
+	}
+	quota, err := s.fileDAO.GetTenantStorageQuotaContext(ctx, tenantID)
+	if err != nil {
+		// tenant_packages may predate the quota column in some deployments;
+		// a lookup failure must not break uploads, so fail open (unlimited).
+		return nil
+	}
+	if quota.QuotaMB <= 0 {
+		return nil
+	}
+	limit := quota.QuotaMB * 1024 * 1024
+	if quota.UsedByte+size > limit {
+		return upload.ErrStorageQuotaExceeded
+	}
+	return nil
 }
 
 func (s *FileService) UploadMultipleContext(ctx context.Context, files []*multipart.FileHeader, userID uint) ([]*model.File, []error) {

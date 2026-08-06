@@ -5,6 +5,7 @@ package engine
 // 发布校验。sqlite 内存库基架与 im/ticket/crm 测试同法。
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -77,13 +78,13 @@ func mustTree(t *testing.T, s *flow.Schema) []byte {
 // seedDef 建定义并发布为 active。
 func seedDef(t *testing.T, st *store.Store, tenantID uint64, key string, tree []byte) *model.ProcessDefinition {
 	t.Helper()
-	d, err := st.CreateDefinition(tenantID, store.CreateDefinitionInput{
+	d, err := st.CreateDefinition(context.Background(), tenantID, store.CreateDefinitionInput{
 		Key: key, Name: "测试流程-" + key, BizType: "demo", NodeTree: tree, CreatedBy: 1,
 	})
 	if err != nil {
 		t.Fatalf("create def: %v", err)
 	}
-	if _, err := st.Publish(d.ID, tenantID); err != nil {
+	if _, err := st.Publish(context.Background(), d.ID, tenantID); err != nil {
 		t.Fatalf("publish def: %v", err)
 	}
 	return d
@@ -514,20 +515,20 @@ func TestVersionFreeze(t *testing.T) {
 		t.Fatalf("实例应冻结 v1: %d != %d", eff.Instance.DefinitionID, d1.ID)
 	}
 	// 发新版：v2 两级
-	d2, err := st.NewVersion(d1.ID, 1, 1)
+	d2, err := st.NewVersion(context.Background(), d1.ID, 1, 1)
 	if err != nil {
 		t.Fatalf("new version: %v", err)
 	}
 	lvl2 := approvalUsers("n-a2", "V2二级", flow.MultiOr, []uint64{4}, nil)
 	treeV2 := mustTree(t, &flow.Schema{Version: 1,
 		Start: startNode(approvalUsers("n-a1", "V2一级", flow.MultiOr, []uint64{3}, lvl2))})
-	if _, err := st.UpdateDefinition(d2.ID, 1, store.UpdateDefinitionInput{NodeTree: treeV2}); err != nil {
+	if _, err := st.UpdateDefinition(context.Background(), d2.ID, 1, store.UpdateDefinitionInput{NodeTree: treeV2}); err != nil {
 		t.Fatalf("update v2: %v", err)
 	}
-	if _, err := st.Publish(d2.ID, 1); err != nil {
+	if _, err := st.Publish(context.Background(), d2.ID, 1); err != nil {
 		t.Fatalf("publish v2: %v", err)
 	}
-	v1After, _ := st.GetDefinition(d1.ID, 1)
+	v1After, _ := st.GetDefinition(context.Background(), d1.ID, 1)
 	if v1After.Status != model.DefArchived {
 		t.Fatalf("旧 active 应 archived: %s", v1After.Status)
 	}
@@ -611,13 +612,13 @@ func TestPublishValidationRejects(t *testing.T) {
 				Assignee: &flow.AssigneeRule{Type: flow.RuleUsers}})}},
 	}
 	for i, tc := range cases {
-		d, err := st.CreateDefinition(1, store.CreateDefinitionInput{
+		d, err := st.CreateDefinition(context.Background(), 1, store.CreateDefinitionInput{
 			Key: fmt.Sprintf("bad_%d", i), Name: tc.name, NodeTree: mustTree(t, tc.tree),
 		})
 		if err != nil {
 			t.Fatalf("%s create: %v", tc.name, err)
 		}
-		if _, err := st.Publish(d.ID, 1); err == nil {
+		if _, err := st.Publish(context.Background(), d.ID, 1); err == nil {
 			t.Fatalf("%s 应发布失败", tc.name)
 		}
 	}

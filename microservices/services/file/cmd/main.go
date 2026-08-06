@@ -27,7 +27,7 @@ import (
 	"github.com/go-admin-kit/services/file/internal/pkg/observability"
 	"github.com/go-admin-kit/services/file/internal/pkg/redis"
 	"github.com/go-admin-kit/services/file/internal/pkg/runtimeconfig"
-	tenantscope "github.com/go-admin-kit/services/file/internal/pkg/tenant"
+	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 	authsvc "github.com/go-admin-kit/services/file/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/file/internal/service/system"
 	"github.com/go-admin-kit/services/shared/pkg/logger"

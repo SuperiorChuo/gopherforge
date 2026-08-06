@@ -8,8 +8,8 @@ import (
 	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
 	"github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
-	"github.com/go-admin-kit/services/identity/internal/pkg/pagination"
-	"github.com/go-admin-kit/services/identity/internal/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	authsvc "github.com/go-admin-kit/services/identity/internal/service/auth"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -55,7 +55,9 @@ type UpdateUserRequest struct {
 }
 
 type ResetPasswordRequest struct {
-	Password string `json:"password" binding:"required,min=6"`
+	// min=8 aligns with auth's ValidatePasswordStrength — the binding tag is a
+	// fast-fail; the service still enforces the full strength policy.
+	Password string `json:"password" binding:"required,min=8"`
 	// MustChange defaults to true when omitted: an admin-set password is a
 	// temporary credential, so forcing a change is the safe default.
 	MustChange *bool `json:"must_change"`
@@ -67,7 +69,7 @@ type AssignRolesRequest struct {
 
 type CreateUserRequest struct {
 	Username     string `json:"username" binding:"required"`
-	Password     string `json:"password" binding:"required,min=6"`
+	Password     string `json:"password" binding:"required,min=8"`
 	Nickname     string `json:"nickname"`
 	Email        string `json:"email"`
 	Phone        string `json:"phone"`
