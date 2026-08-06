@@ -3,9 +3,11 @@ package system
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 
+	"github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 )
@@ -116,21 +118,35 @@ func (d *MenuDAO) DeleteMenuContext(ctx context.Context, id uint) error {
 
 func (d *MenuDAO) AssignPermissionsContext(ctx context.Context, menuID uint, permissionIDs []uint) error {
 	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		before := make([]uint, 0)
+		if err := tx.Model(&model.MenuPermission{}).Where("menu_id = ?", menuID).Pluck("permission_id", &before).Error; err != nil {
+			return err
+		}
+
 		if err := tx.Where("menu_id = ?", menuID).Delete(&model.MenuPermission{}).Error; err != nil {
 			return err
 		}
 
-		if len(permissionIDs) == 0 {
-			return nil
+		if len(permissionIDs) > 0 {
+			menuPermissions := make([]model.MenuPermission, 0, len(permissionIDs))
+			for _, permissionID := range permissionIDs {
+				menuPermissions = append(menuPermissions, model.MenuPermission{
+					MenuID:       menuID,
+					PermissionID: permissionID,
+				})
+			}
+			if err := tx.Create(&menuPermissions).Error; err != nil {
+				return err
+			}
 		}
-
-		menuPermissions := make([]model.MenuPermission, 0, len(permissionIDs))
-		for _, permissionID := range permissionIDs {
-			menuPermissions = append(menuPermissions, model.MenuPermission{
-				MenuID:       menuID,
-				PermissionID: permissionID,
-			})
-		}
-		return tx.Create(&menuPermissions).Error
+		return audittrail.RecordAssociation(ctx, tx, audittrail.RecordAssociationRequest{
+			TargetType:    "menu_permissions",
+			TargetID:      fmt.Sprint(menuID),
+			Action:        "update",
+			FixedTenantID: 1, // 菜单平台归属，循 MenuTarget 先例
+			Before:        map[string]any{"permission_ids": append([]uint{}, before...)},
+			After:         map[string]any{"permission_ids": append([]uint{}, permissionIDs...)},
+			Summary:       fmt.Sprintf("update menu %d permissions", menuID),
+		})
 	})
 }

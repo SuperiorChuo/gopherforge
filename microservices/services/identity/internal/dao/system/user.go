@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -10,6 +11,7 @@ import (
 	sharedDAO "github.com/go-admin-kit/services/identity/internal/dao"
 	"github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
+	"github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 )
 
@@ -175,26 +177,36 @@ func (d *UserDAO) UpdateUserStatusContext(ctx context.Context, id uint, status i
 
 func (d *UserDAO) AssignRolesContext(ctx context.Context, userID uint, roleIDs []uint) error {
 	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		before := make([]uint, 0)
+		if err := tx.Model(&model.UserRole{}).Where("user_id = ?", userID).Pluck("role_id", &before).Error; err != nil {
+			return err
+		}
+
 		if err := tx.Where("user_id = ?", userID).Delete(&model.UserRole{}).Error; err != nil {
 			return err
 		}
 
-		if len(roleIDs) == 0 {
-			return nil
-		}
+		if len(roleIDs) > 0 {
+			userRoles := make([]model.UserRole, 0, len(roleIDs))
+			for _, roleID := range roleIDs {
+				userRoles = append(userRoles, model.UserRole{
+					UserID: userID,
+					RoleID: roleID,
+				})
+			}
 
-		userRoles := make([]model.UserRole, 0, len(roleIDs))
-		for _, roleID := range roleIDs {
-			userRoles = append(userRoles, model.UserRole{
-				UserID: userID,
-				RoleID: roleID,
-			})
+			if err := tx.Create(&userRoles).Error; err != nil {
+				return err
+			}
 		}
-
-		if err := tx.Create(&userRoles).Error; err != nil {
-			return err
-		}
-		return nil
+		return audittrail.RecordAssociation(ctx, tx, audittrail.RecordAssociationRequest{
+			TargetType: "user_roles",
+			TargetID:   fmt.Sprint(userID),
+			Action:     "update",
+			Before:     map[string]any{"role_ids": append([]uint{}, before...)},
+			After:      map[string]any{"role_ids": append([]uint{}, roleIDs...)},
+			Summary:    fmt.Sprintf("update user %d roles", userID),
+		})
 	})
 }
 
@@ -236,26 +248,36 @@ func (d *UserDAO) AssertRolesInTenantContext(ctx context.Context, roleIDs []uint
 // AssignPostsContext replaces the post assignment of a user.
 func (d *UserDAO) AssignPostsContext(ctx context.Context, userID uint, postIDs []uint) error {
 	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		before := make([]uint, 0)
+		if err := tx.Model(&model.UserPost{}).Where("user_id = ?", userID).Pluck("post_id", &before).Error; err != nil {
+			return err
+		}
+
 		if err := tx.Where("user_id = ?", userID).Delete(&model.UserPost{}).Error; err != nil {
 			return err
 		}
 
-		if len(postIDs) == 0 {
-			return nil
-		}
+		if len(postIDs) > 0 {
+			userPosts := make([]model.UserPost, 0, len(postIDs))
+			for _, postID := range postIDs {
+				userPosts = append(userPosts, model.UserPost{
+					UserID: userID,
+					PostID: postID,
+				})
+			}
 
-		userPosts := make([]model.UserPost, 0, len(postIDs))
-		for _, postID := range postIDs {
-			userPosts = append(userPosts, model.UserPost{
-				UserID: userID,
-				PostID: postID,
-			})
+			if err := tx.Create(&userPosts).Error; err != nil {
+				return err
+			}
 		}
-
-		if err := tx.Create(&userPosts).Error; err != nil {
-			return err
-		}
-		return nil
+		return audittrail.RecordAssociation(ctx, tx, audittrail.RecordAssociationRequest{
+			TargetType: "user_posts",
+			TargetID:   fmt.Sprint(userID),
+			Action:     "update",
+			Before:     map[string]any{"post_ids": append([]uint{}, before...)},
+			After:      map[string]any{"post_ids": append([]uint{}, postIDs...)},
+			Summary:    fmt.Sprintf("update user %d posts", userID),
+		})
 	})
 }
 
