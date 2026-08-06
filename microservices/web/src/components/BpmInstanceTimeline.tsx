@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Descriptions, Skeleton, Space, Tag, Timeline, Typography } from 'antd'
 import { ClockCircleOutlined } from '@ant-design/icons'
 import {
@@ -63,6 +64,7 @@ export default function BpmInstanceTimeline({
   onLoaded,
   onUnavailable,
 }: BpmInstanceTimelineProps) {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [instance, setInstance] = useState<BpmInstance | null>(null)
   const [items, setItems] = useState<BpmTimelineItem[]>([])
@@ -148,7 +150,7 @@ export default function BpmInstanceTimeline({
       children: (
         <div>
           <Space size={6} wrap>
-            <Text strong>{meta.label}</Text>
+            <Text strong>{t(meta.label)}</Text>
             {nodeName ? <Tag>{nodeName}</Tag> : null}
             <Text type="secondary" style={{ fontSize: 12 }}>
               {log.operator_name || displayUserName(userMap, log.operator_id)} ·{' '}
