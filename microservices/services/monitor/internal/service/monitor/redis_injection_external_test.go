@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-admin-kit/server/internal/service/monitor"
+	"github.com/go-admin-kit/services/monitor/internal/service/monitor"
 	goredis "github.com/redis/go-redis/v9"
 )
 

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
-	"github.com/go-admin-kit/server/internal/model"
+	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
+	"github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 var ErrInvalidTrendRange = errors.New("invalid trend range")

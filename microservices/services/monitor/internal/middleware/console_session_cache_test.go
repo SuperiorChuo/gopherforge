@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/cache"
-	"github.com/go-admin-kit/server/internal/pkg/jwt"
+	"github.com/go-admin-kit/services/monitor/internal/model"
+	"github.com/go-admin-kit/services/monitor/internal/pkg/cache"
+	"github.com/go-admin-kit/services/monitor/internal/pkg/jwt"
 )
 
 var errConsoleSessionRevokedForTest = errors.New("console session has been revoked")

@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
-	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
-	"github.com/go-admin-kit/server/internal/middleware"
-	monitorsvc "github.com/go-admin-kit/server/internal/service/monitor"
+	sharedapi "github.com/go-admin-kit/services/monitor/internal/api/shared"
+	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
+	"github.com/go-admin-kit/services/monitor/internal/middleware"
+	monitorsvc "github.com/go-admin-kit/services/monitor/internal/service/monitor"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 

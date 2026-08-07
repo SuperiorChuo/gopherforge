@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/server/internal/model"
+	"github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 func TestOperationLogDAOCreateLogsContextUsesSingleMultiRowInsert(t *testing.T) {

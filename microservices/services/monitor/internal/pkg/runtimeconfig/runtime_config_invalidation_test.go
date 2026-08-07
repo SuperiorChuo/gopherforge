@@ -8,8 +8,8 @@ import (
 	"time"
 
 	miniredis "github.com/alicebob/miniredis/v2"
-	"github.com/go-admin-kit/server/internal/model"
-	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
+	"github.com/go-admin-kit/services/monitor/internal/model"
+	redisstore "github.com/go-admin-kit/services/monitor/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )

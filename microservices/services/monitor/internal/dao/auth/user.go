@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	sharedDAO "github.com/go-admin-kit/server/internal/dao"
-	"github.com/go-admin-kit/server/internal/model"
+	sharedDAO "github.com/go-admin-kit/services/monitor/internal/dao"
+	"github.com/go-admin-kit/services/monitor/internal/model"
 	"gorm.io/gorm"
 )
 

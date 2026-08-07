@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/api"
-	"github.com/go-admin-kit/server/internal/openapi"
+	"github.com/go-admin-kit/services/monitor/internal/api"
+	"github.com/go-admin-kit/services/monitor/internal/openapi"
 )
 
 func main() {

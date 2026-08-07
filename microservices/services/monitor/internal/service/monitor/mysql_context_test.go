@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"testing"
 
-	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
+	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
 )
 
 type mysqlContextTestKey struct{}

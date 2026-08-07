@@ -2,7 +2,7 @@ package common
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/pkg/ipinfo"
+	"github.com/go-admin-kit/services/monitor/internal/pkg/ipinfo"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 )

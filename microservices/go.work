@@ -3,13 +3,6 @@ go 1.26.3
 toolchain go1.26.5
 
 use (
+	./services
 	./tools/dbdoc
-	./services/shared
-	./services/audit
-	./services/auth
-	./services/bpm
-	./services/file
-	./services/identity
-	./services/monitor
-	./services/system
 )

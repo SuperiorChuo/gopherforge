@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-admin-kit/server/internal/config"
+	"github.com/go-admin-kit/services/monitor/internal/config"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 )

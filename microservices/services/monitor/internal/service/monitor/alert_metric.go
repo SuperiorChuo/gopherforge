@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
+	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
 	"github.com/redis/go-redis/v9"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"

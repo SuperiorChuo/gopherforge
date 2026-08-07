@@ -2,7 +2,7 @@ package common
 
 import (
 	"github.com/gin-gonic/gin"
-	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
+	sharedapi "github.com/go-admin-kit/services/monitor/internal/api/shared"
 )
 
 // RegisterPublicRoutes mounts unauthenticated health, metrics, and IP lookup

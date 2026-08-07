@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-admin-kit/server/internal/model"
+	"github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 // The console dropdown and the executor must not drift apart: every listed

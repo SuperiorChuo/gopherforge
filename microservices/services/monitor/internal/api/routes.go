@@ -2,10 +2,10 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/api/common"
-	"github.com/go-admin-kit/server/internal/api/monitor"
-	sharedapi "github.com/go-admin-kit/server/internal/api/shared"
-	"github.com/go-admin-kit/server/internal/middleware"
+	"github.com/go-admin-kit/services/monitor/internal/api/common"
+	"github.com/go-admin-kit/services/monitor/internal/api/monitor"
+	sharedapi "github.com/go-admin-kit/services/monitor/internal/api/shared"
+	"github.com/go-admin-kit/services/monitor/internal/middleware"
 )
 
 // SetupRoutes mounts the slimmed-down monolith API using legacy global

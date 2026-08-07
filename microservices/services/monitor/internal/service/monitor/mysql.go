@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/go-admin-kit/server/internal/config"
-	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
+	"github.com/go-admin-kit/services/monitor/internal/config"
+	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
 	"gorm.io/gorm"
 )
 

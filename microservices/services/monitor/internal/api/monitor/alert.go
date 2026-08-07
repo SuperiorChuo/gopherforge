@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
-	"github.com/go-admin-kit/server/internal/model"
+	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
+	"github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
-	monitorsvc "github.com/go-admin-kit/server/internal/service/monitor"
+	monitorsvc "github.com/go-admin-kit/services/monitor/internal/service/monitor"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 	"gorm.io/gorm"
 )
