@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	monitorsvc "github.com/go-admin-kit/server/internal/service/monitor"
+	monitorsvc "github.com/go-admin-kit/services/monitor/internal/service/monitor"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 

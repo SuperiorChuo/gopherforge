@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/server/internal/config"
+	"github.com/go-admin-kit/services/monitor/internal/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

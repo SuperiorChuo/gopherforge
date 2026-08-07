@@ -6,9 +6,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/model"
+	"github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
-	"github.com/go-admin-kit/server/internal/service/monitor"
+	"github.com/go-admin-kit/services/monitor/internal/service/monitor"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 	"gorm.io/gorm"
 )

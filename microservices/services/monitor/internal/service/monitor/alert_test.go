@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
-	"github.com/go-admin-kit/server/internal/model"
+	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
+	"github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/mailer"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
-	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
+	"github.com/go-admin-kit/services/monitor/internal/pkg/runtimeconfig"
 )
 
 func TestTransitionAlertRuleEmitsOneFiringAndOneResolvedEvent(t *testing.T) {

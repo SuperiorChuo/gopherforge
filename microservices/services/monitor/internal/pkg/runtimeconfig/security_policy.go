@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-admin-kit/server/internal/config"
-	systemdao "github.com/go-admin-kit/server/internal/dao/system"
-	"github.com/go-admin-kit/server/internal/model"
-	"github.com/go-admin-kit/server/internal/pkg/database"
+	"github.com/go-admin-kit/services/monitor/internal/config"
+	systemdao "github.com/go-admin-kit/services/monitor/internal/dao/system"
+	"github.com/go-admin-kit/services/monitor/internal/model"
+	"github.com/go-admin-kit/services/monitor/internal/pkg/database"
 	"gorm.io/gorm"
 )
 

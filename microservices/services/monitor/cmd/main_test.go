@@ -15,8 +15,8 @@ import (
 
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/config"
-	redisstore "github.com/go-admin-kit/server/internal/pkg/redis"
+	"github.com/go-admin-kit/services/monitor/internal/config"
+	redisstore "github.com/go-admin-kit/services/monitor/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )
 

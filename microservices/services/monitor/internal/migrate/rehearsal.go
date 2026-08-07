@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-admin-kit/server/internal/config"
+	"github.com/go-admin-kit/services/monitor/internal/config"
 )
 
 const DefaultRehearsalDatabase = "go_admin_kit_migration_rehearsal"

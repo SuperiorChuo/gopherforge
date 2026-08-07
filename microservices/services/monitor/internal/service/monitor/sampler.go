@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	monitordao "github.com/go-admin-kit/server/internal/dao/monitor"
-	"github.com/go-admin-kit/server/internal/model"
+	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
+	"github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 // DefaultSamplingInterval is how often the background sampler records one

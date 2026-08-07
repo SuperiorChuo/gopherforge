@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/server/internal/pkg/runtimeconfig"
+	"github.com/go-admin-kit/services/monitor/internal/pkg/runtimeconfig"
 )
 
 func TestIsHealthProbePath(t *testing.T) {

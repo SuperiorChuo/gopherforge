@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-admin-kit/server/internal/config"
+	"github.com/go-admin-kit/services/monitor/internal/config"
 )
 
 func TestNormalizeRehearsalOptionsDefaults(t *testing.T) {

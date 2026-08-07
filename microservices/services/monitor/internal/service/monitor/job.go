@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-admin-kit/server/internal/dao/monitor"
-	"github.com/go-admin-kit/server/internal/model"
+	"github.com/go-admin-kit/services/monitor/internal/dao/monitor"
+	"github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"

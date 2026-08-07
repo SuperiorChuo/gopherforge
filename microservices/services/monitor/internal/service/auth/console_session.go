@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	authDAO "github.com/go-admin-kit/server/internal/dao/auth"
-	"github.com/go-admin-kit/server/internal/model"
+	authDAO "github.com/go-admin-kit/services/monitor/internal/dao/auth"
+	"github.com/go-admin-kit/services/monitor/internal/model"
 	"gorm.io/gorm"
 )
 

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/server/internal/pkg/authz"
+	"github.com/go-admin-kit/services/monitor/internal/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 )
 

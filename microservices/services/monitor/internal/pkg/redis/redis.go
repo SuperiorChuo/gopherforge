@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/go-admin-kit/server/internal/config"
+	"github.com/go-admin-kit/services/monitor/internal/config"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/redis/go-redis/v9"
 )

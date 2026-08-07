@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/go-admin-kit/server/internal/model"
+	"github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 // ErrPersistenceNotConfigured reports that package-level authz helpers were

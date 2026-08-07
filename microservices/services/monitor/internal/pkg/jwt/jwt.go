@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-admin-kit/server/internal/config"
-	"github.com/go-admin-kit/server/internal/pkg/redis"
+	"github.com/go-admin-kit/services/monitor/internal/config"
+	"github.com/go-admin-kit/services/monitor/internal/pkg/redis"
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )

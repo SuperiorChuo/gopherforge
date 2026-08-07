@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/server/internal/model"
+	"github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 // batchRecorderSpy implements both the single and batch recorder interfaces so

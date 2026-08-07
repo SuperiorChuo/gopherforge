@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-admin-kit/server/internal/migrate"
+	"github.com/go-admin-kit/services/monitor/internal/migrate"
 )
 
 func main() {
