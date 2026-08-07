@@ -6,12 +6,13 @@
 package events
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 	"time"
 
 	"github.com/go-admin-kit/services/shared/pkg/logger"
-	"github.com/nats-io/nats.go"
+	"github.com/redis/go-redis/v9"
 )
 
 // NATS subjects for auth events.
@@ -78,25 +79,25 @@ type Publisher struct {
 	slots     chan struct{}
 }
 
-// Connect dials NATS and returns a Publisher. An empty URL disables event
-// publishing entirely and returns (nil, nil).
-func Connect(url string) (*Publisher, error) {
-	if url == "" {
+// ConnectRedis builds a Publisher backed by Redis pub/sub. A nil client
+// disables event publishing and returns (nil, nil).
+func ConnectRedis(redisClient *redis.Client) (*Publisher, error) {
+	if redisClient == nil {
 		return nil, nil
 	}
-	conn, err := nats.Connect(url,
-		nats.Timeout(publishTimeout),
-		nats.RetryOnFailedConnect(true),
-		nats.MaxReconnects(-1),
-	)
-	if err != nil {
-		return nil, err
-	}
 	return &Publisher{
-		transport: conn,
-		closer:    conn.Close,
+		transport: &redisClientAdapter{client: redisClient},
 		timeout:   publishTimeout,
 	}, nil
+}
+
+// redisClientAdapter wraps *redis.Client so it satisfies the Transport interface.
+type redisClientAdapter struct {
+	client *redis.Client
+}
+
+func (a *redisClientAdapter) Publish(subject string, data []byte) error {
+	return a.client.Publish(context.Background(), subject, data).Err()
 }
 
 // NewPublisherWithTransport builds a Publisher over an injected transport
