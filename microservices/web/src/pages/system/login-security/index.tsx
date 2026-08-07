@@ -27,8 +27,21 @@ export default function LoginSecurityPage() {
   const loadConfig = useCallback(async () => {
     setConfigLoading(true)
     try {
-      const setting = await getSetting('security.policy')
-      form.setFieldsValue(setting.value_json ?? {})
+      try {
+        const setting = await getSetting('security.policy')
+        form.setFieldsValue(setting.value_json ?? {})
+      } catch {
+        // 设置行不存在（首次使用）：用后端默认值占位，保存即创建
+        form.setFieldsValue({
+          login_limit_max_failures: 5,
+          login_limit_window_minutes: 15,
+          login_limit_lock_minutes: 30,
+          login_ip_shield_max_failures: 30,
+          login_ip_shield_window_minutes: 10,
+          login_ip_shield_block_minutes: 10,
+          login_alert_enabled: true,
+        })
+      }
     } finally {
       setConfigLoading(false)
     }
@@ -39,8 +52,12 @@ export default function LoginSecurityPage() {
     if (!values) return
     setConfigSaving(true)
     try {
-      const setting = await getSetting('security.policy')
-      await upsertSetting('security.policy', { ...(setting.value_json ?? {}), ...values })
+      let existing: Record<string, unknown> = {}
+      try {
+        const setting = await getSetting('security.policy')
+        existing = setting.value_json ?? {}
+      } catch { /* 首次保存，无既有行 */ }
+      await upsertSetting('security.policy', { ...existing, ...values })
       message.success(t('保存成功'))
     } finally {
       setConfigSaving(false)
