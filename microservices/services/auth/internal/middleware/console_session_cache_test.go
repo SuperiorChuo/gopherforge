@@ -68,7 +68,7 @@ func TestConsoleSessionAuthorizedServesRepeatCallsFromCache(t *testing.T) {
 	claims := consoleClaims("session-hit", 42, "alice")
 
 	for i := 0; i < 5; i++ {
-		if !consoleSessionAuthorized(ctx, currentAuthDeps(), claims) {
+		if !ConsoleSessionAuthorized(ctx, currentAuthDeps(), claims) {
 			t.Fatalf("call %d: expected the session to be authorized", i)
 		}
 	}
@@ -89,7 +89,7 @@ func TestConsoleSessionAuthorizedWarmsRoleCache(t *testing.T) {
 	_, users := newConsoleSessionDeps(t, 1, "super_admin")
 	ctx := context.Background()
 
-	if !consoleSessionAuthorized(ctx, currentAuthDeps(), consoleClaims("session-warm", 7, "root")) {
+	if !ConsoleSessionAuthorized(ctx, currentAuthDeps(), consoleClaims("session-warm", 7, "root")) {
 		t.Fatal("expected the session to be authorized")
 	}
 	if !hasRoleContext(ctx, 7, "super_admin") {
@@ -110,7 +110,7 @@ func TestConsoleSessionAuthorizedRejectsAfterLogout(t *testing.T) {
 	ctx := context.Background()
 	claims := consoleClaims("session-logout", 11, "bob")
 
-	if !consoleSessionAuthorized(ctx, currentAuthDeps(), claims) {
+	if !ConsoleSessionAuthorized(ctx, currentAuthDeps(), claims) {
 		t.Fatal("expected the session to be authorized before logout")
 	}
 
@@ -120,7 +120,7 @@ func TestConsoleSessionAuthorizedRejectsAfterLogout(t *testing.T) {
 		t.Fatalf("invalidate console session cache: %v", err)
 	}
 
-	if consoleSessionAuthorized(ctx, currentAuthDeps(), claims) {
+	if ConsoleSessionAuthorized(ctx, currentAuthDeps(), claims) {
 		t.Fatal("logged-out session still authorized; the cookie would keep working")
 	}
 }
@@ -135,7 +135,7 @@ func TestConsoleSessionAuthorizedRejectsAfterUserInvalidation(t *testing.T) {
 	ctx := context.Background()
 	claims := consoleClaims("session-kick", 21, "carol")
 
-	if !consoleSessionAuthorized(ctx, currentAuthDeps(), claims) {
+	if !ConsoleSessionAuthorized(ctx, currentAuthDeps(), claims) {
 		t.Fatal("expected the session to be authorized before the kick")
 	}
 
@@ -145,7 +145,7 @@ func TestConsoleSessionAuthorizedRejectsAfterUserInvalidation(t *testing.T) {
 		t.Fatalf("invalidate console sessions for user: %v", err)
 	}
 
-	if consoleSessionAuthorized(ctx, currentAuthDeps(), claims) {
+	if ConsoleSessionAuthorized(ctx, currentAuthDeps(), claims) {
 		t.Fatal("disabled account still authorized after invalidation")
 	}
 	if sessions.calls != 2 {
@@ -161,12 +161,12 @@ func TestConsoleSessionAuthorizedRejectsMismatchedIdentity(t *testing.T) {
 	_, users := newConsoleSessionDeps(t, 1, "auditor")
 	ctx := context.Background()
 
-	if !consoleSessionAuthorized(ctx, currentAuthDeps(), consoleClaims("shared-id", 31, "dave")) {
+	if !ConsoleSessionAuthorized(ctx, currentAuthDeps(), consoleClaims("shared-id", 31, "dave")) {
 		t.Fatal("expected the first session to be authorized")
 	}
 
 	users.status = 0
-	if consoleSessionAuthorized(ctx, currentAuthDeps(), consoleClaims("shared-id", 32, "eve")) {
+	if ConsoleSessionAuthorized(ctx, currentAuthDeps(), consoleClaims("shared-id", 32, "eve")) {
 		t.Fatal("a different user rode another user's cached session entry")
 	}
 }
@@ -176,7 +176,7 @@ func TestConsoleSessionAuthorizedRejectsDisabledUserOnCacheMiss(t *testing.T) {
 
 	newConsoleSessionDeps(t, 0, "auditor")
 
-	if consoleSessionAuthorized(context.Background(), currentAuthDeps(), consoleClaims("session-disabled", 51, "frank")) {
+	if ConsoleSessionAuthorized(context.Background(), currentAuthDeps(), consoleClaims("session-disabled", 51, "frank")) {
 		t.Fatal("disabled account must never be authorized")
 	}
 }

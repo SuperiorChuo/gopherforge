@@ -193,6 +193,8 @@ services:
       # 网关层全局限流：挂在 entrypoint（web）上，覆盖全部服务一处配置。
       traefik.http.middlewares.gateway-ratelimit.ratelimit.average: "${GATEWAY_RATE_AVERAGE:-100}"
       traefik.http.middlewares.gateway-ratelimit.ratelimit.burst: "${GATEWAY_RATE_BURST:-200}"
+      # 网关层响应压缩：API JSON 不再原文传输；前端静态已带 Content-Encoding 自动跳过
+      traefik.http.middlewares.gateway-compress.compress: "true"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -522,7 +524,7 @@ services:
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=go-admin-kit-net
       - --entrypoints.web.address=:80
-      - --entrypoints.web.http.middlewares=gateway-ratelimit@docker
+      - --entrypoints.web.http.middlewares=gateway-ratelimit@docker,gateway-compress@docker
       # TLS-ready：websecure 端口 + 自签兜底；有域名配 ACME_EMAIL 启用 Let's Encrypt
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-}
@@ -531,6 +533,9 @@ services:
       - --ping=true
       - --accesslog=true
       - --log.level=INFO
+      # Prometheus 指标：随 api.insecure 暴露在 :8080/metrics；router 级标签开 P99
+      - --metrics.prometheus=true
+      - --metrics.prometheus.addrouterslabels=true
       # Dashboard/API for inspecting routers; the host port below binds it to
       # loopback only. Remove both lines if you don't want it at all.
       - --api.insecure=true

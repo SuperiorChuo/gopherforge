@@ -88,12 +88,15 @@ func (h *Handler) Verify(c *gin.Context) {
 			response.UnauthorizedWithCode(c, response.ErrorCodeConsoleLoginRequired, "Console login required")
 			return
 		}
-		if _, err := h.consoleSessions.ValidateActiveSessionContext(c.Request.Context(), claims.ID, claims.Username); err != nil {
-			response.UnauthorizedWithCode(c, response.ErrorCodeConsoleLoginRequired, "Console login required")
-			return
+		// Ride AuthMiddleware's session-validation cache (short TTL, invalidated
+		// immediately by administrative actions): on a hit the whole cookie
+		// branch collapses to one Redis GET; only a miss falls back to the
+		// session SELECT + user SELECT and refills the cache.
+		deps := middleware.AuthMiddlewareDependencies{
+			ConsoleSessions: h.consoleSessions,
+			Users:           h.users,
 		}
-		user, err := h.users.GetUserWithRolesContext(c.Request.Context(), claims.UserID)
-		if err != nil || user.Status != 1 {
+		if !middleware.ConsoleSessionAuthorized(c.Request.Context(), deps, claims) {
 			response.UnauthorizedWithCode(c, response.ErrorCodeConsoleLoginRequired, "Console login required")
 			return
 		}
@@ -124,6 +127,16 @@ func (h *Handler) resolvePermissionsHeader(c *gin.Context, userID uint) (string,
 	}
 
 	cacheService := cache.NewCacheService()
+	// Normalized-header cache: a single GET covers the hot path. A string key
+	// can hold an empty value, so zero-role/zero-permission users hit it too
+	// (the SET-based roles/permissions caches cannot store an empty set, which
+	// used to send such users to the database on every request). Invalidated in
+	// the same funnel as the roles/permissions caches (identity
+	// InvalidatePermissionCacheForUsersContext).
+	if header, ok := cacheService.GetUserPermHeaderContext(c.Request.Context(), userID); ok {
+		return header, nil
+	}
+
 	roleCodes, err := cacheService.GetUserRolesContext(c.Request.Context(), userID)
 	if err != nil || len(roleCodes) == 0 {
 		user, loadErr := h.users.GetUserWithRolesContext(c.Request.Context(), userID)
@@ -138,6 +151,7 @@ func (h *Handler) resolvePermissionsHeader(c *gin.Context, userID uint) (string,
 	}
 	for _, code := range roleCodes {
 		if code == "super_admin" {
+			_ = cacheService.SetUserPermHeaderContext(c.Request.Context(), userID, "*")
 			return "*", nil
 		}
 	}
@@ -156,6 +170,7 @@ func (h *Handler) resolvePermissionsHeader(c *gin.Context, userID uint) (string,
 	if len(header) > maxPermissionsHeaderBytes {
 		return "", errPermissionsHeaderTooLarge
 	}
+	_ = cacheService.SetUserPermHeaderContext(c.Request.Context(), userID, header)
 	return header, nil
 }
 

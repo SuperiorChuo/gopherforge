@@ -19,6 +19,13 @@ scrape_configs:
       - targets:
           - go-admin-kit-node-exporter:9100
 
+  # Traefik 网关指标（entrypoint/router 级请求量与延迟直方图）。/metrics 随
+  # api.insecure 在容器网络 :8080 暴露，不经网关路由。
+  - job_name: traefik
+    static_configs:
+      - targets:
+          - go-admin-kit-gateway:8080
+
   - job_name: go-admin-kit-backend
     metrics_path: /api/v1/metrics
     static_configs:

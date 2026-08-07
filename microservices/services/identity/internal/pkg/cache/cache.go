@@ -54,6 +54,11 @@ const (
 	KeyUserPermissionsIndex = "user:permissions:index"
 	KeyUserRoles            = "user:roles:%d"
 	KeyUserRolesIndex       = "user:roles:index"
+	// KeyUserPermHeader mirrors the normalized permissions-header cache written
+	// by the auth ForwardAuth verify handler. Identity only invalidates it
+	// (same funnel as the roles/permissions caches); reads/writes live in auth.
+	KeyUserPermHeader      = "user:permheader:%d"
+	KeyUserPermHeaderIndex = "user:permheader:index"
 )
 
 // Cache expiration durations.
@@ -240,6 +245,58 @@ func (s *CacheService) DelAllUserPermissionsContext(ctx context.Context) error {
 		pipe.Del(ctx, keys...)
 	}
 	pipe.Del(ctx, KeyUserPermissionsIndex)
+	_, err = pipe.Exec(ctx)
+	return err
+}
+
+// Normalized permissions-header cache (written by auth verify). The identity
+// side exposes Get/Set only so the invalidation wiring can be tested;
+// production reads/writes live in auth.
+func (s *CacheService) GetUserPermHeaderContext(ctx context.Context, userID uint) (string, bool) {
+	key := fmt.Sprintf(KeyUserPermHeader, userID)
+	value, err := s.redisClient().Get(ctx, key).Result()
+	if err != nil {
+		return "", false
+	}
+	return value, true
+}
+
+func (s *CacheService) SetUserPermHeaderContext(ctx context.Context, userID uint, header string) error {
+	key := fmt.Sprintf(KeyUserPermHeader, userID)
+	pipe := s.redisClient().TxPipeline()
+	pipe.Set(ctx, key, header, UserPermissionsExpire)
+	pipe.SAdd(ctx, KeyUserPermHeaderIndex, key)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func (s *CacheService) DelUserPermHeaderBatchContext(ctx context.Context, userIDs []uint) error {
+	if len(userIDs) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(userIDs))
+	for _, userID := range userIDs {
+		keys = append(keys, fmt.Sprintf(KeyUserPermHeader, userID))
+	}
+	pipe := s.redisClient().TxPipeline()
+	pipe.Del(ctx, keys...)
+	pipe.SRem(ctx, KeyUserPermHeaderIndex, stringsToAny(keys)...)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func (s *CacheService) DelAllUserPermHeadersContext(ctx context.Context) error {
+	keys, err := s.redisClient().SMembers(ctx, KeyUserPermHeaderIndex).Result()
+	if err != nil {
+		return err
+	}
+
+	pipe := s.redisClient().TxPipeline()
+	if len(keys) > 0 {
+		pipe.Del(ctx, keys...)
+	}
+	pipe.Del(ctx, KeyUserPermHeaderIndex)
 	_, err = pipe.Exec(ctx)
 	return err
 }

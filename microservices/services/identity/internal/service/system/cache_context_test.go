@@ -116,3 +116,41 @@ func TestInvalidatePermissionCacheAllAlsoDropsConsoleSessionCache(t *testing.T) 
 		t.Fatal("console session cache survived global invalidation")
 	}
 }
+
+// 归一化权限头缓存（auth ForwardAuth verify）由 roles+permissions 推导，必须与
+// 两者同漏斗失效：漏掉这里，网关会在 TTL（1h）内继续注入过期的 X-Auth-Permissions。
+func TestInvalidatePermissionCacheAlsoDropsPermHeaderCache(t *testing.T) {
+	setupDepartmentServiceTestRedis(t)
+
+	ctx := context.Background()
+	cacheService := cache.NewCacheService()
+	if err := cacheService.SetUserPermHeaderContext(ctx, 5, "crm:read,crm:write"); err != nil {
+		t.Fatalf("seed perm header cache: %v", err)
+	}
+
+	if err := InvalidatePermissionCacheForUsersContext(ctx, 5); err != nil {
+		t.Fatalf("InvalidatePermissionCacheForUsersContext() error = %v", err)
+	}
+
+	if _, ok := cacheService.GetUserPermHeaderContext(ctx, 5); ok {
+		t.Fatal("perm header cache survived invalidation; gateway would keep injecting revoked permissions")
+	}
+}
+
+func TestInvalidatePermissionCacheAllAlsoDropsPermHeaderCache(t *testing.T) {
+	setupDepartmentServiceTestRedis(t)
+
+	ctx := context.Background()
+	cacheService := cache.NewCacheService()
+	if err := cacheService.SetUserPermHeaderContext(ctx, 7, "*"); err != nil {
+		t.Fatalf("seed perm header cache: %v", err)
+	}
+
+	if err := InvalidatePermissionCacheAllContext(ctx); err != nil {
+		t.Fatalf("InvalidatePermissionCacheAllContext() error = %v", err)
+	}
+
+	if _, ok := cacheService.GetUserPermHeaderContext(ctx, 7); ok {
+		t.Fatal("perm header cache survived full invalidation")
+	}
+}

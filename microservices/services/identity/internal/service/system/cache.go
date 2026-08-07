@@ -27,6 +27,13 @@ func InvalidatePermissionCacheForUsersContext(ctx context.Context, userIDs ...ui
 	if err := cacheService.DelUserRolesBatchContext(ctx, uniqueUserIDs); err != nil {
 		return err
 	}
+	// The normalized permissions-header cache (auth ForwardAuth verify) is
+	// derived from roles+permissions, so the three live and die together:
+	// skipping this would let the gateway keep injecting a stale
+	// X-Auth-Permissions header.
+	if err := cacheService.DelUserPermHeaderBatchContext(ctx, uniqueUserIDs); err != nil {
+		return err
+	}
 	// The console-session validation cache rides the same channel. It caches
 	// "this session is live and this account is enabled", which a disable or a
 	// delete falsifies — and both call this function.
@@ -73,6 +80,9 @@ func InvalidatePermissionCacheAllContext(ctx context.Context) error {
 		return err
 	}
 	if err := cacheService.DelAllUserRolesContext(ctx); err != nil {
+		return err
+	}
+	if err := cacheService.DelAllUserPermHeadersContext(ctx); err != nil {
 		return err
 	}
 	return cacheService.DelAllConsoleSessionsContext(ctx)
