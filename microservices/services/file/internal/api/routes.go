@@ -33,6 +33,10 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	{
 		protected.POST("/files/upload", middleware.PermissionMiddleware("system:file:upload"), fileAPI.Upload)
 		protected.POST("/files/upload/multiple", middleware.PermissionMiddleware("system:file:upload"), fileAPI.UploadMultiple)
+		protected.POST("/files/upload/init", middleware.PermissionMiddleware("system:file:upload"), fileAPI.InitChunkedUpload)
+		protected.PUT("/files/upload/:session_id/part/:part", middleware.PermissionMiddleware("system:file:upload"), fileAPI.UploadChunk)
+		protected.POST("/files/upload/:session_id/complete", middleware.PermissionMiddleware("system:file:upload"), fileAPI.CompleteChunkedUpload)
+		protected.DELETE("/files/upload/:session_id", middleware.PermissionMiddleware("system:file:upload"), fileAPI.AbortChunkedUpload)
 		protected.GET("/files", middleware.PermissionMiddleware("system:file:list"), fileAPI.GetFileList)
 		protected.GET("/files/my", fileAPI.GetMyFiles)
 		protected.GET("/files/stats", middleware.PermissionMiddleware("system:file:list"), fileAPI.GetFileStats)

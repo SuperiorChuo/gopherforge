@@ -28,6 +28,7 @@ const GROUPS = [
 
 // 已知键即使 DB 里还没有行也渲染表单，保存即创建（upsert）
 const GROUP_DEFAULT_KEYS: Record<string, string[]> = {
+  security: ['security.policy'],
   ai: ['ai.provider'],
   weather: ['weather.provider'],
   cc: ['cc.tts', 'cc.asr'],

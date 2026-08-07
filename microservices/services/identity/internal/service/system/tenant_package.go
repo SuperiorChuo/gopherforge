@@ -13,10 +13,11 @@ import (
 )
 
 var (
-	ErrTenantPackageNotFound     = errors.New("tenant package not found")
-	ErrTenantPackageNameRequired = errors.New("tenant package name required")
-	ErrTenantPackageNameExists   = errors.New("tenant package name already exists")
-	ErrTenantPackageInUse        = errors.New("tenant package is bound by tenants, unbind before delete")
+	ErrTenantPackageNotFound       = errors.New("tenant package not found")
+	ErrTenantPackageNameRequired   = errors.New("tenant package name required")
+	ErrTenantPackageQuotaInvalid   = errors.New("storage quota must be non-negative")
+	ErrTenantPackageNameExists     = errors.New("tenant package name already exists")
+	ErrTenantPackageInUse          = errors.New("tenant package is bound by tenants, unbind before delete")
 )
 
 // PermissionsExceedPackageError 角色分配的权限超出租户套餐范围（携带越界权限码，供前端明确提示）。
@@ -48,6 +49,7 @@ type CreateTenantPackageRequest struct {
 	PermissionCodes []string `json:"permission_codes"`
 	Status          int8     `json:"status"`
 	Remark          string   `json:"remark"`
+	StorageQuotaMB  int64    `json:"storage_quota_mb"`
 }
 
 type UpdateTenantPackageRequest struct {
@@ -55,6 +57,7 @@ type UpdateTenantPackageRequest struct {
 	PermissionCodes *[]string `json:"permission_codes"`
 	Status          *int8     `json:"status"`
 	Remark          *string   `json:"remark"`
+	StorageQuotaMB  *int64    `json:"storage_quota_mb"`
 }
 
 // normalizePermissionCodes 去空白、去重，保持原始顺序。
@@ -118,6 +121,7 @@ func (s *TenantPackageService) Create(ctx context.Context, req CreateTenantPacka
 		PermissionCodes: normalizePermissionCodes(req.PermissionCodes),
 		Status:          status,
 		Remark:          strings.TrimSpace(req.Remark),
+		StorageQuotaMB:  req.StorageQuotaMB,
 	}
 	if err := s.dao.CreateContext(ctx, p); err != nil {
 		return nil, err
@@ -154,6 +158,12 @@ func (s *TenantPackageService) Update(ctx context.Context, id uint, req UpdateTe
 	}
 	if req.Remark != nil {
 		p.Remark = strings.TrimSpace(*req.Remark)
+	}
+	if req.StorageQuotaMB != nil {
+		if *req.StorageQuotaMB < 0 {
+			return nil, ErrTenantPackageQuotaInvalid
+		}
+		p.StorageQuotaMB = *req.StorageQuotaMB
 	}
 	if err := s.dao.UpdateContext(ctx, p); err != nil {
 		return nil, err

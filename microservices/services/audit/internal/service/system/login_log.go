@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -10,20 +11,35 @@ import (
 	"github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/audit/internal/pkg/authz"
 	"github.com/go-admin-kit/services/audit/internal/pkg/ipinfo"
+	"github.com/go-admin-kit/services/audit/internal/pkg/runtimeconfig"
+	"github.com/go-admin-kit/services/shared/pkg/iploc"
+	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
-	"github.com/go-admin-kit/services/shared/pkg/iploc"
 	"gorm.io/gorm"
 )
 
 type LoginLogService struct {
-	logDAO systemdao.LoginLogDAO
+	logDAO  systemdao.LoginLogDAO
+	riskDAO *systemdao.LoginRiskEventDAO
+	// notify delivers the new-device/new-IP login alert to the user; nil
+	// (or unconfigured) disables it.
+	notify *notifyclient.Client
 }
 
 // NewLoginLogServiceWithDB builds a LoginLogService backed by an injected
 // database handle.
 func NewLoginLogServiceWithDB(db *gorm.DB) LoginLogService {
-	return LoginLogService{logDAO: *systemdao.NewLoginLogDAO(db)}
+	return LoginLogService{
+		logDAO:  *systemdao.NewLoginLogDAO(db),
+		riskDAO: systemdao.NewLoginRiskEventDAO(db),
+	}
+}
+
+// WithNotifier attaches the in-console alert client (new-device login).
+func (s LoginLogService) WithNotifier(n *notifyclient.Client) LoginLogService {
+	s.notify = n
+	return s
 }
 
 type LoginLogListRequest struct {
@@ -38,6 +54,12 @@ type LoginLogListRequest struct {
 	DataScope authz.UserDataScope `json:"-" form:"-"`
 }
 
+// LoginInfo.Status 取值（与 events 包的登录事件状态对齐）。
+const (
+	loginStatusSuccess int8 = 1
+	loginStatusFailed  int8 = 0
+)
+
 type LoginInfo struct {
 	UserID uint
 	// TenantID scopes the login log row. Zero means resolve from context
@@ -48,6 +70,7 @@ type LoginInfo struct {
 	Status    int8
 	IP        string
 	UserAgent string
+	DeviceID  string
 	Message   string
 	// OccurredAt is when the login happened. Zero means "now"; event
 	// consumers set it so replayed backlogs keep their original times.
@@ -75,11 +98,27 @@ func (s *LoginLogService) RecordContext(ctx context.Context, info *LoginInfo) er
 		OS:        os,
 		Browser:   browser,
 		UserAgent: truncateString(info.UserAgent, 500),
+		DeviceID:  truncateString(info.DeviceID, 64),
 		Message:   info.Message,
 		CreatedAt: info.OccurredAt,
 	}
 
-	return s.logDAO.CreateContext(ctx, log)
+	// 登录成功后风控：新 IP 或新设备 → 落库事件 + 站内信提醒。
+	// 对比基线必须在插入当前行之前取——否则"上次登录"就是刚写的自己，永远不异常。
+	var previous *model.LoginLog
+	if info.Status == loginStatusSuccess && info.UserID > 0 {
+		if last, err := s.logDAO.GetUserLastLoginContext(ctx, info.UserID); err == nil {
+			previous = last
+		}
+	}
+
+	if err := s.logDAO.CreateContext(ctx, log); err != nil {
+		return err
+	}
+	if previous != nil {
+		s.recordRiskEvent(ctx, info, log, previous)
+	}
+	return nil
 }
 
 func (s *LoginLogService) GetLogListContext(ctx context.Context, req LoginLogListRequest) ([]model.LoginLog, int64, error) {
@@ -145,15 +184,64 @@ func (s *LoginLogService) GetLoginTrendInScopeContext(ctx context.Context, days 
 	return s.logDAO.GetLoginTrendInScopeContext(ctx, days, dataScope)
 }
 
-func (s *LoginLogService) CheckAbnormalLoginContext(ctx context.Context, userID uint, ip string) (bool, string) {
-	lastLogin, err := s.logDAO.GetUserLastLoginContext(ctx, userID)
+// LoginGeoDistItem 一条登录地域分布：保留 location 原文供前端展示，
+// province/city 是尽力拆解结果，前端据此查坐标表落图。
+type LoginGeoDistItem struct {
+	Location string `json:"location"`
+	Province string `json:"province"`
+	City     string `json:"city"`
+	Total    int64  `json:"total"`
+	Success  int64  `json:"success"`
+	Failed   int64  `json:"failed"`
+}
+
+func (s *LoginLogService) GetLoginGeoDistributionInScopeContext(ctx context.Context, startTime, endTime *time.Time, dataScope authz.UserDataScope) ([]LoginGeoDistItem, error) {
+	rows, err := s.logDAO.GetGeoDistributionInScopeContext(ctx, startTime, endTime, dataScope)
 	if err != nil {
-		return false, ""
+		return nil, err
 	}
-	if lastLogin.IP != ip {
-		return true, "new IP address detected"
+	items := make([]LoginGeoDistItem, 0, len(rows))
+	for _, r := range rows {
+		province, city := parseLocation(r.Location)
+		items = append(items, LoginGeoDistItem{
+			Location: r.Location,
+			Province: province,
+			City:     city,
+			Total:    r.Total,
+			Success:  r.Success,
+			Failed:   r.Failed,
+		})
 	}
-	return false, ""
+	return items, nil
+}
+
+// parseLocation 从归属地串拆省/市。iploc 中文串形如「广东省 深圳市 电信」
+// 「北京 北京市 联通」「香港」；ipinfo 英文兜底串（如「Guangdong Shenzhen」）
+// 只取首段当省，市留空由前端按省兜底；空串与内网各归独立桶。
+func parseLocation(location string) (province, city string) {
+	loc := strings.TrimSpace(location)
+	if loc == "" {
+		return "未知", ""
+	}
+	if loc == iploc.IntranetLabel || loc == "Private Network" {
+		return iploc.IntranetLabel, ""
+	}
+	parts := strings.Fields(loc)
+	province = parts[0]
+	if len(parts) > 1 && looksLikeCity(parts[1]) {
+		city = parts[1]
+	}
+	return province, city
+}
+
+// looksLikeCity 报告段是否像市/州级行政区，用于排除 ISP 段（「广东省 电信」）。
+func looksLikeCity(s string) bool {
+	for _, suffix := range []string{"市", "州", "盟", "地区", "县", "区"} {
+		if strings.HasSuffix(s, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *LoginLogService) GetFailedLoginCountContext(ctx context.Context, username, ip string, minutes int) (int64, error) {
@@ -176,7 +264,7 @@ func parseUserAgent(ua string) (device, os, browser string) {
 
 	// 移动端必须先判：iOS 的 UA 含 "like Mac OS X"，Android 的含 "Linux"，
 	// 桌面关键字在前会把手机全部吞成 macOS / Linux——iOS 与 Android 两个
-	// 分支此前永远不可达。
+	// 分支此前永远不可达（生产库里真机 iPhone 登录被记成 macOS）。
 	switch {
 	case strings.Contains(ua, "iphone") || strings.Contains(ua, "ipad") || strings.Contains(ua, "ipod"):
 		os = "iOS"
@@ -232,4 +320,73 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen]
+}
+
+// notifyAbnormalLogin sends an in-console alert when a login comes from an IP
+// or device different from the user's previous login (captured before the
+// recordRiskEvent persists an abnormal-login event (new IP / new device
+// relative to the user's previous successful login, captured before the current
+// row was inserted) and — when the alert toggle is on and notify is available —
+// sends the in-console alert. Both are best-effort: any failure is logged and
+// never blocks the login path.
+func (s *LoginLogService) recordRiskEvent(ctx context.Context, info *LoginInfo, current, previous *model.LoginLog) {
+	reason := abnormalLoginReason(current, previous)
+	if reason == "" {
+		return
+	}
+	event := &model.LoginRiskEvent{
+		TenantID:  tenant.EnsureID(ctx, info.TenantID),
+		UserID:    info.UserID,
+		Username:  current.Username,
+		IP:        current.IP,
+		DeviceID:  current.DeviceID,
+		Reason:    reason,
+		CreatedAt: current.CreatedAt,
+	}
+	if err := s.riskDAO.CreateContext(ctx, event); err != nil {
+		return
+	}
+
+	policy := runtimeconfig.DefaultSecurityPolicyReader().SecurityPolicy(ctx)
+	if !policy.LoginAlertEnabled || s.notify == nil || !s.notify.Enabled() {
+		return
+	}
+	_, _ = s.notify.Send(ctx, notifyclient.SendInput{
+		TenantID:     uint64(tenant.EnsureID(ctx, info.TenantID)),
+		UserID:       uint64(info.UserID),
+		TemplateCode: "login_alert",
+		Type:         "security",
+		RefType:      "login",
+		RefID:        fmt.Sprintf("login-%d", info.UserID),
+		Title:        "新登录提醒",
+		Content: fmt.Sprintf("你的账号刚从%s登录（IP %s，%s）。如非本人操作，请立即修改密码。",
+			riskReasonLabel(reason), current.IP, current.Location),
+		Link: "/system/login-log",
+	})
+	_ = s.riskDAO.MarkNotifiedContext(ctx, event.ID)
+}
+
+// abnormalLoginReason classifies why a login differs from the previous one.
+// Empty means the login is not abnormal.
+func abnormalLoginReason(current, previous *model.LoginLog) string {
+	if previous == nil {
+		return ""
+	}
+	switch {
+	case previous.IP != current.IP:
+		return model.LoginRiskReasonNewIP
+	case current.DeviceID != "" && previous.DeviceID != "" && previous.DeviceID != current.DeviceID:
+		return model.LoginRiskReasonNewDevice
+	}
+	return ""
+}
+
+func riskReasonLabel(reason string) string {
+	switch reason {
+	case model.LoginRiskReasonNewIP:
+		return "新的 IP 地址"
+	case model.LoginRiskReasonNewDevice:
+		return "新的设备"
+	}
+	return reason
 }

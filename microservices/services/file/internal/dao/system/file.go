@@ -182,6 +182,8 @@ type FileStats struct {
 	Total     int64               `json:"total"`
 	TotalSize int64               `json:"total_size"`
 	ByType    map[string]TypeStat `json:"by_type"`
+	// StorageQuotaMB 当前租户存储配额（0=不限），文件页用量展示用。
+	StorageQuotaMB int64 `json:"storage_quota_mb"`
 }
 
 type TypeStat struct {

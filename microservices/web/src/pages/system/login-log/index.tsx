@@ -255,6 +255,17 @@ export default function LoginLogPage() {
     { title: '浏览器', dataIndex: 'browser', width: 160, ellipsis: true, responsive: ['lg'] },
     { title: 'OS', dataIndex: 'os', width: 140, ellipsis: true, responsive: ['lg'] },
     {
+      title: '设备指纹',
+      dataIndex: 'device_id',
+      width: 130,
+      responsive: ['xl'],
+      render: (v?: string) => v ? (
+        <Tooltip title={v}>
+          <span className="cell-mono login-log-ellipsis">{v.slice(0, 8)}…</span>
+        </Tooltip>
+      ) : <span className="cell-muted">—</span>,
+    },
+    {
       title: '时间',
       dataIndex: 'created_at',
       width: 164,

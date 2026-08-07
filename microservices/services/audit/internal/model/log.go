@@ -61,6 +61,7 @@ type LoginLog struct {
 	OS        string    `gorm:"size:50" json:"os"`
 	Browser   string    `gorm:"size:100" json:"browser"`
 	UserAgent string    `gorm:"size:500" json:"user_agent"`
+	DeviceID  string    `gorm:"size:64;default:''" json:"device_id"`
 	Message   string    `gorm:"size:255" json:"message"`
 	CreatedAt time.Time `gorm:"index" json:"created_at"`
 }

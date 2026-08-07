@@ -8,7 +8,7 @@ import (
 // Event publishing is best-effort: the default publisher is nil-safe, so these
 // helpers never fail or block the request path.
 
-func publishLoginSuccess(c *gin.Context, userID uint, username, loginType string, tenantID uint) {
+func publishLoginSuccess(c *gin.Context, userID uint, username, loginType string, tenantID uint, deviceID string) {
 	if tenantID == 0 {
 		tenantID = 1
 	}
@@ -19,6 +19,7 @@ func publishLoginSuccess(c *gin.Context, userID uint, username, loginType string
 		IP:        c.ClientIP(),
 		UserAgent: c.GetHeader("User-Agent"),
 		LoginType: loginType,
+		DeviceID:  deviceID,
 	})
 }
 

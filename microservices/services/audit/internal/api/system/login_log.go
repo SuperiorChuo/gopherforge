@@ -239,6 +239,38 @@ func (a *LoginLogAPI) GetLoginStats(c *gin.Context) {
 	response.Success(c, stats)
 }
 
+// GetLoginGeoDistribution returns login counts grouped by location.
+// Window semantics match GetLoginTrend: only a `days` count is accepted and
+// the range is computed on the server clock, so client-local time strings
+// never get misparsed as UTC.
+func (a *LoginLogAPI) GetLoginGeoDistribution(c *gin.Context) {
+	days := 7
+	if daysStr := c.Query("days"); daysStr != "" {
+		if d, err := strconv.Atoi(daysStr); err == nil && d > 0 && d <= 90 {
+			days = d
+		}
+	}
+	start := time.Now().AddDate(0, 0, -days)
+	end := time.Now()
+	startTime, endTime := &start, &end
+
+	dataScope, err := authz.ResolveUserDataScopeFromContext(c)
+	if err != nil {
+		logLoginLogError("failed to resolve login geo distribution data scope", err)
+		response.InternalServerError(c, "failed to get login geo distribution")
+		return
+	}
+
+	items, err := a.logService.GetLoginGeoDistributionInScopeContext(c.Request.Context(), startTime, endTime, dataScope)
+	if err != nil {
+		logLoginLogError("failed to get login geo distribution", err)
+		response.InternalServerError(c, "failed to get login geo distribution")
+		return
+	}
+
+	response.Success(c, items)
+}
+
 // GetLoginTrend returns the login trend.
 func (a *LoginLogAPI) GetLoginTrend(c *gin.Context) {
 	days := 7 // Default to the last 7 days.

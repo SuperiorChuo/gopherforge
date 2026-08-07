@@ -25,9 +25,11 @@ type SecurityPolicy struct {
 	LoginLimitMaxFailures   int
 	LoginLimitWindowMinutes int
 	LoginLimitLockMinutes   int
-	RateLimitEnabled        bool
-	RateLimitWindowSeconds  int
-	RateLimitMaxRequests    int
+	// LoginAlertEnabled 控制「新设备 / 新 IP 登录」站内信提醒。
+	LoginAlertEnabled      bool
+	RateLimitEnabled       bool
+	RateLimitWindowSeconds int
+	RateLimitMaxRequests   int
 }
 
 type SecurityPolicyReader interface {
@@ -178,6 +180,7 @@ func SecurityPolicyFromConfig() SecurityPolicy {
 		LoginLimitMaxFailures:   positiveOrDefault(loginLimit.MaxFailures, 5),
 		LoginLimitWindowMinutes: positiveOrDefault(loginLimit.WindowMinutes, 15),
 		LoginLimitLockMinutes:   positiveOrDefault(loginLimit.LockMinutes, 30),
+		LoginAlertEnabled:       true,
 		RateLimitEnabled:        rateLimit.Enabled,
 		RateLimitWindowSeconds:  positiveOrDefault(rateLimit.WindowSeconds, 1),
 		RateLimitMaxRequests:    positiveOrDefault(rateLimit.MaxRequests, 100),
@@ -193,11 +196,29 @@ func applySecurityPolicySetting(policy SecurityPolicy, value map[string]any) Sec
 	policy.LoginLimitMaxFailures = positiveSetting(value, "login_limit_max_failures", policy.LoginLimitMaxFailures)
 	policy.LoginLimitWindowMinutes = positiveSetting(value, "login_limit_window_minutes", policy.LoginLimitWindowMinutes)
 	policy.LoginLimitLockMinutes = positiveSetting(value, "login_limit_lock_minutes", policy.LoginLimitLockMinutes)
+	if enabled, ok := boolSetting(value["login_alert_enabled"]); ok {
+		policy.LoginAlertEnabled = enabled
+	}
 	if rps, ok := positiveInt(value["rate_limit_rps"]); ok {
 		policy.RateLimitWindowSeconds = 1
 		policy.RateLimitMaxRequests = rps
 	}
 	return policy
+}
+
+func boolSetting(value any) (bool, bool) {
+	switch v := value.(type) {
+	case bool:
+		return v, true
+	case string:
+		switch v {
+		case "true", "1":
+			return true, true
+		case "false", "0":
+			return false, true
+		}
+	}
+	return false, false
 }
 
 func nonNegativeSetting(value map[string]any, key string, fallback int) int {

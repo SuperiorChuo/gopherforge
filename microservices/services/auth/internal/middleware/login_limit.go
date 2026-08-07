@@ -45,6 +45,10 @@ type LoginLimitConfig struct {
 	MaxFailures  int
 	LockDuration time.Duration
 	KeyPrefix    string
+	// IPShield* 是 IP 级失败护盾参数（独立于账号锁定，跨账号按 IP 计数）。
+	IPShieldWindow       time.Duration
+	IPShieldMaxFailures  int
+	IPShieldBlockMinutes time.Duration
 }
 
 func LoginLimitConfigFromApp() LoginLimitConfig {
@@ -55,10 +59,13 @@ func LoginLimitConfigFromPolicy(policy runtimeconfig.SecurityPolicy) LoginLimitC
 	window := time.Duration(policy.LoginLimitWindowMinutes) * time.Minute
 	lockDuration := time.Duration(policy.LoginLimitLockMinutes) * time.Minute
 	return LoginLimitConfig{
-		Window:       window,
-		MaxFailures:  policy.LoginLimitMaxFailures,
-		LockDuration: lockDuration,
-		KeyPrefix:    "login_limit",
+		Window:                window,
+		MaxFailures:           policy.LoginLimitMaxFailures,
+		LockDuration:          lockDuration,
+		KeyPrefix:             "login_limit",
+		IPShieldWindow:        time.Duration(policy.LoginIPShieldWindowMinutes) * time.Minute,
+		IPShieldMaxFailures:   policy.LoginIPShieldMaxFailures,
+		IPShieldBlockMinutes:  time.Duration(policy.LoginIPShieldBlockMinutes) * time.Minute,
 	}
 }
 
@@ -139,6 +146,81 @@ func (l *LoginLimiter) Check(config LoginLimitConfig) gin.HandlerFunc {
 
 func RecordLoginFailureContext(ctx context.Context, identifier string, config LoginLimitConfig) {
 	NewLoginLimiter().RecordFailureContext(ctx, identifier, config)
+	RecordIPFailureContext(ctx, identifier, IPFailureConfigFromLoginLimit(config))
+}
+
+// IPFailureConfigFromLoginLimit derives the IP-wide shield parameters from the
+// runtime policy (falling back to hardcoded defaults when policy fields are 0).
+func IPFailureConfigFromLoginLimit(config LoginLimitConfig) IPFailureConfig {
+	cfg := DefaultIPFailureConfig()
+	if config.IPShieldWindow > 0 {
+		cfg.Window = config.IPShieldWindow
+	}
+	if config.IPShieldMaxFailures > 0 {
+		cfg.MaxFailures = int64(config.IPShieldMaxFailures)
+	}
+	if config.IPShieldBlockMinutes > 0 {
+		cfg.BlockMinutes = config.IPShieldBlockMinutes
+	}
+	return cfg
+}
+
+// IPFailureConfig controls the coarse IP-wide failure shield: a single IP
+// failing logins across many usernames gets a temporary block (10 min) after
+// the threshold, independent of per-account locks.
+type IPFailureConfig struct {
+	Window       time.Duration
+	MaxFailures  int64
+	BlockMinutes time.Duration
+	KeyPrefix    string
+}
+
+func DefaultIPFailureConfig() IPFailureConfig {
+	return IPFailureConfig{
+		Window:       10 * time.Minute,
+		MaxFailures:  30,
+		BlockMinutes: 10 * time.Minute,
+		KeyPrefix:    "login_ip_fail",
+	}
+}
+
+// RecordIPFailureContext bumps a per-IP failure counter and blocks the IP once
+// the threshold is crossed. Best-effort: redis unavailable is ignored.
+func RecordIPFailureContext(ctx context.Context, identifier string, cfg IPFailureConfig) {
+	client := redisstore.Client
+	if client == nil {
+		return
+	}
+	ip := identifier
+	// identifier is LoginIdentifier's "user:ip" (bare IP when the username is
+	// empty); the IP is the segment after the last colon, so IPv6 works too.
+	if idx := strings.LastIndex(identifier, ":"); idx >= 0 {
+		ip = identifier[idx+1:]
+	}
+	if ip == "" || ip == ":" {
+		return
+	}
+	countKey := cfg.KeyPrefix + ":" + ip
+	count, err := client.Incr(ctx, countKey).Result()
+	if err != nil {
+		return
+	}
+	if count == 1 {
+		_ = client.Expire(ctx, countKey, cfg.Window).Err()
+	}
+	if count >= cfg.MaxFailures {
+		_ = client.Set(ctx, cfg.KeyPrefix+":block:"+ip, "1", cfg.BlockMinutes).Err()
+	}
+}
+
+// IsIPBlockedContext reports whether an IP is under the coarse failure shield.
+func IsIPBlockedContext(ctx context.Context, ip string) bool {
+	client := redisstore.Client
+	if client == nil {
+		return false
+	}
+	blocked, err := client.Get(ctx, "login_ip_fail:block:"+ip).Result()
+	return err == nil && blocked == "1"
 }
 
 // RecordFailureContext records a failed login attempt.

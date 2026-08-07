@@ -40,6 +40,9 @@ type LoginRequest struct {
 	CaptchaCode string `json:"captcha_code" binding:"required"`
 	// TenantCode selects SaaS tenant; empty means "default".
 	TenantCode string `json:"tenant_code"`
+	// DeviceID is the anonymous device fingerprint from X-Device-ID (or body);
+	// recorded in login logs for new-device detection.
+	DeviceID string `json:"device_id,omitempty"`
 }
 
 // LoginResponse is the login response payload.

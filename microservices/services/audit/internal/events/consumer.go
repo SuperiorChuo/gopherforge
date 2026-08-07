@@ -64,6 +64,7 @@ type loginEvent struct {
 	UserAgent string `json:"user_agent"`
 	LoginType string `json:"login_type"`
 	Reason    string `json:"reason"`
+	DeviceID  string `json:"device_id"`
 	Timestamp string `json:"timestamp"`
 }
 
@@ -219,6 +220,7 @@ func buildLoginInfo(subject string, data []byte) (*systemsvc.LoginInfo, error) {
 		LoginType:  loginTypeCode(event.LoginType),
 		IP:         event.IP,
 		UserAgent:  event.UserAgent,
+		DeviceID:   event.DeviceID,
 		OccurredAt: parseEventTime(event.Timestamp),
 	}
 

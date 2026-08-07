@@ -218,6 +218,29 @@ type LoginTrendItem struct {
 	Failed  int64  `json:"failed"`
 }
 
+// LoginGeoItem 按 location 原文聚合的一条登录地域桶。
+type LoginGeoItem struct {
+	Location string `json:"location"`
+	Total    int64  `json:"total"`
+	Success  int64  `json:"success"`
+	Failed   int64  `json:"failed"`
+}
+
+// GetGeoDistributionInScopeContext 在时间范围与数据权限内按 location 原文
+// 分组计数，省市拆解留给 service 层做。
+func (d *LoginLogDAO) GetGeoDistributionInScopeContext(ctx context.Context, startTime, endTime *time.Time, dataScope authz.UserDataScope) ([]LoginGeoItem, error) {
+	ctx = authz.EnableDataScope(ctx, dataScope)
+	var items []LoginGeoItem
+	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.LoginLog{}), ctx)
+	query = applyTimeRange(query, startTime, endTime)
+	err := query.
+		Select("location, COUNT(*) AS total, SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS success, SUM(CASE WHEN status <> 1 THEN 1 ELSE 0 END) AS failed").
+		Group("location").
+		Order("total DESC").
+		Find(&items).Error
+	return items, err
+}
+
 func (d *LoginLogDAO) GetLoginTrendContext(ctx context.Context, days int) ([]LoginTrendItem, error) {
 	return d.getLoginTrendContext(authz.DisableDataScope(ctx), days)
 }
