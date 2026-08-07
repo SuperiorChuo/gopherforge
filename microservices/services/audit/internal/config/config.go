@@ -25,6 +25,8 @@ type Config struct {
 	Observability ObservabilityConfig
 	NATS          NATSConfig
 	Retention     RetentionConfig
+	Notify        NotifyConfig
+	SecurityDetect SecurityDetectConfig
 }
 
 type AppCfg struct {
@@ -145,6 +147,20 @@ type TracingConfig struct {
 	Environment  string
 	OTLPEndpoint string
 	SampleRatio  float64
+}
+
+// NotifyConfig configures the shared notifyclient (in-console alerts) used by
+// the security event detector. Empty values disable notifications.
+type NotifyConfig struct {
+	APIBase string
+	Token   string
+}
+
+// SecurityDetectConfig tunes the audit anomaly detector thresholds.
+type SecurityDetectConfig struct {
+	WriteThreshold      int
+	PermissionThreshold int
+	FailureThreshold    int
 }
 
 type NATSConfig struct {
@@ -345,6 +361,11 @@ func applyEnv(config *Config) {
 	config.OAuth.Wechat.RedirectURI = getEnvString("WECHAT_REDIRECT_URI", config.OAuth.Wechat.RedirectURI)
 
 	config.NATS.URL = getEnvString("NATS_URL", config.NATS.URL)
+	config.Notify.APIBase = getEnvString("NOTIFY_API_BASE", config.Notify.APIBase)
+	config.Notify.Token = getEnvString("NOTIFY_INTERNAL_TOKEN", config.Notify.Token)
+	config.SecurityDetect.WriteThreshold = getEnvInt("SECURITY_DETECT_WRITE_THRESHOLD", 20)
+	config.SecurityDetect.PermissionThreshold = getEnvInt("SECURITY_DETECT_PERMISSION_THRESHOLD", 5)
+	config.SecurityDetect.FailureThreshold = getEnvInt("SECURITY_DETECT_FAILURE_THRESHOLD", 10)
 	config.Retention.LogRetentionDays = getEnvInt("AUDIT_LOG_RETENTION_DAYS", config.Retention.LogRetentionDays)
 	config.Retention.LogRetentionScanIntervalSeconds = getEnvInt("AUDIT_LOG_RETENTION_SCAN_INTERVAL_SECONDS", config.Retention.LogRetentionScanIntervalSeconds)
 }

@@ -224,6 +224,7 @@ export interface LoginLog {
   login_type: number
   browser?: string
   os?: string
+  device_id?: string
   message?: string
   created_at?: string
 }

@@ -60,6 +60,8 @@ var defaultMenuSeed = []model.Menu{
 	{ID: 21, Name: "login-log", Title: "登录日志", Icon: "time", Path: "/system/login-log", Component: "system/login-log/index", ParentID: 134, Sort: 2, Status: 1, Hidden: 0, Permission: "system:log:login"},
 	{ID: 22, Name: "audit-log", Title: "审计日志", Icon: "secured", Path: "/system/audit-log", Component: "system/audit-log/index", ParentID: 134, Sort: 3, Status: 1, Hidden: 0, Permission: "system:log:audit"},
 	{ID: 19, Name: "online-user", Title: "在线用户", Icon: "user-list", Path: "/system/online-user", Component: "system/online-user/index", ParentID: 134, Sort: 4, Status: 1, Hidden: 0, Permission: "system:online-user:list"},
+	{ID: 138, Name: "security-events", Title: "安全事件", Icon: "warning", Path: "/system/security-events", Component: "system/security-events/index", ParentID: 134, Sort: 5, Status: 1, Hidden: 0, Permission: "system:security:list"},
+	{ID: 139, Name: "login-security", Title: "登录安全", Icon: "secured", Path: "/system/login-security", Component: "system/login-security/index", ParentID: 134, Sort: 6, Status: 1, Hidden: 0, Permission: "system:login-security:list"},
 
 	// 系统工具：开发者/运维工具，普通管理员低频
 	{ID: 136, Name: "sys-tools", Title: "系统工具", Icon: "tool", Path: "/tools", Component: "Layout", ParentID: 0, Sort: 4, Status: 1, Hidden: 0},

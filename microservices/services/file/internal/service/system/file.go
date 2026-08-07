@@ -20,9 +20,20 @@ import (
 
 var ErrFileNotFoundOrPermissionDenied = errors.New("file not found or permission denied")
 
+// UploadSessionStore is the persistence surface for chunked uploads, so tests
+// can substitute an in-memory implementation.
+type UploadSessionStore interface {
+	CreateContext(ctx context.Context, s *model.UploadSession) error
+	GetByIDContext(ctx context.Context, id uint) (*model.UploadSession, error)
+	MarkChunkReceivedContext(ctx context.Context, id uint, bitmap string, count int) error
+	DeleteContext(ctx context.Context, id uint) error
+	PruneExpiredContext(ctx context.Context, before time.Time) (int64, error)
+}
+
 type FileService struct {
-	fileDAO  systemdao.FileDAO
-	uploader *upload.Uploader
+	fileDAO    systemdao.FileDAO
+	sessionDAO UploadSessionStore
+	uploader   *upload.Uploader
 }
 
 type FileContent struct {
@@ -34,8 +45,9 @@ type FileContent struct {
 
 func NewFileService() *FileService {
 	return &FileService{
-		fileDAO:  systemdao.FileDAO{},
-		uploader: upload.NewUploader(),
+		fileDAO:    systemdao.FileDAO{},
+		sessionDAO: &systemdao.UploadSessionDAO{},
+		uploader:   upload.NewUploader(),
 	}
 }
 
@@ -43,8 +55,9 @@ func NewFileService() *FileService {
 // handle. The uploader keeps its default implementation.
 func NewFileServiceWithDB(db *gorm.DB) *FileService {
 	return &FileService{
-		fileDAO:  *systemdao.NewFileDAO(db),
-		uploader: upload.NewUploader(),
+		fileDAO:    *systemdao.NewFileDAO(db),
+		sessionDAO: systemdao.NewUploadSessionDAO(db),
+		uploader:   upload.NewUploader(),
 	}
 }
 
@@ -269,7 +282,19 @@ func (s *FileService) DeleteFilesContext(ctx context.Context, ids []uint, userID
 }
 
 func (s *FileService) GetFileStatsContext(ctx context.Context, userID *uint, dataScope authz.UserDataScope) (*systemdao.FileStats, error) {
-	return s.fileDAO.GetStatsInScopeContext(ctx, userID, dataScope)
+	stats, err := s.fileDAO.GetStatsInScopeContext(ctx, userID, dataScope)
+	if err != nil {
+		return nil, err
+	}
+	tenantID := tenant.IDFromContext(ctx)
+	if tenantID == 0 {
+		tenantID = 1
+	}
+	quota, quotaErr := s.fileDAO.GetTenantStorageQuotaContext(ctx, tenantID)
+	if quotaErr == nil {
+		stats.StorageQuotaMB = quota.QuotaMB
+	}
+	return stats, nil
 }
 
 func (s *FileService) OpenFileContentContext(ctx context.Context, file *model.File) (*FileContent, error) {

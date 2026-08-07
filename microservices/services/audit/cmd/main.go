@@ -32,6 +32,7 @@ import (
 	authsvc "github.com/go-admin-kit/services/audit/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/audit/internal/service/system"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 )
 
@@ -240,7 +241,9 @@ func run(ctx context.Context) error {
 
 	// Consume auth-service login events from NATS JetStream into login_logs.
 	// An empty NATS_URL disables consumption (single-binary deployments).
-	loginLogService := systemsvc.NewLoginLogServiceWithDB(database.DB)
+	// 新 IP / 新设备登录提醒：notify 未配时 WithNotifier 保持 nil，静默跳过。
+	loginNotify := notifyclient.New(config.Cfg.Notify.APIBase, config.Cfg.Notify.Token)
+	loginLogService := systemsvc.NewLoginLogServiceWithDB(database.DB).WithNotifier(loginNotify)
 	authEventConsumer, err := events.StartLoginLogConsumer(lifecycleCtx, config.Cfg.NATS.URL, &loginLogService)
 	if err != nil {
 		logger.Warn("auth event consumer start failed, login logs from auth-service disabled", logger.Err(err))
@@ -258,6 +261,19 @@ func run(ctx context.Context) error {
 		logger.Info("log retention cleaner enabled",
 			logger.Int("retention_days", config.Cfg.Retention.LogRetentionDays))
 	}
+
+	// 安全事件检测器：扫审计日志异常模式（写入激增/权限风暴/失败激增），
+	// 命中落 security_events + 站内信通知平台管理员（notify 未配时静默跳过）。
+	notifyClient := notifyclient.New(config.Cfg.Notify.APIBase, config.Cfg.Notify.Token)
+	systemsvc.StartSecurityEventDetector(lifecycleCtx, database.DB, notifyClient, systemsvc.SecurityDetectorOptions{
+		ScanInterval:       60 * time.Second,
+		Window:             10 * time.Minute,
+		WriteThreshold:     config.Cfg.SecurityDetect.WriteThreshold,
+		PermissionThreshold: config.Cfg.SecurityDetect.PermissionThreshold,
+		FailureThreshold:   config.Cfg.SecurityDetect.FailureThreshold,
+		NotifyUserID:       1,
+		NotifyURL:          "/system/security-events",
+	})
 
 	// Refresh cached department trees when another instance (or the monolith)
 	// changes departments.

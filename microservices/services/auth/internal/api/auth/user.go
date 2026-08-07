@@ -89,6 +89,12 @@ func (a *UserAPI) Login(c *gin.Context) {
 			c.Header("Retry-After", fmt.Sprintf("%.0f", ttl.Seconds()))
 			return
 		}
+		// Coarse IP-wide shield: an IP failing logins across many accounts gets
+		// a temporary block (independent of the per-account lock above).
+		if middleware.IsIPBlockedContext(c.Request.Context(), c.ClientIP()) {
+			response.Error(c, 429, "too many failed login attempts from this network, please try again later")
+			return
+		}
 	}
 
 	resp, err := a.userService.LoginContext(c.Request.Context(), req)
@@ -156,7 +162,7 @@ func (a *UserAPI) Login(c *gin.Context) {
 		TOTPChallengeID: resp.TOTPChallengeID,
 	}
 
-	publishLoginSuccess(c, resp.User.ID, resp.User.Username, events.LoginTypeAccount, resp.User.TenantID)
+	publishLoginSuccess(c, resp.User.ID, resp.User.Username, events.LoginTypeAccount, resp.User.TenantID, deviceIDFromRequest(c, req.DeviceID))
 
 	targetUserID := resp.User.ID
 	response.SuccessWithMessageMasked(c, "login success", loginResp, sharedapi.ShouldMask(resp.User.ID, &targetUserID, nil))
@@ -195,7 +201,7 @@ func (a *UserAPI) VerifyTOTPLogin(c *gin.Context) {
 		middleware.ClearLoginLimitContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
 	}
 
-	publishLoginSuccess(c, resp.User.ID, resp.User.Username, events.LoginTypeTOTP, resp.User.TenantID)
+	publishLoginSuccess(c, resp.User.ID, resp.User.Username, events.LoginTypeTOTP, resp.User.TenantID, c.GetHeader("X-Device-ID"))
 
 	permissions := a.userService.GetUserPermissions(&resp.User)
 	loginResp := LoginResponseData{
@@ -559,4 +565,13 @@ func tenantCodeFromHost(host string) string {
 		return ""
 	}
 	return label
+}
+
+// deviceIDFromRequest prefers the X-Device-ID header (injected globally by the
+// frontend request layer before login) and falls back to the body field.
+func deviceIDFromRequest(c *gin.Context, bodyID string) string {
+	if id := strings.TrimSpace(c.GetHeader("X-Device-ID")); id != "" {
+		return id
+	}
+	return strings.TrimSpace(bodyID)
 }

@@ -208,6 +208,19 @@ func (u *Uploader) UploadMultipleContext(ctx context.Context, files []*multipart
 	return results, errs
 }
 
+// StoreObjectContext stores raw bytes under an object key via the configured
+// provider (used by the chunked-upload complete path to assemble parts into
+// the final object, bypassing multipart handling).
+func (u *Uploader) StoreObjectContext(ctx context.Context, objectKey string, body io.Reader) (*StoredObject, error) {
+	if u == nil {
+		return nil, errors.New("uploader not configured")
+	}
+	if err := u.ensureProvider(); err != nil {
+		return nil, err
+	}
+	return u.provider.Store(ctx, objectKey, body)
+}
+
 func (u *Uploader) DeleteContext(ctx context.Context, filePath string) error {
 	if ctx == nil {
 		ctx = context.Background()

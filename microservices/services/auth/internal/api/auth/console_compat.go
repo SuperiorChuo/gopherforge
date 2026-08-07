@@ -100,7 +100,7 @@ func (a *UserAPI) writeConsoleLoginSession(c *gin.Context, loginResp *authSvc.Lo
 	setConsoleSessionCookie(c, loginResp.AccessToken, session.TTLSec)
 	a.recordOnlineUser(c, loginResp.AccessToken)
 	a.recordConsoleAuthAudit(c, "auth.login.success", loginResp.User.Username, nil, authSvc.ConsoleLoginSuccessSnapshot(consoleAuthRequestMetadata(c), sessionRecord, session.TTLSec))
-	publishLoginSuccess(c, loginResp.User.ID, loginResp.User.Username, events.LoginTypeConsole, loginResp.User.TenantID)
+	publishLoginSuccess(c, loginResp.User.ID, loginResp.User.Username, events.LoginTypeConsole, loginResp.User.TenantID, c.GetHeader("X-Device-ID"))
 	response.Success(c, session)
 }
 

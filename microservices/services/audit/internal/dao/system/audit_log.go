@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
@@ -272,4 +273,40 @@ func distinctAuditValues(query *gorm.DB, column string) ([]string, error) {
 		Order(column+" ASC").
 		Pluck(column, &values).Error
 	return values, err
+}
+
+// ActorActionCount is one actor's write/action count within a window, used by
+// the security event detector.
+type ActorActionCount struct {
+	ActorID string
+	Count   int64
+}
+
+// CountActorActionsWithinContext counts audit rows per actor within a time
+// window, optionally filtered by an action predicate. SQL-side filtering keeps
+// the scan cheap; the detector decides thresholds and rules in Go.
+func (d *AuditLogDAO) CountActorActionsWithinContext(
+	ctx context.Context,
+	from, to time.Time,
+	actionPredicate string,
+	args ...any,
+) ([]ActorActionCount, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	q := d.dbWithContext(ctx).
+		Model(&model.AuditLog{}).
+		Where("created_at >= ? AND created_at <= ?", from, to)
+	if actionPredicate != "" {
+		q = q.Where(actionPredicate, args...)
+	}
+	var rows []ActorActionCount
+	if err := q.
+		Select("actor_id, COUNT(*) AS count").
+		Group("actor_id").
+		Having("COUNT(*) > 0").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
 }

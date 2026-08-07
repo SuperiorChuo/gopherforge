@@ -25,9 +25,15 @@ type SecurityPolicy struct {
 	LoginLimitMaxFailures   int
 	LoginLimitWindowMinutes int
 	LoginLimitLockMinutes   int
-	RateLimitEnabled        bool
-	RateLimitWindowSeconds  int
-	RateLimitMaxRequests    int
+	// LoginIPShield* 是 IP 级失败护盾参数（独立于账号锁定）。
+	LoginIPShieldMaxFailures   int
+	LoginIPShieldWindowMinutes int
+	LoginIPShieldBlockMinutes  int
+	// LoginAlertEnabled 控制 audit 侧「新设备/新 IP 登录」站内信提醒。
+	LoginAlertEnabled      bool
+	RateLimitEnabled       bool
+	RateLimitWindowSeconds int
+	RateLimitMaxRequests   int
 }
 
 type SecurityPolicyReader interface {
@@ -178,9 +184,13 @@ func SecurityPolicyFromConfig() SecurityPolicy {
 		LoginLimitMaxFailures:   positiveOrDefault(loginLimit.MaxFailures, 5),
 		LoginLimitWindowMinutes: positiveOrDefault(loginLimit.WindowMinutes, 15),
 		LoginLimitLockMinutes:   positiveOrDefault(loginLimit.LockMinutes, 30),
-		RateLimitEnabled:        rateLimit.Enabled,
-		RateLimitWindowSeconds:  positiveOrDefault(rateLimit.WindowSeconds, 1),
-		RateLimitMaxRequests:    positiveOrDefault(rateLimit.MaxRequests, 100),
+		LoginIPShieldMaxFailures:   30,
+		LoginIPShieldWindowMinutes: 10,
+		LoginIPShieldBlockMinutes:  10,
+		LoginAlertEnabled:          true,
+		RateLimitEnabled:           rateLimit.Enabled,
+		RateLimitWindowSeconds:     positiveOrDefault(rateLimit.WindowSeconds, 1),
+		RateLimitMaxRequests:       positiveOrDefault(rateLimit.MaxRequests, 100),
 	}
 }
 
@@ -193,6 +203,12 @@ func applySecurityPolicySetting(policy SecurityPolicy, value map[string]any) Sec
 	policy.LoginLimitMaxFailures = positiveSetting(value, "login_limit_max_failures", policy.LoginLimitMaxFailures)
 	policy.LoginLimitWindowMinutes = positiveSetting(value, "login_limit_window_minutes", policy.LoginLimitWindowMinutes)
 	policy.LoginLimitLockMinutes = positiveSetting(value, "login_limit_lock_minutes", policy.LoginLimitLockMinutes)
+	policy.LoginIPShieldMaxFailures = positiveSetting(value, "login_ip_shield_max_failures", policy.LoginIPShieldMaxFailures)
+	policy.LoginIPShieldWindowMinutes = positiveSetting(value, "login_ip_shield_window_minutes", policy.LoginIPShieldWindowMinutes)
+	policy.LoginIPShieldBlockMinutes = positiveSetting(value, "login_ip_shield_block_minutes", policy.LoginIPShieldBlockMinutes)
+	if enabled, ok := boolSetting(value["login_alert_enabled"]); ok {
+		policy.LoginAlertEnabled = enabled
+	}
 	if rps, ok := positiveInt(value["rate_limit_rps"]); ok {
 		policy.RateLimitWindowSeconds = 1
 		policy.RateLimitMaxRequests = rps

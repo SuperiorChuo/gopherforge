@@ -26,10 +26,14 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	loginLogAPI := system.NewLoginLogAPI()
 	opLogAPI := system.NewOperationLogAPI()
 	auditLogAPI := system.NewAuditLogAPI()
+	var securityEventAPI *system.SecurityEventAPI
+	var loginRiskEventAPI *system.LoginRiskEventAPI
 	if deps.DB != nil {
 		loginLogAPI = system.NewLoginLogAPIWithService(systemsvc.NewLoginLogServiceWithDB(deps.DB))
 		opLogAPI = system.NewOperationLogAPIWithService(systemsvc.NewOperationLogServiceWithDB(deps.DB))
 		auditLogAPI = system.NewAuditLogAPIWithService(systemsvc.NewAuditLogServiceWithDB(deps.DB))
+		securityEventAPI = system.NewSecurityEventAPIWithDB(deps.DB)
+		loginRiskEventAPI = system.NewLoginRiskEventAPIWithDB(deps.DB)
 	}
 
 	protected := api.Group("/")
@@ -40,6 +44,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		protected.GET("/login-logs/export", middleware.PermissionMiddleware("system:log:login"), loginLogAPI.ExportLoginLogs)
 		protected.GET("/login-logs/stats", middleware.PermissionMiddleware("system:log:login"), loginLogAPI.GetLoginStats)
 		protected.GET("/login-logs/trend", middleware.PermissionMiddleware("system:log:login"), loginLogAPI.GetLoginTrend)
+		protected.GET("/login-logs/geo", middleware.PermissionMiddleware("system:log:login"), loginLogAPI.GetLoginGeoDistribution)
 		protected.GET("/login-logs/last", loginLogAPI.GetLastLogin)
 		protected.GET("/login-logs/user/:user_id", middleware.PermissionMiddleware("system:log:login"), loginLogAPI.GetUserLoginHistory)
 		protected.DELETE("/login-logs/clear", middleware.PermissionMiddleware("system:log:login"), loginLogAPI.ClearLoginLogs)
@@ -52,5 +57,12 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 
 		protected.GET("/logs/audit", middleware.PermissionMiddleware("system:log:audit"), auditLogAPI.GetAuditLogs)
 		protected.GET("/logs/audit/export", middleware.PermissionMiddleware("system:log:audit"), auditLogAPI.ExportAuditLogs)
+		if securityEventAPI != nil {
+			protected.GET("/security-events", middleware.PermissionMiddleware("system:security:list"), securityEventAPI.ListSecurityEvents)
+		}
+		if loginRiskEventAPI != nil {
+			protected.GET("/login-risk-events", middleware.PermissionMiddleware("system:login-security:list"), loginRiskEventAPI.ListLoginRiskEvents)
+			protected.POST("/login-risk-events/:id/process", middleware.PermissionMiddleware("system:login-security:manage"), loginRiskEventAPI.ProcessLoginRiskEvent)
+		}
 	}
 }

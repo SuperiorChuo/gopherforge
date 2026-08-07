@@ -7,6 +7,7 @@ import axios, {
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { message } from './feedback'
+import { getDeviceID } from './device'
 
 const TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
@@ -661,6 +662,8 @@ instance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (actTenant) {
     config.headers['X-Act-Tenant-ID'] = actTenant
   }
+  // 设备指纹：登录前即携带，供服务端识别新设备登录
+  config.headers['X-Device-ID'] = getDeviceID()
   return config
 })
 

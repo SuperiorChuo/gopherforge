@@ -42,6 +42,7 @@ type LoginSuccessEvent struct {
 	UserAgent string `json:"user_agent"`
 	LoginType string `json:"login_type"`
 	Timestamp string `json:"timestamp"`
+	DeviceID  string // anonymous device fingerprint (X-Device-ID), for new-device login detection
 }
 
 // LoginFailedEvent is published on subject auth.login.failed.

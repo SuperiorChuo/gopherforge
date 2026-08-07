@@ -26,6 +26,8 @@ export const ROUTE_PERMISSIONS: Record<string, string> = {
   '/system/operation-log': 'system:log:operation',
   '/system/login-log': 'system:log:login',
   '/system/audit-log': 'system:log:audit',
+  '/system/security-events': 'system:security:list',
+  '/system/login-security': 'system:login-security:list',
   '/system/online-user': 'system:online-user:list',
   // 系统工具
   '/system/codegen': 'system:codegen:list',

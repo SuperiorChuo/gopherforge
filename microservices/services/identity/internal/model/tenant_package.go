@@ -55,6 +55,8 @@ type TenantPackage struct {
 	ID              uint       `gorm:"primaryKey" json:"id"`
 	Name            string     `gorm:"size:128;not null;uniqueIndex" json:"name"`
 	PermissionCodes StringList `gorm:"type:jsonb;not null" json:"permission_codes"`
+	// StorageQuotaMB 存储配额（0=不限）。file-service 上传前按租户套餐校验。
+	StorageQuotaMB int64      `gorm:"not null;default:0" json:"storage_quota_mb"`
 	Status          int8       `gorm:"default:1" json:"status"`
 	Remark          string     `gorm:"size:255;default:''" json:"remark"`
 	CreatedAt       time.Time  `json:"created_at"`
