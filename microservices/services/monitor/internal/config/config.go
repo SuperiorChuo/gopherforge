@@ -107,6 +107,7 @@ type AlertChannelsConfig struct {
 	StationBaseURL string `yaml:"station_base_url"`
 	StationToken   string `yaml:"station_token"`
 	WeComWebhook   string `yaml:"wecom_webhook"`
+	WebhookURL     string `yaml:"webhook_url"`
 }
 
 type EmailConfig struct {
@@ -538,6 +539,7 @@ func replaceEnvVars(config *Config) {
 	config.Notification.Alert.StationBaseURL = getEnvString("NOTIFY_INTERNAL_BASE_URL", config.Notification.Alert.StationBaseURL)
 	config.Notification.Alert.StationToken = getEnvString("NOTIFY_INTERNAL_TOKEN", config.Notification.Alert.StationToken)
 	config.Notification.Alert.WeComWebhook = getEnvString("ALERT_WECOM_WEBHOOK_URL", config.Notification.Alert.WeComWebhook)
+	config.Notification.Alert.WebhookURL = getEnvString("ALERT_WEBHOOK_URL", config.Notification.Alert.WebhookURL)
 	config.Observability.RequestIDHeader = getEnvString("REQUEST_ID_HEADER", config.Observability.RequestIDHeader)
 	config.Observability.MetricsEnabled = getEnvBool("METRICS_ENABLED", config.Observability.MetricsEnabled)
 	config.Observability.Tracing.Enabled = getEnvBool("TRACING_ENABLED", config.Observability.Tracing.Enabled)

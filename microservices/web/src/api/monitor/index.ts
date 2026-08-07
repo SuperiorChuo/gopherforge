@@ -76,12 +76,13 @@ export type AlertSeverity = 'info' | 'warning' | 'critical'
 export type AlertRuleState = 'ok' | 'pending' | 'firing' | 'error'
 export type AlertEventStatus = 'firing' | 'resolved'
 export type AlertNotifyStatus = 'pending' | 'sent' | 'skipped' | 'failed'
-export type AlertChannel = 'email' | 'station' | 'wecom'
+export type AlertChannel = 'email' | 'station' | 'wecom' | 'webhook'
 
 export const ALERT_CHANNELS: { value: AlertChannel; label: string }[] = [
   { value: 'email', label: '邮件' },
   { value: 'station', label: '站内信' },
   { value: 'wecom', label: '企业微信' },
+  { value: 'webhook', label: 'Webhook' },
 ]
 
 export interface AlertMetricDefinition {

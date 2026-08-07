@@ -24,9 +24,10 @@ type MultiChannelNotifier struct {
 
 func NewMultiChannelNotifier() *MultiChannelNotifier {
 	return &MultiChannelNotifier{channels: map[string]AlertNotifier{
-		"email":   NewAlertEmailNotifier(nil, runtimeconfig.DefaultEmailNotificationReader()),
-		"station": NewStationNotifier(),
-		"wecom":   NewWeComNotifier(),
+		"email":    NewAlertEmailNotifier(nil, runtimeconfig.DefaultEmailNotificationReader()),
+		"station":  NewStationNotifier(),
+		"wecom":    NewWeComNotifier(),
+		"webhook":  NewWebhookNotifier(),
 	}}
 }
 
@@ -36,7 +37,7 @@ func (m *MultiChannelNotifier) NotifyContext(ctx context.Context, rule *model.Mo
 	}
 	names := rule.NotifyChannels
 	if len(names) == 0 {
-		names = []string{"email", "station", "wecom"}
+		names = []string{"email", "station", "wecom", "webhook"}
 	}
 	sent, failed := false, false
 	errs := make([]string, 0, 2)
@@ -211,6 +212,72 @@ func (n *WeComNotifier) NotifyContext(ctx context.Context, _ *model.MonitorAlert
 	if resp.StatusCode >= 300 {
 		result.Status = AlertNotifyFailed
 		result.Error = fmt.Sprintf("wecom webhook returned HTTP %d", resp.StatusCode)
+		return result
+	}
+	result.Status = AlertNotifySent
+	return result
+}
+
+// WebhookNotifier sends alerts to a user-supplied HTTP endpoint as JSON.
+type WebhookNotifier struct {
+	webhook string
+	client  *http.Client
+	now     func() time.Time
+}
+
+func NewWebhookNotifier() *WebhookNotifier {
+	return &WebhookNotifier{
+		webhook: config.Cfg.Notification.Alert.WebhookURL,
+		client:  &http.Client{Timeout: 10 * time.Second},
+		now:     time.Now,
+	}
+}
+
+func (n *WebhookNotifier) NotifyContext(ctx context.Context, _ *model.MonitorAlertRule, event *model.MonitorAlertEvent) AlertNotification {
+	result := AlertNotification{Status: AlertNotifySkipped, NotifiedAt: n.now().UTC()}
+	if event == nil || n.webhook == "" {
+		return result
+	}
+	payload := map[string]any{
+		"status": event.Status,
+		"alerts": []map[string]any{{
+			"status": event.Status,
+			"labels": map[string]string{
+				"alertname": event.RuleName,
+				"severity":  event.Severity,
+				"metric":    event.Metric,
+			},
+			"annotations": map[string]string{
+				"summary":     event.Message,
+				"description": fmt.Sprintf("%s: %s (%.4f / %.4f)", event.RuleName, event.Metric, event.Value, event.Threshold),
+			},
+			"startsAt":    event.CreatedAt.UTC().Format(time.RFC3339),
+			"fingerprint": fmt.Sprintf("monitor-webhook-%d", event.ID),
+		}},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		result.Status = AlertNotifyFailed
+		result.Error = err.Error()
+		return result
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, n.webhook, bytes.NewReader(body))
+	if err != nil {
+		result.Status = AlertNotifyFailed
+		result.Error = err.Error()
+		return result
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := n.client.Do(req)
+	if err != nil {
+		result.Status = AlertNotifyFailed
+		result.Error = err.Error()
+		return result
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		result.Status = AlertNotifyFailed
+		result.Error = fmt.Sprintf("webhook returned HTTP %d", resp.StatusCode)
 		return result
 	}
 	result.Status = AlertNotifySent
