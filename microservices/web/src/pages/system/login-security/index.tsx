@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Card, Form, InputNumber, Popconfirm, Select, Space, Spin, Switch, Table, Tag } from 'antd'
+import { Button, Card, Col, Form, InputNumber, Popconfirm, Row, Select, Space, Spin, Switch, Table, Tabs, Tag } from 'antd'
 import { message } from '@/utils/feedback'
 import { ReloadOutlined, SafetyCertificateOutlined, SaveOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -172,126 +172,158 @@ export default function LoginSecurityPage() {
   ]
 
   return (
-    <div className="page-list login-security-page">
-      <Card
-        className="glass-rise"
-        title={
-          <Space>
-            <SafetyCertificateOutlined className="card-title-icon" /> {t('登录安全')}
-          </Space>
-        }
-      >
-        <Spin spinning={configLoading}>
-        <Form
-          form={form}
-          labelCol={{ xs: { span: 24 }, sm: { span: 8 } }}
-          wrapperCol={{ xs: { span: 24 }, sm: { span: 14 } }}
-          layout="horizontal"
-        >
-          <div className="login-security-section-title">{t('账号锁定')}</div>
-          <Form.Item name="login_limit_max_failures" label={t('登录失败锁定阈值（次）')}>
-            <InputNumber min={1} style={{ width: 220 }} />
-          </Form.Item>
-          <Form.Item name="login_limit_window_minutes" label={t('失败统计窗口（分钟）')}>
-            <InputNumber min={1} style={{ width: 220 }} />
-          </Form.Item>
-          <Form.Item name="login_limit_lock_minutes" label={t('锁定时长（分钟）')}>
-            <InputNumber min={1} style={{ width: 220 }} />
-          </Form.Item>
+    <Card
+      className="glass-rise"
+      title={
+        <Space>
+          <SafetyCertificateOutlined className="card-title-icon" /> {t('登录安全')}
+        </Space>
+      }
+    >
+      <Tabs
+        defaultActiveKey="config"
+        items={[
+          {
+            key: 'config',
+            label: t('风控参数'),
+            children: (
+              <Spin spinning={configLoading}>
+                <Form form={form} layout="vertical">
+                  <div className="login-security-section-title">{t('账号锁定')}</div>
+                  <Row gutter={24}>
+                    <Col xs={24} sm={8}>
+                      <Form.Item name="login_limit_max_failures" label={t('登录失败锁定阈值（次）')}>
+                        <InputNumber min={1} style={{ width: '100%' }} />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={8}>
+                      <Form.Item name="login_limit_window_minutes" label={t('失败统计窗口（分钟）')}>
+                        <InputNumber min={1} style={{ width: '100%' }} />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={8}>
+                      <Form.Item name="login_limit_lock_minutes" label={t('锁定时长（分钟）')}>
+                        <InputNumber min={1} style={{ width: '100%' }} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
 
-          <div className="login-security-section-title">{t('IP 级失败护盾')}</div>
-          <Form.Item name="login_ip_shield_max_failures" label={t('单 IP 失败阈值（次）')}>
-            <InputNumber min={1} style={{ width: 220 }} />
-          </Form.Item>
-          <Form.Item name="login_ip_shield_window_minutes" label={t('失败统计窗口（分钟）')}>
-            <InputNumber min={1} style={{ width: 220 }} />
-          </Form.Item>
-          <Form.Item name="login_ip_shield_block_minutes" label={t('屏蔽时长（分钟）')}>
-            <InputNumber min={1} style={{ width: 220 }} />
-          </Form.Item>
+                  <div className="login-security-section-title">{t('IP 级失败护盾')}</div>
+                  <Row gutter={24}>
+                    <Col xs={24} sm={8}>
+                      <Form.Item name="login_ip_shield_max_failures" label={t('单 IP 失败阈值（次）')}>
+                        <InputNumber min={1} style={{ width: '100%' }} />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={8}>
+                      <Form.Item name="login_ip_shield_window_minutes" label={t('失败统计窗口（分钟）')}>
+                        <InputNumber min={1} style={{ width: '100%' }} />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={8}>
+                      <Form.Item name="login_ip_shield_block_minutes" label={t('屏蔽时长（分钟）')}>
+                        <InputNumber min={1} style={{ width: '100%' }} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
 
-          <div className="login-security-section-title">{t('新设备 / 新 IP 提醒')}</div>
-          <Form.Item name="login_alert_enabled" label={t('启用登录提醒')} valuePropName="checked">
-            <Switch />
-          </Form.Item>
-          <Form.Item wrapperCol={{ xs: { span: 24, offset: 0 }, sm: { span: 14, offset: 8 } }}>
-            <Button type="primary" icon={<SaveOutlined />} loading={configSaving} onClick={saveConfig}>
-              {t('保存配置')}
-            </Button>
-          </Form.Item>
-        </Form>
-        </Spin>
-      </Card>
-
-      <Card className="glass-rise login-security-card">
-        <TableToolbar
-          title={t('被屏蔽 IP')}
-          total={blocked.length}
-          icon={<SafetyCertificateOutlined />}
-          extra={
-            <Button icon={<ReloadOutlined />} onClick={loadBlocked} loading={blockedLoading}>
-              {t('刷新')}
-            </Button>
-          }
-        />
-        <Table
-          rowKey="ip"
-          className="list-table"
-          loading={blockedLoading}
-          dataSource={blocked}
-          columns={blockedColumns}
-          pagination={false}
-          locale={{ emptyText: <GlassEmpty text={t('当前没有被屏蔽的 IP')} compact /> }}
-        />
-      </Card>
-
-      <Card className="glass-rise login-security-card">
-        <TableToolbar
-          title={t('异常登录事件')}
-          total={eventTotal}
-          icon={<SafetyCertificateOutlined />}
-          extra={
-            <Space>
-              <Select
-                allowClear
-                placeholder={t('全部类型')}
-                style={{ width: 120 }}
-                onChange={(v?: string) => setEventParams({ ...eventParams, page: 1, reason: v })}
-                options={Object.entries(REASON_LABELS).map(([value, label]) => ({ value, label }))}
-              />
-              <Select
-                allowClear
-                placeholder={t('全部处理状态')}
-                style={{ width: 130 }}
-                onChange={(v?: string) => setEventParams({ ...eventParams, page: 1, processed: v })}
-                options={[
-                  { value: 'false', label: t('未处理') },
-                  { value: 'true', label: t('已处理') },
-                ]}
-              />
-              <Button icon={<ReloadOutlined />} onClick={() => fetchEvents(eventParams)} loading={eventLoading}>
-                {t('刷新')}
-              </Button>
-            </Space>
-          }
-        />
-        <Table
-          rowKey="id"
-          className="list-table"
-          loading={eventLoading}
-          dataSource={events}
-          columns={eventColumns}
-          locale={{ emptyText: <GlassEmpty text={t('暂无异常登录事件')} compact /> }}
-          pagination={{
-            total: eventTotal,
-            current: eventParams.page,
-            pageSize: eventParams.page_size,
-            showSizeChanger: true,
-            showTotal: (t2) => `共 ${t2} 条`,
-            onChange: (page, page_size) => setEventParams({ ...eventParams, page, page_size }),
-          }}
-        />
-      </Card>
-    </div>
+                  <div className="login-security-section-title">{t('新设备 / 新 IP 提醒')}</div>
+                  <Row gutter={24}>
+                    <Col xs={24} sm={8}>
+                      <Form.Item name="login_alert_enabled" label={t('启用登录提醒')} valuePropName="checked">
+                        <Switch />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Button type="primary" icon={<SaveOutlined />} loading={configSaving} onClick={saveConfig}>
+                    {t('保存配置')}
+                  </Button>
+                </Form>
+              </Spin>
+            ),
+          },
+          {
+            key: 'blocked',
+            label: t('被屏蔽 IP'),
+            children: (
+              <>
+                <TableToolbar
+                  title={t('被屏蔽 IP')}
+                  total={blocked.length}
+                  icon={<SafetyCertificateOutlined />}
+                  extra={
+                    <Button icon={<ReloadOutlined />} onClick={loadBlocked} loading={blockedLoading}>
+                      {t('刷新')}
+                    </Button>
+                  }
+                />
+                <Table
+                  rowKey="ip"
+                  className="list-table"
+                  loading={blockedLoading}
+                  dataSource={blocked}
+                  columns={blockedColumns}
+                  pagination={false}
+                  locale={{ emptyText: <GlassEmpty text={t('当前没有被屏蔽的 IP')} compact /> }}
+                />
+              </>
+            ),
+          },
+          {
+            key: 'events',
+            label: t('异常登录事件'),
+            children: (
+              <>
+                <TableToolbar
+                  title={t('异常登录事件')}
+                  total={eventTotal}
+                  icon={<SafetyCertificateOutlined />}
+                  extra={
+                    <Space>
+                      <Select
+                        allowClear
+                        placeholder={t('全部类型')}
+                        style={{ width: 120 }}
+                        onChange={(v?: string) => setEventParams({ ...eventParams, page: 1, reason: v })}
+                        options={Object.entries(REASON_LABELS).map(([value, label]) => ({ value, label }))}
+                      />
+                      <Select
+                        allowClear
+                        placeholder={t('全部处理状态')}
+                        style={{ width: 130 }}
+                        onChange={(v?: string) => setEventParams({ ...eventParams, page: 1, processed: v })}
+                        options={[
+                          { value: 'false', label: t('未处理') },
+                          { value: 'true', label: t('已处理') },
+                        ]}
+                      />
+                      <Button icon={<ReloadOutlined />} onClick={() => fetchEvents(eventParams)} loading={eventLoading}>
+                        {t('刷新')}
+                      </Button>
+                    </Space>
+                  }
+                />
+                <Table
+                  rowKey="id"
+                  className="list-table"
+                  loading={eventLoading}
+                  dataSource={events}
+                  columns={eventColumns}
+                  locale={{ emptyText: <GlassEmpty text={t('暂无异常登录事件')} compact /> }}
+                  pagination={{
+                    total: eventTotal,
+                    current: eventParams.page,
+                    pageSize: eventParams.page_size,
+                    showSizeChanger: true,
+                    showTotal: (t2) => `共 ${t2} 条`,
+                    onChange: (page, page_size) => setEventParams({ ...eventParams, page, page_size }),
+                  }}
+                />
+              </>
+            ),
+          },
+        ]}
+      />
+    </Card>
   )
 }
