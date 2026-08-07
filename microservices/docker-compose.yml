@@ -165,7 +165,6 @@ services:
       WECHAT_REDIRECT_URI: ${WECHAT_REDIRECT_URI:-http://localhost:8000/api/v1/oauth/wechat/callback}
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
       CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
-      NATS_URL: nats://go-admin-kit-nats:4222
       # Same trusted-proxy range as backend; login events and login-limit
       # keys must see the real client IP, not the gateway's.
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
@@ -347,7 +346,6 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_DB: ${REDIS_DB:-0}
       JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
-      NATS_URL: nats://go-admin-kit-nats:4222
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
       CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}

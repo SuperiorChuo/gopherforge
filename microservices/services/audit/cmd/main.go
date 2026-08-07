@@ -239,17 +239,15 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	// Consume auth-service login events from NATS JetStream into login_logs.
-	// An empty NATS_URL disables consumption (single-binary deployments).
-	// 新 IP / 新设备登录提醒：notify 未配时 WithNotifier 保持 nil，静默跳过。
+	// Consume auth-service login events via Redis pub/sub into login_logs.
 	loginNotify := notifyclient.New(config.Cfg.Notify.APIBase, config.Cfg.Notify.Token)
 	loginLogService := systemsvc.NewLoginLogServiceWithDB(database.DB).WithNotifier(loginNotify)
-	authEventConsumer, err := events.StartLoginLogConsumer(lifecycleCtx, config.Cfg.NATS.URL, &loginLogService)
+	authEventConsumer, err := events.StartRedisLoginConsumer(lifecycleCtx, redis.Client, &loginLogService)
 	if err != nil {
-		logger.Warn("auth event consumer start failed, login logs from auth-service disabled", logger.Err(err))
+		logger.Warn("redis login event consumer start failed, login logs disabled", logger.Err(err))
 	} else if authEventConsumer != nil {
 		defer authEventConsumer.Close()
-		logger.Info("auth event consumer enabled", logger.String("url", config.Cfg.NATS.URL))
+		logger.Info("redis login event consumer enabled")
 	}
 
 	// 日志保留策略：按 AUDIT_LOG_RETENTION_DAYS 周期清理操作/登录日志

@@ -218,14 +218,13 @@ func run(ctx context.Context) error {
 		}()
 	}
 
-	// Connect the NATS event publisher; an empty NATS_URL disables publishing.
-	publisher, err := events.Connect(config.Cfg.NATS.URL)
+	// Connect event publisher via Redis pub/sub (previously NATS; Redis already deployed).
+	publisher, err := events.ConnectRedis(redis.Client)
 	if err != nil {
-		logger.Warn("nats connect failed, auth events disabled", logger.Err(err))
+		logger.Warn("redis event publisher connect failed, auth events disabled", logger.Err(err))
 	} else if publisher != nil {
 		events.SetDefault(publisher)
-		defer publisher.Close()
-		logger.Info("nats event publishing enabled", logger.String("url", config.Cfg.NATS.URL))
+		logger.Info("redis event publishing enabled")
 	}
 
 	tracingCfg := config.Cfg.Observability.Tracing
