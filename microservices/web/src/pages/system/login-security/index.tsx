@@ -4,7 +4,7 @@ import { Button, Card, Col, Form, InputNumber, Popconfirm, Row, Select, Space, S
 import { message } from '@/utils/feedback'
 import { ReloadOutlined, SafetyCertificateOutlined, SaveOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { getSetting, upsertSetting } from '@/api/system/setting'
+import { getSettingList, upsertSetting } from '@/api/system/setting'
 import { getBlockedIPs, unblockIP, type BlockedIPEntry } from '@/api/system/login-security'
 import { getLoginRiskEvents, processLoginRiskEvent, type LoginRiskEvent } from '@/api/system/login-risk-events'
 import GlassEmpty from '@/components/GlassEmpty'
@@ -27,10 +27,12 @@ export default function LoginSecurityPage() {
   const loadConfig = useCallback(async () => {
     setConfigLoading(true)
     try {
-      try {
-        const setting = await getSetting('security.policy')
-        form.setFieldsValue(setting.value_json ?? {})
-      } catch {
+      // 用列表接口避免 GET /system-settings/:key 对未创建行返回 404（会弹全局错误）
+      const list = await getSettingList('security')
+      const policy = list.find((s) => s.setting_key === 'security.policy')
+      if (policy) {
+        form.setFieldsValue(policy.value_json ?? {})
+      } else {
         // 设置行不存在（首次使用）：用后端默认值占位，保存即创建
         form.setFieldsValue({
           login_limit_max_failures: 5,
@@ -54,9 +56,9 @@ export default function LoginSecurityPage() {
     try {
       let existing: Record<string, unknown> = {}
       try {
-        const setting = await getSetting('security.policy')
-        existing = setting.value_json ?? {}
-      } catch { /* 首次保存，无既有行 */ }
+        const list = await getSettingList('security')
+        existing = list.find((s) => s.setting_key === 'security.policy')?.value_json ?? {}
+      } catch { /* 列表读取失败，按无既有行处理 */ }
       await upsertSetting('security.policy', { ...existing, ...values })
       message.success(t('保存成功'))
     } finally {
