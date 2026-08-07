@@ -521,7 +521,7 @@ export default function MainLayout() {
       style: { cursor: 'default', height: 'auto', lineHeight: 'inherit' },
       label: (
         <div className="user-drop-head">
-          <div className="user-drop-name">{userInfo.nickname || userInfo.username}</div>
+          <div className="user-drop-name">{isSuperAdmin ? t('管理员') : userInfo.nickname || userInfo.username}</div>
           <div className="user-drop-meta">
             {userInfo.email || userInfo.username}
             {roleText ? ` · ${roleText}` : ''}
@@ -726,7 +726,7 @@ export default function MainLayout() {
                   icon={<UserOutlined />}
                   style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
                 />
-                <span className="app-user-name">{userInfo.nickname || userInfo.username}</span>
+                <span className="app-user-name">{isSuperAdmin ? t('管理员') : userInfo.nickname || userInfo.username}</span>
               </div>
             </Dropdown>
           </Space>
