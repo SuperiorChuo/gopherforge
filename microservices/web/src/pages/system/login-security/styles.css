@@ -1,9 +1,5 @@
-.login-security-page .login-security-card {
-  margin-top: 16px;
-}
-
-.login-security-page .login-security-section-title {
+.login-security-section-title {
   font-weight: 600;
   color: var(--adm-color-text-secondary, rgba(0, 0, 0, 0.55));
-  margin-bottom: 8px;
+  margin: 4px 0 8px;
 }

@@ -1199,5 +1199,6 @@
   "被屏蔽 IP": "Blocked IPs",
   "解封": "Unblock",
   "账号锁定": "Account lock",
-  "锁定时长（分钟）": "Lock duration (minutes)"
+  "锁定时长（分钟）": "Lock duration (minutes)",
+  "风控参数": "Risk control params"
 }
