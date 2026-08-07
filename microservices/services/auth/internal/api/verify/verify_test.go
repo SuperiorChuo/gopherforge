@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/auth/internal/config"
 	"github.com/go-admin-kit/services/auth/internal/model"
+	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
 	jwtpkg "github.com/go-admin-kit/services/auth/internal/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/auth/internal/pkg/redis"
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
@@ -62,20 +63,24 @@ func (f *fakeSessionValidator) ValidateActiveSessionContext(ctx context.Context,
 }
 
 type fakeUserStore struct {
-	user *model.User
-	err  error
+	user  *model.User
+	err   error
+	calls int
 }
 
 type fakePermissionStore struct {
 	codes []string
 	err   error
+	calls int
 }
 
 func (f *fakePermissionStore) GetUserPermissionsContext(context.Context, uint) ([]string, error) {
+	f.calls++
 	return f.codes, f.err
 }
 
 func (f *fakeUserStore) GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error) {
+	f.calls++
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -273,5 +278,68 @@ func TestVerifyCompressesSuperAdminPermissions(t *testing.T) {
 	}
 	if got := recorder.Header().Get(HeaderPermissions); got != "*" {
 		t.Fatalf("%s = %q, want wildcard", HeaderPermissions, got)
+	}
+}
+
+// 归一化权限头缓存命中时不得触碰用户/权限存储（ForwardAuth 热路径收敛为单次 GET）。
+func TestVerifyPermissionsHeaderCacheHitSkipsStores(t *testing.T) {
+	setVerifyJWTConfig(t)
+	setupVerifyTestRedis(t)
+
+	accessToken, _, err := jwtpkg.GenerateToken(42, "alice")
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	if err := cache.NewCacheService().SetUserPermHeaderContext(context.Background(), 42, "crm:read"); err != nil {
+		t.Fatalf("seed perm header cache: %v", err)
+	}
+
+	users := &fakeUserStore{err: errors.New("user store must not be hit on cache hit")}
+	permissions := &fakePermissionStore{err: errors.New("permission store must not be hit on cache hit")}
+	recorder := performVerify(t, NewHandler(nil, users, permissions), func(req *http.Request) {
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+	})
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body = %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if got := recorder.Header().Get(HeaderPermissions); got != "crm:read" {
+		t.Fatalf("%s = %q, want cached header", HeaderPermissions, got)
+	}
+	if users.calls != 0 || permissions.calls != 0 {
+		t.Fatalf("stores hit on cache hit: users=%d permissions=%d, want 0/0", users.calls, permissions.calls)
+	}
+}
+
+// 零角色/零权限用户的空头也要进缓存：曾因 SET 结构存不了空集，这类用户每请求穿透 DB。
+func TestVerifyCachesEmptyPermissionsHeader(t *testing.T) {
+	setVerifyJWTConfig(t)
+	setupVerifyTestRedis(t)
+
+	accessToken, _, err := jwtpkg.GenerateToken(42, "alice")
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	noRoleUser := &model.User{Username: "alice", Status: 1}
+	noRoleUser.ID = 42
+	users := &fakeUserStore{user: noRoleUser}
+	permissions := &fakePermissionStore{}
+	handler := NewHandler(nil, users, permissions)
+
+	for i := 0; i < 2; i++ {
+		recorder := performVerify(t, handler, func(req *http.Request) {
+			req.Header.Set("Authorization", "Bearer "+accessToken)
+		})
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("request %d status = %d, want %d, body = %s", i+1, recorder.Code, http.StatusOK, recorder.Body.String())
+		}
+		if got := recorder.Header().Get(HeaderPermissions); got != "" {
+			t.Fatalf("request %d %s = %q, want empty", i+1, HeaderPermissions, got)
+		}
+	}
+
+	// 第二个请求必须命中空头缓存：存储只在首个请求被读一次
+	if users.calls != 1 || permissions.calls != 1 {
+		t.Fatalf("stores hit = users %d / permissions %d, want 1/1 (second request must hit empty-header cache)", users.calls, permissions.calls)
 	}
 }

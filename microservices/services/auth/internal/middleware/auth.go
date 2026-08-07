@@ -68,7 +68,7 @@ func AuthMiddleware() gin.HandlerFunc {
 				c.Abort()
 				return
 			}
-			if !consoleSessionAuthorized(c.Request.Context(), deps, claims) {
+			if !ConsoleSessionAuthorized(c.Request.Context(), deps, claims) {
 				response.UnauthorizedWithCode(c, response.ErrorCodeConsoleLoginRequired, "Console login required")
 				c.Abort()
 				return
@@ -108,7 +108,7 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-// consoleSessionAuthorized validates a cookie-borne console session.
+// ConsoleSessionAuthorized validates a cookie-borne console session.
 //
 // The uncached path costs three SELECTs and one UPDATE per request: the session
 // row, the user row with preloaded roles, and the last_seen_at touch. Both facts
@@ -120,7 +120,11 @@ func AuthMiddleware() gin.HandlerFunc {
 // Roles and permissions are deliberately not cached here. They stay on the
 // role/permission caches with their own invalidation, so a hit on this cache can
 // never hand back a privilege that was revoked.
-func consoleSessionAuthorized(ctx context.Context, deps AuthMiddlewareDependencies, claims *jwt.Claims) bool {
+//
+// Exported for the ForwardAuth verify handler: the gateway path must ride the
+// same validation cache as this middleware — verify previously re-ran the raw
+// session SELECT + user SELECT on every cookie-authenticated request.
+func ConsoleSessionAuthorized(ctx context.Context, deps AuthMiddlewareDependencies, claims *jwt.Claims) bool {
 	cacheService := cache.NewCacheService()
 	if identity, ok := cacheService.GetConsoleSessionContext(ctx, claims.ID); ok {
 		// Bind the cached entry to the presented token. Without this a session id

@@ -54,6 +54,14 @@ const (
 	KeyUserPermissionsIndex = "user:permissions:index"
 	KeyUserRoles            = "user:roles:%d"
 	KeyUserRolesIndex       = "user:roles:index"
+	// KeyUserPermHeader stores the normalized X-Auth-Permissions header string
+	// produced by the ForwardAuth verify handler ("*" / "" / "a,b,c"). A string
+	// key can hold an empty value, so users with zero roles/permissions hit the
+	// cache too — Redis SETs cannot represent an empty set, which used to send
+	// those users to the database on every request. It also collapses the hot
+	// path from "roles GET + permissions GET + sort/dedupe" into a single GET.
+	KeyUserPermHeader      = "user:permheader:%d"
+	KeyUserPermHeaderIndex = "user:permheader:index"
 )
 
 // Cache expiration durations.
@@ -64,6 +72,7 @@ const (
 	UserInfoExpire        = 1 * time.Hour
 	UserPermissionsExpire = 1 * time.Hour
 	UserRolesExpire       = 1 * time.Hour
+	UserPermHeaderExpire  = 1 * time.Hour
 )
 
 var (
@@ -240,6 +249,59 @@ func (s *CacheService) DelAllUserPermissionsContext(ctx context.Context) error {
 		pipe.Del(ctx, keys...)
 	}
 	pipe.Del(ctx, KeyUserPermissionsIndex)
+	_, err = pipe.Exec(ctx)
+	return err
+}
+
+// Normalized permissions-header cache (ForwardAuth hot path). Same invalidation
+// points as the permission/role caches: identity's
+// InvalidatePermissionCacheForUsersContext deletes this key alongside them, so a
+// hit can never outlive a permission change longer than the existing caches do.
+func (s *CacheService) GetUserPermHeaderContext(ctx context.Context, userID uint) (string, bool) {
+	key := fmt.Sprintf(KeyUserPermHeader, userID)
+	value, err := s.redisClient().Get(ctx, key).Result()
+	if err != nil {
+		return "", false
+	}
+	return value, true
+}
+
+func (s *CacheService) SetUserPermHeaderContext(ctx context.Context, userID uint, header string) error {
+	key := fmt.Sprintf(KeyUserPermHeader, userID)
+	pipe := s.redisClient().TxPipeline()
+	pipe.Set(ctx, key, header, UserPermHeaderExpire)
+	pipe.SAdd(ctx, KeyUserPermHeaderIndex, key)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func (s *CacheService) DelUserPermHeaderBatchContext(ctx context.Context, userIDs []uint) error {
+	if len(userIDs) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(userIDs))
+	for _, userID := range userIDs {
+		keys = append(keys, fmt.Sprintf(KeyUserPermHeader, userID))
+	}
+	pipe := s.redisClient().TxPipeline()
+	pipe.Del(ctx, keys...)
+	pipe.SRem(ctx, KeyUserPermHeaderIndex, stringsToAny(keys)...)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func (s *CacheService) DelAllUserPermHeadersContext(ctx context.Context) error {
+	keys, err := s.redisClient().SMembers(ctx, KeyUserPermHeaderIndex).Result()
+	if err != nil {
+		return err
+	}
+
+	pipe := s.redisClient().TxPipeline()
+	if len(keys) > 0 {
+		pipe.Del(ctx, keys...)
+	}
+	pipe.Del(ctx, KeyUserPermHeaderIndex)
 	_, err = pipe.Exec(ctx)
 	return err
 }

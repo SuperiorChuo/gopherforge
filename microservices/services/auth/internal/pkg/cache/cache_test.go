@@ -324,3 +324,47 @@ func setCacheJWTTestConfig(t *testing.T) {
 		config.Cfg.JWT = oldConfig
 	})
 }
+
+// 归一化权限头缓存：字符串键必须能存空值（零角色/零权限用户命中缓存不再穿透 DB）。
+func TestUserPermHeaderCacheRoundTrip(t *testing.T) {
+	setupCacheTestRedis(t)
+	svc := NewCacheService()
+	ctx := context.Background()
+
+	if _, ok := svc.GetUserPermHeaderContext(ctx, 42); ok {
+		t.Fatal("empty cache must miss")
+	}
+	if err := svc.SetUserPermHeaderContext(ctx, 42, "crm:read,crm:write"); err != nil {
+		t.Fatalf("set header: %v", err)
+	}
+	header, ok := svc.GetUserPermHeaderContext(ctx, 42)
+	if !ok || header != "crm:read,crm:write" {
+		t.Fatalf("get = (%q, %v), want cached header", header, ok)
+	}
+
+	// 空串是合法缓存值：命中且值为空，与「未缓存」可区分
+	if err := svc.SetUserPermHeaderContext(ctx, 43, ""); err != nil {
+		t.Fatalf("set empty header: %v", err)
+	}
+	header, ok = svc.GetUserPermHeaderContext(ctx, 43)
+	if !ok || header != "" {
+		t.Fatalf("empty header get = (%q, %v), want hit with empty value", header, ok)
+	}
+
+	if err := svc.DelUserPermHeaderBatchContext(ctx, []uint{42, 43}); err != nil {
+		t.Fatalf("del batch: %v", err)
+	}
+	if _, ok := svc.GetUserPermHeaderContext(ctx, 42); ok {
+		t.Fatal("header survived batch delete")
+	}
+
+	if err := svc.SetUserPermHeaderContext(ctx, 44, "*"); err != nil {
+		t.Fatalf("set for del-all: %v", err)
+	}
+	if err := svc.DelAllUserPermHeadersContext(ctx); err != nil {
+		t.Fatalf("del all: %v", err)
+	}
+	if _, ok := svc.GetUserPermHeaderContext(ctx, 44); ok {
+		t.Fatal("header survived del-all")
+	}
+}
