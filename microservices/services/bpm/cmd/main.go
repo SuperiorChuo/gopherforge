@@ -7,6 +7,7 @@
 package main
 
 import (
+	"github.com/go-admin-kit/services/shared/pkg/observability"
 	"context"
 	"encoding/json"
 	"log"
@@ -80,7 +81,15 @@ func main() {
 	go runCallbackLoop(scanCtx, st, cb)
 	log.Printf("bpm callback: persistent worker enabled")
 
+
+	// OpenTelemetry tracing (noop when TRACING_ENABLED != "true").
+	shutdownTracing, _ := observability.InitTracerFromEnv(context.Background(), "bpm")
+	if shutdownTracing != nil {
+		defer func() { _ = shutdownTracing(context.Background()) }()
+	}
+
 	r := gin.New()
+	r.Use(observability.GinTracing("bpm", "request_id"))
 	// HTTP 指标（GET /metrics，Prometheus 抓取）；先于 Logger 注册，抓取不刷访问日志
 	metrics.Install(r)
 	// 健康探针每 10s 一次；成功探测不进访问日志，失败（>=400）仍记录
