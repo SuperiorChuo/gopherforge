@@ -10,17 +10,16 @@ ENV GOSUMDB=sum.golang.google.cn
 
 # 构建上下文是 microservices：shared 拷到 /shared，命中 go.mod 的 replace ../shared（/app/../shared）。
 # 依赖下载层只拷两侧 go.mod/go.sum，改源码不打穿模块缓存；模块与编译缓存挂 BuildKit cache mount 做增量。
-COPY services/shared/go.mod services/shared/go.sum /shared/
-COPY services/system/go.mod services/system/go.sum ./
+# Single-module: go.mod at services/ root
+COPY services/go.mod services/go.sum ./
 
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
-COPY services/shared/ /shared/
-COPY services/system/ .
+COPY services/ .
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    go build -trimpath -o main ./cmd/main.go
+    go build -trimpath -o main ./system/cmd/main.go
 
 # 预检与 ZIP 只需要这些接入源文件；快照在构建时固化，不挂载宿主仓库。
 # 独立成阶段（不放 builder 里）：prebuilt 快路径也要快照，但不该为它触发容器内编译。
