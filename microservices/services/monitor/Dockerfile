@@ -24,13 +24,13 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     && go build -trimpath -o migrate ./cmd/migrate
 
 # Run the backend on a pinned Alpine image as an unprivileged user.
-FROM alpine:3.20 AS prebuilt
+FROM alpine:3.24 AS prebuilt
 COPY monitor/.bin/main /app/main
 COPY monitor/.bin/migrate /app/migrate
 
 FROM ${MAIN_SRC} AS main-src
 
-FROM alpine:3.20
+FROM alpine:3.24
 
 WORKDIR /app
 

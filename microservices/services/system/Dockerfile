@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 # 预检与 ZIP 只需要这些接入源文件；快照在构建时固化，不挂载宿主仓库。
 # 独立成阶段（不放 builder 里）：prebuilt 快路径也要快照，但不该为它触发容器内编译。
-FROM alpine:3.20 AS snapshot
+FROM alpine:3.24 AS snapshot
 COPY services/system/internal/api/routes.go /repository-snapshot/microservices/services/system/internal/api/routes.go
 COPY web/src/router/index.tsx /repository-snapshot/microservices/web/src/router/index.tsx
 COPY web/src/layouts/MainLayout.tsx /repository-snapshot/microservices/web/src/layouts/MainLayout.tsx
@@ -32,12 +32,12 @@ COPY services/monitor/migrations/ /repository-snapshot/microservices/services/mo
 
 # Run the system-service on a pinned Alpine image as an unprivileged user.
 # Configuration is environment-only; migrations are owned by the monolith.
-FROM alpine:3.20 AS prebuilt
+FROM alpine:3.24 AS prebuilt
 COPY services/system/.bin/main /app/main
 
 FROM ${MAIN_SRC} AS main-src
 
-FROM alpine:3.20
+FROM alpine:3.24
 
 WORKDIR /app
 

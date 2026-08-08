@@ -15,12 +15,12 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go build -trimpath -o main ./cmd/main.go
 
-FROM alpine:3.20 AS prebuilt
+FROM alpine:3.24 AS prebuilt
 COPY bpm/.bin/main /app/main
 
 FROM ${MAIN_SRC} AS main-src
 
-FROM alpine:3.20
+FROM alpine:3.24
 WORKDIR /app
 RUN apk add --no-cache tzdata wget \
     && addgroup -S app && adduser -S app -G app \
