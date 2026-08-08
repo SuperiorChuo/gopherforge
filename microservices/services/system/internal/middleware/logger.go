@@ -34,6 +34,7 @@ func RequestLogger() gin.HandlerFunc {
 
 		logger.Info("http request",
 			logger.String("request_id", GetRequestID(c)),
+			logger.String("trace_id", c.GetString("trace_id")),
 			logger.String("method", method),
 			logger.String("path", path),
 			logger.Int("status_code", statusCode),

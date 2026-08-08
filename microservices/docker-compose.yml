@@ -587,6 +587,7 @@ services:
     image: prom/prometheus:v2.54.1
     container_name: go-admin-kit-prometheus
     restart: unless-stopped
+    mem_limit: 1g
     profiles:
       - monitoring
     command:
@@ -611,6 +612,7 @@ services:
     image: prom/alertmanager:v0.27.0
     container_name: go-admin-kit-alertmanager
     restart: unless-stopped
+    mem_limit: 128m
     profiles:
       - monitoring
     environment:
@@ -633,6 +635,7 @@ services:
     image: prom/node-exporter:v1.8.2
     container_name: go-admin-kit-node-exporter
     restart: unless-stopped
+    mem_limit: 64m
     profiles:
       - monitoring
     pid: host
@@ -649,6 +652,7 @@ services:
     image: grafana/loki:3.1.1
     container_name: go-admin-kit-loki
     restart: unless-stopped
+    mem_limit: 512m
     profiles:
       - monitoring
     command:
@@ -665,6 +669,7 @@ services:
     image: grafana/promtail:3.1.1
     container_name: go-admin-kit-promtail
     restart: unless-stopped
+    mem_limit: 256m
     profiles:
       - monitoring
     command:
@@ -682,6 +687,7 @@ services:
     image: grafana/grafana:11.2.0
     container_name: go-admin-kit-grafana
     restart: unless-stopped
+    mem_limit: 512m
     profiles:
       - monitoring
     environment:
@@ -728,6 +734,7 @@ services:
     image: jaegertracing/all-in-one:1.60
     container_name: go-admin-kit-jaeger
     restart: unless-stopped
+    mem_limit: 512m
     profiles:
       - tracing
     environment:

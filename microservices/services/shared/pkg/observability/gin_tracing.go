@@ -42,6 +42,15 @@ func GinTracing(serviceName string, requestIDKey string) gin.HandlerFunc {
 		)
 		defer span.End()
 
+		// Expose the trace ID to request loggers (c.Get("trace_id")) and to
+		// clients (X-Trace-Id header) so a Loki log line or a browser devtools
+		// entry can be pivoted straight to its Jaeger trace.
+		if sc := span.SpanContext(); sc.HasTraceID() {
+			traceID := sc.TraceID().String()
+			c.Set("trace_id", traceID)
+			c.Header("X-Trace-Id", traceID)
+		}
+
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 
