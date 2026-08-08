@@ -182,11 +182,14 @@ jobs:
               seen.add(repo)
               ctx = os.path.relpath(build["context"], root)
               dockerfile = build.get("dockerfile") or "Dockerfile"
+              args = build.get("args") or {}
+              build_args = "\n".join(f"{k}={v}" for k, v in args.items())
               include.append({
                   "service": name,
                   "image": repo,
                   "context": ctx,
                   "dockerfile": os.path.normpath(os.path.join(ctx, dockerfile)),
+                  "build_args": build_args,
               })
 
           if not include:
@@ -356,6 +359,7 @@ jobs:
           # 溯源与 SBOM 证明（需要 registry 支持 OCI attestation；ghcr 支持，
           # 旧版 Harbor / 部分 ACR 不支持——那就把这两行都改成 false）。
           # 演练不推镜像时没有 exporter，attestation 一并关掉避免 buildx 报错。
+          build-args: ${{ matrix.build_args }}
           provenance: ${{ needs.meta.outputs.dry_run == 'false' && 'mode=max' || 'false' }}
           sbom: ${{ needs.meta.outputs.dry_run == 'false' }}
           cache-from: type=gha,scope=release-${{ matrix.service }}
