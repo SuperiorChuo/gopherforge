@@ -11,8 +11,7 @@ ENV GOSUMDB=sum.golang.google.cn
 # 构建上下文是 microservices/services：shared 拷到 /shared，命中 go.mod 的
 # replace ../shared（/app/../shared）。monitor 接 shared 后必须与其余 17 个
 # 服务同构，否则 docker build 里 ../shared 不存在，go mod download 直接失败。
-COPY shared/go.mod shared/go.sum /shared/
-COPY monitor/go.mod monitor/go.sum ./
+COPY go.mod go.sum ./
 
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
