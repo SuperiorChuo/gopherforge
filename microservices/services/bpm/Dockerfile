@@ -6,9 +6,8 @@ WORKDIR /app
 ENV GOPROXY=https://goproxy.cn,direct
 ENV GOSUMDB=sum.golang.google.cn
 # 构建上下文是 microservices/services：shared 拷到 /shared，命中 go.mod 的 replace ../shared（/app/../shared）。
-# 依赖下载层只拷两侧 go.mod/go.sum，改源码不打穿模块缓存；模块与编译缓存挂 BuildKit cache mount 做增量。
-COPY shared/go.mod shared/go.sum /shared/
-COPY bpm/go.mod bpm/go.sum ./
+# Single-module: go.mod at services/ root (module convergence 2026-08).
+COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY shared/ /shared/
 COPY bpm/ .
