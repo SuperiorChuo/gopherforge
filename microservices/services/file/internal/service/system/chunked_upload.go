@@ -69,9 +69,15 @@ func (s *FileService) InitChunkedUploadContext(ctx context.Context, req ChunkedI
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, false, err
 		}
-		// 断点续传：同 hash 的未完成 session 复用（保留已上传分片 bitmap）。
-		if pending, perr := s.sessionDAO.GetPendingByHashContext(ctx, req.Hash, tenantID); perr == nil && pending != nil {
+		// 断点续传：同 hash 且同 user 的未完成 session 复用（保留已上传分片 bitmap）。
+		// 按 user_id 过滤查询——否则最新 session 是别人的就会永远续传失败（新建）。
+		if pending, perr := s.sessionDAO.GetPendingByHashContext(ctx, req.Hash, tenantID, userID); perr == nil && pending != nil {
 			if pending.FileSize == req.FileSize {
+				// 同人重传且文件名变化 → 回写新文件名，避免完成时存旧名。
+				if req.FileName != "" && pending.FileName != req.FileName {
+					_ = s.sessionDAO.UpdateFileNameContext(ctx, pending.ID, req.FileName)
+					pending.FileName = req.FileName
+				}
 				return pending, false, nil
 			}
 		}

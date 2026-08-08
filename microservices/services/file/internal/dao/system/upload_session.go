@@ -35,13 +35,21 @@ func (d *UploadSessionDAO) GetByIDContext(ctx context.Context, id uint) (*model.
 }
 
 // GetPendingByHashContext returns an unfinished session for the same hash +
-// tenant (断点续传复用）。无则返回 gorm.ErrRecordNotFound。
-func (d *UploadSessionDAO) GetPendingByHashContext(ctx context.Context, hash string, tenantID uint) (*model.UploadSession, error) {
+// tenant + user (断点续传复用）。无则返回 gorm.ErrRecordNotFound。
+func (d *UploadSessionDAO) GetPendingByHashContext(ctx context.Context, hash string, tenantID, userID uint) (*model.UploadSession, error) {
 	var s model.UploadSession
 	err := d.dbWithContext(ctx).
-		Where("hash = ? AND tenant_id = ? AND status = ?", hash, tenantID, "pending").
+		Where("hash = ? AND tenant_id = ? AND user_id = ? AND status = ?", hash, tenantID, userID, "pending").
 		Order("id DESC").First(&s).Error
 	return &s, err
+}
+
+// UpdateFileNameContext rewrites the session's file name (resume with a
+// renamed local file keeps the latest name instead of the stale original).
+func (d *UploadSessionDAO) UpdateFileNameContext(ctx context.Context, id uint, fileName string) error {
+	return d.dbWithContext(ctx).Model(&model.UploadSession{}).
+		Where("id = ?", id).
+		Update("file_name", fileName).Error
 }
 
 // MarkChunkReceivedContext atomically records one received chunk: appends the
