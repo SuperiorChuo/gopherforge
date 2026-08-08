@@ -594,7 +594,7 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
     ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ../platform/deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ../platform/deploy/prometheus/rules:/etc/prometheus/rules:ro
@@ -701,7 +701,7 @@ services:
       GF_SECURITY_ALLOW_EMBEDDING: "true"
       TZ: ${TZ:-Asia/Shanghai}
     ports:
-      - "${GRAFANA_PORT:-3003}:3000"
+      - "127.0.0.1:${GRAFANA_PORT:-3003}:3000"
     volumes:
       - go_admin_kit_grafana_data:/var/lib/grafana
       - ../platform/deploy/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -720,8 +720,8 @@ services:
     command:
       - --config=/etc/otelcol/config.yaml
     ports:
-      - "${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317"
-      - "${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318"
+      - "127.0.0.1:${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317"
+      - "127.0.0.1:${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318"
     volumes:
       - ../platform/deploy/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
     depends_on:

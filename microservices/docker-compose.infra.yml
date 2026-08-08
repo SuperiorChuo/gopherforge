@@ -16,19 +16,30 @@ services:
     image: pgvector/pgvector:pg16
     container_name: go-admin-kit-postgres
     restart: unless-stopped
-    # 慢 SQL 测量：预载 pg_stat_statements（扩展本体由迁移 000029 创建）。
+    # 慢 SQL 测量：预载 pg_stat_statements（扩展本体由迁移 000031 创建）。
     # 预载库只在启动时读取，改此参数需重启 PG 容器才生效。
+    #
+    # 资源参数（出厂默认 shared_buffers=128MB / max_connections=100 太小）：
+    # - max_connections=300：预算口径为 sum(各服务副本×DB_MAX_OPEN_CONNS 默认 10)
+    #   ≈230，留 70 给迁移/psql/监控；各服务池默认值改动要回头核对这里
+    # - shared_buffers/effective_cache_size 按 31GB 共享宿主的保守份额取值
     command:
       - postgres
       - -c
       - shared_preload_libraries=pg_stat_statements
+      - -c
+      - max_connections=300
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=3GB
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
       POSTGRES_DB: ${POSTGRES_DB:-go_admin_kit}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - go_admin_kit_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -45,9 +56,9 @@ services:
     image: redis:7-alpine
     container_name: go-admin-kit-redis
     restart: unless-stopped
-    # maxmemory 护栏：无上限时 Redis 可一路吃满宿主内存。驱逐策略用
-    # volatile-lru 而非 allkeys-lru——JWT 黑名单/OAuth state 被驱逐等于已
-    # 吊销令牌复活；本项目缓存键全部带 TTL，volatile-lru 只驱逐这些。
+    # maxmemory 护栏：无上限时 Redis 可一路吃满宿主内存把混跑邻居挤进 swap。
+    # 驱逐策略用 volatile-lru 而非 allkeys-lru——JWT 黑名单/OAuth state 被驱逐
+    # 等于已吊销令牌复活；本项目缓存键全部带 TTL，volatile-lru 只驱逐这些。
     # AOF 保留：黑名单不是可再生缓存，崩溃丢失有安全语义。
     # --save "" 关掉默认 RDB（3600/300/60 规则仍会生效）：AOF 已覆盖持久化，
     # RDB 只剩 BGSAVE fork 的峰值内存翻倍代价。
@@ -61,7 +72,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - go_admin_kit_redis_data:/data
     healthcheck:
@@ -84,7 +95,7 @@ services:
       - --config
       - /etc/nats/nats.conf
     ports:
-      - "${NATS_PORT:-4222}:4222"
+      - "127.0.0.1:${NATS_PORT:-4222}:4222"
     volumes:
       - go_admin_kit_nats_data:/data
       - ../platform/deploy/nats/nats.conf:/etc/nats/nats.conf:ro
@@ -110,8 +121,8 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - go_admin_kit_minio_data:/data
     healthcheck:
