@@ -88,6 +88,7 @@ require (
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e // indirect
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect
 	github.com/tinylib/msgp v1.6.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
