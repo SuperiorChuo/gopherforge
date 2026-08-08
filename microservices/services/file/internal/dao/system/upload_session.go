@@ -34,6 +34,16 @@ func (d *UploadSessionDAO) GetByIDContext(ctx context.Context, id uint) (*model.
 	return &s, err
 }
 
+// GetPendingByHashContext returns an unfinished session for the same hash +
+// tenant (断点续传复用）。无则返回 gorm.ErrRecordNotFound。
+func (d *UploadSessionDAO) GetPendingByHashContext(ctx context.Context, hash string, tenantID uint) (*model.UploadSession, error) {
+	var s model.UploadSession
+	err := d.dbWithContext(ctx).
+		Where("hash = ? AND tenant_id = ? AND status = ?", hash, tenantID, "pending").
+		Order("id DESC").First(&s).Error
+	return &s, err
+}
+
 // MarkChunkReceivedContext atomically records one received chunk: appends the
 // part number to the bitmap and bumps the count. Returns gorm.ErrRecordNotFound
 // for missing/aborted sessions.

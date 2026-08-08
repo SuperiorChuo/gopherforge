@@ -6,9 +6,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
+	systemdao "github.com/go-admin-kit/services/file/internal/dao/system"
 	"github.com/go-admin-kit/services/file/internal/config"
 
 	"github.com/go-admin-kit/services/file/internal/model"
@@ -38,6 +40,15 @@ func (f *fakeUploadSessionDAO) GetByIDContext(_ context.Context, id uint) (*mode
 		return &model.UploadSession{}, gorm.ErrRecordNotFound
 	}
 	return s, nil
+}
+
+func (f *fakeUploadSessionDAO) GetPendingByHashContext(_ context.Context, hash string, _ uint) (*model.UploadSession, error) {
+	for _, s := range f.rows {
+		if s.Hash == hash && s.Status == "pending" {
+			return s, nil
+		}
+	}
+	return &model.UploadSession{}, gorm.ErrRecordNotFound
 }
 
 func (f *fakeUploadSessionDAO) MarkChunkReceivedContext(_ context.Context, id uint, bitmap string, count int) error {
@@ -91,6 +102,46 @@ func TestChunkPartValidation(t *testing.T) {
 	}
 	if _, err := svc.UploadChunkContext(context.Background(), 999, 1, bytes.NewReader(nil)); err != ErrChunkSessionNotFound {
 		t.Fatalf("missing session error = %v, want ErrChunkSessionNotFound", err)
+	}
+}
+
+func TestChunkResumeReusesPendingSession(t *testing.T) {
+	// fileDAO 用 sqlmock：quota 查询报错 → enforceStorageQuota fail-open（不限量）
+	db, mock := setupSystemUserServiceContextTestDB(t)
+	// 两次 Init（同 hash 续传 + 不同 size 新建）各触发 quota + hash 查询
+	for range 2 {
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT COALESCE(storage_quota_mb, 0) FROM tenant_packages WHERE id = $1`)).
+			WithArgs(uint(1)).WillReturnError(gorm.ErrRecordNotFound)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE tenant_id = $1 AND hash = $2 ORDER BY "files"."id" LIMIT $3`)).
+			WithArgs(uint(1), "abc123", 1).WillReturnError(gorm.ErrRecordNotFound)
+	}
+	svc := &FileService{sessionDAO: newFakeUploadSessionDAO(), fileDAO: *systemdao.NewFileDAO(db)}
+	sess := &model.UploadSession{ID: 1, TenantID: 1, Hash: "abc123", FileSize: 100, TotalChunks: 2, Status: "pending", ChunkSize: 5, ReceivedBitmap: "1"}
+	_ = svc.sessionDAO.CreateContext(context.Background(), sess)
+
+	// 同 hash 再次 Init → 返回既有 session（保留 bitmap），不新建
+	got, already, err := svc.InitChunkedUploadContext(context.Background(), ChunkedInitRequest{
+		FileName: "a.bin", FileSize: 100, Hash: "abc123",
+	}, 1)
+	if err != nil {
+		t.Fatalf("init resume: %v", err)
+	}
+	if already {
+		t.Fatal("resume must not report already_exists (hash not in files table)")
+	}
+	if got == nil || got.ID != 1 || got.ReceivedBitmap != "1" {
+		t.Fatalf("resume session = %+v, want id=1 bitmap=1", got)
+	}
+
+	// 不同 FileSize → 不续传，新建 session
+	got2, _, err := svc.InitChunkedUploadContext(context.Background(), ChunkedInitRequest{
+		FileName: "a.bin", FileSize: 200, Hash: "abc123",
+	}, 1)
+	if err != nil {
+		t.Fatalf("init different size: %v", err)
+	}
+	if got2 == nil || got2.ID == 1 {
+		t.Fatalf("different-size init = %+v, want new session", got2)
 	}
 }
 
