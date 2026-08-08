@@ -3,6 +3,11 @@
 // 风控通知使用。纯匿名标识，不采集任何设备属性。
 const DEVICE_ID_KEY = 'device_id'
 
+// 隐私模式兜底 ID：localStorage 抛错时退化为页面会话级（模块变量只生成一次），
+// 不能每次调用都新生成——否则每次请求 ID 都不同，服务端会判定"每次都是新设备"
+// 并频繁触发风控告警。
+let fallbackID = ''
+
 export function getDeviceID(): string {
   try {
     let id = localStorage.getItem(DEVICE_ID_KEY)
@@ -12,7 +17,9 @@ export function getDeviceID(): string {
     }
     return id
   } catch {
-    // localStorage 不可用（隐私模式等）：每次生成一个会话级 ID，尽力而为
-    return `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    if (!fallbackID) {
+      fallbackID = crypto.randomUUID ? crypto.randomUUID() : `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    }
+    return fallbackID
   }
 }

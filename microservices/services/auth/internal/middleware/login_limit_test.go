@@ -30,7 +30,7 @@ func TestLoginLimitContextMethodsHonorCanceledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	RecordLoginFailureContext(ctx, identifier, cfg)
+	RecordLoginFailureContext(ctx, identifier, "192.0.2.1", cfg)
 	if store.Exists(fmt.Sprintf("%s:%s", cfg.KeyPrefix, identifier)) {
 		t.Fatal("RecordLoginFailureContext should not write when context is canceled")
 	}
