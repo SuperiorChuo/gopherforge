@@ -25,7 +25,8 @@ var ErrFileNotFoundOrPermissionDenied = errors.New("file not found or permission
 type UploadSessionStore interface {
 	CreateContext(ctx context.Context, s *model.UploadSession) error
 	GetByIDContext(ctx context.Context, id uint) (*model.UploadSession, error)
-	GetPendingByHashContext(ctx context.Context, hash string, tenantID uint) (*model.UploadSession, error)
+	GetPendingByHashContext(ctx context.Context, hash string, tenantID, userID uint) (*model.UploadSession, error)
+	UpdateFileNameContext(ctx context.Context, id uint, fileName string) error
 	MarkChunkReceivedContext(ctx context.Context, id uint, bitmap string, count int) error
 	DeleteContext(ctx context.Context, id uint) error
 	PruneExpiredContext(ctx context.Context, before time.Time) (int64, error)

@@ -42,13 +42,29 @@ func (f *fakeUploadSessionDAO) GetByIDContext(_ context.Context, id uint) (*mode
 	return s, nil
 }
 
-func (f *fakeUploadSessionDAO) GetPendingByHashContext(_ context.Context, hash string, _ uint) (*model.UploadSession, error) {
+func (f *fakeUploadSessionDAO) GetPendingByHashContext(_ context.Context, hash string, tenantID, userID uint) (*model.UploadSession, error) {
+	// 与真实 DAO 对齐：tenant_id + user_id 过滤 + id DESC 取最新
+	var best *model.UploadSession
 	for _, s := range f.rows {
-		if s.Hash == hash && s.Status == "pending" {
-			return s, nil
+		if s.Hash == hash && s.Status == "pending" && s.TenantID == tenantID && s.UserID == userID {
+			if best == nil || s.ID > best.ID {
+				best = s
+			}
 		}
 	}
-	return &model.UploadSession{}, gorm.ErrRecordNotFound
+	if best == nil {
+		return &model.UploadSession{}, gorm.ErrRecordNotFound
+	}
+	return best, nil
+}
+
+func (f *fakeUploadSessionDAO) UpdateFileNameContext(_ context.Context, id uint, fileName string) error {
+	s, ok := f.rows[id]
+	if !ok {
+		return gorm.ErrRecordNotFound
+	}
+	s.FileName = fileName
+	return nil
 }
 
 func (f *fakeUploadSessionDAO) MarkChunkReceivedContext(_ context.Context, id uint, bitmap string, count int) error {
@@ -108,15 +124,16 @@ func TestChunkPartValidation(t *testing.T) {
 func TestChunkResumeReusesPendingSession(t *testing.T) {
 	// fileDAO 用 sqlmock：quota 查询报错 → enforceStorageQuota fail-open（不限量）
 	db, mock := setupSystemUserServiceContextTestDB(t)
-	// 两次 Init（同 hash 续传 + 不同 size 新建）各触发 quota + hash 查询
-	for range 2 {
+	// 三次 Init（同 hash 续传/不同 size 新建/跨用户拒绝）各触发 quota + hash 查询；
+	// 改名场景用独立 hash，其 mock 在下方单独注册
+	for range 3 {
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT COALESCE(storage_quota_mb, 0) FROM tenant_packages WHERE id = $1`)).
 			WithArgs(uint(1)).WillReturnError(gorm.ErrRecordNotFound)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE tenant_id = $1 AND hash = $2 ORDER BY "files"."id" LIMIT $3`)).
 			WithArgs(uint(1), "abc123", 1).WillReturnError(gorm.ErrRecordNotFound)
 	}
 	svc := &FileService{sessionDAO: newFakeUploadSessionDAO(), fileDAO: *systemdao.NewFileDAO(db)}
-	sess := &model.UploadSession{ID: 1, TenantID: 1, Hash: "abc123", FileSize: 100, TotalChunks: 2, Status: "pending", ChunkSize: 5, ReceivedBitmap: "1"}
+	sess := &model.UploadSession{ID: 1, TenantID: 1, UserID: 1, Hash: "abc123", FileSize: 100, TotalChunks: 2, Status: "pending", ChunkSize: 5, ReceivedBitmap: "1"}
 	_ = svc.sessionDAO.CreateContext(context.Background(), sess)
 
 	// 同 hash 再次 Init → 返回既有 session（保留 bitmap），不新建
@@ -142,6 +159,34 @@ func TestChunkResumeReusesPendingSession(t *testing.T) {
 	}
 	if got2 == nil || got2.ID == 1 {
 		t.Fatalf("different-size init = %+v, want new session", got2)
+	}
+
+	// 跨用户（user 2）→ 不接管 user 1 的 session，新建
+	got3, _, err := svc.InitChunkedUploadContext(context.Background(), ChunkedInitRequest{
+		FileName: "a.bin", FileSize: 100, Hash: "abc123",
+	}, 2)
+	if err != nil {
+		t.Fatalf("init cross-user: %v", err)
+	}
+	if got3 == nil || got3.ID == 1 || got3.UserID != 2 {
+		t.Fatalf("cross-user init = %+v, want new session owned by user 2", got3)
+	}
+
+	// 同人重传改名（独立 hash，避免不同-size 的 ID=2 挡在前面）→ 回写新文件名
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT COALESCE(storage_quota_mb, 0) FROM tenant_packages WHERE id = $1`)).
+		WithArgs(uint(1)).WillReturnError(gorm.ErrRecordNotFound)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE tenant_id = $1 AND hash = $2 ORDER BY "files"."id" LIMIT $3`)).
+		WithArgs(uint(1), "renamed-hash", 1).WillReturnError(gorm.ErrRecordNotFound)
+	sessRename := &model.UploadSession{TenantID: 1, UserID: 1, Hash: "renamed-hash", FileSize: 100, TotalChunks: 2, Status: "pending", ChunkSize: 5, FileName: "old.bin"}
+	_ = svc.sessionDAO.CreateContext(context.Background(), sessRename)
+	got4, _, err := svc.InitChunkedUploadContext(context.Background(), ChunkedInitRequest{
+		FileName: "renamed.bin", FileSize: 100, Hash: "renamed-hash",
+	}, 1)
+	if err != nil {
+		t.Fatalf("init rename: %v", err)
+	}
+	if got4 == nil || got4.ID != sessRename.ID || got4.FileName != "renamed.bin" {
+		t.Fatalf("rename resume = %+v, want id=%d file_name=renamed.bin", got4, sessRename.ID)
 	}
 }
 
