@@ -64,6 +64,21 @@ func TestGeneratedCodegenGoPackagesCompile(t *testing.T) {
 	if err := os.CopyFS(filepath.Join(targetServices, "shared"), os.DirFS(sharedRoot)); err != nil {
 		t.Fatalf("copy shared module: %v", err)
 	}
+	// go.mod/go.sum 在 microservices/services/（父级），不在 system/ 子目录里。
+	// 测试生成代码的 go test 需要它们——缺了就是 "go.mod file not found"。
+	moduleRoot := filepath.Clean(filepath.Join(sourceRoot, ".."))
+	for _, name := range []string{"go.mod", "go.sum"} {
+		src := filepath.Join(moduleRoot, name)
+		if _, err := os.Stat(src); err == nil {
+			data, err := os.ReadFile(src)
+			if err != nil {
+				t.Fatalf("read %s: %v", name, err)
+			}
+			if err := os.WriteFile(filepath.Join(targetServices, name), data, 0o644); err != nil {
+				t.Fatalf("copy %s to temp: %v", name, err)
+			}
+		}
+	}
 	const prefix = "microservices/services/system/"
 	for _, file := range files {
 		if !strings.HasPrefix(file.Path, prefix) || !strings.HasSuffix(file.Path, ".go") {
