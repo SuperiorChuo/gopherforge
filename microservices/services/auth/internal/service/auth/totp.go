@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base32"
+	"encoding/base64"
 	"errors"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/go-admin-kit/services/auth/internal/config"
 	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
 	"github.com/pquerna/otp/totp"
+	"github.com/skip2/go-qrcode"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -26,6 +28,9 @@ type VerifyTOTPLoginRequest struct {
 type TOTPSetupResponse struct {
 	Secret     string `json:"secret"`
 	OTPAuthURL string `json:"otp_auth_url"`
+	// QrCode 是 otpauth URL 的 base64 PNG（data:image/png;base64,...），
+	// 前端 <img> 直接渲染；前端不依赖本地 QR 生成库。
+	QrCode string `json:"qr_code"`
 }
 
 type TOTPSetupRequest struct {
@@ -78,10 +83,21 @@ func (s *UserService) GenerateTOTPSetupContext(ctx context.Context, userID uint,
 		return nil, err
 	}
 
+	qrPNG, err := totpQRCodePNG(key.URL())
+	if err != nil {
+		return nil, err
+	}
+
 	return &TOTPSetupResponse{
 		Secret:     key.Secret(),
 		OTPAuthURL: key.URL(),
+		QrCode:     "data:image/png;base64," + base64.StdEncoding.EncodeToString(qrPNG),
 	}, nil
+}
+
+// totpQRCodePNG 把 otpauth URL 渲染成二维码 PNG（authenticator 扫码绑定用）。
+func totpQRCodePNG(otpauthURL string) ([]byte, error) {
+	return qrcode.Encode(otpauthURL, qrcode.Medium, 220)
 }
 
 func (s *UserService) EnableTOTPContext(ctx context.Context, userID uint, req TOTPVerifyRequest) (*TOTPRecoveryCodesResponse, error) {

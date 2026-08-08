@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -230,6 +231,11 @@ func TestGenerateTOTPSetupContextStoresSecretDisabled(t *testing.T) {
 	}
 	if setup.Secret == "" || setup.OTPAuthURL == "" {
 		t.Fatalf("setup = %#v, want secret and URL", setup)
+	}
+	// 前端 <img> 直接渲染 qr_code（2026-08-09 修复：此前前端读 qr_code 字段
+	// 而后端只返 otp_auth_url，二维码空白、无法扫码启用 2FA）
+	if !strings.HasPrefix(setup.QrCode, "data:image/png;base64,") {
+		t.Fatalf("setup.QrCode = %q, want data:image/png;base64,...", setup.QrCode)
 	}
 }
 
