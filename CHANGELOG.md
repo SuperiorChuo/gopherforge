@@ -27,6 +27,40 @@
     auth failed-login 事件按请求租户归因；`/monitor/mysql` 页 slow_queries 接真值
     （pg_stat_activity >10s 活跃查询计数）。
 
+- **登录安全批**（2026-08-07 同步自主项目）：
+  - **设备指纹采集**：`login_logs.device_id`（首次登录/新设备识别），前端 `X-Device-ID`
+    持久化到 localStorage（跨标签页/重启保持一致）。
+  - **新设备/新 IP 登录提醒**：audit 服务检测新设备→notify 站内信推送给用户。
+  - **IP 级登录失败护盾**：同一 IP 连续失败超阈值触发临时封禁（auth 服务）。
+  - **风控修复**：DeviceID JSON tag 缺失致新设备检测失效、IPv6 护盾、OAuth
+    device_id 补全、隐私模式告警刷新修复、告警失败标注已提醒、落库失败吞告警修复、
+    console 护盾失效修复、数据范围泄漏修复。
+  - **IP 归因安全收窄**：forwardedHeaders + TRUSTED_PROXIES 补全（gwbridge
+    172.22 收窄到 /32）。
+
+- **基础设施加固**（2026-08-08/09 同步自主项目）：
+  - **登录事件 Redis Streams**：auth→audit 登录事件从 Redis pub/sub 迁移到
+    Streams，拿回 at-least-once 语义（消费确认 + 持久化）。
+  - **观测栈安全**：各服务 metrics/pprof 端口绑 127.0.0.1（不暴露到容器外）；
+    nginx frontend 容器降权为非 root 运行。
+  - **日志↔追踪联动**：`X-Request-ID` 贯穿 gin context → logger → OpenTelemetry
+    span attribute，观测栈资源限制（mem_limit）。
+  - **构建收敛**：Dockerfile 参数化统一 + bpm service 追踪补全 `InitTracerFromEnv`。
+
+- **前端依赖更新**（2026-08-07/08 同步自主项目）：
+  - react-router-dom 6.30.4→7.18.2（消除 2 moderate 安全告警）
+  - npm update 12 个 patch/minor 依赖
+
+- **前端 i18n 国际化**（2026-08-05/06 同步自主项目）：
+  - 全站 133 文件硬编码中文迁入 `t()` 层（react-i18next + key=中文原文
+    message-as-key，零 zh.json，en.json 渐进词典回落中文）
+  - 语言切换机制：antd/dayjs locale、头部按钮、localStorage 持久
+  - 门禁 `lint:i18n` 扫描展示位中文不在词典即漏网；extract/check 工具链
+  - micro en.json 子集多次重生成（同步主仓新 key，裁剪避业务域禁词）
+
+- **文档**（2026-08-07 同步自主项目）：
+  - `docs/CODE_MAP.md`：全项目代码图谱——按模块索引服务/路由/页面/关键文件/依赖关系
+
 ## [0.4.0] - 2026-08-04
 
 ### 新增
