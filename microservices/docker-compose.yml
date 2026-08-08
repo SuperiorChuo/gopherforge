@@ -134,7 +134,9 @@ services:
   auth-service:
     build:
       context: ./services
-      dockerfile: auth/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE: auth
     image: ${IMAGE_PREFIX:-go-admin-kit}-auth-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-auth
     restart: unless-stopped
@@ -209,7 +211,9 @@ services:
   identity-service:
     build:
       context: ./services
-      dockerfile: identity/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE: identity
     image: ${IMAGE_PREFIX:-go-admin-kit}-identity-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-identity
     restart: unless-stopped
@@ -322,7 +326,9 @@ services:
   audit-service:
     build:
       context: ./services
-      dockerfile: audit/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE: audit
     image: ${IMAGE_PREFIX:-go-admin-kit}-audit-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-audit
     restart: unless-stopped
@@ -373,7 +379,9 @@ services:
   file-service:
     build:
       context: ./services
-      dockerfile: file/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE: file
     image: ${IMAGE_PREFIX:-go-admin-kit}-file-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-file
     restart: unless-stopped
@@ -441,7 +449,9 @@ services:
   bpm-service:
     build:
       context: ./services
-      dockerfile: bpm/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE: bpm
     image: ${IMAGE_PREFIX:-go-admin-kit}-bpm-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-bpm
     restart: unless-stopped
