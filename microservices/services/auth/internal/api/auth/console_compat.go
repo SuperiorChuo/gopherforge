@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/go-admin-kit/services/auth/internal/events"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
 	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
+	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	authSvc "github.com/go-admin-kit/services/auth/internal/service/auth"
 	systemSvc "github.com/go-admin-kit/services/auth/internal/service/system"
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
@@ -37,10 +39,15 @@ func (a *UserAPI) LoginConsole(c *gin.Context) {
 		c.Header("Retry-After", fmt.Sprintf("%.0f", ttl.Seconds()))
 		return
 	}
+	// IP 级失败护盾（console 入口同样拦截——跨账号刷 console 的 IP 被临时屏蔽）。
+	if middleware.IsIPBlockedContext(c.Request.Context(), c.ClientIP()) {
+		response.Error(c, http.StatusTooManyRequests, "too many failed login attempts from this network, please try again later")
+		return
+	}
 
 	loginResp, err := a.userService.LoginPasswordWithAccessTTLContext(c.Request.Context(), req.Username, req.Password, time.Duration(policy.SessionTTLMinutes)*time.Minute)
 	if err != nil {
-		middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
+		middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, c.ClientIP(), loginLimitCfg)
 		a.recordConsoleAuthAudit(c, "auth.login.failed", req.Username, nil, authSvc.ConsoleAuthAttemptSnapshot(consoleAuthRequestMetadata(c), req.Username, "FAILED", "invalid_credentials"))
 		// Console login is the platform entry (default tenant by design).
 		publishLoginFailed(c, req.Username, "invalid_credentials", 1)
@@ -77,7 +84,7 @@ func (a *UserAPI) VerifyConsoleTOTPLogin(c *gin.Context) {
 
 	loginResp, err := a.userService.VerifyTOTPLoginWithAccessTTLContext(c.Request.Context(), req, time.Duration(policy.SessionTTLMinutes)*time.Minute)
 	if err != nil {
-		middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
+		middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, c.ClientIP(), loginLimitCfg)
 		a.recordConsoleAuthAudit(c, "auth.login.failed", consoleTOTPChallengeUsername(req.ChallengeID), nil, authSvc.ConsoleAuthAttemptSnapshot(consoleAuthRequestMetadata(c), consoleTOTPChallengeUsername(req.ChallengeID), "FAILED", "invalid_totp"))
 		publishLoginFailed(c, consoleTOTPChallengeUsername(req.ChallengeID), "invalid_totp", consoleTOTPChallengeTenantID(req.ChallengeID))
 		writeAuthServiceError(c, "failed to verify console totp login", err)
@@ -174,11 +181,17 @@ func (a *UserAPI) LogoutConsole(c *gin.Context) {
 }
 
 func consoleLoginLimitConfig(policy authSvc.ConsoleSecurityPolicy) middleware.LoginLimitConfig {
+	// IPShield 字段从运行时 SecurityPolicy 填充——console 路径同样受
+	// login_ip_shield_* 配置约束（否则回退硬编码 30/10/10 且不拦 IP）。
+	sec := runtimeconfig.DefaultSecurityPolicyReader().SecurityPolicy(context.Background())
 	return middleware.LoginLimitConfig{
-		Window:       time.Hour,
-		MaxFailures:  policy.LoginMaxAttemptsPerHour,
-		LockDuration: time.Duration(policy.LockoutMinutes) * time.Minute,
-		KeyPrefix:    "console_login_limit",
+		Window:                time.Hour,
+		MaxFailures:           policy.LoginMaxAttemptsPerHour,
+		LockDuration:          time.Duration(policy.LockoutMinutes) * time.Minute,
+		KeyPrefix:             "console_login_limit",
+		IPShieldWindow:        time.Duration(sec.LoginIPShieldWindowMinutes) * time.Minute,
+		IPShieldMaxFailures:   sec.LoginIPShieldMaxFailures,
+		IPShieldBlockMinutes:  time.Duration(sec.LoginIPShieldBlockMinutes) * time.Minute,
 	}
 }
 

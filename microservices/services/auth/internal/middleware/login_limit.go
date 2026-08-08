@@ -144,9 +144,12 @@ func (l *LoginLimiter) Check(config LoginLimitConfig) gin.HandlerFunc {
 	}
 }
 
-func RecordLoginFailureContext(ctx context.Context, identifier string, config LoginLimitConfig) {
+// RecordLoginFailureContext records a failed login: the per-account limiter
+// keys on identifier ("user:ip"), and the IP shield keys on the real client IP
+// passed separately — identifier slicing cannot recover IPv6 addresses.
+func RecordLoginFailureContext(ctx context.Context, identifier, ip string, config LoginLimitConfig) {
 	NewLoginLimiter().RecordFailureContext(ctx, identifier, config)
-	RecordIPFailureContext(ctx, identifier, IPFailureConfigFromLoginLimit(config))
+	RecordIPFailureContext(ctx, ip, IPFailureConfigFromLoginLimit(config))
 }
 
 // IPFailureConfigFromLoginLimit derives the IP-wide shield parameters from the
@@ -175,27 +178,26 @@ type IPFailureConfig struct {
 	KeyPrefix    string
 }
 
+// loginIPShieldPrefix is the shared Redis key prefix for the IP failure shield.
+// Both the counter/block writers and IsIPBlockedContext read it — never
+// hardcode the prefix in the lookup side (silent divergence otherwise).
+const loginIPShieldPrefix = "login_ip_fail"
+
 func DefaultIPFailureConfig() IPFailureConfig {
 	return IPFailureConfig{
 		Window:       10 * time.Minute,
 		MaxFailures:  30,
 		BlockMinutes: 10 * time.Minute,
-		KeyPrefix:    "login_ip_fail",
+		KeyPrefix:    loginIPShieldPrefix,
 	}
 }
 
 // RecordIPFailureContext bumps a per-IP failure counter and blocks the IP once
 // the threshold is crossed. Best-effort: redis unavailable is ignored.
-func RecordIPFailureContext(ctx context.Context, identifier string, cfg IPFailureConfig) {
+func RecordIPFailureContext(ctx context.Context, ip string, cfg IPFailureConfig) {
 	client := redisstore.Client
 	if client == nil {
 		return
-	}
-	ip := identifier
-	// identifier is LoginIdentifier's "user:ip" (bare IP when the username is
-	// empty); the IP is the segment after the last colon, so IPv6 works too.
-	if idx := strings.LastIndex(identifier, ":"); idx >= 0 {
-		ip = identifier[idx+1:]
 	}
 	if ip == "" || ip == ":" {
 		return
@@ -219,7 +221,7 @@ func IsIPBlockedContext(ctx context.Context, ip string) bool {
 	if client == nil {
 		return false
 	}
-	blocked, err := client.Get(ctx, "login_ip_fail:block:"+ip).Result()
+	blocked, err := client.Get(ctx, loginIPShieldPrefix+":block:"+ip).Result()
 	return err == nil && blocked == "1"
 }
 

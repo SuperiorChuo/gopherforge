@@ -100,7 +100,7 @@ func (a *UserAPI) Login(c *gin.Context) {
 	resp, err := a.userService.LoginContext(c.Request.Context(), req)
 	if err != nil {
 		if policy.LoginLimitEnabled {
-			middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
+			middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, c.ClientIP(), loginLimitCfg)
 		}
 		// Attribute the failure to the tenant the caller targeted (body or
 		// host slug), not a hardcoded default.
@@ -191,7 +191,7 @@ func (a *UserAPI) VerifyTOTPLogin(c *gin.Context) {
 	resp, err := a.userService.VerifyTOTPLoginContext(c.Request.Context(), req)
 	if err != nil {
 		if policy.LoginLimitEnabled {
-			middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, loginLimitCfg)
+			middleware.RecordLoginFailureContext(c.Request.Context(), loginIdentifier, c.ClientIP(), loginLimitCfg)
 		}
 		publishLoginFailed(c, consoleTOTPChallengeUsername(req.ChallengeID), err.Error(), consoleTOTPChallengeTenantID(req.ChallengeID))
 		writeAuthServiceError(c, "failed to verify totp login", err)
