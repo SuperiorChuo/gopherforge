@@ -61,12 +61,19 @@ func (s *FileService) InitChunkedUploadContext(ctx context.Context, req ChunkedI
 	}
 
 	if req.Hash != "" {
+		// 秒传：同 hash 已入库，跳过整个上传。
 		existing, err := s.fileDAO.GetByHashContext(ctx, req.Hash)
 		if err == nil && existing != nil && existing.TenantID == tenantID {
 			return nil, true, nil
 		}
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, false, err
+		}
+		// 断点续传：同 hash 的未完成 session 复用（保留已上传分片 bitmap）。
+		if pending, perr := s.sessionDAO.GetPendingByHashContext(ctx, req.Hash, tenantID); perr == nil && pending != nil {
+			if pending.FileSize == req.FileSize {
+				return pending, false, nil
+			}
 		}
 	}
 
