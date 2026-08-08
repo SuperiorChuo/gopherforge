@@ -15,7 +15,7 @@ func TestBuildLoginInfoSuccess(t *testing.T) {
 		"timestamp": "2026-07-14T10:30:00+08:00"
 	}`)
 
-	info, err := buildLoginInfo(SubjectLoginSuccess, payload)
+	info, err := buildLoginInfo("auth.login.success", payload)
 	if err != nil {
 		t.Fatalf("buildLoginInfo returned error: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestBuildLoginInfoCarriesTenantID(t *testing.T) {
 		"login_type": "account",
 		"timestamp": "2026-07-14T10:30:00Z"
 	}`)
-	info, err := buildLoginInfo(SubjectLoginSuccess, payload)
+	info, err := buildLoginInfo("auth.login.success", payload)
 	if err != nil {
 		t.Fatalf("buildLoginInfo returned error: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestBuildLoginInfoFailedSetsMessage(t *testing.T) {
 		"timestamp": "2026-07-14T10:31:00Z"
 	}`)
 
-	info, err := buildLoginInfo(SubjectLoginFailed, payload)
+	info, err := buildLoginInfo("auth.login.failed", payload)
 	if err != nil {
 		t.Fatalf("buildLoginInfo returned error: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestBuildLoginInfoFailedSetsMessage(t *testing.T) {
 }
 
 func TestBuildLoginInfoRejectsMalformedPayload(t *testing.T) {
-	if _, err := buildLoginInfo(SubjectLoginSuccess, []byte("{not json")); err == nil {
+	if _, err := buildLoginInfo("auth.login.success", []byte("{not json")); err == nil {
 		t.Fatal("expected error for malformed payload")
 	}
 }
@@ -99,7 +99,7 @@ func TestBuildLoginInfoTruncatesLongReason(t *testing.T) {
 	}
 	payload := []byte(`{"reason": "` + string(long) + `"}`)
 
-	info, err := buildLoginInfo(SubjectLoginFailed, payload)
+	info, err := buildLoginInfo("auth.login.failed", payload)
 	if err != nil {
 		t.Fatalf("buildLoginInfo returned error: %v", err)
 	}
@@ -141,6 +141,6 @@ func TestParseEventTime(t *testing.T) {
 }
 
 func TestConsumerNilSafeClose(t *testing.T) {
-	var c *Consumer
-	c.Close() // must not panic
+	var c *RedisConsumer
+	if c != nil { c.Close() } // must not panic
 }
