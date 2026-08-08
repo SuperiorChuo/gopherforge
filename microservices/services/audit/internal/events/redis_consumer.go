@@ -3,60 +3,139 @@ package events
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	systemsvc "github.com/go-admin-kit/services/audit/internal/service/system"
 	"github.com/redis/go-redis/v9"
 )
 
-const redisLoginEventsPattern = "auth.login.*"
+// Stream/group layout must match the auth publisher (auth:events, fields
+// subject+payload). Consumer group gives at-least-once delivery: events
+// published while audit is down (rolling update, crash) stay pending in the
+// stream and are re-read on startup — pub/sub silently dropped them.
+const (
+	streamKey     = "auth:events"
+	consumerGroup = "audit-loginlog"
+	consumerName  = "audit"
+	readBlock     = 5 * time.Second
+	readCount     = 100
+)
 
-// StartRedisLoginConsumer subscribes to auth login events via Redis pub/sub
-// and persists them as login_logs. A nil client disables consumption (returns nil, nil).
-// Uses PSubscribe for pattern-based subscription matching the auth publisher's
-// per-event channels (auth.login.success, auth.login.failed).
+// StartRedisLoginConsumer consumes auth login events from the auth:events
+// Redis Stream via a consumer group and persists them as login_logs.
+// A nil client disables consumption (returns nil, nil).
 func StartRedisLoginConsumer(ctx context.Context, client redis.UniversalClient, recorder *systemsvc.LoginLogService) (*RedisConsumer, error) {
 	if client == nil || recorder == nil {
 		return nil, nil
 	}
-	pubsub := client.PSubscribe(ctx, redisLoginEventsPattern)
-	c := &RedisConsumer{pubsub: pubsub, recorder: recorder}
+	// Idempotent group creation; BUSYGROUP means it already exists.
+	if err := client.XGroupCreateMkStream(ctx, streamKey, consumerGroup, "$").Err(); err != nil &&
+		!strings.Contains(err.Error(), "BUSYGROUP") {
+		return nil, fmt.Errorf("create consumer group: %w", err)
+	}
+	c := &RedisConsumer{client: client, recorder: recorder}
 	go c.run(ctx)
 	return c, nil
 }
 
 type RedisConsumer struct {
-	pubsub   *redis.PubSub
+	client   redis.UniversalClient
 	recorder *systemsvc.LoginLogService
 }
 
-func (c *RedisConsumer) Close() {
-	if c != nil && c.pubsub != nil {
-		c.pubsub.Close()
-	}
-}
+// Close is kept for lifecycle symmetry; the run loop exits with its context.
+func (c *RedisConsumer) Close() {}
 
 func (c *RedisConsumer) run(ctx context.Context) {
-	ch := c.pubsub.Channel()
+	// First drain this consumer's pending entries (delivered but unacked
+	// before a previous crash/restart), then switch to new messages.
+	cursor := "0"
 	for {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			return
-		case msg, ok := <-ch:
-			if !ok {
-				return
+		}
+		streams, err := c.client.XReadGroup(ctx, &redis.XReadGroupArgs{
+			Group:    consumerGroup,
+			Consumer: consumerName,
+			Streams:  []string{streamKey, cursor},
+			Count:    readCount,
+			Block:    readBlock,
+		}).Result()
+		if err != nil {
+			if errors.Is(err, redis.Nil) || errors.Is(err, context.Canceled) {
+				if ctx.Err() != nil {
+					return
+				}
+				cursor = ">" // no pending backlog left; wait for new entries
+				continue
 			}
-			c.handle(ctx, msg.Channel, msg.Payload)
+			warn("redis stream read failed", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(2 * time.Second):
+			}
+			continue
+		}
+		drained := true
+		for _, stream := range streams {
+			if len(stream.Messages) > 0 {
+				drained = false
+			}
+			for _, msg := range stream.Messages {
+				c.handle(ctx, msg)
+			}
+		}
+		// XREADGROUP with an explicit ID returns pending entries; an empty
+		// batch means the backlog is drained — switch to ">" for new ones.
+		if cursor != ">" && drained {
+			cursor = ">"
 		}
 	}
 }
 
-func (c *RedisConsumer) handle(ctx context.Context, channel, payload string) {
-	var event loginEvent
-	if err := json.Unmarshal([]byte(payload), &event); err != nil {
-		warn("malformed redis login event", fmt.Errorf("unmarshal: %w", err))
+// handle processes one stream entry and acks it. Malformed or non-login
+// entries are acked and skipped (poison messages must not loop forever);
+// persistence failures leave the entry pending for redelivery on restart.
+func (c *RedisConsumer) handle(ctx context.Context, msg redis.XMessage) {
+	subject, _ := msg.Values["subject"].(string)
+	payload, _ := msg.Values["payload"].(string)
+
+	if !strings.HasPrefix(subject, "auth.login.") {
+		c.ack(ctx, msg.ID) // e.g. auth.logout: no login-log to write
 		return
+	}
+	info, err := buildLoginInfo(subject, []byte(payload))
+	if err != nil {
+		warn("malformed redis login event", err)
+		c.ack(ctx, msg.ID)
+		return
+	}
+	writeCtx, cancel := context.WithTimeout(ctx, recordTimeout)
+	defer cancel()
+	if err := c.recorder.RecordContext(writeCtx, info); err != nil {
+		warn("login log write failed", err)
+		return // leave pending; redelivered after restart
+	}
+	c.ack(ctx, msg.ID)
+}
+
+func (c *RedisConsumer) ack(ctx context.Context, id string) {
+	if err := c.client.XAck(ctx, streamKey, consumerGroup, id).Err(); err != nil {
+		warn("stream ack failed", err)
+	}
+}
+
+// buildLoginInfo maps a raw login event to a LoginInfo. subject is the auth
+// publisher's per-event subject (auth.login.success / auth.login.failed).
+// Unhandled subjects return an error.
+func buildLoginInfo(channel string, payload []byte) (*systemsvc.LoginInfo, error) {
+	var event loginEvent
+	if err := json.Unmarshal(payload, &event); err != nil {
+		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
 	tenantID := event.TenantID
 	if tenantID == 0 {
@@ -79,11 +158,7 @@ func (c *RedisConsumer) handle(ctx context.Context, channel, payload string) {
 		info.Status = loginStatusFailed
 		info.Message = truncate(event.Reason, messageMaxLen)
 	default:
-		return
+		return nil, fmt.Errorf("unhandled channel %q", channel)
 	}
-	writeCtx, cancel := context.WithTimeout(ctx, recordTimeout)
-	defer cancel()
-	if err := c.recorder.RecordContext(writeCtx, info); err != nil {
-		warn("login log write failed", err)
-	}
+	return info, nil
 }

@@ -1,4 +1,5 @@
-// Package events publishes best-effort authentication domain events to NATS.
+// Package events publishes best-effort authentication domain events to a
+// Redis Stream (auth:events).
 //
 // Publishing must never fail or block the login path: the publisher is
 // nil-safe, publishes asynchronously with a bounded timeout, and only logs a
@@ -15,7 +16,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// NATS subjects for auth events.
+// Subjects for auth events (stored in the stream entry's subject field).
 const (
 	SubjectLoginSuccess = "auth.login.success"
 	SubjectLoginFailed  = "auth.login.failed"
@@ -33,6 +34,15 @@ const (
 
 const publishTimeout = 2 * time.Second
 const maxConcurrentPublishes = 64
+
+// StreamKey is the Redis Stream all auth events are appended to. The audit
+// service consumes it via a consumer group (at-least-once; survives consumer
+// restarts, unlike pub/sub which drops events published while it is down).
+const StreamKey = "auth:events"
+
+// streamMaxLen caps the stream via XADD MAXLEN ~ N so unconsumed events cannot
+// grow Redis unboundedly. At ~500B/event this bounds worst case to ~5MB.
+const streamMaxLen = 10000
 
 // LoginSuccessEvent is published on subject auth.login.success.
 type LoginSuccessEvent struct {
@@ -88,16 +98,24 @@ func ConnectRedis(redisClient *redis.Client) (*Publisher, error) {
 	return &Publisher{
 		transport: &redisClientAdapter{client: redisClient},
 		timeout:   publishTimeout,
+		slots:     make(chan struct{}, maxConcurrentPublishes),
 	}, nil
 }
 
-// redisClientAdapter wraps *redis.Client so it satisfies the Transport interface.
+// redisClientAdapter appends events to the auth:events Redis Stream so a
+// consumer group can deliver them at-least-once (pub/sub lost events published
+// while the consumer was down, e.g. during audit rolling updates).
 type redisClientAdapter struct {
 	client *redis.Client
 }
 
 func (a *redisClientAdapter) Publish(subject string, data []byte) error {
-	return a.client.Publish(context.Background(), subject, data).Err()
+	return a.client.XAdd(context.Background(), &redis.XAddArgs{
+		Stream: StreamKey,
+		MaxLen: streamMaxLen,
+		Approx: true,
+		Values: map[string]any{"subject": subject, "payload": data},
+	}).Err()
 }
 
 // NewPublisherWithTransport builds a Publisher over an injected transport
@@ -160,6 +178,8 @@ func (p *Publisher) publish(subject string, event any) {
 		timeout = publishTimeout
 	}
 	if p.slots == nil {
+		// Lazy fallback for hand-constructed Publishers (tests); real
+		// constructors initialise slots so concurrent logins never race here.
 		p.slots = make(chan struct{}, maxConcurrentPublishes)
 	}
 	select {
