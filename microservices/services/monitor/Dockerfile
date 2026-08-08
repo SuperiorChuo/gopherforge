@@ -15,7 +15,7 @@ COPY go.mod go.sum ./
 
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
-COPY shared/ /shared/
+COPY shared/ ./shared/
 COPY monitor/ .
 
 RUN --mount=type=cache,target=/go/pkg/mod \
