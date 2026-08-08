@@ -4,6 +4,9 @@
 ARG MAIN_SRC=builder
 FROM node:24-alpine AS builder
 
+ARG VITE_CC_SIP_WS_URL
+ENV VITE_CC_SIP_WS_URL=${VITE_CC_SIP_WS_URL}
+
 WORKDIR /app
 
 COPY package*.json ./
@@ -26,6 +29,16 @@ FROM nginx:alpine
 
 COPY --from=assets /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker-entrypoint.d/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
+RUN chmod 755 /docker-entrypoint.d/40-runtime-config.sh
+
+# nginx:alpine 默认 root；改为非 root（swarm 安全加固）。
+# nginx 需要写 /tmp（pid 文件 + client_body_temp），/var/cache/nginx 已属 nginx。
+# /var/run 是 tmpfs 不能在 build 时 chown，改 pid 路径到 /tmp/nginx.pid。
+RUN sed -i 's|pid\s*/run/nginx.pid;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf \
+    && chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /tmp /docker-entrypoint.d \
+    && chown nginx:nginx /etc/nginx/conf.d/default.conf
+USER nginx
 
 EXPOSE 80
 
