@@ -18,7 +18,7 @@ docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
 docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d   # data stack
 
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.4.0
+export IMAGE_TAG=v0.5.0
 docker compose pull && docker compose up -d --no-build                   # app stack
 ```
 

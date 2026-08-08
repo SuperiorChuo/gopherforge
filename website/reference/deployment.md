@@ -76,7 +76,7 @@ docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
 
 ```bash
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.4.0
+export IMAGE_TAG=v0.5.0
 docker compose pull                # 拉全部 8 个镜像
 docker compose up -d --no-build    # 直接用拉取的镜像，不本地构建
 ```
