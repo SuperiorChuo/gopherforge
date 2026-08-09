@@ -5,6 +5,7 @@ import {
   Modal, Steps, Space, Avatar, Table,
 } from 'antd'
 import { message } from '@/utils/feedback'
+import { copyToClipboard } from '@/utils/clipboard'
 import {
   UserOutlined, MailOutlined, PhoneOutlined, HistoryOutlined, SafetyCertificateOutlined,
 } from '@ant-design/icons'
@@ -178,12 +179,10 @@ export default function ProfilePage() {
 
   const copyRecoveryCodes = async () => {
     if (!recoveryCodes) return
-    try {
-      await navigator.clipboard.writeText(recoveryCodes.join('\n'))
-      message.success(t('已复制到剪贴板'))
-    } catch {
-      message.error(t('复制失败，请手动选择复制'))
-    }
+    // HTTP 内网环境 clipboard API 不可用，走降级（utils/clipboard）
+    const ok = await copyToClipboard(recoveryCodes.join('\n'))
+    if (ok) message.success(t('已复制到剪贴板'))
+    else message.error(t('复制失败，请手动选择复制'))
   }
 
   const handleDisableTotp = async () => {
