@@ -67,6 +67,22 @@ jobs:
       - name: Check generated OpenAPI is committed
         run: git diff --exit-code -- microservices/services/monitor/docs/openapi.json microservices/web/src/api/generated/schema.d.ts
 
+      - name: buf lint (gRPC 契约)
+        if: hashFiles('microservices/services/api/proto/buf.yaml') != ''
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          version: '1.72.0'
+
+      - name: buf lint
+        if: hashFiles('microservices/services/api/proto/buf.yaml') != ''
+        working-directory: microservices/services/api/proto
+        run: buf lint
+
+      - name: buf breaking (gRPC 契约漂移门禁)
+        if: hashFiles('microservices/services/api/proto/buf.yaml') != ''
+        working-directory: microservices/services/api/proto
+        run: buf breaking --against "https://github.com/SuperiorChuo/gopherforge.git#branch=main,subdir=microservices/services/api/proto"
+
   # shared 是 8 个服务共用的公共库（metrics/logger/response/jobbeat/mask/iploc），必须单独门禁
   shared-module:
     name: Shared Module
