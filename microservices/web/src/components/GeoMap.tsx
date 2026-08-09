@@ -1,4 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import i18n from '@/i18n/init'
 import { normalizeProvince } from '@/utils/chinaGeo'
 // 只取 URL，不把 JSON 编成 JS 模块（见 loadGeoLayers）
 import worldGeoURL from '@/assets/world-countries.json?url'
@@ -130,7 +132,9 @@ const ChinaLayer = memo(function ChinaLayer({
                 ? ({ '--heat': 0.06 + 0.3 * Math.sqrt(heat / maxHeat) } as React.CSSProperties)
                 : undefined
             }
-            onMouseMove={(e) => onTip(e, p.name, heat > 0 ? `${heat} 次登录` : '暂无登录')}
+            onMouseMove={(e) =>
+              onTip(e, p.name, heat > 0 ? i18n.t('{{n}} 次登录', { n: heat }) : i18n.t('暂无登录'))
+            }
             onMouseLeave={onTipHide}
           />
         )
@@ -192,7 +196,10 @@ const PointsLayer = memo(function PointsLayer({
         const r = Math.min(4 + Math.sqrt(pt.total) * 1.8, 15) * k
         const alarm = pt.total > 0 && pt.failed / pt.total > 0.5
         const cls = alarm ? 'geo-point geo-point-alarm' : pt.abroad ? 'geo-point geo-point-abroad' : 'geo-point'
-        const detail = pt.failed > 0 ? `${pt.total} 次登录 · 失败 ${pt.failed}` : `${pt.total} 次登录`
+        const detail =
+          pt.failed > 0
+            ? i18n.t('{{total}} 次登录 · 失败 {{failed}}', { total: pt.total, failed: pt.failed })
+            : i18n.t('{{total}} 次登录', { total: pt.total })
         return (
           <g key={pt.name} className={cls} onMouseMove={(e) => onTip(e, pt.name, detail)} onMouseLeave={onTipHide}>
             <circle className="geo-point-ripple" cx={x} cy={y} r={r} style={{ animationDelay: `${(i % 5) * 0.55}s` }} />
@@ -210,6 +217,7 @@ const PointsLayer = memo(function PointsLayer({
 })
 
 export default function GeoMap({ points, provinceTotals, height = 420 }: GeoMapProps) {
+  const { t } = useTranslation()
   const wrapRef = useRef<HTMLDivElement>(null)
   const [tip, setTip] = useState<{ x: number; y: number; below: boolean; title: string; detail: string } | null>(null)
   const [layers, setLayers] = useState(geoLayersCache)
@@ -306,7 +314,7 @@ export default function GeoMap({ points, provinceTotals, height = 420 }: GeoMapP
         viewBox={`${view.minX.toFixed(0)} ${view.minY.toFixed(0)} ${view.w.toFixed(0)} ${view.h.toFixed(0)}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label="登录地域分布图"
+        aria-label={t('登录地域分布图')}
       >
         {layers && <WorldLayer world={layers.world} />}
         {layers && (

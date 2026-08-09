@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Tabs, Card, Input, Button, Form, InputNumber, Switch, Select, Collapse, Skeleton, Tag, Space, Alert,
 } from 'antd'
 import { message } from '@/utils/feedback'
+import './styles.css'
 import {
   SaveOutlined, ReloadOutlined, SafetyOutlined, BellOutlined, CloudOutlined, SettingOutlined,
-  RobotOutlined, EnvironmentOutlined, PhoneOutlined,
+  RobotOutlined, EnvironmentOutlined, PhoneOutlined, MailOutlined,
 } from '@ant-design/icons'
 import GlassEmpty from '@/components/GlassEmpty'
 import type { SystemSetting } from '@/types'
@@ -46,6 +47,13 @@ interface FieldDef {
 }
 
 // 已知设置键的字段结构（与 server/internal/pkg/runtimeconfig 消费的字段一一对应）
+// 配置卡头部图标：按 setting_key 给每张配置卡一个品牌色图标
+const SCHEMA_ICONS: Record<string, React.ReactNode> = {
+  'ai.provider': <RobotOutlined />,
+  'notification.email': <MailOutlined />,
+  'weather.provider': <EnvironmentOutlined />,
+}
+
 const FIELD_SCHEMAS: Record<string, { title: string; fields: FieldDef[] }> = {
   'security.policy': {
     title: '安全策略',
@@ -169,9 +177,16 @@ function SchemaSettingCard({ setting, canUpdate, onSaved, save, onDelete }: {
   const [deleting, setDeleting] = useState(false)
   const doSave = save ?? upsertSetting
 
+  // 只在该卡的 setting_key 变化（挂载/切换卡）时初始化表单。依赖 [setting, form] 会让
+  // 组内任意卡保存/刷新（fetchSettings 重建全部 setting 对象引用）触发所有卡表单 reset，
+  // 静默丢弃其他卡未保存的编辑。用 ref 记 key，同 key 不重置。
+  const lastKeyRef = useRef<string | undefined>(undefined)
   useEffect(() => {
+    if (lastKeyRef.current === setting.setting_key) return
+    lastKeyRef.current = setting.setting_key
     form.setFieldsValue(setting.value_json ?? {})
-  }, [setting, form])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setting])
 
   const handleSave = async () => {
     const values = await form.validateFields().catch(() => null)
@@ -215,6 +230,9 @@ function SchemaSettingCard({ setting, canUpdate, onSaved, save, onDelete }: {
       className="setting-config-card"
       title={
         <span className="setting-card-title">
+          {SCHEMA_ICONS[setting.setting_key] && (
+            <span className="setting-card-icon">{SCHEMA_ICONS[setting.setting_key]}</span>
+          )}
           <span>{t(schema.title)}</span>
           <Tag variant="filled" className="cell-mono setting-card-key">{setting.setting_key}</Tag>
         </span>

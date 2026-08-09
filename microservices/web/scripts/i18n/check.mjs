@@ -18,8 +18,12 @@ const EN = join(SRC, 'i18n/locales/en.json')
 const VERBOSE = process.argv.includes('-v')
 
 const MIGRATED = [
+  'src/components/BpmDynamicForm.tsx',
+  'src/components/BpmInstanceTimeline.tsx',
+  'src/components/BpmResubmitModal.tsx',
   'src/components/BpmStatsPanel.tsx',
   'src/components/BpmTaskActions.tsx',
+  'src/components/GeoMap.tsx',
   'src/components/CommandPalette.tsx',
   'src/components/ErrorBoundary.tsx',
   'src/components/ExcelImportModal.tsx',
@@ -40,6 +44,9 @@ const MIGRATED = [
   'src/pages/profile/index.tsx',
   'src/pages/register/index.tsx',
   'src/pages/reset-password/index.tsx',
+  'src/pages/result/403/index.tsx',
+  'src/pages/result/404/index.tsx',
+  'src/pages/result/500/index.tsx',
   'src/pages/system/audit-log/index.tsx',
   'src/pages/system/codegen/FieldConfigTable.tsx',
   'src/pages/system/codegen/PlanPreview.tsx',
