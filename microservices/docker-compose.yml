@@ -524,7 +524,7 @@ services:
   gateway:
     # v3.6+ negotiates the Docker API version; older Traefik pins 1.24, which
     # current Docker daemons reject ("client version 1.24 is too old").
-    image: traefik:v3.6
+    image: traefik:v3.7.10
     container_name: go-admin-kit-gateway
     restart: unless-stopped
     command:
@@ -649,7 +649,7 @@ services:
   # 统一日志：Loki 存储 + promtail 采全容器 stdout，Grafana Explore 里查
   # （{service="auth"} |= "关键词"）。保留 7 天，filesystem 单机存储。
   loki:
-    image: grafana/loki:3.1.1
+    image: grafana/loki:3.7.3
     container_name: go-admin-kit-loki
     restart: unless-stopped
     mem_limit: 512m
@@ -666,7 +666,7 @@ services:
       - go-admin-kit-net
 
   promtail:
-    image: grafana/promtail:3.1.1
+    image: grafana/promtail:3.7.3
     container_name: go-admin-kit-promtail
     restart: unless-stopped
     mem_limit: 256m
@@ -684,7 +684,7 @@ services:
       - go-admin-kit-net
 
   grafana:
-    image: grafana/grafana:11.2.0
+    image: grafana/grafana:13.1.1
     container_name: go-admin-kit-grafana
     restart: unless-stopped
     mem_limit: 512m
@@ -731,14 +731,15 @@ services:
       - go-admin-kit-net
 
   jaeger:
-    image: jaegertracing/all-in-one:1.60
+    # v2 单镜像（v1 EOL 2025-12-31）。基于 OTel Collector 框架，v1 的 env
+    # COLLECTOR_OTLP_ENABLED 已失效（v2 默认收 OTLP 4317/4318 + memory 存储）。
+    image: jaegertracing/jaeger:2.20.0
     container_name: go-admin-kit-jaeger
     restart: unless-stopped
     mem_limit: 512m
     profiles:
       - tracing
     environment:
-      COLLECTOR_OTLP_ENABLED: "true"
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "${JAEGER_UI_PORT:-16686}:16686"
