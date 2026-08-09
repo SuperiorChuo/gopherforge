@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Alert, Button, Form, Input, InputNumber, Modal, Popconfirm, Skeleton, Space, Tag, Typography } from 'antd'
 import { RollbackOutlined, SendOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
@@ -40,6 +41,7 @@ function toEntries(snapshot?: Record<string, unknown>): SnapshotEntry[] {
 }
 
 export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: BpmResubmitModalProps) {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [instance, setInstance] = useState<BpmInstance | null>(null)
   const [entries, setEntries] = useState<SnapshotEntry[]>([])
@@ -72,7 +74,7 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
     return () => {
       alive = false
     }
-  }, [open, instanceId])
+  }, [open, instanceId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const setValue = (key: string, value: unknown) => {
     setEntries((prev) => prev.map((e) => (e.key === key ? { ...e, value } : e)))
@@ -93,7 +95,7 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
     setSubmitting(true)
     try {
       await resubmitInstance(instanceId, snapshot)
-      message.success('已重新提交，流程将重新流转')
+      message.success(t('已重新提交，流程将重新流转'))
       onClose()
       onDone()
     } catch {
@@ -108,7 +110,7 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
     setCanceling(true)
     try {
       await cancelInstance(instanceId)
-      message.success('流程已撤销')
+      message.success(t('流程已撤销'))
       onClose()
       onDone()
     } catch {
@@ -120,7 +122,7 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
 
   return (
     <Modal
-      title={instance ? `重新提交：${instance.title}` : '重新提交'}
+      title={instance ? t('重新提交：{{title}}', { title: instance.title }) : t('重新提交')}
       open={open}
       onCancel={onClose}
       destroyOnHidden
@@ -128,16 +130,16 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Popconfirm
-            title="撤销该流程？"
-            description="撤销后流程终止，业务对象状态由回调回写"
+            title={t('撤销该流程？')}
+            description={t('撤销后流程终止，业务对象状态由回调回写')}
             onConfirm={() => void onCancelFlow()}
           >
             <Button danger icon={<RollbackOutlined />} loading={canceling}>
-              撤销流程
+              {t('撤销流程')}
             </Button>
           </Popconfirm>
           <Space>
-            <Button onClick={onClose}>取消</Button>
+            <Button onClick={onClose}>{t('取消')}</Button>
             <Button
               type="primary"
               icon={<SendOutlined />}
@@ -145,7 +147,7 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
               disabled={loading || !instance}
               onClick={() => void onResubmit()}
             >
-              重新提交
+              {t('重新提交')}
             </Button>
           </Space>
         </div>
@@ -155,7 +157,7 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
         type="info"
         showIcon
         style={{ marginBottom: 12 }}
-        message="流程被退回到发起人，可修改表单快照后重新提交，审批链将从头重新流转"
+        message={t('流程被退回到发起人，可修改表单快照后重新提交，审批链将从头重新流转')}
       />
       {loading ? (
         <Skeleton active paragraph={{ rows: 4 }} title={false} />
@@ -188,7 +190,8 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
                   />
                 ) : (
                   <Text type="secondary" className="cell-mono">
-                    {JSON.stringify(e.value)}（只读）
+                    {JSON.stringify(e.value)}
+                    {t('（只读）')}
                   </Text>
                 )}
               </div>
@@ -196,7 +199,7 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
           ))}
         </Space>
       ) : (
-        <Text type="secondary">该实例无表单快照，可直接重新提交</Text>
+        <Text type="secondary">{t('该实例无表单快照，可直接重新提交')}</Text>
       )}
     </Modal>
   )

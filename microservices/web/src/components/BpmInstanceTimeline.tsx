@@ -28,13 +28,13 @@ function detailNumber(detail: Record<string, unknown> | undefined, key: string):
   return undefined
 }
 
-function formatFormValue(key: string, value: unknown, amountKeys?: Set<string>): string {
+function formatFormValue(t: (k: string) => string, key: string, value: unknown, amountKeys?: Set<string>): string {
   if (value === null || value === undefined || value === '') return '-'
   const isAmount = key === 'amount_cents' || amountKeys?.has(key)
   if (isAmount && typeof value === 'number') {
     return `¥${(value / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`
   }
-  if (typeof value === 'boolean') return value ? '是' : '否'
+  if (typeof value === 'boolean') return value ? t('是') : t('否')
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
 }
@@ -167,13 +167,13 @@ export default function BpmInstanceTimeline({
           {addSignTargets.length > 0 ? (
             <div style={{ marginTop: 2 }}>
               <Text type="secondary">
-                加签给：{addSignTargets.map((uid) => displayUserName(userMap, uid)).join('、')}
+                {t('加签给：')}{addSignTargets.map((uid) => displayUserName(userMap, uid)).join('、')}
               </Text>
             </div>
           ) : null}
           {comment ? (
             <div style={{ marginTop: 2 }}>
-              <Text type="secondary">意见：{comment}</Text>
+              <Text type="secondary">{t('意见：')}{comment}</Text>
             </div>
           ) : null}
         </div>
@@ -186,7 +186,7 @@ export default function BpmInstanceTimeline({
     const doingEntry = Object.entries(diagram?.nodes ?? {}).find(([, rt]) => rt.state === 'doing')
     const doingNodeId = doingEntry?.[0] ?? instance.current_node_id
     const doingName =
-      (doingNodeId ? nodeNames[doingNodeId] : '') || instance.current_node_name || '当前节点'
+      (doingNodeId ? nodeNames[doingNodeId] : '') || instance.current_node_name || t('当前节点')
     const pendingNames = (doingEntry?.[1].tasks ?? [])
       .filter((t) => t.status === 'pending')
       .map((t) => t.assignee_name || displayUserName(userMap, t.assignee_id))
@@ -197,12 +197,12 @@ export default function BpmInstanceTimeline({
         <div className="bpm-timeline-doing">
           <Space size={6} wrap>
             <Text strong style={{ color: 'var(--c-primary)' }}>
-              等待审批
+              {t('等待审批')}
             </Text>
             <Tag color="processing">{doingName}</Tag>
             {pendingNames.length > 0 && (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                待 {pendingNames.join('、')} 处理
+                {t('待 {{names}} 处理', { names: pendingNames.join('、') })}
               </Text>
             )}
           </Space>
@@ -223,9 +223,9 @@ export default function BpmInstanceTimeline({
           </Space>
           <div style={{ marginTop: 2 }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {instance.initiator_name || displayUserName(userMap, instance.initiator_id)} 发起于{' '}
+              {instance.initiator_name || displayUserName(userMap, instance.initiator_id)} {t('发起于')}{' '}
               {formatDateTime(instance.created_at)}
-              {instance.finished_at ? ` · 完成于 ${formatDateTime(instance.finished_at)}` : ''}
+              {instance.finished_at ? ` · ${t('完成于')} ${formatDateTime(instance.finished_at)}` : ''}
             </Text>
           </div>
         </div>
@@ -248,7 +248,7 @@ export default function BpmInstanceTimeline({
             return Object.entries(instance.form_snapshot!).map(([key, value]) => ({
               key,
               label: labels[key] ?? key,
-              children: formatFormValue(key, value, amountKeys),
+              children: formatFormValue(t, key, value, amountKeys),
             }))
           })()}
         />
@@ -256,7 +256,7 @@ export default function BpmInstanceTimeline({
       {timelineItems.length > 0 ? (
         <Timeline items={timelineItems} />
       ) : (
-        <Text type="secondary">暂无流转记录</Text>
+        <Text type="secondary">{t('暂无流转记录')}</Text>
       )}
     </div>
   )

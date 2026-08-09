@@ -1,5 +1,6 @@
 import { DatePicker, Form, Input, InputNumber, Radio, Select, Switch } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
+import i18n from '@/i18n/init'
 import type { BpmFormField, BpmFormSchema } from '@/api/bpm'
 
 // 声明式表单 Schema 的动态渲染器（表单构建器 M1）：通用发起页与重提弹窗
@@ -52,7 +53,7 @@ function fieldControl(f: BpmFormField) {
           min={f.min !== undefined ? f.min / 100 : 0}
           max={f.max !== undefined ? f.max / 100 : undefined}
           precision={2}
-          addonAfter="元"
+          addonAfter={i18n.t('元')}
           placeholder={f.placeholder}
         />
       )
@@ -60,7 +61,7 @@ function fieldControl(f: BpmFormField) {
       return (
         <Select
           allowClear={!f.required}
-          placeholder={f.placeholder || '请选择'}
+          placeholder={f.placeholder || i18n.t('请选择')}
           options={(f.options ?? []).map((o) => ({ value: o, label: o }))}
         />
       )
@@ -84,7 +85,7 @@ export default function BpmDynamicForm({ schema }: { schema?: BpmFormSchema | nu
           name={f.key}
           label={f.label}
           valuePropName={f.type === 'switch' ? 'checked' : 'value'}
-          rules={f.required ? [{ required: true, message: `请填写${f.label}` }] : undefined}
+          rules={f.required ? [{ required: true, message: i18n.t(`请填写${f.label}`) }] : undefined}
         >
           {fieldControl(f)}
         </Form.Item>

@@ -162,7 +162,7 @@ export default function BpmTasksPage() {
         const overdue = new Date(v).getTime() < Date.now()
         return (
           <Text type={overdue ? 'danger' : 'secondary'} style={{ fontSize: 13 }}>
-            {overdue ? t('已超时 · ') : ''}
+            {overdue ? t('已超时 ·') : ''}
             {formatDateTime(v)}
           </Text>
         )
