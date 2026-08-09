@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package audit.v1;
+
+option go_package = "github.com/go-admin-kit/services/api/gen/audit/v1;auditv1";
+
+// AuditService 审计服务 gRPC 契约（Phase 1 服务发现骨架试点）。
+service AuditService {
+  // WriteLog 写一条审计日志（对应现有 audit_logs 写入逻辑）。
+  rpc WriteLog(WriteLogRequest) returns (WriteLogResponse);
+}
+
+message WriteLogRequest {
+  // 操作者类型（operator/system/...）
+  string actor_type = 1;
+  // 操作者 ID
+  string actor_id = 2;
+  // 动作（如 login、permission.update）
+  string action = 3;
+  // 目标类型（如 user、role）
+  string target_type = 4;
+  // 目标 ID
+  string target_id = 5;
+  // 摘要文本
+  string summary = 6;
+  // 租户 ID
+  int64 tenant_id = 7;
+}
+
+message WriteLogResponse {
+  // 写入的日志 ID
+  int64 id = 1;
+}

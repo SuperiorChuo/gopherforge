@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package monitor.v1;
+
+option go_package = "github.com/go-admin-kit/services/api/gen/monitor/v1;monitorv1";
+
+// MonitorService 监控服务 gRPC 契约（Phase 1 服务发现骨架试点）。
+service MonitorService {
+  // GetSummary 返回宿主/服务健康摘要（对应监控概览卡真实数据）。
+  rpc GetSummary(GetSummaryRequest) returns (GetSummaryResponse);
+}
+
+message GetSummaryRequest {}
+
+message GetSummaryResponse {
+  // CPU 使用率（0-100）
+  int32 cpu_percent = 1;
+  // 内存用量（MB）
+  int64 mem_used_mb = 2;
+  int64 mem_total_mb = 3;
+  // 磁盘用量（MB）
+  int64 disk_used_mb = 4;
+  int64 disk_total_mb = 5;
+  // 存活服务数 / 总数（对应服务健康列表）
+  int32 services_up = 6;
+  int32 services_total = 7;
+}

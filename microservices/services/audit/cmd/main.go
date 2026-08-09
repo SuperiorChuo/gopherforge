@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -31,9 +32,12 @@ import (
 	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 	authsvc "github.com/go-admin-kit/services/audit/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/audit/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/grpcx"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
+
+	auditv1 "github.com/go-admin-kit/services/api/gen/audit/v1"
 )
 
 func setupCORS(router *gin.Engine) {
@@ -163,6 +167,54 @@ func stopOperationLogProcessor(cancel context.CancelFunc, done <-chan struct{}, 
 	case <-timer.C:
 		return fmt.Errorf("operation log processor shutdown timed out after %s", timeout)
 	}
+}
+
+// envInt 读环境变量整数，空/非法用默认值。
+func envInt(key string, def int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	return def
+}
+
+// startGRPCServer 启动 gRPC 服务并注册 Consul（Phase 1 服务发现试点）。
+// CONSUL_ADDR=disabled 时跳过注册（本机/单测不依赖 Consul）；注册失败仅告警不阻断 HTTP。
+func startGRPCServer(ctx context.Context, grpcPort int) (cleanup func(), err error) {
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
+	if err != nil {
+		return nil, fmt.Errorf("grpc listen: %w", err)
+	}
+	srv := grpcx.NewServer()
+	auditv1.RegisterAuditServiceServer(srv, api.NewAuditGRPC(database.DB))
+	go func() {
+		_ = srv.Serve(lis) // 退出时 GracefulStop 接管
+	}()
+	logger.Info("grpc server started", logger.Int("port", grpcPort))
+
+	consulAddr := os.Getenv("CONSUL_ADDR")
+	if consulAddr == "disabled" {
+		return func() { srv.GracefulStop() }, nil
+	}
+	host := grpcx.LocalIP()
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	deregister, regErr := grpcx.Register(consulAddr, grpcx.Instance{
+		ServiceName: "audit-service",
+		Host:        host,
+		Port:        grpcPort,
+	})
+	if regErr != nil {
+		logger.Warn("consul register failed（跳过，HTTP 不受影响）", logger.Err(regErr))
+	}
+	return func() {
+		if deregister != nil {
+			deregister()
+		}
+		srv.GracefulStop()
+	}, nil
 }
 
 func main() {
@@ -350,6 +402,13 @@ func run(ctx context.Context) error {
 	router.Use(middleware.ErrorHandler())
 	setupCORS(router)
 	api.SetupRoutesWithDeps(router, sharedapi.Dependencies{DB: database.DB, Redis: redis.Client})
+
+	grpcPort := envInt("GRPC_PORT", 9082)
+	grpcCleanup, err := startGRPCServer(ctx, grpcPort)
+	if err != nil {
+		return fmt.Errorf("grpc server start failed: %w", err)
+	}
+	defer grpcCleanup()
 
 	port := config.Cfg.App.Port
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: router}
