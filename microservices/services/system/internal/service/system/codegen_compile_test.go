@@ -64,19 +64,21 @@ func TestGeneratedCodegenGoPackagesCompile(t *testing.T) {
 	if err := os.CopyFS(filepath.Join(targetServices, "shared"), os.DirFS(sharedRoot)); err != nil {
 		t.Fatalf("copy shared module: %v", err)
 	}
-	// go.mod/go.sum 在 microservices/services/（父级），不在 system/ 子目录里。
-	// 测试生成代码的 go test 需要它们——缺了就是 "go.mod file not found"。
+	// Phase 1 起 system 引用 api/gen 契约包（grpc_demo），临时目录需一并复制才能编译。
+	apiRoot := filepath.Clean(filepath.Join(sourceRoot, "..", "api"))
+	if err := os.CopyFS(filepath.Join(targetServices, "api"), os.DirFS(apiRoot)); err != nil {
+		t.Fatalf("copy api module: %v", err)
+	}
+	// 模块收敛（17→1 go.mod）后，生成代码的临时目录需要 go.mod 和 go.sum
+	// 才能编译（此前各服务有独立 go.mod，system/ 目录自带）。
 	moduleRoot := filepath.Clean(filepath.Join(sourceRoot, ".."))
-	for _, name := range []string{"go.mod", "go.sum"} {
-		src := filepath.Join(moduleRoot, name)
-		if _, err := os.Stat(src); err == nil {
-			data, err := os.ReadFile(src)
-			if err != nil {
-				t.Fatalf("read %s: %v", name, err)
-			}
-			if err := os.WriteFile(filepath.Join(targetServices, name), data, 0o644); err != nil {
-				t.Fatalf("copy %s to temp: %v", name, err)
-			}
+	for _, fn := range []string{"go.mod", "go.sum"} {
+		src, err := os.ReadFile(filepath.Join(moduleRoot, fn))
+		if err != nil {
+			t.Fatalf("read %s from module root: %v", fn, err)
+		}
+		if err := os.WriteFile(filepath.Join(targetServices, fn), src, 0o644); err != nil {
+			t.Fatalf("write %s: %v", fn, err)
 		}
 	}
 	const prefix = "microservices/services/system/"

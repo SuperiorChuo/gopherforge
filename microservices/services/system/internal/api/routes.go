@@ -34,6 +34,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	onlineUserAPI := system.NewOnlineUserAPI()
 	notificationAPI := system.NewNotificationAPI()
 	weatherAPI := system.NewWeatherAPI()
+	grpcDemoAPI := system.NewGRPCDemoAPI()
 	var codegenAPI *system.CodegenAPI
 	if deps.DB != nil {
 		codegenAPI = system.NewCodegenAPIWithOptions(systemsvc.NewCodegenServiceWithDB(deps.DB), codegenAPIOptions())
@@ -77,8 +78,6 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 			protected.GET("/codegen/tables/:name/schema", middleware.PermissionMiddleware("system:codegen:list"), codegenAPI.GetSchema)
 			protected.POST("/codegen/preview", middleware.PermissionMiddleware("system:codegen:generate"), codegenAPI.Preview)
 			protected.POST("/codegen/download", middleware.PermissionMiddleware("system:codegen:generate"), codegenAPI.Download)
-			// 写入仓库是高危能力：平台管理员 + 独立权限码 + 服务端双开关
-			// （CODEGEN_WRITE_ENABLED 与 CODEGEN_REPO_ROOT，默认全关）。
 			protected.POST("/codegen/write", middleware.PlatformAdminMiddleware(), middleware.PermissionMiddleware("system:codegen:write"), codegenAPI.Write)
 		}
 
@@ -143,6 +142,9 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 
 		// 短信管理（渠道/模板/发送日志/发送），详见 routes_sms.go
 		registerSmsRoutes(router, protected, deps)
+
+		// Phase 1 演示：经 Consul 发现 + gRPC 调监控服务摘要（验证分布式链路）
+		protected.GET("/grpc-demo/monitor-summary", grpcDemoAPI.GetMonitorSummary)
 	}
 }
 
