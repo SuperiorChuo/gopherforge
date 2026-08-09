@@ -51,7 +51,7 @@ jobs:
     outputs:
       modules: ${{ steps.modules.outputs.modules }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: 从 go.work 取模块（含 shared 与 tools/dbdoc）
         id: modules
         run: |
@@ -76,9 +76,9 @@ jobs:
       matrix:
         module: ${{ fromJson(needs.discover.outputs.modules) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: microservices/${{ matrix.module }}/go.sum
@@ -175,7 +175,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: 拉取固定版本 Trivy
         run: docker pull "$TRIVY_IMAGE"
@@ -239,7 +239,7 @@ jobs:
             context: microservices/web
             dockerfile: microservices/web/Dockerfile
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: docker/setup-buildx-action@v4
 
@@ -278,9 +278,9 @@ jobs:
       run:
         working-directory: microservices/web
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
