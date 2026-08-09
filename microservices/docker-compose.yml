@@ -584,7 +584,7 @@ services:
       - go-admin-kit-net
 
   prometheus:
-    image: prom/prometheus:v2.54.1
+    image: prom/prometheus:v3.13.2
     container_name: go-admin-kit-prometheus
     restart: unless-stopped
     mem_limit: 1g
@@ -609,7 +609,7 @@ services:
   # 站内信。配置是模板：启动时 sed 把 NOTIFY_INTERNAL_TOKEN 注入 Bearer 凭据。
   # 脚手架未启 notify-service 时投递失败仅记日志，不影响其余组件。
   alertmanager:
-    image: prom/alertmanager:v0.27.0
+    image: prom/alertmanager:v0.33.1
     container_name: go-admin-kit-alertmanager
     restart: unless-stopped
     mem_limit: 128m
@@ -632,7 +632,7 @@ services:
 
   # 主机指标（磁盘/内存/CPU）：挂宿主根只读
   node-exporter:
-    image: prom/node-exporter:v1.8.2
+    image: prom/node-exporter:v1.12.1
     container_name: go-admin-kit-node-exporter
     restart: unless-stopped
     mem_limit: 64m
@@ -712,7 +712,7 @@ services:
       - go-admin-kit-net
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.111.0
+    image: otel/opentelemetry-collector-contrib:0.157.0
     container_name: go-admin-kit-otel-collector
     restart: unless-stopped
     profiles:
