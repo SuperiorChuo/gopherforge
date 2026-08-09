@@ -13,7 +13,7 @@ name: go-admin-kit-infra
 
 services:
   go-admin-kit-postgres:
-    image: pgvector/pgvector:pg18
+    image: pgvector/pgvector:0.8.6-pg18
     container_name: go-admin-kit-postgres
     restart: unless-stopped
     # 慢 SQL 测量：预载 pg_stat_statements（扩展本体由迁移 000031 创建）。
@@ -111,7 +111,7 @@ services:
       - go-admin-kit-net
 
   go-admin-kit-minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: go-admin-kit-minio
     restart: unless-stopped
     profiles:
