@@ -57,6 +57,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
       DB_NAME: ${POSTGRES_DB:-go_admin_kit}
       DB_SSLMODE: ${DB_SSLMODE:-disable}
+      DB_SEARCH_PATH: monitor_svc,public
       REDIS_HOST: go-admin-kit-redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -347,6 +348,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
       DB_NAME: ${POSTGRES_DB:-go_admin_kit}
       DB_SSLMODE: ${DB_SSLMODE:-disable}
+      DB_SEARCH_PATH: audit_svc,public
       REDIS_HOST: go-admin-kit-redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -464,6 +466,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
       DB_NAME: ${POSTGRES_DB:-go_admin_kit}
       DB_SSLMODE: ${DB_SSLMODE:-disable}
+      DB_SEARCH_PATH: bpm_svc,public
       JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
       # internal 端点共享密钥（业务方 → bpm 发起审批 / by-biz 反查）；空=禁用 /internal 端点
       BPM_INTERNAL_TOKEN: ${BPM_INTERNAL_TOKEN:-}

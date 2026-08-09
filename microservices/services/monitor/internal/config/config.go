@@ -701,6 +701,10 @@ func (c *DatabaseConfig) GetDSN() string {
 	if c.Password != "" {
 		dsn += " password=" + c.Password
 	}
+	// Phase 2B：schema-per-service——search_path 读 DB_SEARCH_PATH env（空则不追加）
+	if sp := os.Getenv("DB_SEARCH_PATH"); sp != "" {
+		dsn += " search_path=" + sp
+	}
 	return dsn
 }
 

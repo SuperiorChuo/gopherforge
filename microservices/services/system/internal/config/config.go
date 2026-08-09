@@ -30,6 +30,11 @@ type Config struct {
 	InternalToken string
 }
 
+type CodegenConfig struct {
+	WriteEnabled bool
+	RepoRoot     string
+}
+
 type NotificationConfig struct {
 	Email EmailConfig
 }
@@ -175,13 +180,6 @@ type NATSConfig struct {
 	URL string
 }
 
-// CodegenConfig 控制代码生成器的仓库写入能力。两项都必须显式配置才会接线：
-// 空 RepoRoot 不构造写入器，WriteEnabled=false 只读不写——默认全关。
-type CodegenConfig struct {
-	WriteEnabled bool
-	RepoRoot     string
-}
-
 var Cfg Config
 
 // Defaults returns the local-development configuration. Values match the
@@ -262,7 +260,7 @@ func Defaults() Config {
 			Wechat: OAuthProviderConfig{Enabled: false},
 		},
 		Security: SecurityConfig{
-			TrustedProxies:       []string{"127.0.0.1"},
+			TrustedProxies:       []string{"127.0.0.1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"},
 			PasswordMaxAgeDays:   90,
 			PasswordHistoryCount: 5,
 			Headers:              SecurityHeaders{Enabled: true, HSTS: false},
