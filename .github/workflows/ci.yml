@@ -336,7 +336,10 @@ jobs:
         working-directory: microservices
         run: |
           docker compose -p go-admin-kit ps -a || true
-          docker compose -p go-admin-kit logs --tail=100 || true
+          docker compose -p go-admin-kit logs --tail=500 || true
+          echo '::group::file-service full log (diagnose upload 500)'
+          docker compose -p go-admin-kit logs --no-log-prefix --tail=300 file-service || true
+          echo '::endgroup::'
           echo '::group::gateway (Traefik) log incl. access log'
           docker compose -p go-admin-kit logs --no-log-prefix --tail=300 gateway || true
           echo '::endgroup::'
