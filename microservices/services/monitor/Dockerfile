@@ -19,8 +19,8 @@ COPY . .
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    go build -trimpath -o main ./cmd/main.go \
-    && go build -trimpath -o migrate ./cmd/migrate
+    go build -trimpath -o main ./monitor/cmd/main.go \
+    && go build -trimpath -o migrate ./monitor/cmd/migrate
 
 # Run the backend on a pinned Alpine image as an unprivileged user.
 FROM alpine:3.20 AS prebuilt
