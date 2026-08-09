@@ -13,7 +13,7 @@ name: go-admin-kit-infra
 
 services:
   go-admin-kit-postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg18
     container_name: go-admin-kit-postgres
     restart: unless-stopped
     # 慢 SQL 测量：预载 pg_stat_statements（扩展本体由迁移 000031 创建）。
@@ -41,7 +41,8 @@ services:
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - go_admin_kit_postgres_data:/var/lib/postgresql/data
+      # PG18 镜像默认数据目录改 /var/lib/postgresql/18/docker，新 volume 隔离旧数据
+      - go_admin_kit_postgres18_data:/var/lib/postgresql/18/docker
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 30s
@@ -53,7 +54,7 @@ services:
       - go-admin-kit-net
 
   go-admin-kit-redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: go-admin-kit-redis
     restart: unless-stopped
     # maxmemory 护栏：无上限时 Redis 可一路吃满宿主内存把混跑邻居挤进 swap。
@@ -86,7 +87,7 @@ services:
       - go-admin-kit-net
 
   go-admin-kit-nats:
-    image: nats:2.10-alpine
+    image: nats:2.12-alpine
     container_name: go-admin-kit-nats
     restart: unless-stopped
     # JetStream 存储上限走配置文件：2.10 的 CLI 没有 max_file_store /
@@ -143,6 +144,8 @@ networks:
 volumes:
   # 钉住拆分前单栈（project=go-admin-kit）创建的 volume 名：存量数据零迁移直接续用；
   # 全新环境 compose 会按同名自动创建，不需要任何预处理。
+  go_admin_kit_postgres18_data:
+    name: go-admin-kit_go_admin_kit_postgres18_data
   go_admin_kit_postgres_data:
     name: go-admin-kit_go_admin_kit_postgres_data
   go_admin_kit_redis_data:
