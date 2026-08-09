@@ -275,7 +275,7 @@ func Defaults() Config {
 			Wechat: OAuthProviderConfig{Enabled: false},
 		},
 		Security: SecurityConfig{
-			TrustedProxies:       []string{"127.0.0.1"},
+			TrustedProxies:       []string{"127.0.0.1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"},
 			PasswordMaxAgeDays:   90,
 			PasswordHistoryCount: 5,
 			Headers:              SecurityHeaders{Enabled: true, HSTS: false},

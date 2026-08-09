@@ -31,6 +31,8 @@ type AppCfg struct {
 	Version string
 	Env     string
 	Port    int
+	// InternalToken 服务间内部 API 鉴权（X-Internal-Token 头校验），Phase 2C owner API。
+	InternalToken string
 }
 
 type DatabaseConfig struct {
@@ -231,7 +233,7 @@ func Defaults() Config {
 			Wechat: OAuthProviderConfig{Enabled: false},
 		},
 		Security: SecurityConfig{
-			TrustedProxies:       []string{"127.0.0.1"},
+			TrustedProxies:       []string{"127.0.0.1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"},
 			PasswordMaxAgeDays:   90,
 			PasswordHistoryCount: 5,
 			Headers:              SecurityHeaders{Enabled: true, HSTS: false},
@@ -272,6 +274,7 @@ func Load() error {
 func applyEnv(config *Config) {
 	config.App.Env = getEnvString("APP_ENV", config.App.Env)
 	config.App.Port = getEnvInt("APP_PORT", config.App.Port)
+	config.App.InternalToken = getEnvString("INTERNAL_TOKEN", config.App.InternalToken)
 
 	config.Database.Host = getEnvString("DB_HOST", config.Database.Host)
 	config.Database.Port = getEnvInt("DB_PORT", config.Database.Port)

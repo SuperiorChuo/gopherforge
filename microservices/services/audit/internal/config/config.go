@@ -44,6 +44,7 @@ type DatabaseConfig struct {
 	Password               string
 	DBName                 string
 	SSLMode                string
+	SearchPath             string
 	MaxIdleConns           int
 	MaxOpenConns           int
 	ConnMaxLifetimeSeconds int
@@ -258,7 +259,7 @@ func Defaults() Config {
 			Wechat: OAuthProviderConfig{Enabled: false},
 		},
 		Security: SecurityConfig{
-			TrustedProxies:       []string{"127.0.0.1"},
+			TrustedProxies:       []string{"127.0.0.1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"},
 			PasswordMaxAgeDays:   90,
 			PasswordHistoryCount: 5,
 			Headers:              SecurityHeaders{Enabled: true, HSTS: false},
@@ -310,6 +311,7 @@ func applyEnv(config *Config) {
 	config.Database.Password = getEnvString("DB_PASSWORD", config.Database.Password)
 	config.Database.DBName = getEnvString("DB_NAME", config.Database.DBName)
 	config.Database.SSLMode = getEnvString("DB_SSLMODE", config.Database.SSLMode)
+	config.Database.SearchPath = getEnvString("DB_SEARCH_PATH", config.Database.SearchPath)
 	config.Database.MaxIdleConns = getEnvInt("DB_MAX_IDLE_CONNS", config.Database.MaxIdleConns)
 	config.Database.MaxOpenConns = getEnvInt("DB_MAX_OPEN_CONNS", config.Database.MaxOpenConns)
 	config.Database.ConnMaxLifetimeSeconds = getEnvInt("DB_CONN_MAX_LIFETIME_SECONDS", config.Database.ConnMaxLifetimeSeconds)
@@ -582,6 +584,10 @@ func (c *DatabaseConfig) GetDSN() string {
 		c.Host, c.Port, c.User, c.DBName, sslMode)
 	if c.Password != "" {
 		dsn += " password=" + c.Password
+	}
+	// Phase 2A：schema-per-service——search_path=audit_svc,public（own 表优先，共享表兜底 public）
+	if sp := strings.TrimSpace(c.SearchPath); sp != "" {
+		dsn += " search_path=" + sp
 	}
 	return dsn
 }

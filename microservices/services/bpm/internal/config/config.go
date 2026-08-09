@@ -1,5 +1,5 @@
-// Package config 提供 bpm-service 的纯环境变量配置（轻量服务约定，
-// 不携带核心服务的完整配置框架）。
+// Package config 提供 bpm-service 的纯环境变量配置（轻量实验线服务约定，
+// 与 ticket/crm/im 一致，不携带核心服务的完整配置框架）。
 package config
 
 import (
@@ -20,16 +20,21 @@ type Config struct {
 	DBName     string
 	DBSSLMode  string
 	JWTSecret  string
-	// InternalToken 校验业务方内网调用 bpm internal 端点的
+	// InternalToken 校验业务方（CRM 等）内网调用 bpm internal 端点的
 	// X-Internal-Token；空=禁用 internal 端点（返回 503），不裸奔。
 	InternalToken string
 	// CallbackToken 终态回调业务方时携带的 X-Internal-Token（业务侧内部
-	// 端点鉴权）；空=回调不带鉴权头。
+	// 端点鉴权，如 CRM 的 CRM_INTERNAL_TOKEN）；空=回调不带鉴权头。
 	CallbackToken string
+	// Phase 2D：NATS 审计事件发布（audit.log.*）。
+	NATSURL string
 	// NotifyAPIBase + NotifyInternalToken：新待办/抄送/终态站内信；
 	// token 空=静默跳过通知（不阻断审批主流程）。
 	NotifyAPIBase       string
 	NotifyInternalToken string
+	// Phase 2C：identity owner API（按角色/部门/用户解析审批人，替代直查共享表）。
+	IdentityAPIBase       string
+	IdentityInternalToken string
 	// TimeoutScanInterval 超时提醒扫描周期（BPM_TIMEOUT_SCAN_INTERVAL，
 	// time.ParseDuration 语法，默认 5m）。
 	TimeoutScanInterval time.Duration
@@ -59,16 +64,19 @@ func build() Config {
 		JWTSecret:           getenv("JWT_SECRET", "local-dev-secret-change-me-32-chars"),
 		InternalToken:       getenv("BPM_INTERNAL_TOKEN", ""),
 		CallbackToken:       getenv("BPM_CALLBACK_TOKEN", ""),
-		NotifyAPIBase:       getenv("NOTIFY_API_BASE", ""),
+		NATSURL:             getenv("NATS_URL", ""),
+		NotifyAPIBase:       getenv("NOTIFY_API_BASE", "http://go-admin-kit-notify:8095"),
 		NotifyInternalToken: getenv("NOTIFY_INTERNAL_TOKEN", ""),
+		IdentityAPIBase:       getenv("IDENTITY_API_BASE", "http://go-admin-kit-identity:8083"),
+		IdentityInternalToken: getenv("INTERNAL_TOKEN", ""),
 		TimeoutScanInterval: getenvDuration("BPM_TIMEOUT_SCAN_INTERVAL", 5*time.Minute),
 	}
 }
 
 // validate 只硬拦"没有降级语义"的配置：JWT_SECRET 与 DB_PASSWORD。密钥不对
-// 就没有能安全退化的行为，只能拒绝启动。口径与 auth、monitor 等核心服务的
-// validateProductionSafety 一致（占位符黑名单 + 弱值黑名单 + 32 位门槛）。
-// 轻量服务不引 shared 依赖（Docker 构建上下文只含本服务目录），故为本地副本。
+// 就没有能安全退化的行为，只能拒绝启动。口径与 auth、monitor 等核心服务一致
+// （占位符黑名单 + 弱值黑名单 + 32 位门槛）。轻量服务不引 shared 依赖
+// （Docker 构建上下文只含本服务目录），故为本地副本。
 //
 // 其余鉴权密钥一律不阻断启动，改为在使用点 fail closed 或降级告警（见
 // sanitize）：阻断启动会把"少配一个可选 token"放大成整个服务起不来。
@@ -99,9 +107,6 @@ func validate(c Config) error {
 //     分支 fail closed，绝不拿开发占位符当真凭据校验。
 //   - 出站凭据（我拿凭据去调别人）：只告警不归零。抹掉只会悄悄断掉功能，
 //     安全与否取决于接收方是否校验，不该由调用方单方面降级。
-//
-// 只对"已接线"的可选能力告警：脚手架默认不带站内信服务，NOTIFY_API_BASE 为空
-// 即通道整体关闭（notifyclient.Enabled()=false），此时再提 token 缺失是噪声。
 func sanitize(c *Config) []string {
 	if !isProductionEnv(c.AppEnv) {
 		return nil
@@ -125,12 +130,8 @@ func sanitize(c *Config) []string {
 		}
 	}
 	gate("BPM_INTERNAL_TOKEN", &c.InternalToken, "internal endpoints reject all callers (503)")
-	notice("BPM_CALLBACK_TOKEN", c.CallbackToken,
-		"terminal-state callbacks go out unauthenticated (unset) or carry a token the receiver will reject")
-	if strings.TrimSpace(c.NotifyAPIBase) != "" {
-		notice("NOTIFY_INTERNAL_TOKEN", c.NotifyInternalToken,
-			"inbox push will not reach users: unset disables the channel, a placeholder gets rejected by the notification service")
-	}
+	notice("BPM_CALLBACK_TOKEN", c.CallbackToken, "terminal-state callbacks are sent without an authentication header")
+	notice("NOTIFY_INTERNAL_TOKEN", c.NotifyInternalToken, "inbox push may be rejected by notify-service")
 	return warnings
 }
 
@@ -189,23 +190,21 @@ func isWeakCredential(value string) bool {
 	return strings.HasPrefix(normalized, "dev-")
 }
 
-// isPlaceholderValue 覆盖仓库内公开出现过的占位符。dev- 前缀是通配兜底：
-// compose 里形如 dev-notify-internal-token 的开发默认值人尽皆知，任何
-// dev- 开头的值都不该当生产凭据用（也免得逐个枚举上游各服务的 token 名）。
 func isPlaceholderValue(value string) bool {
 	normalized := normalizeSecretValue(value)
 	if normalized == "" {
 		return true
 	}
 	placeholderValues := map[string]struct{}{
-		"change-me":                           {},
-		"changeme":                            {},
-		"dev-notify-internal-token":           {},
-		"local-dev-secret-change-me-32-chars": {},
-		"replace-me":                          {},
+		"change-me":                                  {},
+		"changeme":                                   {},
+		"dev-im-ai-internal-token":                   {},
+		"dev-notify-internal-token":                  {},
+		"local-dev-secret-change-me-32-chars":        {},
+		"replace-me":                                 {},
 		"replace-with-at-least-32-random-characters": {},
-		"your-password":   {},
-		"your-secret-key": {},
+		"your-password":                              {},
+		"your-secret-key":                            {},
 	}
 	if _, ok := placeholderValues[normalized]; ok {
 		return true
@@ -213,7 +212,6 @@ func isPlaceholderValue(value string) bool {
 	return strings.Contains(normalized, "change-me") ||
 		strings.Contains(normalized, "placeholder") ||
 		strings.Contains(normalized, "replace-with") ||
-		strings.HasPrefix(normalized, "dev-") ||
 		strings.HasPrefix(normalized, "your-")
 }
 
@@ -231,8 +229,13 @@ func getenvDuration(key string, fallback time.Duration) time.Duration {
 }
 
 func (c Config) DSN() string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=Asia/Shanghai",
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=Asia/Shanghai",
 		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName, c.DBSSLMode)
+	// Phase 2B：schema-per-service——search_path 读 DB_SEARCH_PATH env（空则不追加）
+	if sp := os.Getenv("DB_SEARCH_PATH"); sp != "" {
+		dsn += " search_path=" + sp
+	}
+	return dsn
 }
 
 func getenv(key, fallback string) string {
