@@ -151,6 +151,7 @@ export interface Permission {
   path?: string
   method?: string
   parent_id?: number
+  children?: Permission[]
   created_at?: string
 }
 
