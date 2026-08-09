@@ -16,3 +16,6 @@ export const updatePermission = (id: number, data: PermissionUpdateData) =>
 
 export const deletePermission = (id: number) =>
   request.delete<unknown, void>(`/api/v1/permissions/${id}`)
+
+export const getPermissionTree = () =>
+  request.get<unknown, Permission[]>('/api/v1/permissions/tree')
