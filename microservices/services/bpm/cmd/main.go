@@ -7,10 +7,11 @@
 package main
 
 import (
-	"github.com/go-admin-kit/services/shared/pkg/observability"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,16 +21,19 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	bpmv1 "github.com/go-admin-kit/services/api/gen/bpm/v1"
 	"github.com/go-admin-kit/services/bpm/internal/api"
 	"github.com/go-admin-kit/services/bpm/internal/callback"
 	"github.com/go-admin-kit/services/bpm/internal/config"
 	"github.com/go-admin-kit/services/bpm/internal/engine"
 	"github.com/go-admin-kit/services/bpm/internal/model"
-	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
 	"github.com/go-admin-kit/services/bpm/internal/store"
-	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
+	"github.com/go-admin-kit/services/shared/pkg/grpcx"
 	"github.com/go-admin-kit/services/shared/pkg/jobbeat"
 	"github.com/go-admin-kit/services/shared/pkg/metrics"
+	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
+	"github.com/go-admin-kit/services/shared/pkg/observability"
+	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 )
 
 func main() {
@@ -88,6 +92,9 @@ func main() {
 		defer func() { _ = shutdownTracing(context.Background()) }()
 	}
 
+	// Phase 3 同步（主仓）：bpm 发起审批 + 按业务对象反查 gRPC server（Consul 发现）。
+	go startBpmGRPC(cfg, srv)
+
 	r := gin.New()
 	r.Use(observability.GinTracing("bpm", "request_id"))
 	// HTTP 指标（GET /metrics，Prometheus 抓取）；先于 Logger 注册，抓取不刷访问日志
@@ -121,6 +128,39 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = httpSrv.Shutdown(ctx)
+}
+
+// startBpmGRPC 启动 bpm gRPC 服务并注册 Consul（同步主仓 Phase 3）。
+func startBpmGRPC(cfg config.Config, srv *api.Server) {
+	port := 9086
+	if v := os.Getenv("GRPC_PORT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			port = n
+		}
+	}
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		log.Printf("bpm grpc listen failed: %v", err)
+		return
+	}
+	grpcSrv := grpcx.NewServer()
+	bpmv1.RegisterBpmServiceServer(grpcSrv, api.NewBpmGRPC(srv))
+	go func() { _ = grpcSrv.Serve(lis) }()
+
+	if consulAddr := os.Getenv("CONSUL_ADDR"); consulAddr != "disabled" {
+		host := grpcx.LocalIP()
+		if host == "" {
+			host = "127.0.0.1"
+		}
+		if deregister, regErr := grpcx.Register(consulAddr, grpcx.Instance{
+			ServiceName: "bpm-service",
+			Host:        host,
+			Port:        port,
+		}); regErr == nil {
+			defer deregister()
+		}
+	}
+	select {}
 }
 
 const callbackMaxAttempts = 8

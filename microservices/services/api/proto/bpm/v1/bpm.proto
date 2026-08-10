@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package bpm.v1;
+
+option go_package = "github.com/go-admin-kit/services/api/gen/bpm/v1;bpmv1";
+
+// BpmService 审批流内部 gRPC 契约（Phase 3：发起审批从 HTTP 迁 gRPC）。
+// 供 crm 等经 Consul 发现 + gRPC 调 bpm。
+service BpmService {
+  // StartInstance 发起流程实例（审批）。
+  rpc StartInstance(StartInstanceRequest) returns (StartInstanceResponse);
+  // InstancesByBiz 按 (biz_type,biz_id) 反查实例列表（在途+历史）。
+  rpc InstancesByBiz(InstancesByBizRequest) returns (InstancesByBizResponse);
+}
+
+message StartInstanceRequest {
+  uint64 tenant_id = 1;
+  string definition_key = 2;
+  string title = 3;
+  string biz_type = 4;
+  string biz_id = 5;
+  // 表单快照 / 变量：JSON 字节。
+  bytes form_snapshot = 6;
+  bytes variables = 7;
+  uint64 initiator_id = 8;
+  uint64 initiator_dept = 9;
+}
+
+message StartInstanceResponse {
+  uint64 instance_id = 1;
+  string status = 2;
+}
+
+message InstancesByBizRequest {
+  uint64 tenant_id = 1;
+  string biz_type = 2;
+  string biz_id = 3;
+}
+
+message InstancesByBizResponse {
+  // 原样 JSON：{"list":[ProcessInstance...]}，与 /internal/instances/by-biz 一致（透传）。
+  bytes json = 1;
+}
