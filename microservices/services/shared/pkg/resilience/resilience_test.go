@@ -221,24 +221,64 @@ func TestDoBreakerIgnoresPermanentFailures(t *testing.T) {
 	}
 }
 
-// 熔断器并发安全：多个 goroutine 同时 Allow/Failure/Success 不 panic、状态一致。
+// ErrTransient：不重试（超时歧义）但计入熔断——防「服务变慢但健康」场景不触发熔断。
+func TestDoErrTransientCountsBreaker(t *testing.T) {
+	b := NewBreaker(1, time.Hour)
+	var calls int
+	err := Do(context.Background(), Options{MaxRetries: 3, CircuitBreaker: b}, func(context.Context) error {
+		calls++
+		return fmt.Errorf("%w: timeout", ErrTransient)
+	})
+	if !errors.Is(err, ErrTransient) {
+		t.Fatalf("want ErrTransient, got %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("ErrTransient 不应重试，实际 %d", calls)
+	}
+	if b.Allow() {
+		t.Fatal("ErrTransient 应计入熔断（1 次即达阈值 1）")
+	}
+}
+
+// 熔断器确定性语义：固定序列下 Success 重置计数、连续失败达阈值打开。
+func TestBreakerFixedSequence(t *testing.T) {
+	b := NewBreaker(3, time.Hour)
+	b.Failure()
+	b.Success() // 重置
+	b.Failure()
+	b.Failure() // 连续 2 次，未达 3
+	if !b.Allow() {
+		t.Fatal("2 次失败未达阈值 3 不应熔断")
+	}
+	b.Failure() // 连续 3 次
+	if b.Allow() {
+		t.Fatal("3 次连续失败应熔断")
+	}
+	b.Success()
+	if !b.Allow() {
+		t.Fatal("Success 应关闭熔断")
+	}
+}
+
+// 熔断器并发安全：多个 goroutine 同时 Allow/Failure/Success 不 panic、无 data race。
+// 并发序列不确定，最终态不在此断言（确定性语义由 TestBreakerFixedSequence 等覆盖）。
 func TestBreakerConcurrency(t *testing.T) {
-	b := NewBreaker(10, time.Hour)
+	b := NewBreaker(5, time.Hour)
 	var wg sync.WaitGroup
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			if i%2 == 0 {
+			switch i % 3 {
+			case 0:
 				b.Success()
-			} else {
+			case 1:
 				b.Failure()
+			default:
+				_ = b.Allow()
 			}
-			_ = b.Allow()
 		}(i)
 	}
 	wg.Wait()
-	if !b.Allow() {
-		t.Fatal("10 阈值 + 交错成功不应熔断")
-	}
+	_ = b.Allow()
 }
