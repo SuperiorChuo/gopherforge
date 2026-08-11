@@ -142,5 +142,7 @@ func TestParseEventTime(t *testing.T) {
 
 func TestConsumerNilSafeClose(t *testing.T) {
 	var c *RedisConsumer
-	if c != nil { c.Close() } // must not panic
+	if c != nil {
+		c.Close()
+	} // must not panic
 }

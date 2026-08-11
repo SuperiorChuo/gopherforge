@@ -5,8 +5,8 @@ import (
 
 	"gorm.io/gorm"
 
-	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 )
 
 // ErrCodeDAO 错误码表数据访问层。

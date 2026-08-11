@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/monitor/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/monitor/internal/pkg/redis"
 	"github.com/go-admin-kit/services/monitor/internal/pkg/tenantctx"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 

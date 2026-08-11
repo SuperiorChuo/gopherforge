@@ -7,7 +7,8 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -17,7 +18,7 @@ func TestResolveUserDataScopeFallbacks(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		user          *model.User
+		user          *localmodel.User
 		wantScope     DataScope
 		wantUserID    uint
 		wantDeptID    uint
@@ -33,7 +34,7 @@ func TestResolveUserDataScopeFallbacks(t *testing.T) {
 		},
 		{
 			name: "no roles falls back to self scope",
-			user: &model.User{
+			user: &localmodel.User{
 				ID:           42,
 				DepartmentID: 7,
 			},
@@ -44,7 +45,7 @@ func TestResolveUserDataScopeFallbacks(t *testing.T) {
 		},
 		{
 			name: "unknown role keeps self scope and role metadata",
-			user: &model.User{
+			user: &localmodel.User{
 				ID:           43,
 				DepartmentID: 8,
 				Roles: []model.Role{
@@ -60,7 +61,7 @@ func TestResolveUserDataScopeFallbacks(t *testing.T) {
 		},
 		{
 			name: "configured department scope wins over self fallback",
-			user: &model.User{
+			user: &localmodel.User{
 				ID:           44,
 				DepartmentID: 9,
 				Roles: []model.Role{
@@ -76,7 +77,7 @@ func TestResolveUserDataScopeFallbacks(t *testing.T) {
 		},
 		{
 			name: "dept admin starts with own department as tree fallback",
-			user: &model.User{
+			user: &localmodel.User{
 				ID:           45,
 				DepartmentID: 10,
 				Roles: []model.Role{
@@ -92,7 +93,7 @@ func TestResolveUserDataScopeFallbacks(t *testing.T) {
 		},
 		{
 			name: "custom scope uses inline department ids before database fallback",
-			user: &model.User{
+			user: &localmodel.User{
 				ID:           46,
 				DepartmentID: 11,
 				Roles: []model.Role{
@@ -117,7 +118,7 @@ func TestResolveUserDataScopeFallbacks(t *testing.T) {
 		},
 		{
 			name: "admin can access all",
-			user: &model.User{
+			user: &localmodel.User{
 				ID:           47,
 				DepartmentID: 16,
 				Roles: []model.Role{
@@ -133,7 +134,7 @@ func TestResolveUserDataScopeFallbacks(t *testing.T) {
 		},
 		{
 			name: "zero department does not invent department ids",
-			user: &model.User{
+			user: &localmodel.User{
 				ID: 48,
 			},
 			wantScope:  DataScopeSelf,
@@ -177,7 +178,7 @@ func TestResolveUserDataScopeFallbackContextReturnsSelfScopeOnDependencyError(t 
 	injectedErr := errors.New("department tree unavailable")
 	resolver := NewDataScopeResolver(&stubDataScopeStore{departmentErr: injectedErr})
 
-	got := resolver.ResolveUserDataScopeFallbackContext(context.Background(), &model.User{
+	got := resolver.ResolveUserDataScopeFallbackContext(context.Background(), &localmodel.User{
 		ID:           42,
 		DepartmentID: 7,
 		Roles: []model.Role{
@@ -203,7 +204,7 @@ func TestResolveUserDataScopeContextReturnsDependencyError(t *testing.T) {
 	injectedErr := errors.New("department tree unavailable")
 	resolver := NewDataScopeResolver(&stubDataScopeStore{departmentErr: injectedErr})
 
-	_, err := resolver.ResolveUserDataScopeContext(context.Background(), &model.User{
+	_, err := resolver.ResolveUserDataScopeContext(context.Background(), &localmodel.User{
 		ID:           42,
 		DepartmentID: 7,
 		Roles: []model.Role{

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	sharedDAO "github.com/go-admin-kit/services/file/internal/dao"
-	"github.com/go-admin-kit/services/file/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 

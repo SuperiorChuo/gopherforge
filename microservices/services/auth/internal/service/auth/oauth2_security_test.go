@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-admin-kit/services/auth/internal/model"
+	localmodel "github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -35,9 +35,9 @@ func TestValidateRejectsDangerousRedirectURIs(t *testing.T) {
 	svc := OAuth2ClientService{}
 	base := ClientMutation{
 		Name:       "app",
-		ClientType: model.OAuth2ClientConfidential,
+		ClientType: localmodel.OAuth2ClientConfidential,
 		Scopes:     []string{"profile"},
-		GrantTypes: []string{model.GrantAuthorizationCode},
+		GrantTypes: []string{localmodel.GrantAuthorizationCode},
 	}
 	bad := []string{
 		"javascript:alert(1)",
@@ -64,10 +64,10 @@ func TestValidatePublicClientCannotUseClientCredentials(t *testing.T) {
 	svc := OAuth2ClientService{}
 	m := ClientMutation{
 		Name:         "spa",
-		ClientType:   model.OAuth2ClientPublic,
+		ClientType:   localmodel.OAuth2ClientPublic,
 		RedirectURIs: []string{"https://spa.example.com/cb"},
 		Scopes:       []string{"openid"},
-		GrantTypes:   []string{model.GrantClientCredentials},
+		GrantTypes:   []string{localmodel.GrantClientCredentials},
 	}
 	if err := svc.validate(m); err == nil {
 		t.Error("public client with client_credentials should be rejected")
@@ -78,10 +78,10 @@ func TestValidateRejectsUnsupportedScope(t *testing.T) {
 	svc := OAuth2ClientService{}
 	m := ClientMutation{
 		Name:         "app",
-		ClientType:   model.OAuth2ClientConfidential,
+		ClientType:   localmodel.OAuth2ClientConfidential,
 		RedirectURIs: []string{"https://app.example.com/cb"},
 		Scopes:       []string{"profile", "admin:all"},
-		GrantTypes:   []string{model.GrantAuthorizationCode},
+		GrantTypes:   []string{localmodel.GrantAuthorizationCode},
 	}
 	if err := svc.validate(m); err == nil {
 		t.Error("unsupported scope admin:all should be rejected")

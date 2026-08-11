@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
@@ -71,7 +71,7 @@ func TestCheckJobHealthReportsAbnormalJobs(t *testing.T) {
 	olderRun := now.Add(-2 * time.Hour)
 
 	dao := &fakeJobDAO{
-		jobs: []model.ScheduledJob{
+		jobs: []localmodel.ScheduledJob{
 			{
 				ID:             1,
 				Name:           "healthy",
@@ -104,7 +104,7 @@ func TestCheckJobHealthReportsAbnormalJobs(t *testing.T) {
 				LastRunTime:    &olderRun,
 			},
 		},
-		logs: map[uint][]model.ScheduledJobLog{
+		logs: map[uint][]localmodel.ScheduledJobLog{
 			1: {
 				{JobID: 1, Status: 1, CreatedAt: now.Add(-30 * time.Minute), Message: "ok"},
 			},
@@ -159,7 +159,7 @@ func TestNewJobServiceCanSkipActiveJobBootstrap(t *testing.T) {
 func TestJobServiceStopClearsScheduledJobsAndIsIdempotent(t *testing.T) {
 	service := newJobService(&fakeJobDAO{}, false)
 
-	job := model.ScheduledJob{
+	job := localmodel.ScheduledJob{
 		ID:             10,
 		Name:           "cleanup",
 		CronExpression: "0 * * * * *",
@@ -195,7 +195,7 @@ func TestJobServiceStopWaitsForRunningJobs(t *testing.T) {
 	}
 	service := newJobService(dao, false)
 
-	job := model.ScheduledJob{
+	job := localmodel.ScheduledJob{
 		ID:             11,
 		Name:           "blocking-cleanup",
 		CronExpression: "* * * * * *",
@@ -248,8 +248,8 @@ func sortedKeys(values map[uint]string) []uint {
 }
 
 type fakeJobDAO struct {
-	jobs              []model.ScheduledJob
-	logs              map[uint][]model.ScheduledJobLog
+	jobs              []localmodel.ScheduledJob
+	logs              map[uint][]localmodel.ScheduledJobLog
 	cleanupBefore     time.Time
 	cleanupRows       int64
 	cleanupStarted    chan struct{}
@@ -259,7 +259,7 @@ type fakeJobDAO struct {
 	mu                sync.Mutex
 }
 
-func (d *fakeJobDAO) GetJobByIDContext(ctx context.Context, id uint) (*model.ScheduledJob, error) {
+func (d *fakeJobDAO) GetJobByIDContext(ctx context.Context, id uint) (*localmodel.ScheduledJob, error) {
 	d.contextMarker = ctx.Value(jobContextTestKey{})
 	for i := range d.jobs {
 		if d.jobs[i].ID == id {
@@ -269,18 +269,18 @@ func (d *fakeJobDAO) GetJobByIDContext(ctx context.Context, id uint) (*model.Sch
 	return nil, gorm.ErrRecordNotFound
 }
 
-func (d *fakeJobDAO) GetJobListContext(ctx context.Context, req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error) {
+func (d *fakeJobDAO) GetJobListContext(ctx context.Context, req pagination.PageRequest, name string, status *int8) ([]localmodel.ScheduledJob, int64, error) {
 	d.contextMarker = ctx.Value(jobContextTestKey{})
 	return d.jobs, int64(len(d.jobs)), nil
 }
 
-func (d *fakeJobDAO) CreateJobContext(ctx context.Context, job *model.ScheduledJob) error {
+func (d *fakeJobDAO) CreateJobContext(ctx context.Context, job *localmodel.ScheduledJob) error {
 	d.contextMarker = ctx.Value(jobContextTestKey{})
 	d.jobs = append(d.jobs, *job)
 	return nil
 }
 
-func (d *fakeJobDAO) UpdateJobContext(ctx context.Context, job *model.ScheduledJob) error {
+func (d *fakeJobDAO) UpdateJobContext(ctx context.Context, job *localmodel.ScheduledJob) error {
 	d.contextMarker = ctx.Value(jobContextTestKey{})
 	for i := range d.jobs {
 		if d.jobs[i].ID == job.ID {
@@ -302,21 +302,21 @@ func (d *fakeJobDAO) DeleteJobContext(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (d *fakeJobDAO) CreateJobLogContext(ctx context.Context, log *model.ScheduledJobLog) error {
+func (d *fakeJobDAO) CreateJobLogContext(ctx context.Context, log *localmodel.ScheduledJobLog) error {
 	d.contextMarker = ctx.Value(jobContextTestKey{})
 	if d.logs == nil {
-		d.logs = map[uint][]model.ScheduledJobLog{}
+		d.logs = map[uint][]localmodel.ScheduledJobLog{}
 	}
 	d.logs[log.JobID] = append(d.logs[log.JobID], *log)
 	return nil
 }
 
-func (d *fakeJobDAO) GetAllActiveJobsContext(ctx context.Context) ([]model.ScheduledJob, error) {
+func (d *fakeJobDAO) GetAllActiveJobsContext(ctx context.Context) ([]localmodel.ScheduledJob, error) {
 	d.contextMarker = ctx.Value(jobContextTestKey{})
 	if d.panicOnActiveJobs {
 		panic("GetAllActiveJobs should not be called")
 	}
-	activeJobs := make([]model.ScheduledJob, 0, len(d.jobs))
+	activeJobs := make([]localmodel.ScheduledJob, 0, len(d.jobs))
 	for _, job := range d.jobs {
 		if job.Status == 1 {
 			activeJobs = append(activeJobs, job)
@@ -325,7 +325,7 @@ func (d *fakeJobDAO) GetAllActiveJobsContext(ctx context.Context) ([]model.Sched
 	return activeJobs, nil
 }
 
-func (d *fakeJobDAO) GetAllJobsContext(ctx context.Context) ([]model.ScheduledJob, error) {
+func (d *fakeJobDAO) GetAllJobsContext(ctx context.Context) ([]localmodel.ScheduledJob, error) {
 	d.contextMarker = ctx.Value(jobContextTestKey{})
 	return d.jobs, nil
 }
@@ -390,7 +390,7 @@ func (d *fakeJobDAO) GetLatestJobRunTimeContext(ctx context.Context) (*time.Time
 	return latest, nil
 }
 
-func (d *fakeJobDAO) GetLatestJobLogContext(ctx context.Context, jobID uint) (*model.ScheduledJobLog, error) {
+func (d *fakeJobDAO) GetLatestJobLogContext(ctx context.Context, jobID uint) (*localmodel.ScheduledJobLog, error) {
 	d.contextMarker = ctx.Value(jobContextTestKey{})
 	logs := d.logs[jobID]
 	if len(logs) == 0 {
@@ -408,10 +408,10 @@ func (d *fakeJobDAO) GetLatestJobLogContext(ctx context.Context, jobID uint) (*m
 
 // GetJobLogListContext 是分页查询桩：jobID=0 表示不过滤任务，success 为 nil
 // 表示不过滤结果。这里不实现真分页，够断言过滤条件被正确透传即可。
-func (d *fakeJobDAO) GetJobLogListContext(ctx context.Context, _ pagination.PageRequest, jobID uint, success *int8) ([]model.ScheduledJobLog, int64, error) {
+func (d *fakeJobDAO) GetJobLogListContext(ctx context.Context, _ pagination.PageRequest, jobID uint, success *int8) ([]localmodel.ScheduledJobLog, int64, error) {
 	d.contextMarker = ctx.Value(jobContextTestKey{})
 
-	matched := make([]model.ScheduledJobLog, 0)
+	matched := make([]localmodel.ScheduledJobLog, 0)
 	for id, logs := range d.logs {
 		if jobID != 0 && id != jobID {
 			continue

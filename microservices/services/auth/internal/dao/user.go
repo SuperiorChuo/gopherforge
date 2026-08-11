@@ -3,7 +3,8 @@ package dao
 import (
 	"context"
 
-	"github.com/go-admin-kit/services/auth/internal/model"
+	localmodel "github.com/go-admin-kit/services/auth/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 
@@ -44,18 +45,18 @@ func (d *UserDAO) GetUserByTenantUsernameContext(ctx context.Context, tenantID u
 }
 
 // GetTenantByCodeContext returns an enabled tenant by code.
-func (d *UserDAO) GetTenantByCodeContext(ctx context.Context, code string) (*model.Tenant, error) {
+func (d *UserDAO) GetTenantByCodeContext(ctx context.Context, code string) (*localmodel.Tenant, error) {
 	if code == "" {
 		code = "default"
 	}
-	var t model.Tenant
+	var t localmodel.Tenant
 	result := d.dbWithContext(ctx).Where("code = ? AND status = 1", code).First(&t)
 	return &t, result.Error
 }
 
 // GetTenantByIDContext returns tenant by primary key.
-func (d *UserDAO) GetTenantByIDContext(ctx context.Context, id uint) (*model.Tenant, error) {
-	var t model.Tenant
+func (d *UserDAO) GetTenantByIDContext(ctx context.Context, id uint) (*localmodel.Tenant, error) {
+	var t localmodel.Tenant
 	result := d.dbWithContext(ctx).First(&t, id)
 	return &t, result.Error
 }

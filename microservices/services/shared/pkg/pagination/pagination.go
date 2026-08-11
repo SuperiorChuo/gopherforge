@@ -43,4 +43,3 @@ func Paginate(req PageRequest) func(db *gorm.DB) *gorm.DB {
 		return db.Offset(offset).Limit(req.PageSize)
 	}
 }
-

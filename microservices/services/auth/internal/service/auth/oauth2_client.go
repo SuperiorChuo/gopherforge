@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	authdao "github.com/go-admin-kit/services/auth/internal/dao/auth"
-	"github.com/go-admin-kit/services/auth/internal/model"
+	localmodel "github.com/go-admin-kit/services/auth/internal/model"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -41,7 +41,7 @@ func NewOAuth2ClientServiceWithDB(db *gorm.DB) OAuth2ClientService {
 // supported scope/grant catalog (M1 static list).
 var (
 	supportedScopes = []string{"openid", "profile", "email"}
-	supportedGrants = []string{model.GrantAuthorizationCode, model.GrantRefreshToken, model.GrantClientCredentials}
+	supportedGrants = []string{localmodel.GrantAuthorizationCode, localmodel.GrantRefreshToken, localmodel.GrantClientCredentials}
 )
 
 // ClientMutation carries the create/update fields from the management API.
@@ -63,15 +63,15 @@ type ClientMutation struct {
 
 // CreateResult returns the created client plus the one-time plaintext secret.
 type CreateResult struct {
-	Client       *model.OAuth2Client `json:"client"`
-	ClientSecret string              `json:"client_secret"` // shown once; confidential clients only
+	Client       *localmodel.OAuth2Client `json:"client"`
+	ClientSecret string                   `json:"client_secret"` // shown once; confidential clients only
 }
 
 func (s OAuth2ClientService) validate(m ClientMutation) error {
 	if strings.TrimSpace(m.Name) == "" {
 		return OAuth2ClientValidationError{"应用名称不能为空"}
 	}
-	if m.ClientType != model.OAuth2ClientConfidential && m.ClientType != model.OAuth2ClientPublic {
+	if m.ClientType != localmodel.OAuth2ClientConfidential && m.ClientType != localmodel.OAuth2ClientPublic {
 		return OAuth2ClientValidationError{"客户端类型无效"}
 	}
 	if len(m.RedirectURIs) == 0 {
@@ -103,11 +103,11 @@ func (s OAuth2ClientService) validate(m ClientMutation) error {
 		}
 	}
 	// Public clients cannot use client_credentials (no secret to authenticate).
-	if m.ClientType == model.OAuth2ClientPublic && containsStr(m.GrantTypes, model.GrantClientCredentials) {
+	if m.ClientType == localmodel.OAuth2ClientPublic && containsStr(m.GrantTypes, localmodel.GrantClientCredentials) {
 		return OAuth2ClientValidationError{"公开客户端不能使用 client_credentials 模式"}
 	}
 	switch m.AccessTokenFormat {
-	case "", model.AccessTokenFormatOpaque, model.AccessTokenFormatJWT:
+	case "", localmodel.AccessTokenFormatOpaque, localmodel.AccessTokenFormatJWT:
 	default:
 		return OAuth2ClientValidationError{"不支持的令牌形态：" + m.AccessTokenFormat}
 	}
@@ -137,7 +137,7 @@ func normalizeTTLs(m *ClientMutation) {
 		m.RefreshTokenTTL = 2592000
 	}
 	if m.AccessTokenFormat == "" {
-		m.AccessTokenFormat = model.AccessTokenFormatOpaque
+		m.AccessTokenFormat = localmodel.AccessTokenFormatOpaque
 	}
 	if m.TokenRatePerMinute < 0 {
 		m.TokenRatePerMinute = 0
@@ -155,7 +155,7 @@ func (s OAuth2ClientService) Create(ctx context.Context, tenantID, createdBy uin
 	if err != nil {
 		return nil, err
 	}
-	client := &model.OAuth2Client{
+	client := &localmodel.OAuth2Client{
 		TenantID:        tenantID,
 		ClientID:        "gak_" + clientID,
 		Name:            m.Name,
@@ -175,7 +175,7 @@ func (s OAuth2ClientService) Create(ctx context.Context, tenantID, createdBy uin
 		TokenRatePerMinute: m.TokenRatePerMinute,
 	}
 	result := &CreateResult{Client: client}
-	if m.ClientType == model.OAuth2ClientConfidential {
+	if m.ClientType == localmodel.OAuth2ClientConfidential {
 		secret, err := randomBase64URL(32)
 		if err != nil {
 			return nil, err
@@ -195,7 +195,7 @@ func (s OAuth2ClientService) Create(ctx context.Context, tenantID, createdBy uin
 
 // Update edits an existing client. Changing scopes/redirect_uris invalidates
 // remembered approvals so users re-consent under the new terms.
-func (s OAuth2ClientService) Update(ctx context.Context, id uint, m ClientMutation) (*model.OAuth2Client, error) {
+func (s OAuth2ClientService) Update(ctx context.Context, id uint, m ClientMutation) (*localmodel.OAuth2Client, error) {
 	if err := s.validate(m); err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func (s OAuth2ClientService) Update(ctx context.Context, id uint, m ClientMutati
 
 // ResetSecret generates a new secret (confidential clients only), returns it
 // once, and revokes all existing tokens + approvals for the client.
-func (s OAuth2ClientService) ResetSecret(ctx context.Context, id uint) (string, *model.OAuth2Client, error) {
+func (s OAuth2ClientService) ResetSecret(ctx context.Context, id uint) (string, *localmodel.OAuth2Client, error) {
 	client, err := s.clients.GetByIDContext(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", nil, ErrOAuth2ClientNotFound
@@ -246,7 +246,7 @@ func (s OAuth2ClientService) ResetSecret(ctx context.Context, id uint) (string, 
 	if err != nil {
 		return "", nil, err
 	}
-	if client.ClientType != model.OAuth2ClientConfidential {
+	if client.ClientType != localmodel.OAuth2ClientConfidential {
 		return "", nil, OAuth2ClientValidationError{"公开客户端没有密钥"}
 	}
 	secret, err := randomBase64URL(32)
@@ -266,7 +266,7 @@ func (s OAuth2ClientService) ResetSecret(ctx context.Context, id uint) (string, 
 	return secret, client, nil
 }
 
-func (s OAuth2ClientService) Get(ctx context.Context, id uint) (*model.OAuth2Client, error) {
+func (s OAuth2ClientService) Get(ctx context.Context, id uint) (*localmodel.OAuth2Client, error) {
 	client, err := s.clients.GetByIDContext(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrOAuth2ClientNotFound
@@ -274,7 +274,7 @@ func (s OAuth2ClientService) Get(ctx context.Context, id uint) (*model.OAuth2Cli
 	return client, err
 }
 
-func (s OAuth2ClientService) List(ctx context.Context, keyword string, page, pageSize int) ([]model.OAuth2Client, int64, error) {
+func (s OAuth2ClientService) List(ctx context.Context, keyword string, page, pageSize int) ([]localmodel.OAuth2Client, int64, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -302,7 +302,7 @@ func (s OAuth2ClientService) Delete(ctx context.Context, id uint) error {
 }
 
 // ListTokens returns tenant-scoped access tokens for the management view.
-func (s OAuth2ClientService) ListTokens(ctx context.Context, clientID string, page, pageSize int) ([]model.OAuth2AccessToken, int64, error) {
+func (s OAuth2ClientService) ListTokens(ctx context.Context, clientID string, page, pageSize int) ([]localmodel.OAuth2AccessToken, int64, error) {
 	if page < 1 {
 		page = 1
 	}

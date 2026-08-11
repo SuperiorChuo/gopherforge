@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/identity/internal/config"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 

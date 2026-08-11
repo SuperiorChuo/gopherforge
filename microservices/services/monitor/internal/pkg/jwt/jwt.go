@@ -46,11 +46,11 @@ var (
 type redisTokenBlacklistStore struct{}
 
 type Claims struct {
-	UserID         uint   `json:"user_id"`
-	Username       string `json:"username"`
-	TenantID       uint   `json:"tenant_id"`
-	PlatformAdmin  bool   `json:"platform_admin"`
-	TokenType      string `json:"token_type"`
+	UserID        uint   `json:"user_id"`
+	Username      string `json:"username"`
+	TenantID      uint   `json:"tenant_id"`
+	PlatformAdmin bool   `json:"platform_admin"`
+	TokenType     string `json:"token_type"`
 	jwtlib.RegisteredClaims
 }
 

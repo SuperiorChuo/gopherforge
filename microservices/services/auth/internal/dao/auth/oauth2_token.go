@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-admin-kit/services/auth/internal/model"
+	localmodel "github.com/go-admin-kit/services/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -24,18 +24,18 @@ func (d OAuth2TokenDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d OAuth2TokenDAO) CreateAccessContext(ctx context.Context, token *model.OAuth2AccessToken) error {
+func (d OAuth2TokenDAO) CreateAccessContext(ctx context.Context, token *localmodel.OAuth2AccessToken) error {
 	return d.dbWithContext(ctx).Create(token).Error
 }
 
-func (d OAuth2TokenDAO) CreateRefreshContext(ctx context.Context, token *model.OAuth2RefreshToken) error {
+func (d OAuth2TokenDAO) CreateRefreshContext(ctx context.Context, token *localmodel.OAuth2RefreshToken) error {
 	return d.dbWithContext(ctx).Create(token).Error
 }
 
 // GetAccessByHashContext looks up an access token globally by hash (resource
 // servers calling introspect/userinfo carry no tenant context).
-func (d OAuth2TokenDAO) GetAccessByHashContext(ctx context.Context, hash string) (*model.OAuth2AccessToken, error) {
-	var token model.OAuth2AccessToken
+func (d OAuth2TokenDAO) GetAccessByHashContext(ctx context.Context, hash string) (*localmodel.OAuth2AccessToken, error) {
+	var token localmodel.OAuth2AccessToken
 	err := d.dbWithContext(ctx).Where("token_hash = ?", hash).First(&token).Error
 	if err != nil {
 		return nil, err
@@ -43,8 +43,8 @@ func (d OAuth2TokenDAO) GetAccessByHashContext(ctx context.Context, hash string)
 	return &token, nil
 }
 
-func (d OAuth2TokenDAO) GetRefreshByHashContext(ctx context.Context, hash string) (*model.OAuth2RefreshToken, error) {
-	var token model.OAuth2RefreshToken
+func (d OAuth2TokenDAO) GetRefreshByHashContext(ctx context.Context, hash string) (*localmodel.OAuth2RefreshToken, error) {
+	var token localmodel.OAuth2RefreshToken
 	err := d.dbWithContext(ctx).Where("token_hash = ?", hash).First(&token).Error
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func (d OAuth2TokenDAO) GetRefreshByHashContext(ctx context.Context, hash string
 // RevokeAccessByHashContext marks a single access token revoked. Returns rows affected.
 func (d OAuth2TokenDAO) RevokeAccessByHashContext(ctx context.Context, hash string) (int64, error) {
 	now := time.Now()
-	result := d.dbWithContext(ctx).Model(&model.OAuth2AccessToken{}).
+	result := d.dbWithContext(ctx).Model(&localmodel.OAuth2AccessToken{}).
 		Where("token_hash = ? AND revoked_at IS NULL", hash).
 		Update("revoked_at", now)
 	return result.RowsAffected, result.Error
@@ -63,7 +63,7 @@ func (d OAuth2TokenDAO) RevokeAccessByHashContext(ctx context.Context, hash stri
 
 func (d OAuth2TokenDAO) RevokeRefreshByHashContext(ctx context.Context, hash string) (int64, error) {
 	now := time.Now()
-	result := d.dbWithContext(ctx).Model(&model.OAuth2RefreshToken{}).
+	result := d.dbWithContext(ctx).Model(&localmodel.OAuth2RefreshToken{}).
 		Where("token_hash = ? AND revoked_at IS NULL", hash).
 		Update("revoked_at", now)
 	return result.RowsAffected, result.Error
@@ -73,7 +73,7 @@ func (d OAuth2TokenDAO) RevokeRefreshByHashContext(ctx context.Context, hash str
 // revokes the access token it minted (refresh rotation / logout).
 func (d OAuth2TokenDAO) RevokeAccessByRefreshTokenIDContext(ctx context.Context, refreshID uint) error {
 	now := time.Now()
-	return d.dbWithContext(ctx).Model(&model.OAuth2AccessToken{}).
+	return d.dbWithContext(ctx).Model(&localmodel.OAuth2AccessToken{}).
 		Where("refresh_token_id = ? AND revoked_at IS NULL", refreshID).
 		Update("revoked_at", now).Error
 }
@@ -81,7 +81,7 @@ func (d OAuth2TokenDAO) RevokeAccessByRefreshTokenIDContext(ctx context.Context,
 // RevokeAccessByIDContext revokes one access token by id, tenant-scoped (management API).
 func (d OAuth2TokenDAO) RevokeAccessByIDContext(ctx context.Context, id uint) (int64, error) {
 	now := time.Now()
-	result := d.dbWithContext(ctx).Model(&model.OAuth2AccessToken{}).
+	result := d.dbWithContext(ctx).Model(&localmodel.OAuth2AccessToken{}).
 		Where("id = ? AND tenant_id = ? AND revoked_at IS NULL", id, tenantFromCtx(ctx)).
 		Update("revoked_at", now)
 	return result.RowsAffected, result.Error
@@ -92,8 +92,8 @@ func (d OAuth2TokenDAO) RevokeAccessByIDContext(ctx context.Context, id uint) (i
 func (d OAuth2TokenDAO) RevokeAllByClientUserContext(ctx context.Context, clientID string, userID *uint) error {
 	now := time.Now()
 	db := d.dbWithContext(ctx)
-	access := db.Model(&model.OAuth2AccessToken{}).Where("client_id = ? AND revoked_at IS NULL", clientID)
-	refresh := db.Model(&model.OAuth2RefreshToken{}).Where("client_id = ? AND revoked_at IS NULL", clientID)
+	access := db.Model(&localmodel.OAuth2AccessToken{}).Where("client_id = ? AND revoked_at IS NULL", clientID)
+	refresh := db.Model(&localmodel.OAuth2RefreshToken{}).Where("client_id = ? AND revoked_at IS NULL", clientID)
 	if userID != nil {
 		access = access.Where("user_id = ?", *userID)
 		refresh = refresh.Where("user_id = ?", *userID)
@@ -108,17 +108,17 @@ func (d OAuth2TokenDAO) RevokeAllByClientUserContext(ctx context.Context, client
 func (d OAuth2TokenDAO) RevokeAllByClientContext(ctx context.Context, clientID string) error {
 	now := time.Now()
 	db := d.dbWithContext(ctx)
-	if err := db.Model(&model.OAuth2AccessToken{}).
+	if err := db.Model(&localmodel.OAuth2AccessToken{}).
 		Where("client_id = ? AND revoked_at IS NULL", clientID).Update("revoked_at", now).Error; err != nil {
 		return err
 	}
-	return db.Model(&model.OAuth2RefreshToken{}).
+	return db.Model(&localmodel.OAuth2RefreshToken{}).
 		Where("client_id = ? AND revoked_at IS NULL", clientID).Update("revoked_at", now).Error
 }
 
 // ListAccessContext returns tenant-scoped access tokens for the management view.
-func (d OAuth2TokenDAO) ListAccessContext(ctx context.Context, clientID string, page, pageSize int) ([]model.OAuth2AccessToken, int64, error) {
-	query := d.dbWithContext(ctx).Model(&model.OAuth2AccessToken{}).Where("tenant_id = ?", tenantFromCtx(ctx))
+func (d OAuth2TokenDAO) ListAccessContext(ctx context.Context, clientID string, page, pageSize int) ([]localmodel.OAuth2AccessToken, int64, error) {
+	query := d.dbWithContext(ctx).Model(&localmodel.OAuth2AccessToken{}).Where("tenant_id = ?", tenantFromCtx(ctx))
 	if clientID != "" {
 		query = query.Where("client_id = ?", clientID)
 	}
@@ -126,7 +126,7 @@ func (d OAuth2TokenDAO) ListAccessContext(ctx context.Context, clientID string, 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	var tokens []model.OAuth2AccessToken
+	var tokens []localmodel.OAuth2AccessToken
 	err := query.Order("id DESC").
 		Offset((page - 1) * pageSize).Limit(pageSize).
 		Find(&tokens).Error

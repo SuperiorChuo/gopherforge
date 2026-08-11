@@ -724,7 +724,7 @@ type TimeoutDueRow struct {
 }
 
 // ListTimeoutDue 扫描 pending 且 timeout_at 已到、尚未提醒过的任务
-//（跨租户系统扫描；命中 ix_bpm_task_timeout 部分索引）。
+// （跨租户系统扫描；命中 ix_bpm_task_timeout 部分索引）。
 func (s *Store) ListTimeoutDue(limit int) ([]TimeoutDueRow, error) {
 	if limit <= 0 {
 		limit = 100
@@ -904,7 +904,7 @@ func (s *Store) Stats(tenantID uint64) (*BpmStats, error) {
 	var durRows []durRow
 	if err := tenantQ(s.db.Model(&model.ProcessInstance{}), tenantID).
 		Where("finished_at IS NOT NULL").
-		Select("definition_key, "+avgHoursExpr(s.db, "created_at", "finished_at")+" AS avg_hours, COUNT(*) AS cnt").
+		Select("definition_key, " + avgHoursExpr(s.db, "created_at", "finished_at") + " AS avg_hours, COUNT(*) AS cnt").
 		Group("definition_key").Scan(&durRows).Error; err != nil {
 		return nil, err
 	}
@@ -943,7 +943,7 @@ func (s *Store) Stats(tenantID uint64) (*BpmStats, error) {
 	var taskRows []taskRow
 	if err := tenantQ(s.db.Model(&model.Task{}), tenantID).
 		Where("acted_at IS NOT NULL").
-		Select("node_name, "+avgHoursExpr(s.db, "created_at", "acted_at")+" AS avg_hours, COUNT(*) AS cnt").
+		Select("node_name, " + avgHoursExpr(s.db, "created_at", "acted_at") + " AS avg_hours, COUNT(*) AS cnt").
 		Group("node_name").Scan(&taskRows).Error; err != nil {
 		return nil, err
 	}

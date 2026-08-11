@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 type fakeAlertMetricCollector struct {
@@ -22,18 +22,18 @@ func (f *fakeAlertMetricCollector) CollectContext(ctx context.Context, metric st
 }
 
 type fakeMetricSampleStore struct {
-	inserted    []model.MonitorMetricSample
-	raw         []model.MonitorMetricSample
-	pruned      bool
+	inserted     []localmodel.MonitorMetricSample
+	raw          []localmodel.MonitorMetricSample
+	pruned       bool
 	prunedBefore time.Time
 }
 
-func (f *fakeMetricSampleStore) InsertBatchContext(_ context.Context, samples []model.MonitorMetricSample) error {
+func (f *fakeMetricSampleStore) InsertBatchContext(_ context.Context, samples []localmodel.MonitorMetricSample) error {
 	f.inserted = append(f.inserted, samples...)
 	return nil
 }
 
-func (f *fakeMetricSampleStore) QueryRawContext(_ context.Context, _ string, _, _ time.Time) ([]model.MonitorMetricSample, error) {
+func (f *fakeMetricSampleStore) QueryRawContext(_ context.Context, _ string, _, _ time.Time) ([]localmodel.MonitorMetricSample, error) {
 	return f.raw, nil
 }
 
@@ -114,10 +114,10 @@ func TestMetricSamplerPrunesRetention(t *testing.T) {
 
 func TestMetricCategory(t *testing.T) {
 	cases := map[string]string{
-		"system.cpu.used_percent":          "system",
-		"postgres.connections.percent":     "postgres",
-		"redis.memory.used_bytes":          "redis",
-		"custom.metric":                    "other",
+		"system.cpu.used_percent":      "system",
+		"postgres.connections.percent": "postgres",
+		"redis.memory.used_bytes":      "redis",
+		"custom.metric":                "other",
 	}
 	for metric, want := range cases {
 		if got := metricCategory(metric); got != want {

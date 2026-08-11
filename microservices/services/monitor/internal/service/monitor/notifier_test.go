@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 type stubNotifier struct {
@@ -17,24 +17,24 @@ type stubNotifier struct {
 	called int
 }
 
-func (s *stubNotifier) NotifyContext(_ context.Context, _ *model.MonitorAlertRule, _ *model.MonitorAlertEvent) AlertNotification {
+func (s *stubNotifier) NotifyContext(_ context.Context, _ *localmodel.MonitorAlertRule, _ *localmodel.MonitorAlertEvent) AlertNotification {
 	s.called++
 	return AlertNotification{Status: s.status, Error: s.err, NotifiedAt: time.Now().UTC()}
 }
 
-func alertEventFixture() *model.MonitorAlertEvent {
+func alertEventFixture() *localmodel.MonitorAlertEvent {
 	now := time.Now().UTC()
 	ruleID := uint(7)
-	return &model.MonitorAlertEvent{
-		ID:       11,
-		RuleID:   &ruleID,
-		RuleName: "High CPU",
-		Metric:   "system.cpu.used_percent",
-		Severity: "critical",
-		Status:   AlertEventFiring,
-		Value:    95,
+	return &localmodel.MonitorAlertEvent{
+		ID:        11,
+		RuleID:    &ruleID,
+		RuleName:  "High CPU",
+		Metric:    "system.cpu.used_percent",
+		Severity:  "critical",
+		Status:    AlertEventFiring,
+		Value:     95,
 		Threshold: 90,
-		Message:  "cpu above threshold",
+		Message:   "cpu above threshold",
 		CreatedAt: now,
 	}
 }
@@ -44,7 +44,7 @@ func TestMultiChannelNotifierFansOutToRuleChannels(t *testing.T) {
 	wecom := &stubNotifier{status: AlertNotifySent}
 	notifier := &MultiChannelNotifier{channels: map[string]AlertNotifier{"email": email, "wecom": wecom}}
 
-	rule := &model.MonitorAlertRule{NotifyChannels: model.NotifyChannelList{"wecom"}}
+	rule := &localmodel.MonitorAlertRule{NotifyChannels: localmodel.NotifyChannelList{"wecom"}}
 	result := notifier.NotifyContext(context.Background(), rule, alertEventFixture())
 
 	if email.called != 0 || wecom.called != 1 {
@@ -60,7 +60,7 @@ func TestMultiChannelNotifierEmptyChannelsUsesAll(t *testing.T) {
 	wecom := &stubNotifier{status: AlertNotifySent}
 	notifier := &MultiChannelNotifier{channels: map[string]AlertNotifier{"email": email, "wecom": wecom}}
 
-	result := notifier.NotifyContext(context.Background(), &model.MonitorAlertRule{}, alertEventFixture())
+	result := notifier.NotifyContext(context.Background(), &localmodel.MonitorAlertRule{}, alertEventFixture())
 
 	if email.called != 1 || wecom.called != 1 {
 		t.Fatalf("email called %d, wecom %d; want both once", email.called, wecom.called)
@@ -76,7 +76,7 @@ func TestMultiChannelNotifierAggregates(t *testing.T) {
 			"email": &stubNotifier{status: AlertNotifySkipped},
 			"wecom": &stubNotifier{status: AlertNotifySkipped},
 		}}
-		result := notifier.NotifyContext(context.Background(), &model.MonitorAlertRule{}, alertEventFixture())
+		result := notifier.NotifyContext(context.Background(), &localmodel.MonitorAlertRule{}, alertEventFixture())
 		if result.Status != AlertNotifySkipped {
 			t.Fatalf("result = %#v, want skipped", result)
 		}
@@ -87,7 +87,7 @@ func TestMultiChannelNotifierAggregates(t *testing.T) {
 			"email": &stubNotifier{status: AlertNotifySkipped},
 			"wecom": &stubNotifier{status: AlertNotifyFailed, err: "webhook 500"},
 		}}
-		result := notifier.NotifyContext(context.Background(), &model.MonitorAlertRule{}, alertEventFixture())
+		result := notifier.NotifyContext(context.Background(), &localmodel.MonitorAlertRule{}, alertEventFixture())
 		if result.Status != AlertNotifyFailed || result.Error == "" {
 			t.Fatalf("result = %#v, want failed with error", result)
 		}
@@ -98,7 +98,7 @@ func TestMultiChannelNotifierAggregates(t *testing.T) {
 			"email": &stubNotifier{status: AlertNotifyFailed, err: "smtp down"},
 			"wecom": &stubNotifier{status: AlertNotifySent},
 		}}
-		result := notifier.NotifyContext(context.Background(), &model.MonitorAlertRule{}, alertEventFixture())
+		result := notifier.NotifyContext(context.Background(), &localmodel.MonitorAlertRule{}, alertEventFixture())
 		if result.Status != AlertNotifySent {
 			t.Fatalf("result = %#v, want sent", result)
 		}

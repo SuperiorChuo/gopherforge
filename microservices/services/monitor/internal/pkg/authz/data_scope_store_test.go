@@ -5,9 +5,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/monitor/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/monitor/internal/pkg/redis"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 func TestDataScopeResolverUsesInjectedStoreForDepartmentTree(t *testing.T) {

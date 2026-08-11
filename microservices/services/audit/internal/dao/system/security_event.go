@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-admin-kit/services/audit/internal/model"
+	localmodel "github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
 )
@@ -25,7 +25,7 @@ func (d *SecurityEventDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d *SecurityEventDAO) CreateContext(ctx context.Context, e *model.SecurityEvent) error {
+func (d *SecurityEventDAO) CreateContext(ctx context.Context, e *localmodel.SecurityEvent) error {
 	return d.dbWithContext(ctx).Create(e).Error
 }
 
@@ -33,7 +33,7 @@ func (d *SecurityEventDAO) CreateContext(ctx context.Context, e *model.SecurityE
 // window (dedupe: one notification per actor per rule per window).
 func (d *SecurityEventDAO) RecentRuleHitContext(ctx context.Context, rule, actorID string, since time.Time) (bool, error) {
 	var count int64
-	err := d.dbWithContext(ctx).Model(&model.SecurityEvent{}).
+	err := d.dbWithContext(ctx).Model(&localmodel.SecurityEvent{}).
 		Where("rule = ? AND actor_id = ? AND occurred_at >= ?", rule, actorID, since).
 		Count(&count).Error
 	return count > 0, err
@@ -41,7 +41,7 @@ func (d *SecurityEventDAO) RecentRuleHitContext(ctx context.Context, rule, actor
 
 // MarkNotifiedContext records that a notification was sent for an event.
 func (d *SecurityEventDAO) MarkNotifiedContext(ctx context.Context, id uint) error {
-	return d.dbWithContext(ctx).Model(&model.SecurityEvent{}).
+	return d.dbWithContext(ctx).Model(&localmodel.SecurityEvent{}).
 		Where("id = ?", id).
 		Update("notified_at", time.Now()).Error
 }
@@ -51,8 +51,8 @@ type SecurityEventFilter struct {
 	Severity string
 }
 
-func (d *SecurityEventDAO) ListContext(ctx context.Context, req pagination.PageRequest, filter SecurityEventFilter) ([]model.SecurityEvent, int64, error) {
-	q := d.dbWithContext(ctx).Model(&model.SecurityEvent{})
+func (d *SecurityEventDAO) ListContext(ctx context.Context, req pagination.PageRequest, filter SecurityEventFilter) ([]localmodel.SecurityEvent, int64, error) {
+	q := d.dbWithContext(ctx).Model(&localmodel.SecurityEvent{})
 	if filter.Rule != "" {
 		q = q.Where("rule = ?", filter.Rule)
 	}
@@ -63,7 +63,7 @@ func (d *SecurityEventDAO) ListContext(ctx context.Context, req pagination.PageR
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	var events []model.SecurityEvent
+	var events []localmodel.SecurityEvent
 	if err := q.
 		Order("occurred_at DESC, id DESC").
 		Offset((req.Page - 1) * req.PageSize).

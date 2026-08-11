@@ -8,11 +8,11 @@ import (
 
 	"github.com/go-admin-kit/services/auth/internal/config"
 	authDAO "github.com/go-admin-kit/services/auth/internal/dao/auth"
-	"github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
 	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"

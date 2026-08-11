@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 func TestOperationLogDAOCreateLogsContextUsesSingleMultiRowInsert(t *testing.T) {
 	db, mock := newInjectedSystemDAOTestDB(t)
 
-	logs := []*model.OperationLog{
+	logs := []*localmodel.OperationLog{
 		{Path: "/batch/1", Module: "system"},
 		{Path: "/batch/2", Module: "system"},
 		{Path: "/batch/3", Module: "system"},
@@ -36,7 +36,7 @@ func TestOperationLogDAOCreateLogsContextIgnoresEmptyBatch(t *testing.T) {
 	if err := NewOperationLogDAO(db).CreateLogsContext(context.Background(), nil); err != nil {
 		t.Fatalf("CreateLogsContext(nil) error = %v", err)
 	}
-	if err := NewOperationLogDAO(db).CreateLogsContext(context.Background(), []*model.OperationLog{}); err != nil {
+	if err := NewOperationLogDAO(db).CreateLogsContext(context.Background(), []*localmodel.OperationLog{}); err != nil {
 		t.Fatalf("CreateLogsContext(empty) error = %v", err)
 	}
 }
@@ -50,7 +50,7 @@ func TestOperationLogDAOCreateLogsContextSingleEntrySkipsBatchWrapper(t *testing
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectCommit()
 
-	err := NewOperationLogDAO(db).CreateLogsContext(context.Background(), []*model.OperationLog{
+	err := NewOperationLogDAO(db).CreateLogsContext(context.Background(), []*localmodel.OperationLog{
 		{Path: "/batch/solo", Module: "system"},
 	})
 	if err != nil {

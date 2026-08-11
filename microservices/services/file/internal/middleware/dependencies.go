@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/go-admin-kit/services/file/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 // AuthUserStore loads users with roles for auth decisions.

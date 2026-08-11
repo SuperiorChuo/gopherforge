@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/shared/pkg/mask"
 
@@ -153,7 +153,7 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 		// unmarshal/marshal no longer counts against request latency.
 		requestBody = filterSensitiveFields(requestBody)
 
-		log := &model.OperationLog{
+		log := &localmodel.OperationLog{
 			UserID:       userID,
 			Username:     username,
 			ActorType:    actor.ActorType,
@@ -228,7 +228,7 @@ const (
 	operationLogDropWarnInterval = 10 * time.Second
 )
 
-var logChan = make(chan *model.OperationLog, logChanBufferSize)
+var logChan = make(chan *localmodel.OperationLog, logChanBufferSize)
 
 var (
 	operationLogDroppedTotal atomic.Uint64
@@ -237,14 +237,14 @@ var (
 
 // OperationLogRecorder persists operation logs queued by the middleware.
 type OperationLogRecorder interface {
-	RecordContext(context.Context, *model.OperationLog) error
+	RecordContext(context.Context, *localmodel.OperationLog) error
 }
 
 // OperationLogBatchRecorder persists several queued operation logs in a single
 // round trip. Recorders that implement it get batched writes; the rest fall
 // back to one RecordContext call per entry.
 type OperationLogBatchRecorder interface {
-	RecordBatchContext(context.Context, []*model.OperationLog) error
+	RecordBatchContext(context.Context, []*localmodel.OperationLog) error
 }
 
 type operationLogRecorder = OperationLogRecorder
@@ -307,7 +307,7 @@ func StartOperationLogProcessor(ctx context.Context, recorder OperationLogRecord
 
 // processLogs persists queued operation logs until ctx is canceled, using the
 // default batch size and flush interval.
-func processLogs(ctx context.Context, queue <-chan *model.OperationLog, recorder operationLogRecorder, writeTimeout time.Duration) <-chan struct{} {
+func processLogs(ctx context.Context, queue <-chan *localmodel.OperationLog, recorder operationLogRecorder, writeTimeout time.Duration) <-chan struct{} {
 	return processLogsBatched(ctx, queue, recorder, writeTimeout, operationLogBatchSize, operationLogFlushInterval)
 }
 
@@ -316,7 +316,7 @@ func processLogs(ctx context.Context, queue <-chan *model.OperationLog, recorder
 // still buffered at shutdown is drained and flushed before returning.
 func processLogsBatched(
 	ctx context.Context,
-	queue <-chan *model.OperationLog,
+	queue <-chan *localmodel.OperationLog,
 	recorder operationLogRecorder,
 	writeTimeout time.Duration,
 	batchSize int,
@@ -333,7 +333,7 @@ func processLogsBatched(
 	go func() {
 		defer close(done)
 
-		batch := make([]*model.OperationLog, 0, batchSize)
+		batch := make([]*localmodel.OperationLog, 0, batchSize)
 		ticker := time.NewTicker(flushInterval)
 		defer ticker.Stop()
 
@@ -378,12 +378,12 @@ func processLogsBatched(
 // flushing whenever the pending batch reaches batchSize. Returns the leftover
 // partial batch for the caller to flush.
 func drainOperationLogs(
-	queue <-chan *model.OperationLog,
+	queue <-chan *localmodel.OperationLog,
 	recorder operationLogRecorder,
 	writeTimeout time.Duration,
-	batch []*model.OperationLog,
+	batch []*localmodel.OperationLog,
 	batchSize int,
-) []*model.OperationLog {
+) []*localmodel.OperationLog {
 	if batchSize <= 0 {
 		batchSize = operationLogBatchSize
 	}
@@ -409,7 +409,7 @@ func drainOperationLogs(
 
 // recordOperationLogBatch writes a batch through the recorder's batch API when
 // available, falling back to per-entry writes otherwise.
-func recordOperationLogBatch(parent context.Context, recorder operationLogRecorder, logs []*model.OperationLog, writeTimeout time.Duration) {
+func recordOperationLogBatch(parent context.Context, recorder operationLogRecorder, logs []*localmodel.OperationLog, writeTimeout time.Duration) {
 	if recorder == nil || len(logs) == 0 {
 		return
 	}
@@ -429,7 +429,7 @@ func recordOperationLogBatch(parent context.Context, recorder operationLogRecord
 	}
 }
 
-func recordOperationLog(parent context.Context, recorder operationLogRecorder, log *model.OperationLog, writeTimeout time.Duration) {
+func recordOperationLog(parent context.Context, recorder operationLogRecorder, log *localmodel.OperationLog, writeTimeout time.Duration) {
 	if recorder == nil || log == nil {
 		return
 	}

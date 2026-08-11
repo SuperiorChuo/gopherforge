@@ -5,9 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/cache"
 	"github.com/go-admin-kit/services/identity/internal/pkg/jwt"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 var errConsoleSessionRevokedForTest = errors.New("console session has been revoked")
@@ -32,9 +33,9 @@ type statusUserStore struct {
 	roles  []string
 }
 
-func (s *statusUserStore) GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error) {
+func (s *statusUserStore) GetUserWithRolesContext(ctx context.Context, id uint) (*localmodel.User, error) {
 	s.calls++
-	user := &model.User{Status: s.status}
+	user := &localmodel.User{Status: s.status}
 	user.ID = id
 	for _, code := range s.roles {
 		user.Roles = append(user.Roles, model.Role{Code: code})

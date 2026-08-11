@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/monitor/internal/dao/monitor"
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
@@ -106,20 +106,20 @@ var jobCronParser = cron.NewParser(
 )
 
 type jobDAO interface {
-	GetJobByIDContext(ctx context.Context, id uint) (*model.ScheduledJob, error)
-	GetJobListContext(ctx context.Context, req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error)
-	CreateJobContext(ctx context.Context, job *model.ScheduledJob) error
-	UpdateJobContext(ctx context.Context, job *model.ScheduledJob) error
+	GetJobByIDContext(ctx context.Context, id uint) (*localmodel.ScheduledJob, error)
+	GetJobListContext(ctx context.Context, req pagination.PageRequest, name string, status *int8) ([]localmodel.ScheduledJob, int64, error)
+	CreateJobContext(ctx context.Context, job *localmodel.ScheduledJob) error
+	UpdateJobContext(ctx context.Context, job *localmodel.ScheduledJob) error
 	DeleteJobContext(ctx context.Context, id uint) error
-	CreateJobLogContext(ctx context.Context, log *model.ScheduledJobLog) error
-	GetAllActiveJobsContext(ctx context.Context) ([]model.ScheduledJob, error)
-	GetAllJobsContext(ctx context.Context) ([]model.ScheduledJob, error)
+	CreateJobLogContext(ctx context.Context, log *localmodel.ScheduledJobLog) error
+	GetAllActiveJobsContext(ctx context.Context) ([]localmodel.ScheduledJob, error)
+	GetAllJobsContext(ctx context.Context) ([]localmodel.ScheduledJob, error)
 	CleanupJobLogsBeforeContext(ctx context.Context, before time.Time) (int64, error)
 	CountJobsByStatusContext(ctx context.Context, status *int8) (int64, error)
 	CountFailedJobLogsSinceContext(ctx context.Context, since time.Time) (int64, error)
 	GetLatestJobRunTimeContext(ctx context.Context) (*time.Time, error)
-	GetLatestJobLogContext(ctx context.Context, jobID uint) (*model.ScheduledJobLog, error)
-	GetJobLogListContext(ctx context.Context, req pagination.PageRequest, jobID uint, success *int8) ([]model.ScheduledJobLog, int64, error)
+	GetLatestJobLogContext(ctx context.Context, jobID uint) (*localmodel.ScheduledJobLog, error)
+	GetJobLogListContext(ctx context.Context, req pagination.PageRequest, jobID uint, success *int8) ([]localmodel.ScheduledJobLog, int64, error)
 }
 
 type JobService struct {
@@ -224,7 +224,7 @@ func (s *JobService) initJobs() {
 }
 
 // StartJob starts a scheduled job.
-func (s *JobService) StartJob(job model.ScheduledJob) error {
+func (s *JobService) StartJob(job localmodel.ScheduledJob) error {
 	// Stop an existing schedule before registering the new one.
 	if _, ok := s.runningMap.Load(job.ID); ok {
 		s.StopJob(job.ID)
@@ -257,11 +257,11 @@ func (s *JobService) StopJob(jobID uint) {
 }
 
 // runTask executes a job and records a log entry for cron and manual runs.
-func (s *JobService) runTask(job model.ScheduledJob) {
+func (s *JobService) runTask(job localmodel.ScheduledJob) {
 	s.runTaskContext(context.Background(), job)
 }
 
-func (s *JobService) runTaskContext(ctx context.Context, job model.ScheduledJob) {
+func (s *JobService) runTaskContext(ctx context.Context, job localmodel.ScheduledJob) {
 	startTime := time.Now()
 	var status int8 = 1
 	message := "Success"
@@ -278,7 +278,7 @@ func (s *JobService) runTaskContext(ctx context.Context, job model.ScheduledJob)
 	duration := int(time.Since(startTime).Milliseconds())
 
 	// Record the job log.
-	logEntry := model.ScheduledJobLog{
+	logEntry := localmodel.ScheduledJobLog{
 		JobID:    job.ID,
 		JobName:  job.Name,
 		Status:   status,
@@ -309,7 +309,7 @@ func (s *JobService) executeTaskContext(ctx context.Context, target string) (str
 
 // GetJobLogListContext pages through scheduled-job execution logs. jobID=0
 // means no job filter; a nil success means no status filter.
-func (s *JobService) GetJobLogListContext(ctx context.Context, req pagination.PageRequest, jobID uint, success *int8) ([]model.ScheduledJobLog, int64, error) {
+func (s *JobService) GetJobLogListContext(ctx context.Context, req pagination.PageRequest, jobID uint, success *int8) ([]localmodel.ScheduledJobLog, int64, error) {
 	return s.dao.GetJobLogListContext(ctx, req, jobID, success)
 }
 
@@ -383,7 +383,7 @@ func (s *JobService) CheckJobHealthContext(ctx context.Context, windowHours int)
 	}, nil
 }
 
-func (s *JobService) buildAbnormalJobsContext(ctx context.Context, jobs []model.ScheduledJob, since time.Time) ([]JobAbnormalStatus, error) {
+func (s *JobService) buildAbnormalJobsContext(ctx context.Context, jobs []localmodel.ScheduledJob, since time.Time) ([]JobAbnormalStatus, error) {
 	abnormalJobs := make([]JobAbnormalStatus, 0)
 
 	for _, job := range jobs {
@@ -430,11 +430,11 @@ func (s *JobService) buildAbnormalJobsContext(ctx context.Context, jobs []model.
 	return abnormalJobs, nil
 }
 
-func (s *JobService) GetJobListContext(ctx context.Context, req pagination.PageRequest, name string, status *int8) ([]model.ScheduledJob, int64, error) {
+func (s *JobService) GetJobListContext(ctx context.Context, req pagination.PageRequest, name string, status *int8) ([]localmodel.ScheduledJob, int64, error) {
 	return s.dao.GetJobListContext(ctx, req, name, status)
 }
 
-func (s *JobService) CreateJobContext(ctx context.Context, job *model.ScheduledJob) error {
+func (s *JobService) CreateJobContext(ctx context.Context, job *localmodel.ScheduledJob) error {
 	// Validate the cron expression.
 	if err := validateCronExpression(job.CronExpression); err != nil {
 		return err
@@ -456,7 +456,7 @@ func (s *JobService) CreateJobContext(ctx context.Context, job *model.ScheduledJ
 	return nil
 }
 
-func (s *JobService) UpdateJobContext(ctx context.Context, job *model.ScheduledJob) error {
+func (s *JobService) UpdateJobContext(ctx context.Context, job *localmodel.ScheduledJob) error {
 	existingJob, err := s.dao.GetJobByIDContext(ctx, job.ID)
 	if err != nil {
 		return err
@@ -555,7 +555,7 @@ func validateCronExpression(expression string) error {
 
 // JobHeartbeatView is a heartbeat row plus the aggregation-side staleness flag.
 type JobHeartbeatView struct {
-	model.OpsJobHeartbeat
+	localmodel.OpsJobHeartbeat
 	// Stale means the job missed its schedule: interval_sec > 0 and
 	// now - last_run_at > 2*interval (one-cycle jitter tolerated).
 	Stale bool `json:"stale"`
@@ -564,7 +564,7 @@ type JobHeartbeatView struct {
 // heartbeatLister is an optional dao capability (fake daos compile without it
 // and the service degrades to an empty list).
 type heartbeatLister interface {
-	ListHeartbeatsContext(ctx context.Context) ([]model.OpsJobHeartbeat, error)
+	ListHeartbeatsContext(ctx context.Context) ([]localmodel.OpsJobHeartbeat, error)
 }
 
 // ListJobHeartbeatsContext lists distributed job heartbeats with staleness

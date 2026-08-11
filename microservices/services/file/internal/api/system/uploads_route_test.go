@@ -11,7 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/file/internal/config"
-	"github.com/go-admin-kit/services/file/internal/model"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/urlsign"
 )
 
@@ -121,7 +121,7 @@ func TestSignFileURLsSignsStoredUploadsURLs(t *testing.T) {
 	config.Cfg = config.Defaults()
 	config.Cfg.Upload.URLSignSecret = "uploads-test-secret"
 
-	record := &model.File{
+	record := &localmodel.File{
 		URL:          "/uploads/2024/01/02/a.png",
 		ThumbnailURL: "/uploads/2024/01/02/thumbs/a_10x10.png",
 	}

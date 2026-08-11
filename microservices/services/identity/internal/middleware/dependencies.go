@@ -4,12 +4,13 @@ import (
 	"context"
 	"sync"
 
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 // AuthUserStore loads users with roles for auth decisions.
 type AuthUserStore interface {
-	GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error)
+	GetUserWithRolesContext(ctx context.Context, id uint) (*localmodel.User, error)
 }
 
 // AuthPermissionStore loads permission codes for a user.

@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/file/internal/config"
-	"github.com/go-admin-kit/services/file/internal/model"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
@@ -45,7 +45,7 @@ type ChunkedInitRequest struct {
 // InitChunkedUploadContext creates a session for a chunked upload. Returns
 // alreadyExists=true when the hash already belongs to this tenant (instant
 // dedupe — the client can skip uploading).
-func (s *FileService) InitChunkedUploadContext(ctx context.Context, req ChunkedInitRequest, userID uint) (*model.UploadSession, bool, error) {
+func (s *FileService) InitChunkedUploadContext(ctx context.Context, req ChunkedInitRequest, userID uint) (*localmodel.UploadSession, bool, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -87,7 +87,7 @@ func (s *FileService) InitChunkedUploadContext(ctx context.Context, req ChunkedI
 	if total <= 0 {
 		total = 1
 	}
-	session := &model.UploadSession{
+	session := &localmodel.UploadSession{
 		TenantID:    tenantID,
 		UserID:      userID,
 		FileName:    req.FileName,
@@ -106,7 +106,7 @@ func (s *FileService) InitChunkedUploadContext(ctx context.Context, req ChunkedI
 
 // UploadChunkContext stores one part (1-based) and records it in the bitmap.
 // Re-uploading the same part idempotently overwrites it.
-func (s *FileService) UploadChunkContext(ctx context.Context, sessionID uint, partN int, body io.Reader) (*model.UploadSession, error) {
+func (s *FileService) UploadChunkContext(ctx context.Context, sessionID uint, partN int, body io.Reader) (*localmodel.UploadSession, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -161,7 +161,7 @@ func (s *FileService) UploadChunkContext(ctx context.Context, sessionID uint, pa
 // CompleteChunkedUploadContext assembles all parts into one object, creates
 // the file record and deletes the session. The assembled bytes run through the
 // same StorageProvider as a normal upload.
-func (s *FileService) CompleteChunkedUploadContext(ctx context.Context, sessionID uint) (*model.File, error) {
+func (s *FileService) CompleteChunkedUploadContext(ctx context.Context, sessionID uint) (*localmodel.File, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -201,7 +201,7 @@ func (s *FileService) CompleteChunkedUploadContext(ctx context.Context, sessionI
 		}
 	}
 
-	record := &model.File{
+	record := &localmodel.File{
 		TenantID:    session.TenantID,
 		UserID:      session.UserID,
 		FileName:    session.FileName,
@@ -352,4 +352,3 @@ func fileHash(f *os.File) string {
 	}
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
-

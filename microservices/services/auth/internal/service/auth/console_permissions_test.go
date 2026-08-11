@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/go-admin-kit/services/auth/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 func TestConsoleRoleCodesTrimsDeduplicatesAndSorts(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-admin-kit/services/audit/internal/model"
+	localmodel "github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
@@ -38,10 +38,10 @@ type AuditLogListQuery struct {
 }
 
 type AuditLogListResult struct {
-	Items      []model.AuditLog   `json:"items"`
-	Pagination AuditLogPagination `json:"pagination"`
-	Summary    AuditLogSummary    `json:"summary"`
-	Facets     AuditLogFacets     `json:"facets"`
+	Items      []localmodel.AuditLog `json:"items"`
+	Pagination AuditLogPagination    `json:"pagination"`
+	Summary    AuditLogSummary       `json:"summary"`
+	Facets     AuditLogFacets        `json:"facets"`
 }
 
 type AuditLogPagination struct {
@@ -72,7 +72,7 @@ type AuditLogBreakdownSummary struct {
 	Count  int64  `json:"count"`
 }
 
-func (d *AuditLogDAO) CreateLogContext(ctx context.Context, log *model.AuditLog) error {
+func (d *AuditLogDAO) CreateLogContext(ctx context.Context, log *localmodel.AuditLog) error {
 	if log != nil {
 		log.TenantID = tenant.EnsureID(ctx, log.TenantID)
 	}
@@ -86,7 +86,7 @@ func (d *AuditLogDAO) ListLogsContext(ctx context.Context, req AuditLogListQuery
 
 	var result AuditLogListResult
 	baseQuery := applyAuditBaseFilters(
-		tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.AuditLog{}), ctx),
+		tenant.ApplyFilter(d.dbWithContext(ctx).Model(&localmodel.AuditLog{}), ctx),
 		req,
 	)
 	listQuery := baseQuery.Session(&gorm.Session{})
@@ -145,15 +145,15 @@ const maxExportRows = 50000
 // surface — written tenant-scoped by the plugin and read across tenants by
 // platform admins, so no department data-scope is applied here (unlike
 // operation-log export, whose rows map to users).
-func (d *AuditLogDAO) ExportLogsContext(ctx context.Context, req AuditLogListQuery) ([]model.AuditLog, error) {
+func (d *AuditLogDAO) ExportLogsContext(ctx context.Context, req AuditLogListQuery) ([]localmodel.AuditLog, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	query := applyAuditBaseFilters(
-		tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.AuditLog{}), ctx),
+		tenant.ApplyFilter(d.dbWithContext(ctx).Model(&localmodel.AuditLog{}), ctx),
 		req,
 	)
-	var logs []model.AuditLog
+	var logs []localmodel.AuditLog
 	if err := query.
 		Order(auditOrderClause(req.SortBy, req.SortOrder)).
 		Limit(maxExportRows).
@@ -295,7 +295,7 @@ func (d *AuditLogDAO) CountActorActionsWithinContext(
 		ctx = context.Background()
 	}
 	q := d.dbWithContext(ctx).
-		Model(&model.AuditLog{}).
+		Model(&localmodel.AuditLog{}).
 		Where("created_at >= ? AND created_at <= ?", from, to)
 	if actionPredicate != "" {
 		q = q.Where(actionPredicate, args...)

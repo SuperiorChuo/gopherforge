@@ -10,9 +10,10 @@ import (
 	"gorm.io/gorm"
 
 	sharedDAO "github.com/go-admin-kit/services/identity/internal/dao"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/audittrail"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 )
 
@@ -37,11 +38,11 @@ func (d *UserDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d *UserDAO) GetUserListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8, dataScope authz.UserDataScope) ([]model.User, int64, error) {
-	var users []model.User
+func (d *UserDAO) GetUserListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8, dataScope authz.UserDataScope) ([]localmodel.User, int64, error) {
+	var users []localmodel.User
 	var total int64
 
-	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.User{})
+	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&localmodel.User{})
 
 	// Multi-tenant isolation (explicit; GORM tenant plugin also applies when registered).
 	if tid := tenant.FromContext(ctx); tid > 0 {
@@ -114,13 +115,13 @@ func (d *UserDAO) ExportUsersPageContext(
 	keyword string,
 	status *int8,
 	dataScope authz.UserDataScope,
-) ([]model.User, error) {
+) ([]localmodel.User, error) {
 	if limit <= 0 {
 		limit = 500
 	}
 
 	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).
-		Model(&model.User{}).
+		Model(&localmodel.User{}).
 		Select(exportUserColumns)
 
 	// Multi-tenant isolation (explicit; GORM tenant plugin also applies when registered).
@@ -142,7 +143,7 @@ func (d *UserDAO) ExportUsersPageContext(
 		query = query.Where("(users.created_at, users.id) < (?, ?)", cursor.CreatedAt, cursor.ID)
 	}
 
-	var users []model.User
+	var users []localmodel.User
 	err := query.
 		Order("users.created_at DESC, users.id DESC").
 		Limit(limit).
@@ -151,8 +152,8 @@ func (d *UserDAO) ExportUsersPageContext(
 }
 
 // GetUserWithRolesPostsContext loads a user together with roles and posts.
-func (d *UserDAO) GetUserWithRolesPostsContext(ctx context.Context, id uint) (*model.User, error) {
-	var user model.User
+func (d *UserDAO) GetUserWithRolesPostsContext(ctx context.Context, id uint) (*localmodel.User, error) {
+	var user localmodel.User
 	result := d.dbWithContext(ctx).Preload("Roles").Preload("Posts").First(&user, id)
 	return &user, result.Error
 }
@@ -162,10 +163,10 @@ func (d *UserDAO) DeleteUserContext(ctx context.Context, id uint) error {
 		if err := tx.Where("user_id = ?", id).Delete(&model.UserRole{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Where("user_id = ?", id).Delete(&model.UserPost{}).Error; err != nil {
+		if err := tx.Where("user_id = ?", id).Delete(&localmodel.UserPost{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Delete(&model.User{}, id).Error; err != nil {
+		if err := tx.Delete(&localmodel.User{}, id).Error; err != nil {
 			return err
 		}
 		return nil
@@ -173,7 +174,7 @@ func (d *UserDAO) DeleteUserContext(ctx context.Context, id uint) error {
 }
 
 func (d *UserDAO) UpdateUserStatusContext(ctx context.Context, id uint, status int8) error {
-	return d.dbWithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("status", status).Error
+	return d.dbWithContext(ctx).Model(&localmodel.User{}).Where("id = ?", id).Update("status", status).Error
 }
 
 func (d *UserDAO) AssignRolesContext(ctx context.Context, userID uint, roleIDs []uint) error {
@@ -250,18 +251,18 @@ func (d *UserDAO) AssertRolesInTenantContext(ctx context.Context, roleIDs []uint
 func (d *UserDAO) AssignPostsContext(ctx context.Context, userID uint, postIDs []uint) error {
 	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		before := make([]uint, 0)
-		if err := tx.Model(&model.UserPost{}).Where("user_id = ?", userID).Pluck("post_id", &before).Error; err != nil {
+		if err := tx.Model(&localmodel.UserPost{}).Where("user_id = ?", userID).Pluck("post_id", &before).Error; err != nil {
 			return err
 		}
 
-		if err := tx.Where("user_id = ?", userID).Delete(&model.UserPost{}).Error; err != nil {
+		if err := tx.Where("user_id = ?", userID).Delete(&localmodel.UserPost{}).Error; err != nil {
 			return err
 		}
 
 		if len(postIDs) > 0 {
-			userPosts := make([]model.UserPost, 0, len(postIDs))
+			userPosts := make([]localmodel.UserPost, 0, len(postIDs))
 			for _, postID := range postIDs {
-				userPosts = append(userPosts, model.UserPost{
+				userPosts = append(userPosts, localmodel.UserPost{
 					UserID: userID,
 					PostID: postID,
 				})
@@ -306,7 +307,7 @@ func (d *UserDAO) AssertPostsInTenantContext(ctx context.Context, postIDs []uint
 		return nil
 	}
 	var count int64
-	if err := d.dbWithContext(ctx).Model(&model.Post{}).
+	if err := d.dbWithContext(ctx).Model(&localmodel.Post{}).
 		Where("tenant_id = ? AND id IN ?", tenantID, uniq).
 		Count(&count).Error; err != nil {
 		return err
@@ -326,7 +327,7 @@ func (d *UserDAO) AssertDepartmentInTenantContext(ctx context.Context, departmen
 		tenantID = 1
 	}
 	var count int64
-	if err := d.dbWithContext(ctx).Model(&model.Department{}).
+	if err := d.dbWithContext(ctx).Model(&localmodel.Department{}).
 		Where("id = ? AND tenant_id = ?", departmentID, tenantID).
 		Count(&count).Error; err != nil {
 		return err

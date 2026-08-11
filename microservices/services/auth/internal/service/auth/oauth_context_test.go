@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/auth/internal/config"
-	"github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )

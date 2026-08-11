@@ -185,13 +185,13 @@ func consoleLoginLimitConfig(policy authSvc.ConsoleSecurityPolicy) middleware.Lo
 	// login_ip_shield_* 配置约束（否则回退硬编码 30/10/10 且不拦 IP）。
 	sec := runtimeconfig.DefaultSecurityPolicyReader().SecurityPolicy(context.Background())
 	return middleware.LoginLimitConfig{
-		Window:                time.Hour,
-		MaxFailures:           policy.LoginMaxAttemptsPerHour,
-		LockDuration:          time.Duration(policy.LockoutMinutes) * time.Minute,
-		KeyPrefix:             "console_login_limit",
-		IPShieldWindow:        time.Duration(sec.LoginIPShieldWindowMinutes) * time.Minute,
-		IPShieldMaxFailures:   sec.LoginIPShieldMaxFailures,
-		IPShieldBlockMinutes:  time.Duration(sec.LoginIPShieldBlockMinutes) * time.Minute,
+		Window:               time.Hour,
+		MaxFailures:          policy.LoginMaxAttemptsPerHour,
+		LockDuration:         time.Duration(policy.LockoutMinutes) * time.Minute,
+		KeyPrefix:            "console_login_limit",
+		IPShieldWindow:       time.Duration(sec.LoginIPShieldWindowMinutes) * time.Minute,
+		IPShieldMaxFailures:  sec.LoginIPShieldMaxFailures,
+		IPShieldBlockMinutes: time.Duration(sec.LoginIPShieldBlockMinutes) * time.Minute,
 	}
 }
 

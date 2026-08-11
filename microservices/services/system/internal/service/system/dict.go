@@ -5,11 +5,11 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
 	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	cachepkg "github.com/go-admin-kit/services/system/internal/pkg/cache"
-	"github.com/go-admin-kit/services/shared/pkg/pagination"
-	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 

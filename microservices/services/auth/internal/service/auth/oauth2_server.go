@@ -13,7 +13,7 @@ import (
 
 	authdao "github.com/go-admin-kit/services/auth/internal/dao/auth"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
-	"github.com/go-admin-kit/services/auth/internal/model"
+	localmodel "github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -157,7 +157,7 @@ func containsStr(list []string, want string) bool {
 }
 
 // loadActiveClient fetches an enabled client by client_id (global, no tenant scope).
-func (s *OAuth2ServerService) loadActiveClient(ctx context.Context, clientID string) (*model.OAuth2Client, *OAuth2Error) {
+func (s *OAuth2ServerService) loadActiveClient(ctx context.Context, clientID string) (*localmodel.OAuth2Client, *OAuth2Error) {
 	client, err := s.clients.GetByClientIDContext(ctx, clientID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, oauth2Err(401, "invalid_client", "client not found")
@@ -195,7 +195,7 @@ func (s *OAuth2ServerService) ValidateAuthorizeRequest(ctx context.Context, req 
 	if req.ResponseType != "code" {
 		return nil, oauth2Err(400, "unsupported_response_type", "only response_type=code is supported")
 	}
-	if !containsStr(client.GrantTypes, model.GrantAuthorizationCode) {
+	if !containsStr(client.GrantTypes, localmodel.GrantAuthorizationCode) {
 		return nil, oauth2Err(400, "unauthorized_client", "client may not use authorization_code")
 	}
 	requested := parseScopes(req.Scope)
@@ -209,7 +209,7 @@ func (s *OAuth2ServerService) ValidateAuthorizeRequest(ctx context.Context, req 
 	if req.CodeChallenge != "" && req.CodeChallengeMethod != "S256" {
 		return nil, oauth2Err(400, "invalid_request", "only code_challenge_method=S256 is supported")
 	}
-	if client.ClientType == model.OAuth2ClientPublic && req.CodeChallenge == "" {
+	if client.ClientType == localmodel.OAuth2ClientPublic && req.CodeChallenge == "" {
 		return nil, oauth2Err(400, "invalid_request", "PKCE code_challenge is required for public clients")
 	}
 
@@ -306,7 +306,7 @@ func appendQuery(rawURL string, params map[string]string) (string, error) {
 // All authentication failures return a single, uniform "client authentication
 // failed" message, and unknown/disabled clients still run a dummy bcrypt compare
 // so response timing and wording don't reveal whether a client_id exists.
-func (s *OAuth2ServerService) AuthenticateClientContext(ctx context.Context, clientID, secret string) (*model.OAuth2Client, *OAuth2Error) {
+func (s *OAuth2ServerService) AuthenticateClientContext(ctx context.Context, clientID, secret string) (*localmodel.OAuth2Client, *OAuth2Error) {
 	client, err := s.clients.GetByClientIDContext(ctx, clientID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, oauth2Err(500, "server_error", "failed to load client")
@@ -316,7 +316,7 @@ func (s *OAuth2ServerService) AuthenticateClientContext(ctx context.Context, cli
 		bcryptDummyCompare() // flatten timing vs. the confidential-secret path
 		return nil, authFailed
 	}
-	if client.ClientType == model.OAuth2ClientConfidential {
+	if client.ClientType == localmodel.OAuth2ClientConfidential {
 		if secret == "" || bcrypt.CompareHashAndPassword([]byte(client.ClientSecretHash), []byte(secret)) != nil {
 			return nil, authFailed
 		}
@@ -333,8 +333,8 @@ func bcryptDummyCompare() {
 }
 
 // ExchangeAuthorizationCode handles grant_type=authorization_code.
-func (s *OAuth2ServerService) ExchangeAuthorizationCode(ctx context.Context, client *model.OAuth2Client, code, redirectURI, codeVerifier string) (*TokenResponse, *OAuth2Error) {
-	if !containsStr(client.GrantTypes, model.GrantAuthorizationCode) {
+func (s *OAuth2ServerService) ExchangeAuthorizationCode(ctx context.Context, client *localmodel.OAuth2Client, code, redirectURI, codeVerifier string) (*TokenResponse, *OAuth2Error) {
+	if !containsStr(client.GrantTypes, localmodel.GrantAuthorizationCode) {
 		return nil, oauth2Err(400, "unauthorized_client", "client may not use authorization_code")
 	}
 	payload, err := s.cache.ConsumeOAuth2CodeContext(ctx, code)
@@ -361,13 +361,13 @@ func (s *OAuth2ServerService) ExchangeAuthorizationCode(ctx context.Context, cli
 		}
 	}
 	uid := payload.UserID
-	return s.issueTokens(ctx, client, &uid, payload.Username, payload.TenantID, payload.Scopes, model.GrantAuthorizationCode, payload.Nonce)
+	return s.issueTokens(ctx, client, &uid, payload.Username, payload.TenantID, payload.Scopes, localmodel.GrantAuthorizationCode, payload.Nonce)
 }
 
 // ExchangeRefreshToken handles grant_type=refresh_token with rotation: the old
 // refresh token and its access token are revoked as new ones are minted.
-func (s *OAuth2ServerService) ExchangeRefreshToken(ctx context.Context, client *model.OAuth2Client, refreshToken string) (*TokenResponse, *OAuth2Error) {
-	if !containsStr(client.GrantTypes, model.GrantRefreshToken) {
+func (s *OAuth2ServerService) ExchangeRefreshToken(ctx context.Context, client *localmodel.OAuth2Client, refreshToken string) (*TokenResponse, *OAuth2Error) {
+	if !containsStr(client.GrantTypes, localmodel.GrantRefreshToken) {
 		return nil, oauth2Err(400, "unauthorized_client", "client may not use refresh_token")
 	}
 	hash := sha256Hex(refreshToken)
@@ -407,16 +407,16 @@ func (s *OAuth2ServerService) ExchangeRefreshToken(ctx context.Context, client *
 	}
 	// Refresh does not carry the original nonce; id_token (if openid) is minted
 	// without one, which is permitted for the refresh flow.
-	return s.issueTokens(ctx, client, stored.UserID, stored.Username, stored.TenantID, stored.Scopes, model.GrantRefreshToken, "")
+	return s.issueTokens(ctx, client, stored.UserID, stored.Username, stored.TenantID, stored.Scopes, localmodel.GrantRefreshToken, "")
 }
 
 // ClientCredentials handles grant_type=client_credentials (confidential only,
 // no user, no refresh token per RFC recommendation).
-func (s *OAuth2ServerService) ClientCredentials(ctx context.Context, client *model.OAuth2Client, scope string) (*TokenResponse, *OAuth2Error) {
-	if client.ClientType != model.OAuth2ClientConfidential {
+func (s *OAuth2ServerService) ClientCredentials(ctx context.Context, client *localmodel.OAuth2Client, scope string) (*TokenResponse, *OAuth2Error) {
+	if client.ClientType != localmodel.OAuth2ClientConfidential {
 		return nil, oauth2Err(400, "unauthorized_client", "only confidential clients may use client_credentials")
 	}
-	if !containsStr(client.GrantTypes, model.GrantClientCredentials) {
+	if !containsStr(client.GrantTypes, localmodel.GrantClientCredentials) {
 		return nil, oauth2Err(400, "unauthorized_client", "client may not use client_credentials")
 	}
 	requested := parseScopes(scope)
@@ -427,7 +427,7 @@ func (s *OAuth2ServerService) ClientCredentials(ctx context.Context, client *mod
 		return nil, oauth2Err(400, "invalid_scope", "requested scope exceeds client registration")
 	}
 	tctx := tenantCtx(ctx, client.TenantID)
-	accessToken, oerr := s.mintAccessToken(tctx, client, nil, "", client.TenantID, requested, model.GrantClientCredentials, nil)
+	accessToken, oerr := s.mintAccessToken(tctx, client, nil, "", client.TenantID, requested, localmodel.GrantClientCredentials, nil)
 	if oerr != nil {
 		return nil, oerr
 	}
@@ -442,13 +442,13 @@ func (s *OAuth2ServerService) ClientCredentials(ctx context.Context, client *mod
 // issueTokens mints a linked refresh + access token pair (authorization_code /
 // refresh_token grants), plus an OIDC id_token when the openid scope was granted
 // to an authenticated user.
-func (s *OAuth2ServerService) issueTokens(ctx context.Context, client *model.OAuth2Client, userID *uint, username string, tenantID uint, scopes []string, grantType, nonce string) (*TokenResponse, *OAuth2Error) {
+func (s *OAuth2ServerService) issueTokens(ctx context.Context, client *localmodel.OAuth2Client, userID *uint, username string, tenantID uint, scopes []string, grantType, nonce string) (*TokenResponse, *OAuth2Error) {
 	tctx := tenantCtx(ctx, tenantID)
 	refreshRaw, err := randomBase64URL(32)
 	if err != nil {
 		return nil, oauth2Err(500, "server_error", "failed to generate refresh token")
 	}
-	refresh := &model.OAuth2RefreshToken{
+	refresh := &localmodel.OAuth2RefreshToken{
 		TenantID:  tenantID,
 		TokenHash: sha256Hex(refreshRaw),
 		ClientID:  client.ClientID,
@@ -484,7 +484,7 @@ func (s *OAuth2ServerService) issueTokens(ctx context.Context, client *model.OAu
 
 // signIDToken builds and signs the id_token, embedding the scope-gated profile
 // and email claims (loaded from the user record).
-func (s *OAuth2ServerService) signIDToken(ctx context.Context, client *model.OAuth2Client, userID, tenantID uint, scopes []string, nonce string) (string, error) {
+func (s *OAuth2ServerService) signIDToken(ctx context.Context, client *localmodel.OAuth2Client, userID, tenantID uint, scopes []string, nonce string) (string, error) {
 	extra := map[string]any{}
 	if containsStr(scopes, "profile") || containsStr(scopes, "email") {
 		if user, err := s.users.GetUserWithRolesContext(ctx, userID); err == nil {
@@ -515,14 +515,14 @@ func (s *OAuth2ServerService) signIDToken(ctx context.Context, client *model.OAu
 // servers. That is a deliberate trade-off, not an oversight: an offline
 // verifier will not observe a revocation until the token expires, which is why
 // opaque stays the default and TTLs should be kept short for jwt clients.
-func (s *OAuth2ServerService) mintAccessToken(ctx context.Context, client *model.OAuth2Client, userID *uint, username string, tenantID uint, scopes []string, grantType string, refreshID *uint) (string, *OAuth2Error) {
+func (s *OAuth2ServerService) mintAccessToken(ctx context.Context, client *localmodel.OAuth2Client, userID *uint, username string, tenantID uint, scopes []string, grantType string, refreshID *uint) (string, *OAuth2Error) {
 	raw, err := randomBase64URL(32)
 	if err != nil {
 		return "", oauth2Err(500, "server_error", "failed to generate access token")
 	}
 	expiresAt := time.Now().Add(time.Duration(client.AccessTokenTTL) * time.Second)
 
-	if client.AccessTokenFormat == model.AccessTokenFormatJWT {
+	if client.AccessTokenFormat == localmodel.AccessTokenFormatJWT {
 		if s.oidc == nil {
 			// 签名密钥不可用时拒绝签发，绝不静默退回 opaque——调用方按形态
 			// 决定校验方式，静默降级会让它把 JWT 校验当成通过。
@@ -548,7 +548,7 @@ func (s *OAuth2ServerService) mintAccessToken(ctx context.Context, client *model
 		raw = signed
 	}
 
-	access := &model.OAuth2AccessToken{
+	access := &localmodel.OAuth2AccessToken{
 		TenantID:       tenantID,
 		TokenHash:      sha256Hex(raw),
 		ClientID:       client.ClientID,
@@ -566,7 +566,7 @@ func (s *OAuth2ServerService) mintAccessToken(ctx context.Context, client *model
 }
 
 // lookupActiveAccessToken resolves a bearer access token to its live DB row.
-func (s *OAuth2ServerService) lookupActiveAccessToken(ctx context.Context, rawToken string) (*model.OAuth2AccessToken, error) {
+func (s *OAuth2ServerService) lookupActiveAccessToken(ctx context.Context, rawToken string) (*localmodel.OAuth2AccessToken, error) {
 	token, err := s.tokens.GetAccessByHashContext(ctx, sha256Hex(rawToken))
 	if err != nil {
 		return nil, err
@@ -581,7 +581,7 @@ func (s *OAuth2ServerService) lookupActiveAccessToken(ctx context.Context, rawTo
 // {"active": false} without leaking why. The token is only introspected when it
 // belongs to the authenticated caller client — a caller must not learn metadata
 // about tokens issued to other clients (or other tenants).
-func (s *OAuth2ServerService) Introspect(ctx context.Context, client *model.OAuth2Client, rawToken string) map[string]any {
+func (s *OAuth2ServerService) Introspect(ctx context.Context, client *localmodel.OAuth2Client, rawToken string) map[string]any {
 	token, err := s.lookupActiveAccessToken(ctx, rawToken)
 	if err != nil {
 		return map[string]any{"active": false}
@@ -607,7 +607,7 @@ func (s *OAuth2ServerService) Introspect(ctx context.Context, client *model.OAut
 // Revoke implements RFC 7009 — always succeeds (idempotent). Only revokes
 // tokens belonging to the authenticated client. Revoking a refresh token
 // cascades to its access token.
-func (s *OAuth2ServerService) Revoke(ctx context.Context, client *model.OAuth2Client, rawToken, hint string) {
+func (s *OAuth2ServerService) Revoke(ctx context.Context, client *localmodel.OAuth2Client, rawToken, hint string) {
 	hash := sha256Hex(rawToken)
 	tctx := tenantCtx(ctx, client.TenantID)
 	// Try refresh first (cascades), unless hint says access_token.

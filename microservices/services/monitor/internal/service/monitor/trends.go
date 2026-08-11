@@ -6,17 +6,17 @@ import (
 	"time"
 
 	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 var ErrInvalidTrendRange = errors.New("invalid trend range")
 
 // MetricTrendResponse is the downsampled series returned by the trend API.
 type MetricTrendResponse struct {
-	Metric string                  `json:"metric"`
-	Range  string                  `json:"range"`
-	Unit   string                  `json:"unit"`
-	Points []model.MetricTrendPoint `json:"points"`
+	Metric string                        `json:"metric"`
+	Range  string                        `json:"range"`
+	Unit   string                        `json:"unit"`
+	Points []localmodel.MetricTrendPoint `json:"points"`
 }
 
 type trendRangeConfig struct {
@@ -61,11 +61,11 @@ func (s *MetricTrendService) QueryTrendContext(ctx context.Context, metric, rng 
 
 // downsampleTrendPoints buckets raw samples and averages each bucket, so the
 // returned series stays small regardless of range.
-func downsampleTrendPoints(raw []model.MonitorMetricSample, bucket time.Duration) []model.MetricTrendPoint {
+func downsampleTrendPoints(raw []localmodel.MonitorMetricSample, bucket time.Duration) []localmodel.MetricTrendPoint {
 	if len(raw) == 0 {
-		return []model.MetricTrendPoint{}
+		return []localmodel.MetricTrendPoint{}
 	}
-	points := make([]model.MetricTrendPoint, 0, len(raw)/(int(bucket)/int(time.Minute))+1)
+	points := make([]localmodel.MetricTrendPoint, 0, len(raw)/(int(bucket)/int(time.Minute))+1)
 	var current *trendBucket
 	for _, sample := range raw {
 		ts := sample.CollectedAt.Truncate(bucket)
@@ -94,6 +94,6 @@ func (b *trendBucket) add(value float64) {
 	b.n++
 }
 
-func (b *trendBucket) finish() model.MetricTrendPoint {
-	return model.MetricTrendPoint{Timestamp: b.ts.UnixMilli(), Value: b.sum / float64(b.n)}
+func (b *trendBucket) finish() localmodel.MetricTrendPoint {
+	return localmodel.MetricTrendPoint{Timestamp: b.ts.UnixMilli(), Value: b.sum / float64(b.n)}
 }

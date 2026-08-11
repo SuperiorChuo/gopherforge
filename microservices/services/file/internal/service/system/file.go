@@ -10,11 +10,11 @@ import (
 	"time"
 
 	systemdao "github.com/go-admin-kit/services/file/internal/dao/system"
-	"github.com/go-admin-kit/services/file/internal/model"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/authz"
+	"github.com/go-admin-kit/services/file/internal/pkg/upload"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
-	"github.com/go-admin-kit/services/file/internal/pkg/upload"
 	"gorm.io/gorm"
 )
 
@@ -23,9 +23,9 @@ var ErrFileNotFoundOrPermissionDenied = errors.New("file not found or permission
 // UploadSessionStore is the persistence surface for chunked uploads, so tests
 // can substitute an in-memory implementation.
 type UploadSessionStore interface {
-	CreateContext(ctx context.Context, s *model.UploadSession) error
-	GetByIDContext(ctx context.Context, id uint) (*model.UploadSession, error)
-	GetPendingByHashContext(ctx context.Context, hash string, tenantID, userID uint) (*model.UploadSession, error)
+	CreateContext(ctx context.Context, s *localmodel.UploadSession) error
+	GetByIDContext(ctx context.Context, id uint) (*localmodel.UploadSession, error)
+	GetPendingByHashContext(ctx context.Context, hash string, tenantID, userID uint) (*localmodel.UploadSession, error)
 	UpdateFileNameContext(ctx context.Context, id uint, fileName string) error
 	MarkChunkReceivedContext(ctx context.Context, id uint, bitmap string, count int) error
 	DeleteContext(ctx context.Context, id uint) error
@@ -73,7 +73,7 @@ type FileListRequest struct {
 	DataScope authz.UserDataScope `json:"-" form:"-"`
 }
 
-func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHeader, userID uint) (*model.File, error) {
+func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHeader, userID uint) (*localmodel.File, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -98,7 +98,7 @@ func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHea
 		if info.ThumbnailPath != "" {
 			_ = s.uploader.DeleteContext(ctx, info.ThumbnailPath)
 		}
-		newFile := &model.File{
+		newFile := &localmodel.File{
 			TenantID:        tenantID,
 			UserID:          userID,
 			FileName:        info.FileName,
@@ -130,7 +130,7 @@ func (s *FileService) UploadContext(ctx context.Context, file *multipart.FileHea
 		return nil, err
 	}
 
-	fileRecord := &model.File{
+	fileRecord := &localmodel.File{
 		TenantID:        tenantID,
 		UserID:          userID,
 		FileName:        info.FileName,
@@ -185,8 +185,8 @@ func (s *FileService) enforceStorageQuota(ctx context.Context, size int64) error
 	return nil
 }
 
-func (s *FileService) UploadMultipleContext(ctx context.Context, files []*multipart.FileHeader, userID uint) ([]*model.File, []error) {
-	var results []*model.File
+func (s *FileService) UploadMultipleContext(ctx context.Context, files []*multipart.FileHeader, userID uint) ([]*localmodel.File, []error) {
+	var results []*localmodel.File
 	var errs []error
 
 	for _, file := range files {
@@ -201,7 +201,7 @@ func (s *FileService) UploadMultipleContext(ctx context.Context, files []*multip
 	return results, errs
 }
 
-func (s *FileService) GetFileByIDContext(ctx context.Context, id uint) (*model.File, error) {
+func (s *FileService) GetFileByIDContext(ctx context.Context, id uint) (*localmodel.File, error) {
 	file, err := s.fileDAO.GetByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -212,7 +212,7 @@ func (s *FileService) GetFileByIDContext(ctx context.Context, id uint) (*model.F
 	return file, nil
 }
 
-func (s *FileService) GetFileByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*model.File, error) {
+func (s *FileService) GetFileByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*localmodel.File, error) {
 	file, err := s.fileDAO.GetByIDInScopeContext(ctx, id, dataScope)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -223,7 +223,7 @@ func (s *FileService) GetFileByIDInScopeContext(ctx context.Context, id uint, da
 	return file, nil
 }
 
-func (s *FileService) GetFileByHashContext(ctx context.Context, hash string, dataScope authz.UserDataScope) (*model.File, error) {
+func (s *FileService) GetFileByHashContext(ctx context.Context, hash string, dataScope authz.UserDataScope) (*localmodel.File, error) {
 	file, err := s.fileDAO.GetByHashInScopeContext(ctx, hash, dataScope)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -234,7 +234,7 @@ func (s *FileService) GetFileByHashContext(ctx context.Context, hash string, dat
 	return file, nil
 }
 
-func (s *FileService) GetFileListContext(ctx context.Context, req FileListRequest) ([]model.File, int64, error) {
+func (s *FileService) GetFileListContext(ctx context.Context, req FileListRequest) ([]localmodel.File, int64, error) {
 	return s.fileDAO.GetListContext(ctx, req.PageRequest, req.UserID, req.FileType, req.Keyword, req.StartTime, req.EndTime, req.DataScope)
 }
 
@@ -300,7 +300,7 @@ func (s *FileService) GetFileStatsContext(ctx context.Context, userID *uint, dat
 	return stats, nil
 }
 
-func (s *FileService) OpenFileContentContext(ctx context.Context, file *model.File) (*FileContent, error) {
+func (s *FileService) OpenFileContentContext(ctx context.Context, file *localmodel.File) (*FileContent, error) {
 	if file == nil {
 		return nil, ErrFileNotFoundOrPermissionDenied
 	}

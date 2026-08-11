@@ -3,9 +3,9 @@ package system
 import (
 	"context"
 
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/system/internal/dao/auth"
 	"github.com/go-admin-kit/services/system/internal/dao/system"
-	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 

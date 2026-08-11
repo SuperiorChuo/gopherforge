@@ -9,8 +9,8 @@ import (
 
 	"github.com/go-admin-kit/services/audit/internal/config"
 	systemdao "github.com/go-admin-kit/services/audit/internal/dao/system"
-	"github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/audit/internal/pkg/database"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 

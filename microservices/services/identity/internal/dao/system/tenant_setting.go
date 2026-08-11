@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-admin-kit/services/identity/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

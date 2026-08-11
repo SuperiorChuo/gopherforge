@@ -5,7 +5,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/go-admin-kit/services/identity/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 // PermissionCacheDAO provides relation lookups needed for permission cache invalidation.

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/services/auth/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 func TestConsoleAuditTargetFallsBackForBlankValues(t *testing.T) {

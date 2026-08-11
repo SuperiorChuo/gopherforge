@@ -7,7 +7,7 @@ import (
 
 	auditv1 "github.com/go-admin-kit/services/api/gen/audit/v1"
 	"github.com/go-admin-kit/services/audit/internal/dao/system"
-	"github.com/go-admin-kit/services/audit/internal/model"
+	localmodel "github.com/go-admin-kit/services/audit/internal/model"
 )
 
 // AuditGRPC 实现 auditv1.AuditServiceServer（Phase 1 服务发现试点端点）。
@@ -21,7 +21,7 @@ func NewAuditGRPC(db *gorm.DB) *AuditGRPC { return &AuditGRPC{db: db} }
 
 // WriteLog 写一条审计日志（复用现有 CreateLogContext）。
 func (g *AuditGRPC) WriteLog(ctx context.Context, req *auditv1.WriteLogRequest) (*auditv1.WriteLogResponse, error) {
-	log := &model.AuditLog{
+	log := &localmodel.AuditLog{
 		TenantID:   uint(req.TenantId),
 		ActorType:  req.ActorType,
 		ActorID:    req.ActorId,

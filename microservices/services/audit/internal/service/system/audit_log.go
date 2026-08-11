@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	dao "github.com/go-admin-kit/services/audit/internal/dao/system"
-	"github.com/go-admin-kit/services/audit/internal/model"
+	localmodel "github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
@@ -91,7 +91,7 @@ func (s *AuditLogService) ListLogsContext(ctx context.Context, req AuditLogListR
 
 // ExportLogsContext streams up to maxExportRows audit rows with the same
 // filters as the list, unpaginated, for CSV export.
-func (s *AuditLogService) ExportLogsContext(ctx context.Context, req AuditLogListRequest) ([]model.AuditLog, error) {
+func (s *AuditLogService) ExportLogsContext(ctx context.Context, req AuditLogListRequest) ([]localmodel.AuditLog, error) {
 	normalized := NormalizeAuditLogListRequest(req)
 	return s.logDAO.ExportLogsContext(ctx, dao.AuditLogListQuery{
 		Action:     normalized.Action,
@@ -152,7 +152,7 @@ func NormalizeAuditSortOrder(value string) string {
 	}
 }
 
-func normalizeAuditRecord(log *model.AuditLog) {
+func normalizeAuditRecord(log *localmodel.AuditLog) {
 	log.Action = strings.TrimSpace(log.Action)
 	log.TargetType = strings.TrimSpace(log.TargetType)
 	log.TargetID = strings.TrimSpace(log.TargetID)
@@ -167,7 +167,7 @@ func normalizeAuditRecord(log *model.AuditLog) {
 	}
 }
 
-func buildAuditLog(c *gin.Context, req AuditRecordRequest) *model.AuditLog {
+func buildAuditLog(c *gin.Context, req AuditRecordRequest) *localmodel.AuditLog {
 	actorType, actorID := resolveAuditActor(c)
 	if value := strings.TrimSpace(req.ActorType); value != "" {
 		actorType = value
@@ -180,7 +180,7 @@ func buildAuditLog(c *gin.Context, req AuditRecordRequest) *model.AuditLog {
 	if c != nil && c.Request != nil {
 		reqCtx = c.Request.Context()
 	}
-	log := &model.AuditLog{
+	log := &localmodel.AuditLog{
 		TenantID:   resolveAuditTenantID(c, reqCtx),
 		ActorType:  actorType,
 		ActorID:    actorID,

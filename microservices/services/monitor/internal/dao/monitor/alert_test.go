@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 func TestMarkAlertEvaluationErrorResetsOnlyPendingDuration(t *testing.T) {
 	evaluatedAt := time.Date(2026, 7, 31, 10, 0, 0, 0, time.UTC)
 	pendingSince := evaluatedAt.Add(-time.Minute)
-	pending := &model.MonitorAlertRule{
+	pending := &localmodel.MonitorAlertRule{
 		Metric:       "system.cpu.used_percent",
 		State:        "pending",
 		PendingSince: &pendingSince,
@@ -24,7 +24,7 @@ func TestMarkAlertEvaluationErrorResetsOnlyPendingDuration(t *testing.T) {
 	}
 
 	firingSince := evaluatedAt.Add(-2 * time.Minute)
-	firing := &model.MonitorAlertRule{
+	firing := &localmodel.MonitorAlertRule{
 		Metric:      "system.cpu.used_percent",
 		State:       "firing",
 		FiringSince: &firingSince,
@@ -38,7 +38,7 @@ func TestMarkAlertEvaluationErrorResetsOnlyPendingDuration(t *testing.T) {
 }
 
 func TestMarkAlertEvaluationErrorRejectsStaleMetric(t *testing.T) {
-	rule := &model.MonitorAlertRule{Metric: "system.memory.used_percent", State: "ok"}
+	rule := &localmodel.MonitorAlertRule{Metric: "system.memory.used_percent", State: "ok"}
 	err := markAlertEvaluationError(rule, "system.cpu.used_percent", time.Now(), "old collector failed")
 	if !errors.Is(err, ErrAlertRuleChanged) {
 		t.Fatalf("error = %v, want %v", err, ErrAlertRuleChanged)

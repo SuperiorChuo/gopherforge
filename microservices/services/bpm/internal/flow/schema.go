@@ -86,14 +86,14 @@ type Node struct {
 	FormFields []string `json:"formFields,omitempty"`
 
 	// --- approval ---
-	Assignee      *AssigneeRule `json:"assignee,omitempty"`
-	MultiMode     string        `json:"multiMode,omitempty"` // AND|OR|SEQ，缺省按 OR
-	OnReject      string        `json:"onReject,omitempty"`  // reject|back_to_start，缺省按 reject
-	TimeoutHours  int           `json:"timeoutHours,omitempty"`
+	Assignee     *AssigneeRule `json:"assignee,omitempty"`
+	MultiMode    string        `json:"multiMode,omitempty"` // AND|OR|SEQ，缺省按 OR
+	OnReject     string        `json:"onReject,omitempty"`  // reject|back_to_start，缺省按 reject
+	TimeoutHours int           `json:"timeoutHours,omitempty"`
 	// TimeoutAction 到期动作：remind（缺省）|auto_pass|auto_reject；
 	// 非 remind 时 TimeoutHours 必须 >0（发布校验强制）
 	TimeoutAction string `json:"timeoutAction,omitempty"`
-	AllowBackPrev bool          `json:"allowBackPrev,omitempty"`
+	AllowBackPrev bool   `json:"allowBackPrev,omitempty"`
 	// FieldPerms 表单字段权限（M1 仅 "hidden"；键须在定义的 form_schema 内，
 	// 发布时经 form.ValidateFieldPerms 校验）——该节点任务详情按此过滤快照
 	FieldPerms map[string]string `json:"fieldPerms,omitempty"`
@@ -201,7 +201,7 @@ func Successor(s *Schema, id string) *Node {
 }
 
 // succIn 在 chain 中找 id 的后继；joins 为由内到外的汇合目标栈
-//（元素可为 nil，表示该层 condition 之后直接续接更外层的汇合点）。
+// （元素可为 nil，表示该层 condition 之后直接续接更外层的汇合点）。
 func succIn(chain *Node, id string, joins []*Node) (*Node, bool) {
 	for n := chain; n != nil; n = n.Next {
 		if n.ID == id {

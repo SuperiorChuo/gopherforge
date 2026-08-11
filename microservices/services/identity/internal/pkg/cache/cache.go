@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	jwtpkg "github.com/go-admin-kit/services/identity/internal/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/identity/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
@@ -172,14 +172,14 @@ func (s *CacheService) ConsumeOAuthStateContext(ctx context.Context, state strin
 	return verifier, err
 }
 
-func (s *CacheService) SetUserInfoContext(ctx context.Context, user *model.User) error {
+func (s *CacheService) SetUserInfoContext(ctx context.Context, user *localmodel.User) error {
 	key := fmt.Sprintf(KeyUserInfo, user.ID)
 	return s.redisClient().Set(ctx, key, user, UserInfoExpire).Err()
 }
 
-func (s *CacheService) GetUserInfoContext(ctx context.Context, userID uint) (*model.User, error) {
+func (s *CacheService) GetUserInfoContext(ctx context.Context, userID uint) (*localmodel.User, error) {
 	key := fmt.Sprintf(KeyUserInfo, userID)
-	var user model.User
+	var user localmodel.User
 	err := s.redisClient().Get(ctx, key).Scan(&user)
 	return &user, err
 }

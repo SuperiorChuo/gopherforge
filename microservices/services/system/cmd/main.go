@@ -21,6 +21,8 @@ import (
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
+	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 	"github.com/go-admin-kit/services/system/internal/api"
 	sharedapi "github.com/go-admin-kit/services/system/internal/api/shared"
 	systemAPI "github.com/go-admin-kit/services/system/internal/api/system"
@@ -28,13 +30,11 @@ import (
 	authDAO "github.com/go-admin-kit/services/system/internal/dao/auth"
 	systemDAO "github.com/go-admin-kit/services/system/internal/dao/system"
 	"github.com/go-admin-kit/services/system/internal/middleware"
-	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/system/internal/pkg/authz"
 	"github.com/go-admin-kit/services/system/internal/pkg/database"
 	"github.com/go-admin-kit/services/system/internal/pkg/observability"
 	"github.com/go-admin-kit/services/system/internal/pkg/redis"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
-	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 	authsvc "github.com/go-admin-kit/services/system/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/system/internal/service/system"
 )

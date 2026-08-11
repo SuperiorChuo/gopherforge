@@ -6,7 +6,7 @@ import (
 	"time"
 
 	dao "github.com/go-admin-kit/services/audit/internal/dao/system"
-	"github.com/go-admin-kit/services/audit/internal/model"
+	localmodel "github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/jobbeat"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
@@ -155,7 +155,7 @@ func (s *SecurityDetectorService) evaluateCounts(ctx context.Context, rule, seve
 			continue
 		}
 
-		event := &model.SecurityEvent{
+		event := &localmodel.SecurityEvent{
 			TenantID:   1,
 			Rule:       rule,
 			Severity:   severity,
@@ -173,7 +173,7 @@ func (s *SecurityDetectorService) evaluateCounts(ctx context.Context, rule, seve
 	}
 }
 
-func (s *SecurityDetectorService) notifyEvent(ctx context.Context, event *model.SecurityEvent) {
+func (s *SecurityDetectorService) notifyEvent(ctx context.Context, event *localmodel.SecurityEvent) {
 	if s.notify == nil || !s.notify.Enabled() {
 		return
 	}

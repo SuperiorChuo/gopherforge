@@ -8,8 +8,8 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	miniredis "github.com/alicebob/miniredis/v2"
-	cachepkg "github.com/go-admin-kit/services/system/internal/pkg/cache"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
+	cachepkg "github.com/go-admin-kit/services/system/internal/pkg/cache"
 	goredis "github.com/redis/go-redis/v9"
 )
 

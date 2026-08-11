@@ -1,4 +1,4 @@
-package model
+package localmodel
 
 import (
 	"database/sql/driver"
@@ -43,25 +43,25 @@ func (l *NotifyChannelList) UnmarshalJSON(b []byte) error {
 
 // MonitorAlertRule stores an alert condition and its durable evaluation state.
 type MonitorAlertRule struct {
-	ID              uint       `gorm:"primaryKey" json:"id"`
-	Name            string     `gorm:"size:100;not null;uniqueIndex" json:"name"`
-	Metric          string     `gorm:"size:80;not null;index" json:"metric"`
-	Operator        string     `gorm:"size:8;not null" json:"operator"`
-	Threshold       float64    `gorm:"not null" json:"threshold"`
-	DurationSeconds int64      `gorm:"not null;default:0" json:"duration_seconds"`
-	Severity        string     `gorm:"size:16;not null;default:warning;index" json:"severity"`
-	Enabled         bool       `gorm:"not null;default:true;index" json:"enabled"`
-	NotifyOnResolve bool       `gorm:"not null;default:true" json:"notify_on_resolve"`
+	ID              uint              `gorm:"primaryKey" json:"id"`
+	Name            string            `gorm:"size:100;not null;uniqueIndex" json:"name"`
+	Metric          string            `gorm:"size:80;not null;index" json:"metric"`
+	Operator        string            `gorm:"size:8;not null" json:"operator"`
+	Threshold       float64           `gorm:"not null" json:"threshold"`
+	DurationSeconds int64             `gorm:"not null;default:0" json:"duration_seconds"`
+	Severity        string            `gorm:"size:16;not null;default:warning;index" json:"severity"`
+	Enabled         bool              `gorm:"not null;default:true;index" json:"enabled"`
+	NotifyOnResolve bool              `gorm:"not null;default:true" json:"notify_on_resolve"`
 	NotifyChannels  NotifyChannelList `gorm:"type:text;not null;default:'[]'" json:"notify_channels"`
-	SilenceUntil    *time.Time `json:"silence_until"`
-	State           string     `gorm:"size:16;not null;default:ok;index" json:"state"`
-	PendingSince    *time.Time `json:"pending_since"`
-	FiringSince     *time.Time `json:"firing_since"`
-	LastValue       *float64   `json:"last_value"`
-	LastEvaluatedAt *time.Time `json:"last_evaluated_at"`
-	LastError       string     `gorm:"size:1000;not null;default:''" json:"last_error"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	SilenceUntil    *time.Time        `json:"silence_until"`
+	State           string            `gorm:"size:16;not null;default:ok;index" json:"state"`
+	PendingSince    *time.Time        `json:"pending_since"`
+	FiringSince     *time.Time        `json:"firing_since"`
+	LastValue       *float64          `json:"last_value"`
+	LastEvaluatedAt *time.Time        `json:"last_evaluated_at"`
+	LastError       string            `gorm:"size:1000;not null;default:''" json:"last_error"`
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
 }
 
 func (MonitorAlertRule) TableName() string {

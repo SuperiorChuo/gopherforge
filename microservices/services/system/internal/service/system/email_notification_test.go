@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/mailer"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
 )
 

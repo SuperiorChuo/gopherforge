@@ -13,7 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/file/internal/config"
-	"github.com/go-admin-kit/services/file/internal/model"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/authz"
 	"github.com/go-admin-kit/services/file/internal/pkg/upload"
 	"github.com/go-admin-kit/services/file/internal/pkg/urlsign"
@@ -331,7 +331,7 @@ func newUploadURLSigner() *urlsign.Signer {
 
 // signFileURLs replaces the stored /uploads URLs on a file record with signed
 // ones before the record leaves the API. Stored values stay unsigned.
-func signFileURLs(file *model.File) {
+func signFileURLs(file *localmodel.File) {
 	if file == nil {
 		return
 	}
@@ -345,7 +345,7 @@ func signFileURLs(file *model.File) {
 	file.ThumbnailURL = signer.SignURL(file.ThumbnailURL, prefix, now)
 }
 
-func signFileListURLs(files []model.File) {
+func signFileListURLs(files []localmodel.File) {
 	for i := range files {
 		signFileURLs(&files[i])
 	}

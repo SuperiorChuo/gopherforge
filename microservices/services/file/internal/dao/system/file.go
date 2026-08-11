@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-admin-kit/services/file/internal/model"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
@@ -26,35 +26,35 @@ func (d *FileDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d *FileDAO) CreateContext(ctx context.Context, file *model.File) error {
+func (d *FileDAO) CreateContext(ctx context.Context, file *localmodel.File) error {
 	if file != nil && file.TenantID == 0 {
 		file.TenantID = tenant.IDFromContext(ctx)
 	}
 	return d.dbWithContext(ctx).Create(file).Error
 }
 
-func (d *FileDAO) GetByIDContext(ctx context.Context, id uint) (*model.File, error) {
-	var file model.File
+func (d *FileDAO) GetByIDContext(ctx context.Context, id uint) (*localmodel.File, error) {
+	var file localmodel.File
 	result := tenant.ApplyFilter(d.dbWithContext(authz.DisableDataScope(ctx)), ctx).First(&file, id)
 	return &file, result.Error
 }
 
-func (d *FileDAO) GetByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*model.File, error) {
-	var file model.File
-	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.File{}), ctx)
+func (d *FileDAO) GetByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*localmodel.File, error) {
+	var file localmodel.File
+	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&localmodel.File{}), ctx)
 	result := query.Where("id = ?", id).First(&file)
 	return &file, result.Error
 }
 
-func (d *FileDAO) GetByHashContext(ctx context.Context, hash string) (*model.File, error) {
-	var file model.File
+func (d *FileDAO) GetByHashContext(ctx context.Context, hash string) (*localmodel.File, error) {
+	var file localmodel.File
 	result := tenant.ApplyFilter(d.dbWithContext(authz.DisableDataScope(ctx)), ctx).Where("hash = ?", hash).First(&file)
 	return &file, result.Error
 }
 
-func (d *FileDAO) GetByHashInScopeContext(ctx context.Context, hash string, dataScope authz.UserDataScope) (*model.File, error) {
-	var file model.File
-	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.File{}), ctx)
+func (d *FileDAO) GetByHashInScopeContext(ctx context.Context, hash string, dataScope authz.UserDataScope) (*localmodel.File, error) {
+	var file localmodel.File
+	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&localmodel.File{}), ctx)
 	result := query.Where("hash = ?", hash).First(&file)
 	return &file, result.Error
 }
@@ -66,11 +66,11 @@ func (d *FileDAO) GetListContext(
 	fileType, keyword string,
 	startTime, endTime *time.Time,
 	dataScope authz.UserDataScope,
-) ([]model.File, int64, error) {
-	var files []model.File
+) ([]localmodel.File, int64, error) {
+	var files []localmodel.File
 	var total int64
 
-	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.File{}), ctx)
+	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&localmodel.File{}), ctx)
 
 	if userID != nil {
 		query = query.Where("user_id = ?", *userID)
@@ -101,11 +101,11 @@ func (d *FileDAO) GetListContext(
 }
 
 func (d *FileDAO) DeleteContext(ctx context.Context, id uint) error {
-	return tenant.ApplyFilter(d.dbWithContext(ctx), ctx).Delete(&model.File{}, id).Error
+	return tenant.ApplyFilter(d.dbWithContext(ctx), ctx).Delete(&localmodel.File{}, id).Error
 }
 
 func (d *FileDAO) DeleteByIDsContext(ctx context.Context, ids []uint) error {
-	return tenant.ApplyFilter(d.dbWithContext(ctx), ctx).Delete(&model.File{}, ids).Error
+	return tenant.ApplyFilter(d.dbWithContext(ctx), ctx).Delete(&localmodel.File{}, ids).Error
 }
 
 // CountByFilePathExcludingIDContext counts storage references without tenant filter so
@@ -114,7 +114,7 @@ func (d *FileDAO) DeleteByIDsContext(ctx context.Context, ids []uint) error {
 func (d *FileDAO) CountByFilePathExcludingIDContext(ctx context.Context, storageType, filePath string, excludedID uint) (int64, error) {
 	var count int64
 	err := d.dbWithContext(tenant.DisableScope(authz.DisableDataScope(ctx))).
-		Model(&model.File{}).
+		Model(&localmodel.File{}).
 		Where("storage_type = ? AND file_path = ? AND id <> ?", storageType, filePath, excludedID).
 		Count(&count).Error
 	return count, err
@@ -123,7 +123,7 @@ func (d *FileDAO) CountByFilePathExcludingIDContext(ctx context.Context, storage
 func (d *FileDAO) CountByThumbnailPathExcludingIDContext(ctx context.Context, storageType, thumbnailPath string, excludedID uint) (int64, error) {
 	var count int64
 	err := d.dbWithContext(tenant.DisableScope(authz.DisableDataScope(ctx))).
-		Model(&model.File{}).
+		Model(&localmodel.File{}).
 		Where("storage_type = ? AND thumbnail_path = ? AND id <> ?", storageType, thumbnailPath, excludedID).
 		Count(&count).Error
 	return count, err
@@ -140,7 +140,7 @@ func (d *FileDAO) GetStatsInScopeContext(ctx context.Context, userID *uint, data
 func (d *FileDAO) getStatsContext(ctx context.Context, userID *uint) (*FileStats, error) {
 	stats := &FileStats{}
 
-	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.File{}), ctx)
+	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&localmodel.File{}), ctx)
 	if userID != nil {
 		query = query.Where("user_id = ?", *userID)
 	}
@@ -160,7 +160,7 @@ func (d *FileDAO) getStatsContext(ctx context.Context, userID *uint) (*FileStats
 		Count    int64  `json:"count"`
 		Size     int64  `json:"size"`
 	}
-	query2 := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.File{}), ctx)
+	query2 := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&localmodel.File{}), ctx)
 	if userID != nil {
 		query2 = query2.Where("user_id = ?", *userID)
 	}
@@ -210,7 +210,7 @@ func (d *FileDAO) GetTenantStorageQuotaContext(ctx context.Context, tenantID uin
 		return StorageQuota{}, err
 	}
 	var used int64
-	err = d.dbWithContext(ctx).Model(&model.File{}).
+	err = d.dbWithContext(ctx).Model(&localmodel.File{}).
 		Where("tenant_id = ?", tenantID).
 		Select("COALESCE(SUM(file_size), 0)").Scan(&used).Error
 	if err != nil {

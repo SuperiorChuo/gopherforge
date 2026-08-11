@@ -6,7 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/monitor/internal/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 )
@@ -26,7 +26,7 @@ func (d *OperationLogDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d *OperationLogDAO) CreateLogContext(ctx context.Context, log *model.OperationLog) error {
+func (d *OperationLogDAO) CreateLogContext(ctx context.Context, log *localmodel.OperationLog) error {
 	return d.dbWithContext(ctx).Create(log).Error
 }
 
@@ -36,7 +36,7 @@ const operationLogInsertChunkSize = 100
 
 // CreateLogsContext persists a batch of operation logs with multi-row INSERTs
 // instead of one round trip per record.
-func (d *OperationLogDAO) CreateLogsContext(ctx context.Context, logs []*model.OperationLog) error {
+func (d *OperationLogDAO) CreateLogsContext(ctx context.Context, logs []*localmodel.OperationLog) error {
 	if len(logs) == 0 {
 		return nil
 	}
@@ -46,15 +46,15 @@ func (d *OperationLogDAO) CreateLogsContext(ctx context.Context, logs []*model.O
 	return d.dbWithContext(ctx).CreateInBatches(logs, operationLogInsertChunkSize).Error
 }
 
-func (d *OperationLogDAO) GetLogByIDContext(ctx context.Context, id uint) (*model.OperationLog, error) {
-	var log model.OperationLog
+func (d *OperationLogDAO) GetLogByIDContext(ctx context.Context, id uint) (*localmodel.OperationLog, error) {
+	var log localmodel.OperationLog
 	result := d.dbWithContext(authz.DisableDataScope(ctx)).First(&log, id)
 	return &log, result.Error
 }
 
-func (d *OperationLogDAO) GetLogByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*model.OperationLog, error) {
-	var log model.OperationLog
-	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.OperationLog{})
+func (d *OperationLogDAO) GetLogByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*localmodel.OperationLog, error) {
+	var log localmodel.OperationLog
+	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&localmodel.OperationLog{})
 	result := query.Where("id = ?", id).First(&log)
 	return &log, result.Error
 }
@@ -67,11 +67,11 @@ func (d *OperationLogDAO) GetLogListContext(
 	status *int,
 	startTime, endTime *time.Time,
 	dataScope authz.UserDataScope,
-) ([]model.OperationLog, int64, error) {
-	var logs []model.OperationLog
+) ([]localmodel.OperationLog, int64, error) {
+	var logs []localmodel.OperationLog
 	var total int64
 
-	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.OperationLog{})
+	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&localmodel.OperationLog{})
 	query = applyOperationLogFilters(query, userID, username, actorType, actorID, requestID, method, path, module, action, status, startTime, endTime)
 
 	if err := query.Count(&total).Error; err != nil {
@@ -127,14 +127,14 @@ func applyOperationLogFilters(
 }
 
 func (d *OperationLogDAO) DeleteLogsBeforeContext(ctx context.Context, before time.Time) (int64, error) {
-	result := d.dbWithContext(ctx).Where("created_at < ?", before).Delete(&model.OperationLog{})
+	result := d.dbWithContext(ctx).Where("created_at < ?", before).Delete(&localmodel.OperationLog{})
 	return result.RowsAffected, result.Error
 }
 
 func (d *OperationLogDAO) DeleteLogsBeforeInScopeContext(ctx context.Context, before time.Time, dataScope authz.UserDataScope) (int64, error) {
-	query := d.dbWithContext(ctx).Model(&model.OperationLog{}).Where("created_at < ?", before)
+	query := d.dbWithContext(ctx).Model(&localmodel.OperationLog{}).Where("created_at < ?", before)
 	query = authz.ApplyOwnerScope(query, dataScope, "user_id")
-	result := query.Delete(&model.OperationLog{})
+	result := query.Delete(&localmodel.OperationLog{})
 	return result.RowsAffected, result.Error
 }
 
@@ -149,7 +149,7 @@ func (d *OperationLogDAO) GetLogStatsInScopeContext(ctx context.Context, startTi
 func (d *OperationLogDAO) getLogStatsContext(ctx context.Context, startTime, endTime *time.Time) (*LogStats, error) {
 	stats := &LogStats{ByModule: map[string]int64{}, ByMethod: map[string]int64{}}
 
-	query := applyTimeRange(d.dbWithContext(ctx).Model(&model.OperationLog{}), startTime, endTime)
+	query := applyTimeRange(d.dbWithContext(ctx).Model(&localmodel.OperationLog{}), startTime, endTime)
 	if err := query.Count(&stats.Total).Error; err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (d *OperationLogDAO) getLogStatsContext(ctx context.Context, startTime, end
 		Module string `json:"module"`
 		Count  int64  `json:"count"`
 	}
-	if err := applyTimeRange(d.dbWithContext(ctx).Model(&model.OperationLog{}), startTime, endTime).
+	if err := applyTimeRange(d.dbWithContext(ctx).Model(&localmodel.OperationLog{}), startTime, endTime).
 		Select("module, count(*) as count").
 		Group("module").
 		Find(&moduleStats).Error; err != nil {
@@ -172,7 +172,7 @@ func (d *OperationLogDAO) getLogStatsContext(ctx context.Context, startTime, end
 		Method string `json:"method"`
 		Count  int64  `json:"count"`
 	}
-	if err := applyTimeRange(d.dbWithContext(ctx).Model(&model.OperationLog{}), startTime, endTime).
+	if err := applyTimeRange(d.dbWithContext(ctx).Model(&localmodel.OperationLog{}), startTime, endTime).
 		Select("method, count(*) as count").
 		Group("method").
 		Find(&methodStats).Error; err != nil {
@@ -182,7 +182,7 @@ func (d *OperationLogDAO) getLogStatsContext(ctx context.Context, startTime, end
 		stats.ByMethod[s.Method] = s.Count
 	}
 
-	if err := applyTimeRange(d.dbWithContext(ctx).Model(&model.OperationLog{}), startTime, endTime).
+	if err := applyTimeRange(d.dbWithContext(ctx).Model(&localmodel.OperationLog{}), startTime, endTime).
 		Where("status >= 400").
 		Count(&stats.ErrorCount).Error; err != nil {
 		return nil, err

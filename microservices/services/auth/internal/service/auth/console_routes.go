@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	authDAO "github.com/go-admin-kit/services/auth/internal/dao/auth"
-	"github.com/go-admin-kit/services/auth/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 

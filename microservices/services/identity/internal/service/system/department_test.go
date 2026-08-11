@@ -7,9 +7,9 @@ import (
 	"time"
 
 	miniredis "github.com/alicebob/miniredis/v2"
-	"github.com/go-admin-kit/services/identity/internal/model"
-	"github.com/go-admin-kit/services/shared/pkg/pagination"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	redisstore "github.com/go-admin-kit/services/identity/internal/pkg/redis"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	goredis "github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -103,8 +103,8 @@ func TestDepartmentServiceUpdateInvalidatesDepartmentTreeCache(t *testing.T) {
 	setupDepartmentServiceTestRedis(t)
 	seedDepartmentTreeCache(t)
 
-	dept := &model.Department{ID: 10, Name: "Engineering", Code: "rd", Status: 1}
-	dao := &fakeDepartmentDAO{byID: map[uint]*model.Department{10: dept}}
+	dept := &localmodel.Department{ID: 10, Name: "Engineering", Code: "rd", Status: 1}
+	dao := &fakeDepartmentDAO{byID: map[uint]*localmodel.Department{10: dept}}
 	service := DepartmentService{deptDAO: dao}
 
 	_, err := service.UpdateContext(context.Background(), 10, UpdateDepartmentRequest{Name: "Product Engineering"})
@@ -169,7 +169,7 @@ func setupDepartmentServiceTestRedis(t *testing.T) *miniredis.Miniredis {
 }
 
 type fakeDepartmentDAO struct {
-	byID         map[uint]*model.Department
+	byID         map[uint]*localmodel.Department
 	getByCodeErr error
 	createErr    error
 	updateErr    error
@@ -177,7 +177,7 @@ type fakeDepartmentDAO struct {
 	createHook   func(context.Context)
 }
 
-func (d *fakeDepartmentDAO) GetByIDContext(_ context.Context, id uint) (*model.Department, error) {
+func (d *fakeDepartmentDAO) GetByIDContext(_ context.Context, id uint) (*localmodel.Department, error) {
 	if dept, ok := d.byID[id]; ok {
 		cp := *dept
 		return &cp, nil
@@ -185,26 +185,26 @@ func (d *fakeDepartmentDAO) GetByIDContext(_ context.Context, id uint) (*model.D
 	return nil, errors.New("not found")
 }
 
-func (d *fakeDepartmentDAO) GetByCodeContext(_ context.Context, _ string) (*model.Department, error) {
+func (d *fakeDepartmentDAO) GetByCodeContext(_ context.Context, _ string) (*localmodel.Department, error) {
 	if d.getByCodeErr != nil {
 		return nil, d.getByCodeErr
 	}
-	return &model.Department{}, nil
+	return &localmodel.Department{}, nil
 }
 
-func (d *fakeDepartmentDAO) GetListContext(context.Context, pagination.PageRequest, string, *int8) ([]model.Department, int64, error) {
+func (d *fakeDepartmentDAO) GetListContext(context.Context, pagination.PageRequest, string, *int8) ([]localmodel.Department, int64, error) {
 	return nil, 0, nil
 }
 
-func (d *fakeDepartmentDAO) GetAllContext(context.Context, *int8) ([]model.Department, error) {
+func (d *fakeDepartmentDAO) GetAllContext(context.Context, *int8) ([]localmodel.Department, error) {
 	return nil, nil
 }
 
-func (d *fakeDepartmentDAO) GetTreeContext(context.Context, *int8) ([]model.Department, error) {
+func (d *fakeDepartmentDAO) GetTreeContext(context.Context, *int8) ([]localmodel.Department, error) {
 	return nil, nil
 }
 
-func (d *fakeDepartmentDAO) CreateContext(ctx context.Context, dept *model.Department) error {
+func (d *fakeDepartmentDAO) CreateContext(ctx context.Context, dept *localmodel.Department) error {
 	if d.createErr != nil {
 		return d.createErr
 	}
@@ -215,7 +215,7 @@ func (d *fakeDepartmentDAO) CreateContext(ctx context.Context, dept *model.Depar
 	return nil
 }
 
-func (d *fakeDepartmentDAO) UpdateContext(context.Context, *model.Department) error {
+func (d *fakeDepartmentDAO) UpdateContext(context.Context, *localmodel.Department) error {
 	return d.updateErr
 }
 

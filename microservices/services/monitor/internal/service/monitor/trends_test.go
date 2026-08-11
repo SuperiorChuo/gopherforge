@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 func TestDownsampleTrendPoints(t *testing.T) {
 	base := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	raw := []model.MonitorMetricSample{
+	raw := []localmodel.MonitorMetricSample{
 		{Metric: "system.cpu.used_percent", Value: 10, CollectedAt: base},
 		{Metric: "system.cpu.used_percent", Value: 20, CollectedAt: base.Add(30 * time.Second)},
 		{Metric: "system.cpu.used_percent", Value: 40, CollectedAt: base.Add(60 * time.Second)},
@@ -41,7 +41,7 @@ func TestDownsampleTrendPointsEmpty(t *testing.T) {
 func TestQueryTrendContext(t *testing.T) {
 	now := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
 	store := &fakeMetricSampleStore{
-		raw: []model.MonitorMetricSample{
+		raw: []localmodel.MonitorMetricSample{
 			{Metric: "system.cpu.used_percent", Value: 10, CollectedAt: now.Add(-90 * time.Minute)},
 			{Metric: "system.cpu.used_percent", Value: 20, CollectedAt: now.Add(-60 * time.Minute)},
 			{Metric: "system.cpu.used_percent", Value: 30, CollectedAt: now.Add(-30 * time.Minute)},

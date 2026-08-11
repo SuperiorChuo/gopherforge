@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/monitor/internal/pkg/cache"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 // countingUserStore records how many times the DB-backed lookup was hit.

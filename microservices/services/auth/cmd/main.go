@@ -23,7 +23,6 @@ import (
 	systemDAO "github.com/go-admin-kit/services/auth/internal/dao/system"
 	"github.com/go-admin-kit/services/auth/internal/events"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
-	"github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/database"
 	"github.com/go-admin-kit/services/auth/internal/pkg/observability"
 	"github.com/go-admin-kit/services/auth/internal/pkg/redis"
@@ -32,6 +31,7 @@ import (
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 )

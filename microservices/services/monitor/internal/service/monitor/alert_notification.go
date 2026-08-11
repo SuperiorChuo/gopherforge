@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-admin-kit/services/monitor/internal/model"
-	"github.com/go-admin-kit/services/shared/pkg/mailer"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/monitor/internal/pkg/runtimeconfig"
+	"github.com/go-admin-kit/services/shared/pkg/mailer"
 )
 
 type AlertEmailNotifier struct {
@@ -25,7 +25,7 @@ func DefaultAlertEmailNotifier() *AlertEmailNotifier {
 	return NewAlertEmailNotifier(nil, runtimeconfig.DefaultEmailNotificationReader())
 }
 
-func (n *AlertEmailNotifier) NotifyContext(ctx context.Context, _ *model.MonitorAlertRule, event *model.MonitorAlertEvent) AlertNotification {
+func (n *AlertEmailNotifier) NotifyContext(ctx context.Context, _ *localmodel.MonitorAlertRule, event *localmodel.MonitorAlertEvent) AlertNotification {
 	now := time.Now
 	if n != nil && n.now != nil {
 		now = n.now
@@ -85,14 +85,14 @@ func alertEmailRecipients(policy runtimeconfig.EmailNotification) []string {
 	return policy.AlertReceivers
 }
 
-func alertEmailSubject(policy runtimeconfig.EmailNotification, event *model.MonitorAlertEvent) string {
+func alertEmailSubject(policy runtimeconfig.EmailNotification, event *localmodel.MonitorAlertEvent) string {
 	if strings.TrimSpace(policy.SubjectTemplate) != "" {
 		return renderAlertEmailTemplate(policy.SubjectTemplate, event)
 	}
 	return fmt.Sprintf("[%s] Alert %s: %s", strings.ToUpper(event.Severity), event.Status, event.RuleName)
 }
 
-func alertEmailBody(policy runtimeconfig.EmailNotification, event *model.MonitorAlertEvent) string {
+func alertEmailBody(policy runtimeconfig.EmailNotification, event *localmodel.MonitorAlertEvent) string {
 	if strings.TrimSpace(policy.BodyTemplate) != "" {
 		return renderAlertEmailTemplate(policy.BodyTemplate, event)
 	}
@@ -108,7 +108,7 @@ func alertEmailBody(policy runtimeconfig.EmailNotification, event *model.Monitor
 	)
 }
 
-func renderAlertEmailTemplate(template string, event *model.MonitorAlertEvent) string {
+func renderAlertEmailTemplate(template string, event *localmodel.MonitorAlertEvent) string {
 	return strings.NewReplacer(
 		"{{id}}", fmt.Sprint(event.ID),
 		"{{type}}", "alert",

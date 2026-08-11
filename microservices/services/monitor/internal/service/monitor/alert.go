@@ -9,7 +9,7 @@ import (
 	"time"
 
 	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -57,21 +57,21 @@ type AlertRuleInput struct {
 	Severity        string
 	Enabled         bool
 	NotifyOnResolve bool
-	NotifyChannels  model.NotifyChannelList
+	NotifyChannels  localmodel.NotifyChannelList
 	SilenceUntil    *time.Time
 }
 
 type AlertStore interface {
-	GetRuleByIDContext(ctx context.Context, id uint) (*model.MonitorAlertRule, error)
-	ListRulesContext(ctx context.Context, req pagination.PageRequest, filter monitordao.AlertRuleFilter) ([]model.MonitorAlertRule, int64, error)
+	GetRuleByIDContext(ctx context.Context, id uint) (*localmodel.MonitorAlertRule, error)
+	ListRulesContext(ctx context.Context, req pagination.PageRequest, filter monitordao.AlertRuleFilter) ([]localmodel.MonitorAlertRule, int64, error)
 	ListEnabledRuleIDsContext(ctx context.Context) ([]uint, error)
-	GetRuleSummaryContext(ctx context.Context) (model.MonitorAlertSummary, error)
-	CreateRuleContext(ctx context.Context, rule *model.MonitorAlertRule) error
-	UpdateRuleContext(ctx context.Context, id uint, update monitordao.AlertRuleUpdate) (*model.MonitorAlertRule, error)
+	GetRuleSummaryContext(ctx context.Context) (localmodel.MonitorAlertSummary, error)
+	CreateRuleContext(ctx context.Context, rule *localmodel.MonitorAlertRule) error
+	UpdateRuleContext(ctx context.Context, id uint, update monitordao.AlertRuleUpdate) (*localmodel.MonitorAlertRule, error)
 	DeleteRuleContext(ctx context.Context, id uint) error
-	ApplyTransitionContext(ctx context.Context, id uint, transition monitordao.AlertTransition) (*model.MonitorAlertRule, *model.MonitorAlertEvent, error)
-	RecordEvaluationErrorContext(ctx context.Context, id uint, expectedMetric string, evaluatedAt time.Time, message string) (*model.MonitorAlertRule, error)
-	ListEventsContext(ctx context.Context, req pagination.PageRequest, filter monitordao.AlertEventFilter) ([]model.MonitorAlertEvent, int64, error)
+	ApplyTransitionContext(ctx context.Context, id uint, transition monitordao.AlertTransition) (*localmodel.MonitorAlertRule, *localmodel.MonitorAlertEvent, error)
+	RecordEvaluationErrorContext(ctx context.Context, id uint, expectedMetric string, evaluatedAt time.Time, message string) (*localmodel.MonitorAlertRule, error)
+	ListEventsContext(ctx context.Context, req pagination.PageRequest, filter monitordao.AlertEventFilter) ([]localmodel.MonitorAlertEvent, int64, error)
 	UpdateEventNotificationContext(ctx context.Context, id uint64, status, notifyError string, notifiedAt time.Time) error
 }
 
@@ -85,7 +85,7 @@ type AlertNotifier interface {
 	// NotifyContext delivers an alert event. rule carries the notify_channel
 	// selection; event is what fired/resolved. Returns a per-call result that
 	// is persisted back onto the event.
-	NotifyContext(ctx context.Context, rule *model.MonitorAlertRule, event *model.MonitorAlertEvent) AlertNotification
+	NotifyContext(ctx context.Context, rule *localmodel.MonitorAlertRule, event *localmodel.MonitorAlertEvent) AlertNotification
 }
 
 type AlertService struct {
@@ -111,40 +111,40 @@ func NewAlertServiceWithDependencies(store AlertStore, collector AlertMetricColl
 	return &AlertService{store: store, collector: collector, notifier: notifier, now: time.Now}
 }
 
-func (s *AlertService) ListRulesContext(ctx context.Context, req pagination.PageRequest, filter monitordao.AlertRuleFilter) ([]model.MonitorAlertRule, int64, error) {
+func (s *AlertService) ListRulesContext(ctx context.Context, req pagination.PageRequest, filter monitordao.AlertRuleFilter) ([]localmodel.MonitorAlertRule, int64, error) {
 	if err := s.ready(); err != nil {
 		return nil, 0, err
 	}
 	return s.store.ListRulesContext(ctx, req, filter)
 }
 
-func (s *AlertService) ListEventsContext(ctx context.Context, req pagination.PageRequest, filter monitordao.AlertEventFilter) ([]model.MonitorAlertEvent, int64, error) {
+func (s *AlertService) ListEventsContext(ctx context.Context, req pagination.PageRequest, filter monitordao.AlertEventFilter) ([]localmodel.MonitorAlertEvent, int64, error) {
 	if err := s.ready(); err != nil {
 		return nil, 0, err
 	}
 	return s.store.ListEventsContext(ctx, req, filter)
 }
 
-func (s *AlertService) GetRuleSummaryContext(ctx context.Context) (model.MonitorAlertSummary, error) {
+func (s *AlertService) GetRuleSummaryContext(ctx context.Context) (localmodel.MonitorAlertSummary, error) {
 	if err := s.ready(); err != nil {
-		return model.MonitorAlertSummary{}, err
+		return localmodel.MonitorAlertSummary{}, err
 	}
 	summary, err := s.store.GetRuleSummaryContext(ctx)
 	if err != nil {
-		return model.MonitorAlertSummary{}, err
+		return localmodel.MonitorAlertSummary{}, err
 	}
 	summary.CheckedAt = s.now().UTC()
 	return summary, nil
 }
 
-func (s *AlertService) GetRuleContext(ctx context.Context, id uint) (*model.MonitorAlertRule, error) {
+func (s *AlertService) GetRuleContext(ctx context.Context, id uint) (*localmodel.MonitorAlertRule, error) {
 	if err := s.ready(); err != nil {
 		return nil, err
 	}
 	return s.store.GetRuleByIDContext(ctx, id)
 }
 
-func (s *AlertService) CreateRuleContext(ctx context.Context, input AlertRuleInput) (*model.MonitorAlertRule, error) {
+func (s *AlertService) CreateRuleContext(ctx context.Context, input AlertRuleInput) (*localmodel.MonitorAlertRule, error) {
 	if err := s.ready(); err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (s *AlertService) CreateRuleContext(ctx context.Context, input AlertRuleInp
 	if err := validateAlertRuleInput(input); err != nil {
 		return nil, err
 	}
-	rule := &model.MonitorAlertRule{
+	rule := &localmodel.MonitorAlertRule{
 		Name:            input.Name,
 		Metric:          input.Metric,
 		Operator:        input.Operator,
@@ -161,7 +161,7 @@ func (s *AlertService) CreateRuleContext(ctx context.Context, input AlertRuleInp
 		Severity:        input.Severity,
 		Enabled:         input.Enabled,
 		NotifyOnResolve: input.NotifyOnResolve,
-		NotifyChannels:  append(model.NotifyChannelList(nil), input.NotifyChannels...),
+		NotifyChannels:  append(localmodel.NotifyChannelList(nil), input.NotifyChannels...),
 		SilenceUntil:    input.SilenceUntil,
 		State:           AlertStateOK,
 	}
@@ -171,7 +171,7 @@ func (s *AlertService) CreateRuleContext(ctx context.Context, input AlertRuleInp
 	return rule, nil
 }
 
-func (s *AlertService) UpdateRuleContext(ctx context.Context, id uint, input AlertRuleInput) (*model.MonitorAlertRule, error) {
+func (s *AlertService) UpdateRuleContext(ctx context.Context, id uint, input AlertRuleInput) (*localmodel.MonitorAlertRule, error) {
 	if err := s.ready(); err != nil {
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func (s *AlertService) UpdateRuleContext(ctx context.Context, id uint, input Ale
 	if err := validateAlertRuleInput(input); err != nil {
 		return nil, err
 	}
-	return s.store.UpdateRuleContext(ctx, id, func(rule *model.MonitorAlertRule) error {
+	return s.store.UpdateRuleContext(ctx, id, func(rule *localmodel.MonitorAlertRule) error {
 		applyAlertRuleInput(rule, input)
 		return nil
 	})
@@ -192,7 +192,7 @@ func (s *AlertService) DeleteRuleContext(ctx context.Context, id uint) error {
 	return s.store.DeleteRuleContext(ctx, id)
 }
 
-func (s *AlertService) EvaluateRuleContext(ctx context.Context, id uint) (*model.MonitorAlertRule, *model.MonitorAlertEvent, error) {
+func (s *AlertService) EvaluateRuleContext(ctx context.Context, id uint) (*localmodel.MonitorAlertRule, *localmodel.MonitorAlertEvent, error) {
 	if err := s.ready(); err != nil {
 		return nil, nil, err
 	}
@@ -222,7 +222,7 @@ func (s *AlertService) EvaluateRuleContext(ctx context.Context, id uint) (*model
 		}
 		return nil, nil, fmt.Errorf("%w: %v", ErrAlertMetricUnavailable, err)
 	}
-	updated, event, err := s.store.ApplyTransitionContext(ctx, id, func(locked *model.MonitorAlertRule) (*model.MonitorAlertEvent, error) {
+	updated, event, err := s.store.ApplyTransitionContext(ctx, id, func(locked *localmodel.MonitorAlertRule) (*localmodel.MonitorAlertEvent, error) {
 		if !locked.Enabled {
 			return nil, ErrAlertRuleDisabled
 		}
@@ -330,7 +330,7 @@ func validateAlertRuleInput(input AlertRuleInput) error {
 	return nil
 }
 
-func applyAlertRuleInput(rule *model.MonitorAlertRule, input AlertRuleInput) {
+func applyAlertRuleInput(rule *localmodel.MonitorAlertRule, input AlertRuleInput) {
 	conditionChanged := rule.Metric != input.Metric || rule.Operator != input.Operator ||
 		rule.Threshold != input.Threshold || rule.DurationSeconds != input.DurationSeconds
 	rule.Name = input.Name
@@ -341,7 +341,7 @@ func applyAlertRuleInput(rule *model.MonitorAlertRule, input AlertRuleInput) {
 	rule.Severity = input.Severity
 	rule.Enabled = input.Enabled
 	rule.NotifyOnResolve = input.NotifyOnResolve
-	rule.NotifyChannels = append(model.NotifyChannelList(nil), input.NotifyChannels...)
+	rule.NotifyChannels = append(localmodel.NotifyChannelList(nil), input.NotifyChannels...)
 	rule.SilenceUntil = input.SilenceUntil
 	if conditionChanged || !input.Enabled {
 		resetAlertRuleState(rule)
@@ -376,7 +376,7 @@ func ValidateAlertNotifyStatus(value string) error {
 	return ErrInvalidAlertNotifyStatus
 }
 
-func transitionAlertRule(rule *model.MonitorAlertRule, value float64, evaluatedAt time.Time) (*model.MonitorAlertEvent, error) {
+func transitionAlertRule(rule *localmodel.MonitorAlertRule, value float64, evaluatedAt time.Time) (*localmodel.MonitorAlertEvent, error) {
 	if rule == nil || !rule.Enabled {
 		return nil, ErrAlertRuleDisabled
 	}
@@ -411,8 +411,8 @@ func transitionAlertRule(rule *model.MonitorAlertRule, value float64, evaluatedA
 	return nil, nil
 }
 
-func newAlertEvent(rule *model.MonitorAlertRule, status string, value float64, createdAt time.Time) *model.MonitorAlertEvent {
-	return &model.MonitorAlertEvent{
+func newAlertEvent(rule *localmodel.MonitorAlertRule, status string, value float64, createdAt time.Time) *localmodel.MonitorAlertEvent {
+	return &localmodel.MonitorAlertEvent{
 		RuleName:     rule.Name,
 		Metric:       rule.Metric,
 		Severity:     rule.Severity,
@@ -425,14 +425,14 @@ func newAlertEvent(rule *model.MonitorAlertRule, status string, value float64, c
 	}
 }
 
-func alertEventMessage(rule *model.MonitorAlertRule, status string, value float64) string {
+func alertEventMessage(rule *localmodel.MonitorAlertRule, status string, value float64) string {
 	if status == AlertEventResolved {
 		return fmt.Sprintf("Alert %q resolved: %s is %.4f, threshold %s %.4f", rule.Name, rule.Metric, value, rule.Operator, rule.Threshold)
 	}
 	return fmt.Sprintf("Alert %q firing: %s is %.4f, threshold %s %.4f", rule.Name, rule.Metric, value, rule.Operator, rule.Threshold)
 }
 
-func resetAlertRuleState(rule *model.MonitorAlertRule) {
+func resetAlertRuleState(rule *localmodel.MonitorAlertRule) {
 	rule.State = AlertStateOK
 	rule.PendingSince = nil
 	rule.FiringSince = nil

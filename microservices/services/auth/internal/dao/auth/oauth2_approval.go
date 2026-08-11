@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/go-admin-kit/services/auth/internal/model"
+	localmodel "github.com/go-admin-kit/services/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -27,8 +27,8 @@ func (d OAuth2ApprovalDAO) dbWithContext(ctx context.Context) *gorm.DB {
 
 // GetContext returns the live (non-expired) approval for a (user, client) pair,
 // or nil when none exists.
-func (d OAuth2ApprovalDAO) GetContext(ctx context.Context, userID uint, clientID string) (*model.OAuth2Approval, error) {
-	var approval model.OAuth2Approval
+func (d OAuth2ApprovalDAO) GetContext(ctx context.Context, userID uint, clientID string) (*localmodel.OAuth2Approval, error) {
+	var approval localmodel.OAuth2Approval
 	err := d.dbWithContext(ctx).
 		Where("user_id = ? AND client_id = ? AND expires_at > ?", userID, clientID, time.Now()).
 		First(&approval).Error
@@ -45,10 +45,10 @@ func (d OAuth2ApprovalDAO) GetContext(ctx context.Context, userID uint, clientID
 // onto any previously approved set.
 func (d OAuth2ApprovalDAO) UpsertContext(ctx context.Context, tenantID, userID uint, clientID string, scopes []string, expiresAt time.Time) error {
 	db := d.dbWithContext(ctx)
-	var existing model.OAuth2Approval
+	var existing localmodel.OAuth2Approval
 	err := db.Where("user_id = ? AND client_id = ?", userID, clientID).First(&existing).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return db.Create(&model.OAuth2Approval{
+		return db.Create(&localmodel.OAuth2Approval{
 			TenantID: tenantID, UserID: userID, ClientID: clientID,
 			Scopes: scopes, ExpiresAt: expiresAt,
 		}).Error
@@ -65,7 +65,7 @@ func (d OAuth2ApprovalDAO) UpsertContext(ctx context.Context, tenantID, userID u
 func (d OAuth2ApprovalDAO) DeleteByClientContext(ctx context.Context, clientID string) error {
 	return d.dbWithContext(ctx).
 		Where("client_id = ?", clientID).
-		Delete(&model.OAuth2Approval{}).Error
+		Delete(&localmodel.OAuth2Approval{}).Error
 }
 
 func unionScopes(existing, incoming []string) []string {

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/services/auth/internal/model"
+	localmodel "github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/golang-jwt/jwt/v5"
 	goredis "github.com/redis/go-redis/v9"
 )
@@ -40,10 +40,10 @@ func (f *fakeRateRedis) ExpireNX(_ context.Context, _ string, _ time.Duration) *
 }
 
 func TestEffectiveTokenRateFallsBackToDefault(t *testing.T) {
-	if got := EffectiveTokenRate(&model.OAuth2Client{TokenRatePerMinute: 0}); got != DefaultTokenRatePerMinute {
+	if got := EffectiveTokenRate(&localmodel.OAuth2Client{TokenRatePerMinute: 0}); got != DefaultTokenRatePerMinute {
 		t.Errorf("rate 0 should fall back to default, got %d", got)
 	}
-	if got := EffectiveTokenRate(&model.OAuth2Client{TokenRatePerMinute: 5}); got != 5 {
+	if got := EffectiveTokenRate(&localmodel.OAuth2Client{TokenRatePerMinute: 5}); got != 5 {
 		t.Errorf("per-client rate should win, got %d", got)
 	}
 	if got := EffectiveTokenRate(nil); got != DefaultTokenRatePerMinute {
@@ -54,7 +54,7 @@ func TestEffectiveTokenRateFallsBackToDefault(t *testing.T) {
 func TestCheckTokenRateBlocksOnlyBeyondQuota(t *testing.T) {
 	fake := &fakeRateRedis{}
 	svc := &OAuth2ServerService{redis: fake}
-	client := &model.OAuth2Client{ClientID: "gak_abc", TokenRatePerMinute: 3}
+	client := &localmodel.OAuth2Client{ClientID: "gak_abc", TokenRatePerMinute: 3}
 
 	// 配额内的每一次都必须放行（含正好第 3 次——边界不能提前拦）。
 	for i := 1; i <= 3; i++ {
@@ -83,7 +83,7 @@ func TestCheckTokenRateBlocksOnlyBeyondQuota(t *testing.T) {
 
 // Redis 故障必须放行：限流是防滥用而非鉴权，缓存挂了不该打死正常对接。
 func TestCheckTokenRateFailsOpen(t *testing.T) {
-	client := &model.OAuth2Client{ClientID: "gak_abc", TokenRatePerMinute: 1}
+	client := &localmodel.OAuth2Client{ClientID: "gak_abc", TokenRatePerMinute: 1}
 	cases := map[string]*OAuth2ServerService{
 		"redis 未配置":   {redis: nil},
 		"INCR 报错":     {redis: &fakeRateRedis{incrErr: errors.New("boom")}},
@@ -166,12 +166,12 @@ func TestSignAccessTokenRFC9068Shape(t *testing.T) {
 // 方式，静默降级会让它把随机串当 JWT 校验并放行。
 func TestMintJWTAccessTokenRefusesWithoutSigningKey(t *testing.T) {
 	svc := &OAuth2ServerService{oidc: nil}
-	client := &model.OAuth2Client{
+	client := &localmodel.OAuth2Client{
 		ClientID:          "gak_abc",
 		AccessTokenTTL:    3600,
-		AccessTokenFormat: model.AccessTokenFormatJWT,
+		AccessTokenFormat: localmodel.AccessTokenFormatJWT,
 	}
-	_, err := svc.mintAccessToken(t.Context(), client, nil, "", 1, []string{"openid"}, model.GrantClientCredentials, nil)
+	_, err := svc.mintAccessToken(t.Context(), client, nil, "", 1, []string{"openid"}, localmodel.GrantClientCredentials, nil)
 	if err == nil {
 		t.Fatal("jwt format without OIDC key must fail, not silently downgrade")
 	}
@@ -186,16 +186,16 @@ func TestValidateAccessTokenFormatAndRate(t *testing.T) {
 	base := func() ClientMutation {
 		return ClientMutation{
 			Name:         "demo",
-			ClientType:   model.OAuth2ClientConfidential,
+			ClientType:   localmodel.OAuth2ClientConfidential,
 			RedirectURIs: []string{"https://app.example.com/cb"},
 			Scopes:       []string{"openid"},
-			GrantTypes:   []string{model.GrantAuthorizationCode},
+			GrantTypes:   []string{localmodel.GrantAuthorizationCode},
 		}
 	}
 	svc := OAuth2ClientService{}
 
 	// 空值（= opaque）、opaque、jwt 都必须接受。
-	for _, format := range []string{"", model.AccessTokenFormatOpaque, model.AccessTokenFormatJWT} {
+	for _, format := range []string{"", localmodel.AccessTokenFormatOpaque, localmodel.AccessTokenFormatJWT} {
 		m := base()
 		m.AccessTokenFormat = format
 		if err := svc.validate(m); err != nil {
@@ -218,7 +218,7 @@ func TestValidateAccessTokenFormatAndRate(t *testing.T) {
 func TestNormalizeTTLsDefaultsTokenFormat(t *testing.T) {
 	m := ClientMutation{}
 	normalizeTTLs(&m)
-	if m.AccessTokenFormat != model.AccessTokenFormatOpaque {
+	if m.AccessTokenFormat != localmodel.AccessTokenFormatOpaque {
 		t.Errorf("format should default to opaque, got %q", m.AccessTokenFormat)
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -27,9 +27,9 @@ type AlertEventFilter struct {
 	NotifyStatus string
 }
 
-type AlertTransition func(rule *model.MonitorAlertRule) (*model.MonitorAlertEvent, error)
+type AlertTransition func(rule *localmodel.MonitorAlertRule) (*localmodel.MonitorAlertEvent, error)
 
-type AlertRuleUpdate func(rule *model.MonitorAlertRule) error
+type AlertRuleUpdate func(rule *localmodel.MonitorAlertRule) error
 
 var ErrAlertRuleChanged = errors.New("alert rule changed during evaluation")
 
@@ -52,16 +52,16 @@ func (d *AlertDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d *AlertDAO) GetRuleByIDContext(ctx context.Context, id uint) (*model.MonitorAlertRule, error) {
-	var rule model.MonitorAlertRule
+func (d *AlertDAO) GetRuleByIDContext(ctx context.Context, id uint) (*localmodel.MonitorAlertRule, error) {
+	var rule localmodel.MonitorAlertRule
 	err := d.dbWithContext(ctx).First(&rule, id).Error
 	return &rule, err
 }
 
-func (d *AlertDAO) ListRulesContext(ctx context.Context, req pagination.PageRequest, filter AlertRuleFilter) ([]model.MonitorAlertRule, int64, error) {
-	var rules []model.MonitorAlertRule
+func (d *AlertDAO) ListRulesContext(ctx context.Context, req pagination.PageRequest, filter AlertRuleFilter) ([]localmodel.MonitorAlertRule, int64, error) {
+	var rules []localmodel.MonitorAlertRule
 	var total int64
-	query := d.dbWithContext(ctx).Model(&model.MonitorAlertRule{})
+	query := d.dbWithContext(ctx).Model(&localmodel.MonitorAlertRule{})
 	if filter.Name != "" {
 		query = query.Where("name ILIKE ?", "%"+filter.Name+"%")
 	}
@@ -83,16 +83,16 @@ func (d *AlertDAO) ListRulesContext(ctx context.Context, req pagination.PageRequ
 
 func (d *AlertDAO) ListEnabledRuleIDsContext(ctx context.Context) ([]uint, error) {
 	var ids []uint
-	err := d.dbWithContext(ctx).Model(&model.MonitorAlertRule{}).
+	err := d.dbWithContext(ctx).Model(&localmodel.MonitorAlertRule{}).
 		Where("enabled = ?", true).
 		Order("id ASC").
 		Pluck("id", &ids).Error
 	return ids, err
 }
 
-func (d *AlertDAO) GetRuleSummaryContext(ctx context.Context) (model.MonitorAlertSummary, error) {
-	var summary model.MonitorAlertSummary
-	err := d.dbWithContext(ctx).Model(&model.MonitorAlertRule{}).
+func (d *AlertDAO) GetRuleSummaryContext(ctx context.Context) (localmodel.MonitorAlertSummary, error) {
+	var summary localmodel.MonitorAlertSummary
+	err := d.dbWithContext(ctx).Model(&localmodel.MonitorAlertRule{}).
 		Select(`
 			COUNT(*) AS total,
 			COALESCE(SUM(CASE WHEN enabled THEN 1 ELSE 0 END), 0) AS enabled,
@@ -103,17 +103,17 @@ func (d *AlertDAO) GetRuleSummaryContext(ctx context.Context) (model.MonitorAler
 	return summary, err
 }
 
-func (d *AlertDAO) CreateRuleContext(ctx context.Context, rule *model.MonitorAlertRule) error {
+func (d *AlertDAO) CreateRuleContext(ctx context.Context, rule *localmodel.MonitorAlertRule) error {
 	return d.dbWithContext(ctx).Create(rule).Error
 }
 
-func (d *AlertDAO) UpdateRuleContext(ctx context.Context, id uint, update AlertRuleUpdate) (*model.MonitorAlertRule, error) {
+func (d *AlertDAO) UpdateRuleContext(ctx context.Context, id uint, update AlertRuleUpdate) (*localmodel.MonitorAlertRule, error) {
 	if id == 0 || update == nil {
 		return nil, gorm.ErrRecordNotFound
 	}
-	var updated model.MonitorAlertRule
+	var updated localmodel.MonitorAlertRule
 	err := d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var rule model.MonitorAlertRule
+		var rule localmodel.MonitorAlertRule
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&rule, id).Error; err != nil {
 			return err
 		}
@@ -133,7 +133,7 @@ func (d *AlertDAO) UpdateRuleContext(ctx context.Context, id uint, update AlertR
 }
 
 func (d *AlertDAO) DeleteRuleContext(ctx context.Context, id uint) error {
-	result := d.dbWithContext(ctx).Delete(&model.MonitorAlertRule{}, id)
+	result := d.dbWithContext(ctx).Delete(&localmodel.MonitorAlertRule{}, id)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -143,11 +143,11 @@ func (d *AlertDAO) DeleteRuleContext(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (d *AlertDAO) ApplyTransitionContext(ctx context.Context, id uint, transition AlertTransition) (*model.MonitorAlertRule, *model.MonitorAlertEvent, error) {
-	var updated model.MonitorAlertRule
-	var created *model.MonitorAlertEvent
+func (d *AlertDAO) ApplyTransitionContext(ctx context.Context, id uint, transition AlertTransition) (*localmodel.MonitorAlertRule, *localmodel.MonitorAlertEvent, error) {
+	var updated localmodel.MonitorAlertRule
+	var created *localmodel.MonitorAlertEvent
 	err := d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var rule model.MonitorAlertRule
+		var rule localmodel.MonitorAlertRule
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&rule, id).Error; err != nil {
 			return err
 		}
@@ -176,10 +176,10 @@ func (d *AlertDAO) ApplyTransitionContext(ctx context.Context, id uint, transiti
 	return &updated, created, nil
 }
 
-func (d *AlertDAO) RecordEvaluationErrorContext(ctx context.Context, id uint, expectedMetric string, evaluatedAt time.Time, message string) (*model.MonitorAlertRule, error) {
-	var updated model.MonitorAlertRule
+func (d *AlertDAO) RecordEvaluationErrorContext(ctx context.Context, id uint, expectedMetric string, evaluatedAt time.Time, message string) (*localmodel.MonitorAlertRule, error) {
+	var updated localmodel.MonitorAlertRule
 	err := d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var rule model.MonitorAlertRule
+		var rule localmodel.MonitorAlertRule
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&rule, id).Error; err != nil {
 			return err
 		}
@@ -204,7 +204,7 @@ func (d *AlertDAO) RecordEvaluationErrorContext(ctx context.Context, id uint, ex
 	return &updated, nil
 }
 
-func markAlertEvaluationError(rule *model.MonitorAlertRule, expectedMetric string, evaluatedAt time.Time, message string) error {
+func markAlertEvaluationError(rule *localmodel.MonitorAlertRule, expectedMetric string, evaluatedAt time.Time, message string) error {
 	if rule.Metric != expectedMetric {
 		return fmt.Errorf("%w: expected metric %q, found %q", ErrAlertRuleChanged, expectedMetric, rule.Metric)
 	}
@@ -217,10 +217,10 @@ func markAlertEvaluationError(rule *model.MonitorAlertRule, expectedMetric strin
 	return nil
 }
 
-func (d *AlertDAO) ListEventsContext(ctx context.Context, req pagination.PageRequest, filter AlertEventFilter) ([]model.MonitorAlertEvent, int64, error) {
-	var events []model.MonitorAlertEvent
+func (d *AlertDAO) ListEventsContext(ctx context.Context, req pagination.PageRequest, filter AlertEventFilter) ([]localmodel.MonitorAlertEvent, int64, error) {
+	var events []localmodel.MonitorAlertEvent
 	var total int64
-	query := d.dbWithContext(ctx).Model(&model.MonitorAlertEvent{})
+	query := d.dbWithContext(ctx).Model(&localmodel.MonitorAlertEvent{})
 	if filter.RuleID > 0 {
 		query = query.Where("rule_id = ?", filter.RuleID)
 	}
@@ -244,7 +244,7 @@ func (d *AlertDAO) ListEventsContext(ctx context.Context, req pagination.PageReq
 }
 
 func (d *AlertDAO) UpdateEventNotificationContext(ctx context.Context, id uint64, status, notifyError string, notifiedAt time.Time) error {
-	result := d.dbWithContext(ctx).Model(&model.MonitorAlertEvent{}).
+	result := d.dbWithContext(ctx).Model(&localmodel.MonitorAlertEvent{}).
 		Where("id = ?", id).
 		Updates(map[string]any{
 			"notify_status": status,

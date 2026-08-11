@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/audittrail"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -18,7 +19,7 @@ func newAuditAssociationTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&model.UserRole{}, &model.RolePermission{}, &model.RoleDataScopeDepartment{}, &model.AuditLog{}); err != nil {
+	if err := db.AutoMigrate(&model.UserRole{}, &model.RolePermission{}, &model.RoleDataScopeDepartment{}, &localmodel.AuditLog{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	return db
@@ -28,9 +29,9 @@ func actorCtx(actorID string, tenantID uint) context.Context {
 	return audittrail.WithTenantID(audittrail.WithActor(context.Background(), "operator", actorID), tenantID)
 }
 
-func loadAuditAssociation(t *testing.T, db *gorm.DB) []model.AuditLog {
+func loadAuditAssociation(t *testing.T, db *gorm.DB) []localmodel.AuditLog {
 	t.Helper()
-	var logs []model.AuditLog
+	var logs []localmodel.AuditLog
 	if err := db.Order("id ASC").Find(&logs).Error; err != nil {
 		t.Fatalf("load audit logs: %v", err)
 	}

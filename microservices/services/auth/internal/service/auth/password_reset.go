@@ -11,9 +11,10 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/auth/internal/dao/auth"
-	"github.com/go-admin-kit/services/auth/internal/model"
+	localmodel "github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	"github.com/go-admin-kit/services/shared/pkg/mailer"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -30,8 +31,8 @@ var (
 // PasswordResetStore is the persistence surface the reset flow needs, so tests
 // can substitute an in-memory implementation.
 type PasswordResetStore interface {
-	CreateContext(ctx context.Context, reset *model.PasswordReset) error
-	GetByTokenHashContext(ctx context.Context, tokenHash string) (*model.PasswordReset, error)
+	CreateContext(ctx context.Context, reset *localmodel.PasswordReset) error
+	GetByTokenHashContext(ctx context.Context, tokenHash string) (*localmodel.PasswordReset, error)
 	MarkUsedContext(ctx context.Context, id uint) error
 	PruneExpiredContext(ctx context.Context, before time.Time) (int64, error)
 }
@@ -86,7 +87,7 @@ func (s *PasswordResetService) ForgotPasswordContext(ctx context.Context, email 
 	if err != nil {
 		return err
 	}
-	reset := &model.PasswordReset{
+	reset := &localmodel.PasswordReset{
 		UserID:    user.ID,
 		TenantID:  user.TenantID,
 		TokenHash: hashResetToken(token),

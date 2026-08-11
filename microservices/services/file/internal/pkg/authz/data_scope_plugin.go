@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-admin-kit/services/file/internal/model"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 
@@ -18,9 +19,9 @@ type dataScopeDirective struct {
 
 var (
 	userModelType         = reflect.TypeOf(model.User{})
-	fileModelType         = reflect.TypeOf(model.File{})
-	loginLogModelType     = reflect.TypeOf(model.LoginLog{})
-	operationLogModelType = reflect.TypeOf(model.OperationLog{})
+	fileModelType         = reflect.TypeOf(localmodel.File{})
+	loginLogModelType     = reflect.TypeOf(localmodel.LoginLog{})
+	operationLogModelType = reflect.TypeOf(localmodel.OperationLog{})
 )
 
 const dataScopeAppliedSetting = "go_admin_kit:data_scope_applied"

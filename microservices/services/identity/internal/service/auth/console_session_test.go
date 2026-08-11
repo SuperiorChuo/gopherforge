@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/identity/internal/config"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	jwtpkg "github.com/go-admin-kit/services/identity/internal/pkg/jwt"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 func TestHashSummaryMatchesConsoleSessionRules(t *testing.T) {
@@ -52,7 +53,7 @@ func TestBuildConsoleSessionUsesTokenExpiryAndUserMetadata(t *testing.T) {
 		t.Fatalf("GenerateTokenWithAccessTTL() error = %v", err)
 	}
 
-	session := BuildConsoleSession(context.Background(), &model.User{
+	session := BuildConsoleSession(context.Background(), &localmodel.User{
 		ID:                 42,
 		Username:           "alice",
 		Nickname:           "Alice Admin",
@@ -88,7 +89,7 @@ func TestBuildConsoleSessionUsesTokenExpiryAndUserMetadata(t *testing.T) {
 }
 
 func TestBuildConsoleSessionFallsBackToUsernameDisplayName(t *testing.T) {
-	session := BuildConsoleSession(context.Background(), &model.User{Username: "bob"}, nil, "", "")
+	session := BuildConsoleSession(context.Background(), &localmodel.User{Username: "bob"}, nil, "", "")
 
 	if session.User.DisplayName != "bob" {
 		t.Fatalf("display name = %q, want username fallback", session.User.DisplayName)

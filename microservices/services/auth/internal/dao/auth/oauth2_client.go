@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/go-admin-kit/services/auth/internal/middleware"
-	"github.com/go-admin-kit/services/auth/internal/model"
+	localmodel "github.com/go-admin-kit/services/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -39,19 +39,19 @@ func (d OAuth2ClientDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d OAuth2ClientDAO) CreateContext(ctx context.Context, client *model.OAuth2Client) error {
+func (d OAuth2ClientDAO) CreateContext(ctx context.Context, client *localmodel.OAuth2Client) error {
 	return d.dbWithContext(ctx).Create(client).Error
 }
 
-func (d OAuth2ClientDAO) UpdateContext(ctx context.Context, client *model.OAuth2Client) error {
+func (d OAuth2ClientDAO) UpdateContext(ctx context.Context, client *localmodel.OAuth2Client) error {
 	return d.dbWithContext(ctx).Save(client).Error
 }
 
 // GetByClientIDContext looks up a client globally by client_id, WITHOUT tenant
 // scoping. This is the single deliberate exception: the token endpoint has no
 // tenant context and must resolve the tenant from the client row itself.
-func (d OAuth2ClientDAO) GetByClientIDContext(ctx context.Context, clientID string) (*model.OAuth2Client, error) {
-	var client model.OAuth2Client
+func (d OAuth2ClientDAO) GetByClientIDContext(ctx context.Context, clientID string) (*localmodel.OAuth2Client, error) {
+	var client localmodel.OAuth2Client
 	err := d.dbWithContext(ctx).Where("client_id = ?", clientID).First(&client).Error
 	if err != nil {
 		return nil, err
@@ -60,8 +60,8 @@ func (d OAuth2ClientDAO) GetByClientIDContext(ctx context.Context, clientID stri
 }
 
 // GetByIDContext fetches a client scoped to the caller's tenant (management API).
-func (d OAuth2ClientDAO) GetByIDContext(ctx context.Context, id uint) (*model.OAuth2Client, error) {
-	var client model.OAuth2Client
+func (d OAuth2ClientDAO) GetByIDContext(ctx context.Context, id uint) (*localmodel.OAuth2Client, error) {
+	var client localmodel.OAuth2Client
 	err := d.dbWithContext(ctx).
 		Where("id = ? AND tenant_id = ?", id, tenantFromCtx(ctx)).
 		First(&client).Error
@@ -72,8 +72,8 @@ func (d OAuth2ClientDAO) GetByIDContext(ctx context.Context, id uint) (*model.OA
 }
 
 // ListContext returns tenant-scoped clients with optional keyword filter.
-func (d OAuth2ClientDAO) ListContext(ctx context.Context, keyword string, page, pageSize int) ([]model.OAuth2Client, int64, error) {
-	query := d.dbWithContext(ctx).Model(&model.OAuth2Client{}).Where("tenant_id = ?", tenantFromCtx(ctx))
+func (d OAuth2ClientDAO) ListContext(ctx context.Context, keyword string, page, pageSize int) ([]localmodel.OAuth2Client, int64, error) {
+	query := d.dbWithContext(ctx).Model(&localmodel.OAuth2Client{}).Where("tenant_id = ?", tenantFromCtx(ctx))
 	if keyword != "" {
 		like := "%" + keyword + "%"
 		query = query.Where("name LIKE ? OR client_id LIKE ?", like, like)
@@ -82,7 +82,7 @@ func (d OAuth2ClientDAO) ListContext(ctx context.Context, keyword string, page, 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	var clients []model.OAuth2Client
+	var clients []localmodel.OAuth2Client
 	err := query.Order("id DESC").
 		Offset((page - 1) * pageSize).Limit(pageSize).
 		Find(&clients).Error
@@ -92,6 +92,6 @@ func (d OAuth2ClientDAO) ListContext(ctx context.Context, keyword string, page, 
 func (d OAuth2ClientDAO) DeleteContext(ctx context.Context, id uint) (int64, error) {
 	result := d.dbWithContext(ctx).
 		Where("id = ? AND tenant_id = ?", id, tenantFromCtx(ctx)).
-		Delete(&model.OAuth2Client{})
+		Delete(&localmodel.OAuth2Client{})
 	return result.RowsAffected, result.Error
 }

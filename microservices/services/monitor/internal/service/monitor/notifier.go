@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/monitor/internal/config"
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/monitor/internal/pkg/runtimeconfig"
 )
 
@@ -24,14 +24,14 @@ type MultiChannelNotifier struct {
 
 func NewMultiChannelNotifier() *MultiChannelNotifier {
 	return &MultiChannelNotifier{channels: map[string]AlertNotifier{
-		"email":    NewAlertEmailNotifier(nil, runtimeconfig.DefaultEmailNotificationReader()),
-		"station":  NewStationNotifier(),
-		"wecom":    NewWeComNotifier(),
-		"webhook":  NewWebhookNotifier(),
+		"email":   NewAlertEmailNotifier(nil, runtimeconfig.DefaultEmailNotificationReader()),
+		"station": NewStationNotifier(),
+		"wecom":   NewWeComNotifier(),
+		"webhook": NewWebhookNotifier(),
 	}}
 }
 
-func (m *MultiChannelNotifier) NotifyContext(ctx context.Context, rule *model.MonitorAlertRule, event *model.MonitorAlertEvent) AlertNotification {
+func (m *MultiChannelNotifier) NotifyContext(ctx context.Context, rule *localmodel.MonitorAlertRule, event *localmodel.MonitorAlertEvent) AlertNotification {
 	if m == nil {
 		return AlertNotification{Status: AlertNotifySkipped, NotifiedAt: time.Now().UTC()}
 	}
@@ -86,7 +86,7 @@ func NewStationNotifier() *StationNotifier {
 	}
 }
 
-func (n *StationNotifier) NotifyContext(ctx context.Context, _ *model.MonitorAlertRule, event *model.MonitorAlertEvent) AlertNotification {
+func (n *StationNotifier) NotifyContext(ctx context.Context, _ *localmodel.MonitorAlertRule, event *localmodel.MonitorAlertEvent) AlertNotification {
 	result := AlertNotification{Status: AlertNotifySkipped, NotifiedAt: n.now().UTC()}
 	if event == nil || n.baseURL == "" || n.token == "" {
 		return result
@@ -138,7 +138,7 @@ func (n *StationNotifier) NotifyContext(ctx context.Context, _ *model.MonitorAle
 	return result
 }
 
-func stationFingerprint(event *model.MonitorAlertEvent) string {
+func stationFingerprint(event *localmodel.MonitorAlertEvent) string {
 	ruleID := uint64(0)
 	if event.RuleID != nil {
 		ruleID = uint64(*event.RuleID)
@@ -147,8 +147,8 @@ func stationFingerprint(event *model.MonitorAlertEvent) string {
 }
 
 type stationWebhookPayload struct {
-	Status string                 `json:"status"`
-	Alerts []stationWebhookAlert  `json:"alerts"`
+	Status string                `json:"status"`
+	Alerts []stationWebhookAlert `json:"alerts"`
 }
 
 type stationWebhookAlert struct {
@@ -174,7 +174,7 @@ func NewWeComNotifier() *WeComNotifier {
 	}
 }
 
-func (n *WeComNotifier) NotifyContext(ctx context.Context, _ *model.MonitorAlertRule, event *model.MonitorAlertEvent) AlertNotification {
+func (n *WeComNotifier) NotifyContext(ctx context.Context, _ *localmodel.MonitorAlertRule, event *localmodel.MonitorAlertEvent) AlertNotification {
 	result := AlertNotification{Status: AlertNotifySkipped, NotifiedAt: n.now().UTC()}
 	if event == nil || n.webhook == "" {
 		return result
@@ -186,7 +186,7 @@ func (n *WeComNotifier) NotifyContext(ctx context.Context, _ *model.MonitorAlert
 		event.CreatedAt.UTC().Format(time.RFC3339),
 	)
 	payload := map[string]any{
-		"msgtype": "markdown",
+		"msgtype":  "markdown",
 		"markdown": map[string]string{"content": content},
 	}
 	body, err := json.Marshal(payload)
@@ -233,7 +233,7 @@ func NewWebhookNotifier() *WebhookNotifier {
 	}
 }
 
-func (n *WebhookNotifier) NotifyContext(ctx context.Context, _ *model.MonitorAlertRule, event *model.MonitorAlertEvent) AlertNotification {
+func (n *WebhookNotifier) NotifyContext(ctx context.Context, _ *localmodel.MonitorAlertRule, event *localmodel.MonitorAlertEvent) AlertNotification {
 	result := AlertNotification{Status: AlertNotifySkipped, NotifiedAt: n.now().UTC()}
 	if event == nil || n.webhook == "" {
 		return result

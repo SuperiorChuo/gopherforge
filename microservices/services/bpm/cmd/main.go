@@ -28,12 +28,12 @@ import (
 	"github.com/go-admin-kit/services/bpm/internal/engine"
 	"github.com/go-admin-kit/services/bpm/internal/model"
 	"github.com/go-admin-kit/services/bpm/internal/store"
+	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/go-admin-kit/services/shared/pkg/grpcx"
 	"github.com/go-admin-kit/services/shared/pkg/jobbeat"
 	"github.com/go-admin-kit/services/shared/pkg/metrics"
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
 	"github.com/go-admin-kit/services/shared/pkg/observability"
-	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 )
 
 func main() {
@@ -84,7 +84,6 @@ func main() {
 	log.Printf("bpm timeout: scan enabled, interval=%s remind=%v", cfg.TimeoutScanInterval, notify.Enabled())
 	go runCallbackLoop(scanCtx, st, cb)
 	log.Printf("bpm callback: persistent worker enabled")
-
 
 	// OpenTelemetry tracing (noop when TRACING_ENABLED != "true").
 	shutdownTracing, _ := observability.InitTracerFromEnv(context.Background(), "bpm")

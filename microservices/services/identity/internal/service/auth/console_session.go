@@ -12,9 +12,10 @@ import (
 	"unicode/utf8"
 
 	authDAO "github.com/go-admin-kit/services/identity/internal/dao/auth"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/cache"
 	jwtpkg "github.com/go-admin-kit/services/identity/internal/pkg/jwt"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 
@@ -199,7 +200,7 @@ func ConsoleSessionSnapshot(record *model.ConsoleSession) map[string]any {
 	}
 }
 
-func BuildConsoleSession(ctx context.Context, user *model.User, permissions []string, accessToken, refreshToken string) ConsoleSessionResponse {
+func BuildConsoleSession(ctx context.Context, user *localmodel.User, permissions []string, accessToken, refreshToken string) ConsoleSessionResponse {
 	expiresAt := time.Now().UTC().Add(time.Hour)
 	if accessToken != "" {
 		if claims, err := jwtpkg.ParseTokenContext(ctx, accessToken); err == nil && claims.ExpiresAt != nil {
@@ -221,7 +222,7 @@ func BuildConsoleSession(ctx context.Context, user *model.User, permissions []st
 	}
 }
 
-func buildConsoleSessionUser(user *model.User, permissions []string) ConsoleSessionUser {
+func buildConsoleSessionUser(user *localmodel.User, permissions []string) ConsoleSessionUser {
 	roles := ConsoleRoleCodes(user.Roles)
 	role := "operator"
 	if len(roles) > 0 {

@@ -3,7 +3,7 @@ package auth
 import (
 	"time"
 
-	"github.com/go-admin-kit/services/auth/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 // UserInfoResponse is the user profile response DTO.

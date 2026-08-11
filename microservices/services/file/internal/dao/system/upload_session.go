@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-admin-kit/services/file/internal/model"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -24,20 +24,20 @@ func (d *UploadSessionDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d *UploadSessionDAO) CreateContext(ctx context.Context, s *model.UploadSession) error {
+func (d *UploadSessionDAO) CreateContext(ctx context.Context, s *localmodel.UploadSession) error {
 	return d.dbWithContext(ctx).Create(s).Error
 }
 
-func (d *UploadSessionDAO) GetByIDContext(ctx context.Context, id uint) (*model.UploadSession, error) {
-	var s model.UploadSession
+func (d *UploadSessionDAO) GetByIDContext(ctx context.Context, id uint) (*localmodel.UploadSession, error) {
+	var s localmodel.UploadSession
 	err := d.dbWithContext(ctx).Where("id = ?", id).First(&s).Error
 	return &s, err
 }
 
 // GetPendingByHashContext returns an unfinished session for the same hash +
 // tenant + user (断点续传复用）。无则返回 gorm.ErrRecordNotFound。
-func (d *UploadSessionDAO) GetPendingByHashContext(ctx context.Context, hash string, tenantID, userID uint) (*model.UploadSession, error) {
-	var s model.UploadSession
+func (d *UploadSessionDAO) GetPendingByHashContext(ctx context.Context, hash string, tenantID, userID uint) (*localmodel.UploadSession, error) {
+	var s localmodel.UploadSession
 	err := d.dbWithContext(ctx).
 		Where("hash = ? AND tenant_id = ? AND user_id = ? AND status = ?", hash, tenantID, userID, "pending").
 		Order("id DESC").First(&s).Error
@@ -47,7 +47,7 @@ func (d *UploadSessionDAO) GetPendingByHashContext(ctx context.Context, hash str
 // UpdateFileNameContext rewrites the session's file name (resume with a
 // renamed local file keeps the latest name instead of the stale original).
 func (d *UploadSessionDAO) UpdateFileNameContext(ctx context.Context, id uint, fileName string) error {
-	return d.dbWithContext(ctx).Model(&model.UploadSession{}).
+	return d.dbWithContext(ctx).Model(&localmodel.UploadSession{}).
 		Where("id = ?", id).
 		Update("file_name", fileName).Error
 }
@@ -57,7 +57,7 @@ func (d *UploadSessionDAO) UpdateFileNameContext(ctx context.Context, id uint, f
 // for missing/aborted sessions.
 func (d *UploadSessionDAO) MarkChunkReceivedContext(ctx context.Context, id uint, bitmap string, count int) error {
 	result := d.dbWithContext(ctx).
-		Model(&model.UploadSession{}).
+		Model(&localmodel.UploadSession{}).
 		Where("id = ? AND status = ?", id, "pending").
 		Updates(map[string]any{
 			"received_bitmap": bitmap,
@@ -74,7 +74,7 @@ func (d *UploadSessionDAO) MarkChunkReceivedContext(ctx context.Context, id uint
 }
 
 func (d *UploadSessionDAO) DeleteContext(ctx context.Context, id uint) error {
-	return d.dbWithContext(ctx).Delete(&model.UploadSession{}, id).Error
+	return d.dbWithContext(ctx).Delete(&localmodel.UploadSession{}, id).Error
 }
 
 // PruneExpiredContext deletes sessions expired before the cutoff (lazy
@@ -85,6 +85,6 @@ func (d *UploadSessionDAO) PruneExpiredContext(ctx context.Context, before time.
 	}
 	result := d.dbWithContext(ctx).
 		Where("expires_at < ?", before).
-		Delete(&model.UploadSession{})
+		Delete(&localmodel.UploadSession{})
 	return result.RowsAffected, result.Error
 }

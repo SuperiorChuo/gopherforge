@@ -14,7 +14,7 @@ import (
 	"time"
 
 	systemdao "github.com/go-admin-kit/services/auth/internal/dao/system"
-	"github.com/go-admin-kit/services/auth/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 )

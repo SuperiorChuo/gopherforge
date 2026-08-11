@@ -19,10 +19,10 @@ const (
 
 // SendRequest 是一次发送的入参（模板已渲染为 Content）。
 type SendRequest struct {
-	Mobile string            // 目标手机号
-	Sign   string            // 短信签名（云厂商要求）
-	Params map[string]string // 模板参数，云厂商模板发送时按 key 传递
-	Content string           // 本地渲染后的完整短信内容（debug/日志用）
+	Mobile  string            // 目标手机号
+	Sign    string            // 短信签名（云厂商要求）
+	Params  map[string]string // 模板参数，云厂商模板发送时按 key 传递
+	Content string            // 本地渲染后的完整短信内容（debug/日志用）
 	// ProviderTemplateID 是云厂商侧模板号；阿里/腾讯按模板号 + 参数发送，
 	// 不直接发 Content。为空时云厂商实现会报错。
 	ProviderTemplateID string

@@ -10,10 +10,10 @@ import (
 	"time"
 
 	miniredis "github.com/alicebob/miniredis/v2"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"github.com/go-admin-kit/services/system/internal/config"
 	jwtpkg "github.com/go-admin-kit/services/system/internal/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
-	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	goredis "github.com/redis/go-redis/v9"
 )
 

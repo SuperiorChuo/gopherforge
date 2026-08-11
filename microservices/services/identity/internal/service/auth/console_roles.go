@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-admin-kit/services/identity/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 // ConsoleRoleCodes extracts the sorted, de-duplicated role codes carried on a

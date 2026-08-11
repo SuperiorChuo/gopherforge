@@ -9,8 +9,9 @@ import (
 	"strings"
 
 	"github.com/go-admin-kit/services/identity/internal/dao/system"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
@@ -103,13 +104,13 @@ type UpdateTenantRequest struct {
 	PackageID *uint `json:"package_id"`
 }
 
-func (s *TenantService) List(ctx context.Context, req TenantListRequest) ([]model.Tenant, int64, error) {
+func (s *TenantService) List(ctx context.Context, req TenantListRequest) ([]localmodel.Tenant, int64, error) {
 	// Platform-wide catalog: disable row tenant plugin (tenants table has no tenant_id).
 	ctx = tenant.DisableScope(ctx)
 	return s.dao.ListContext(ctx, req.PageRequest, req.Keyword, req.Status)
 }
 
-func (s *TenantService) Get(ctx context.Context, id uint) (*model.Tenant, error) {
+func (s *TenantService) Get(ctx context.Context, id uint) (*localmodel.Tenant, error) {
 	ctx = tenant.DisableScope(ctx)
 	t, err := s.dao.GetByIDContext(ctx, id)
 	if err != nil {
@@ -121,7 +122,7 @@ func (s *TenantService) Get(ctx context.Context, id uint) (*model.Tenant, error)
 	return t, nil
 }
 
-func (s *TenantService) Create(ctx context.Context, req CreateTenantRequest) (*model.Tenant, *ProvisionedAdmin, error) {
+func (s *TenantService) Create(ctx context.Context, req CreateTenantRequest) (*localmodel.Tenant, *ProvisionedAdmin, error) {
 	ctx = tenant.DisableScope(ctx)
 	code := strings.ToLower(strings.TrimSpace(req.Code))
 	name := strings.TrimSpace(req.Name)
@@ -153,7 +154,7 @@ func (s *TenantService) Create(ctx context.Context, req CreateTenantRequest) (*m
 	if err != nil {
 		return nil, nil, err
 	}
-	t := &model.Tenant{
+	t := &localmodel.Tenant{
 		Code:      code,
 		Name:      name,
 		Status:    status,
@@ -176,7 +177,7 @@ func (s *TenantService) Create(ctx context.Context, req CreateTenantRequest) (*m
 // provision 为新建租户创建初始管理员角色/权限/用户，返回初始凭据。
 // 使用新租户自己的上下文（无 DisableScope、无 platform_admin 豁免），
 // 使租户插件正确过滤、套餐约束正常生效。
-func (s *TenantService) provision(t *model.Tenant) (*ProvisionedAdmin, error) {
+func (s *TenantService) provision(t *localmodel.Tenant) (*ProvisionedAdmin, error) {
 	if s.db == nil {
 		return nil, errors.New("tenant service db not configured")
 	}
@@ -259,18 +260,18 @@ func (s *TenantService) Delete(ctx context.Context, id uint) error {
 			return err
 		}
 		var userIDs []uint
-		if err := tx.Model(&model.User{}).Where("tenant_id = ?", id).Pluck("id", &userIDs).Error; err != nil {
+		if err := tx.Model(&localmodel.User{}).Where("tenant_id = ?", id).Pluck("id", &userIDs).Error; err != nil {
 			return err
 		}
 		if len(userIDs) > 0 {
-			if err := tx.Where("user_id IN ?", userIDs).Delete(&model.UserPost{}).Error; err != nil {
+			if err := tx.Where("user_id IN ?", userIDs).Delete(&localmodel.UserPost{}).Error; err != nil {
 				return err
 			}
 			if err := tx.Where("user_id IN ?", userIDs).Delete(&model.UserRole{}).Error; err != nil {
 				return err
 			}
 		}
-		if err := tx.Where("tenant_id = ?", id).Delete(&model.User{}).Error; err != nil {
+		if err := tx.Where("tenant_id = ?", id).Delete(&localmodel.User{}).Error; err != nil {
 			return err
 		}
 		var roleIDs []uint
@@ -288,13 +289,13 @@ func (s *TenantService) Delete(ctx context.Context, id uint) error {
 		if err := tx.Where("tenant_id = ?", id).Delete(&model.Role{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Where("tenant_id = ?", id).Delete(&model.Department{}).Error; err != nil {
+		if err := tx.Where("tenant_id = ?", id).Delete(&localmodel.Department{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Where("tenant_id = ?", id).Delete(&model.Post{}).Error; err != nil {
+		if err := tx.Where("tenant_id = ?", id).Delete(&localmodel.Post{}).Error; err != nil {
 			return err
 		}
-		return tx.Where("id = ?", id).Delete(&model.Tenant{}).Error
+		return tx.Where("id = ?", id).Delete(&localmodel.Tenant{}).Error
 	})
 }
 
@@ -313,7 +314,7 @@ func randomStrongPassword() (string, error) {
 	return "A" + string(b) + "a1", nil
 }
 
-func (s *TenantService) Update(ctx context.Context, id uint, req UpdateTenantRequest) (*model.Tenant, error) {
+func (s *TenantService) Update(ctx context.Context, id uint, req UpdateTenantRequest) (*localmodel.Tenant, error) {
 	ctx = tenant.DisableScope(ctx)
 	t, err := s.Get(ctx, id)
 	if err != nil {

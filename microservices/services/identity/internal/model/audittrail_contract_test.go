@@ -1,14 +1,15 @@
-package model_test
+package localmodel_test
 
 import (
 	"context"
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/go-admin-kit/services/identity/internal/model"
-	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/go-admin-kit/services/shared/pkg/mask"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
+	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -26,22 +27,22 @@ func TestCoreIdentityModelsMatchAuditTrailTargets(t *testing.T) {
 	sqlDB.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = sqlDB.Close() })
 
-	if err := db.AutoMigrate(&model.User{}, &model.Role{}, &model.Department{}, &model.AuditLog{}); err != nil {
+	if err := db.AutoMigrate(&localmodel.User{}, &model.Role{}, &localmodel.Department{}, &localmodel.AuditLog{}); err != nil {
 		t.Fatalf("AutoMigrate() error = %v", err)
 	}
 	if err := tenantscope.Register(db); err != nil {
 		t.Fatalf("register tenant plugin: %v", err)
 	}
 	if err := sharedaudit.Register(db, sharedaudit.Config{Targets: []sharedaudit.Target{
-		sharedaudit.UserTarget(&model.User{}),
+		sharedaudit.UserTarget(&localmodel.User{}),
 		sharedaudit.RoleTarget(&model.Role{}),
-		sharedaudit.DepartmentTarget(&model.Department{}),
+		sharedaudit.DepartmentTarget(&localmodel.Department{}),
 	}}); err != nil {
 		t.Fatalf("Register() error = %v", err)
 	}
 
 	ctx := sharedaudit.WithTenantID(sharedaudit.WithActor(context.Background(), "operator", "alice"), 7)
-	user := model.User{
+	user := localmodel.User{
 		TenantID: 99,
 		Username: "audit-user",
 		Password: "password-hash-must-not-leak",
@@ -50,7 +51,7 @@ func TestCoreIdentityModelsMatchAuditTrailTargets(t *testing.T) {
 		Status:   1,
 	}
 	role := model.Role{TenantID: 99, Name: "Audit Role", Code: "audit-role", DataScope: "self"}
-	department := model.Department{
+	department := localmodel.Department{
 		TenantID: 99,
 		Name:     "Audit Department",
 		Code:     "audit-department",
@@ -72,7 +73,7 @@ func TestCoreIdentityModelsMatchAuditTrailTargets(t *testing.T) {
 		}
 	}
 
-	var logs []model.AuditLog
+	var logs []localmodel.AuditLog
 	if err := db.Order("id ASC").Find(&logs).Error; err != nil {
 		t.Fatalf("load audit logs: %v", err)
 	}

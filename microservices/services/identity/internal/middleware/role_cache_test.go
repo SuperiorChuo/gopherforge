@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/cache"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 // countingUserStore records how many times the DB-backed lookup was hit.
@@ -14,9 +15,9 @@ type countingUserStore struct {
 	roles []string
 }
 
-func (s *countingUserStore) GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error) {
+func (s *countingUserStore) GetUserWithRolesContext(ctx context.Context, id uint) (*localmodel.User, error) {
 	s.calls++
-	user := &model.User{Status: 1}
+	user := &localmodel.User{Status: 1}
 	user.ID = id
 	for _, code := range s.roles {
 		user.Roles = append(user.Roles, model.Role{Code: code})

@@ -55,7 +55,7 @@ const (
 // active items" (Found=true, empty Items) from "no such dict type" (Found=false)
 // so a bogus code is a cache hit too instead of re-querying on every request.
 type DictEntry struct {
-	Found bool             `json:"found"`
+	Found bool                  `json:"found"`
 	Items []localmodel.DictItem `json:"items"`
 }
 

@@ -3,8 +3,8 @@ package auth
 import (
 	"context"
 
-	"github.com/go-admin-kit/services/system/internal/dao"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
+	"github.com/go-admin-kit/services/system/internal/dao"
 	"gorm.io/gorm"
 )
 

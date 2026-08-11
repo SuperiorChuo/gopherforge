@@ -6,7 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/go-admin-kit/services/audit/internal/model"
+	localmodel "github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/audit/internal/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
@@ -27,16 +27,16 @@ func (d *LoginLogDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d *LoginLogDAO) CreateContext(ctx context.Context, log *model.LoginLog) error {
+func (d *LoginLogDAO) CreateContext(ctx context.Context, log *localmodel.LoginLog) error {
 	if log != nil {
 		log.TenantID = tenant.EnsureID(ctx, log.TenantID)
 	}
 	return d.dbWithContext(ctx).Create(log).Error
 }
 
-func (d *LoginLogDAO) GetByIDContext(ctx context.Context, id uint) (*model.LoginLog, error) {
-	var log model.LoginLog
-	query := tenant.ApplyFilter(d.dbWithContext(authz.DisableDataScope(ctx)).Model(&model.LoginLog{}), ctx)
+func (d *LoginLogDAO) GetByIDContext(ctx context.Context, id uint) (*localmodel.LoginLog, error) {
+	var log localmodel.LoginLog
+	query := tenant.ApplyFilter(d.dbWithContext(authz.DisableDataScope(ctx)).Model(&localmodel.LoginLog{}), ctx)
 	result := query.Where("id = ?", id).First(&log)
 	return &log, result.Error
 }
@@ -50,11 +50,11 @@ func (d *LoginLogDAO) GetListContext(
 	loginType *int8,
 	startTime, endTime *time.Time,
 	dataScope authz.UserDataScope,
-) ([]model.LoginLog, int64, error) {
-	var logs []model.LoginLog
+) ([]localmodel.LoginLog, int64, error) {
+	var logs []localmodel.LoginLog
 	var total int64
 
-	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.LoginLog{}), ctx)
+	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&localmodel.LoginLog{}), ctx)
 	query = applyLoginLogFilters(query, userID, username, ip, status, loginType, startTime, endTime)
 
 	if err := query.Count(&total).Error; err != nil {
@@ -88,9 +88,9 @@ func applyLoginLogFilters(query *gorm.DB, userID *uint, username, ip string, sta
 	return applyTimeRange(query, startTime, endTime)
 }
 
-func (d *LoginLogDAO) GetUserLastLoginContext(ctx context.Context, userID uint) (*model.LoginLog, error) {
-	var log model.LoginLog
-	query := tenant.ApplyFilter(d.dbWithContext(authz.DisableDataScope(ctx)).Model(&model.LoginLog{}), ctx)
+func (d *LoginLogDAO) GetUserLastLoginContext(ctx context.Context, userID uint) (*localmodel.LoginLog, error) {
+	var log localmodel.LoginLog
+	query := tenant.ApplyFilter(d.dbWithContext(authz.DisableDataScope(ctx)).Model(&localmodel.LoginLog{}), ctx)
 	result := query.Where("user_id = ? AND status = 1", userID).
 		Order("created_at DESC").
 		First(&log)
@@ -100,7 +100,7 @@ func (d *LoginLogDAO) GetUserLastLoginContext(ctx context.Context, userID uint) 
 func (d *LoginLogDAO) GetUserLoginCountContext(ctx context.Context, userID uint, startTime, endTime *time.Time) (int64, error) {
 	var count int64
 	query := tenant.ApplyFilter(
-		d.dbWithContext(authz.DisableDataScope(ctx)).Model(&model.LoginLog{}),
+		d.dbWithContext(authz.DisableDataScope(ctx)).Model(&localmodel.LoginLog{}),
 		ctx,
 	).Where("user_id = ? AND status = 1", userID)
 	query = applyTimeRange(query, startTime, endTime)
@@ -111,7 +111,7 @@ func (d *LoginLogDAO) GetUserLoginCountContext(ctx context.Context, userID uint,
 func (d *LoginLogDAO) GetFailedLoginCountContext(ctx context.Context, username, ip string, since time.Time) (int64, error) {
 	var count int64
 	query := tenant.ApplyFilter(
-		d.dbWithContext(authz.DisableDataScope(ctx)).Model(&model.LoginLog{}),
+		d.dbWithContext(authz.DisableDataScope(ctx)).Model(&localmodel.LoginLog{}),
 		ctx,
 	).Where("status = 0 AND created_at >= ?", since)
 	if username != "" {
@@ -125,8 +125,8 @@ func (d *LoginLogDAO) GetFailedLoginCountContext(ctx context.Context, username, 
 }
 
 func (d *LoginLogDAO) DeleteBeforeContext(ctx context.Context, before time.Time) (int64, error) {
-	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.LoginLog{}), ctx)
-	result := query.Where("created_at < ?", before).Delete(&model.LoginLog{})
+	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&localmodel.LoginLog{}), ctx)
+	result := query.Where("created_at < ?", before).Delete(&localmodel.LoginLog{})
 	return result.RowsAffected, result.Error
 }
 
@@ -136,7 +136,7 @@ func (d *LoginLogDAO) DeleteBeforeContext(ctx context.Context, before time.Time)
 // tenant.DisableScope 显式声明跨租户语义，防 GORM 租户兜底插件在带租户
 // ctx 的调用方处静默降级为单租户删除。
 func (d *LoginLogDAO) DeleteAllTenantsBeforeContext(ctx context.Context, before time.Time) (int64, error) {
-	result := d.dbWithContext(tenant.DisableScope(ctx)).Where("created_at < ?", before).Delete(&model.LoginLog{})
+	result := d.dbWithContext(tenant.DisableScope(ctx)).Where("created_at < ?", before).Delete(&localmodel.LoginLog{})
 	return result.RowsAffected, result.Error
 }
 
@@ -151,7 +151,7 @@ func (d *LoginLogDAO) GetStatsInScopeContext(ctx context.Context, startTime, end
 func (d *LoginLogDAO) getStatsContext(ctx context.Context, startTime, endTime *time.Time) (*LoginLogStats, error) {
 	stats := &LoginLogStats{ByDevice: map[string]int64{}, ByBrowser: map[string]int64{}}
 	base := func() *gorm.DB {
-		return tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.LoginLog{}), ctx)
+		return tenant.ApplyFilter(d.dbWithContext(ctx).Model(&localmodel.LoginLog{}), ctx)
 	}
 
 	if err := applyTimeRange(base(), startTime, endTime).Count(&stats.Total).Error; err != nil {
@@ -231,7 +231,7 @@ type LoginGeoItem struct {
 func (d *LoginLogDAO) GetGeoDistributionInScopeContext(ctx context.Context, startTime, endTime *time.Time, dataScope authz.UserDataScope) ([]LoginGeoItem, error) {
 	ctx = authz.EnableDataScope(ctx, dataScope)
 	var items []LoginGeoItem
-	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.LoginLog{}), ctx)
+	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&localmodel.LoginLog{}), ctx)
 	query = applyTimeRange(query, startTime, endTime)
 	err := query.
 		Select("location, COUNT(*) AS total, SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS success, SUM(CASE WHEN status <> 1 THEN 1 ELSE 0 END) AS failed").
@@ -262,7 +262,7 @@ func (d *LoginLogDAO) getLoginTrendContext(ctx context.Context, days int) ([]Log
 		Total   int64
 		Success int64
 	}
-	if err := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.LoginLog{}), ctx).
+	if err := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&localmodel.LoginLog{}), ctx).
 		Where("created_at >= ? AND created_at < ?", startOfWindow, endOfWindow).
 		Select("date_trunc('day', created_at) AS day, COUNT(*) AS total, SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS success").
 		Group("day").

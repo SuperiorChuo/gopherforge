@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
 )
@@ -25,8 +25,8 @@ func (d *TenantPackageDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d *TenantPackageDAO) ListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]model.TenantPackage, int64, error) {
-	q := d.dbWithContext(ctx).Model(&model.TenantPackage{})
+func (d *TenantPackageDAO) ListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]localmodel.TenantPackage, int64, error) {
+	q := d.dbWithContext(ctx).Model(&localmodel.TenantPackage{})
 	if keyword != "" {
 		q = q.Where("name ILIKE ?", "%"+strings.TrimSpace(keyword)+"%")
 	}
@@ -37,45 +37,45 @@ func (d *TenantPackageDAO) ListContext(ctx context.Context, req pagination.PageR
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	var list []model.TenantPackage
+	var list []localmodel.TenantPackage
 	err := q.Scopes(pagination.Paginate(req)).Order("id ASC").Find(&list).Error
 	return list, total, err
 }
 
 // GetAllContext 返回全部套餐（含停用，供下拉与回显；前端按 status 标注）。
-func (d *TenantPackageDAO) GetAllContext(ctx context.Context) ([]model.TenantPackage, error) {
-	var list []model.TenantPackage
+func (d *TenantPackageDAO) GetAllContext(ctx context.Context) ([]localmodel.TenantPackage, error) {
+	var list []localmodel.TenantPackage
 	err := d.dbWithContext(ctx).Order("id ASC").Find(&list).Error
 	return list, err
 }
 
-func (d *TenantPackageDAO) GetByIDContext(ctx context.Context, id uint) (*model.TenantPackage, error) {
-	var p model.TenantPackage
+func (d *TenantPackageDAO) GetByIDContext(ctx context.Context, id uint) (*localmodel.TenantPackage, error) {
+	var p localmodel.TenantPackage
 	err := d.dbWithContext(ctx).First(&p, id).Error
 	return &p, err
 }
 
-func (d *TenantPackageDAO) GetByNameContext(ctx context.Context, name string) (*model.TenantPackage, error) {
-	var p model.TenantPackage
+func (d *TenantPackageDAO) GetByNameContext(ctx context.Context, name string) (*localmodel.TenantPackage, error) {
+	var p localmodel.TenantPackage
 	err := d.dbWithContext(ctx).Where("name = ?", strings.TrimSpace(name)).First(&p).Error
 	return &p, err
 }
 
-func (d *TenantPackageDAO) CreateContext(ctx context.Context, p *model.TenantPackage) error {
+func (d *TenantPackageDAO) CreateContext(ctx context.Context, p *localmodel.TenantPackage) error {
 	return d.dbWithContext(ctx).Create(p).Error
 }
 
-func (d *TenantPackageDAO) UpdateContext(ctx context.Context, p *model.TenantPackage) error {
+func (d *TenantPackageDAO) UpdateContext(ctx context.Context, p *localmodel.TenantPackage) error {
 	return d.dbWithContext(ctx).Save(p).Error
 }
 
 func (d *TenantPackageDAO) DeleteContext(ctx context.Context, id uint) error {
-	return d.dbWithContext(ctx).Delete(&model.TenantPackage{}, id).Error
+	return d.dbWithContext(ctx).Delete(&localmodel.TenantPackage{}, id).Error
 }
 
 // CountTenantsByPackageContext 统计绑定该套餐的租户数（删除守卫用）。
 func (d *TenantPackageDAO) CountTenantsByPackageContext(ctx context.Context, packageID uint) (int64, error) {
 	var n int64
-	err := d.dbWithContext(ctx).Model(&model.Tenant{}).Where("package_id = ?", packageID).Count(&n).Error
+	err := d.dbWithContext(ctx).Model(&localmodel.Tenant{}).Where("package_id = ?", packageID).Count(&n).Error
 	return n, err
 }

@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/services/file/internal/model"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -87,8 +88,8 @@ func TestApplyOwnerScopeSQL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var files []model.File
-			stmt := ApplyOwnerScope(db.Model(&model.File{}), tt.scope, "user_id").Find(&files).Statement
+			var files []localmodel.File
+			stmt := ApplyOwnerScope(db.Model(&localmodel.File{}), tt.scope, "user_id").Find(&files).Statement
 			assertDataScopeSQL(t, stmt, tt.wantSQL, tt.wantVars)
 		})
 	}

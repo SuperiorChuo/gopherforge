@@ -12,9 +12,9 @@ import (
 	"unicode/utf8"
 
 	authDAO "github.com/go-admin-kit/services/auth/internal/dao/auth"
-	"github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
 	jwtpkg "github.com/go-admin-kit/services/auth/internal/pkg/jwt"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 

@@ -6,18 +6,18 @@ import (
 	"strings"
 
 	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 
 var (
-	ErrTenantPackageNotFound       = errors.New("tenant package not found")
-	ErrTenantPackageNameRequired   = errors.New("tenant package name required")
-	ErrTenantPackageQuotaInvalid   = errors.New("storage quota must be non-negative")
-	ErrTenantPackageNameExists     = errors.New("tenant package name already exists")
-	ErrTenantPackageInUse          = errors.New("tenant package is bound by tenants, unbind before delete")
+	ErrTenantPackageNotFound     = errors.New("tenant package not found")
+	ErrTenantPackageNameRequired = errors.New("tenant package name required")
+	ErrTenantPackageQuotaInvalid = errors.New("storage quota must be non-negative")
+	ErrTenantPackageNameExists   = errors.New("tenant package name already exists")
+	ErrTenantPackageInUse        = errors.New("tenant package is bound by tenants, unbind before delete")
 )
 
 // PermissionsExceedPackageError 角色分配的权限超出租户套餐范围（携带越界权限码，供前端明确提示）。
@@ -61,8 +61,8 @@ type UpdateTenantPackageRequest struct {
 }
 
 // normalizePermissionCodes 去空白、去重，保持原始顺序。
-func normalizePermissionCodes(codes []string) model.StringList {
-	out := make(model.StringList, 0, len(codes))
+func normalizePermissionCodes(codes []string) localmodel.StringList {
+	out := make(localmodel.StringList, 0, len(codes))
 	seen := make(map[string]struct{}, len(codes))
 	for _, c := range codes {
 		c = strings.TrimSpace(c)
@@ -78,18 +78,18 @@ func normalizePermissionCodes(codes []string) model.StringList {
 	return out
 }
 
-func (s *TenantPackageService) List(ctx context.Context, req TenantPackageListRequest) ([]model.TenantPackage, int64, error) {
+func (s *TenantPackageService) List(ctx context.Context, req TenantPackageListRequest) ([]localmodel.TenantPackage, int64, error) {
 	// 平台级目录：关闭行级租户过滤（tenant_packages 无 tenant_id 列）。
 	ctx = tenant.DisableScope(ctx)
 	return s.dao.ListContext(ctx, req.PageRequest, req.Keyword, req.Status)
 }
 
-func (s *TenantPackageService) GetAll(ctx context.Context) ([]model.TenantPackage, error) {
+func (s *TenantPackageService) GetAll(ctx context.Context) ([]localmodel.TenantPackage, error) {
 	ctx = tenant.DisableScope(ctx)
 	return s.dao.GetAllContext(ctx)
 }
 
-func (s *TenantPackageService) Get(ctx context.Context, id uint) (*model.TenantPackage, error) {
+func (s *TenantPackageService) Get(ctx context.Context, id uint) (*localmodel.TenantPackage, error) {
 	ctx = tenant.DisableScope(ctx)
 	p, err := s.dao.GetByIDContext(ctx, id)
 	if err != nil {
@@ -101,7 +101,7 @@ func (s *TenantPackageService) Get(ctx context.Context, id uint) (*model.TenantP
 	return p, nil
 }
 
-func (s *TenantPackageService) Create(ctx context.Context, req CreateTenantPackageRequest) (*model.TenantPackage, error) {
+func (s *TenantPackageService) Create(ctx context.Context, req CreateTenantPackageRequest) (*localmodel.TenantPackage, error) {
 	ctx = tenant.DisableScope(ctx)
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
@@ -116,7 +116,7 @@ func (s *TenantPackageService) Create(ctx context.Context, req CreateTenantPacka
 	if status == 0 {
 		status = 1
 	}
-	p := &model.TenantPackage{
+	p := &localmodel.TenantPackage{
 		Name:            name,
 		PermissionCodes: normalizePermissionCodes(req.PermissionCodes),
 		Status:          status,
@@ -129,7 +129,7 @@ func (s *TenantPackageService) Create(ctx context.Context, req CreateTenantPacka
 	return p, nil
 }
 
-func (s *TenantPackageService) Update(ctx context.Context, id uint, req UpdateTenantPackageRequest) (*model.TenantPackage, error) {
+func (s *TenantPackageService) Update(ctx context.Context, id uint, req UpdateTenantPackageRequest) (*localmodel.TenantPackage, error) {
 	ctx = tenant.DisableScope(ctx)
 	p, err := s.Get(ctx, id)
 	if err != nil {

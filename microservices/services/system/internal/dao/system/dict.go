@@ -5,8 +5,8 @@ import (
 
 	"gorm.io/gorm"
 
-	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 )
 
 type DictDAO struct {

@@ -11,9 +11,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"github.com/go-admin-kit/services/system/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
-	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 

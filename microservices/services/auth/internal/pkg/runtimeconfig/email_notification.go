@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-admin-kit/services/auth/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 // EmailNotification holds the SMTP configuration the forgot-password link

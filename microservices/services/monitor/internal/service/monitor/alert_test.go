@@ -7,15 +7,15 @@ import (
 	"time"
 
 	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
+	"github.com/go-admin-kit/services/monitor/internal/pkg/runtimeconfig"
 	"github.com/go-admin-kit/services/shared/pkg/mailer"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
-	"github.com/go-admin-kit/services/monitor/internal/pkg/runtimeconfig"
 )
 
 func TestTransitionAlertRuleEmitsOneFiringAndOneResolvedEvent(t *testing.T) {
 	startedAt := time.Date(2026, 7, 31, 8, 0, 0, 0, time.UTC)
-	rule := &model.MonitorAlertRule{
+	rule := &localmodel.MonitorAlertRule{
 		ID:              7,
 		Name:            "High CPU",
 		Metric:          "system.cpu.used_percent",
@@ -79,7 +79,7 @@ func TestTransitionAlertRuleEmitsOneFiringAndOneResolvedEvent(t *testing.T) {
 func TestTransitionAlertRulePreservesIncidentAcrossCollectionError(t *testing.T) {
 	now := time.Date(2026, 7, 31, 9, 0, 0, 0, time.UTC)
 	firingSince := now.Add(-time.Minute)
-	rule := &model.MonitorAlertRule{
+	rule := &localmodel.MonitorAlertRule{
 		Name:        "Redis clients",
 		Metric:      "redis.clients.connected",
 		Operator:    "gt",
@@ -148,7 +148,7 @@ func TestAlertRuleValidationRejectsInvalidBoundaryValues(t *testing.T) {
 func TestApplyAlertRuleInputPreservesOrResetsDurableState(t *testing.T) {
 	pendingSince := time.Date(2026, 7, 31, 9, 0, 0, 0, time.UTC)
 	firingSince := pendingSince.Add(time.Minute)
-	rule := &model.MonitorAlertRule{
+	rule := &localmodel.MonitorAlertRule{
 		Name:            "High CPU",
 		Metric:          "system.cpu.used_percent",
 		Operator:        "gte",
@@ -195,7 +195,7 @@ func TestNewAlertServiceWithoutDatabaseFailsClosed(t *testing.T) {
 }
 
 func TestAlertEmailNotifierRecordsSentSkippedAndFailed(t *testing.T) {
-	event := &model.MonitorAlertEvent{
+	event := &localmodel.MonitorAlertEvent{
 		ID:        12,
 		RuleName:  "High memory",
 		Metric:    "system.memory.used_percent",
@@ -271,31 +271,33 @@ func (s alertEmailReaderStub) EmailNotification(context.Context) runtimeconfig.E
 }
 
 type stubAlertStore struct {
-	rule *model.MonitorAlertRule
+	rule *localmodel.MonitorAlertRule
 }
 
-func (s *stubAlertStore) GetRuleByIDContext(context.Context, uint) (*model.MonitorAlertRule, error) {
+func (s *stubAlertStore) GetRuleByIDContext(context.Context, uint) (*localmodel.MonitorAlertRule, error) {
 	return s.rule, nil
 }
-func (s *stubAlertStore) ListRulesContext(context.Context, pagination.PageRequest, monitordao.AlertRuleFilter) ([]model.MonitorAlertRule, int64, error) {
+func (s *stubAlertStore) ListRulesContext(context.Context, pagination.PageRequest, monitordao.AlertRuleFilter) ([]localmodel.MonitorAlertRule, int64, error) {
 	return nil, 0, nil
 }
 func (s *stubAlertStore) ListEnabledRuleIDsContext(context.Context) ([]uint, error) { return nil, nil }
-func (s *stubAlertStore) GetRuleSummaryContext(context.Context) (model.MonitorAlertSummary, error) {
-	return model.MonitorAlertSummary{}, nil
+func (s *stubAlertStore) GetRuleSummaryContext(context.Context) (localmodel.MonitorAlertSummary, error) {
+	return localmodel.MonitorAlertSummary{}, nil
 }
-func (s *stubAlertStore) CreateRuleContext(context.Context, *model.MonitorAlertRule) error { return nil }
-func (s *stubAlertStore) UpdateRuleContext(context.Context, uint, monitordao.AlertRuleUpdate) (*model.MonitorAlertRule, error) {
+func (s *stubAlertStore) CreateRuleContext(context.Context, *localmodel.MonitorAlertRule) error {
+	return nil
+}
+func (s *stubAlertStore) UpdateRuleContext(context.Context, uint, monitordao.AlertRuleUpdate) (*localmodel.MonitorAlertRule, error) {
 	return nil, nil
 }
 func (s *stubAlertStore) DeleteRuleContext(context.Context, uint) error { return nil }
-func (s *stubAlertStore) ApplyTransitionContext(context.Context, uint, monitordao.AlertTransition) (*model.MonitorAlertRule, *model.MonitorAlertEvent, error) {
+func (s *stubAlertStore) ApplyTransitionContext(context.Context, uint, monitordao.AlertTransition) (*localmodel.MonitorAlertRule, *localmodel.MonitorAlertEvent, error) {
 	return nil, nil, nil
 }
-func (s *stubAlertStore) RecordEvaluationErrorContext(context.Context, uint, string, time.Time, string) (*model.MonitorAlertRule, error) {
+func (s *stubAlertStore) RecordEvaluationErrorContext(context.Context, uint, string, time.Time, string) (*localmodel.MonitorAlertRule, error) {
 	return nil, nil
 }
-func (s *stubAlertStore) ListEventsContext(context.Context, pagination.PageRequest, monitordao.AlertEventFilter) ([]model.MonitorAlertEvent, int64, error) {
+func (s *stubAlertStore) ListEventsContext(context.Context, pagination.PageRequest, monitordao.AlertEventFilter) ([]localmodel.MonitorAlertEvent, int64, error) {
 	return nil, 0, nil
 }
 func (s *stubAlertStore) UpdateEventNotificationContext(context.Context, uint64, string, string, time.Time) error {
@@ -304,7 +306,7 @@ func (s *stubAlertStore) UpdateEventNotificationContext(context.Context, uint64,
 
 func TestEvaluateRuleContextSkipsSilencedRule(t *testing.T) {
 	future := time.Now().Add(2 * time.Hour).UTC()
-	store := &stubAlertStore{rule: &model.MonitorAlertRule{
+	store := &stubAlertStore{rule: &localmodel.MonitorAlertRule{
 		ID:           1,
 		Enabled:      true,
 		Metric:       "system.cpu.used_percent",

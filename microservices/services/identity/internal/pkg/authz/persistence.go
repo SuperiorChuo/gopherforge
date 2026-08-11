@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 )
 
 // ErrPersistenceNotConfigured reports that package-level authz helpers were
@@ -14,7 +14,7 @@ var ErrPersistenceNotConfigured = errors.New("authz persistence is not configure
 
 // UserWithRolesStore loads users with their roles.
 type UserWithRolesStore interface {
-	GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error)
+	GetUserWithRolesContext(ctx context.Context, id uint) (*localmodel.User, error)
 }
 
 // UserPermissionsStore loads permission codes for a user.

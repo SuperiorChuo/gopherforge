@@ -3,7 +3,7 @@ package system
 import (
 	"context"
 
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
@@ -24,14 +24,14 @@ func (d *DepartmentDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d *DepartmentDAO) GetByIDContext(ctx context.Context, id uint) (*model.Department, error) {
-	var dept model.Department
+func (d *DepartmentDAO) GetByIDContext(ctx context.Context, id uint) (*localmodel.Department, error) {
+	var dept localmodel.Department
 	result := d.dbWithContext(ctx).First(&dept, id)
 	return &dept, result.Error
 }
 
-func (d *DepartmentDAO) GetByCodeContext(ctx context.Context, code string) (*model.Department, error) {
-	var dept model.Department
+func (d *DepartmentDAO) GetByCodeContext(ctx context.Context, code string) (*localmodel.Department, error) {
+	var dept localmodel.Department
 	q := d.dbWithContext(ctx).Where("code = ?", code)
 	if tid := tenant.FromContext(ctx); tid > 0 {
 		q = q.Where("tenant_id = ?", tid)
@@ -40,11 +40,11 @@ func (d *DepartmentDAO) GetByCodeContext(ctx context.Context, code string) (*mod
 	return &dept, result.Error
 }
 
-func (d *DepartmentDAO) GetListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]model.Department, int64, error) {
-	var depts []model.Department
+func (d *DepartmentDAO) GetListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]localmodel.Department, int64, error) {
+	var depts []localmodel.Department
 	var total int64
 
-	query := d.dbWithContext(ctx).Model(&model.Department{})
+	query := d.dbWithContext(ctx).Model(&localmodel.Department{})
 	if tid := tenant.FromContext(ctx); tid > 0 {
 		query = query.Where("departments.tenant_id = ?", tid)
 	}
@@ -67,9 +67,9 @@ func (d *DepartmentDAO) GetListContext(ctx context.Context, req pagination.PageR
 	return depts, total, result.Error
 }
 
-func (d *DepartmentDAO) GetAllContext(ctx context.Context, status *int8) ([]model.Department, error) {
-	var depts []model.Department
-	query := d.dbWithContext(ctx).Model(&model.Department{})
+func (d *DepartmentDAO) GetAllContext(ctx context.Context, status *int8) ([]localmodel.Department, error) {
+	var depts []localmodel.Department
+	query := d.dbWithContext(ctx).Model(&localmodel.Department{})
 	if tid := tenant.FromContext(ctx); tid > 0 {
 		query = query.Where("departments.tenant_id = ?", tid)
 	}
@@ -80,7 +80,7 @@ func (d *DepartmentDAO) GetAllContext(ctx context.Context, status *int8) ([]mode
 	return depts, result.Error
 }
 
-func (d *DepartmentDAO) GetTreeContext(ctx context.Context, status *int8) ([]model.Department, error) {
+func (d *DepartmentDAO) GetTreeContext(ctx context.Context, status *int8) ([]localmodel.Department, error) {
 	depts, err := d.GetAllContext(ctx, status)
 	if err != nil {
 		return nil, err
@@ -88,13 +88,13 @@ func (d *DepartmentDAO) GetTreeContext(ctx context.Context, status *int8) ([]mod
 	return buildDepartmentTree(depts, 0), nil
 }
 
-func buildDepartmentTree(depts []model.Department, parentID uint) []model.Department {
-	var tree []model.Department
+func buildDepartmentTree(depts []localmodel.Department, parentID uint) []localmodel.Department {
+	var tree []localmodel.Department
 	for i := range depts {
 		if depts[i].ParentID == parentID {
 			children := buildDepartmentTree(depts, depts[i].ID)
 			if children == nil {
-				depts[i].Children = []model.Department{}
+				depts[i].Children = []localmodel.Department{}
 			} else {
 				depts[i].Children = children
 			}
@@ -104,11 +104,11 @@ func buildDepartmentTree(depts []model.Department, parentID uint) []model.Depart
 	return tree
 }
 
-func (d *DepartmentDAO) CreateContext(ctx context.Context, dept *model.Department) error {
+func (d *DepartmentDAO) CreateContext(ctx context.Context, dept *localmodel.Department) error {
 	return d.dbWithContext(ctx).Create(dept).Error
 }
 
-func (d *DepartmentDAO) UpdateContext(ctx context.Context, dept *model.Department) error {
+func (d *DepartmentDAO) UpdateContext(ctx context.Context, dept *localmodel.Department) error {
 	return d.dbWithContext(ctx).Save(dept).Error
 }
 
@@ -116,21 +116,21 @@ func (d *DepartmentDAO) DeleteContext(ctx context.Context, id uint) error {
 	db := d.dbWithContext(ctx)
 
 	var count int64
-	if err := db.Model(&model.Department{}).Where("parent_id = ?", id).Count(&count).Error; err != nil {
+	if err := db.Model(&localmodel.Department{}).Where("parent_id = ?", id).Count(&count).Error; err != nil {
 		return err
 	}
 	if count > 0 {
 		return ErrDepartmentHasChildren
 	}
 
-	if err := db.Model(&model.User{}).Where("department_id = ?", id).Count(&count).Error; err != nil {
+	if err := db.Model(&localmodel.User{}).Where("department_id = ?", id).Count(&count).Error; err != nil {
 		return err
 	}
 	if count > 0 {
 		return ErrDepartmentHasUsers
 	}
 
-	return db.Delete(&model.Department{}, id).Error
+	return db.Delete(&localmodel.Department{}, id).Error
 }
 
 func (d *DepartmentDAO) GetChildrenIDsContext(ctx context.Context, parentID uint) ([]uint, error) {
@@ -143,7 +143,7 @@ func (d *DepartmentDAO) GetChildrenIDsContext(ctx context.Context, parentID uint
 	return ids, nil
 }
 
-func collectChildrenIDs(depts []model.Department, parentID uint, ids *[]uint) {
+func collectChildrenIDs(depts []localmodel.Department, parentID uint, ids *[]uint) {
 	for _, dept := range depts {
 		if dept.ParentID == parentID {
 			*ids = append(*ids, dept.ID)

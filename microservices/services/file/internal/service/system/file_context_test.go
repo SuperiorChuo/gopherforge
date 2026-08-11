@@ -21,10 +21,10 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-admin-kit/services/file/internal/config"
 	systemdao "github.com/go-admin-kit/services/file/internal/dao/system"
-	"github.com/go-admin-kit/services/file/internal/model"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/authz"
-	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/file/internal/pkg/upload"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
 )
 
@@ -332,7 +332,7 @@ func TestFileServiceOpenFileContentContextStreamsObjectStorageKey(t *testing.T) 
 		}),
 	}
 
-	opened, err := service.OpenFileContentContext(context.Background(), &model.File{
+	opened, err := service.OpenFileContentContext(context.Background(), &localmodel.File{
 		FileName: "report.txt",
 		FilePath: key,
 		MimeType: "text/plain",
@@ -397,7 +397,7 @@ func TestFileServiceOpenFileContentContextUsesRecordStorageType(t *testing.T) {
 		}),
 	}
 
-	opened, err := service.OpenFileContentContext(context.Background(), &model.File{
+	opened, err := service.OpenFileContentContext(context.Background(), &localmodel.File{
 		FileName:    "report.txt",
 		FilePath:    key,
 		MimeType:    "text/plain",
@@ -430,7 +430,7 @@ func TestFileServiceOpenFileContentContextDefaultsContentType(t *testing.T) {
 		t.Fatalf("write test file: %v", err)
 	}
 
-	opened, err := service.OpenFileContentContext(context.Background(), &model.File{
+	opened, err := service.OpenFileContentContext(context.Background(), &localmodel.File{
 		FileName: "legacy-report.txt",
 		FilePath: path,
 	})

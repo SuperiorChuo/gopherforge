@@ -10,9 +10,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/identity/internal/pkg/redis"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
@@ -52,14 +53,14 @@ type departmentTreeCacheRow struct {
 
 // DataScopeStore loads data permission dependencies.
 type DataScopeStore interface {
-	ListDepartments(ctx context.Context) ([]model.Department, error)
+	ListDepartments(ctx context.Context) ([]localmodel.Department, error)
 	ListRoleDataScopeDepartmentIDs(ctx context.Context, roleIDs []uint) ([]uint, error)
 }
 
 // DepartmentTreeCache caches department tree rows for data-scope resolution.
 type DepartmentTreeCache interface {
-	GetDepartmentTree(ctx context.Context) ([]model.Department, bool)
-	SetDepartmentTree(ctx context.Context, depts []model.Department) error
+	GetDepartmentTree(ctx context.Context) ([]localmodel.Department, bool)
+	SetDepartmentTree(ctx context.Context, depts []localmodel.Department) error
 	InvalidateDepartmentTree(ctx context.Context) error
 }
 
@@ -114,16 +115,16 @@ type UserDataScope struct {
 	RoleCodes     []string
 }
 
-func ResolveUserDataScopeContext(ctx context.Context, user *model.User) (UserDataScope, error) {
+func ResolveUserDataScopeContext(ctx context.Context, user *localmodel.User) (UserDataScope, error) {
 	return NewDataScopeResolver(nil).ResolveUserDataScopeContext(ctx, user)
 }
 
 // ResolveUserDataScopeFallbackContext resolves scope and falls back to self scope on dependency errors.
-func ResolveUserDataScopeFallbackContext(ctx context.Context, user *model.User) UserDataScope {
+func ResolveUserDataScopeFallbackContext(ctx context.Context, user *localmodel.User) UserDataScope {
 	return NewDataScopeResolver(nil).ResolveUserDataScopeFallbackContext(ctx, user)
 }
 
-func (r *DataScopeResolver) ResolveUserDataScopeFallbackContext(ctx context.Context, user *model.User) UserDataScope {
+func (r *DataScopeResolver) ResolveUserDataScopeFallbackContext(ctx context.Context, user *localmodel.User) UserDataScope {
 	scope, err := r.ResolveUserDataScopeContext(ctx, user)
 	if err == nil {
 		return scope
@@ -139,7 +140,7 @@ func (r *DataScopeResolver) ResolveUserDataScopeFallbackContext(ctx context.Cont
 	}
 }
 
-func (r *DataScopeResolver) ResolveUserDataScopeContext(ctx context.Context, user *model.User) (UserDataScope, error) {
+func (r *DataScopeResolver) ResolveUserDataScopeContext(ctx context.Context, user *localmodel.User) (UserDataScope, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -375,7 +376,7 @@ func (r *DataScopeResolver) resolveDepartmentTreeIDsContext(ctx context.Context,
 	return ids, nil
 }
 
-func (r *DataScopeResolver) loadDepartmentTreeContext(ctx context.Context) ([]model.Department, error) {
+func (r *DataScopeResolver) loadDepartmentTreeContext(ctx context.Context) ([]localmodel.Department, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -393,10 +394,10 @@ func (r *DataScopeResolver) loadDepartmentTreeContext(ctx context.Context) ([]mo
 	return depts, nil
 }
 
-func departmentRowsToModels(rows []departmentTreeCacheRow) []model.Department {
-	depts := make([]model.Department, 0, len(rows))
+func departmentRowsToModels(rows []departmentTreeCacheRow) []localmodel.Department {
+	depts := make([]localmodel.Department, 0, len(rows))
 	for _, row := range rows {
-		depts = append(depts, model.Department{
+		depts = append(depts, localmodel.Department{
 			ID:       row.ID,
 			ParentID: row.ParentID,
 		})
@@ -404,7 +405,7 @@ func departmentRowsToModels(rows []departmentTreeCacheRow) []model.Department {
 	return depts
 }
 
-func departmentModelsToRows(depts []model.Department) []departmentTreeCacheRow {
+func departmentModelsToRows(depts []localmodel.Department) []departmentTreeCacheRow {
 	rows := make([]departmentTreeCacheRow, 0, len(depts))
 	for _, dept := range depts {
 		rows = append(rows, departmentTreeCacheRow{
@@ -427,7 +428,7 @@ func cloneDepartmentTreeRows(rows []departmentTreeCacheRow) []departmentTreeCach
 	return cloned
 }
 
-func (c *layeredDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]model.Department, bool) {
+func (c *layeredDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]localmodel.Department, bool) {
 	tenantID := tenant.FromContext(ctx)
 	if rows, ok := c.getLocalRows(tenantID); ok {
 		return departmentRowsToModels(rows), true
@@ -455,7 +456,7 @@ func (c *layeredDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]m
 	return departmentRowsToModels(rows), true
 }
 
-func (c *layeredDepartmentTreeCache) SetDepartmentTree(ctx context.Context, depts []model.Department) error {
+func (c *layeredDepartmentTreeCache) SetDepartmentTree(ctx context.Context, depts []localmodel.Department) error {
 	tenantID := tenant.FromContext(ctx)
 	rows := departmentModelsToRows(depts)
 	c.setLocalRows(tenantID, rows)
@@ -672,7 +673,7 @@ func (r *DataScopeResolver) departmentTreeCache() DepartmentTreeCache {
 	return defaultDepartmentTreeCache
 }
 
-func (s databaseDataScopeStore) ListDepartments(ctx context.Context) ([]model.Department, error) {
+func (s databaseDataScopeStore) ListDepartments(ctx context.Context) ([]localmodel.Department, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -681,8 +682,8 @@ func (s databaseDataScopeStore) ListDepartments(ctx context.Context) ([]model.De
 	if db == nil {
 		db = database.DB
 	}
-	var depts []model.Department
-	if err := db.WithContext(ctx).Model(&model.Department{}).Select("id", "parent_id").Find(&depts).Error; err != nil {
+	var depts []localmodel.Department
+	if err := db.WithContext(ctx).Model(&localmodel.Department{}).Select("id", "parent_id").Find(&depts).Error; err != nil {
 		return nil, err
 	}
 	return depts, nil
@@ -734,7 +735,7 @@ func uniqueUintIDs(ids []uint) []uint {
 	return unique
 }
 
-func collectChildDepartmentIDs(depts []model.Department, parentID uint, ids *[]uint) {
+func collectChildDepartmentIDs(depts []localmodel.Department, parentID uint, ids *[]uint) {
 	for _, dept := range depts {
 		if dept.ParentID == parentID {
 			*ids = append(*ids, dept.ID)

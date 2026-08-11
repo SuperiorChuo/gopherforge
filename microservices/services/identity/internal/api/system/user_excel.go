@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
 	"github.com/go-admin-kit/services/identity/internal/service/system"
 	"github.com/go-admin-kit/services/shared/pkg/excel"
@@ -63,7 +63,7 @@ func (a *UserManagementAPI) ExportUsers(c *gin.Context) {
 	}
 
 	truncated, err := a.userService.StreamExportUsersContext(c.Request.Context(), req,
-		func(batch []model.User) error {
+		func(batch []localmodel.User) error {
 			for i := range batch {
 				u := &batch[i]
 				statusText := "启用"

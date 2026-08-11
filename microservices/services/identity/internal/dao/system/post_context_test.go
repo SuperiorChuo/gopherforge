@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 )
 
@@ -45,7 +45,7 @@ func TestPostDAOCreateContextUsesInjectedDB(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(9))
 	mock.ExpectCommit()
 
-	post := &model.Post{TenantID: 1, Code: "dev", Name: "Developer", Sort: 5, Status: 1, Remark: "backend dev"}
+	post := &localmodel.Post{TenantID: 1, Code: "dev", Name: "Developer", Sort: 5, Status: 1, Remark: "backend dev"}
 	if err := NewPostDAO(db).CreateContext(context.Background(), post); err != nil {
 		t.Fatalf("CreateContext() error = %v", err)
 	}

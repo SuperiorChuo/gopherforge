@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/services/file/internal/model"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
 )
 
 func TestReadRequestBodyForLogLimitsPreviewAndRestoresFullBody(t *testing.T) {
@@ -49,7 +49,7 @@ func TestFilterSensitiveFieldsMasksCurrentPassword(t *testing.T) {
 
 func TestOperationLogProcessorExitsAfterContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	queue := make(chan *model.OperationLog)
+	queue := make(chan *localmodel.OperationLog)
 	recorder := &operationLogRecorderSpy{}
 
 	done := processLogs(ctx, queue, recorder, 50*time.Millisecond)
@@ -64,9 +64,9 @@ func TestOperationLogProcessorExitsAfterContextCancel(t *testing.T) {
 
 func TestOperationLogProcessorDrainsQueuedLogsAfterCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	queue := make(chan *model.OperationLog, 2)
-	queue <- &model.OperationLog{Path: "/queued/1"}
-	queue <- &model.OperationLog{Path: "/queued/2"}
+	queue := make(chan *localmodel.OperationLog, 2)
+	queue <- &localmodel.OperationLog{Path: "/queued/1"}
+	queue <- &localmodel.OperationLog{Path: "/queued/2"}
 	cancel()
 
 	recorder := &operationLogRecorderSpy{}
@@ -87,8 +87,8 @@ func TestOperationLogProcessorUsesTimeoutForRecordContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	queue := make(chan *model.OperationLog, 1)
-	queue <- &model.OperationLog{Path: "/slow-write"}
+	queue := make(chan *localmodel.OperationLog, 1)
+	queue <- &localmodel.OperationLog{Path: "/slow-write"}
 
 	recorder := newBlockingOperationLogRecorder()
 	done := processLogs(ctx, queue, recorder, 20*time.Millisecond)
@@ -136,10 +136,10 @@ func (r *trackingReadCloser) Close() error {
 
 type operationLogRecorderSpy struct {
 	mu   sync.Mutex
-	logs []*model.OperationLog
+	logs []*localmodel.OperationLog
 }
 
-func (r *operationLogRecorderSpy) RecordContext(ctx context.Context, log *model.OperationLog) error {
+func (r *operationLogRecorderSpy) RecordContext(ctx context.Context, log *localmodel.OperationLog) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.logs = append(r.logs, log)
@@ -165,7 +165,7 @@ func newBlockingOperationLogRecorder() *blockingOperationLogRecorder {
 	}
 }
 
-func (r *blockingOperationLogRecorder) RecordContext(ctx context.Context, log *model.OperationLog) error {
+func (r *blockingOperationLogRecorder) RecordContext(ctx context.Context, log *localmodel.OperationLog) error {
 	if _, ok := ctx.Deadline(); ok {
 		r.hadDeadline = true
 	}

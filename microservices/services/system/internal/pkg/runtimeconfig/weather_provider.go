@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
+	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
 	"github.com/go-admin-kit/services/system/internal/pkg/database"
 	"github.com/go-admin-kit/services/system/internal/pkg/weather"
 	"gorm.io/gorm"

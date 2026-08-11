@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/monitor/internal/config"
-	"github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 

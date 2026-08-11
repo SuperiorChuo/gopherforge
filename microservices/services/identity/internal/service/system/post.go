@@ -5,19 +5,19 @@ import (
 	"errors"
 
 	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 
 type postDAO interface {
-	GetByIDContext(ctx context.Context, id uint) (*model.Post, error)
-	GetByCodeContext(ctx context.Context, code string) (*model.Post, error)
-	GetListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]model.Post, int64, error)
-	GetAllContext(ctx context.Context, status *int8) ([]model.Post, error)
-	CreateContext(ctx context.Context, post *model.Post) error
-	UpdateContext(ctx context.Context, post *model.Post) error
+	GetByIDContext(ctx context.Context, id uint) (*localmodel.Post, error)
+	GetByCodeContext(ctx context.Context, code string) (*localmodel.Post, error)
+	GetListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]localmodel.Post, int64, error)
+	GetAllContext(ctx context.Context, status *int8) ([]localmodel.Post, error)
+	CreateContext(ctx context.Context, post *localmodel.Post) error
+	UpdateContext(ctx context.Context, post *localmodel.Post) error
 	DeleteContext(ctx context.Context, id uint) error
 }
 
@@ -66,7 +66,7 @@ var (
 	ErrPostHasUsers          = systemdao.ErrPostHasUsers
 )
 
-func (s *PostService) GetByIDContext(ctx context.Context, id uint) (*model.Post, error) {
+func (s *PostService) GetByIDContext(ctx context.Context, id uint) (*localmodel.Post, error) {
 	post, err := s.dao().GetByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -77,15 +77,15 @@ func (s *PostService) GetByIDContext(ctx context.Context, id uint) (*model.Post,
 	return post, nil
 }
 
-func (s *PostService) GetListContext(ctx context.Context, req PostListRequest) ([]model.Post, int64, error) {
+func (s *PostService) GetListContext(ctx context.Context, req PostListRequest) ([]localmodel.Post, int64, error) {
 	return s.dao().GetListContext(ctx, req.PageRequest, req.Keyword, req.Status)
 }
 
-func (s *PostService) GetAllContext(ctx context.Context, status *int8) ([]model.Post, error) {
+func (s *PostService) GetAllContext(ctx context.Context, status *int8) ([]localmodel.Post, error) {
 	return s.dao().GetAllContext(ctx, status)
 }
 
-func (s *PostService) CreateContext(ctx context.Context, req CreatePostRequest) (*model.Post, error) {
+func (s *PostService) CreateContext(ctx context.Context, req CreatePostRequest) (*localmodel.Post, error) {
 	dao := s.dao()
 	if _, err := dao.GetByCodeContext(ctx, req.Code); err == nil {
 		return nil, ErrPostCodeAlreadyExists
@@ -93,7 +93,7 @@ func (s *PostService) CreateContext(ctx context.Context, req CreatePostRequest) 
 		return nil, err
 	}
 
-	post := &model.Post{
+	post := &localmodel.Post{
 		TenantID: tenant.Normalize(tenant.FromContext(ctx)),
 		Code:     req.Code,
 		Name:     req.Name,
@@ -111,7 +111,7 @@ func (s *PostService) CreateContext(ctx context.Context, req CreatePostRequest) 
 	return post, nil
 }
 
-func (s *PostService) UpdateContext(ctx context.Context, id uint, req UpdatePostRequest) (*model.Post, error) {
+func (s *PostService) UpdateContext(ctx context.Context, id uint, req UpdatePostRequest) (*localmodel.Post, error) {
 	dao := s.dao()
 	post, err := dao.GetByIDContext(ctx, id)
 	if err != nil {

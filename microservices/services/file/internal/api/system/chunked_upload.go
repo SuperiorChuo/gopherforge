@@ -122,4 +122,3 @@ func currentUserID(c *gin.Context) uint {
 	}
 	return 0
 }
-

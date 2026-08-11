@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/file/internal/model"
-	"github.com/go-admin-kit/services/shared/pkg/tenant"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/mask"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 )
@@ -161,7 +161,7 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 		// unmarshal/marshal no longer counts against request latency.
 		requestBody = filterSensitiveFields(requestBody)
 
-		log := &model.OperationLog{
+		log := &localmodel.OperationLog{
 			TenantID:     tenantID,
 			UserID:       userID,
 			Username:     username,
@@ -222,11 +222,11 @@ const logChanBufferSize = 1000
 
 const operationLogWriteTimeout = 2 * time.Second
 
-var logChan = make(chan *model.OperationLog, logChanBufferSize)
+var logChan = make(chan *localmodel.OperationLog, logChanBufferSize)
 
 // OperationLogRecorder persists operation logs queued by the middleware.
 type OperationLogRecorder interface {
-	RecordContext(context.Context, *model.OperationLog) error
+	RecordContext(context.Context, *localmodel.OperationLog) error
 }
 
 type operationLogRecorder = OperationLogRecorder
@@ -238,7 +238,7 @@ func StartOperationLogProcessor(ctx context.Context, recorder OperationLogRecord
 }
 
 // processLogs persists queued operation logs until ctx is canceled.
-func processLogs(ctx context.Context, queue <-chan *model.OperationLog, recorder operationLogRecorder, writeTimeout time.Duration) <-chan struct{} {
+func processLogs(ctx context.Context, queue <-chan *localmodel.OperationLog, recorder operationLogRecorder, writeTimeout time.Duration) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -258,7 +258,7 @@ func processLogs(ctx context.Context, queue <-chan *model.OperationLog, recorder
 	return done
 }
 
-func drainOperationLogs(queue <-chan *model.OperationLog, recorder operationLogRecorder, writeTimeout time.Duration) {
+func drainOperationLogs(queue <-chan *localmodel.OperationLog, recorder operationLogRecorder, writeTimeout time.Duration) {
 	for {
 		select {
 		case log, ok := <-queue:
@@ -272,7 +272,7 @@ func drainOperationLogs(queue <-chan *model.OperationLog, recorder operationLogR
 	}
 }
 
-func recordOperationLog(parent context.Context, recorder operationLogRecorder, log *model.OperationLog, writeTimeout time.Duration) {
+func recordOperationLog(parent context.Context, recorder operationLogRecorder, log *localmodel.OperationLog, writeTimeout time.Duration) {
 	if recorder == nil || log == nil {
 		return
 	}

@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	dao "github.com/go-admin-kit/services/identity/internal/dao/system"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -149,7 +149,7 @@ func NormalizeAuditSortOrder(value string) string {
 	}
 }
 
-func normalizeAuditRecord(log *model.AuditLog) {
+func normalizeAuditRecord(log *localmodel.AuditLog) {
 	log.Action = strings.TrimSpace(log.Action)
 	log.TargetType = strings.TrimSpace(log.TargetType)
 	log.TargetID = strings.TrimSpace(log.TargetID)
@@ -164,7 +164,7 @@ func normalizeAuditRecord(log *model.AuditLog) {
 	}
 }
 
-func buildAuditLog(c *gin.Context, req AuditRecordRequest) *model.AuditLog {
+func buildAuditLog(c *gin.Context, req AuditRecordRequest) *localmodel.AuditLog {
 	actorType, actorID := resolveAuditActor(c)
 	if value := strings.TrimSpace(req.ActorType); value != "" {
 		actorType = value
@@ -173,7 +173,7 @@ func buildAuditLog(c *gin.Context, req AuditRecordRequest) *model.AuditLog {
 		actorID = value
 	}
 
-	log := &model.AuditLog{
+	log := &localmodel.AuditLog{
 		ActorType:  actorType,
 		ActorID:    actorID,
 		Action:     req.Action,

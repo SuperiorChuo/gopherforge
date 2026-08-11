@@ -3,9 +3,9 @@ package system
 import (
 	"context"
 
-	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"gorm.io/gorm"
 )
 

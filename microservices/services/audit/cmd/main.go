@@ -29,13 +29,13 @@ import (
 	"github.com/go-admin-kit/services/audit/internal/pkg/observability"
 	"github.com/go-admin-kit/services/audit/internal/pkg/redis"
 	"github.com/go-admin-kit/services/audit/internal/pkg/runtimeconfig"
-	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 	authsvc "github.com/go-admin-kit/services/audit/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/audit/internal/service/system"
 	"github.com/go-admin-kit/services/shared/pkg/grpcx"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
-	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
+	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
+	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 
@@ -318,13 +318,13 @@ func run(ctx context.Context) error {
 	// 命中落 security_events + 站内信通知平台管理员（notify 未配时静默跳过）。
 	notifyClient := notifyclient.New(config.Cfg.Notify.APIBase, config.Cfg.Notify.Token)
 	systemsvc.StartSecurityEventDetector(lifecycleCtx, database.DB, notifyClient, systemsvc.SecurityDetectorOptions{
-		ScanInterval:       60 * time.Second,
-		Window:             10 * time.Minute,
-		WriteThreshold:     config.Cfg.SecurityDetect.WriteThreshold,
+		ScanInterval:        60 * time.Second,
+		Window:              10 * time.Minute,
+		WriteThreshold:      config.Cfg.SecurityDetect.WriteThreshold,
 		PermissionThreshold: config.Cfg.SecurityDetect.PermissionThreshold,
-		FailureThreshold:   config.Cfg.SecurityDetect.FailureThreshold,
-		NotifyUserID:       1,
-		NotifyURL:          "/system/security-events",
+		FailureThreshold:    config.Cfg.SecurityDetect.FailureThreshold,
+		NotifyUserID:        1,
+		NotifyURL:           "/system/security-events",
 	})
 
 	// Refresh cached department trees when another instance (or the monolith)

@@ -5,7 +5,8 @@ import (
 	"time"
 
 	sharedDAO "github.com/go-admin-kit/services/identity/internal/dao"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 
@@ -31,7 +32,7 @@ func (d *UserDAO) dbWithContext(ctx context.Context) *gorm.DB {
 }
 
 func (d *UserDAO) UpdateUserProfileContext(ctx context.Context, id uint, updates map[string]any) error {
-	return d.dbWithContext(ctx).Model(&model.User{}).Where("id = ?", id).Updates(updates).Error
+	return d.dbWithContext(ctx).Model(&localmodel.User{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (d *UserDAO) ListRecentPasswordHistoryContext(ctx context.Context, userID uint, limit int) ([]model.PasswordHistory, error) {
@@ -54,7 +55,7 @@ func (d *UserDAO) CreatePasswordHistoryContext(ctx context.Context, history *mod
 
 func (d *UserDAO) MarkPasswordChangeRequiredContext(ctx context.Context, userID uint) error {
 	return d.dbWithContext(ctx).
-		Model(&model.User{}).
+		Model(&localmodel.User{}).
 		Where("id = ?", userID).
 		Update("must_change_password", true).Error
 }
@@ -68,7 +69,7 @@ func (d *UserDAO) UpdatePasswordWithHistoryContext(
 	historyCount int,
 ) error {
 	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		result := tx.Model(&model.User{}).
+		result := tx.Model(&localmodel.User{}).
 			Where("id = ? AND password = ?", userID, previousHash).
 			Updates(map[string]any{
 				"password":             newHash,
@@ -95,7 +96,7 @@ func (d *UserDAO) UpdatePasswordWithHistoryContext(
 
 func (d *UserDAO) UpdateTOTPSetupContext(ctx context.Context, userID uint, secret string) error {
 	return d.dbWithContext(ctx).
-		Model(&model.User{}).
+		Model(&localmodel.User{}).
 		Where("id = ?", userID).
 		Updates(map[string]any{
 			"totp_secret":  secret,
@@ -105,7 +106,7 @@ func (d *UserDAO) UpdateTOTPSetupContext(ctx context.Context, userID uint, secre
 
 func (d *UserDAO) EnableTOTPWithRecoveryCodesContext(ctx context.Context, userID uint, codeHashes []string, createdAt time.Time) error {
 	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		result := tx.Model(&model.User{}).
+		result := tx.Model(&localmodel.User{}).
 			Where("id = ?", userID).
 			Update("totp_enabled", true)
 		if result.Error != nil {
@@ -181,7 +182,7 @@ func (d *UserDAO) MarkTOTPRecoveryCodeUsedContext(ctx context.Context, userID ui
 
 func (d *UserDAO) DisableTOTPContext(ctx context.Context, userID uint) error {
 	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		result := tx.Model(&model.User{}).
+		result := tx.Model(&localmodel.User{}).
 			Where("id = ?", userID).
 			Updates(map[string]any{
 				"totp_secret":  "",
@@ -197,14 +198,14 @@ func (d *UserDAO) DisableTOTPContext(ctx context.Context, userID uint) error {
 	})
 }
 
-func (d *UserDAO) GetUserByPhoneContext(ctx context.Context, phone string) (*model.User, error) {
-	var user model.User
+func (d *UserDAO) GetUserByPhoneContext(ctx context.Context, phone string) (*localmodel.User, error) {
+	var user localmodel.User
 	result := d.dbWithContext(ctx).Where("phone = ?", phone).First(&user)
 	return &user, result.Error
 }
 
-func (d *UserDAO) GetUserWithRolesAndPermissionsContext(ctx context.Context, id uint) (*model.User, error) {
-	var user model.User
+func (d *UserDAO) GetUserWithRolesAndPermissionsContext(ctx context.Context, id uint) (*localmodel.User, error) {
+	var user localmodel.User
 	result := d.dbWithContext(ctx).
 		Preload("Roles.Permissions").
 		First(&user, id)

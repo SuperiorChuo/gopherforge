@@ -13,9 +13,10 @@ import (
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 	authdao "github.com/go-admin-kit/services/file/internal/dao/auth"
-	"github.com/go-admin-kit/services/file/internal/model"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/file/internal/pkg/redis"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	goredis "github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
@@ -348,9 +349,9 @@ func TestApplyOwnerScopeUsesCurrentQueryDBForDepartmentSubquery(t *testing.T) {
 		WithArgs(uint(10), uint(11)).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	var files []model.File
+	var files []localmodel.File
 	err = ApplyOwnerScope(
-		db.Model(&model.File{}),
+		db.Model(&localmodel.File{}),
 		UserDataScope{Scope: DataScopeDepartment, DepartmentIDs: []uint{10, 11}},
 		"user_id",
 	).Find(&files).Error

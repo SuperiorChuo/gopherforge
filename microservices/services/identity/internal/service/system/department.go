@@ -6,22 +6,22 @@ import (
 	"time"
 
 	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
+	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
-	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"gorm.io/gorm"
 )
 
 type departmentDAO interface {
-	GetByIDContext(ctx context.Context, id uint) (*model.Department, error)
-	GetByCodeContext(ctx context.Context, code string) (*model.Department, error)
-	GetListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]model.Department, int64, error)
-	GetAllContext(ctx context.Context, status *int8) ([]model.Department, error)
-	GetTreeContext(ctx context.Context, status *int8) ([]model.Department, error)
-	CreateContext(ctx context.Context, dept *model.Department) error
-	UpdateContext(ctx context.Context, dept *model.Department) error
+	GetByIDContext(ctx context.Context, id uint) (*localmodel.Department, error)
+	GetByCodeContext(ctx context.Context, code string) (*localmodel.Department, error)
+	GetListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]localmodel.Department, int64, error)
+	GetAllContext(ctx context.Context, status *int8) ([]localmodel.Department, error)
+	GetTreeContext(ctx context.Context, status *int8) ([]localmodel.Department, error)
+	CreateContext(ctx context.Context, dept *localmodel.Department) error
+	UpdateContext(ctx context.Context, dept *localmodel.Department) error
 	DeleteContext(ctx context.Context, id uint) error
 	GetChildrenIDsContext(ctx context.Context, parentID uint) ([]uint, error)
 }
@@ -100,7 +100,7 @@ var (
 	ErrDepartmentHasUsers          = systemdao.ErrDepartmentHasUsers
 )
 
-func (s *DepartmentService) GetByIDContext(ctx context.Context, id uint) (*model.Department, error) {
+func (s *DepartmentService) GetByIDContext(ctx context.Context, id uint) (*localmodel.Department, error) {
 	dept, err := s.dao().GetByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -111,19 +111,19 @@ func (s *DepartmentService) GetByIDContext(ctx context.Context, id uint) (*model
 	return dept, nil
 }
 
-func (s *DepartmentService) GetListContext(ctx context.Context, req DepartmentListRequest) ([]model.Department, int64, error) {
+func (s *DepartmentService) GetListContext(ctx context.Context, req DepartmentListRequest) ([]localmodel.Department, int64, error) {
 	return s.dao().GetListContext(ctx, req.PageRequest, req.Keyword, req.Status)
 }
 
-func (s *DepartmentService) GetAllContext(ctx context.Context, status *int8) ([]model.Department, error) {
+func (s *DepartmentService) GetAllContext(ctx context.Context, status *int8) ([]localmodel.Department, error) {
 	return s.dao().GetAllContext(ctx, status)
 }
 
-func (s *DepartmentService) GetTreeContext(ctx context.Context, status *int8) ([]model.Department, error) {
+func (s *DepartmentService) GetTreeContext(ctx context.Context, status *int8) ([]localmodel.Department, error) {
 	return s.dao().GetTreeContext(ctx, status)
 }
 
-func (s *DepartmentService) CreateContext(ctx context.Context, req CreateDepartmentRequest) (*model.Department, error) {
+func (s *DepartmentService) CreateContext(ctx context.Context, req CreateDepartmentRequest) (*localmodel.Department, error) {
 	dao := s.dao()
 	if _, err := dao.GetByCodeContext(ctx, req.Code); err == nil {
 		return nil, ErrDepartmentCodeAlreadyExists
@@ -140,7 +140,7 @@ func (s *DepartmentService) CreateContext(ctx context.Context, req CreateDepartm
 		}
 	}
 
-	dept := &model.Department{
+	dept := &localmodel.Department{
 		TenantID:     tenant.Normalize(tenant.FromContext(ctx)),
 		Name:         req.Name,
 		Code:         req.Code,
@@ -165,7 +165,7 @@ func (s *DepartmentService) CreateContext(ctx context.Context, req CreateDepartm
 	return dept, nil
 }
 
-func (s *DepartmentService) UpdateContext(ctx context.Context, id uint, req UpdateDepartmentRequest) (*model.Department, error) {
+func (s *DepartmentService) UpdateContext(ctx context.Context, id uint, req UpdateDepartmentRequest) (*localmodel.Department, error) {
 	dao := s.dao()
 	dept, err := dao.GetByIDContext(ctx, id)
 	if err != nil {

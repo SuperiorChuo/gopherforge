@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -16,7 +16,7 @@ func TestAuditLogCreateUsesTenantContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&model.AuditLog{}); err != nil {
+	if err := db.AutoMigrate(&localmodel.AuditLog{}); err != nil {
 		t.Fatalf("migrate audit log: %v", err)
 	}
 	if err := tenant.Register(db); err != nil {
@@ -24,7 +24,7 @@ func TestAuditLogCreateUsesTenantContext(t *testing.T) {
 	}
 
 	ctx := tenant.WithContext(context.Background(), 42)
-	log := &model.AuditLog{Action: "update", TargetType: "user", TargetID: "7"}
+	log := &localmodel.AuditLog{Action: "update", TargetType: "user", TargetID: "7"}
 	if err := NewAuditLogDAO(db).CreateLogContext(ctx, log); err != nil {
 		t.Fatalf("create audit log: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestAuditLogListIsTenantScoped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&model.AuditLog{}); err != nil {
+	if err := db.AutoMigrate(&localmodel.AuditLog{}); err != nil {
 		t.Fatalf("migrate audit log: %v", err)
 	}
 	if err := tenant.Register(db); err != nil {
@@ -51,7 +51,7 @@ func TestAuditLogListIsTenantScoped(t *testing.T) {
 	dao := NewAuditLogDAO(db)
 	for _, tenantID := range []uint{42, 7} {
 		ctx := tenant.WithContext(context.Background(), tenantID)
-		if err := dao.CreateLogContext(ctx, &model.AuditLog{
+		if err := dao.CreateLogContext(ctx, &localmodel.AuditLog{
 			Action: "update", TargetType: "user", TargetID: "7",
 		}); err != nil {
 			t.Fatalf("create tenant %d: %v", tenantID, err)

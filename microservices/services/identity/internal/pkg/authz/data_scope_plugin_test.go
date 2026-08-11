@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -14,8 +14,8 @@ import (
 func TestDataScopePluginNoDirectiveNoOps(t *testing.T) {
 	db := newDataScopePluginDryRunDB(t)
 
-	var users []model.User
-	stmt := db.Model(&model.User{}).Find(&users).Statement
+	var users []localmodel.User
+	stmt := db.Model(&localmodel.User{}).Find(&users).Statement
 
 	assertDataScopeSQL(t, stmt, "SELECT * FROM \"users\"", nil)
 }
@@ -27,8 +27,8 @@ func TestDataScopePluginScopesUserQueries(t *testing.T) {
 		DepartmentIDs: []uint{10, 11},
 	})
 
-	var users []model.User
-	stmt := db.WithContext(ctx).Model(&model.User{}).Find(&users).Statement
+	var users []localmodel.User
+	stmt := db.WithContext(ctx).Model(&localmodel.User{}).Find(&users).Statement
 
 	assertDataScopeSQL(t, stmt, "SELECT * FROM \"users\" WHERE department_id IN ($1,$2)", []any{uint(10), uint(11)})
 }
@@ -40,8 +40,8 @@ func TestDataScopePluginScopesOwnerQueries(t *testing.T) {
 		DepartmentIDs: []uint{20, 21},
 	})
 
-	var files []model.File
-	stmt := db.WithContext(ctx).Model(&model.File{}).Find(&files).Statement
+	var files []localmodel.File
+	stmt := db.WithContext(ctx).Model(&localmodel.File{}).Find(&files).Statement
 
 	assertDataScopeSQL(t, stmt, "SELECT * FROM \"files\" WHERE user_id IN (SELECT id FROM users WHERE department_id IN ($1,$2))", []any{uint(20), uint(21)})
 }
@@ -53,8 +53,8 @@ func TestDataScopePluginDisableDirectiveNoOps(t *testing.T) {
 		DepartmentIDs: []uint{30, 31},
 	}))
 
-	var users []model.User
-	stmt := db.WithContext(ctx).Model(&model.User{}).Find(&users).Statement
+	var users []localmodel.User
+	stmt := db.WithContext(ctx).Model(&localmodel.User{}).Find(&users).Statement
 
 	assertDataScopeSQL(t, stmt, "SELECT * FROM \"users\"", nil)
 }
@@ -66,8 +66,8 @@ func TestDataScopePluginSkipsAliasedTableQueries(t *testing.T) {
 		DepartmentIDs: []uint{30, 31},
 	})
 
-	var users []model.User
-	stmt := db.WithContext(ctx).Table("users AS u").Model(&model.User{}).Find(&users).Statement
+	var users []localmodel.User
+	stmt := db.WithContext(ctx).Table("users AS u").Model(&localmodel.User{}).Find(&users).Statement
 
 	assertDataScopeSQL(t, stmt, "SELECT * FROM users AS u", nil)
 }
@@ -79,8 +79,8 @@ func TestDataScopePluginForceSelfScope(t *testing.T) {
 		DepartmentIDs: []uint{40, 41},
 	}), 7)
 
-	var files []model.File
-	stmt := db.WithContext(ctx).Model(&model.File{}).Find(&files).Statement
+	var files []localmodel.File
+	stmt := db.WithContext(ctx).Model(&localmodel.File{}).Find(&files).Statement
 
 	assertDataScopeSQL(t, stmt, "SELECT * FROM \"files\" WHERE user_id = $1", []any{uint(7)})
 }
@@ -92,8 +92,8 @@ func TestDataScopePluginOwnerScopeSubqueryDoesNotReenterPlugin(t *testing.T) {
 		DepartmentIDs: []uint{50, 51},
 	})
 
-	var files []model.File
-	stmt := db.WithContext(ctx).Model(&model.File{}).Find(&files).Statement
+	var files []localmodel.File
+	stmt := db.WithContext(ctx).Model(&localmodel.File{}).Find(&files).Statement
 
 	gotSQL := stmt.SQL.String()
 	wantSQL := "SELECT * FROM \"files\" WHERE user_id IN (SELECT id FROM users WHERE department_id IN ($1,$2))"

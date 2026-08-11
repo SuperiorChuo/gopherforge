@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
 	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/system/internal/pkg/authz"
-	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
 )
 

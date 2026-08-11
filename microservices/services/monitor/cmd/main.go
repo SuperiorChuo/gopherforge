@@ -34,11 +34,11 @@ import (
 	systemSvc "github.com/go-admin-kit/services/monitor/internal/service/system"
 	"github.com/go-admin-kit/services/shared/pkg/grpcx"
 
-	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
+	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 
-	monitorapi "github.com/go-admin-kit/services/monitor/internal/api/monitor"
 	monitorv1 "github.com/go-admin-kit/services/api/gen/monitor/v1"
+	monitorapi "github.com/go-admin-kit/services/monitor/internal/api/monitor"
 )
 
 // @title           Go Admin Kit API

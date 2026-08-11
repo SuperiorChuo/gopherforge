@@ -6,11 +6,11 @@ import (
 	"time"
 
 	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
+	authsvc "github.com/go-admin-kit/services/identity/internal/service/auth"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
-	authsvc "github.com/go-admin-kit/services/identity/internal/service/auth"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -89,7 +89,7 @@ var (
 )
 
 // fillPostIDs mirrors preloaded posts into the plain post_ids field.
-func fillPostIDs(user *model.User) {
+func fillPostIDs(user *localmodel.User) {
 	if user == nil || len(user.Posts) == 0 {
 		return
 	}
@@ -100,7 +100,7 @@ func fillPostIDs(user *model.User) {
 	user.PostIDs = ids
 }
 
-func (s *UserService) GetUserByIDContext(ctx context.Context, id uint) (*model.User, error) {
+func (s *UserService) GetUserByIDContext(ctx context.Context, id uint) (*localmodel.User, error) {
 	user, err := s.userDAO.GetUserByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -114,7 +114,7 @@ func (s *UserService) GetUserByIDContext(ctx context.Context, id uint) (*model.U
 	return user, nil
 }
 
-func (s *UserService) GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error) {
+func (s *UserService) GetUserWithRolesContext(ctx context.Context, id uint) (*localmodel.User, error) {
 	user, err := s.userDAO.GetUserWithRolesPostsContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -129,7 +129,7 @@ func (s *UserService) GetUserWithRolesContext(ctx context.Context, id uint) (*mo
 	return user, nil
 }
 
-func (s *UserService) GetUserListContext(ctx context.Context, req UserListRequest) ([]model.User, int64, error) {
+func (s *UserService) GetUserListContext(ctx context.Context, req UserListRequest) ([]localmodel.User, int64, error) {
 	users, total, err := s.userDAO.GetUserListContext(ctx, req.PageRequest, req.Keyword, req.Status, req.DataScope)
 	if err != nil {
 		return nil, 0, err
@@ -140,7 +140,7 @@ func (s *UserService) GetUserListContext(ctx context.Context, req UserListReques
 	return users, total, nil
 }
 
-func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserRequest) (*model.User, error) {
+func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserRequest) (*localmodel.User, error) {
 	_, err := s.userDAO.GetUserByUsernameContext(ctx, req.Username)
 	if err == nil {
 		return nil, ErrUsernameAlreadyExists
@@ -189,7 +189,7 @@ func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserReque
 		}
 	}
 	now := time.Now()
-	user := &model.User{
+	user := &localmodel.User{
 		TenantID:          tenantID,
 		Username:          req.Username,
 		Password:          string(hashedPassword),
@@ -219,7 +219,7 @@ func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserReque
 	return user, nil
 }
 
-func (s *UserService) UpdateUserContext(ctx context.Context, id uint, req UpdateUserRequest) (*model.User, error) {
+func (s *UserService) UpdateUserContext(ctx context.Context, id uint, req UpdateUserRequest) (*localmodel.User, error) {
 	user, err := s.GetUserByIDContext(ctx, id)
 	if err != nil {
 		if isContextError(err) {

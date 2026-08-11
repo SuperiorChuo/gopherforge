@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 // The console dropdown and the executor must not drift apart: every listed
@@ -66,7 +66,7 @@ func TestCreateAndUpdateJobRejectUnknownTarget(t *testing.T) {
 	service := newJobService(dao, false)
 	defer service.Stop()
 
-	err := service.CreateJobContext(context.Background(), &model.ScheduledJob{
+	err := service.CreateJobContext(context.Background(), &localmodel.ScheduledJob{
 		Name:           "bad-target",
 		CronExpression: "0 0 * * * *",
 		InvokeTarget:   "NotARealTarget",
@@ -78,7 +78,7 @@ func TestCreateAndUpdateJobRejectUnknownTarget(t *testing.T) {
 		t.Fatalf("rejected job must not be persisted, got %d rows", len(dao.jobs))
 	}
 
-	good := &model.ScheduledJob{
+	good := &localmodel.ScheduledJob{
 		Name:           "good-target",
 		CronExpression: "0 0 * * * *",
 		InvokeTarget:   "HealthCheck",

@@ -1,29 +1,33 @@
-package model
+package localmodel
 
-import "time"
+import (
+	"time"
+
+	model "github.com/go-admin-kit/services/shared/pkg/model"
+)
 
 // User stores account identity and profile fields.
 type User struct {
-	ID                 uint       `gorm:"primaryKey" json:"id"`
-	TenantID           uint       `gorm:"not null;default:1;uniqueIndex:ux_users_tenant_username,priority:1;index" json:"tenant_id"`
-	IsPlatformAdmin    bool       `gorm:"default:false" json:"is_platform_admin"`
-	Username           string     `gorm:"size:50;not null;uniqueIndex:ux_users_tenant_username,priority:2" json:"username"`
-	Password           string     `gorm:"size:255;not null" json:"-"`
-	Nickname           string     `gorm:"size:50" json:"nickname"`
-	Email              string     `gorm:"size:100" json:"email"`
-	Phone              string     `gorm:"size:20" json:"phone"`
-	Avatar             string     `gorm:"size:255" json:"avatar"`
-	DepartmentID       uint       `gorm:"default:0;index" json:"department_id"`
-	MustChangePassword bool       `gorm:"default:false" json:"must_change_password"`
-	PasswordChangedAt  *time.Time `json:"password_changed_at,omitempty"`
-	TOTPSecret         string     `gorm:"size:255" json:"-"`
-	TOTPEnabled        bool       `gorm:"default:false" json:"totp_enabled"`
-	Status             int8       `gorm:"default:1" json:"status"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
-	Roles              []Role     `gorm:"many2many:user_roles;" json:"roles,omitempty"`
-	Posts              []Post     `gorm:"many2many:sys_user_posts;" json:"posts,omitempty"`
-	PostIDs            []uint     `gorm:"-" json:"post_ids,omitempty"`
+	ID                 uint         `gorm:"primaryKey" json:"id"`
+	TenantID           uint         `gorm:"not null;default:1;uniqueIndex:ux_users_tenant_username,priority:1;index" json:"tenant_id"`
+	IsPlatformAdmin    bool         `gorm:"default:false" json:"is_platform_admin"`
+	Username           string       `gorm:"size:50;not null;uniqueIndex:ux_users_tenant_username,priority:2" json:"username"`
+	Password           string       `gorm:"size:255;not null" json:"-"`
+	Nickname           string       `gorm:"size:50" json:"nickname"`
+	Email              string       `gorm:"size:100" json:"email"`
+	Phone              string       `gorm:"size:20" json:"phone"`
+	Avatar             string       `gorm:"size:255" json:"avatar"`
+	DepartmentID       uint         `gorm:"default:0;index" json:"department_id"`
+	MustChangePassword bool         `gorm:"default:false" json:"must_change_password"`
+	PasswordChangedAt  *time.Time   `json:"password_changed_at,omitempty"`
+	TOTPSecret         string       `gorm:"size:255" json:"-"`
+	TOTPEnabled        bool         `gorm:"default:false" json:"totp_enabled"`
+	Status             int8         `gorm:"default:1" json:"status"`
+	CreatedAt          time.Time    `json:"created_at"`
+	UpdatedAt          time.Time    `json:"updated_at"`
+	Roles              []model.Role `gorm:"many2many:user_roles;" json:"roles,omitempty"`
+	Posts              []Post       `gorm:"many2many:sys_user_posts;" json:"posts,omitempty"`
+	PostIDs            []uint       `gorm:"-" json:"post_ids,omitempty"`
 }
 
 // PasswordHistory stores previous password hashes for reuse checks.

@@ -13,9 +13,10 @@ import (
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 	authdao "github.com/go-admin-kit/services/identity/internal/dao/auth"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/identity/internal/pkg/redis"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	goredis "github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
@@ -95,7 +96,7 @@ func TestDepartmentTreeCacheIsolatesTenants(t *testing.T) {
 	ctxA := tenant.WithContext(context.Background(), 1)
 	ctxB := tenant.WithContext(context.Background(), 2)
 
-	if err := cache.SetDepartmentTree(ctxA, []model.Department{{ID: 10}, {ID: 11, ParentID: 10}}); err != nil {
+	if err := cache.SetDepartmentTree(ctxA, []localmodel.Department{{ID: 10}, {ID: 11, ParentID: 10}}); err != nil {
 		t.Fatalf("SetDepartmentTree(tenant 1): %v", err)
 	}
 
@@ -103,7 +104,7 @@ func TestDepartmentTreeCacheIsolatesTenants(t *testing.T) {
 		t.Fatal("tenant 2 must not read tenant 1's cached department tree")
 	}
 
-	if err := cache.SetDepartmentTree(ctxB, []model.Department{{ID: 90}}); err != nil {
+	if err := cache.SetDepartmentTree(ctxB, []localmodel.Department{{ID: 90}}); err != nil {
 		t.Fatalf("SetDepartmentTree(tenant 2): %v", err)
 	}
 
@@ -306,7 +307,7 @@ func TestResolveUserDataScopeContextPropagatesDepartmentTreeCancellation(t *test
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := ResolveUserDataScopeContext(ctx, &model.User{
+	_, err := ResolveUserDataScopeContext(ctx, &localmodel.User{
 		ID:           7,
 		DepartmentID: 10,
 		Roles: []model.Role{{
@@ -348,9 +349,9 @@ func TestApplyOwnerScopeUsesCurrentQueryDBForDepartmentSubquery(t *testing.T) {
 		WithArgs(uint(10), uint(11)).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	var files []model.File
+	var files []localmodel.File
 	err = ApplyOwnerScope(
-		db.Model(&model.File{}),
+		db.Model(&localmodel.File{}),
 		UserDataScope{Scope: DataScopeDepartment, DepartmentIDs: []uint{10, 11}},
 		"user_id",
 	).Find(&files).Error

@@ -1,4 +1,4 @@
-package model
+package localmodel
 
 import "time"
 
@@ -14,11 +14,11 @@ type Department struct {
 	// 取主管（Leader 字符串仅展示用）；不做级联校验，用户删除后由审批侧
 	// emptyFallback 兜底。列由 goose 迁移 000025 添加（identity/migrations）。
 	LeaderUserID uint64       `gorm:"not null;default:0" json:"leader_user_id"`
-	Phone     string       `gorm:"size:20" json:"phone"`
-	Email     string       `gorm:"size:100" json:"email"`
-	Sort      int          `gorm:"default:0" json:"sort"`
-	Status    int8         `gorm:"default:1" json:"status"`
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at"`
-	Children  []Department `gorm:"-" json:"children,omitempty"`
+	Phone        string       `gorm:"size:20" json:"phone"`
+	Email        string       `gorm:"size:100" json:"email"`
+	Sort         int          `gorm:"default:0" json:"sort"`
+	Status       int8         `gorm:"default:1" json:"status"`
+	CreatedAt    time.Time    `json:"created_at"`
+	UpdatedAt    time.Time    `json:"updated_at"`
+	Children     []Department `gorm:"-" json:"children,omitempty"`
 }

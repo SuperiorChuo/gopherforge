@@ -3,7 +3,7 @@ package system
 import (
 	"context"
 
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
@@ -25,14 +25,14 @@ func (d *PostDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d *PostDAO) GetByIDContext(ctx context.Context, id uint) (*model.Post, error) {
-	var post model.Post
+func (d *PostDAO) GetByIDContext(ctx context.Context, id uint) (*localmodel.Post, error) {
+	var post localmodel.Post
 	result := d.dbWithContext(ctx).First(&post, id)
 	return &post, result.Error
 }
 
-func (d *PostDAO) GetByCodeContext(ctx context.Context, code string) (*model.Post, error) {
-	var post model.Post
+func (d *PostDAO) GetByCodeContext(ctx context.Context, code string) (*localmodel.Post, error) {
+	var post localmodel.Post
 	q := d.dbWithContext(ctx).Where("code = ?", code)
 	if tid := tenant.FromContext(ctx); tid > 0 {
 		q = q.Where("tenant_id = ?", tid)
@@ -41,11 +41,11 @@ func (d *PostDAO) GetByCodeContext(ctx context.Context, code string) (*model.Pos
 	return &post, result.Error
 }
 
-func (d *PostDAO) GetListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]model.Post, int64, error) {
-	var posts []model.Post
+func (d *PostDAO) GetListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]localmodel.Post, int64, error) {
+	var posts []localmodel.Post
 	var total int64
 
-	query := d.dbWithContext(ctx).Model(&model.Post{})
+	query := d.dbWithContext(ctx).Model(&localmodel.Post{})
 	if tid := tenant.FromContext(ctx); tid > 0 {
 		query = query.Where("sys_posts.tenant_id = ?", tid)
 	}
@@ -67,9 +67,9 @@ func (d *PostDAO) GetListContext(ctx context.Context, req pagination.PageRequest
 	return posts, total, result.Error
 }
 
-func (d *PostDAO) GetAllContext(ctx context.Context, status *int8) ([]model.Post, error) {
-	var posts []model.Post
-	query := d.dbWithContext(ctx).Model(&model.Post{})
+func (d *PostDAO) GetAllContext(ctx context.Context, status *int8) ([]localmodel.Post, error) {
+	var posts []localmodel.Post
+	query := d.dbWithContext(ctx).Model(&localmodel.Post{})
 	if tid := tenant.FromContext(ctx); tid > 0 {
 		query = query.Where("sys_posts.tenant_id = ?", tid)
 	}
@@ -80,11 +80,11 @@ func (d *PostDAO) GetAllContext(ctx context.Context, status *int8) ([]model.Post
 	return posts, result.Error
 }
 
-func (d *PostDAO) CreateContext(ctx context.Context, post *model.Post) error {
+func (d *PostDAO) CreateContext(ctx context.Context, post *localmodel.Post) error {
 	return d.dbWithContext(ctx).Create(post).Error
 }
 
-func (d *PostDAO) UpdateContext(ctx context.Context, post *model.Post) error {
+func (d *PostDAO) UpdateContext(ctx context.Context, post *localmodel.Post) error {
 	return d.dbWithContext(ctx).Save(post).Error
 }
 
@@ -93,14 +93,14 @@ func (d *PostDAO) DeleteContext(ctx context.Context, id uint) error {
 	db := d.dbWithContext(ctx)
 
 	var count int64
-	if err := db.Model(&model.UserPost{}).Where("post_id = ?", id).Count(&count).Error; err != nil {
+	if err := db.Model(&localmodel.UserPost{}).Where("post_id = ?", id).Count(&count).Error; err != nil {
 		return err
 	}
 	if count > 0 {
 		return ErrPostHasUsers
 	}
 
-	return db.Delete(&model.Post{}, id).Error
+	return db.Delete(&localmodel.Post{}, id).Error
 }
 
 type postError string

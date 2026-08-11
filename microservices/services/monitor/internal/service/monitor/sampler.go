@@ -7,7 +7,7 @@ import (
 	"time"
 
 	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 // DefaultSamplingInterval is how often the background sampler records one
@@ -94,13 +94,13 @@ func (s *MetricSampler) collectOnce(ctx context.Context) {
 		return
 	}
 	now := time.Now().UTC()
-	samples := make([]model.MonitorMetricSample, 0, len(definitions))
+	samples := make([]localmodel.MonitorMetricSample, 0, len(definitions))
 	for _, definition := range definitions {
 		value, err := s.collector.CollectContext(ctx, definition.Key)
 		if err != nil {
 			continue
 		}
-		samples = append(samples, model.MonitorMetricSample{
+		samples = append(samples, localmodel.MonitorMetricSample{
 			Category:    metricCategory(definition.Key),
 			Metric:      definition.Key,
 			Value:       value,

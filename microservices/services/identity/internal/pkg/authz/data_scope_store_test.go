@@ -5,23 +5,24 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/identity/internal/pkg/redis"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 func TestDataScopeResolverUsesInjectedStoreForDepartmentTree(t *testing.T) {
 	withoutAuthzGlobals(t)
 
 	store := &stubDataScopeStore{
-		departments: []model.Department{
+		departments: []localmodel.Department{
 			{ID: 11, ParentID: 10},
 			{ID: 12, ParentID: 11},
 		},
 	}
 	resolver := NewDataScopeResolver(store)
 
-	got, err := resolver.ResolveUserDataScopeContext(context.Background(), &model.User{
+	got, err := resolver.ResolveUserDataScopeContext(context.Background(), &localmodel.User{
 		ID:           7,
 		DepartmentID: 10,
 		Roles: []model.Role{{
@@ -52,7 +53,7 @@ func TestDataScopeResolverUsesInjectedStoreForCustomDepartmentFallback(t *testin
 	}
 	resolver := NewDataScopeResolver(store)
 
-	got, err := resolver.ResolveUserDataScopeContext(context.Background(), &model.User{
+	got, err := resolver.ResolveUserDataScopeContext(context.Background(), &localmodel.User{
 		ID:           8,
 		DepartmentID: 10,
 		Roles: []model.Role{{
@@ -82,14 +83,14 @@ func TestDataScopeResolverUsesInjectedDepartmentTreeCache(t *testing.T) {
 	withoutAuthzGlobals(t)
 
 	store := &stubDataScopeStore{
-		departments: []model.Department{
+		departments: []localmodel.Department{
 			{ID: 11, ParentID: 10},
 			{ID: 12, ParentID: 11},
 		},
 	}
 	cache := &stubDepartmentTreeCache{}
 	resolver := NewDataScopeResolverWithCache(store, cache)
-	user := &model.User{
+	user := &localmodel.User{
 		ID:           7,
 		DepartmentID: 10,
 		Roles: []model.Role{{
@@ -125,7 +126,7 @@ func TestDataScopeResolverUsesInjectedDepartmentTreeCache(t *testing.T) {
 }
 
 type stubDataScopeStore struct {
-	departments         []model.Department
+	departments         []localmodel.Department
 	departmentErr       error
 	roleDepartmentIDs   []uint
 	roleDepartmentErr   error
@@ -134,12 +135,12 @@ type stubDataScopeStore struct {
 	lastRoleIDs         []uint
 }
 
-func (s *stubDataScopeStore) ListDepartments(ctx context.Context) ([]model.Department, error) {
+func (s *stubDataScopeStore) ListDepartments(ctx context.Context) ([]localmodel.Department, error) {
 	s.departmentCalls++
 	if s.departmentErr != nil {
 		return nil, s.departmentErr
 	}
-	return append([]model.Department(nil), s.departments...), nil
+	return append([]localmodel.Department(nil), s.departments...), nil
 }
 
 func (s *stubDataScopeStore) ListRoleDataScopeDepartmentIDs(ctx context.Context, roleIDs []uint) ([]uint, error) {
@@ -152,23 +153,23 @@ func (s *stubDataScopeStore) ListRoleDataScopeDepartmentIDs(ctx context.Context,
 }
 
 type stubDepartmentTreeCache struct {
-	departments []model.Department
+	departments []localmodel.Department
 	getCalls    int
 	setCalls    int
 	invalidate  int
 }
 
-func (s *stubDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]model.Department, bool) {
+func (s *stubDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]localmodel.Department, bool) {
 	s.getCalls++
 	if s.departments == nil {
 		return nil, false
 	}
-	return append([]model.Department(nil), s.departments...), true
+	return append([]localmodel.Department(nil), s.departments...), true
 }
 
-func (s *stubDepartmentTreeCache) SetDepartmentTree(ctx context.Context, depts []model.Department) error {
+func (s *stubDepartmentTreeCache) SetDepartmentTree(ctx context.Context, depts []localmodel.Department) error {
 	s.setCalls++
-	s.departments = append([]model.Department(nil), depts...)
+	s.departments = append([]localmodel.Department(nil), depts...)
 	return nil
 }
 

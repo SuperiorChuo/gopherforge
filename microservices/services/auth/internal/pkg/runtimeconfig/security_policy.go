@@ -9,8 +9,8 @@ import (
 
 	"github.com/go-admin-kit/services/auth/internal/config"
 	systemdao "github.com/go-admin-kit/services/auth/internal/dao/system"
-	"github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/database"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 
@@ -178,12 +178,12 @@ func SecurityPolicyFromConfig() SecurityPolicy {
 	loginLimit := config.Cfg.Security.LoginLimit
 	rateLimit := config.Cfg.Security.RateLimit
 	return SecurityPolicy{
-		PasswordMaxAgeDays:      config.Cfg.Security.EffectivePasswordMaxAgeDays(),
-		PasswordHistoryCount:    config.Cfg.Security.EffectivePasswordHistoryCount(),
-		LoginLimitEnabled:       loginLimit.Enabled,
-		LoginLimitMaxFailures:   positiveOrDefault(loginLimit.MaxFailures, 5),
-		LoginLimitWindowMinutes: positiveOrDefault(loginLimit.WindowMinutes, 15),
-		LoginLimitLockMinutes:   positiveOrDefault(loginLimit.LockMinutes, 30),
+		PasswordMaxAgeDays:         config.Cfg.Security.EffectivePasswordMaxAgeDays(),
+		PasswordHistoryCount:       config.Cfg.Security.EffectivePasswordHistoryCount(),
+		LoginLimitEnabled:          loginLimit.Enabled,
+		LoginLimitMaxFailures:      positiveOrDefault(loginLimit.MaxFailures, 5),
+		LoginLimitWindowMinutes:    positiveOrDefault(loginLimit.WindowMinutes, 15),
+		LoginLimitLockMinutes:      positiveOrDefault(loginLimit.LockMinutes, 30),
 		LoginIPShieldMaxFailures:   30,
 		LoginIPShieldWindowMinutes: 10,
 		LoginIPShieldBlockMinutes:  10,

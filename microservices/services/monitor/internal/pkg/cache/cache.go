@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-admin-kit/services/monitor/internal/model"
 	jwtpkg "github.com/go-admin-kit/services/monitor/internal/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/monitor/internal/pkg/redis"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	goredis "github.com/redis/go-redis/v9"
 )
 

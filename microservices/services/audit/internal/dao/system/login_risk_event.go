@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-admin-kit/services/audit/internal/model"
+	localmodel "github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
 )
@@ -25,20 +25,20 @@ func (d *LoginRiskEventDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d *LoginRiskEventDAO) CreateContext(ctx context.Context, e *model.LoginRiskEvent) error {
+func (d *LoginRiskEventDAO) CreateContext(ctx context.Context, e *localmodel.LoginRiskEvent) error {
 	return d.dbWithContext(ctx).Create(e).Error
 }
 
 // MarkNotifiedContext records that the alert was sent for an event.
 func (d *LoginRiskEventDAO) MarkNotifiedContext(ctx context.Context, id uint) error {
-	return d.dbWithContext(ctx).Model(&model.LoginRiskEvent{}).
+	return d.dbWithContext(ctx).Model(&localmodel.LoginRiskEvent{}).
 		Where("id = ?", id).
 		Updates(map[string]any{"alerted": true, "notified_at": time.Now()}).Error
 }
 
 // MarkProcessedContext marks an event handled by an admin.
 func (d *LoginRiskEventDAO) MarkProcessedContext(ctx context.Context, id uint, by uint) error {
-	return d.dbWithContext(ctx).Model(&model.LoginRiskEvent{}).
+	return d.dbWithContext(ctx).Model(&localmodel.LoginRiskEvent{}).
 		Where("id = ?", id).
 		Updates(map[string]any{"processed": true, "processed_by": by, "processed_at": time.Now()}).Error
 }
@@ -51,8 +51,8 @@ type LoginRiskEventFilter struct {
 	Processed *bool
 }
 
-func (d *LoginRiskEventDAO) ListContext(ctx context.Context, req pagination.PageRequest, filter LoginRiskEventFilter) ([]model.LoginRiskEvent, int64, error) {
-	q := d.dbWithContext(ctx).Model(&model.LoginRiskEvent{})
+func (d *LoginRiskEventDAO) ListContext(ctx context.Context, req pagination.PageRequest, filter LoginRiskEventFilter) ([]localmodel.LoginRiskEvent, int64, error) {
+	q := d.dbWithContext(ctx).Model(&localmodel.LoginRiskEvent{})
 	if filter.UserID > 0 {
 		q = q.Where("user_id = ?", filter.UserID)
 	}
@@ -72,7 +72,7 @@ func (d *LoginRiskEventDAO) ListContext(ctx context.Context, req pagination.Page
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	var events []model.LoginRiskEvent
+	var events []localmodel.LoginRiskEvent
 	if err := q.
 		Order("created_at DESC, id DESC").
 		Offset((req.Page - 1) * req.PageSize).

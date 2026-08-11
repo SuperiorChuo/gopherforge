@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-admin-kit/services/auth/internal/model"
+	localmodel "github.com/go-admin-kit/services/auth/internal/model"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -44,7 +44,7 @@ func tokenRateLimitExceeded(retryAfter time.Duration) *OAuth2Error {
 }
 
 // EffectiveTokenRate 返回该 client 实际生效的每分钟配额。
-func EffectiveTokenRate(client *model.OAuth2Client) int {
+func EffectiveTokenRate(client *localmodel.OAuth2Client) int {
 	if client != nil && client.TokenRatePerMinute > 0 {
 		return client.TokenRatePerMinute
 	}
@@ -55,7 +55,7 @@ func EffectiveTokenRate(client *model.OAuth2Client) int {
 //
 // Redis 不可用或命令报错时**放行**（与既有限流器同口径）：限流是防滥用而非
 // 鉴权，缓存故障不该把正常的机器对接全打死。
-func (s *OAuth2ServerService) CheckTokenRate(ctx context.Context, client *model.OAuth2Client) *OAuth2Error {
+func (s *OAuth2ServerService) CheckTokenRate(ctx context.Context, client *localmodel.OAuth2Client) *OAuth2Error {
 	if client == nil {
 		return nil
 	}

@@ -6,7 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/go-admin-kit/services/audit/internal/model"
+	localmodel "github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/audit/internal/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
@@ -27,23 +27,23 @@ func (d *OperationLogDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return d.db.WithContext(ctx)
 }
 
-func (d *OperationLogDAO) CreateLogContext(ctx context.Context, log *model.OperationLog) error {
+func (d *OperationLogDAO) CreateLogContext(ctx context.Context, log *localmodel.OperationLog) error {
 	if log != nil {
 		log.TenantID = tenant.EnsureID(ctx, log.TenantID)
 	}
 	return d.dbWithContext(ctx).Create(log).Error
 }
 
-func (d *OperationLogDAO) GetLogByIDContext(ctx context.Context, id uint) (*model.OperationLog, error) {
-	var log model.OperationLog
-	query := tenant.ApplyFilter(d.dbWithContext(authz.DisableDataScope(ctx)).Model(&model.OperationLog{}), ctx)
+func (d *OperationLogDAO) GetLogByIDContext(ctx context.Context, id uint) (*localmodel.OperationLog, error) {
+	var log localmodel.OperationLog
+	query := tenant.ApplyFilter(d.dbWithContext(authz.DisableDataScope(ctx)).Model(&localmodel.OperationLog{}), ctx)
 	result := query.Where("id = ?", id).First(&log)
 	return &log, result.Error
 }
 
-func (d *OperationLogDAO) GetLogByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*model.OperationLog, error) {
-	var log model.OperationLog
-	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.OperationLog{}), ctx)
+func (d *OperationLogDAO) GetLogByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*localmodel.OperationLog, error) {
+	var log localmodel.OperationLog
+	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&localmodel.OperationLog{}), ctx)
 	result := query.Where("id = ?", id).First(&log)
 	return &log, result.Error
 }
@@ -56,11 +56,11 @@ func (d *OperationLogDAO) GetLogListContext(
 	status *int,
 	startTime, endTime *time.Time,
 	dataScope authz.UserDataScope,
-) ([]model.OperationLog, int64, error) {
-	var logs []model.OperationLog
+) ([]localmodel.OperationLog, int64, error) {
+	var logs []localmodel.OperationLog
 	var total int64
 
-	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.OperationLog{}), ctx)
+	query := tenant.ApplyFilter(d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&localmodel.OperationLog{}), ctx)
 	query = applyOperationLogFilters(query, userID, username, actorType, actorID, requestID, method, path, module, action, status, startTime, endTime)
 
 	if err := query.Count(&total).Error; err != nil {
@@ -119,8 +119,8 @@ func applyOperationLogFilters(
 }
 
 func (d *OperationLogDAO) DeleteLogsBeforeContext(ctx context.Context, before time.Time) (int64, error) {
-	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.OperationLog{}), ctx)
-	result := query.Where("created_at < ?", before).Delete(&model.OperationLog{})
+	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&localmodel.OperationLog{}), ctx)
+	result := query.Where("created_at < ?", before).Delete(&localmodel.OperationLog{})
 	return result.RowsAffected, result.Error
 }
 
@@ -130,14 +130,14 @@ func (d *OperationLogDAO) DeleteLogsBeforeContext(ctx context.Context, before ti
 // tenant.DisableScope 显式声明跨租户语义，防 GORM 租户兜底插件在带租户
 // ctx 的调用方处静默降级为单租户删除。
 func (d *OperationLogDAO) DeleteLogsAllTenantsBeforeContext(ctx context.Context, before time.Time) (int64, error) {
-	result := d.dbWithContext(tenant.DisableScope(ctx)).Where("created_at < ?", before).Delete(&model.OperationLog{})
+	result := d.dbWithContext(tenant.DisableScope(ctx)).Where("created_at < ?", before).Delete(&localmodel.OperationLog{})
 	return result.RowsAffected, result.Error
 }
 
 func (d *OperationLogDAO) DeleteLogsBeforeInScopeContext(ctx context.Context, before time.Time, dataScope authz.UserDataScope) (int64, error) {
-	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.OperationLog{}), ctx).Where("created_at < ?", before)
+	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&localmodel.OperationLog{}), ctx).Where("created_at < ?", before)
 	query = authz.ApplyOwnerScope(query, dataScope, "user_id")
-	result := query.Delete(&model.OperationLog{})
+	result := query.Delete(&localmodel.OperationLog{})
 	return result.RowsAffected, result.Error
 }
 
@@ -152,7 +152,7 @@ func (d *OperationLogDAO) GetLogStatsInScopeContext(ctx context.Context, startTi
 func (d *OperationLogDAO) getLogStatsContext(ctx context.Context, startTime, endTime *time.Time) (*LogStats, error) {
 	stats := &LogStats{ByModule: map[string]int64{}, ByMethod: map[string]int64{}}
 	base := func() *gorm.DB {
-		return tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.OperationLog{}), ctx)
+		return tenant.ApplyFilter(d.dbWithContext(ctx).Model(&localmodel.OperationLog{}), ctx)
 	}
 
 	query := applyTimeRange(base(), startTime, endTime)

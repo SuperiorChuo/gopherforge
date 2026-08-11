@@ -209,12 +209,12 @@ func TestCodegenTreeValidation(t *testing.T) {
 	base := treeRequest()
 
 	for name, mutate := range map[string]func(*GenerateRequest){
-		"缺 tree 配置":  func(r *GenerateRequest) { r.Tree = nil },
-		"父级字段不存在":    func(r *GenerateRequest) { r.Tree = &TreeConfig{ParentField: "ghost", NameField: "name"} },
-		"父级字段非整数":    func(r *GenerateRequest) { r.Tree = &TreeConfig{ParentField: "remark", NameField: "name"} },
-		"显示字段未选":     func(r *GenerateRequest) { r.Tree = &TreeConfig{ParentField: "parent_id", NameField: "ghost"} },
-		"显示字段非文本":    func(r *GenerateRequest) { r.Tree = &TreeConfig{ParentField: "parent_id", NameField: "sort"} },
-		"排序字段不存在":    func(r *GenerateRequest) { r.Tree.SortField = "ghost" },
+		"缺 tree 配置": func(r *GenerateRequest) { r.Tree = nil },
+		"父级字段不存在":   func(r *GenerateRequest) { r.Tree = &TreeConfig{ParentField: "ghost", NameField: "name"} },
+		"父级字段非整数":   func(r *GenerateRequest) { r.Tree = &TreeConfig{ParentField: "remark", NameField: "name"} },
+		"显示字段未选":    func(r *GenerateRequest) { r.Tree = &TreeConfig{ParentField: "parent_id", NameField: "ghost"} },
+		"显示字段非文本":   func(r *GenerateRequest) { r.Tree = &TreeConfig{ParentField: "parent_id", NameField: "sort"} },
+		"排序字段不存在":   func(r *GenerateRequest) { r.Tree.SortField = "ghost" },
 	} {
 		req := base
 		req.Tree = &TreeConfig{ParentField: base.Tree.ParentField, NameField: base.Tree.NameField, SortField: base.Tree.SortField}
@@ -314,12 +314,12 @@ func TestCodegenSubValidation(t *testing.T) {
 	svc := NewCodegenServiceWithDB(newTreeSubTestDB(t))
 
 	for name, mutate := range map[string]func(*GenerateRequest){
-		"缺 sub 配置":  func(r *GenerateRequest) { r.Sub = nil },
-		"子表不存在":     func(r *GenerateRequest) { r.Sub = &SubConfig{Table: "no_such", FKField: "order_id"} },
-		"子表同主表":     func(r *GenerateRequest) { r.Sub = &SubConfig{Table: "demo_orders", FKField: "order_id"} },
-		"外键不存在":     func(r *GenerateRequest) { r.Sub = &SubConfig{Table: "demo_order_items", FKField: "ghost"} },
-		"外键非整数":     func(r *GenerateRequest) { r.Sub = &SubConfig{Table: "demo_order_items", FKField: "sku"} },
-		"子表无可生成列":   func(r *GenerateRequest) { r.Sub = &SubConfig{Table: "demo_bare_items", FKField: "order_id"} },
+		"缺 sub 配置": func(r *GenerateRequest) { r.Sub = nil },
+		"子表不存在":    func(r *GenerateRequest) { r.Sub = &SubConfig{Table: "no_such", FKField: "order_id"} },
+		"子表同主表":    func(r *GenerateRequest) { r.Sub = &SubConfig{Table: "demo_orders", FKField: "order_id"} },
+		"外键不存在":    func(r *GenerateRequest) { r.Sub = &SubConfig{Table: "demo_order_items", FKField: "ghost"} },
+		"外键非整数":    func(r *GenerateRequest) { r.Sub = &SubConfig{Table: "demo_order_items", FKField: "sku"} },
+		"子表无可生成列":  func(r *GenerateRequest) { r.Sub = &SubConfig{Table: "demo_bare_items", FKField: "order_id"} },
 	} {
 		req := subRequest()
 		mutate(&req)

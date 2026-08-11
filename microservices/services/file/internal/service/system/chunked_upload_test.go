@@ -10,41 +10,41 @@ import (
 	"testing"
 	"time"
 
-	systemdao "github.com/go-admin-kit/services/file/internal/dao/system"
 	"github.com/go-admin-kit/services/file/internal/config"
+	systemdao "github.com/go-admin-kit/services/file/internal/dao/system"
 
-	"github.com/go-admin-kit/services/file/internal/model"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
 	"gorm.io/gorm"
 )
 
 // fakeUploadSessionDAO is an in-memory UploadSessionDAO for the service test.
 type fakeUploadSessionDAO struct {
-	rows map[uint]*model.UploadSession
+	rows map[uint]*localmodel.UploadSession
 	next uint
 }
 
 func newFakeUploadSessionDAO() *fakeUploadSessionDAO {
-	return &fakeUploadSessionDAO{rows: map[uint]*model.UploadSession{}, next: 1}
+	return &fakeUploadSessionDAO{rows: map[uint]*localmodel.UploadSession{}, next: 1}
 }
 
-func (f *fakeUploadSessionDAO) CreateContext(_ context.Context, s *model.UploadSession) error {
+func (f *fakeUploadSessionDAO) CreateContext(_ context.Context, s *localmodel.UploadSession) error {
 	s.ID = f.next
 	f.next++
 	f.rows[s.ID] = s
 	return nil
 }
 
-func (f *fakeUploadSessionDAO) GetByIDContext(_ context.Context, id uint) (*model.UploadSession, error) {
+func (f *fakeUploadSessionDAO) GetByIDContext(_ context.Context, id uint) (*localmodel.UploadSession, error) {
 	s, ok := f.rows[id]
 	if !ok {
-		return &model.UploadSession{}, gorm.ErrRecordNotFound
+		return &localmodel.UploadSession{}, gorm.ErrRecordNotFound
 	}
 	return s, nil
 }
 
-func (f *fakeUploadSessionDAO) GetPendingByHashContext(_ context.Context, hash string, tenantID, userID uint) (*model.UploadSession, error) {
+func (f *fakeUploadSessionDAO) GetPendingByHashContext(_ context.Context, hash string, tenantID, userID uint) (*localmodel.UploadSession, error) {
 	// 与真实 DAO 对齐：tenant_id + user_id 过滤 + id DESC 取最新
-	var best *model.UploadSession
+	var best *localmodel.UploadSession
 	for _, s := range f.rows {
 		if s.Hash == hash && s.Status == "pending" && s.TenantID == tenantID && s.UserID == userID {
 			if best == nil || s.ID > best.ID {
@@ -53,7 +53,7 @@ func (f *fakeUploadSessionDAO) GetPendingByHashContext(_ context.Context, hash s
 		}
 	}
 	if best == nil {
-		return &model.UploadSession{}, gorm.ErrRecordNotFound
+		return &localmodel.UploadSession{}, gorm.ErrRecordNotFound
 	}
 	return best, nil
 }
@@ -107,7 +107,7 @@ func TestChunkBitmapAppend(t *testing.T) {
 
 func TestChunkPartValidation(t *testing.T) {
 	svc := &FileService{sessionDAO: newFakeUploadSessionDAO()}
-	sess := &model.UploadSession{ID: 1, TotalChunks: 3, Status: "pending", ChunkSize: 5}
+	sess := &localmodel.UploadSession{ID: 1, TotalChunks: 3, Status: "pending", ChunkSize: 5}
 	_ = svc.sessionDAO.CreateContext(context.Background(), sess)
 
 	if _, err := svc.UploadChunkContext(context.Background(), 1, 0, bytes.NewReader(nil)); err != ErrChunkPartInvalid {
@@ -133,7 +133,7 @@ func TestChunkResumeReusesPendingSession(t *testing.T) {
 			WithArgs(uint(1), "abc123", 1).WillReturnError(gorm.ErrRecordNotFound)
 	}
 	svc := &FileService{sessionDAO: newFakeUploadSessionDAO(), fileDAO: *systemdao.NewFileDAO(db)}
-	sess := &model.UploadSession{ID: 1, TenantID: 1, UserID: 1, Hash: "abc123", FileSize: 100, TotalChunks: 2, Status: "pending", ChunkSize: 5, ReceivedBitmap: "1"}
+	sess := &localmodel.UploadSession{ID: 1, TenantID: 1, UserID: 1, Hash: "abc123", FileSize: 100, TotalChunks: 2, Status: "pending", ChunkSize: 5, ReceivedBitmap: "1"}
 	_ = svc.sessionDAO.CreateContext(context.Background(), sess)
 
 	// 同 hash 再次 Init → 返回既有 session（保留 bitmap），不新建
@@ -177,7 +177,7 @@ func TestChunkResumeReusesPendingSession(t *testing.T) {
 		WithArgs(uint(1)).WillReturnError(gorm.ErrRecordNotFound)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "files" WHERE tenant_id = $1 AND hash = $2 ORDER BY "files"."id" LIMIT $3`)).
 		WithArgs(uint(1), "renamed-hash", 1).WillReturnError(gorm.ErrRecordNotFound)
-	sessRename := &model.UploadSession{TenantID: 1, UserID: 1, Hash: "renamed-hash", FileSize: 100, TotalChunks: 2, Status: "pending", ChunkSize: 5, FileName: "old.bin"}
+	sessRename := &localmodel.UploadSession{TenantID: 1, UserID: 1, Hash: "renamed-hash", FileSize: 100, TotalChunks: 2, Status: "pending", ChunkSize: 5, FileName: "old.bin"}
 	_ = svc.sessionDAO.CreateContext(context.Background(), sessRename)
 	got4, _, err := svc.InitChunkedUploadContext(context.Background(), ChunkedInitRequest{
 		FileName: "renamed.bin", FileSize: 100, Hash: "renamed-hash",
@@ -193,7 +193,7 @@ func TestChunkResumeReusesPendingSession(t *testing.T) {
 func TestChunkCompleteRequiresAllParts(t *testing.T) {
 	config.Cfg.Upload.LocalPath = t.TempDir()
 	svc := &FileService{sessionDAO: newFakeUploadSessionDAO()}
-	sess := &model.UploadSession{ID: 1, TenantID: 1, UserID: 1, TotalChunks: 2, Status: "pending", ChunkSize: 5, FileName: "a.bin"}
+	sess := &localmodel.UploadSession{ID: 1, TenantID: 1, UserID: 1, TotalChunks: 2, Status: "pending", ChunkSize: 5, FileName: "a.bin"}
 	_ = svc.sessionDAO.CreateContext(context.Background(), sess)
 
 	// 只传 1 片 → complete 拒绝

@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/services/file/internal/model"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -40,8 +41,8 @@ func TestDataScopePluginScopesOwnerQueries(t *testing.T) {
 		DepartmentIDs: []uint{20, 21},
 	})
 
-	var files []model.File
-	stmt := db.WithContext(ctx).Model(&model.File{}).Find(&files).Statement
+	var files []localmodel.File
+	stmt := db.WithContext(ctx).Model(&localmodel.File{}).Find(&files).Statement
 
 	assertDataScopeSQL(t, stmt, "SELECT * FROM \"files\" WHERE user_id IN (SELECT id FROM users WHERE department_id IN ($1,$2))", []any{uint(20), uint(21)})
 }
@@ -79,8 +80,8 @@ func TestDataScopePluginForceSelfScope(t *testing.T) {
 		DepartmentIDs: []uint{40, 41},
 	}), 7)
 
-	var files []model.File
-	stmt := db.WithContext(ctx).Model(&model.File{}).Find(&files).Statement
+	var files []localmodel.File
+	stmt := db.WithContext(ctx).Model(&localmodel.File{}).Find(&files).Statement
 
 	assertDataScopeSQL(t, stmt, "SELECT * FROM \"files\" WHERE user_id = $1", []any{uint(7)})
 }
@@ -92,8 +93,8 @@ func TestDataScopePluginOwnerScopeSubqueryDoesNotReenterPlugin(t *testing.T) {
 		DepartmentIDs: []uint{50, 51},
 	})
 
-	var files []model.File
-	stmt := db.WithContext(ctx).Model(&model.File{}).Find(&files).Statement
+	var files []localmodel.File
+	stmt := db.WithContext(ctx).Model(&localmodel.File{}).Find(&files).Statement
 
 	gotSQL := stmt.SQL.String()
 	wantSQL := "SELECT * FROM \"files\" WHERE user_id IN (SELECT id FROM users WHERE department_id IN ($1,$2))"

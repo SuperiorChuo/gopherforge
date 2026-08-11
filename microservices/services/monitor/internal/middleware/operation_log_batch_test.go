@@ -7,14 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/services/monitor/internal/model"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 )
 
 // batchRecorderSpy implements both the single and batch recorder interfaces so
 // tests can assert which path the processor took.
 type batchRecorderSpy struct {
 	mu           sync.Mutex
-	batches      [][]*model.OperationLog
+	batches      [][]*localmodel.OperationLog
 	singleWrites int
 	flushed      chan struct{}
 }
@@ -23,16 +23,16 @@ func newBatchRecorderSpy() *batchRecorderSpy {
 	return &batchRecorderSpy{flushed: make(chan struct{}, 64)}
 }
 
-func (r *batchRecorderSpy) RecordContext(_ context.Context, log *model.OperationLog) error {
+func (r *batchRecorderSpy) RecordContext(_ context.Context, log *localmodel.OperationLog) error {
 	r.mu.Lock()
 	r.singleWrites++
 	r.mu.Unlock()
 	return nil
 }
 
-func (r *batchRecorderSpy) RecordBatchContext(_ context.Context, logs []*model.OperationLog) error {
+func (r *batchRecorderSpy) RecordBatchContext(_ context.Context, logs []*localmodel.OperationLog) error {
 	// The processor reuses its slice after flushing, so copy before storing.
-	batch := make([]*model.OperationLog, len(logs))
+	batch := make([]*localmodel.OperationLog, len(logs))
 	copy(batch, logs)
 
 	r.mu.Lock()
@@ -46,10 +46,10 @@ func (r *batchRecorderSpy) RecordBatchContext(_ context.Context, logs []*model.O
 	return nil
 }
 
-func (r *batchRecorderSpy) snapshot() ([][]*model.OperationLog, int) {
+func (r *batchRecorderSpy) snapshot() ([][]*localmodel.OperationLog, int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	batches := make([][]*model.OperationLog, len(r.batches))
+	batches := make([][]*localmodel.OperationLog, len(r.batches))
 	copy(batches, r.batches)
 	return batches, r.singleWrites
 }
@@ -85,7 +85,7 @@ func TestOperationLogProcessorFlushesWhenBatchSizeReached(t *testing.T) {
 	defer cancel()
 
 	const batchSize = 5
-	queue := make(chan *model.OperationLog, 32)
+	queue := make(chan *localmodel.OperationLog, 32)
 	recorder := newBatchRecorderSpy()
 
 	// A long flush interval guarantees any write we observe came from the
@@ -93,7 +93,7 @@ func TestOperationLogProcessorFlushesWhenBatchSizeReached(t *testing.T) {
 	done := processLogsBatched(ctx, queue, recorder, 500*time.Millisecond, batchSize, time.Hour)
 
 	for i := 0; i < batchSize; i++ {
-		queue <- &model.OperationLog{Path: "/batched"}
+		queue <- &localmodel.OperationLog{Path: "/batched"}
 	}
 
 	recorder.waitForLogs(t, batchSize, time.Second)
@@ -121,14 +121,14 @@ func TestOperationLogProcessorFlushesPartialBatchOnInterval(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	queue := make(chan *model.OperationLog, 8)
+	queue := make(chan *localmodel.OperationLog, 8)
 	recorder := newBatchRecorderSpy()
 
 	// Batch size far above what we enqueue: only the timer can flush.
 	done := processLogsBatched(ctx, queue, recorder, 500*time.Millisecond, 1000, 20*time.Millisecond)
 
-	queue <- &model.OperationLog{Path: "/timer/1"}
-	queue <- &model.OperationLog{Path: "/timer/2"}
+	queue <- &localmodel.OperationLog{Path: "/timer/1"}
+	queue <- &localmodel.OperationLog{Path: "/timer/2"}
 
 	recorder.waitForLogs(t, 2, time.Second)
 
@@ -148,10 +148,10 @@ func TestOperationLogProcessorFlushesPartialBatchOnInterval(t *testing.T) {
 func TestOperationLogProcessorFlushesBufferedLogsOnShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	queue := make(chan *model.OperationLog, 8)
-	queue <- &model.OperationLog{Path: "/shutdown/1"}
-	queue <- &model.OperationLog{Path: "/shutdown/2"}
-	queue <- &model.OperationLog{Path: "/shutdown/3"}
+	queue := make(chan *localmodel.OperationLog, 8)
+	queue <- &localmodel.OperationLog{Path: "/shutdown/1"}
+	queue <- &localmodel.OperationLog{Path: "/shutdown/2"}
+	queue <- &localmodel.OperationLog{Path: "/shutdown/3"}
 	cancel()
 
 	recorder := newBatchRecorderSpy()
@@ -173,8 +173,8 @@ func TestOperationLogProcessorFlushesBufferedLogsOnShutdown(t *testing.T) {
 func TestOperationLogProcessorShutdownFlushUsesLiveContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	queue := make(chan *model.OperationLog, 4)
-	queue <- &model.OperationLog{Path: "/shutdown/ctx"}
+	queue := make(chan *localmodel.OperationLog, 4)
+	queue <- &localmodel.OperationLog{Path: "/shutdown/ctx"}
 	cancel()
 
 	recorder := &contextCapturingBatchRecorder{}
@@ -201,13 +201,13 @@ func TestOperationLogProcessorFallsBackToPerEntryWrites(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	queue := make(chan *model.OperationLog, 8)
+	queue := make(chan *localmodel.OperationLog, 8)
 	// operationLogRecorderSpy implements only RecordContext.
 	recorder := &operationLogRecorderSpy{}
 	done := processLogsBatched(ctx, queue, recorder, 500*time.Millisecond, 2, 20*time.Millisecond)
 
-	queue <- &model.OperationLog{Path: "/fallback/1"}
-	queue <- &model.OperationLog{Path: "/fallback/2"}
+	queue <- &localmodel.OperationLog{Path: "/fallback/1"}
+	queue <- &localmodel.OperationLog{Path: "/fallback/2"}
 
 	deadline := time.After(time.Second)
 	for recorder.count() < 2 {
@@ -247,12 +247,12 @@ func TestOperationLogDropIsObservable(t *testing.T) {
 func TestOperationLoggerDropsAreCountedWhenQueueIsFull(t *testing.T) {
 	before := OperationLogDroppedTotal()
 
-	full := make(chan *model.OperationLog, 1)
-	full <- &model.OperationLog{Path: "/occupied"}
+	full := make(chan *localmodel.OperationLog, 1)
+	full <- &localmodel.OperationLog{Path: "/occupied"}
 
 	// Mirrors the middleware's non-blocking enqueue.
 	select {
-	case full <- &model.OperationLog{Path: "/dropped"}:
+	case full <- &localmodel.OperationLog{Path: "/dropped"}:
 		t.Fatal("enqueue unexpectedly succeeded on a full queue")
 	default:
 		noteOperationLogDropped()
@@ -270,11 +270,11 @@ type contextCapturingBatchRecorder struct {
 	hadDeadline bool
 }
 
-func (r *contextCapturingBatchRecorder) RecordContext(context.Context, *model.OperationLog) error {
+func (r *contextCapturingBatchRecorder) RecordContext(context.Context, *localmodel.OperationLog) error {
 	return nil
 }
 
-func (r *contextCapturingBatchRecorder) RecordBatchContext(ctx context.Context, logs []*model.OperationLog) error {
+func (r *contextCapturingBatchRecorder) RecordBatchContext(ctx context.Context, logs []*localmodel.OperationLog) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.calls++

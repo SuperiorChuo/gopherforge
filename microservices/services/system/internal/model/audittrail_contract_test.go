@@ -6,8 +6,8 @@ import (
 
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
-	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )

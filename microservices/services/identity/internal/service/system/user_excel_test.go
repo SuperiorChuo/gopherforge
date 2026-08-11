@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
 )
 
@@ -204,7 +204,7 @@ func TestStreamExportUsersContextEmitsPerPageAndPropagatesEmitError(t *testing.T
 	// A failing sheet write must abort the export instead of silently
 	// producing a short file.
 	_, err := (&svc).StreamExportUsersContext(context.Background(), exportTestRequest(),
-		func(batch []model.User) error {
+		func(batch []localmodel.User) error {
 			pages++
 			return emitErr
 		})
@@ -223,7 +223,7 @@ func TestStreamExportUsersContextEmptyResultEmitsNothing(t *testing.T) {
 	svc := NewUserServiceWithDB(db)
 	calls := 0
 	truncated, err := (&svc).StreamExportUsersContext(context.Background(), exportTestRequest(),
-		func(batch []model.User) error {
+		func(batch []localmodel.User) error {
 			calls++
 			return nil
 		})

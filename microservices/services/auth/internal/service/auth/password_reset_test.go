@@ -5,34 +5,34 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/services/auth/internal/model"
+	localmodel "github.com/go-admin-kit/services/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 // fakeResetDAO is an in-memory PasswordResetDAO implementing the same methods.
 type fakeResetDAO struct {
-	rows map[uint]*model.PasswordReset
+	rows map[uint]*localmodel.PasswordReset
 	next uint
 }
 
 func newFakeResetDAO() *fakeResetDAO {
-	return &fakeResetDAO{rows: map[uint]*model.PasswordReset{}, next: 1}
+	return &fakeResetDAO{rows: map[uint]*localmodel.PasswordReset{}, next: 1}
 }
 
-func (f *fakeResetDAO) CreateContext(_ context.Context, reset *model.PasswordReset) error {
+func (f *fakeResetDAO) CreateContext(_ context.Context, reset *localmodel.PasswordReset) error {
 	reset.ID = f.next
 	f.next++
 	f.rows[reset.ID] = reset
 	return nil
 }
 
-func (f *fakeResetDAO) GetByTokenHashContext(_ context.Context, tokenHash string) (*model.PasswordReset, error) {
+func (f *fakeResetDAO) GetByTokenHashContext(_ context.Context, tokenHash string) (*localmodel.PasswordReset, error) {
 	for _, row := range f.rows {
 		if row.TokenHash == tokenHash {
 			return row, nil
 		}
 	}
-	return &model.PasswordReset{}, gorm.ErrRecordNotFound
+	return &localmodel.PasswordReset{}, gorm.ErrRecordNotFound
 }
 
 func (f *fakeResetDAO) MarkUsedContext(_ context.Context, id uint) error {
@@ -69,7 +69,7 @@ func TestResetTokenConsumption(t *testing.T) {
 	future := now.Add(time.Hour)
 
 	// 未用未过期 → 消费成功
-	row := &model.PasswordReset{UserID: 1, TokenHash: hashResetToken("t1"), ExpiresAt: future}
+	row := &localmodel.PasswordReset{UserID: 1, TokenHash: hashResetToken("t1"), ExpiresAt: future}
 	_ = dao.CreateContext(context.Background(), row)
 	if err := dao.MarkUsedContext(context.Background(), row.ID); err != nil {
 		t.Fatalf("first consume error = %v, want nil", err)
@@ -80,7 +80,7 @@ func TestResetTokenConsumption(t *testing.T) {
 	}
 
 	// 过期 → 消费失败
-	expired := &model.PasswordReset{UserID: 2, TokenHash: hashResetToken("t2"), ExpiresAt: now.Add(-time.Minute)}
+	expired := &localmodel.PasswordReset{UserID: 2, TokenHash: hashResetToken("t2"), ExpiresAt: now.Add(-time.Minute)}
 	_ = dao.CreateContext(context.Background(), expired)
 	if err := dao.MarkUsedContext(context.Background(), expired.ID); err == nil {
 		t.Fatal("expired token must not be consumable")

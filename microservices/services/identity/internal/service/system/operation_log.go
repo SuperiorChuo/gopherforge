@@ -6,7 +6,7 @@ import (
 	"time"
 
 	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
@@ -45,11 +45,11 @@ type ClearLogsRequest struct {
 
 var ErrOperationLogNotFound = errors.New("operation log not found")
 
-func (s *OperationLogService) RecordContext(ctx context.Context, log *model.OperationLog) error {
+func (s *OperationLogService) RecordContext(ctx context.Context, log *localmodel.OperationLog) error {
 	return s.logDAO.CreateLogContext(ctx, log)
 }
 
-func (s *OperationLogService) GetLogByIDContext(ctx context.Context, id uint) (*model.OperationLog, error) {
+func (s *OperationLogService) GetLogByIDContext(ctx context.Context, id uint) (*localmodel.OperationLog, error) {
 	log, err := s.logDAO.GetLogByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -60,7 +60,7 @@ func (s *OperationLogService) GetLogByIDContext(ctx context.Context, id uint) (*
 	return log, nil
 }
 
-func (s *OperationLogService) GetLogByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*model.OperationLog, error) {
+func (s *OperationLogService) GetLogByIDInScopeContext(ctx context.Context, id uint, dataScope authz.UserDataScope) (*localmodel.OperationLog, error) {
 	log, err := s.logDAO.GetLogByIDInScopeContext(ctx, id, dataScope)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -71,7 +71,7 @@ func (s *OperationLogService) GetLogByIDInScopeContext(ctx context.Context, id u
 	return log, nil
 }
 
-func (s *OperationLogService) GetLogListContext(ctx context.Context, req OperationLogListRequest) ([]model.OperationLog, int64, error) {
+func (s *OperationLogService) GetLogListContext(ctx context.Context, req OperationLogListRequest) ([]localmodel.OperationLog, int64, error) {
 	return s.logDAO.GetLogListContext(
 		ctx,
 		req.PageRequest,
@@ -109,7 +109,7 @@ func (s *OperationLogService) GetLogStatsInScopeContext(ctx context.Context, sta
 	return s.logDAO.GetLogStatsInScopeContext(ctx, startTime, endTime, dataScope)
 }
 
-func (s *OperationLogService) ExportLogsContext(ctx context.Context, req OperationLogListRequest) ([]model.OperationLog, error) {
+func (s *OperationLogService) ExportLogsContext(ctx context.Context, req OperationLogListRequest) ([]localmodel.OperationLog, error) {
 	req.Page = 1
 	req.PageSize = 10000
 	logs, _, err := s.GetLogListContext(ctx, req)

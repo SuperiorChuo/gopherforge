@@ -11,11 +11,12 @@ import (
 
 	"github.com/go-admin-kit/services/auth/internal/config"
 	"github.com/go-admin-kit/services/auth/internal/dao/auth"
-	"github.com/go-admin-kit/services/auth/internal/model"
+	localmodel "github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/captcha"
 	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -184,7 +185,7 @@ func (s *UserService) LoginPasswordWithTenantContext(ctx context.Context, userna
 		if tenantCode != "default" {
 			return nil, ErrInvalidCredentials
 		}
-		tenant = &model.Tenant{ID: 1, Code: "default", Status: 1}
+		tenant = &localmodel.Tenant{ID: 1, Code: "default", Status: 1}
 	}
 
 	user, err := s.userDAO.GetUserByTenantUsernameContext(ctx, tenant.ID, username)

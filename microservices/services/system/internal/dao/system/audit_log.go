@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -38,10 +38,10 @@ type AuditLogListQuery struct {
 }
 
 type AuditLogListResult struct {
-	Items      []localmodel.AuditLog   `json:"items"`
-	Pagination AuditLogPagination `json:"pagination"`
-	Summary    AuditLogSummary    `json:"summary"`
-	Facets     AuditLogFacets     `json:"facets"`
+	Items      []localmodel.AuditLog `json:"items"`
+	Pagination AuditLogPagination    `json:"pagination"`
+	Summary    AuditLogSummary       `json:"summary"`
+	Facets     AuditLogFacets        `json:"facets"`
 }
 
 type AuditLogPagination struct {

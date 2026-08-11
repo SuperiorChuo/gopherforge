@@ -8,7 +8,7 @@ import (
 	"time"
 
 	systemdao "github.com/go-admin-kit/services/audit/internal/dao/system"
-	"github.com/go-admin-kit/services/audit/internal/model"
+	localmodel "github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/audit/internal/pkg/authz"
 	"github.com/go-admin-kit/services/audit/internal/pkg/ipinfo"
 	"github.com/go-admin-kit/services/audit/internal/pkg/runtimeconfig"
@@ -86,7 +86,7 @@ const loginLogExportMaxRows = 10000
 func (s *LoginLogService) RecordContext(ctx context.Context, info *LoginInfo) error {
 	device, os, browser := parseUserAgent(info.UserAgent)
 
-	log := &model.LoginLog{
+	log := &localmodel.LoginLog{
 		TenantID:  tenant.EnsureID(ctx, info.TenantID),
 		UserID:    info.UserID,
 		Username:  info.Username,
@@ -105,7 +105,7 @@ func (s *LoginLogService) RecordContext(ctx context.Context, info *LoginInfo) er
 
 	// 登录成功后风控：新 IP 或新设备 → 落库事件 + 站内信提醒。
 	// 对比基线必须在插入当前行之前取——否则"上次登录"就是刚写的自己，永远不异常。
-	var previous *model.LoginLog
+	var previous *localmodel.LoginLog
 	if info.Status == loginStatusSuccess && info.UserID > 0 {
 		if last, err := s.logDAO.GetUserLastLoginContext(ctx, info.UserID); err == nil {
 			previous = last
@@ -121,7 +121,7 @@ func (s *LoginLogService) RecordContext(ctx context.Context, info *LoginInfo) er
 	return nil
 }
 
-func (s *LoginLogService) GetLogListContext(ctx context.Context, req LoginLogListRequest) ([]model.LoginLog, int64, error) {
+func (s *LoginLogService) GetLogListContext(ctx context.Context, req LoginLogListRequest) ([]localmodel.LoginLog, int64, error) {
 	return s.logDAO.GetListContext(
 		ctx,
 		req.PageRequest,
@@ -138,14 +138,14 @@ func (s *LoginLogService) GetLogListContext(ctx context.Context, req LoginLogLis
 
 // ExportLogsContext 取导出用的登录日志。与 OperationLogService.ExportLogsContext
 // 同构：复用列表查询并把页大小抬到导出上限，过滤条件与页面所见完全一致。
-func (s *LoginLogService) ExportLogsContext(ctx context.Context, req LoginLogListRequest) ([]model.LoginLog, error) {
+func (s *LoginLogService) ExportLogsContext(ctx context.Context, req LoginLogListRequest) ([]localmodel.LoginLog, error) {
 	req.Page = 1
 	req.PageSize = loginLogExportMaxRows
 	logs, _, err := s.GetLogListContext(ctx, req)
 	return logs, err
 }
 
-func (s *LoginLogService) GetUserLastLoginContext(ctx context.Context, userID uint) (*model.LoginLog, error) {
+func (s *LoginLogService) GetUserLastLoginContext(ctx context.Context, userID uint) (*localmodel.LoginLog, error) {
 	log, err := s.logDAO.GetUserLastLoginContext(ctx, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -329,12 +329,12 @@ func truncateString(s string, maxLen int) string {
 // row was inserted) and — when the alert toggle is on and notify is available —
 // sends the in-console alert. Both are best-effort: any failure is logged and
 // never blocks the login path.
-func (s *LoginLogService) recordRiskEvent(ctx context.Context, info *LoginInfo, current, previous *model.LoginLog) {
+func (s *LoginLogService) recordRiskEvent(ctx context.Context, info *LoginInfo, current, previous *localmodel.LoginLog) {
 	reason := abnormalLoginReason(current, previous)
 	if reason == "" {
 		return
 	}
-	event := &model.LoginRiskEvent{
+	event := &localmodel.LoginRiskEvent{
 		TenantID:  tenant.EnsureID(ctx, info.TenantID),
 		UserID:    info.UserID,
 		Username:  current.Username,
@@ -368,24 +368,24 @@ func (s *LoginLogService) recordRiskEvent(ctx context.Context, info *LoginInfo, 
 
 // abnormalLoginReason classifies why a login differs from the previous one.
 // Empty means the login is not abnormal.
-func abnormalLoginReason(current, previous *model.LoginLog) string {
+func abnormalLoginReason(current, previous *localmodel.LoginLog) string {
 	if previous == nil {
 		return ""
 	}
 	switch {
 	case previous.IP != current.IP:
-		return model.LoginRiskReasonNewIP
+		return localmodel.LoginRiskReasonNewIP
 	case current.DeviceID != "" && previous.DeviceID != "" && previous.DeviceID != current.DeviceID:
-		return model.LoginRiskReasonNewDevice
+		return localmodel.LoginRiskReasonNewDevice
 	}
 	return ""
 }
 
 func riskReasonLabel(reason string) string {
 	switch reason {
-	case model.LoginRiskReasonNewIP:
+	case localmodel.LoginRiskReasonNewIP:
 		return "新的 IP 地址"
-	case model.LoginRiskReasonNewDevice:
+	case localmodel.LoginRiskReasonNewDevice:
 		return "新的设备"
 	}
 	return reason

@@ -71,13 +71,13 @@ func TestValidateSnapshot(t *testing.T) {
 		raw  string
 		want string
 	}{
-		{`{"reason":"x"}`, "必填"},                                        // 缺金额
-		{`{"amount_cents":"30000","reason":"x"}`, "数字"},                 // 金额非数字
-		{`{"amount_cents":300.5,"reason":"x"}`, "整数分"},                  // 非整数分
-		{`{"amount_cents":0,"reason":"x"}`, "不能小于"},                     // min
-		{`{"amount_cents":1,"reason":"x","category":"不存在"}`, "选项"},     // 非法选项
-		{`{"amount_cents":1,"reason":"x","hacked":"1"}`, "未声明"},         // 夹带字段
-		{`{"amount_cents":1,"reason":"x","urgent":"yes"}`, "开关"},        // 类型错
+		{`{"reason":"x"}`, "必填"},                                   // 缺金额
+		{`{"amount_cents":"30000","reason":"x"}`, "数字"},            // 金额非数字
+		{`{"amount_cents":300.5,"reason":"x"}`, "整数分"},             // 非整数分
+		{`{"amount_cents":0,"reason":"x"}`, "不能小于"},                // min
+		{`{"amount_cents":1,"reason":"x","category":"不存在"}`, "选项"}, // 非法选项
+		{`{"amount_cents":1,"reason":"x","hacked":"1"}`, "未声明"},    // 夹带字段
+		{`{"amount_cents":1,"reason":"x","urgent":"yes"}`, "开关"},   // 类型错
 	}
 	for _, tc := range cases {
 		if _, err := s.ValidateSnapshot([]byte(tc.raw)); err == nil || !strings.Contains(err.Error(), tc.want) {

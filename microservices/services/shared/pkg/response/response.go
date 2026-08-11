@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/shared/pkg/mask"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
+	"github.com/go-admin-kit/services/shared/pkg/mask"
 )
 
 // Response is the standard API response shape.
@@ -158,4 +158,3 @@ func PageSuccess(c *gin.Context, data any, total int64, page, pageSize int) {
 		},
 	})
 }
-

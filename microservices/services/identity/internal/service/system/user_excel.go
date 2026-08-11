@@ -9,7 +9,7 @@ import (
 	"errors"
 
 	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
-	"github.com/go-admin-kit/services/identity/internal/model"
+	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 )
 
 const (
@@ -36,7 +36,7 @@ const (
 func (s *UserService) StreamExportUsersContext(
 	ctx context.Context,
 	req UserListRequest,
-	emit func([]model.User) error,
+	emit func([]localmodel.User) error,
 ) (truncated bool, err error) {
 	var (
 		cursor  systemdao.ExportUserCursor
@@ -89,8 +89,8 @@ func (s *UserService) StreamExportUsersContext(
 
 // ExportUsersContext 收集全部导出行到内存（保留给需要整份切片的调用方；
 // HTTP 导出走 StreamExportUsersContext）。
-func (s *UserService) ExportUsersContext(ctx context.Context, req UserListRequest) (users []model.User, truncated bool, err error) {
-	truncated, err = s.StreamExportUsersContext(ctx, req, func(batch []model.User) error {
+func (s *UserService) ExportUsersContext(ctx context.Context, req UserListRequest) (users []localmodel.User, truncated bool, err error) {
+	truncated, err = s.StreamExportUsersContext(ctx, req, func(batch []localmodel.User) error {
 		users = append(users, batch...)
 		return nil
 	})

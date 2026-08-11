@@ -59,13 +59,13 @@ func LoginLimitConfigFromPolicy(policy runtimeconfig.SecurityPolicy) LoginLimitC
 	window := time.Duration(policy.LoginLimitWindowMinutes) * time.Minute
 	lockDuration := time.Duration(policy.LoginLimitLockMinutes) * time.Minute
 	return LoginLimitConfig{
-		Window:                window,
-		MaxFailures:           policy.LoginLimitMaxFailures,
-		LockDuration:          lockDuration,
-		KeyPrefix:             "login_limit",
-		IPShieldWindow:        time.Duration(policy.LoginIPShieldWindowMinutes) * time.Minute,
-		IPShieldMaxFailures:   policy.LoginIPShieldMaxFailures,
-		IPShieldBlockMinutes:  time.Duration(policy.LoginIPShieldBlockMinutes) * time.Minute,
+		Window:               window,
+		MaxFailures:          policy.LoginLimitMaxFailures,
+		LockDuration:         lockDuration,
+		KeyPrefix:            "login_limit",
+		IPShieldWindow:       time.Duration(policy.LoginIPShieldWindowMinutes) * time.Minute,
+		IPShieldMaxFailures:  policy.LoginIPShieldMaxFailures,
+		IPShieldBlockMinutes: time.Duration(policy.LoginIPShieldBlockMinutes) * time.Minute,
 	}
 }
 

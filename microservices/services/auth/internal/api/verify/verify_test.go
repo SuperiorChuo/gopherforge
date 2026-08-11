@@ -10,11 +10,11 @@ import (
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/auth/internal/config"
-	"github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
 	jwtpkg "github.com/go-admin-kit/services/auth/internal/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/auth/internal/pkg/redis"
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	goredis "github.com/redis/go-redis/v9"
 )
 
