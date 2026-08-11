@@ -14,18 +14,18 @@ import (
 )
 
 type Config struct {
-	App           AppCfg
-	Database      DatabaseConfig
-	Redis         RedisConfig
-	JWT           JWTConfig
-	CORS          CORSConfig
-	Logger        LoggerConfig
-	OAuth         OAuthConfig
-	Security      SecurityConfig
-	Observability ObservabilityConfig
-	NATS          NATSConfig
-	Retention     RetentionConfig
-	Notify        NotifyConfig
+	App            AppCfg
+	Database       DatabaseConfig
+	Redis          RedisConfig
+	JWT            JWTConfig
+	CORS           CORSConfig
+	Logger         LoggerConfig
+	OAuth          OAuthConfig
+	Security       SecurityConfig
+	Observability  ObservabilityConfig
+	NATS           NATSConfig
+	Retention      RetentionConfig
+	Notify         NotifyConfig
 	SecurityDetect SecurityDetectConfig
 }
 

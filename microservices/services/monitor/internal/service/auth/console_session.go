@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	authDAO "github.com/go-admin-kit/services/monitor/internal/dao/auth"
+	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
@@ -26,21 +26,21 @@ const (
 
 // ConsoleSessionService persists and validates web-console cookie sessions.
 type ConsoleSessionService struct {
-	dao *authDAO.ConsoleSessionDAO
+	dao *authdao.ConsoleSessionDAO
 }
 
 // NewConsoleSessionServiceWithDB builds a ConsoleSessionService backed by an
 // injected database handle.
 func NewConsoleSessionServiceWithDB(db *gorm.DB) ConsoleSessionService {
-	dao := authDAO.NewConsoleSessionDAO(db)
+	dao := authdao.NewConsoleSessionDAO(db)
 	return ConsoleSessionService{dao: &dao}
 }
 
-func (s ConsoleSessionService) sessionDAO() authDAO.ConsoleSessionDAO {
+func (s ConsoleSessionService) sessionDAO() authdao.ConsoleSessionDAO {
 	if s.dao != nil {
 		return *s.dao
 	}
-	return authDAO.ConsoleSessionDAO{}
+	return authdao.ConsoleSessionDAO{}
 }
 
 func (s ConsoleSessionService) ValidateActiveSessionContext(ctx context.Context, sessionID, username string) (*model.ConsoleSession, error) {

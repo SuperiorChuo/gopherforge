@@ -11,6 +11,7 @@ import (
 	sharedapi "github.com/go-admin-kit/services/auth/internal/api/shared"
 	"github.com/go-admin-kit/services/auth/internal/api/verify"
 	authDAO "github.com/go-admin-kit/services/auth/internal/dao/auth"
+	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
 	authsvc "github.com/go-admin-kit/services/auth/internal/service/auth"
 )
@@ -48,5 +49,5 @@ func newVerifyHandlerFromDeps(deps sharedapi.Dependencies) *verify.Handler {
 		return verify.NewHandler(nil, nil, nil)
 	}
 	sessions := authsvc.NewConsoleSessionServiceWithDB(deps.DB)
-	return verify.NewHandler(&sessions, authDAO.NewUserDAO(deps.DB), authDAO.NewPermissionDAO(deps.DB))
+	return verify.NewHandler(&sessions, authDAO.NewUserDAO(deps.DB), authdao.NewPermissionDAO(deps.DB))
 }

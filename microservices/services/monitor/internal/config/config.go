@@ -95,8 +95,8 @@ type DefaultAdminConfig struct {
 }
 
 type NotificationConfig struct {
-	Email EmailConfig          `yaml:"email"`
-	Alert AlertChannelsConfig  `yaml:"alert"`
+	Email EmailConfig         `yaml:"email"`
+	Alert AlertChannelsConfig `yaml:"alert"`
 }
 
 // AlertChannelsConfig configures the additional alert notification channels

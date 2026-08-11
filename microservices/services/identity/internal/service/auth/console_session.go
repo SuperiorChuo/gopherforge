@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	authDAO "github.com/go-admin-kit/services/identity/internal/dao/auth"
+	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/cache"
 	jwtpkg "github.com/go-admin-kit/services/identity/internal/pkg/jwt"
@@ -32,13 +32,13 @@ const (
 
 // ConsoleSessionService persists and validates web-console cookie sessions.
 type ConsoleSessionService struct {
-	dao *authDAO.ConsoleSessionDAO
+	dao *authdao.ConsoleSessionDAO
 }
 
 // NewConsoleSessionServiceWithDB builds a ConsoleSessionService backed by an
 // injected database handle.
 func NewConsoleSessionServiceWithDB(db *gorm.DB) ConsoleSessionService {
-	dao := authDAO.NewConsoleSessionDAO(db)
+	dao := authdao.NewConsoleSessionDAO(db)
 	return ConsoleSessionService{dao: &dao}
 }
 
@@ -66,11 +66,11 @@ type ConsoleSessionResponse struct {
 	RefreshToken  string             `json:"refresh_token,omitempty"`
 }
 
-func (s ConsoleSessionService) sessionDAO() authDAO.ConsoleSessionDAO {
+func (s ConsoleSessionService) sessionDAO() authdao.ConsoleSessionDAO {
 	if s.dao != nil {
 		return *s.dao
 	}
-	return authDAO.ConsoleSessionDAO{}
+	return authdao.ConsoleSessionDAO{}
 }
 
 func (s ConsoleSessionService) CreateFromTokenContext(ctx context.Context, token, clientIP, userAgent string) (*model.ConsoleSession, error) {

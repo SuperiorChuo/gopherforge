@@ -20,6 +20,7 @@ import (
 	sharedapi "github.com/go-admin-kit/services/auth/internal/api/shared"
 	"github.com/go-admin-kit/services/auth/internal/config"
 	authDAO "github.com/go-admin-kit/services/auth/internal/dao/auth"
+	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	systemDAO "github.com/go-admin-kit/services/auth/internal/dao/system"
 	"github.com/go-admin-kit/services/auth/internal/events"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
@@ -179,7 +180,7 @@ func run(ctx context.Context) error {
 	consoleSessionService := authsvc.NewConsoleSessionServiceWithDB(database.DB)
 	middleware.SetAuthMiddlewareDependencies(middleware.AuthMiddlewareDependencies{
 		Users:           authDAO.NewUserDAO(database.DB),
-		Permissions:     authDAO.NewPermissionDAO(database.DB),
+		Permissions:     authdao.NewPermissionDAO(database.DB),
 		ConsoleSessions: &consoleSessionService,
 	})
 	runtimeconfig.SetSecurityPolicyStore(systemDAO.NewSettingDAO(database.DB))

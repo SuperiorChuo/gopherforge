@@ -21,6 +21,7 @@ import (
 	sharedapi "github.com/go-admin-kit/services/monitor/internal/api/shared"
 	"github.com/go-admin-kit/services/monitor/internal/config"
 	authDAO "github.com/go-admin-kit/services/monitor/internal/dao/auth"
+	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
 	systemDAO "github.com/go-admin-kit/services/monitor/internal/dao/system"
 	"github.com/go-admin-kit/services/monitor/internal/middleware"
@@ -303,12 +304,12 @@ func run(ctx context.Context) error {
 	}
 	middleware.SetAuthMiddlewareDependencies(middleware.AuthMiddlewareDependencies{
 		Users:           authDAO.NewUserDAO(database.DB),
-		Permissions:     authDAO.NewPermissionDAO(database.DB),
+		Permissions:     authdao.NewPermissionDAO(database.DB),
 		ConsoleSessions: authsvc.NewConsoleSessionServiceWithDB(database.DB),
 	})
 	authz.SetPersistence(authz.Persistence{
 		Users:       authDAO.NewUserDAO(database.DB),
-		Permissions: authDAO.NewPermissionDAO(database.DB),
+		Permissions: authdao.NewPermissionDAO(database.DB),
 		DataScope:   authz.NewDatabaseDataScopeStore(database.DB),
 	})
 	runtimeconfig.SetSecurityPolicyStore(systemDAO.NewSettingDAO(database.DB))

@@ -15,6 +15,7 @@ import (
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	authdao "github.com/go-admin-kit/services/system/internal/dao/auth"
+	sharedauthdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	"github.com/go-admin-kit/services/system/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
@@ -434,7 +435,7 @@ func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 
 	restorePersistence := SetPersistence(Persistence{
 		Users:       authdao.NewUserDAO(db),
-		Permissions: authdao.NewPermissionDAO(db),
+		Permissions: sharedauthdao.NewPermissionDAO(db),
 		DataScope:   NewDatabaseDataScopeStore(db),
 	})
 	t.Cleanup(func() {

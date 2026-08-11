@@ -4,7 +4,7 @@ import (
 	"context"
 
 	model "github.com/go-admin-kit/services/shared/pkg/model"
-	"github.com/go-admin-kit/services/system/internal/dao/auth"
+	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	"github.com/go-admin-kit/services/system/internal/dao/system"
 	"gorm.io/gorm"
 )
@@ -12,7 +12,7 @@ import (
 // MenuUserService builds user menu trees.
 type MenuUserService struct {
 	menuDAO       system.MenuDAO
-	permissionDAO auth.PermissionDAO
+	permissionDAO authdao.PermissionDAO
 }
 
 // NewMenuUserServiceWithDB builds a MenuUserService backed by an injected
@@ -20,7 +20,7 @@ type MenuUserService struct {
 func NewMenuUserServiceWithDB(db *gorm.DB) MenuUserService {
 	return MenuUserService{
 		menuDAO:       *system.NewMenuDAO(db),
-		permissionDAO: *auth.NewPermissionDAO(db),
+		permissionDAO: *authdao.NewPermissionDAO(db),
 	}
 }
 

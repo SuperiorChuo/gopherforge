@@ -13,6 +13,7 @@ import (
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 	authdao "github.com/go-admin-kit/services/audit/internal/dao/auth"
+	sharedauthdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	"github.com/go-admin-kit/services/audit/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/audit/internal/pkg/redis"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
@@ -434,7 +435,7 @@ func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 
 	restorePersistence := SetPersistence(Persistence{
 		Users:       authdao.NewUserDAO(db),
-		Permissions: authdao.NewPermissionDAO(db),
+		Permissions: sharedauthdao.NewPermissionDAO(db),
 		DataScope:   NewDatabaseDataScopeStore(db),
 	})
 	t.Cleanup(func() {
