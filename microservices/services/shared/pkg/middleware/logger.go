@@ -26,7 +26,7 @@ func RequestLogger() gin.HandlerFunc {
 		statusCode := c.Writer.Status()
 
 		// Successful probes (container healthcheck every 10s) skip logging; failures still log.
-		if statusCode < 400 && isHealthProbePath(c.Request.URL.Path) {
+		if statusCode < 400 && IsHealthProbePath(c.Request.URL.Path) {
 			return
 		}
 

@@ -10,21 +10,6 @@ import (
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 )
 
-func TestIsHealthProbePath(t *testing.T) {
-	cases := map[string]bool{
-		"/api/v1/health/live":     true,
-		"/api/v1/health/ready":    true,
-		"/api/v1/im/health/ready": true,
-		"/api/v1/users":           false,
-		"/api/v1/health/readyz":   false,
-	}
-	for path, want := range cases {
-		if got := isHealthProbePath(path); got != want {
-			t.Errorf("isHealthProbePath(%q) = %v, want %v", path, got, want)
-		}
-	}
-}
-
 func TestRateLimitBypassesHealthProbePaths(t *testing.T) {
 	store := setupRateLimitTestRedis(t)
 	gin.SetMode(gin.TestMode)

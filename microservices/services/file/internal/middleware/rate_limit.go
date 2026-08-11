@@ -10,6 +10,8 @@ import (
 	"github.com/go-admin-kit/services/file/internal/pkg/runtimeconfig"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/shared/pkg/response"
+
+	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -68,7 +70,7 @@ func RateLimitConfigFromPolicy(policy runtimeconfig.SecurityPolicy) RateLimitCon
 // Middleware returns a Gin middleware using the limiter's Redis client.
 func (l *RateLimiter) Middleware(config RateLimitConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if isHealthProbePath(c.Request.URL.Path) {
+		if sharedmw.IsHealthProbePath(c.Request.URL.Path) {
 			c.Next()
 			return
 		}
@@ -81,7 +83,7 @@ func (l *RateLimiter) DynamicMiddleware(reader runtimeconfig.SecurityPolicyReade
 		reader = runtimeconfig.DefaultSecurityPolicyReader()
 	}
 	return func(c *gin.Context) {
-		if isHealthProbePath(c.Request.URL.Path) {
+		if sharedmw.IsHealthProbePath(c.Request.URL.Path) {
 			c.Next()
 			return
 		}

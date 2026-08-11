@@ -37,6 +37,8 @@ import (
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 
+	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
+
 	auditv1 "github.com/go-admin-kit/services/api/gen/audit/v1"
 )
 
@@ -391,15 +393,15 @@ func run(ctx context.Context) error {
 	if sqlDB, err := database.DB.DB(); err == nil {
 		sharedmetrics.SetDBStats(sqlDB.Stats)
 	}
-	router.Use(middleware.RequestID(config.Cfg.Observability.RequestIDHeader))
+	router.Use(sharedmw.RequestID(config.Cfg.Observability.RequestIDHeader))
 	if tracingCfg.Enabled {
-		router.Use(observability.GinTracing(tracingCfg.ServiceName, middleware.RequestIDKey))
+		router.Use(observability.GinTracing(tracingCfg.ServiceName, sharedmw.RequestIDKey))
 	}
-	router.Use(middleware.SecurityHeaders(config.Cfg.Security.Headers.Enabled, config.Cfg.Security.Headers.HSTS))
-	router.Use(middleware.Recovery())
+	router.Use(sharedmw.SecurityHeaders(config.Cfg.Security.Headers.Enabled, config.Cfg.Security.Headers.HSTS))
+	router.Use(sharedmw.Recovery())
 	router.Use(middleware.DynamicRateLimit(runtimeconfig.DefaultSecurityPolicyReader()))
-	router.Use(middleware.RequestLogger())
-	router.Use(middleware.ErrorHandler())
+	router.Use(sharedmw.RequestLogger())
+	router.Use(sharedmw.ErrorHandler())
 	setupCORS(router)
 	api.SetupRoutesWithDeps(router, sharedapi.Dependencies{DB: database.DB, Redis: redis.Client})
 

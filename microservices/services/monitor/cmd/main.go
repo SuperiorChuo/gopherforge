@@ -33,6 +33,8 @@ import (
 	monitorSvc "github.com/go-admin-kit/services/monitor/internal/service/monitor"
 	systemSvc "github.com/go-admin-kit/services/monitor/internal/service/system"
 	"github.com/go-admin-kit/services/shared/pkg/grpcx"
+
+	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 
 	monitorapi "github.com/go-admin-kit/services/monitor/internal/api/monitor"
@@ -388,20 +390,20 @@ func run(ctx context.Context) error {
 		}
 	}
 
-	router.Use(middleware.RequestID(config.Cfg.Observability.RequestIDHeader))
+	router.Use(sharedmw.RequestID(config.Cfg.Observability.RequestIDHeader))
 	if config.Cfg.Observability.Tracing.Enabled {
-		router.Use(observability.GinTracing(config.Cfg.Observability.Tracing.ServiceName, middleware.RequestIDKey))
+		router.Use(observability.GinTracing(config.Cfg.Observability.Tracing.ServiceName, sharedmw.RequestIDKey))
 	}
 	if config.Cfg.Observability.MetricsEnabled {
 		router.Use(middleware.Metrics())
 	}
-	router.Use(middleware.SecurityHeaders(config.Cfg.Security.Headers.Enabled, config.Cfg.Security.Headers.HSTS))
-	router.Use(middleware.Recovery())
+	router.Use(sharedmw.SecurityHeaders(config.Cfg.Security.Headers.Enabled, config.Cfg.Security.Headers.HSTS))
+	router.Use(sharedmw.Recovery())
 
 	router.Use(middleware.DynamicRateLimit(runtimeconfig.DefaultSecurityPolicyReader()))
 
-	router.Use(middleware.RequestLogger())
-	router.Use(middleware.ErrorHandler())
+	router.Use(sharedmw.RequestLogger())
+	router.Use(sharedmw.ErrorHandler())
 	setupCORS(router)
 	jobScheduler := monitorSvc.InitJobService(database.DB)
 	alertService := monitorSvc.NewAlertService(database.DB, redis.Client)

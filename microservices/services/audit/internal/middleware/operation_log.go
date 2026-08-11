@@ -11,6 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/mask"
+
+	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 )
 
 // Operation module mapping.
@@ -134,7 +136,7 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 			}
 		}
 		actor := GetAuditActor(c)
-		requestID := GetRequestID(c)
+		requestID := sharedmw.GetRequestID(c)
 
 		var errorMsg string
 		if len(c.Errors) > 0 {
