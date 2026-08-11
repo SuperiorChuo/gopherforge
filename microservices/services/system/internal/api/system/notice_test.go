@@ -15,7 +15,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	systemsvc "github.com/go-admin-kit/services/system/internal/service/system"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -223,7 +223,7 @@ type failingNoticeEmailNotifier struct {
 	block   chan struct{}
 }
 
-func (f *failingNoticeEmailNotifier) SendNoticeEnabledContext(ctx context.Context, notice *model.Notice) error {
+func (f *failingNoticeEmailNotifier) SendNoticeEnabledContext(ctx context.Context, notice *localmodel.Notice) error {
 	atomic.AddInt32(&f.calls, 1)
 	if f.started != nil {
 		f.once.Do(func() { close(f.started) })

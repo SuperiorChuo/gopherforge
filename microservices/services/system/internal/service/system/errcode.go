@@ -7,7 +7,7 @@ import (
 	"time"
 
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
 	"gorm.io/gorm"
@@ -55,7 +55,7 @@ var (
 
 const errCodeCacheRefreshTimeout = 2 * time.Second
 
-func (s *ErrCodeService) CreateContext(ctx context.Context, req CreateErrCodeRequest) (*model.ErrorCode, error) {
+func (s *ErrCodeService) CreateContext(ctx context.Context, req CreateErrCodeRequest) (*localmodel.ErrorCode, error) {
 	code := strings.TrimSpace(req.Code)
 	if code == "" {
 		return nil, ErrErrorCodeCodeRequired
@@ -69,7 +69,7 @@ func (s *ErrCodeService) CreateContext(ctx context.Context, req CreateErrCodeReq
 		return nil, err
 	}
 
-	errorCode := &model.ErrorCode{
+	errorCode := &localmodel.ErrorCode{
 		Code:    code,
 		Message: req.Message,
 		Memo:    req.Memo,
@@ -91,7 +91,7 @@ func (s *ErrCodeService) CreateContext(ctx context.Context, req CreateErrCodeReq
 	return errorCode, nil
 }
 
-func (s *ErrCodeService) GetByIDContext(ctx context.Context, id uint) (*model.ErrorCode, error) {
+func (s *ErrCodeService) GetByIDContext(ctx context.Context, id uint) (*localmodel.ErrorCode, error) {
 	errorCode, err := s.errCodeDAO.GetByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -102,16 +102,16 @@ func (s *ErrCodeService) GetByIDContext(ctx context.Context, id uint) (*model.Er
 	return errorCode, nil
 }
 
-func (s *ErrCodeService) GetListContext(ctx context.Context, req ErrCodeListRequest) ([]model.ErrorCode, int64, error) {
+func (s *ErrCodeService) GetListContext(ctx context.Context, req ErrCodeListRequest) ([]localmodel.ErrorCode, int64, error) {
 	return s.errCodeDAO.GetListContext(ctx, req.PageRequest, req.Keyword, req.Scope, req.Status)
 }
 
 // GetAllEnabledContext 返回全量启用错误码（供服务/前端整包拉取）。
-func (s *ErrCodeService) GetAllEnabledContext(ctx context.Context) ([]model.ErrorCode, error) {
+func (s *ErrCodeService) GetAllEnabledContext(ctx context.Context) ([]localmodel.ErrorCode, error) {
 	return s.errCodeDAO.GetAllEnabledContext(ctx)
 }
 
-func (s *ErrCodeService) UpdateContext(ctx context.Context, id uint, req UpdateErrCodeRequest) (*model.ErrorCode, error) {
+func (s *ErrCodeService) UpdateContext(ctx context.Context, id uint, req UpdateErrCodeRequest) (*localmodel.ErrorCode, error) {
 	errorCode, err := s.errCodeDAO.GetByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

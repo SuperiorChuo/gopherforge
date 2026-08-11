@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
-	"github.com/go-admin-kit/services/system/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
 )

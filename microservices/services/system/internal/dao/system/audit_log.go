@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
@@ -38,7 +38,7 @@ type AuditLogListQuery struct {
 }
 
 type AuditLogListResult struct {
-	Items      []model.AuditLog   `json:"items"`
+	Items      []localmodel.AuditLog   `json:"items"`
 	Pagination AuditLogPagination `json:"pagination"`
 	Summary    AuditLogSummary    `json:"summary"`
 	Facets     AuditLogFacets     `json:"facets"`
@@ -72,7 +72,7 @@ type AuditLogBreakdownSummary struct {
 	Count  int64  `json:"count"`
 }
 
-func (d *AuditLogDAO) CreateLogContext(ctx context.Context, log *model.AuditLog) error {
+func (d *AuditLogDAO) CreateLogContext(ctx context.Context, log *localmodel.AuditLog) error {
 	if log != nil {
 		log.TenantID = tenant.EnsureID(ctx, log.TenantID)
 	}
@@ -86,7 +86,7 @@ func (d *AuditLogDAO) ListLogsContext(ctx context.Context, req AuditLogListQuery
 
 	var result AuditLogListResult
 	baseQuery := applyAuditBaseFilters(
-		tenant.ApplyFilter(d.dbWithContext(ctx).Model(&model.AuditLog{}), ctx),
+		tenant.ApplyFilter(d.dbWithContext(ctx).Model(&localmodel.AuditLog{}), ctx),
 		req,
 	)
 	listQuery := applyAuditViewFilter(baseQuery.Session(&gorm.Session{}), req.View)

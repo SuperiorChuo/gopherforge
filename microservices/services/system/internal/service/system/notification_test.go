@@ -4,12 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 )
 
 func TestNotificationMessageFromNoticeUsesAnnouncementPayload(t *testing.T) {
 	createdAt := time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC)
-	msg := NotificationMessageFromNotice(&model.Notice{
+	msg := NotificationMessageFromNotice(&localmodel.Notice{
 		ID:        42,
 		Title:     "系统维护",
 		Content:   "今晚 23:00 发布新版本",

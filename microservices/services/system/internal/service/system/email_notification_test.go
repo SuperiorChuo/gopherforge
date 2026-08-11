@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/mailer"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
 )
@@ -19,7 +19,7 @@ func TestNoticeEmailNotifierSendsEnabledNoticeEmail(t *testing.T) {
 		AlertReceivers: []string{"ops@example.com", "dev@example.com"},
 	}})
 
-	err := notifier.SendNoticeEnabledContext(context.Background(), &model.Notice{
+	err := notifier.SendNoticeEnabledContext(context.Background(), &localmodel.Notice{
 		ID:      7,
 		Title:   "Maintenance",
 		Content: "Maintenance window tonight",
@@ -69,7 +69,7 @@ func TestNoticeEmailNotifierUsesNoticeGroupAndTemplates(t *testing.T) {
 		},
 	}})
 
-	err := notifier.SendNoticeEnabledContext(context.Background(), &model.Notice{
+	err := notifier.SendNoticeEnabledContext(context.Background(), &localmodel.Notice{
 		ID:      9,
 		Title:   "Deploy",
 		Content: "Deploy finished",
@@ -106,7 +106,7 @@ func TestNoticeEmailNotifierFallsBackToAlertReceiversWhenNoticeGroupMissing(t *t
 		},
 	}})
 
-	err := notifier.SendNoticeEnabledContext(context.Background(), &model.Notice{
+	err := notifier.SendNoticeEnabledContext(context.Background(), &localmodel.Notice{
 		Title:  "Maintenance",
 		Status: 1,
 	})
@@ -129,7 +129,7 @@ func TestNoticeEmailNotifierSkipsDisabledPolicy(t *testing.T) {
 		AlertReceivers: []string{"ops@example.com"},
 	}})
 
-	err := notifier.SendNoticeEnabledContext(context.Background(), &model.Notice{
+	err := notifier.SendNoticeEnabledContext(context.Background(), &localmodel.Notice{
 		Title:  "Maintenance",
 		Status: 1,
 	})
@@ -150,7 +150,7 @@ func TestNoticeEmailNotifierReturnsSenderError(t *testing.T) {
 		AlertReceivers: []string{"ops@example.com"},
 	}})
 
-	err := notifier.SendNoticeEnabledContext(context.Background(), &model.Notice{
+	err := notifier.SendNoticeEnabledContext(context.Background(), &localmodel.Notice{
 		Title:  "Maintenance",
 		Status: 1,
 	})

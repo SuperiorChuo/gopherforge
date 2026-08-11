@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -29,7 +29,7 @@ func TestAuditLogDAOCreateLogContextUsesInjectedDB(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "audit_logs"`)).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 
-	err := NewAuditLogDAO(db).CreateLogContext(context.Background(), &model.AuditLog{
+	err := NewAuditLogDAO(db).CreateLogContext(context.Background(), &localmodel.AuditLog{
 		Action:     "create",
 		TargetType: "file",
 		TargetID:   "42",

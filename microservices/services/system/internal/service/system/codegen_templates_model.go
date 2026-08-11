@@ -1,6 +1,6 @@
 package system
 
-var tplLayeredModel = mustTpl("layered-model", `package model
+var tplLayeredModel = mustTpl("layered-model", `package localmodel
 
 import (
 {{- if or .ModelHasTime .SubHasTime .SubHasAudit}}

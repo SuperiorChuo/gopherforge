@@ -6,7 +6,8 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"github.com/go-admin-kit/services/shared/pkg/audittrail"
-	"github.com/go-admin-kit/services/system/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -16,7 +17,7 @@ func TestAssignMenuPermissionsWritesPlatformAuditRow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&model.MenuPermission{}, &model.AuditLog{}); err != nil {
+	if err := db.AutoMigrate(&model.MenuPermission{}, &localmodel.AuditLog{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	if err := db.Create(&model.MenuPermission{MenuID: 7, PermissionID: 1}).Error; err != nil {
@@ -29,7 +30,7 @@ func TestAssignMenuPermissionsWritesPlatformAuditRow(t *testing.T) {
 		t.Fatalf("AssignPermissionsContext() error = %v", err)
 	}
 
-	var logs []model.AuditLog
+	var logs []localmodel.AuditLog
 	if err := db.Order("id ASC").Find(&logs).Error; err != nil {
 		t.Fatalf("load audit logs: %v", err)
 	}

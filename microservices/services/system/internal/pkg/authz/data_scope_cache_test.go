@@ -13,7 +13,7 @@ import (
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 	authdao "github.com/go-admin-kit/services/system/internal/dao/auth"
-	"github.com/go-admin-kit/services/system/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/system/internal/pkg/database"
 	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"

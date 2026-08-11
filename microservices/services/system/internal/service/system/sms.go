@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/system/internal/pkg/sms"
 	"gorm.io/gorm"
@@ -81,7 +81,7 @@ func mergeSmsChannelSecrets(incoming, existing map[string]any) map[string]any {
 }
 
 // maskSmsChannel 返回脱敏后的渠道副本。
-func maskSmsChannel(channel model.SmsChannel) model.SmsChannel {
+func maskSmsChannel(channel localmodel.SmsChannel) localmodel.SmsChannel {
 	channel.Config = maskSmsChannelConfig(channel.Config)
 	return channel
 }
@@ -125,7 +125,7 @@ type UpdateSmsChannelRequest struct {
 }
 
 // GetListContext 返回分页渠道列表（config 已脱敏）。
-func (s *SmsChannelService) GetListContext(ctx context.Context, req SmsChannelListRequest) ([]model.SmsChannel, int64, error) {
+func (s *SmsChannelService) GetListContext(ctx context.Context, req SmsChannelListRequest) ([]localmodel.SmsChannel, int64, error) {
 	channels, total, err := s.channelDAO.GetListContext(ctx, req.PageRequest, req.Status, req.Provider, req.Keyword)
 	if err != nil {
 		return nil, 0, err
@@ -137,7 +137,7 @@ func (s *SmsChannelService) GetListContext(ctx context.Context, req SmsChannelLi
 }
 
 // GetEnabledListContext 返回启用渠道（模板表单下拉用，config 已脱敏）。
-func (s *SmsChannelService) GetEnabledListContext(ctx context.Context) ([]model.SmsChannel, error) {
+func (s *SmsChannelService) GetEnabledListContext(ctx context.Context) ([]localmodel.SmsChannel, error) {
 	channels, err := s.channelDAO.GetEnabledListContext(ctx)
 	if err != nil {
 		return nil, err
@@ -148,7 +148,7 @@ func (s *SmsChannelService) GetEnabledListContext(ctx context.Context) ([]model.
 	return channels, nil
 }
 
-func (s *SmsChannelService) GetByIDContext(ctx context.Context, id uint) (*model.SmsChannel, error) {
+func (s *SmsChannelService) GetByIDContext(ctx context.Context, id uint) (*localmodel.SmsChannel, error) {
 	channel, err := s.channelDAO.GetByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -160,7 +160,7 @@ func (s *SmsChannelService) GetByIDContext(ctx context.Context, id uint) (*model
 	return &masked, nil
 }
 
-func (s *SmsChannelService) CreateContext(ctx context.Context, req CreateSmsChannelRequest) (*model.SmsChannel, error) {
+func (s *SmsChannelService) CreateContext(ctx context.Context, req CreateSmsChannelRequest) (*localmodel.SmsChannel, error) {
 	provider := strings.ToLower(strings.TrimSpace(req.Provider))
 	if _, ok := validSmsProviders[provider]; !ok {
 		return nil, fmt.Errorf("%w: %s", ErrSmsProviderInvalid, req.Provider)
@@ -169,7 +169,7 @@ func (s *SmsChannelService) CreateContext(ctx context.Context, req CreateSmsChan
 		req.Status = 1
 	}
 
-	channel := &model.SmsChannel{
+	channel := &localmodel.SmsChannel{
 		Name:     req.Name,
 		Provider: provider,
 		Config:   req.Config,
@@ -183,7 +183,7 @@ func (s *SmsChannelService) CreateContext(ctx context.Context, req CreateSmsChan
 	return &masked, nil
 }
 
-func (s *SmsChannelService) UpdateContext(ctx context.Context, id uint, req UpdateSmsChannelRequest) (*model.SmsChannel, error) {
+func (s *SmsChannelService) UpdateContext(ctx context.Context, id uint, req UpdateSmsChannelRequest) (*localmodel.SmsChannel, error) {
 	channel, err := s.channelDAO.GetByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -276,11 +276,11 @@ type UpdateSmsTemplateRequest struct {
 	Remark             string `json:"remark"`
 }
 
-func (s *SmsTemplateService) GetListContext(ctx context.Context, req SmsTemplateListRequest) ([]model.SmsTemplate, int64, error) {
+func (s *SmsTemplateService) GetListContext(ctx context.Context, req SmsTemplateListRequest) ([]localmodel.SmsTemplate, int64, error) {
 	return s.templateDAO.GetListContext(ctx, req.PageRequest, req.ChannelID, req.Type, req.Status, req.Keyword)
 }
 
-func (s *SmsTemplateService) GetByIDContext(ctx context.Context, id uint) (*model.SmsTemplate, error) {
+func (s *SmsTemplateService) GetByIDContext(ctx context.Context, id uint) (*localmodel.SmsTemplate, error) {
 	template, err := s.templateDAO.GetByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -291,7 +291,7 @@ func (s *SmsTemplateService) GetByIDContext(ctx context.Context, id uint) (*mode
 	return template, nil
 }
 
-func (s *SmsTemplateService) CreateContext(ctx context.Context, req CreateSmsTemplateRequest) (*model.SmsTemplate, error) {
+func (s *SmsTemplateService) CreateContext(ctx context.Context, req CreateSmsTemplateRequest) (*localmodel.SmsTemplate, error) {
 	count, err := s.templateDAO.CountByCodeContext(ctx, req.Code, 0)
 	if err != nil {
 		return nil, err
@@ -306,13 +306,13 @@ func (s *SmsTemplateService) CreateContext(ctx context.Context, req CreateSmsTem
 		return nil, err
 	}
 	if req.Type == 0 {
-		req.Type = model.SmsTemplateTypeNotify
+		req.Type = localmodel.SmsTemplateTypeNotify
 	}
 	if req.Status == 0 {
 		req.Status = 1
 	}
 
-	template := &model.SmsTemplate{
+	template := &localmodel.SmsTemplate{
 		Code:               req.Code,
 		Name:               req.Name,
 		ChannelID:          req.ChannelID,
@@ -328,7 +328,7 @@ func (s *SmsTemplateService) CreateContext(ctx context.Context, req CreateSmsTem
 	return template, nil
 }
 
-func (s *SmsTemplateService) UpdateContext(ctx context.Context, id uint, req UpdateSmsTemplateRequest) (*model.SmsTemplate, error) {
+func (s *SmsTemplateService) UpdateContext(ctx context.Context, id uint, req UpdateSmsTemplateRequest) (*localmodel.SmsTemplate, error) {
 	template, err := s.templateDAO.GetByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -401,7 +401,7 @@ type SmsLogListRequest struct {
 	Status       string `json:"status" form:"status"`
 }
 
-func (s *SmsLogService) GetListContext(ctx context.Context, req SmsLogListRequest) ([]model.SmsLog, int64, error) {
+func (s *SmsLogService) GetListContext(ctx context.Context, req SmsLogListRequest) ([]localmodel.SmsLog, int64, error) {
 	return s.logDAO.GetListContext(ctx, req.PageRequest, req.Mobile, req.TemplateCode, req.Status)
 }
 
@@ -473,7 +473,7 @@ func (s *SmsSendService) SendContext(ctx context.Context, req SendSmsRequest) (*
 	content := sms.RenderTemplate(template.Content, req.Params)
 
 	// 先落一条 sending 日志，保证每次发送尝试可追溯。
-	log := &model.SmsLog{
+	log := &localmodel.SmsLog{
 		Mobile:       req.Mobile,
 		TemplateCode: template.Code,
 		Content:      content,
@@ -481,7 +481,7 @@ func (s *SmsSendService) SendContext(ctx context.Context, req SendSmsRequest) (*
 		ChannelID:    channel.ID,
 		ChannelName:  channel.Name,
 		Provider:     channel.Provider,
-		Status:       model.SmsStatusSending,
+		Status:       localmodel.SmsStatusSending,
 	}
 	if err := s.logDAO.CreateContext(ctx, log); err != nil {
 		return nil, err
@@ -505,11 +505,11 @@ func (s *SmsSendService) SendContext(ctx context.Context, req SendSmsRequest) (*
 }
 
 // finishSend 回写日志并组装返回值。
-func (s *SmsSendService) finishSend(ctx context.Context, log *model.SmsLog, content, msgID string, sendErr error) (*SendSmsResult, error) {
-	status := model.SmsStatusSuccess
+func (s *SmsSendService) finishSend(ctx context.Context, log *localmodel.SmsLog, content, msgID string, sendErr error) (*SendSmsResult, error) {
+	status := localmodel.SmsStatusSuccess
 	errMsg := ""
 	if sendErr != nil {
-		status = model.SmsStatusFailure
+		status = localmodel.SmsStatusFailure
 		errMsg = truncateSmsError(sendErr.Error())
 	}
 	// 结果回写失败只能如实报错：日志状态比响应体更重要（审计口径）。

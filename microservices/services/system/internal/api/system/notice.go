@@ -8,14 +8,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/shared/pkg/response"
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/system/internal/service/system"
 )
 
 const noticeEmailTimeout = 5 * time.Second
 
 type noticeEmailNotifier interface {
-	SendNoticeEnabledContext(ctx context.Context, notice *model.Notice) error
+	SendNoticeEnabledContext(ctx context.Context, notice *localmodel.Notice) error
 }
 
 // NoticeAPI handles notice endpoints.
@@ -223,12 +223,12 @@ func (a *NoticeAPI) UpdateNoticeStatus(c *gin.Context) {
 	response.SuccessWithMessage(c, "notice status updated", nil)
 }
 
-func (a *NoticeAPI) notifyNoticeEnabled(ctx context.Context, notice *model.Notice) {
+func (a *NoticeAPI) notifyNoticeEnabled(ctx context.Context, notice *localmodel.Notice) {
 	a.publishNotice(ctx, notice)
 	a.sendNoticeEmailAsync(ctx, notice)
 }
 
-func (a *NoticeAPI) publishNotice(ctx context.Context, notice *model.Notice) {
+func (a *NoticeAPI) publishNotice(ctx context.Context, notice *localmodel.Notice) {
 	broadcaster := a.broadcaster
 	if broadcaster == nil {
 		broadcaster = system.DefaultNotificationBroadcaster()
@@ -236,7 +236,7 @@ func (a *NoticeAPI) publishNotice(ctx context.Context, notice *model.Notice) {
 	_ = broadcaster.PublishContext(ctx, system.NotificationMessageFromNotice(notice))
 }
 
-func (a *NoticeAPI) sendNoticeEmailAsync(ctx context.Context, notice *model.Notice) {
+func (a *NoticeAPI) sendNoticeEmailAsync(ctx context.Context, notice *localmodel.Notice) {
 	if notice == nil {
 		return
 	}
@@ -251,7 +251,7 @@ func (a *NoticeAPI) sendNoticeEmailAsync(ctx context.Context, notice *model.Noti
 	}()
 }
 
-func (a *NoticeAPI) sendNoticeEmail(ctx context.Context, notice *model.Notice) {
+func (a *NoticeAPI) sendNoticeEmail(ctx context.Context, notice *localmodel.Notice) {
 	notifier := a.emailNotifier
 	if notifier == nil {
 		notifier = system.DefaultNoticeEmailNotifier()

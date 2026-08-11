@@ -12,7 +12,7 @@ import (
 {{- end}}
 
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -29,10 +29,10 @@ type {{.ModuleType}}ItemInput struct {
 {{- end}}
 }
 
-func to{{.ModuleType}}Items(inputs []{{.ModuleType}}ItemInput) []model.{{.SubEntity}} {
-	items := make([]model.{{.SubEntity}}, len(inputs))
+func to{{.ModuleType}}Items(inputs []{{.ModuleType}}ItemInput) []localmodel.{{.SubEntity}} {
+	items := make([]localmodel.{{.SubEntity}}, len(inputs))
 	for index, input := range inputs {
-		items[index] = model.{{.SubEntity}}{
+		items[index] = localmodel.{{.SubEntity}}{
 {{- range .SubFields}}
 			{{.Column.GoField}}: input.{{.Column.GoField}},
 {{- end}}
@@ -57,20 +57,20 @@ type {{.ModuleType}}Input struct {
 {{- end}}
 }
 
-func (s *{{.ModuleType}}Service) List(ctx context.Context, keyword string, page, pageSize int) ([]model.{{.Entity}}, int64, error) {
+func (s *{{.ModuleType}}Service) List(ctx context.Context, keyword string, page, pageSize int) ([]localmodel.{{.Entity}}, int64, error) {
 	return s.dao.List(ctx, keyword, page, pageSize)
 }
 
-func (s *{{.ModuleType}}Service) Get(ctx context.Context, id uint64) (*model.{{.Entity}}, error) {
+func (s *{{.ModuleType}}Service) Get(ctx context.Context, id uint64) (*localmodel.{{.Entity}}, error) {
 	return s.dao.Get(ctx, id)
 }
 {{- if .IsTree}}
 
-func (s *{{.ModuleType}}Service) Tree(ctx context.Context) ([]model.{{.Entity}}, error) { return s.dao.Tree(ctx) }
+func (s *{{.ModuleType}}Service) Tree(ctx context.Context) ([]localmodel.{{.Entity}}, error) { return s.dao.Tree(ctx) }
 {{- end}}
 
-func (s *{{.ModuleType}}Service) Create(ctx context.Context, input {{.ModuleType}}Input) (*model.{{.Entity}}, error) {
-	row := &model.{{.Entity}}{
+func (s *{{.ModuleType}}Service) Create(ctx context.Context, input {{.ModuleType}}Input) (*localmodel.{{.Entity}}, error) {
+	row := &localmodel.{{.Entity}}{
 {{- if .IsTree}}
 		{{.ParentCol.GoField}}: input.{{.ParentCol.GoField}},
 {{- end}}
@@ -91,7 +91,7 @@ func (s *{{.ModuleType}}Service) Create(ctx context.Context, input {{.ModuleType
 	return row, nil
 }
 
-func (s *{{.ModuleType}}Service) Update(ctx context.Context, id uint64, input {{.ModuleType}}Input) (*model.{{.Entity}}, error) {
+func (s *{{.ModuleType}}Service) Update(ctx context.Context, id uint64, input {{.ModuleType}}Input) (*localmodel.{{.Entity}}, error) {
 	row, err := s.dao.Get(ctx, id)
 	if err != nil { return nil, err }
 {{- if .IsTree}}

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -56,7 +56,7 @@ const (
 // so a bogus code is a cache hit too instead of re-querying on every request.
 type DictEntry struct {
 	Found bool             `json:"found"`
-	Items []model.DictItem `json:"items"`
+	Items []localmodel.DictItem `json:"items"`
 }
 
 // DictDataExpire resolves the configured dictionary cache TTL.
@@ -184,7 +184,7 @@ func (s *CacheService) SetDictCodesContext(ctx context.Context, tenantID uint, e
 }
 
 // GetAllDictDataContext reads the cached code→items map for a tenant.
-func (s *CacheService) GetAllDictDataContext(ctx context.Context, tenantID uint) (map[string][]model.DictItem, bool) {
+func (s *CacheService) GetAllDictDataContext(ctx context.Context, tenantID uint) (map[string][]localmodel.DictItem, bool) {
 	if !DictCacheEnabled() {
 		return nil, false
 	}
@@ -196,7 +196,7 @@ func (s *CacheService) GetAllDictDataContext(ctx context.Context, tenantID uint)
 	if err != nil {
 		return nil, false
 	}
-	var data map[string][]model.DictItem
+	var data map[string][]localmodel.DictItem
 	if err := json.Unmarshal([]byte(raw), &data); err != nil {
 		return nil, false
 	}
@@ -204,7 +204,7 @@ func (s *CacheService) GetAllDictDataContext(ctx context.Context, tenantID uint)
 }
 
 // SetAllDictDataContext caches the whole dictionary payload for a tenant.
-func (s *CacheService) SetAllDictDataContext(ctx context.Context, tenantID uint, data map[string][]model.DictItem) error {
+func (s *CacheService) SetAllDictDataContext(ctx context.Context, tenantID uint, data map[string][]localmodel.DictItem) error {
 	expire := DictDataExpire()
 	if expire <= 0 {
 		return nil

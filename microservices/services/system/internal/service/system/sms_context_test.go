@@ -8,7 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/system/internal/pkg/sms"
 	"gorm.io/gorm"
 )
@@ -150,7 +150,7 @@ func TestSmsSendServiceSendContextSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SendContext() error = %v", err)
 	}
-	if result.Status != model.SmsStatusSuccess || result.LogID != 11 || result.ProviderMsgID != "biz-1" {
+	if result.Status != localmodel.SmsStatusSuccess || result.LogID != 11 || result.ProviderMsgID != "biz-1" {
 		t.Fatalf("result = %#v, want success/log 11/biz-1", result)
 	}
 	if result.Content != "您好 张三，验证码 123456" {
@@ -180,7 +180,7 @@ func TestSmsSendServiceSendContextProviderFailureIsLogged(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SendContext() error = %v, provider failure should be a business result", err)
 	}
-	if result.Status != model.SmsStatusFailure || result.Error == "" {
+	if result.Status != localmodel.SmsStatusFailure || result.Error == "" {
 		t.Fatalf("result = %#v, want failure with error message", result)
 	}
 }

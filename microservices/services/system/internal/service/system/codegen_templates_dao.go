@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 {{- if .NeedsTenant}}
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 {{- end}}
@@ -19,7 +19,7 @@ type {{.ModuleType}}DAO struct { db *gorm.DB }
 func New{{.ModuleType}}DAO(db *gorm.DB) *{{.ModuleType}}DAO { return &{{.ModuleType}}DAO{db: db} }
 
 func (d *{{.ModuleType}}DAO) baseDB(ctx context.Context, db *gorm.DB) *gorm.DB {
-	query := db.WithContext(ctx).Model(&model.{{.Entity}}{})
+	query := db.WithContext(ctx).Model(&localmodel.{{.Entity}}{})
 {{- if .HasTenant}}
 	query = query.Where("tenant_id = ?", tenant.FromContextOrDefault(ctx))
 {{- end}}
@@ -28,7 +28,7 @@ func (d *{{.ModuleType}}DAO) baseDB(ctx context.Context, db *gorm.DB) *gorm.DB {
 
 func (d *{{.ModuleType}}DAO) base(ctx context.Context) *gorm.DB { return d.baseDB(ctx, d.db) }
 
-func (d *{{.ModuleType}}DAO) List(ctx context.Context, keyword string, page, pageSize int) ([]model.{{.Entity}}, int64, error) {
+func (d *{{.ModuleType}}DAO) List(ctx context.Context, keyword string, page, pageSize int) ([]localmodel.{{.Entity}}, int64, error) {
 	if page <= 0 { page = 1 }
 	if pageSize <= 0 || pageSize > 100 { pageSize = 20 }
 	query := d.base(ctx)
@@ -42,7 +42,7 @@ func (d *{{.ModuleType}}DAO) List(ctx context.Context, keyword string, page, pag
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil { return nil, 0, err }
-	var rows []model.{{.Entity}}
+	var rows []localmodel.{{.Entity}}
 	if err := query.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil { return nil, 0, err }
 {{- if .M2Ms}}
 	if err := d.loadRelations(ctx, d.db, rows); err != nil { return nil, 0, err }
@@ -50,11 +50,11 @@ func (d *{{.ModuleType}}DAO) List(ctx context.Context, keyword string, page, pag
 	return rows, total, nil
 }
 
-func (d *{{.ModuleType}}DAO) Get(ctx context.Context, id uint64) (*model.{{.Entity}}, error) {
-	var row model.{{.Entity}}
+func (d *{{.ModuleType}}DAO) Get(ctx context.Context, id uint64) (*localmodel.{{.Entity}}, error) {
+	var row localmodel.{{.Entity}}
 	if err := d.base(ctx).Where("id = ?", id).First(&row).Error; err != nil { return nil, err }
 {{- if .M2Ms}}
-	rows := []model.{{.Entity}}{row}
+	rows := []localmodel.{{.Entity}}{row}
 	if err := d.loadRelations(ctx, d.db, rows); err != nil { return nil, err }
 	row = rows[0]
 {{- end}}
@@ -68,7 +68,7 @@ func (d *{{.ModuleType}}DAO) Get(ctx context.Context, id uint64) (*model.{{.Enti
 	return &row, nil
 }
 
-func (d *{{.ModuleType}}DAO) Create(ctx context.Context, row *model.{{.Entity}}) error {
+func (d *{{.ModuleType}}DAO) Create(ctx context.Context, row *localmodel.{{.Entity}}) error {
 {{- if or .IsSub .M2Ms}}
 	return d.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 {{- if .HasTenant}}
@@ -91,7 +91,7 @@ func (d *{{.ModuleType}}DAO) Create(ctx context.Context, row *model.{{.Entity}})
 {{- end}}
 }
 
-func (d *{{.ModuleType}}DAO) Update(ctx context.Context, row *model.{{.Entity}}) error {
+func (d *{{.ModuleType}}DAO) Update(ctx context.Context, row *localmodel.{{.Entity}}) error {
 {{- if or .IsSub .M2Ms}}
 	return d.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := d.baseDB(ctx, tx).Where("id = ?", row.ID).Updates(row)
@@ -121,7 +121,7 @@ func (d *{{.ModuleType}}DAO) Delete(ctx context.Context, id uint64) error {
 {{- if .SubHasTenant}}
 		items = items.Where("tenant_id = ?", tenant.FromContextOrDefault(ctx))
 {{- end}}
-		if err := items.Delete(&model.{{.SubEntity}}{}).Error; err != nil { return err }
+		if err := items.Delete(&localmodel.{{.SubEntity}}{}).Error; err != nil { return err }
 {{- end}}
 {{- range .M2Ms}}
 		join := tx.WithContext(ctx).Table("{{.JoinTable}}").Where("{{.FKField}} = ?", id)
@@ -130,13 +130,13 @@ func (d *{{.ModuleType}}DAO) Delete(ctx context.Context, id uint64) error {
 {{- end}}
 		if err := join.Delete(nil).Error; err != nil { return err }
 {{- end}}
-		result := d.baseDB(ctx, tx).Where("id = ?", id).Delete(&model.{{.Entity}}{})
+		result := d.baseDB(ctx, tx).Where("id = ?", id).Delete(&localmodel.{{.Entity}}{})
 		if result.Error != nil { return result.Error }
 		if result.RowsAffected == 0 { return gorm.ErrRecordNotFound }
 		return nil
 	})
 {{- else}}
-	result := d.base(ctx).Where("id = ?", id).Delete(&model.{{.Entity}}{})
+	result := d.base(ctx).Where("id = ?", id).Delete(&localmodel.{{.Entity}}{})
 	if result.Error != nil { return result.Error }
 	if result.RowsAffected == 0 { return gorm.ErrRecordNotFound }
 	return nil
@@ -144,13 +144,13 @@ func (d *{{.ModuleType}}DAO) Delete(ctx context.Context, id uint64) error {
 }
 {{- if .IsTree}}
 
-func (d *{{.ModuleType}}DAO) Tree(ctx context.Context) ([]model.{{.Entity}}, error) {
-	var rows []model.{{.Entity}}
+func (d *{{.ModuleType}}DAO) Tree(ctx context.Context) ([]localmodel.{{.Entity}}, error) {
+	var rows []localmodel.{{.Entity}}
 	if err := d.base(ctx).Order("{{.TreeOrder}}").Find(&rows).Error; err != nil { return nil, err }
-	children := make(map[uint64][]model.{{.Entity}})
+	children := make(map[uint64][]localmodel.{{.Entity}})
 	for _, row := range rows { children[row.{{.ParentCol.GoField}}] = append(children[row.{{.ParentCol.GoField}}], row) }
-	var build func(uint64) []model.{{.Entity}}
-	build = func(parent uint64) []model.{{.Entity}} {
+	var build func(uint64) []localmodel.{{.Entity}}
+	build = func(parent uint64) []localmodel.{{.Entity}} {
 		nodes := children[parent]
 		for index := range nodes { nodes[index].Children = build(nodes[index].ID) }
 		return nodes
@@ -166,12 +166,12 @@ func (d *{{.ModuleType}}DAO) HasChildren(ctx context.Context, id uint64) (bool, 
 {{- end}}
 {{- if .IsSub}}
 
-func (d *{{.ModuleType}}DAO) replaceItems(ctx context.Context, tx *gorm.DB, row *model.{{.Entity}}) error {
+func (d *{{.ModuleType}}DAO) replaceItems(ctx context.Context, tx *gorm.DB, row *localmodel.{{.Entity}}) error {
 	query := tx.WithContext(ctx).Where("{{.SubFKCol.Name}} = ?", row.ID)
 {{- if .SubHasTenant}}
 	query = query.Where("tenant_id = ?", tenant.FromContextOrDefault(ctx))
 {{- end}}
-	if err := query.Delete(&model.{{.SubEntity}}{}).Error; err != nil { return err }
+	if err := query.Delete(&localmodel.{{.SubEntity}}{}).Error; err != nil { return err }
 	for index := range row.Items {
 		row.Items[index].ID = 0
 		row.Items[index].{{.SubFKCol.GoField}} = row.ID
@@ -185,7 +185,7 @@ func (d *{{.ModuleType}}DAO) replaceItems(ctx context.Context, tx *gorm.DB, row 
 {{- end}}
 {{- if .M2Ms}}
 
-func (d *{{.ModuleType}}DAO) loadRelations(ctx context.Context, db *gorm.DB, rows []model.{{.Entity}}) error {
+func (d *{{.ModuleType}}DAO) loadRelations(ctx context.Context, db *gorm.DB, rows []localmodel.{{.Entity}}) error {
 	if len(rows) == 0 { return nil }
 	ids := make([]uint64, len(rows)); positions := make(map[uint64]int, len(rows))
 	for index := range rows { ids[index] = rows[index].ID; positions[rows[index].ID] = index }
@@ -204,7 +204,7 @@ func (d *{{.ModuleType}}DAO) loadRelations(ctx context.Context, db *gorm.DB, row
 	return nil
 }
 
-func (d *{{.ModuleType}}DAO) replaceRelations(ctx context.Context, tx *gorm.DB, row *model.{{.Entity}}) error {
+func (d *{{.ModuleType}}DAO) replaceRelations(ctx context.Context, tx *gorm.DB, row *localmodel.{{.Entity}}) error {
 {{- range .M2Ms}}
 	if len(row.{{exportedName .Name}}IDs) > 0 {
 		query := tx.WithContext(ctx).Table("{{.TargetTable}}").Where("id IN ?", row.{{exportedName .Name}}IDs)

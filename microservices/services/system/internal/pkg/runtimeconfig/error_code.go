@@ -6,13 +6,13 @@ import (
 	"time"
 
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/system/internal/pkg/database"
 )
 
 // ErrorCodeStore 提供全量启用错误码的读取能力（由 DAO 实现）。
 type ErrorCodeStore interface {
-	GetAllEnabledContext(ctx context.Context) ([]model.ErrorCode, error)
+	GetAllEnabledContext(ctx context.Context) ([]localmodel.ErrorCode, error)
 }
 
 // ErrorCodeInvalidator 供写路径在改动后立即刷新本进程缓存。
@@ -76,7 +76,7 @@ func SetErrorCodeStore(store ErrorCodeStore) func() {
 
 type defaultErrorCodeStore struct{}
 
-func (defaultErrorCodeStore) GetAllEnabledContext(ctx context.Context) ([]model.ErrorCode, error) {
+func (defaultErrorCodeStore) GetAllEnabledContext(ctx context.Context) ([]localmodel.ErrorCode, error) {
 	errorCodeStoreMu.RLock()
 	store := errorCodeStore
 	errorCodeStoreMu.RUnlock()

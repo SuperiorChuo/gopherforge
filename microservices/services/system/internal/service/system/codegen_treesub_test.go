@@ -273,7 +273,7 @@ func TestCodegenGenerateSub(t *testing.T) {
 		}
 	}
 	// 删除也必须连子表同事务
-	if !strings.Contains(store, `Where("order_id = ?", id)`) || !strings.Contains(store, "Delete(&model.DemoOrderItem{})") {
+	if !strings.Contains(store, `Where("order_id = ?", id)`) || !strings.Contains(store, "Delete(&localmodel.DemoOrderItem{})") {
 		t.Fatalf("sub store.go Delete should remove items:\n%s", store)
 	}
 

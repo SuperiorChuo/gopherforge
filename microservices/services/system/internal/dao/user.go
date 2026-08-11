@@ -3,7 +3,7 @@ package dao
 import (
 	"context"
 
-	"github.com/go-admin-kit/services/system/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 

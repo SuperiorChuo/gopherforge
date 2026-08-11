@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/go-admin-kit/services/shared/pkg/audittrail"
-	"github.com/go-admin-kit/services/system/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 )
 

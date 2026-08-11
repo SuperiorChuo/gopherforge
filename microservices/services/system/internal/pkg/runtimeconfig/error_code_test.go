@@ -6,16 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 )
 
 type stubErrorCodeStore struct {
-	codes []model.ErrorCode
+	codes []localmodel.ErrorCode
 	err   error
 	calls int
 }
 
-func (s *stubErrorCodeStore) GetAllEnabledContext(_ context.Context) ([]model.ErrorCode, error) {
+func (s *stubErrorCodeStore) GetAllEnabledContext(_ context.Context) ([]localmodel.ErrorCode, error) {
 	s.calls++
 	if s.err != nil {
 		return nil, s.err
@@ -24,7 +24,7 @@ func (s *stubErrorCodeStore) GetAllEnabledContext(_ context.Context) ([]model.Er
 }
 
 func TestErrorCodeReaderCachesWithinTTL(t *testing.T) {
-	store := &stubErrorCodeStore{codes: []model.ErrorCode{
+	store := &stubErrorCodeStore{codes: []localmodel.ErrorCode{
 		{Code: "DICT_TYPE_NOT_FOUND", Message: "字典类型不存在", Status: 1},
 	}}
 	reader := NewCachedErrorCodeReader(store, time.Minute)
@@ -49,7 +49,7 @@ func TestErrorCodeReaderCachesWithinTTL(t *testing.T) {
 }
 
 func TestErrorCodeReaderRefreshesAfterExpiry(t *testing.T) {
-	store := &stubErrorCodeStore{codes: []model.ErrorCode{
+	store := &stubErrorCodeStore{codes: []localmodel.ErrorCode{
 		{Code: "NOTICE_NOT_FOUND", Message: "旧文案", Status: 1},
 	}}
 	reader := NewCachedErrorCodeReader(store, time.Minute)
@@ -59,7 +59,7 @@ func TestErrorCodeReaderRefreshesAfterExpiry(t *testing.T) {
 	}
 
 	// 模拟控制台改文案 + TTL 到期：下一次读取应重新查库拿到新文案（热生效）
-	store.codes = []model.ErrorCode{{Code: "NOTICE_NOT_FOUND", Message: "新文案", Status: 1}}
+	store.codes = []localmodel.ErrorCode{{Code: "NOTICE_NOT_FOUND", Message: "新文案", Status: 1}}
 	reader.mu.Lock()
 	reader.expiresAt = time.Now().Add(-time.Second)
 	reader.mu.Unlock()
@@ -74,7 +74,7 @@ func TestErrorCodeReaderRefreshesAfterExpiry(t *testing.T) {
 }
 
 func TestErrorCodeReaderServesStaleOnRefreshFailure(t *testing.T) {
-	store := &stubErrorCodeStore{codes: []model.ErrorCode{
+	store := &stubErrorCodeStore{codes: []localmodel.ErrorCode{
 		{Code: "FORBIDDEN", Message: "权限不足", Status: 1},
 	}}
 	reader := NewCachedErrorCodeReader(store, time.Minute)

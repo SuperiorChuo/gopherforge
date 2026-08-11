@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/mailer"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
 )
@@ -23,7 +23,7 @@ func DefaultNoticeEmailNotifier() *NoticeEmailNotifier {
 	return NewNoticeEmailNotifier(nil, runtimeconfig.DefaultEmailNotificationReader())
 }
 
-func (n *NoticeEmailNotifier) SendNoticeEnabledContext(ctx context.Context, notice *model.Notice) error {
+func (n *NoticeEmailNotifier) SendNoticeEnabledContext(ctx context.Context, notice *localmodel.Notice) error {
 	if notice == nil {
 		return nil
 	}
@@ -68,7 +68,7 @@ func noticeEmailRecipients(policy runtimeconfig.EmailNotification) []string {
 	return policy.AlertReceivers
 }
 
-func noticeEmailSubject(policy runtimeconfig.EmailNotification, notice *model.Notice) string {
+func noticeEmailSubject(policy runtimeconfig.EmailNotification, notice *localmodel.Notice) string {
 	if strings.TrimSpace(policy.SubjectTemplate) != "" {
 		return renderNoticeEmailTemplate(policy.SubjectTemplate, notice)
 	}
@@ -79,7 +79,7 @@ func noticeEmailSubject(policy runtimeconfig.EmailNotification, notice *model.No
 	return "Notice enabled: " + title
 }
 
-func noticeEmailBody(policy runtimeconfig.EmailNotification, notice *model.Notice) string {
+func noticeEmailBody(policy runtimeconfig.EmailNotification, notice *localmodel.Notice) string {
 	if strings.TrimSpace(policy.BodyTemplate) != "" {
 		return renderNoticeEmailTemplate(policy.BodyTemplate, notice)
 	}
@@ -91,7 +91,7 @@ func noticeEmailBody(policy runtimeconfig.EmailNotification, notice *model.Notic
 	)
 }
 
-func renderNoticeEmailTemplate(template string, notice *model.Notice) string {
+func renderNoticeEmailTemplate(template string, notice *localmodel.Notice) string {
 	replacer := strings.NewReplacer(
 		"{{id}}", fmt.Sprint(notice.ID),
 		"{{type}}", noticeEmailType(notice.Type),

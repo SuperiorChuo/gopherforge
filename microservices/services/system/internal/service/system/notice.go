@@ -6,7 +6,7 @@ import (
 	"time"
 
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
 )
@@ -47,7 +47,7 @@ type UpdateNoticeRequest struct {
 
 var ErrNoticeNotFound = errors.New("notice not found")
 
-func (s *NoticeService) GetByIDContext(ctx context.Context, id uint) (*model.Notice, error) {
+func (s *NoticeService) GetByIDContext(ctx context.Context, id uint) (*localmodel.Notice, error) {
 	notice, err := s.noticeDAO.GetByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -58,15 +58,15 @@ func (s *NoticeService) GetByIDContext(ctx context.Context, id uint) (*model.Not
 	return notice, nil
 }
 
-func (s *NoticeService) GetListContext(ctx context.Context, req NoticeListRequest) ([]model.Notice, int64, error) {
+func (s *NoticeService) GetListContext(ctx context.Context, req NoticeListRequest) ([]localmodel.Notice, int64, error) {
 	return s.noticeDAO.GetListContext(ctx, req.PageRequest, req.Type, req.Status, req.Keyword)
 }
 
-func (s *NoticeService) GetActiveListContext(ctx context.Context, noticeType *int8) ([]model.Notice, error) {
+func (s *NoticeService) GetActiveListContext(ctx context.Context, noticeType *int8) ([]localmodel.Notice, error) {
 	return s.noticeDAO.GetActiveListContext(ctx, noticeType)
 }
 
-func (s *NoticeService) CreateContext(ctx context.Context, req CreateNoticeRequest, creatorID uint, creatorName string) (*model.Notice, error) {
+func (s *NoticeService) CreateContext(ctx context.Context, req CreateNoticeRequest, creatorID uint, creatorName string) (*localmodel.Notice, error) {
 	if req.Status == 0 {
 		req.Status = 1
 	}
@@ -74,7 +74,7 @@ func (s *NoticeService) CreateContext(ctx context.Context, req CreateNoticeReque
 		req.Type = 1
 	}
 
-	notice := &model.Notice{
+	notice := &localmodel.Notice{
 		Title:     req.Title,
 		Content:   req.Content,
 		Type:      req.Type,
@@ -92,7 +92,7 @@ func (s *NoticeService) CreateContext(ctx context.Context, req CreateNoticeReque
 	return notice, nil
 }
 
-func (s *NoticeService) UpdateContext(ctx context.Context, id uint, req UpdateNoticeRequest) (*model.Notice, error) {
+func (s *NoticeService) UpdateContext(ctx context.Context, id uint, req UpdateNoticeRequest) (*localmodel.Notice, error) {
 	notice, err := s.noticeDAO.GetByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

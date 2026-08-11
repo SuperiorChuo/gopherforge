@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/system/internal/config"
-	"github.com/go-admin-kit/services/system/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
 

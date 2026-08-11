@@ -5,7 +5,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 )
 
@@ -17,27 +17,27 @@ func NewDictDAO(db *gorm.DB) *DictDAO {
 	return &DictDAO{db: db}
 }
 
-func (d *DictDAO) CreateTypeContext(ctx context.Context, dictType *model.DictType) error {
+func (d *DictDAO) CreateTypeContext(ctx context.Context, dictType *localmodel.DictType) error {
 	return d.dbWithContext(ctx).Create(dictType).Error
 }
 
-func (d *DictDAO) GetTypeByIDContext(ctx context.Context, id uint) (*model.DictType, error) {
-	var dictType model.DictType
+func (d *DictDAO) GetTypeByIDContext(ctx context.Context, id uint) (*localmodel.DictType, error) {
+	var dictType localmodel.DictType
 	result := d.dbWithContext(ctx).First(&dictType, id)
 	return &dictType, result.Error
 }
 
-func (d *DictDAO) GetTypeByCodeContext(ctx context.Context, code string) (*model.DictType, error) {
-	var dictType model.DictType
+func (d *DictDAO) GetTypeByCodeContext(ctx context.Context, code string) (*localmodel.DictType, error) {
+	var dictType localmodel.DictType
 	result := d.dbWithContext(ctx).Where("code = ?", code).First(&dictType)
 	return &dictType, result.Error
 }
 
-func (d *DictDAO) GetTypeListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]model.DictType, int64, error) {
-	var types []model.DictType
+func (d *DictDAO) GetTypeListContext(ctx context.Context, req pagination.PageRequest, keyword string, status *int8) ([]localmodel.DictType, int64, error) {
+	var types []localmodel.DictType
 	var total int64
 
-	query := d.dbWithContext(ctx).Model(&model.DictType{})
+	query := d.dbWithContext(ctx).Model(&localmodel.DictType{})
 	if keyword != "" {
 		query = query.Where("name LIKE ? OR code LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	}
@@ -57,9 +57,9 @@ func (d *DictDAO) GetTypeListContext(ctx context.Context, req pagination.PageReq
 	return types, total, result.Error
 }
 
-func (d *DictDAO) GetAllTypesContext(ctx context.Context, status *int8) ([]model.DictType, error) {
-	var types []model.DictType
-	query := d.dbWithContext(ctx).Model(&model.DictType{})
+func (d *DictDAO) GetAllTypesContext(ctx context.Context, status *int8) ([]localmodel.DictType, error) {
+	var types []localmodel.DictType
+	query := d.dbWithContext(ctx).Model(&localmodel.DictType{})
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -67,31 +67,31 @@ func (d *DictDAO) GetAllTypesContext(ctx context.Context, status *int8) ([]model
 	return types, result.Error
 }
 
-func (d *DictDAO) UpdateTypeContext(ctx context.Context, dictType *model.DictType) error {
+func (d *DictDAO) UpdateTypeContext(ctx context.Context, dictType *localmodel.DictType) error {
 	return d.dbWithContext(ctx).Save(dictType).Error
 }
 
 func (d *DictDAO) DeleteTypeContext(ctx context.Context, id uint) error {
 	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("dict_type_id = ?", id).Delete(&model.DictItem{}).Error; err != nil {
+		if err := tx.Where("dict_type_id = ?", id).Delete(&localmodel.DictItem{}).Error; err != nil {
 			return err
 		}
-		return tx.Delete(&model.DictType{}, id).Error
+		return tx.Delete(&localmodel.DictType{}, id).Error
 	})
 }
 
-func (d *DictDAO) CreateItemContext(ctx context.Context, item *model.DictItem) error {
+func (d *DictDAO) CreateItemContext(ctx context.Context, item *localmodel.DictItem) error {
 	return d.dbWithContext(ctx).Create(item).Error
 }
 
-func (d *DictDAO) GetItemByIDContext(ctx context.Context, id uint) (*model.DictItem, error) {
-	var item model.DictItem
+func (d *DictDAO) GetItemByIDContext(ctx context.Context, id uint) (*localmodel.DictItem, error) {
+	var item localmodel.DictItem
 	result := d.dbWithContext(ctx).First(&item, id)
 	return &item, result.Error
 }
 
-func (d *DictDAO) GetItemsByTypeIDContext(ctx context.Context, typeID uint, status *int8) ([]model.DictItem, error) {
-	var items []model.DictItem
+func (d *DictDAO) GetItemsByTypeIDContext(ctx context.Context, typeID uint, status *int8) ([]localmodel.DictItem, error) {
+	var items []localmodel.DictItem
 	query := d.dbWithContext(ctx).Where("dict_type_id = ?", typeID)
 	if status != nil {
 		query = query.Where("status = ?", *status)
@@ -100,7 +100,7 @@ func (d *DictDAO) GetItemsByTypeIDContext(ctx context.Context, typeID uint, stat
 	return items, result.Error
 }
 
-func (d *DictDAO) GetItemsByTypeCodeContext(ctx context.Context, code string, status *int8) ([]model.DictItem, error) {
+func (d *DictDAO) GetItemsByTypeCodeContext(ctx context.Context, code string, status *int8) ([]localmodel.DictItem, error) {
 	dictType, err := d.GetTypeByCodeContext(ctx, code)
 	if err != nil {
 		return nil, err
@@ -111,13 +111,13 @@ func (d *DictDAO) GetItemsByTypeCodeContext(ctx context.Context, code string, st
 // GetItemsByTypeIDsContext loads active items for many dict types in one
 // query, grouped by type id. Replaces the per-type loop that made /dicts/all
 // and /dicts?codes=… cost one query per code.
-func (d *DictDAO) GetItemsByTypeIDsContext(ctx context.Context, typeIDs []uint, status *int8) (map[uint][]model.DictItem, error) {
-	grouped := make(map[uint][]model.DictItem, len(typeIDs))
+func (d *DictDAO) GetItemsByTypeIDsContext(ctx context.Context, typeIDs []uint, status *int8) (map[uint][]localmodel.DictItem, error) {
+	grouped := make(map[uint][]localmodel.DictItem, len(typeIDs))
 	if len(typeIDs) == 0 {
 		return grouped, nil
 	}
 
-	var items []model.DictItem
+	var items []localmodel.DictItem
 	query := d.dbWithContext(ctx).Where("dict_type_id IN ?", typeIDs)
 	if status != nil {
 		query = query.Where("status = ?", *status)
@@ -135,12 +135,12 @@ func (d *DictDAO) GetItemsByTypeIDsContext(ctx context.Context, typeIDs []uint, 
 }
 
 // GetTypesByCodesContext loads dict types for many codes in one query.
-func (d *DictDAO) GetTypesByCodesContext(ctx context.Context, codes []string, status *int8) ([]model.DictType, error) {
+func (d *DictDAO) GetTypesByCodesContext(ctx context.Context, codes []string, status *int8) ([]localmodel.DictType, error) {
 	if len(codes) == 0 {
 		return nil, nil
 	}
-	var types []model.DictType
-	query := d.dbWithContext(ctx).Model(&model.DictType{}).Where("code IN ?", codes)
+	var types []localmodel.DictType
+	query := d.dbWithContext(ctx).Model(&localmodel.DictType{}).Where("code IN ?", codes)
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -152,14 +152,14 @@ func (d *DictDAO) GetTypesByCodesContext(ctx context.Context, codes []string, st
 // exactly two queries (types by code, then all their items), regardless of how
 // many codes are asked for. Codes with no matching type are absent from the
 // result; the caller distinguishes "unknown code" from "known code, no items".
-func (d *DictDAO) GetTypesWithItemsByCodesContext(ctx context.Context, codes []string) (map[string][]model.DictItem, error) {
+func (d *DictDAO) GetTypesWithItemsByCodesContext(ctx context.Context, codes []string) (map[string][]localmodel.DictItem, error) {
 	status := int8(1)
 	types, err := d.GetTypesByCodesContext(ctx, codes, &status)
 	if err != nil {
 		return nil, err
 	}
 	if len(types) == 0 {
-		return map[string][]model.DictItem{}, nil
+		return map[string][]localmodel.DictItem{}, nil
 	}
 
 	typeIDs := make([]uint, 0, len(types))
@@ -171,22 +171,22 @@ func (d *DictDAO) GetTypesWithItemsByCodesContext(ctx context.Context, codes []s
 		return nil, err
 	}
 
-	result := make(map[string][]model.DictItem, len(types))
+	result := make(map[string][]localmodel.DictItem, len(types))
 	for i := range types {
 		items := grouped[types[i].ID]
 		if items == nil {
-			items = []model.DictItem{}
+			items = []localmodel.DictItem{}
 		}
 		result[types[i].Code] = items
 	}
 	return result, nil
 }
 
-func (d *DictDAO) GetItemListContext(ctx context.Context, req pagination.PageRequest, typeID uint, keyword string, status *int8) ([]model.DictItem, int64, error) {
-	var items []model.DictItem
+func (d *DictDAO) GetItemListContext(ctx context.Context, req pagination.PageRequest, typeID uint, keyword string, status *int8) ([]localmodel.DictItem, int64, error) {
+	var items []localmodel.DictItem
 	var total int64
 
-	query := d.dbWithContext(ctx).Model(&model.DictItem{}).Where("dict_type_id = ?", typeID)
+	query := d.dbWithContext(ctx).Model(&localmodel.DictItem{}).Where("dict_type_id = ?", typeID)
 	if keyword != "" {
 		query = query.Where("label LIKE ? OR value LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	}
@@ -206,19 +206,19 @@ func (d *DictDAO) GetItemListContext(ctx context.Context, req pagination.PageReq
 	return items, total, result.Error
 }
 
-func (d *DictDAO) UpdateItemContext(ctx context.Context, item *model.DictItem) error {
+func (d *DictDAO) UpdateItemContext(ctx context.Context, item *localmodel.DictItem) error {
 	return d.dbWithContext(ctx).Save(item).Error
 }
 
 func (d *DictDAO) DeleteItemContext(ctx context.Context, id uint) error {
-	return d.dbWithContext(ctx).Delete(&model.DictItem{}, id).Error
+	return d.dbWithContext(ctx).Delete(&localmodel.DictItem{}, id).Error
 }
 
 func (d *DictDAO) DeleteItemsByTypeIDContext(ctx context.Context, typeID uint) error {
-	return d.dbWithContext(ctx).Where("dict_type_id = ?", typeID).Delete(&model.DictItem{}).Error
+	return d.dbWithContext(ctx).Where("dict_type_id = ?", typeID).Delete(&localmodel.DictItem{}).Error
 }
 
-func (d *DictDAO) GetTypeWithItemsContext(ctx context.Context, code string) (*model.DictType, error) {
+func (d *DictDAO) GetTypeWithItemsContext(ctx context.Context, code string) (*localmodel.DictType, error) {
 	dictType, err := d.GetTypeByCodeContext(ctx, code)
 	if err != nil {
 		return nil, err
@@ -237,7 +237,7 @@ func (d *DictDAO) GetTypeWithItemsContext(ctx context.Context, code string) (*mo
 // GetAllTypesWithItemsContext returns every active type with its active items
 // in two queries (all types, then all their items) instead of the 1+N loop it
 // replaces.
-func (d *DictDAO) GetAllTypesWithItemsContext(ctx context.Context) ([]model.DictType, error) {
+func (d *DictDAO) GetAllTypesWithItemsContext(ctx context.Context) ([]localmodel.DictType, error) {
 	status := int8(1)
 	types, err := d.GetAllTypesContext(ctx, &status)
 	if err != nil {

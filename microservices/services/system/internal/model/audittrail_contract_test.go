@@ -1,11 +1,12 @@
-package model_test
+package localmodel_test
 
 import (
 	"context"
 	"testing"
 
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
-	"github.com/go-admin-kit/services/system/internal/model"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -25,7 +26,7 @@ func TestMenuModelMatchesFixedTenantAuditTrailTarget(t *testing.T) {
 	sqlDB.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = sqlDB.Close() })
 
-	if err := db.AutoMigrate(&model.Menu{}, &model.AuditLog{}); err != nil {
+	if err := db.AutoMigrate(&model.Menu{}, &localmodel.AuditLog{}); err != nil {
 		t.Fatalf("AutoMigrate() error = %v", err)
 	}
 	if err := tenantscope.Register(db); err != nil {
@@ -43,7 +44,7 @@ func TestMenuModelMatchesFixedTenantAuditTrailTarget(t *testing.T) {
 		t.Fatalf("Create(menu) error = %v", err)
 	}
 
-	var log model.AuditLog
+	var log localmodel.AuditLog
 	if err := db.First(&log).Error; err != nil {
 		t.Fatalf("load audit log: %v", err)
 	}

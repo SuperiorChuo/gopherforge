@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	cachepkg "github.com/go-admin-kit/services/system/internal/pkg/cache"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
@@ -101,7 +101,7 @@ var (
 	ErrDictItemNotFound          = errors.New("dict item not found")
 )
 
-func (s *DictService) CreateTypeContext(ctx context.Context, req CreateDictTypeRequest) (*model.DictType, error) {
+func (s *DictService) CreateTypeContext(ctx context.Context, req CreateDictTypeRequest) (*localmodel.DictType, error) {
 	_, err := s.dictDAO.GetTypeByCodeContext(ctx, req.Code)
 	if err == nil {
 		return nil, ErrDictTypeCodeAlreadyExists
@@ -110,7 +110,7 @@ func (s *DictService) CreateTypeContext(ctx context.Context, req CreateDictTypeR
 		return nil, err
 	}
 
-	dictType := &model.DictType{
+	dictType := &localmodel.DictType{
 		Name:        req.Name,
 		Code:        req.Code,
 		Description: req.Description,
@@ -128,7 +128,7 @@ func (s *DictService) CreateTypeContext(ctx context.Context, req CreateDictTypeR
 	return dictType, nil
 }
 
-func (s *DictService) GetTypeByIDContext(ctx context.Context, id uint) (*model.DictType, error) {
+func (s *DictService) GetTypeByIDContext(ctx context.Context, id uint) (*localmodel.DictType, error) {
 	dictType, err := s.dictDAO.GetTypeByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -139,7 +139,7 @@ func (s *DictService) GetTypeByIDContext(ctx context.Context, id uint) (*model.D
 	return dictType, nil
 }
 
-func (s *DictService) GetTypeByCodeContext(ctx context.Context, code string) (*model.DictType, error) {
+func (s *DictService) GetTypeByCodeContext(ctx context.Context, code string) (*localmodel.DictType, error) {
 	dictType, err := s.dictDAO.GetTypeByCodeContext(ctx, code)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -150,16 +150,16 @@ func (s *DictService) GetTypeByCodeContext(ctx context.Context, code string) (*m
 	return dictType, nil
 }
 
-func (s *DictService) GetTypeListContext(ctx context.Context, req DictTypeListRequest) ([]model.DictType, int64, error) {
+func (s *DictService) GetTypeListContext(ctx context.Context, req DictTypeListRequest) ([]localmodel.DictType, int64, error) {
 	return s.dictDAO.GetTypeListContext(ctx, req.PageRequest, req.Keyword, req.Status)
 }
 
-func (s *DictService) GetAllTypesContext(ctx context.Context) ([]model.DictType, error) {
+func (s *DictService) GetAllTypesContext(ctx context.Context) ([]localmodel.DictType, error) {
 	status := int8(1)
 	return s.dictDAO.GetAllTypesContext(ctx, &status)
 }
 
-func (s *DictService) UpdateTypeContext(ctx context.Context, id uint, req UpdateDictTypeRequest) (*model.DictType, error) {
+func (s *DictService) UpdateTypeContext(ctx context.Context, id uint, req UpdateDictTypeRequest) (*localmodel.DictType, error) {
 	dictType, err := s.dictDAO.GetTypeByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -194,7 +194,7 @@ func (s *DictService) DeleteTypeContext(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (s *DictService) CreateItemContext(ctx context.Context, req CreateDictItemRequest) (*model.DictItem, error) {
+func (s *DictService) CreateItemContext(ctx context.Context, req CreateDictItemRequest) (*localmodel.DictItem, error) {
 	_, err := s.dictDAO.GetTypeByIDContext(ctx, req.DictTypeID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -203,7 +203,7 @@ func (s *DictService) CreateItemContext(ctx context.Context, req CreateDictItemR
 		return nil, err
 	}
 
-	item := &model.DictItem{
+	item := &localmodel.DictItem{
 		DictTypeID: req.DictTypeID,
 		Label:      req.Label,
 		Value:      req.Value,
@@ -223,7 +223,7 @@ func (s *DictService) CreateItemContext(ctx context.Context, req CreateDictItemR
 	return item, nil
 }
 
-func (s *DictService) GetItemByIDContext(ctx context.Context, id uint) (*model.DictItem, error) {
+func (s *DictService) GetItemByIDContext(ctx context.Context, id uint) (*localmodel.DictItem, error) {
 	item, err := s.dictDAO.GetItemByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -234,12 +234,12 @@ func (s *DictService) GetItemByIDContext(ctx context.Context, id uint) (*model.D
 	return item, nil
 }
 
-func (s *DictService) GetItemsByTypeIDContext(ctx context.Context, typeID uint) ([]model.DictItem, error) {
+func (s *DictService) GetItemsByTypeIDContext(ctx context.Context, typeID uint) ([]localmodel.DictItem, error) {
 	status := int8(1)
 	return s.dictDAO.GetItemsByTypeIDContext(ctx, typeID, &status)
 }
 
-func (s *DictService) GetItemsByTypeCodeContext(ctx context.Context, code string) ([]model.DictItem, error) {
+func (s *DictService) GetItemsByTypeCodeContext(ctx context.Context, code string) ([]localmodel.DictItem, error) {
 	dictType, err := s.GetTypeByCodeContext(ctx, code)
 	if err != nil {
 		return nil, err
@@ -248,11 +248,11 @@ func (s *DictService) GetItemsByTypeCodeContext(ctx context.Context, code string
 	return s.dictDAO.GetItemsByTypeIDContext(ctx, dictType.ID, &status)
 }
 
-func (s *DictService) GetItemListContext(ctx context.Context, req DictItemListRequest) ([]model.DictItem, int64, error) {
+func (s *DictService) GetItemListContext(ctx context.Context, req DictItemListRequest) ([]localmodel.DictItem, int64, error) {
 	return s.dictDAO.GetItemListContext(ctx, req.PageRequest, req.TypeID, req.Keyword, req.Status)
 }
 
-func (s *DictService) UpdateItemContext(ctx context.Context, id uint, req UpdateDictItemRequest) (*model.DictItem, error) {
+func (s *DictService) UpdateItemContext(ctx context.Context, id uint, req UpdateDictItemRequest) (*localmodel.DictItem, error) {
 	item, err := s.dictDAO.GetItemByIDContext(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -295,7 +295,7 @@ func (s *DictService) DeleteItemContext(ctx context.Context, id uint) error {
 
 // GetDictDataContext returns one code's active items, served from cache when
 // warm. GET /dicts/:code.
-func (s *DictService) GetDictDataContext(ctx context.Context, code string) ([]model.DictItem, error) {
+func (s *DictService) GetDictDataContext(ctx context.Context, code string) ([]localmodel.DictItem, error) {
 	resolved, err := s.resolveDictCodesContext(ctx, []string{code})
 	if err != nil {
 		return nil, err
@@ -311,15 +311,15 @@ func (s *DictService) GetDictDataContext(ctx context.Context, code string) ([]mo
 // GET /dicts?codes=a,b,c. Warm cache costs zero queries; a cold or partial
 // cache costs two queries total (types by code, then their items) instead of
 // the two-per-code it replaces. Unknown codes are omitted, as before.
-func (s *DictService) GetMultipleDictDataContext(ctx context.Context, codes []string) (map[string][]model.DictItem, error) {
+func (s *DictService) GetMultipleDictDataContext(ctx context.Context, codes []string) (map[string][]localmodel.DictItem, error) {
 	return s.resolveDictCodesContext(ctx, codes)
 }
 
 // resolveDictCodesContext is the shared cache-aside path for the by-code
 // endpoints. Codes absent from the returned map have no active dict type.
-func (s *DictService) resolveDictCodesContext(ctx context.Context, codes []string) (map[string][]model.DictItem, error) {
+func (s *DictService) resolveDictCodesContext(ctx context.Context, codes []string) (map[string][]localmodel.DictItem, error) {
 	wanted := normalizeDictCodes(codes)
-	result := make(map[string][]model.DictItem, len(wanted))
+	result := make(map[string][]localmodel.DictItem, len(wanted))
 	if len(wanted) == 0 {
 		return result, nil
 	}
@@ -368,7 +368,7 @@ func (s *DictService) resolveDictCodesContext(ctx context.Context, codes []strin
 
 // GetAllDictDataContext returns every active code with its active items.
 // GET /dicts/all. Two queries on a cold cache (down from 1+N), zero when warm.
-func (s *DictService) GetAllDictDataContext(ctx context.Context) (map[string][]model.DictItem, error) {
+func (s *DictService) GetAllDictDataContext(ctx context.Context) (map[string][]localmodel.DictItem, error) {
 	tenantID := tenant.FromContextOrDefault(ctx)
 	cache := s.cacheService()
 	if cached, ok := cache.GetAllDictDataContext(ctx, tenantID); ok {
@@ -380,7 +380,7 @@ func (s *DictService) GetAllDictDataContext(ctx context.Context) (map[string][]m
 		return nil, err
 	}
 
-	result := make(map[string][]model.DictItem, len(types))
+	result := make(map[string][]localmodel.DictItem, len(types))
 	for _, t := range types {
 		result[t.Code] = t.Items
 	}

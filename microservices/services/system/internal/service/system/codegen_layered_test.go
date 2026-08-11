@@ -15,7 +15,7 @@ func TestCodegenGenerateTargetsSystemServiceLayers(t *testing.T) {
 	}
 	byPath := filesByPath(t, files)
 	want := map[string]string{
-		"microservices/services/system/internal/model/assets.go":              "package model",
+		"microservices/services/system/internal/model/assets.go":              "package localmodel",
 		"microservices/services/system/internal/dao/system/assets.go":         "package system",
 		"microservices/services/system/internal/service/system/assets.go":     "package system",
 		"microservices/services/system/internal/api/system/assets.go":         "package system",
@@ -129,7 +129,7 @@ func TestCodegenSubInputExcludesManagedModelFields(t *testing.T) {
 	if !strings.Contains(service, "type OrdersItemInput struct") || !strings.Contains(service, "func toOrdersItems(") {
 		t.Fatalf("safe child input mapping missing:\n%s", service)
 	}
-	if strings.Contains(service, "Items []model.DemoOrderItem") {
+	if strings.Contains(service, "Items []localmodel.DemoOrderItem") {
 		t.Fatalf("child model leaked into request input:\n%s", service)
 	}
 }

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 )
 
 func TestDictCodeCacheRoundTripsEntries(t *testing.T) {
@@ -14,7 +14,7 @@ func TestDictCodeCacheRoundTripsEntries(t *testing.T) {
 	ctx := context.Background()
 
 	entries := map[string]DictEntry{
-		"gender": {Found: true, Items: []model.DictItem{{ID: 1, DictTypeID: 7, Label: "男", Value: "1"}}},
+		"gender": {Found: true, Items: []localmodel.DictItem{{ID: 1, DictTypeID: 7, Label: "男", Value: "1"}}},
 		// A known-absent code is cached too, so a bogus code stops hitting the
 		// database on every request.
 		"missing": {Found: false},
@@ -53,12 +53,12 @@ func TestDictCacheIsolatesTenants(t *testing.T) {
 	ctx := context.Background()
 
 	if err := service.SetDictCodesContext(ctx, 1, map[string]DictEntry{
-		"gender": {Found: true, Items: []model.DictItem{{ID: 1, Label: "tenant-one"}}},
+		"gender": {Found: true, Items: []localmodel.DictItem{{ID: 1, Label: "tenant-one"}}},
 	}); err != nil {
 		t.Fatalf("SetDictCodesContext(tenant 1): %v", err)
 	}
 	if err := service.SetDictCodesContext(ctx, 2, map[string]DictEntry{
-		"gender": {Found: true, Items: []model.DictItem{{ID: 2, Label: "tenant-two"}}},
+		"gender": {Found: true, Items: []localmodel.DictItem{{ID: 2, Label: "tenant-two"}}},
 	}); err != nil {
 		t.Fatalf("SetDictCodesContext(tenant 2): %v", err)
 	}
@@ -83,7 +83,7 @@ func TestDictAllCacheRoundTripsPerTenant(t *testing.T) {
 	service := NewCacheService()
 	ctx := context.Background()
 
-	data := map[string][]model.DictItem{
+	data := map[string][]localmodel.DictItem{
 		"gender": {{ID: 1, Label: "男", Value: "1"}},
 		"status": {{ID: 2, Label: "启用", Value: "1"}},
 	}
@@ -106,16 +106,16 @@ func TestDelAllDictDataContextClearsEveryTenantAndKind(t *testing.T) {
 	ctx := context.Background()
 
 	if err := service.SetDictCodesContext(ctx, 1, map[string]DictEntry{
-		"gender": {Found: true, Items: []model.DictItem{{ID: 1}}},
+		"gender": {Found: true, Items: []localmodel.DictItem{{ID: 1}}},
 	}); err != nil {
 		t.Fatalf("SetDictCodesContext(tenant 1): %v", err)
 	}
 	if err := service.SetDictCodesContext(ctx, 2, map[string]DictEntry{
-		"gender": {Found: true, Items: []model.DictItem{{ID: 2}}},
+		"gender": {Found: true, Items: []localmodel.DictItem{{ID: 2}}},
 	}); err != nil {
 		t.Fatalf("SetDictCodesContext(tenant 2): %v", err)
 	}
-	if err := service.SetAllDictDataContext(ctx, 1, map[string][]model.DictItem{"gender": {{ID: 1}}}); err != nil {
+	if err := service.SetAllDictDataContext(ctx, 1, map[string][]localmodel.DictItem{"gender": {{ID: 1}}}); err != nil {
 		t.Fatalf("SetAllDictDataContext(): %v", err)
 	}
 

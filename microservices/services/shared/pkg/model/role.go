@@ -1,3 +1,5 @@
+// Package model 提供跨服务共享的核心数据模型（多租户底座实体）。
+
 package model
 
 import "time"

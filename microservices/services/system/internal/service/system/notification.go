@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/shared/pkg/logger"
-	"github.com/go-admin-kit/services/system/internal/model"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
 	"github.com/google/uuid"
 )
@@ -47,7 +47,7 @@ func NewNotificationBroadcaster() *NotificationBroadcaster {
 	}
 }
 
-func NotificationMessageFromNotice(notice *model.Notice) NotificationMessage {
+func NotificationMessageFromNotice(notice *localmodel.Notice) NotificationMessage {
 	if notice == nil {
 		return NotificationMessage{}
 	}
