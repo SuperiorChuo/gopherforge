@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 
 	"github.com/go-admin-kit/services/identity/internal/model"
@@ -42,7 +43,7 @@ func (d *RoleDAO) GetRoleByIDContext(ctx context.Context, id uint) (*model.Role,
 func (d *RoleDAO) GetRoleByCodeContext(ctx context.Context, code string) (*model.Role, error) {
 	var role model.Role
 	q := d.dbWithContext(ctx).Where("code = ?", code)
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+	if tid := tenant.FromContext(ctx); tid > 0 {
 		q = q.Where("tenant_id = ?", tid)
 	}
 	result := q.First(&role)
@@ -54,7 +55,7 @@ func (d *RoleDAO) GetRoleListContext(ctx context.Context, req pagination.PageReq
 	var total int64
 
 	query := d.dbWithContext(ctx).Model(&model.Role{})
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+	if tid := tenant.FromContext(ctx); tid > 0 {
 		query = query.Where("roles.tenant_id = ?", tid)
 	}
 	if keyword != "" {
@@ -81,7 +82,7 @@ func (d *RoleDAO) GetRoleListContext(ctx context.Context, req pagination.PageReq
 func (d *RoleDAO) GetAllRolesContext(ctx context.Context) ([]model.Role, error) {
 	var roles []model.Role
 	q := d.dbWithContext(ctx).Model(&model.Role{})
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+	if tid := tenant.FromContext(ctx); tid > 0 {
 		q = q.Where("roles.tenant_id = ?", tid)
 	}
 	result := q.

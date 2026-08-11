@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/go-admin-kit/services/identity/internal/model"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -24,7 +25,7 @@ func (d *UserDAO) dbWithContext(ctx context.Context) *gorm.DB {
 
 func (d *UserDAO) GetUserByUsernameContext(ctx context.Context, username string) (*model.User, error) {
 	q := d.dbWithContext(ctx).Where("username = ?", username)
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+	if tid := tenant.FromContext(ctx); tid > 0 {
 		q = q.Where("tenant_id = ?", tid)
 	}
 	var user model.User
@@ -46,7 +47,7 @@ func (d *UserDAO) GetUserWithRolesContext(ctx context.Context, id uint) (*model.
 
 func (d *UserDAO) GetUserByEmailContext(ctx context.Context, email string) (*model.User, error) {
 	q := d.dbWithContext(ctx).Where("email = ?", email)
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+	if tid := tenant.FromContext(ctx); tid > 0 {
 		q = q.Where("tenant_id = ?", tid)
 	}
 	var user model.User

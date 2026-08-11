@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -33,7 +34,7 @@ func (d *PostDAO) GetByIDContext(ctx context.Context, id uint) (*model.Post, err
 func (d *PostDAO) GetByCodeContext(ctx context.Context, code string) (*model.Post, error) {
 	var post model.Post
 	q := d.dbWithContext(ctx).Where("code = ?", code)
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+	if tid := tenant.FromContext(ctx); tid > 0 {
 		q = q.Where("tenant_id = ?", tid)
 	}
 	result := q.First(&post)
@@ -45,7 +46,7 @@ func (d *PostDAO) GetListContext(ctx context.Context, req pagination.PageRequest
 	var total int64
 
 	query := d.dbWithContext(ctx).Model(&model.Post{})
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+	if tid := tenant.FromContext(ctx); tid > 0 {
 		query = query.Where("sys_posts.tenant_id = ?", tid)
 	}
 	if keyword != "" {
@@ -69,7 +70,7 @@ func (d *PostDAO) GetListContext(ctx context.Context, req pagination.PageRequest
 func (d *PostDAO) GetAllContext(ctx context.Context, status *int8) ([]model.Post, error) {
 	var posts []model.Post
 	query := d.dbWithContext(ctx).Model(&model.Post{})
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+	if tid := tenant.FromContext(ctx); tid > 0 {
 		query = query.Where("sys_posts.tenant_id = ?", tid)
 	}
 	if status != nil {

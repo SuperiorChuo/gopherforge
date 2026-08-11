@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/go-admin-kit/services/auth/internal/model"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -133,25 +134,8 @@ func (d *AuditLogDAO) ListLogsContext(ctx context.Context, req AuditLogListQuery
 }
 
 func auditTenantID(ctx context.Context, fallback uint) uint {
-	if ctx != nil {
-		switch id := ctx.Value("tenant_id").(type) {
-		case uint:
-			if id > 0 {
-				return id
-			}
-		case uint64:
-			if id > 0 {
-				return uint(id)
-			}
-		case int:
-			if id > 0 {
-				return uint(id)
-			}
-		case int64:
-			if id > 0 {
-				return uint(id)
-			}
-		}
+	if id := tenant.FromContext(ctx); id > 0 {
+		return id
 	}
 	if fallback > 0 {
 		return fallback

@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 )
 
@@ -32,7 +33,7 @@ func (d *DepartmentDAO) GetByIDContext(ctx context.Context, id uint) (*model.Dep
 func (d *DepartmentDAO) GetByCodeContext(ctx context.Context, code string) (*model.Department, error) {
 	var dept model.Department
 	q := d.dbWithContext(ctx).Where("code = ?", code)
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+	if tid := tenant.FromContext(ctx); tid > 0 {
 		q = q.Where("tenant_id = ?", tid)
 	}
 	result := q.First(&dept)
@@ -44,7 +45,7 @@ func (d *DepartmentDAO) GetListContext(ctx context.Context, req pagination.PageR
 	var total int64
 
 	query := d.dbWithContext(ctx).Model(&model.Department{})
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+	if tid := tenant.FromContext(ctx); tid > 0 {
 		query = query.Where("departments.tenant_id = ?", tid)
 	}
 	if keyword != "" {
@@ -69,7 +70,7 @@ func (d *DepartmentDAO) GetListContext(ctx context.Context, req pagination.PageR
 func (d *DepartmentDAO) GetAllContext(ctx context.Context, status *int8) ([]model.Department, error) {
 	var depts []model.Department
 	query := d.dbWithContext(ctx).Model(&model.Department{})
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+	if tid := tenant.FromContext(ctx); tid > 0 {
 		query = query.Where("departments.tenant_id = ?", tid)
 	}
 	if status != nil {

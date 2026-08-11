@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
 
 	sharedDAO "github.com/go-admin-kit/services/identity/internal/dao"
@@ -43,7 +44,7 @@ func (d *UserDAO) GetUserListContext(ctx context.Context, req pagination.PageReq
 	query := d.dbWithContext(authz.EnableDataScope(ctx, dataScope)).Model(&model.User{})
 
 	// Multi-tenant isolation (explicit; GORM tenant plugin also applies when registered).
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+	if tid := tenant.FromContext(ctx); tid > 0 {
 		query = query.Where("users.tenant_id = ?", tid)
 	}
 
@@ -123,7 +124,7 @@ func (d *UserDAO) ExportUsersPageContext(
 		Select(exportUserColumns)
 
 	// Multi-tenant isolation (explicit; GORM tenant plugin also applies when registered).
-	if tid, ok := ctx.Value("tenant_id").(uint); ok && tid > 0 {
+	if tid := tenant.FromContext(ctx); tid > 0 {
 		query = query.Where("users.tenant_id = ?", tid)
 	}
 
