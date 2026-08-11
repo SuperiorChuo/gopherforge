@@ -1,3 +1,5 @@
+// Package pagination provides pagination query parsing and GORM pagination application.
+
 package pagination
 
 import (

@@ -1,3 +1,5 @@
+// Package response provides a unified HTTP response envelope and machine-readable error codes.
+
 package response
 
 import "net/http"

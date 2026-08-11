@@ -1,3 +1,5 @@
+// Package mailer provides SMTP email sending.
+
 package mailer
 
 import (

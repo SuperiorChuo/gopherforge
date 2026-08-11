@@ -1,3 +1,5 @@
+// Package logger provides zap-based structured logging initialization and field helpers.
+
 package logger
 
 import (

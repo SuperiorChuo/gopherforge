@@ -1,3 +1,5 @@
+// Package consoleauth parses the console session cookie/token injected by gateway ForwardAuth.
+
 package consoleauth
 
 import (

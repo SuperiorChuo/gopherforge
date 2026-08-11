@@ -1,3 +1,5 @@
+// Package errors defines application error types and HTTP status mapping (AppError, sentinel errors).
+
 package errors
 
 import (

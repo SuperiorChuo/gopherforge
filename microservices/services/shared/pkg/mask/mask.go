@@ -1,3 +1,5 @@
+// Package mask provides sensitive-field masking (struct tag driven).
+
 package mask
 
 import (
