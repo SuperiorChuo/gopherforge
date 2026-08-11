@@ -88,7 +88,7 @@ spec:
     spec:
       containers:
       - name: postgres
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:0.8.6-pg18
         ports: [{ containerPort: 5432 }]
         envFrom: [{ secretRef: { name: go-admin-kit-secrets } }]
         volumeMounts: [{ name: data, mountPath: /var/lib/postgresql/data }]

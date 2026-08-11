@@ -42,6 +42,17 @@ jobs:
           [ "$hit" = 0 ] && echo "hygiene clean"
           exit $hit
 
+      - name: Public migration boundary
+        run: |
+          set -euo pipefail
+          forbidden='(ai|cc|crm|im|mp|notify|pay|ticket|vis)_svc'
+          if rg -n "CREATE SCHEMA IF NOT EXISTS ${forbidden}|DROP SCHEMA IF EXISTS ${forbidden}" \
+            microservices/services/monitor/migrations; then
+            echo "公开 micro 迁移不得包含业务域 schema" >&2
+            exit 1
+          fi
+          echo "public migration boundary clean"
+
   workspace:
     name: Micro Workspace
     runs-on: ubuntu-latest
@@ -239,6 +250,7 @@ jobs:
           cache-dependency-path: microservices/web/package-lock.json
       - run: npm ci
       - run: npm audit --audit-level=high
+      - run: npm run lint:i18n
       - run: npm run lint
       - run: npm run build
 

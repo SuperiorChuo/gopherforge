@@ -258,6 +258,7 @@ jobs:
           cache: npm
           cache-dependency-path: microservices/web/package-lock.json
       - run: npm ci
+      - run: npm run lint:i18n
       - run: npm run lint
       - run: npm run build
 

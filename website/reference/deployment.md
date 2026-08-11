@@ -4,7 +4,7 @@
 
 面向把 **GopherForge 微服务版** 部署到一台 Linux 服务器的运维/自部署用户。本地开发联调请看 [`LOCAL_SETUP.md`](https://github.com/SuperiorChuo/gopherforge/blob/main/LOCAL_SETUP.md)，本文只讲**生产上线**。要上 Kubernetes（k3s / 云托管集群）的看 [`deploy-k8s.md`](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/deploy-k8s.md)。
 
-> 当前正式版：`v0.4.0`（[Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.4.0)）。0.x 期间 API 和数据库表结构可能变化；上线前请完成备份、迁移兼容性检查和回滚演练，升级注意事项见[版本升级](/reference/upgrade)。
+> 当前正式版：`v0.5.0`（[Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.5.0)）。0.x 期间 API 和数据库表结构可能变化；上线前请完成备份、迁移兼容性检查和回滚演练，升级注意事项见[版本升级](/reference/upgrade)。
 
 ---
 

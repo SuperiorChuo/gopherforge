@@ -38,7 +38,7 @@ features:
 ---
 
 ::: tip 当前发布线
-当前文档对应 `v0.4.0` 正式版（[Release notes](/changelog)）。项目仍处于 0.x 阶段，API、数据库表结构和生成代码格式可能变化；在线 Demo 使用纯前端假数据，完整能力请按[快速上手](/guide/getting-started)启动本地栈，或直接[拉官方镜像部署](/reference/deployment)。
+当前文档对应 `v0.5.0` 正式版（[Release notes](/changelog)）。项目仍处于 0.x 阶段，API、数据库表结构和生成代码格式可能变化；在线 Demo 使用纯前端假数据，完整能力请按[快速上手](/guide/getting-started)启动本地栈，或直接[拉官方镜像部署](/reference/deployment)。
 :::
 
 ## 文档导航

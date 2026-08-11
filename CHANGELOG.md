@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### 修复
+
+- **公开迁移边界**：收窄 `000070_business_schema_split.sql` 为公开线实际提供的 BPM/Monitor 基础设施 schema，阻止 AI、CRM、IM 等业务域迁移泄漏到脚手架；CI 新增业务 schema 越界门禁。
+- **BPM 通知配置契约**：通知通道未配置 `NOTIFY_API_BASE` 时不再发出无关的 `NOTIFY_INTERNAL_TOKEN` 生产告警。
+- **安全镜像构建**：monitor 镜像扫描改用 `microservices/services` 根上下文，修复 Dockerfile 依赖文件找不到导致的 Security Scan 失败。
+
+### 安全
+
+- **依赖修复**：`tools/dbdoc` 的 `golang.org/x/text` 升级至 `v0.40.0`，覆盖 Trivy 报告的已修复版本门槛。
+
+### 文档
+
+- **版本与运行时口径**：文档、示例与部署页统一指向已发布的 `v0.5.0`，并将 PG/Redis 版本更新为当前 PG18/Redis8 基线。
+
 ## [0.5.0] - 2026-08-09
 
 ### 新增

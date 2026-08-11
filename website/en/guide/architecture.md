@@ -56,9 +56,9 @@ Security conventions: host ports bind loopback only, all external traffic goes t
 
 ## Data layer
 
-- **PostgreSQL 16** (pgvector image), one shared database, tables prefixed per service.
+- **PostgreSQL 18** (pgvector image), one shared database, tables prefixed per service.
 - **Single migration source of truth**: versioned goose SQL under `services/monitor/migrations/`, executed by the migrate container; experimental services (e.g. bpm) self-manage tables via GORM AutoMigrate.
-- **Redis 7**: rate limiting, online users, token blacklist, permission cache.
+- **Redis 8**: rate limiting, online users, token blacklist, permission cache.
 - **NATS JetStream**: decouples login events from auth to audit (durable consumption).
 
 ## Frontend

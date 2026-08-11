@@ -303,7 +303,7 @@ const serverInfo = {
 }
 
 const mysqlInfo = {
-  version: 'PostgreSQL 16.3', uptime_seconds: 1728000,
+  version: 'PostgreSQL 18.3', uptime_seconds: 1728000,
   database: { host: 'postgres', port: 5432, name: 'go_admin_kit', charset: 'UTF8', collation: '', table_count: 32, size_bytes: 268435456, size: '256.0 MB' },
   connections: { max_open_conns: 50, open_conns: 8, in_use: 2, idle: 6, wait_count: 0, wait_duration: '0s', threads_connected: 8, threads_running: 2, max_connections: 100, max_used_connections: 12, total_connections: 8 },
   queries: { questions: 182340, qps: 10.5, slow_queries: 0, selects: 1203400, inserts: 5230, updates: 3120, deletes: 89 },

@@ -17,7 +17,7 @@
 | 架构形态 | **微服务**（Traefik + 7 服务） | 单体 | 单体 | 微服务（Java 生态迁移风格，Nacos/Seata） | 微服务（go-zero） |
 | 后端 | Go + Gin + GORM | Go + Gin + GORM | Go + Gin + GORM | Go/Java 混合生态 | Go + go-zero |
 | 前端 | **React 19 + Ant Design 6** | Vue 3 + Element Plus | Vue 3 + Element Plus | Vue 3 + Element Plus | Vue 3 + Element Plus |
-| 数据库 | PostgreSQL 16 | MySQL 为主 | MySQL 为主 | MySQL 为主 | MySQL / PostgreSQL |
+| 数据库 | PostgreSQL 18 | MySQL 为主 | MySQL 为主 | MySQL 为主 | MySQL / PostgreSQL |
 | 网关与鉴权 | Traefik ForwardAuth 统一验签，服务只信网关注入头 | 应用内中间件 | 应用内中间件 | 独立网关组件 | go-zero gateway |
 | 多租户 | ✅ 共享库 + tenant_id，登录带租户码 | 插件/自行扩展 | ❌ | 企业版 | ✅ |
 | RBAC + 数据范围 | ✅（全部/部门及以下/仅本人） | ✅ | ✅ | ✅ | ✅ |

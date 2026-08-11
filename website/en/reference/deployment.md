@@ -2,7 +2,7 @@
 
 The full production guide is maintained in Chinese: [生产部署（中文）](/reference/deployment) · [source on GitHub](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/deployment.md).
 
-> Current release: `v0.4.0` ([Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.4.0)). It is a 0.x release: APIs and database schemas may change. Complete backups, migration compatibility checks and a rollback rehearsal before production use. See the [upgrade notes](/en/reference/upgrade).
+> Current release: `v0.5.0` ([Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.5.0)). It is a 0.x release: APIs and database schemas may change. Complete backups, migration compatibility checks and a rollback rehearsal before production use. See the [upgrade notes](/en/reference/upgrade).
 
 ## Quick start with official images (v0.2.0+, recommended)
 

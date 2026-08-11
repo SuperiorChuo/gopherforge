@@ -38,8 +38,8 @@
   <img src="https://img.shields.io/badge/Gin-1.12-08A4E0?logo=go&logoColor=white" alt="Gin" />
   <img src="https://img.shields.io/badge/GORM-1.31-00ADD8?logo=go&logoColor=white" alt="GORM" />
   <img src="https://img.shields.io/badge/🔐_JWT-v5-000000?logo=jsonwebtokens&logoColor=white" alt="JWT" />
-  <img src="https://img.shields.io/badge/🐘_PostgreSQL-16-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/🔴_Redis-7-DC382D?logo=redis&logoColor=white" alt="Redis" />
+  <img src="https://img.shields.io/badge/🐘_PostgreSQL-18-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/🔴_Redis-8-DC382D?logo=redis&logoColor=white" alt="Redis" />
   <img src="https://img.shields.io/badge/goose-migrations-2E8B57?logo=databricks&logoColor=white" alt="goose" />
 </p>
 
@@ -103,8 +103,8 @@
 | ORM | **GORM** + **pgx** | PostgreSQL 访问 |
 | 迁移 | **goose** | 版本化 SQL 迁移 |
 | 认证 | **JWT v5** | Access / Refresh、吊销与轮转 |
-| 缓存 | **Redis 7** | 限流、在线用户、黑名单等 |
-| 数据库 | **PostgreSQL 16** | 主存储（pgvector 镜像便于扩展） |
+| 缓存 | **Redis 8** | 限流、在线用户、黑名单等 |
+| 数据库 | **PostgreSQL 18** | 主存储（pgvector 镜像便于扩展） |
 
 ### ⚛️ 前端
 
@@ -190,8 +190,8 @@ flowchart LR
     GW --> AUTH & IDT & SYS & AUD & FILE & MON & BPM
 
     subgraph INFRA["🗄️ 共享基础设施"]
-        PG[("🐘 PostgreSQL 16 + pgvector")]
-        RD[("🔴 Redis 7")]
+        PG[("🐘 PostgreSQL 18 + pgvector")]
+        RD[("🔴 Redis 8")]
         NATS["📡 NATS JetStream"]
         MC["📦 MinIO"]
     end
@@ -254,7 +254,7 @@ cd .. && make compose-up      # 自动：共享网络 → infra 数据栈 → �
 ```bash
 cd microservices
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.4.0          # 用最新正式版号（见 Release 徽章）
+export IMAGE_TAG=v0.5.0          # 用最新正式版号（见 Release 徽章）
 docker compose pull && docker compose up -d --no-build
 ```
 

@@ -60,9 +60,9 @@ GopherForge 采用**真微服务架构**：后端按域拆分为 7 个 Go 服务
 
 ## 数据层
 
-- **PostgreSQL 16**（pgvector 镜像）单实例共享库，各服务表按前缀隔离。
+- **PostgreSQL 18**（pgvector 镜像）单实例共享库，各服务表按前缀隔离。
 - **迁移单一真源**：goose 版本化 SQL 统一放在 `services/monitor/migrations/`，由 migrate 容器在启动时执行；实验线服务（如 bpm）的自管表走 GORM AutoMigrate（详见 [MIGRATIONS 约定](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/development/MIGRATIONS.md)）。
-- **Redis 7**：限流、在线用户、令牌黑名单、权限缓存。
+- **Redis 8**：限流、在线用户、令牌黑名单、权限缓存。
 - **NATS JetStream**：登录事件从 auth 解耦到 audit（持久消费，服务重启不丢）。
 
 ## 前端

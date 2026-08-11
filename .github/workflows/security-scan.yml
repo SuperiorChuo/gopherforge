@@ -233,7 +233,7 @@ jobs:
       matrix:
         include:
           - service: monitor-service
-            context: microservices/services/monitor
+            context: microservices/services
             dockerfile: microservices/services/monitor/Dockerfile
           - service: frontend
             context: microservices/web

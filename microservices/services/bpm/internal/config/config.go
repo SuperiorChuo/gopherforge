@@ -53,23 +53,23 @@ func Load() Config {
 
 func build() Config {
 	return Config{
-		AppPort:             getenv("APP_PORT", "8096"),
-		AppEnv:              getenv("APP_ENV", "development"),
-		DBHost:              getenv("DB_HOST", "127.0.0.1"),
-		DBPort:              getenv("DB_PORT", "5432"),
-		DBUser:              getenv("DB_USER", "postgres"),
-		DBPassword:          getenv("DB_PASSWORD", "123456"),
-		DBName:              getenv("DB_NAME", "go_admin_kit"),
-		DBSSLMode:           getenv("DB_SSLMODE", "disable"),
-		JWTSecret:           getenv("JWT_SECRET", "local-dev-secret-change-me-32-chars"),
-		InternalToken:       getenv("BPM_INTERNAL_TOKEN", ""),
-		CallbackToken:       getenv("BPM_CALLBACK_TOKEN", ""),
-		NATSURL:             getenv("NATS_URL", ""),
-		NotifyAPIBase:       getenv("NOTIFY_API_BASE", "http://go-admin-kit-notify:8095"),
-		NotifyInternalToken: getenv("NOTIFY_INTERNAL_TOKEN", ""),
+		AppPort:               getenv("APP_PORT", "8096"),
+		AppEnv:                getenv("APP_ENV", "development"),
+		DBHost:                getenv("DB_HOST", "127.0.0.1"),
+		DBPort:                getenv("DB_PORT", "5432"),
+		DBUser:                getenv("DB_USER", "postgres"),
+		DBPassword:            getenv("DB_PASSWORD", "123456"),
+		DBName:                getenv("DB_NAME", "go_admin_kit"),
+		DBSSLMode:             getenv("DB_SSLMODE", "disable"),
+		JWTSecret:             getenv("JWT_SECRET", "local-dev-secret-change-me-32-chars"),
+		InternalToken:         getenv("BPM_INTERNAL_TOKEN", ""),
+		CallbackToken:         getenv("BPM_CALLBACK_TOKEN", ""),
+		NATSURL:               getenv("NATS_URL", ""),
+		NotifyAPIBase:         getenv("NOTIFY_API_BASE", "http://go-admin-kit-notify:8095"),
+		NotifyInternalToken:   getenv("NOTIFY_INTERNAL_TOKEN", ""),
 		IdentityAPIBase:       getenv("IDENTITY_API_BASE", "http://go-admin-kit-identity:8083"),
 		IdentityInternalToken: getenv("INTERNAL_TOKEN", ""),
-		TimeoutScanInterval: getenvDuration("BPM_TIMEOUT_SCAN_INTERVAL", 5*time.Minute),
+		TimeoutScanInterval:   getenvDuration("BPM_TIMEOUT_SCAN_INTERVAL", 5*time.Minute),
 	}
 }
 
@@ -131,7 +131,9 @@ func sanitize(c *Config) []string {
 	}
 	gate("BPM_INTERNAL_TOKEN", &c.InternalToken, "internal endpoints reject all callers (503)")
 	notice("BPM_CALLBACK_TOKEN", c.CallbackToken, "terminal-state callbacks are sent without an authentication header")
-	notice("NOTIFY_INTERNAL_TOKEN", c.NotifyInternalToken, "inbox push may be rejected by notify-service")
+	if strings.TrimSpace(c.NotifyAPIBase) != "" {
+		notice("NOTIFY_INTERNAL_TOKEN", c.NotifyInternalToken, "inbox push may be rejected by notify-service")
+	}
 	return warnings
 }
 

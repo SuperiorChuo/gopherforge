@@ -52,7 +52,7 @@ Prefer not to build locally? Pull the **official multi-arch images** (amd64 / ar
 ```bash
 cd microservices
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.4.0          # use the latest stable tag
+export IMAGE_TAG=v0.5.0          # use the latest stable tag
 docker compose pull && docker compose up -d --no-build
 ```
 
@@ -72,7 +72,7 @@ docker compose up -d --build
 
 | Layer | Tech |
 |---|---|
-| Backend | Go 1.26 · Gin · GORM · PostgreSQL 16 · Redis 7 · goose |
+| Backend | Go 1.26 · Gin · GORM · PostgreSQL 18 · Redis 8 · goose |
 | Gateway / Bus | Traefik (ForwardAuth) · NATS JetStream |
 | Frontend | React 19 · TypeScript · Vite · Ant Design 6 · Redux Toolkit |
 | Observability | Prometheus + node_exporter · Grafana · Alertmanager alert loop · OpenTelemetry + Jaeger (optional) |
