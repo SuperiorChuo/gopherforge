@@ -17,6 +17,7 @@ import (
 	"github.com/go-admin-kit/services/bpm/internal/form"
 	"github.com/go-admin-kit/services/bpm/internal/model"
 	"gorm.io/driver/postgres"
+	connpool "github.com/go-admin-kit/services/shared/pkg/connpool"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -40,7 +41,7 @@ func Open(dsn string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	applyConnPool(db)
+	connpool.Apply(db)
 	return NewWithDB(db)
 }
 
