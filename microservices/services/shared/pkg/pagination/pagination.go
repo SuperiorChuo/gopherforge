@@ -13,14 +13,6 @@ type PageRequest struct {
 	PageSize int `json:"page_size" form:"page_size"`
 }
 
-// PageResponse contains pagination metadata.
-type PageResponse struct {
-	Page     int   `json:"page"`
-	PageSize int   `json:"page_size"`
-	Total    int64 `json:"total"`
-	Pages    int   `json:"pages"`
-}
-
 // GetPageRequest reads pagination parameters from a request.
 func GetPageRequest(c *gin.Context) PageRequest {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -50,24 +42,3 @@ func Paginate(req PageRequest) func(db *gorm.DB) *gorm.DB {
 	}
 }
 
-// CalculatePages calculates the number of pages.
-func CalculatePages(total int64, pageSize int) int {
-	if pageSize <= 0 {
-		return 0
-	}
-	pages := int(total) / pageSize
-	if int(total)%pageSize > 0 {
-		pages++
-	}
-	return pages
-}
-
-// NewPageResponse creates pagination metadata.
-func NewPageResponse(req PageRequest, total int64) PageResponse {
-	return PageResponse{
-		Page:     req.Page,
-		PageSize: req.PageSize,
-		Total:    total,
-		Pages:    CalculatePages(total, req.PageSize),
-	}
-}

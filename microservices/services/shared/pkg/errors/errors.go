@@ -65,6 +65,6 @@ func GetHTTPStatus(code int) int {
 	case 500:
 		return http.StatusInternalServerError
 	default:
-		return http.StatusOK
+		return http.StatusInternalServerError
 	}
 }

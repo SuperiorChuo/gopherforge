@@ -16,16 +16,6 @@ type Response struct {
 	Data      any       `json:"data,omitempty"`
 }
 
-// PageResponse is the paginated API response shape.
-type PageResponse struct {
-	Code     int    `json:"code"`
-	Message  string `json:"message"`
-	Data     any    `json:"data,omitempty"`
-	Total    int64  `json:"total,omitempty"`
-	Page     int    `json:"page,omitempty"`
-	PageSize int    `json:"page_size,omitempty"`
-}
-
 // Success writes a successful response.
 func Success(c *gin.Context, data any) {
 	c.JSON(http.StatusOK, Response{
@@ -169,8 +159,3 @@ func PageSuccess(c *gin.Context, data any, total int64, page, pageSize int) {
 	})
 }
 
-// PageSuccessMasked writes a successful paginated response with optional item masking.
-// In phase 1, map-backed payloads are returned unchanged.
-func PageSuccessMasked(c *gin.Context, data any, total int64, page, pageSize int, shouldMask bool) {
-	PageSuccess(c, mask.CloneAndMaskAny(data, shouldMask), total, page, pageSize)
-}
