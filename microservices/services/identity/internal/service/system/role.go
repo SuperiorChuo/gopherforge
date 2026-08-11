@@ -209,7 +209,7 @@ func isPlatformAdminContext(ctx context.Context) bool {
 	if ctx == nil {
 		return false
 	}
-	v, _ := ctx.Value("platform_admin").(bool)
+	v, _ := ctx.Value(tenant.PlatformAdminContextKey).(bool)
 	return v
 }
 

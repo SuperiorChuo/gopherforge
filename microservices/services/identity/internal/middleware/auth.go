@@ -12,10 +12,13 @@ import (
 	"github.com/go-admin-kit/services/identity/internal/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
 	"github.com/go-admin-kit/services/shared/pkg/response"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 )
 
-// TenantIDContextKey stores the authenticated tenant id in context.Context.
-const TenantIDContextKey = "tenant_id"
+// TenantIDContextKey stores the authenticated tenant id in context.Context
+// （与 shared/pkg/tenant 同一 typed key，保证 middleware 写入与
+// tenant.FromContext 读取一致）。
+const TenantIDContextKey = tenant.ContextKey
 
 var errAuthUserStoreMissing = errors.New("auth: user store is not configured")
 
@@ -101,7 +104,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Set("platform_admin", platformAdmin)
 		// Propagate tenant into request context for DAOs/services.
 		ctx := context.WithValue(c.Request.Context(), TenantIDContextKey, tenantID)
-		ctx = context.WithValue(ctx, "platform_admin", platformAdmin)
+		ctx = context.WithValue(ctx, tenant.PlatformAdminContextKey, platformAdmin)
 		c.Request = c.Request.WithContext(ctx)
 		SetAuditActor(c, DefaultAuditActorType, claims.Username)
 

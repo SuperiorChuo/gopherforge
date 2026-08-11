@@ -8,8 +8,8 @@
 // 权威值（显式跨租户写入需 DisableScope）；无租户上下文（后台任务/系统操作/
 // 启动路径）不加过滤，与既有 DAO 语义一致。
 //
-// 本文件在 identity / ai / audit / file / system 五个服务间保持逐字节一致
-// （helpers 为各服务历史命名的并集），同步下游时整体覆盖即可。
+// 本包为共享租户上下文工具：identity / ai / audit / file / system 等服务的
+// middleware 写、service/dao 经 tenant.FromContext 读，共享同一 typed key。
 package tenant
 
 import (
@@ -21,8 +21,15 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// ContextKey is the request context key for the active tenant id (matches middleware string key).
-const ContextKey = "tenant_id"
+// contextKey 私有类型避免与 context 中其它 string key 冲突（SA1029）。
+type contextKey string
+
+// ContextKey is the request context key for the active tenant id.
+const ContextKey contextKey = "tenant_id"
+
+// PlatformAdminContextKey 平台管理员标记（SA1029 typed key）。auth 中间件写入，
+// 各服务 dao/service 读取；放本 leaf 包避免 middleware↔dao 循环依赖。
+const PlatformAdminContextKey contextKey = "platform_admin"
 
 // DefaultID is the platform default tenant used when context has no tenant.
 const DefaultID uint = 1

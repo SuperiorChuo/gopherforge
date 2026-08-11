@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 )
 
 // 套餐创建：名称查重未命中后插入成功。
@@ -134,7 +135,7 @@ func TestRoleServiceAssignPermissionsAllowsPlatformAdmin(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT DISTINCT "user_id" FROM "user_roles"`)).
 		WillReturnRows(sqlmock.NewRows([]string{"user_id"}))
 
-	ctx := context.WithValue(context.Background(), "platform_admin", true) //nolint:staticcheck // 与认证中间件的字符串键保持一致
+	ctx := context.WithValue(context.Background(), tenant.PlatformAdminContextKey, true)
 	svc := NewRoleServiceWithDB(db)
 	if err := (&svc).AssignPermissionsContext(ctx, 5, AssignPermissionsRequest{
 		PermissionIDs: []uint{11},
