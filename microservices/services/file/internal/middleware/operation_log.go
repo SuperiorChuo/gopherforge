@@ -10,10 +10,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	localmodel "github.com/go-admin-kit/services/file/internal/model"
+	"github.com/go-admin-kit/services/shared/pkg/auditevents"
 	"github.com/go-admin-kit/services/shared/pkg/mask"
-	"github.com/go-admin-kit/services/shared/pkg/tenant"
-
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 )
 
 // Operation module mapping.
@@ -281,6 +281,10 @@ func recordOperationLog(parent context.Context, recorder operationLogRecorder, l
 	}
 	ctx, cancel := context.WithTimeout(parent, writeTimeout)
 	defer cancel()
+	if auditevents.Enabled() {
+		auditevents.PublishOperationLog("file-service", log)
+		return
+	}
 	_ = recorder.RecordContext(ctx, log)
 }
 

@@ -66,7 +66,8 @@ func runLogRetentionOnce(
 	start := time.Now()
 	opDeleted, opErr := opSvc.ClearLogsAllTenantsContext(ctx, opts.RetentionDays)
 	loginDeleted, loginErr := loginSvc.ClearLogsAllTenantsContext(ctx, opts.RetentionDays)
-	err := errors.Join(opErr, loginErr)
+	riskDeleted, riskErr := loginSvc.ClearRiskEventsContext(ctx, opts.RetentionDays)
+	err := errors.Join(opErr, loginErr, riskErr)
 	if err != nil {
 		logger.Warn("log retention cleanup failed",
 			logger.Int("retention_days", opts.RetentionDays),
@@ -75,12 +76,13 @@ func runLogRetentionOnce(
 		logger.Info("log retention cleanup done",
 			logger.Int("retention_days", opts.RetentionDays),
 			logger.Int64("operation_logs_deleted", opDeleted),
-			logger.Int64("login_logs_deleted", loginDeleted))
+			logger.Int64("login_logs_deleted", loginDeleted),
+			logger.Int64("risk_events_deleted", riskDeleted))
 	}
 	jobbeat.Report(db, jobbeat.Run{
 		Key:         "audit.log_retention",
 		Service:     "audit-service",
-		Description: "操作/登录日志按保留天数清理（audit_logs 不清理）",
+		Description: "操作/登录日志/风控事件按保留天数清理（audit_logs 不清理）",
 		IntervalSec: int64(opts.ScanInterval / time.Second),
 		StartedAt:   start,
 		Err:         err,

@@ -33,11 +33,17 @@ func (a *LoginRiskEventAPI) ListLoginRiskEvents(c *gin.Context) {
 		f := false
 		processed = &f
 	}
+	scope, err := authz.ResolveUserDataScopeFromContext(c)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "unable to resolve data scope")
+		return
+	}
 	filter := dao.LoginRiskEventFilter{
 		Username:  c.Query("username"),
 		IP:        c.Query("ip"),
 		Reason:    c.Query("reason"),
 		Processed: processed,
+		DataScope: scope,
 	}
 	req := pagination.GetPageRequest(c)
 	events, total, err := a.riskDAO.ListContext(c.Request.Context(), req, filter)

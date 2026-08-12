@@ -5,6 +5,7 @@ import (
 	"time"
 
 	localmodel "github.com/go-admin-kit/services/audit/internal/model"
+	"github.com/go-admin-kit/services/audit/internal/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
 )
@@ -43,16 +44,26 @@ func (d *LoginRiskEventDAO) MarkProcessedContext(ctx context.Context, id uint, b
 		Updates(map[string]any{"processed": true, "processed_by": by, "processed_at": time.Now()}).Error
 }
 
+// DeleteBeforeContext removes risk events older than the cutoff (retention).
+func (d *LoginRiskEventDAO) DeleteBeforeContext(ctx context.Context, before time.Time) (int64, error) {
+	res := d.dbWithContext(ctx).
+		Where("created_at < ?", before).
+		Delete(&localmodel.LoginRiskEvent{})
+	return res.RowsAffected, res.Error
+}
+
 type LoginRiskEventFilter struct {
 	UserID    uint
 	Username  string
 	IP        string
 	Reason    string
 	Processed *bool
+	// DataScope 与登录日志页一致：部门数据范围的普通管理员只能看本部门用户的异常登录。
+	DataScope authz.UserDataScope
 }
 
 func (d *LoginRiskEventDAO) ListContext(ctx context.Context, req pagination.PageRequest, filter LoginRiskEventFilter) ([]localmodel.LoginRiskEvent, int64, error) {
-	q := d.dbWithContext(ctx).Model(&localmodel.LoginRiskEvent{})
+	q := d.dbWithContext(authz.EnableDataScope(ctx, filter.DataScope)).Model(&localmodel.LoginRiskEvent{})
 	if filter.UserID > 0 {
 		q = q.Where("user_id = ?", filter.UserID)
 	}

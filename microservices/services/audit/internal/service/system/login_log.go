@@ -169,6 +169,13 @@ func (s *LoginLogService) ClearLogsContext(ctx context.Context, days int) (int64
 	return s.logDAO.DeleteBeforeContext(ctx, before)
 }
 
+// ClearRiskEventsContext removes abnormal-login risk events older than the
+// retention window (login_risk_events 无界增长防护——随登录日志同周期清理)。
+func (s *LoginLogService) ClearRiskEventsContext(ctx context.Context, days int) (int64, error) {
+	before := time.Now().AddDate(0, 0, -days)
+	return s.riskDAO.DeleteBeforeContext(ctx, before)
+}
+
 // ClearLogsAllTenantsContext 跨租户清理 days 天前的登录日志，仅供保留策略
 // 后台任务使用（管理端 API 走带租户过滤的 ClearLogsContext）。
 func (s *LoginLogService) ClearLogsAllTenantsContext(ctx context.Context, days int) (int64, error) {
@@ -343,15 +350,15 @@ func (s *LoginLogService) recordRiskEvent(ctx context.Context, info *LoginInfo, 
 		Reason:    reason,
 		CreatedAt: current.CreatedAt,
 	}
-	if err := s.riskDAO.CreateContext(ctx, event); err != nil {
-		return
-	}
+	// 落库失败不阻断登录，但也不该吞掉告警：INSERT 失败仍尝试发站内信
+	// （告警独立于事件表，DB 故障时用户最需要收到提醒）。
+	eventErr := s.riskDAO.CreateContext(ctx, event)
 
 	policy := runtimeconfig.DefaultSecurityPolicyReader().SecurityPolicy(ctx)
 	if !policy.LoginAlertEnabled || s.notify == nil || !s.notify.Enabled() {
 		return
 	}
-	_, _ = s.notify.Send(ctx, notifyclient.SendInput{
+	if _, err := s.notify.Send(ctx, notifyclient.SendInput{
 		TenantID:     uint64(tenant.EnsureID(ctx, info.TenantID)),
 		UserID:       uint64(info.UserID),
 		TemplateCode: "login_alert",
@@ -362,8 +369,13 @@ func (s *LoginLogService) recordRiskEvent(ctx context.Context, info *LoginInfo, 
 		Content: fmt.Sprintf("你的账号刚从%s登录（IP %s，%s）。如非本人操作，请立即修改密码。",
 			riskReasonLabel(reason), current.IP, current.Location),
 		Link: "/system/login-log",
-	})
-	_ = s.riskDAO.MarkNotifiedContext(ctx, event.ID)
+	}); err != nil {
+		// 发送失败不标已提醒——事件表保持「未提醒」，管理员可跟进重发/排查。
+		return
+	}
+	if eventErr == nil {
+		_ = s.riskDAO.MarkNotifiedContext(ctx, event.ID)
+	}
 }
 
 // abnormalLoginReason classifies why a login differs from the previous one.

@@ -12,9 +12,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
+	"github.com/go-admin-kit/services/shared/pkg/auditevents"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/shared/pkg/mask"
-
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 )
 
@@ -438,6 +438,10 @@ func recordOperationLog(parent context.Context, recorder operationLogRecorder, l
 	}
 	ctx, cancel := context.WithTimeout(parent, writeTimeout)
 	defer cancel()
+	if auditevents.Enabled() {
+		auditevents.PublishOperationLog("monitor-service", log)
+		return
+	}
 	_ = recorder.RecordContext(ctx, log)
 }
 

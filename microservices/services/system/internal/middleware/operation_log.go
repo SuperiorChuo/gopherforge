@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/services/shared/pkg/auditevents"
 	"github.com/go-admin-kit/services/shared/pkg/mask"
-
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	localmodel "github.com/go-admin-kit/services/system/internal/model"
 )
 
-// Operation module mapping.
+// 操作日志模块映射。
 var moduleMap = map[string]string{
 	"/api/v1/users":          "User Management",
 	"/api/v1/roles":          "Role Management",
@@ -29,7 +29,7 @@ var moduleMap = map[string]string{
 	"/api/v1/operation-logs": "Operation Logs",
 }
 
-// Operation action mapping.
+// 操作日志动作映射。
 var actionMap = map[string]string{
 	"GET":    "Query",
 	"POST":   "Create",
@@ -37,7 +37,7 @@ var actionMap = map[string]string{
 	"DELETE": "Delete",
 }
 
-// responseBodyWriter captures response bodies when enabled.
+// responseBodyWriter 在开启时捕获响应体。
 type responseBodyWriter struct {
 	gin.ResponseWriter
 	body *bytes.Buffer
@@ -48,7 +48,7 @@ func (w responseBodyWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
-// OperationLogger records operation logs with default options.
+// OperationLogger 使用默认选项记录操作日志。
 func OperationLogger() gin.HandlerFunc {
 	return OperationLoggerWithOptions(OperationLogOptions{
 		RecordRequestBody:   true,
@@ -62,7 +62,7 @@ func OperationLogger() gin.HandlerFunc {
 	})
 }
 
-// OperationLogOptions configures operation logging.
+// OperationLogOptions 配置操作日志记录。
 type OperationLogOptions struct {
 	RecordRequestBody   bool
 	RecordResponseBody  bool
@@ -71,7 +71,7 @@ type OperationLogOptions struct {
 	SkipPaths           []string
 }
 
-// OperationLoggerWithOptions records operation logs with custom options.
+// OperationLoggerWithOptions 使用自定义选项记录操作日志。
 func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.Method == http.MethodOptions {
@@ -90,8 +90,8 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 		start := time.Now()
 
 		var requestBody string
-		// GET/HEAD carry no business payload; skip the body-read wrapper
-		// (the old behavior only ever recorded an empty string for them).
+		// GET/HEAD 不携带业务负载，跳过请求体读取包装器
+		// （旧行为对它们也只会记录空字符串）。
 		if opts.RecordRequestBody && c.Request.Body != nil &&
 			c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
 			bodyPreview, restoredBody, err := readRequestBodyForLog(c.Request.Body, opts.MaxRequestBodySize)
@@ -146,8 +146,8 @@ func OperationLoggerWithOptions(opts OperationLogOptions) gin.HandlerFunc {
 		module := getModule(fullPath)
 		action := getAction(c.Request.Method, fullPath)
 
-		// Masking runs after the response is written: the full JSON
-		// unmarshal/marshal no longer counts against request latency.
+		// 脱敏在响应写出之后执行：完整的 JSON 反序列化/序列化
+		// 不再计入请求延迟。
 		requestBody = filterSensitiveFields(requestBody)
 
 		log := &localmodel.OperationLog{
@@ -205,27 +205,26 @@ func readRequestBodyForLog(body io.ReadCloser, maxSize int) (string, io.ReadClos
 	return string(bodyBytes), restoredBody, nil
 }
 
-// logChanBufferSize limits queued operation log writes.
+// logChanBufferSize 限制排队中的操作日志写入数量。
 const logChanBufferSize = 1000
 
 const operationLogWriteTimeout = 2 * time.Second
 
 var logChan = make(chan *localmodel.OperationLog, logChanBufferSize)
 
-// OperationLogRecorder persists operation logs queued by the middleware.
+// OperationLogRecorder 持久化由中间件排队的操作日志。
 type OperationLogRecorder interface {
 	RecordContext(context.Context, *localmodel.OperationLog) error
 }
 
 type operationLogRecorder = OperationLogRecorder
 
-// StartOperationLogProcessor starts the background operation log processor
-// backed by the injected recorder.
+// StartOperationLogProcessor 启动由注入的 recorder 支撑的后台操作日志处理器。
 func StartOperationLogProcessor(ctx context.Context, recorder OperationLogRecorder) <-chan struct{} {
 	return processLogs(ctx, logChan, recorder, operationLogWriteTimeout)
 }
 
-// processLogs persists queued operation logs until ctx is canceled.
+// processLogs 持久化排队中的操作日志，直到 ctx 被取消。
 func processLogs(ctx context.Context, queue <-chan *localmodel.OperationLog, recorder operationLogRecorder, writeTimeout time.Duration) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
@@ -269,10 +268,14 @@ func recordOperationLog(parent context.Context, recorder operationLogRecorder, l
 	}
 	ctx, cancel := context.WithTimeout(parent, writeTimeout)
 	defer cancel()
+	if auditevents.Enabled() {
+		auditevents.PublishOperationLog("system-service", log)
+		return
+	}
 	_ = recorder.RecordContext(ctx, log)
 }
 
-// getModule resolves a module name from a route path.
+// getModule 从路由路径解析模块名称。
 func getModule(path string) string {
 	for prefix, module := range moduleMap {
 		if strings.HasPrefix(path, prefix) {
@@ -282,7 +285,7 @@ func getModule(path string) string {
 	return "Other"
 }
 
-// getAction resolves an operation action from method and path.
+// getAction 从方法与路径解析操作动作。
 func getAction(method, path string) string {
 	if strings.HasSuffix(path, "/login") {
 		return "Login"
@@ -309,12 +312,12 @@ func getAction(method, path string) string {
 	return method
 }
 
-// filterSensitiveFields masks sensitive JSON fields.
+// filterSensitiveFields 对敏感 JSON 字段进行脱敏。
 func filterSensitiveFields(body string) string {
 	return mask.RedactJSON(body)
 }
 
-// truncateString truncates a string to maxLen bytes.
+// truncateString 将字符串截断到 maxLen 字节。
 func truncateString(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
