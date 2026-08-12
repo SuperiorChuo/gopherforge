@@ -10,6 +10,7 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +21,8 @@ import (
 	"github.com/go-admin-kit/services/bpm/internal/flow"
 	"github.com/go-admin-kit/services/bpm/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/go-admin-kit/services/shared/pkg/identityclient"
 	"gorm.io/gorm/clause"
 )
 
@@ -57,10 +60,19 @@ var (
 )
 
 type Engine struct {
-	db *gorm.DB
+	db       *gorm.DB
+	idClient *identityclient.Client
 }
 
 func New(db *gorm.DB) *Engine { return &Engine{db: db} }
+
+// SetIdentity 设置 identity owner API 客户端（gRPC 优先 + HTTP 回退）。
+func (e *Engine) SetIdentity(apiBase, internalToken string) {
+	if c, err := identityclient.New(apiBase, internalToken); err == nil {
+		e.idClient = c
+	}
+}
+
 
 // Effects 事务内收集、提交后由调用方分发的副作用。
 type Effects struct {
@@ -140,7 +152,7 @@ func (e *Engine) Start(in StartInput) (*Effects, error) {
 	// 规则同一条"同库直读 identity 表"路径；查不到保持 0，dept_leader 规则
 	// 届时走 emptyFallback）。
 	if in.InitiatorDept == 0 {
-		in.InitiatorDept = lookupUserDept(e.db, in.TenantID, in.InitiatorID)
+		in.InitiatorDept = e.lookupUserDept(in.TenantID, in.InitiatorID)
 	}
 
 	eff := &Effects{}
@@ -1147,18 +1159,8 @@ func (e *Engine) resolveRule(tx *gorm.DB, inst *model.ProcessInstance, rule *flo
 	case flow.RuleUsers:
 		return rule.UserIDs, nil
 	case flow.RuleRoles:
-		var ids []uint64
-		err := tx.Table("users").
-			Joins("JOIN user_roles ON user_roles.user_id = users.id").
-			Where("user_roles.role_id IN ?", rule.RoleIDs).
-			Where("users.status = 1 AND users.tenant_id = ?", inst.TenantID).
-			Order("users.id ASC").
-			Distinct().
-			Pluck("users.id", &ids).Error
-		if err != nil {
-			return nil, fmt.Errorf("按角色解析审批人失败: %w", err)
-		}
-		return ids, nil
+		// Phase 2C：按角色解析审批人改走 identity owner API，不再直查 users/user_roles。
+		return e.usersByRoles(context.Background(), rule.RoleIDs, inst.TenantID), nil
 	case flow.RuleSelfSelect:
 		vars := parseVars(inst.Variables)
 		return vars.SelectedAssignees[nodeID], nil
@@ -1171,7 +1173,7 @@ func (e *Engine) resolveRule(tx *gorm.DB, inst *model.ProcessInstance, rule *flo
 		case "", flow.DeptBaseInitiator:
 			deptID = inst.InitiatorDept
 			if deptID == 0 { // 发起时未落部门（历史实例等），补查一次
-				deptID = lookupUserDept(tx, inst.TenantID, inst.InitiatorID)
+				deptID = e.lookupUserDept(inst.TenantID, inst.InitiatorID)
 			}
 		case flow.DeptBaseFormField:
 			deptID = snapshotUint64(inst.FormSnapshot, rule.DeptFormField)
@@ -1181,24 +1183,9 @@ func (e *Engine) resolveRule(tx *gorm.DB, inst *model.ProcessInstance, rule *flo
 		if deptID == 0 {
 			return nil, nil
 		}
-		var leaderID uint64
-		err := tx.Table("departments").
-			Where("id = ? AND tenant_id = ?", deptID, inst.TenantID).
-			Limit(1).Pluck("leader_user_id", &leaderID).Error
-		if err != nil {
-			return nil, fmt.Errorf("按部门主管解析审批人失败: %w", err)
-		}
-		if leaderID == 0 {
-			return nil, nil
-		}
-		// 主管已禁用/跨租户视为解析为空（与 roles 规则同口径）
-		var cnt int64
-		if err := tx.Table("users").
-			Where("id = ? AND status = 1 AND tenant_id = ?", leaderID, inst.TenantID).
-			Count(&cnt).Error; err != nil {
-			return nil, fmt.Errorf("校验部门主管账号失败: %w", err)
-		}
-		if cnt == 0 {
+		// Phase 2C：部门主管解析/校验改走 identity owner API，不再直查 departments/users。
+		leaderID := e.deptLeader(context.Background(), deptID, inst.TenantID)
+		if leaderID == 0 || !e.userInTenantActive(context.Background(), leaderID, inst.TenantID) {
 			return nil, nil
 		}
 		return []uint64{leaderID}, nil
@@ -1207,16 +1194,9 @@ func (e *Engine) resolveRule(tx *gorm.DB, inst *model.ProcessInstance, rule *flo
 	}
 }
 
-// lookupUserDept 同库直读 users.department_id（与 roles 规则同路径）；
-// 查询失败（如测试库无该表/列）静默返回 0，由 emptyFallback 兜底。
-func lookupUserDept(db *gorm.DB, tenantID, userID uint64) uint64 {
-	var deptID uint64
-	if err := db.Table("users").
-		Where("id = ? AND tenant_id = ?", userID, tenantID).
-		Limit(1).Pluck("department_id", &deptID).Error; err != nil {
-		return 0
-	}
-	return deptID
+// lookupUserDept 返回用户部门（Phase 2C 走 identity owner API，不再直查 users）。
+func (e *Engine) lookupUserDept(tenantID, userID uint64) uint64 {
+	return e.userDepartment(context.Background(), userID, tenantID)
 }
 
 // snapshotUint64 从表单快照 JSON 中取 uint64 字段（数字或数字字符串）。

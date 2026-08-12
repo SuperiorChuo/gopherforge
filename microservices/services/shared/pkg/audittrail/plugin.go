@@ -1,6 +1,7 @@
 package audittrail
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -8,7 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-admin-kit/services/shared/pkg/auditevents"
 	"github.com/go-admin-kit/services/shared/pkg/mask"
+	"github.com/go-admin-kit/services/shared/pkg/outbox"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
@@ -921,6 +924,53 @@ func (p *Plugin) insertRecords(db *gorm.DB, state *mutationState, action string,
 	}
 	if len(records) == 0 {
 		return fmt.Errorf("%w: %s table=%s produced no audit record", ErrAuditConsistency, action, state.target.Table)
+	}
+	// Phase 2D/5：优先事务 Outbox（与业务写同事务）→ worker 投 NATS →
+	// audit-service 消费落库；未开 Outbox 时直发 NATS；都未配置则同事务直写。
+	if outbox.TransactionalEnabled() {
+		for i := range records {
+			ev := auditevents.AuditEvent{
+				TenantID:   records[i].TenantID,
+				ActorType:  records[i].ActorType,
+				ActorID:    records[i].ActorID,
+				Action:     records[i].Action,
+				TargetType: records[i].TargetType,
+				TargetID:   records[i].TargetID,
+				Before:     records[i].BeforeJSON,
+				After:      records[i].AfterJSON,
+				Summary:    records[i].Summary,
+				CreatedAt:  records[i].CreatedAt,
+			}
+			if ev.CreatedAt.IsZero() {
+				ev.CreatedAt = time.Now()
+			}
+			payload, err := json.Marshal(&ev)
+			if err != nil {
+				return fmt.Errorf("audit outbox marshal: %w", err)
+			}
+			subject := "audit.log." + records[i].Action
+			if err := outbox.Insert(db, uint64(records[i].TenantID), subject, payload); err != nil {
+				return fmt.Errorf("audit outbox insert: %w", err)
+			}
+		}
+		return nil
+	}
+	if auditevents.Enabled() {
+		for i := range records {
+			auditevents.Publish(&auditevents.AuditEvent{
+				TenantID:   records[i].TenantID,
+				ActorType:  records[i].ActorType,
+				ActorID:    records[i].ActorID,
+				Action:     records[i].Action,
+				TargetType: records[i].TargetType,
+				TargetID:   records[i].TargetID,
+				Before:     records[i].BeforeJSON,
+				After:      records[i].AfterJSON,
+				Summary:    records[i].Summary,
+				CreatedAt:  records[i].CreatedAt,
+			})
+		}
+		return nil
 	}
 	auditDB := db.Session(&gorm.Session{
 		NewDB:     true,

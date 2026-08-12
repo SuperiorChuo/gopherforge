@@ -67,9 +67,11 @@ func main() {
 	cb := callback.New(callback.TargetsFromEnv(), cfg.CallbackToken)
 	log.Printf("bpm callback: %d biz_type target(s) registered", cb.Targets())
 
+	eng := engine.New(st.DB())
+	eng.SetIdentity(cfg.IdentityAPIBase, cfg.IdentityInternalToken)
 	srv := &api.Server{
 		Store:         st,
-		Engine:        engine.New(st.DB()),
+		Engine:        eng,
 		Secret:        cfg.JWTSecret,
 		InternalToken: cfg.InternalToken,
 		Notify:        notify,

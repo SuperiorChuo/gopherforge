@@ -7,6 +7,11 @@
 
 ### 功能
 
+- **BPM/韧性续同步（自主项目）**：BPM engine 去 users 直查（identityclient）；`no_direct_users` 门禁恢复；`natsx` + audittrail outbox 能力入库。
+
+
+### 功能
+
 - **韧性基建（同步自主项目）**：入库 `graceful` / `idempotency` / `outbox` / `health` / `auditevents` / `identityclient`，以及 `middleware.ServeWithGraceful`；供底座服务优雅退出、幂等、Outbox 与 identity owner 调用。
 
 

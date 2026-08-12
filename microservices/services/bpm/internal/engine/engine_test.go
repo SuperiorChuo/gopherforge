@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 
@@ -50,7 +52,69 @@ func openTest(t *testing.T) (*store.Store, *Engine) {
 			t.Fatalf("identity ddl: %v", err)
 		}
 	}
-	return st, New(db)
+	// Phase 2C：identity owner API mock（独立连接防事务死锁）
+	mockDB, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		t.Fatalf("mock db: %v", err)
+	}
+	idSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/internal/users/by-roles":
+			var req struct {
+				TenantID uint64   `json:"tenant_id"`
+				RoleIDs  []uint64 `json:"role_ids"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			var ids []uint64
+			_ = mockDB.Table("users").
+				Joins("JOIN user_roles ON user_roles.user_id = users.id").
+				Where("user_roles.role_id IN ?", req.RoleIDs).
+				Where("users.status = 1 AND users.tenant_id = ?", req.TenantID).
+				Order("users.id ASC").Distinct().Pluck("users.id", &ids).Error
+			_ = json.NewEncoder(w).Encode(map[string]any{"ids": ids})
+		case "/api/v1/internal/departments/info":
+			id := r.URL.Query().Get("id")
+			tid := r.URL.Query().Get("tenant_id")
+			var leader uint64
+			_ = mockDB.Table("departments").Select("leader_user_id").
+				Where("id = ? AND tenant_id = ?", id, tid).Limit(1).Scan(&leader).Error
+			_ = json.NewEncoder(w).Encode(map[string]any{"leader_user_id": leader})
+		case "/api/v1/internal/users/contacts":
+			var req struct {
+				TenantID uint64   `json:"tenant_id"`
+				IDs      []uint64 `json:"ids"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			contacts := map[string]any{}
+			var rows []struct {
+				ID     uint64
+				Status int
+			}
+			_ = mockDB.Table("users").Select("id, status").
+				Where("id IN ? AND tenant_id = ?", req.IDs, req.TenantID).Scan(&rows).Error
+			for _, rw := range rows {
+				if rw.Status != 1 {
+					continue
+				}
+				contacts[fmt.Sprintf("%d", rw.ID)] = map[string]string{"email": "", "phone": ""}
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"contacts": contacts})
+		case "/api/v1/internal/users/department":
+			id := r.URL.Query().Get("id")
+			tid := r.URL.Query().Get("tenant_id")
+			var dept uint64
+			_ = mockDB.Table("users").Select("COALESCE(department_id,0)").
+				Where("id = ? AND tenant_id = ?", id, tid).Limit(1).Scan(&dept).Error
+			_ = json.NewEncoder(w).Encode(map[string]any{"department_id": dept})
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+	t.Cleanup(idSrv.Close)
+	e := New(db)
+	e.SetIdentity(idSrv.URL, "test-internal-token")
+	return st, e
 }
 
 // ---- 节点树构造 helper ----
