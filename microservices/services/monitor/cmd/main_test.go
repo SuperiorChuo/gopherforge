@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/monitor/internal/config"
 	redisstore "github.com/go-admin-kit/services/monitor/internal/pkg/redis"
+	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -115,10 +115,15 @@ func TestServeHTTPServerGracefullyWaitsForInFlightRequests(t *testing.T) {
 		t.Fatalf("listen: %v", err)
 	}
 
-	shutdown := make(chan os.Signal, 1)
+	shutdownCtx, cancelShutdown := context.WithCancel(context.Background())
 	serverErr := make(chan error, 1)
 	go func() {
-		serverErr <- serveHTTPServer(server, listener, time.Second, shutdown)
+		serverErr <- serveHTTPServer(
+			shutdownCtx,
+			server,
+			listener,
+			graceful.New(graceful.WithTimeout(time.Second)),
+		)
 	}()
 
 	clientErr := make(chan error, 1)
@@ -143,7 +148,7 @@ func TestServeHTTPServerGracefullyWaitsForInFlightRequests(t *testing.T) {
 		t.Fatal("handler did not start")
 	}
 
-	shutdown <- os.Interrupt
+	cancelShutdown()
 
 	select {
 	case err := <-serverErr:

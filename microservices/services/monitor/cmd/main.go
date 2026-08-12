@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"context"
 	"errors"
 	"fmt"
@@ -10,14 +9,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/monitor/internal/api"
-	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/monitor/internal/config"
 	authDAO "github.com/go-admin-kit/services/monitor/internal/dao/auth"
 	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
@@ -32,10 +32,12 @@ import (
 	monitorSvc "github.com/go-admin-kit/services/monitor/internal/service/monitor"
 	systemSvc "github.com/go-admin-kit/services/monitor/internal/service/system"
 	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
+	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"github.com/go-admin-kit/services/shared/pkg/grpcx"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 
 	monitorv1 "github.com/go-admin-kit/services/api/gen/monitor/v1"
 	monitorapi "github.com/go-admin-kit/services/monitor/internal/api/monitor"
@@ -132,6 +134,36 @@ func configureGinWriters(env string) {
 	gin.DefaultErrorWriter = logger.NewGinErrorWriter()
 }
 
+// serveHTTPServer couples the HTTP listener to the shared graceful shutdown
+// registry. The injected context makes the production path testable without
+// synthesizing process signals, while Shutdown still drains in-flight requests
+// before the remaining LIFO handlers run.
+func serveHTTPServer(ctx context.Context, server *http.Server, listener net.Listener, sh *graceful.Shutdowner) error {
+	if sh == nil {
+		sh = graceful.New(graceful.WithTimeout(15 * time.Second))
+	}
+	serverErr := make(chan error, 1)
+	go func() {
+		err := server.Serve(listener)
+		if errors.Is(err, http.ErrServerClosed) {
+			err = nil
+		}
+		serverErr <- err
+	}()
+	sh.Register("http-server", func(shutdownCtx context.Context) error {
+		return server.Shutdown(shutdownCtx)
+	})
+
+	select {
+	case err := <-serverErr:
+		return errors.Join(err, sh.Shutdown())
+	case <-ctx.Done():
+		if err := sh.Shutdown(); err != nil {
+			return err
+		}
+		return <-serverErr
+	}
+}
 
 func startDepartmentTreeInvalidationListener(ctx context.Context) (*redis.StringSubscriber, error) {
 	return authz.StartDepartmentTreeInvalidationListener(ctx)
@@ -420,31 +452,18 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("server listen failed: %w", err)
 	}
 	printStartupBanner(config.Cfg.App.Name, config.Cfg.App.Version, config.Cfg.App.Env, port)
-		sh := graceful.New(graceful.WithTimeout(15 * time.Second))
+	sh := graceful.New(graceful.WithTimeout(15 * time.Second))
 	if grpcCleanup != nil {
 		sh.Register("grpc", func(ctx context.Context) error {
 			grpcCleanup()
 			return nil
 		})
 	}
-	serverErr := make(chan error, 1)
-	go func() {
-		logger.Info("server listening", logger.String("addr", server.Addr))
-		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			serverErr <- err
-		}
-	}()
-	sh.Register("http-server", func(ctx context.Context) error {
-		return server.Shutdown(ctx)
-	})
-	if err := sh.WaitAndShutdown(); err != nil {
-		logger.Error("graceful shutdown error", logger.Err(err))
+	signalCtx, stopSignals := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
+	logger.Info("server listening", logger.String("addr", server.Addr))
+	if err := serveHTTPServer(signalCtx, server, listener, sh); err != nil {
+		return fmt.Errorf("server start failed: %w", err)
 	}
-	select {
-	case err := <-serverErr:
-		return err
-	default:
-		return nil
-	}
+	return nil
 }
-
