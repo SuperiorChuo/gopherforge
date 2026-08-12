@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -13,15 +12,10 @@ import (
 	identityv1 "github.com/go-admin-kit/services/api/gen/identity/v1"
 )
 
-var (
-	ErrHTTPFallbackDisabled = errors.New("identityclient: http fallback disabled")
-	ErrHTTPStatus           = errors.New("identityclient: http non-200 response")
-)
-
 // httpGet/httpPost HTTP 回退（Phase 2C 内部端点）。
 func (c *Client) do(ctx context.Context, method, path string, body any, out any) error {
 	if c.httpBase == "" {
-		return ErrHTTPFallbackDisabled
+		return fmt.Errorf("identityclient: http fallback disabled")
 	}
 	var buf bytes.Buffer
 	if body != nil {
@@ -39,7 +33,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any, out any)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%w: status %d", ErrHTTPStatus, resp.StatusCode)
+		return fmt.Errorf("identityclient: http %d", resp.StatusCode)
 	}
 	return json.NewDecoder(resp.Body).Decode(out)
 }
