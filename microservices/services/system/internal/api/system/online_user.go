@@ -9,7 +9,7 @@ import (
 	"github.com/go-admin-kit/services/shared/pkg/iploc"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/shared/pkg/response"
-	sharedapi "github.com/go-admin-kit/services/system/internal/api/shared"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	authsvc "github.com/go-admin-kit/services/system/internal/service/auth"
 	"github.com/go-admin-kit/services/system/internal/service/system"
 )

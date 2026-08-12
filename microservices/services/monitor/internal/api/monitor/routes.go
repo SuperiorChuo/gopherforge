@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	sharedapi "github.com/go-admin-kit/services/monitor/internal/api/shared"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
 	"github.com/go-admin-kit/services/monitor/internal/middleware"
 	monitorsvc "github.com/go-admin-kit/services/monitor/internal/service/monitor"

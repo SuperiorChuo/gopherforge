@@ -18,7 +18,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/audit/internal/api"
-	sharedapi "github.com/go-admin-kit/services/audit/internal/api/shared"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/audit/internal/config"
 	authDAO "github.com/go-admin-kit/services/audit/internal/dao/auth"
 	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"

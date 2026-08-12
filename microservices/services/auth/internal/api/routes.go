@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/auth/internal/api/auth"
 	"github.com/go-admin-kit/services/auth/internal/api/common"
-	sharedapi "github.com/go-admin-kit/services/auth/internal/api/shared"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/auth/internal/api/verify"
 	authDAO "github.com/go-admin-kit/services/auth/internal/dao/auth"
 	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"

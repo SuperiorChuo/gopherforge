@@ -6,7 +6,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/audit/internal/api/common"
-	sharedapi "github.com/go-admin-kit/services/audit/internal/api/shared"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/audit/internal/api/system"
 	"github.com/go-admin-kit/services/audit/internal/middleware"
 	systemsvc "github.com/go-admin-kit/services/audit/internal/service/system"

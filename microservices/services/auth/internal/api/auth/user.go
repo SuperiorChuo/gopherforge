@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	sharedapi "github.com/go-admin-kit/services/auth/internal/api/shared"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/auth/internal/events"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"

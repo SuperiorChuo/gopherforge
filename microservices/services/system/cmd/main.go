@@ -25,7 +25,7 @@ import (
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 	"github.com/go-admin-kit/services/system/internal/api"
-	sharedapi "github.com/go-admin-kit/services/system/internal/api/shared"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	systemAPI "github.com/go-admin-kit/services/system/internal/api/system"
 	"github.com/go-admin-kit/services/system/internal/config"
 	authDAO "github.com/go-admin-kit/services/system/internal/dao/auth"

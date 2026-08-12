@@ -2,7 +2,7 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
-	sharedapi "github.com/go-admin-kit/services/system/internal/api/shared"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/system/internal/api/system"
 	"github.com/go-admin-kit/services/system/internal/config"
 	"github.com/go-admin-kit/services/system/internal/middleware"

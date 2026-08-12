@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	sharedapi "github.com/go-admin-kit/services/auth/internal/api/shared"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
 	authsvc "github.com/go-admin-kit/services/auth/internal/service/auth"
 	"github.com/go-admin-kit/services/shared/pkg/response"
