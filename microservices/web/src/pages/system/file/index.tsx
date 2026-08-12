@@ -298,12 +298,17 @@ export default function FilePage() {
               <span className="log-stat-label">{t('占用空间')}</span>
               <span className="log-stat-value log-stat-accent">{formatSize(stats.total_size)}</span>
             </div>
-            {(stats.storage_quota_mb ?? 0) > 0 && (
+            {stats.storage_quota_mb == null ? (
               <div className="log-stat">
                 <span className="log-stat-label">{t('存储配额')}</span>
-                <span className="log-stat-value">{formatSize((stats.storage_quota_mb ?? 0) * 1024 * 1024)}</span>
+                <span className="log-stat-value cell-muted">{t('查询失败')}</span>
               </div>
-            )}
+            ) : stats.storage_quota_mb > 0 ? (
+              <div className="log-stat">
+                <span className="log-stat-label">{t('存储配额')}</span>
+                <span className="log-stat-value">{formatSize(stats.storage_quota_mb * 1024 * 1024)}</span>
+              </div>
+            ) : null}
             {Object.keys(stats.by_type ?? {}).length > 0 && (
               <>
                 <div className="log-stat-divider" />

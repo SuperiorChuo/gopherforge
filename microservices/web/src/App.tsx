@@ -20,7 +20,10 @@ function AppRoutes() {
 }
 
 // 深空暗色（默认）
+// cssVar + 同一 key：两个主题共享变量作用域，减少 Ant Design 样式重复生成。
 const darkTheme: ThemeConfig = {
+  cssVar: { key: 'gak' },
+  hashed: false,
   algorithm: antdTheme.darkAlgorithm,
   token: {
     colorPrimary: '#6366f1',
@@ -86,6 +89,8 @@ const darkTheme: ThemeConfig = {
 
 // 白蓝液态玻璃（亮色）
 const lightTheme: ThemeConfig = {
+  cssVar: { key: 'gak' },
+  hashed: false,
   algorithm: antdTheme.defaultAlgorithm,
   token: {
     colorPrimary: '#2563eb',

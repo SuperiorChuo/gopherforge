@@ -51,7 +51,7 @@ function DictTypeCRUD() {
     }
   }
 
-  useEffect(() => { fetchList(params) }, [params])
+  useEffect(() => { fetchList(params) }, [params]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearch = (values: { keyword?: string; status?: number }) => {
     setParams({ ...params, page: 1, ...values })
@@ -251,6 +251,8 @@ function DictItemCRUD() {
   const { t } = useTranslation()
   const { hasPerm } = usePermission()
 
+  // 依赖 [] 而非 [t]：react-i18next 的 t 在切语言时变引用，若依赖 t 会在切语言时重跑本 effect，
+  // 把用户选中的字典类型重置回第一个。message 文案在 effect 里用闭包 t 仍能取到当前语言。
   useEffect(() => {
     DictAPI.getDictTypeList({ page: 1, page_size: 200 }).then((res) => {
       setDictTypes(res.list)
@@ -258,6 +260,7 @@ function DictItemCRUD() {
         setSelectedTypeId(res.list[0].id)
       }
     }).catch(() => message.error(t('加载字典类型失败')))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchItems = async (typeId: number, p: PageParams) => {
@@ -275,6 +278,7 @@ function DictItemCRUD() {
 
   useEffect(() => {
     if (selectedTypeId) fetchItems(selectedTypeId, params)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTypeId, params])
 
   const handleSearch = (values: { keyword?: string; status?: number }) => {

@@ -113,6 +113,7 @@ const routes: RouteObject[] = [
       { path: 'monitor/redis', element: lazyLoad(() => import('@/pages/monitor/redis')) },
       { path: 'monitor/job', element: lazyLoad(() => import('@/pages/monitor/job')) },
       { path: 'monitor/alerts', element: lazyLoad(() => import('@/pages/monitor/alerts')) },
+      { path: 'monitor/jaeger', element: lazyLoad(() => import('@/pages/monitor/jaeger')) },
 
       // Error pages
       { path: '403', element: lazyLoad(() => import('@/pages/result/403')) },

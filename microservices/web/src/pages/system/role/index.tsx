@@ -74,6 +74,7 @@ export default function RolePage() {
 
   useEffect(() => {
     fetchList(params)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params])
 
   const handleSearch = (values: { keyword?: string }) => {

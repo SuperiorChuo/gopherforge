@@ -80,6 +80,8 @@ var defaultMenuSeed = []model.Menu{
 	{ID: 32, Name: "monitor-server", Title: "服务器监控", Icon: "server", Path: "/monitor/server", Component: "monitor/server/index", ParentID: 30, Sort: 2, Status: 1, Hidden: 0, Permission: "system:monitor:server"},
 	{ID: 33, Name: "monitor-mysql", Title: "数据库监控", Icon: "data-base", Path: "/monitor/mysql", Component: "monitor/mysql/index", ParentID: 30, Sort: 3, Status: 1, Hidden: 0, Permission: "system:monitor:mysql"},
 	{ID: 34, Name: "monitor-redis", Title: "缓存监控", Icon: "data", Path: "/monitor/redis", Component: "monitor/redis/index", ParentID: 30, Sort: 4, Status: 1, Hidden: 0, Permission: "system:monitor:redis"},
+	// 链路追踪（网关 /jaeger 反向代理；登录可见，无独立权限码）
+	{ID: 42, Name: "monitor-jaeger", Title: "链路追踪", Icon: "apartment", Path: "/monitor/jaeger", Component: "monitor/jaeger/index", ParentID: 30, Sort: 5, Status: 1, Hidden: 0},
 
 	// 审批中心（bpm-service）：流程定义（需权限）+ 待办/我发起的（登录即见）
 	{ID: 35, Name: "bpm", Title: "审批中心", Icon: "audit", Path: "/bpm", Component: "Layout", ParentID: 0, Sort: 6, Status: 1, Hidden: 0},

@@ -117,6 +117,7 @@ export interface MenuItem {
   status: number
   hidden?: number
   permission?: string
+  permissions?: Permission[]
   children?: MenuItem[]
 }
 
@@ -168,6 +169,7 @@ export interface Menu {
   hidden?: number
   created_at?: string
   children?: Menu[]
+  permissions?: Permission[]
 }
 
 export interface Department {

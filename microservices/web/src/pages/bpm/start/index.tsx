@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button, Card, Col, Form, Modal, Row, Space, Tag, Typography } from 'antd'
 import { FormOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -16,9 +17,10 @@ const { Text } = Typography
 
 /**
  * 通用发起页（表单构建器 M1）：流程表单模式的统一发起入口——浏览可发起
- * 流程 → 动态渲染表单 → 提交。业务表单仍从业务页入口发起。
+ * 流程 → 动态渲染表单 → 提交。业务表单（CRM 合同等）仍从业务页入口发起。
  */
 export default function BpmStartPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [list, setList] = useState<BpmDefinition[]>([])
   const [loading, setLoading] = useState(false)
@@ -47,7 +49,7 @@ export default function BpmStartPage() {
     setSubmitting(true)
     try {
       await startFormInstance(current.key, formValuesToSnapshot(current.form_schema, values))
-      message.success('已发起，可在「我发起的」查看进度')
+      message.success(t('已发起，可在「我发起的」查看进度'))
       setCurrent(null)
       navigate('/bpm/instances')
     } catch {
@@ -69,7 +71,7 @@ export default function BpmStartPage() {
           description="选择流程填写表单即可发起；进度在「我发起的」跟踪"
           extra={
             <Button icon={<ReloadOutlined />} onClick={() => void load()}>
-              刷新
+              {t('刷新')}
             </Button>
           }
         />
@@ -89,14 +91,14 @@ export default function BpmStartPage() {
                 >
                   <Space direction="vertical" size={6} style={{ width: '100%' }}>
                     <Space size={8}>
-                      <FormOutlined style={{ color: '#7c3aed' }} />
+                      <FormOutlined style={{ color: 'var(--c-purple)' }} />
                       <Text strong>{d.name}</Text>
                     </Space>
                     <Text type="secondary" style={{ fontSize: 12 }} className="cell-mono">
                       {d.key} · v{d.version}
                     </Text>
                     <Space size={4} wrap>
-                      <Tag color="purple">{d.form_schema?.fields?.length ?? 0} 个字段</Tag>
+                      <Tag color="purple">{t('{{n}} 个字段', { n: d.form_schema?.fields?.length ?? 0 })}</Tag>
                       {d.remark ? (
                         <Text type="secondary" style={{ fontSize: 12 }} ellipsis>
                           {d.remark}
@@ -112,10 +114,10 @@ export default function BpmStartPage() {
       </Card>
 
       <Modal
-        title={current ? `发起：${current.name}` : '发起'}
+        title={current ? t('发起：{{name}}', { name: current.name }) : t('发起')}
         open={!!current}
         onCancel={() => setCurrent(null)}
-        okText="提交"
+        okText={t('提交')}
         okButtonProps={{ icon: <SendOutlined />, loading: submitting }}
         onOk={() => void submit()}
         destroyOnHidden
