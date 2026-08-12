@@ -9,6 +9,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	secretstrength "github.com/go-admin-kit/services/shared/pkg/secretstrength"
 )
 
 type Config struct {
@@ -139,88 +141,14 @@ func sanitize(c *Config) []string {
 }
 
 // ProductionMode 供使用点判断是否要 fail closed。
-func (c Config) ProductionMode() bool { return isProductionEnv(c.AppEnv) }
-
-func isProductionEnv(env string) bool {
-	return strings.EqualFold(strings.TrimSpace(env), "production")
-}
-
-func isStrongSecret(value string, minLength int) bool {
-	value = strings.TrimSpace(value)
-	return len(value) >= minLength && !isPlaceholderValue(value)
-}
-
-// isWeakCredential 空值、占位符、以及常见开发默认值都算弱。
-func isWeakCredential(value string) bool {
-	normalized := normalizeSecretValue(value)
-	if normalized == "" || isPlaceholderValue(normalized) {
-		return true
-	}
-	weakValues := map[string]struct{}{
-		"123456":                {},
-		"access-key":            {},
-		"accesskey":             {},
-		"admin":                 {},
-		"aws-access-key-id":     {},
-		"aws-secret-access-key": {},
-		"aws_access_key_id":     {},
-		"aws_secret_access_key": {},
-		"awsaccesskeyid":        {},
-		"awssecretaccesskey":    {},
-		"changeme":              {},
-		"default":               {},
-		"demo":                  {},
-		"development":           {},
-		"example":               {},
-		"go-admin-kit":          {},
-		"local":                 {},
-		"minioadmin":            {},
-		"password":              {},
-		"redis":                 {},
-		"root":                  {},
-		"sample":                {},
-		"secret":                {},
-		"secret-key":            {},
-		"secretkey":             {},
-		"test":                  {},
-		"test123":               {},
-	}
-	if _, ok := weakValues[normalized]; ok {
-		return true
-	}
-	// dev- 前缀按约定视为开发占位符（与 auth/monitor 等服务口径一致）——
-	// 生产环境下 dev-xxx 形态的 token 不该被当成真凭据放行。
-	return strings.HasPrefix(normalized, "dev-")
-}
-
-func isPlaceholderValue(value string) bool {
-	normalized := normalizeSecretValue(value)
-	if normalized == "" {
-		return true
-	}
-	placeholderValues := map[string]struct{}{
-		"change-me":                                  {},
-		"changeme":                                   {},
-		"dev-im-ai-internal-token":                   {},
-		"dev-notify-internal-token":                  {},
-		"local-dev-secret-change-me-32-chars":        {},
-		"replace-me":                                 {},
-		"replace-with-at-least-32-random-characters": {},
-		"your-password":                              {},
-		"your-secret-key":                            {},
-	}
-	if _, ok := placeholderValues[normalized]; ok {
-		return true
-	}
-	return strings.Contains(normalized, "change-me") ||
-		strings.Contains(normalized, "placeholder") ||
-		strings.Contains(normalized, "replace-with") ||
-		strings.HasPrefix(normalized, "your-")
-}
-
-func normalizeSecretValue(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
-}
+func (c Config) ProductionMode() bool { return isProductionEnv(c.AppEnv) } // 凭证校验函数已迁移至 shared/pkg/secretstrength，此处保留薄包装以兼容调用方。
+var (
+	isProductionEnv       = secretstrength.IsProductionEnv
+	isStrongSecret        = secretstrength.IsStrongSecret
+	isWeakCredential      = secretstrength.IsWeakCredential
+	isPlaceholderValue    = secretstrength.IsPlaceholderValue
+	oauthConfigValueReady = secretstrength.OAuthConfigValueReady
+)
 
 func getenvDuration(key string, fallback time.Duration) time.Duration {
 	if v := strings.TrimSpace(os.Getenv(key)); v != "" {

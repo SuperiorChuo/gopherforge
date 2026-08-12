@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"context"
 	"errors"
 	"fmt"
@@ -9,18 +10,17 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/services/shared/pkg/auditevents"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
+	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
-
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
@@ -29,7 +29,6 @@ import (
 	systemAPI "github.com/go-admin-kit/services/system/internal/api/system"
 	"github.com/go-admin-kit/services/system/internal/config"
 	authDAO "github.com/go-admin-kit/services/system/internal/dao/auth"
-	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	systemDAO "github.com/go-admin-kit/services/system/internal/dao/system"
 	"github.com/go-admin-kit/services/system/internal/middleware"
 	"github.com/go-admin-kit/services/system/internal/pkg/authz"
@@ -122,31 +121,6 @@ func configureGinWriters(env string) {
 	gin.DefaultErrorWriter = logger.NewGinErrorWriter()
 }
 
-func serveHTTPServer(server *http.Server, listener net.Listener, shutdownTimeout time.Duration, shutdown <-chan os.Signal) error {
-	serverErr := make(chan error, 1)
-	go func() {
-		err := server.Serve(listener)
-		if errors.Is(err, http.ErrServerClosed) {
-			err = nil
-		}
-		serverErr <- err
-	}()
-
-	select {
-	case err := <-serverErr:
-		return err
-	case sig := <-shutdown:
-		if logger.Logger != nil && sig != nil {
-			logger.Info("shutdown signal received", logger.String("signal", sig.String()))
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			return fmt.Errorf("server shutdown: %w", err)
-		}
-		return <-serverErr
-	}
-}
 
 func stopOperationLogProcessor(cancel context.CancelFunc, done <-chan struct{}, timeout time.Duration) error {
 	if cancel != nil {
@@ -210,6 +184,12 @@ func run(ctx context.Context) error {
 	}); err != nil {
 		return fmt.Errorf("audit trail plugin registration failed: %w", err)
 	}
+	// Phase 2D：审计事件化——init 发布器（NATS 配置后走事件，否则回退直写）。
+	if err := auditevents.Init(config.Cfg.NATS.URL); err != nil {
+		logger.Warn("audit events publisher init failed（回退直写）", logger.Err(err))
+	} else if config.Cfg.NATS.URL != "" {
+		logger.Info("audit events publisher enabled")
+	}
 	consoleSessionService := authsvc.NewConsoleSessionServiceWithDB(database.DB)
 	middleware.SetAuthMiddlewareDependencies(middleware.AuthMiddlewareDependencies{
 		Users:           authDAO.NewUserDAO(database.DB),
@@ -254,7 +234,7 @@ func run(ctx context.Context) error {
 		logger.Info("default menus bootstrapped", logger.Int("menus", menuResult.Menus))
 	}
 
-	// Persist operation logs for the admin CRUD this service now owns.
+	// 持久化本服务现持有的管理端 CRUD 操作日志。
 	operationLogService := systemsvc.NewOperationLogServiceWithDB(database.DB)
 	operationLogDone := middleware.StartOperationLogProcessor(lifecycleCtx, &operationLogService)
 	defer func() {
@@ -263,8 +243,7 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	// Refresh cached department trees when another instance (or the monolith)
-	// changes departments.
+	// 当其他实例（或单体版）变更部门时，刷新缓存的部门树。
 	departmentTreeListener, err := authz.StartDepartmentTreeInvalidationListener(lifecycleCtx)
 	if err != nil {
 		logger.Warn("department tree invalidation listener start failed", logger.Err(err))
@@ -276,8 +255,8 @@ func run(ctx context.Context) error {
 		}()
 	}
 
-	// Fan notification events published to Redis (by any instance) out to the
-	// WebSocket clients connected to this instance.
+	// 将（任一实例）发布到 Redis 的通知事件，扇出给连接本实例的
+	// WebSocket 客户端。
 	if err := systemAPI.StartNotificationRedisBridge(lifecycleCtx, systemsvc.DefaultNotificationBroadcaster()); err != nil {
 		logger.Warn("notification redis bridge start failed", logger.Err(err))
 	} else {
@@ -288,8 +267,7 @@ func run(ctx context.Context) error {
 		}()
 	}
 
-	// Warm up the runtime security policy cache; failures fall back to the
-	// static config defaults on first request.
+	// 预热运行时安全策略缓存；失败时首次请求回退到静态配置默认值。
 	if err := runtimeconfig.DefaultSecurityPolicyReader().Refresh(ctx); err != nil {
 		logger.Warn("security policy warmup failed", logger.Err(err))
 	}
@@ -359,13 +337,26 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("server listen failed: %w", err)
 	}
-	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
-	defer signal.Stop(shutdown)
-
 	printStartupBanner(config.Cfg.App.Name, config.Cfg.App.Version, config.Cfg.App.Env, port)
-	if err := serveHTTPServer(server, listener, 15*time.Second, shutdown); err != nil {
-		return fmt.Errorf("server start failed: %w", err)
+		sh := graceful.New(graceful.WithTimeout(15 * time.Second))
+	serverErr := make(chan error, 1)
+	go func() {
+		logger.Info("server listening", logger.String("addr", server.Addr))
+		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErr <- err
+		}
+	}()
+	sh.Register("http-server", func(ctx context.Context) error {
+		return server.Shutdown(ctx)
+	})
+	if err := sh.WaitAndShutdown(); err != nil {
+		logger.Error("graceful shutdown error", logger.Err(err))
 	}
-	return nil
+	select {
+	case err := <-serverErr:
+		return err
+	default:
+		return nil
+	}
 }
+

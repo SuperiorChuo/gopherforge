@@ -5,13 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -20,7 +17,6 @@ import (
 	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/auth/internal/config"
 	authDAO "github.com/go-admin-kit/services/auth/internal/dao/auth"
-	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	systemDAO "github.com/go-admin-kit/services/auth/internal/dao/system"
 	"github.com/go-admin-kit/services/auth/internal/events"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
@@ -29,13 +25,15 @@ import (
 	"github.com/go-admin-kit/services/auth/internal/pkg/redis"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	authsvc "github.com/go-admin-kit/services/auth/internal/service/auth"
+	"github.com/go-admin-kit/services/shared/pkg/auditevents"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
+	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
+	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
-	model "github.com/go-admin-kit/services/shared/pkg/model"
-
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
 func setupCORS(router *gin.Engine) {
@@ -98,7 +96,8 @@ func isLocalDevelopmentOrigin(origin string) bool {
 }
 
 func printStartupBanner(name, version, env string, port int) {
-	fmt.Printf("\n%s v%s\nEnvironment: %s\nServer: http://localhost:%d\nAPI: http://localhost:%d/api/v1\n\n", name, version, env, port, port)
+	fmt.Printf("\n%s v%s\nEnvironment: %s\nServer: http://localhost:%d\nAPI: http://localhost:%d/api/v1\n\n",
+		name, version, env, port, port)
 	logger.Info("server started",
 		logger.String("app", name),
 		logger.String("version", version),
@@ -117,32 +116,6 @@ func configureGinWriters(env string) {
 
 	gin.DefaultWriter = logger.NewGinWriter()
 	gin.DefaultErrorWriter = logger.NewGinErrorWriter()
-}
-
-func serveHTTPServer(server *http.Server, listener net.Listener, shutdownTimeout time.Duration, shutdown <-chan os.Signal) error {
-	serverErr := make(chan error, 1)
-	go func() {
-		err := server.Serve(listener)
-		if errors.Is(err, http.ErrServerClosed) {
-			err = nil
-		}
-		serverErr <- err
-	}()
-
-	select {
-	case err := <-serverErr:
-		return err
-	case sig := <-shutdown:
-		if logger.Logger != nil && sig != nil {
-			logger.Info("shutdown signal received", logger.String("signal", sig.String()))
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			return fmt.Errorf("server shutdown: %w", err)
-		}
-		return <-serverErr
-	}
 }
 
 func main() {
@@ -164,11 +137,15 @@ func run(ctx context.Context) error {
 
 	logCfg := config.Cfg.Logger
 	logger.InitLogger(logCfg.FilePath, logCfg.Level, logCfg.MaxSize, logCfg.MaxBackups, logCfg.MaxAge)
-	defer func() {
+
+	sh := graceful.New(graceful.WithTimeout(10 * time.Second))
+
+	sh.Register("logger", func(ctx context.Context) error {
 		if logger.Logger != nil {
-			_ = logger.Logger.Sync()
+			return logger.Logger.Sync()
 		}
-	}()
+		return nil
+	})
 
 	logger.Info("initializing database")
 	if err := database.InitDatabase(); err != nil {
@@ -179,6 +156,11 @@ func run(ctx context.Context) error {
 	}); err != nil {
 		return fmt.Errorf("audit trail plugin registration failed: %w", err)
 	}
+
+	if err := auditevents.Init(config.Cfg.NATS.URL); err != nil {
+		logger.Warn("audit events publisher init failed（回退直写）", logger.Err(err))
+	}
+
 	consoleSessionService := authsvc.NewConsoleSessionServiceWithDB(database.DB)
 	middleware.SetAuthMiddlewareDependencies(middleware.AuthMiddlewareDependencies{
 		Users:           authDAO.NewUserDAO(database.DB),
@@ -187,28 +169,26 @@ func run(ctx context.Context) error {
 	})
 	runtimeconfig.SetSecurityPolicyStore(systemDAO.NewSettingDAO(database.DB))
 	runtimeconfig.SetEmailNotificationStore(systemDAO.NewSettingDAO(database.DB))
-	defer func() {
-		if err := database.Close(); err != nil {
-			logger.Error("database close failed", logger.Err(err))
-		}
-	}()
+
+	sh.Register("database", func(ctx context.Context) error {
+		return database.Close()
+	})
 
 	logger.Info("initializing redis")
 	if err := redis.InitRedis(); err != nil {
 		return fmt.Errorf("redis initialization failed: %w", err)
 	}
 	jwt.SetRedis(redis.Client)
-	defer func() {
-		if err := redis.Close(); err != nil {
-			logger.Error("redis close failed", logger.Err(err))
-		}
-	}()
+	sh.Register("redis", func(ctx context.Context) error {
+		return redis.Close()
+	})
 
 	lifecycleCtx, cancelLifecycle := context.WithCancel(ctx)
-	defer cancelLifecycle()
+	sh.Register("lifecycle-cancel", func(ctx context.Context) error {
+		cancelLifecycle()
+		return nil
+	})
 
-	// Warm up the runtime security policy cache; failures fall back to the
-	// static config defaults on first request.
 	if err := runtimeconfig.DefaultSecurityPolicyReader().Refresh(ctx); err != nil {
 		logger.Warn("security policy warmup failed", logger.Err(err))
 	}
@@ -217,14 +197,11 @@ func run(ctx context.Context) error {
 	if err != nil {
 		logger.Warn("runtime config invalidation listener start failed", logger.Err(err))
 	} else {
-		defer func() {
-			if err := runtimeConfigListener.Close(); err != nil {
-				logger.Warn("runtime config invalidation listener close failed", logger.Err(err))
-			}
-		}()
+		sh.Register("runtime-config-listener", func(ctx context.Context) error {
+			return runtimeConfigListener.Close()
+		})
 	}
 
-	// Connect event publisher via Redis pub/sub (previously NATS; Redis already deployed).
 	publisher, err := events.ConnectRedis(redis.Client)
 	if err != nil {
 		logger.Warn("redis event publisher connect failed, auth events disabled", logger.Err(err))
@@ -245,13 +222,9 @@ func run(ctx context.Context) error {
 			logger.String("otlp", tracingCfg.OTLPEndpoint),
 			logger.Any("sample_ratio", tracingCfg.SampleRatio),
 		)
-		defer func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := shutdownTracing(ctx); err != nil {
-				logger.Error("tracing shutdown failed", logger.Err(err))
-			}
-		}()
+		sh.Register("tracing", func(ctx context.Context) error {
+			return shutdownTracing(ctx)
+		})
 	}
 
 	configureGinWriters(config.Cfg.App.Env)
@@ -263,8 +236,6 @@ func run(ctx context.Context) error {
 		}
 	}
 
-	// HTTP 指标（GET /metrics，Prometheus 抓取）：先于其余中间件注册，
-	// 端点不进日志/限流链；METRICS_ENABLED=false 关闭
 	sharedmetrics.Install(router)
 	if sqlDB, err := database.DB.DB(); err == nil {
 		sharedmetrics.SetDBStats(sqlDB.Stats)
@@ -282,18 +253,36 @@ func run(ctx context.Context) error {
 	api.SetupRoutesWithDeps(router, sharedapi.Dependencies{DB: database.DB, Redis: redis.Client})
 
 	port := config.Cfg.App.Port
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: router}
-	listener, err := net.Listen("tcp", server.Addr)
-	if err != nil {
-		return fmt.Errorf("server listen failed: %w", err)
-	}
-	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
-	defer signal.Stop(shutdown)
-
+	addr := fmt.Sprintf(":%d", port)
 	printStartupBanner(config.Cfg.App.Name, config.Cfg.App.Version, config.Cfg.App.Env, port)
-	if err := serveHTTPServer(server, listener, 15*time.Second, shutdown); err != nil {
-		return fmt.Errorf("server start failed: %w", err)
+
+	server := &http.Server{
+		Addr:         addr,
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
 	}
-	return nil
+
+	serverErr := make(chan error, 1)
+	go func() {
+		logger.Info("server listening", logger.String("addr", addr))
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErr <- err
+		}
+	}()
+
+	sh.Register("http-server", func(ctx context.Context) error {
+		return server.Shutdown(ctx)
+	})
+
+	if err := sh.WaitAndShutdown(); err != nil {
+		logger.Error("graceful shutdown error", logger.Err(err))
+	}
+
+	select {
+	case err := <-serverErr:
+		return err
+	default:
+		return nil
+	}
 }

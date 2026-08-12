@@ -1,18 +1,19 @@
-// Package config provides 12-factor, environment-only configuration for the
-// auth service. It intentionally keeps the same struct shape, global Cfg
-// variable, helper methods, and environment variable names as the monolith's
-// config package so that code copied from the monolith keeps working
-// unchanged and docker-compose environments stay uniform.
+// Package config 提供 12-factor、仅环境变量驱动的配置，供
+// auth 服务使用。它刻意保持与单体 config 包相同的结构体形态、全局 Cfg
+// 变量、辅助方法与环境变量名称，使从单体拷贝的代码无需改动即可继续
+// 工作，并让 docker-compose 环境保持一致。
 package config
 
 import (
-	"github.com/go-admin-kit/services/shared/pkg/envsecret"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	envsecret "github.com/go-admin-kit/services/shared/pkg/envsecret"
+	secretstrength "github.com/go-admin-kit/services/shared/pkg/secretstrength"
 )
 
 type Config struct {
@@ -177,15 +178,15 @@ type TracingConfig struct {
 }
 
 type NATSConfig struct {
-	// URL is the NATS server URL; empty disables event publishing.
+	// URL 是 NATS 服务器地址；为空时禁用事件发布。
 	URL string
 }
 
 var Cfg Config
 
-// Defaults returns the local-development configuration. Values match the
-// monolith's configs/config.yaml so both services behave identically against
-// the shared Postgres/Redis, except App.Port which defaults to 8082.
+// Defaults 返回本地开发配置。取值与单体的 configs/config.yaml 一致，
+// 使两个服务面对共享的 Postgres/Redis 时行为完全相同，
+// 唯一例外是 App.Port 默认为 8082。
 func Defaults() Config {
 	return Config{
 		App: AppCfg{
@@ -291,8 +292,8 @@ func Defaults() Config {
 	}
 }
 
-// Load fills the package-level Cfg from environment variables layered over
-// Defaults. Env var names match the monolith exactly.
+// Load 用叠加在 Defaults 之上的环境变量填充包级 Cfg。
+// 环境变量名称与单体完全一致。
 func Load() error {
 	cfg := Defaults()
 	applyEnv(&cfg)
@@ -310,6 +311,7 @@ func applyEnv(config *Config) {
 	config.Database.Host = getEnvString("DB_HOST", config.Database.Host)
 	config.Database.Port = getEnvInt("DB_PORT", config.Database.Port)
 	config.Database.User = getEnvString("DB_USER", config.Database.User)
+	// 敏感项走 envsecret：优先 /run/secrets，再环境变量。
 	config.Database.Password = getSecretString("DB_PASSWORD", config.Database.Password)
 	config.Database.DBName = getEnvString("DB_NAME", config.Database.DBName)
 	config.Database.SSLMode = getEnvString("DB_SSLMODE", config.Database.SSLMode)
@@ -404,8 +406,8 @@ func validate(cfg Config) error {
 		}
 	}
 	if isProductionEnv(cfg.App.Env) {
-		// Collect every secret problem before failing so an operator fixes the
-		// whole set in one pass instead of one restart per issue.
+		// 在失败前收集所有密钥问题，使运维可以一次修完整套配置，
+		// 而不是每个问题重启一次。
 		issues := make([]string, 0, 4)
 		if !isStrongSecret(cfg.JWT.Secret, 32) {
 			issues = append(issues, "JWT_SECRET must be at least 32 characters and must not use a default or placeholder value")
@@ -419,10 +421,9 @@ func validate(cfg Config) error {
 		if cfg.InternalToken != "" && isWeakCredential(cfg.InternalToken) {
 			issues = append(issues, "SYSTEM_INTERNAL_TOKEN must not use a default, weak, or placeholder value")
 		}
-		// IsSMTPAuthUnsafe re-tests the environment itself, which is redundant
-		// inside this block on purpose: routing the startup gate through the
-		// exported predicate is what keeps this check and the runtime config
-		// layer's fail-closed guard on one single definition.
+		// IsSMTPAuthUnsafe 会重新读取环境本身，在该代码块内看似冗余，
+		// 但这是刻意为之：让启动门禁走这个导出的谓词，才能保证这里的检查
+		// 与运行时配置层的 fail-closed 守卫始终基于同一份定义。
 		if IsSMTPAuthUnsafe(cfg.App.Env, cfg.Notification.Email) {
 			issues = append(issues, "EMAIL_SMTP_PASSWORD must not be empty, default, weak, or placeholder while SMTP authentication is configured")
 		}
@@ -433,13 +434,11 @@ func validate(cfg Config) error {
 	return nil
 }
 
-// smtpAuthConfigured reports whether the email channel will actually
-// authenticate against an SMTP server. mailer.SMTPSender.Send returns early
-// when Enabled is false and refuses an empty host, and mailer's smtpAuth sends
-// no AUTH command at all when username and password are both empty — the
-// switched-off channel and an anonymous relay therefore carry no credential
-// worth blocking startup over. Only the remaining shape (channel on, host set,
-// AUTH in use) has an EMAIL_SMTP_PASSWORD that travels to a remote server.
+// smtpAuthConfigured 报告邮件通道是否真的会对 SMTP 服务器进行认证。
+// 当 Enabled 为 false 时 mailer.SMTPSender.Send 会提前返回，并拒绝空主机；
+// 当用户名和密码都为空时，mailer 的 smtpAuth 不会发送任何 AUTH 命令——
+// 因此关闭的通道与匿名中继都不携带值得阻塞启动的凭据。只有剩下的一种形态
+// （通道开启、主机已设置、使用 AUTH）才会让 EMAIL_SMTP_PASSWORD 流向远程服务器。
 func smtpAuthConfigured(email EmailConfig) bool {
 	if !email.Enabled || strings.TrimSpace(email.SMTPHost) == "" {
 		return false
@@ -447,20 +446,16 @@ func smtpAuthConfigured(email EmailConfig) bool {
 	return strings.TrimSpace(email.Username) != "" || strings.TrimSpace(email.Password) != ""
 }
 
-// IsSMTPAuthUnsafe reports whether authenticating against an SMTP server with
-// this email configuration is unsafe in env. It is the one definition of that
-// policy: outside production nothing is refused (local development stays
-// zero-config), a channel that never sends AUTH carries no credential to judge
-// (smtpAuthConfigured), and only the remaining shape puts its password up
-// against isWeakCredential.
+// IsSMTPAuthUnsafe 报告在 env 环境下使用该邮件配置对 SMTP 服务器认证是否不安全。
+// 它是该策略的唯一定义：生产环境之外什么都不拒绝（本地开发保持零配置），
+// 从不发送 AUTH 的通道没有可判定的凭据（smtpAuthConfigured），
+// 只有剩下那种形态才会把密码交给 isWeakCredential 判定。
 //
-// Exported for internal/pkg/runtimeconfig, where a system_settings row can
-// switch notification.email on long after validate() inspected the environment
-// derived settings — that layer has to fail closed on exactly the shape refused
-// here. Sharing this predicate instead of exporting isProductionEnv and
-// isWeakCredential separately is deliberate: it makes the two gates impossible
-// to drift apart and keeps the raw credential primitives out of reach of
-// unrelated callers.
+// 导出给 internal/pkg/runtimeconfig 使用：在 validate() 检查完环境派生设置很久之后，
+// 一条 system_settings 记录仍可能把 notification.email 打开——那一层必须
+// 对这里拒绝的形态同样采取 fail-closed。刻意共享这一个谓词而非分别导出
+// isProductionEnv 与 isWeakCredential，是为了让两道门禁不可能相互偏离，
+// 并让原始凭据判断原语远离无关调用方。
 func IsSMTPAuthUnsafe(env string, email EmailConfig) bool {
 	return isProductionEnv(env) && smtpAuthConfigured(email) && isWeakCredential(email.Password)
 }
@@ -491,103 +486,26 @@ func validateCodegenRepoRoot(root string) error {
 		}
 	}
 	return nil
-}
-
-func isProductionEnv(env string) bool {
-	return strings.EqualFold(strings.TrimSpace(env), "production")
-}
-
-func isStrongSecret(value string, minLength int) bool {
-	value = strings.TrimSpace(value)
-	return len(value) >= minLength && !isPlaceholderValue(value)
-}
-
-// isWeakCredential reports credentials that are effectively unset: empty,
-// placeholder, or a well-known development default. Criteria match the monitor
-// and bpm services; every service is its own module and its Docker build
-// context excludes shared, so this is a deliberate local copy.
-func isWeakCredential(value string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(value))
-	if normalized == "" || isPlaceholderValue(normalized) {
-		return true
-	}
-	weakValues := map[string]struct{}{
-		"123456":                {},
-		"access-key":            {},
-		"accesskey":             {},
-		"admin":                 {},
-		"aws-access-key-id":     {},
-		"aws-secret-access-key": {},
-		"aws_access_key_id":     {},
-		"aws_secret_access_key": {},
-		"awsaccesskeyid":        {},
-		"awssecretaccesskey":    {},
-		"changeme":              {},
-		"default":               {},
-		"demo":                  {},
-		"development":           {},
-		"example":               {},
-		"go-admin-kit":          {},
-		"local":                 {},
-		"minioadmin":            {},
-		"password":              {},
-		"redis":                 {},
-		"root":                  {},
-		"sample":                {},
-		"secret":                {},
-		"secret-key":            {},
-		"secretkey":             {},
-		"test":                  {},
-		"test123":               {},
-	}
-	if _, ok := weakValues[normalized]; ok {
-		return true
-	}
-	// dev- prefixed values are development placeholders by convention (bpm
-	// blacklists such tokens one by one). Kept inside the credential check so
-	// existing JWT secret criteria stay untouched.
-	return strings.HasPrefix(normalized, "dev-")
-}
-
-func isPlaceholderValue(value string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(value))
-	if normalized == "" {
-		return true
-	}
-	placeholderValues := map[string]struct{}{
-		"change-me":                           {},
-		"changeme":                            {},
-		"local-dev-secret-change-me-32-chars": {},
-		"replace-me":                          {},
-		"replace-with-at-least-32-random-characters": {},
-		"your-password":   {},
-		"your-secret-key": {},
-	}
-	if _, ok := placeholderValues[normalized]; ok {
-		return true
-	}
-	return strings.Contains(normalized, "change-me") ||
-		strings.Contains(normalized, "placeholder") ||
-		strings.Contains(normalized, "replace-with") ||
-		strings.HasPrefix(normalized, "your-")
-}
-
-func oauthConfigValueReady(value string) bool {
-	value = strings.TrimSpace(value)
-	return value != "" && !isPlaceholderValue(value)
-}
-
-
-// getSecretString reads sensitive config: Swarm secrets first, then env.
-func getSecretString(key, fallback string) string {
-	return envsecret.Get(key, fallback)
-}
+} // 凭证校验函数已迁移至 shared/pkg/secretstrength，此处保留薄包装以兼容调用方。
+var (
+	isProductionEnv       = secretstrength.IsProductionEnv
+	isStrongSecret        = secretstrength.IsStrongSecret
+	isWeakCredential      = secretstrength.IsWeakCredential
+	isPlaceholderValue    = secretstrength.IsPlaceholderValue
+	oauthConfigValueReady = secretstrength.OAuthConfigValueReady
+)
 
 func getEnvString(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return fallback
+}
+
+
+// getSecretString 读敏感配置：/run/secrets 优先于环境变量（Swarm secrets）。
+func getSecretString(key, fallback string) string {
+	return envsecret.Get(key, fallback)
 }
 
 func getEnvInt(key string, fallback int) int {
@@ -668,7 +586,7 @@ func (c SecurityConfig) EffectivePasswordHistoryCount() int {
 	return c.PasswordHistoryCount
 }
 
-// GetDSN returns the database connection string (same shape as the monolith).
+// GetDSN 返回数据库连接字符串（与单体形态一致）。
 func (c *DatabaseConfig) GetDSN() string {
 	sslMode := strings.TrimSpace(c.SSLMode)
 	if sslMode == "" {
@@ -696,7 +614,7 @@ func (c DatabaseConfig) EffectiveConnMaxIdleTime() time.Duration {
 	return time.Duration(c.ConnMaxIdleTimeSeconds) * time.Second
 }
 
-// GetRedisAddr returns the Redis address.
+// GetRedisAddr 返回 Redis 地址。
 func (c *RedisConfig) GetRedisAddr() string {
 	return fmt.Sprintf("%s:%d", c.Host, c.Port)
 }

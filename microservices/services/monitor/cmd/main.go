@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"context"
 	"errors"
 	"fmt"
@@ -9,10 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -21,7 +20,6 @@ import (
 	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/monitor/internal/config"
 	authDAO "github.com/go-admin-kit/services/monitor/internal/dao/auth"
-	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
 	systemDAO "github.com/go-admin-kit/services/monitor/internal/dao/system"
 	"github.com/go-admin-kit/services/monitor/internal/middleware"
@@ -33,9 +31,9 @@ import (
 	authsvc "github.com/go-admin-kit/services/monitor/internal/service/auth"
 	monitorSvc "github.com/go-admin-kit/services/monitor/internal/service/monitor"
 	systemSvc "github.com/go-admin-kit/services/monitor/internal/service/system"
-	"github.com/go-admin-kit/services/shared/pkg/jwt"
+	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	"github.com/go-admin-kit/services/shared/pkg/grpcx"
-
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 
@@ -134,31 +132,6 @@ func configureGinWriters(env string) {
 	gin.DefaultErrorWriter = logger.NewGinErrorWriter()
 }
 
-func serveHTTPServer(server *http.Server, listener net.Listener, shutdownTimeout time.Duration, shutdown <-chan os.Signal) error {
-	serverErr := make(chan error, 1)
-	go func() {
-		err := server.Serve(listener)
-		if errors.Is(err, http.ErrServerClosed) {
-			err = nil
-		}
-		serverErr <- err
-	}()
-
-	select {
-	case err := <-serverErr:
-		return err
-	case sig := <-shutdown:
-		if logger.Logger != nil && sig != nil {
-			logger.Info("shutdown signal received", logger.String("signal", sig.String()))
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			return fmt.Errorf("server shutdown: %w", err)
-		}
-		return <-serverErr
-	}
-}
 
 func startDepartmentTreeInvalidationListener(ctx context.Context) (*redis.StringSubscriber, error) {
 	return authz.StartDepartmentTreeInvalidationListener(ctx)
@@ -439,7 +412,6 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("grpc server start failed: %w", err)
 	}
-	defer grpcCleanup()
 
 	port := config.Cfg.App.Port
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: router}
@@ -447,13 +419,32 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("server listen failed: %w", err)
 	}
-	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
-	defer signal.Stop(shutdown)
-
 	printStartupBanner(config.Cfg.App.Name, config.Cfg.App.Version, config.Cfg.App.Env, port)
-	if err := serveHTTPServer(server, listener, 15*time.Second, shutdown); err != nil {
-		return fmt.Errorf("server start failed: %w", err)
+		sh := graceful.New(graceful.WithTimeout(15 * time.Second))
+	if grpcCleanup != nil {
+		sh.Register("grpc", func(ctx context.Context) error {
+			grpcCleanup()
+			return nil
+		})
 	}
-	return nil
+	serverErr := make(chan error, 1)
+	go func() {
+		logger.Info("server listening", logger.String("addr", server.Addr))
+		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErr <- err
+		}
+	}()
+	sh.Register("http-server", func(ctx context.Context) error {
+		return server.Shutdown(ctx)
+	})
+	if err := sh.WaitAndShutdown(); err != nil {
+		logger.Error("graceful shutdown error", logger.Err(err))
+	}
+	select {
+	case err := <-serverErr:
+		return err
+	default:
+		return nil
+	}
 }
+

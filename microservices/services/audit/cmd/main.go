@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"context"
 	"errors"
 	"fmt"
@@ -9,10 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -21,7 +20,6 @@ import (
 	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/audit/internal/config"
 	authDAO "github.com/go-admin-kit/services/audit/internal/dao/auth"
-	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	systemDAO "github.com/go-admin-kit/services/audit/internal/dao/system"
 	"github.com/go-admin-kit/services/audit/internal/events"
 	"github.com/go-admin-kit/services/audit/internal/middleware"
@@ -32,16 +30,19 @@ import (
 	"github.com/go-admin-kit/services/audit/internal/pkg/runtimeconfig"
 	authsvc "github.com/go-admin-kit/services/audit/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/audit/internal/service/system"
-	"github.com/go-admin-kit/services/shared/pkg/jwt"
+	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	"github.com/go-admin-kit/services/shared/pkg/grpcx"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
+	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
+	"github.com/go-admin-kit/services/shared/pkg/outbox"
 	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 
-	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
-
 	auditv1 "github.com/go-admin-kit/services/api/gen/audit/v1"
+	"github.com/nats-io/nats.go"
+	"gorm.io/gorm"
 )
 
 func setupCORS(router *gin.Engine) {
@@ -125,31 +126,6 @@ func configureGinWriters(env string) {
 	gin.DefaultErrorWriter = logger.NewGinErrorWriter()
 }
 
-func serveHTTPServer(server *http.Server, listener net.Listener, shutdownTimeout time.Duration, shutdown <-chan os.Signal) error {
-	serverErr := make(chan error, 1)
-	go func() {
-		err := server.Serve(listener)
-		if errors.Is(err, http.ErrServerClosed) {
-			err = nil
-		}
-		serverErr <- err
-	}()
-
-	select {
-	case err := <-serverErr:
-		return err
-	case sig := <-shutdown:
-		if logger.Logger != nil && sig != nil {
-			logger.Info("shutdown signal received", logger.String("signal", sig.String()))
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			return fmt.Errorf("server shutdown: %w", err)
-		}
-		return <-serverErr
-	}
-}
 
 func stopOperationLogProcessor(cancel context.CancelFunc, done <-chan struct{}, timeout time.Duration) error {
 	if cancel != nil {
@@ -252,6 +228,23 @@ func run(ctx context.Context) error {
 	}
 	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {
 		return fmt.Errorf("data scope plugin registration failed: %w", err)
+	}
+	// Phase 2D：审计事件消费者（订阅 audit.log.> 写 audit_svc）。
+	// Phase 5：Outbox worker——投递 public.outbox_events → NATS（业务方同事务写入）。
+	if natsURL := config.Cfg.NATS.URL; natsURL != "" {
+		stopConsumer, err := events.StartConsumer(ctx, natsURL, database.DB)
+		if err != nil {
+			logger.Warn("audit events consumer start failed（跳过，直写审计不受影响）", logger.Err(err))
+		} else {
+			defer stopConsumer()
+			logger.Info("audit events consumer started", logger.String("nats", natsURL))
+		}
+		if stopWorker, err := startOutboxWorker(ctx, natsURL, database.DB); err != nil {
+			logger.Warn("outbox worker start failed（事务 Outbox 投递暂停）", logger.Err(err))
+		} else if stopWorker != nil {
+			defer stopWorker()
+			logger.Info("outbox worker started")
+		}
 	}
 	if err := tenantscope.Register(database.DB); err != nil {
 		return fmt.Errorf("tenant scope plugin registration failed: %w", err)
@@ -414,7 +407,6 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("grpc server start failed: %w", err)
 	}
-	defer grpcCleanup()
 
 	port := config.Cfg.App.Port
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: router}
@@ -422,13 +414,82 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("server listen failed: %w", err)
 	}
-	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
-	defer signal.Stop(shutdown)
-
 	printStartupBanner(config.Cfg.App.Name, config.Cfg.App.Version, config.Cfg.App.Env, port)
-	if err := serveHTTPServer(server, listener, 15*time.Second, shutdown); err != nil {
-		return fmt.Errorf("server start failed: %w", err)
+		sh := graceful.New(graceful.WithTimeout(15 * time.Second))
+	if grpcCleanup != nil {
+		sh.Register("grpc", func(ctx context.Context) error {
+			grpcCleanup()
+			return nil
+		})
 	}
-	return nil
+	serverErr := make(chan error, 1)
+	go func() {
+		logger.Info("server listening", logger.String("addr", server.Addr))
+		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErr <- err
+		}
+	}()
+	sh.Register("http-server", func(ctx context.Context) error {
+		return server.Shutdown(ctx)
+	})
+	if err := sh.WaitAndShutdown(); err != nil {
+		logger.Error("graceful shutdown error", logger.Err(err))
+	}
+	select {
+	case err := <-serverErr:
+		return err
+	default:
+		return nil
+	}
+}
+
+
+// startOutboxWorker 连接 NATS JetStream，轮询 outbox_events 并同步 Publish。
+// 生产方（如 crm 开启 outbox.EnableTransactional）在业务事务内写入该表。
+func startOutboxWorker(ctx context.Context, natsURL string, db *gorm.DB) (func(), error) {
+	if natsURL == "" || db == nil {
+		return nil, nil
+	}
+	nc, err := nats.Connect(natsURL,
+		nats.Name("audit-outbox-worker"),
+		nats.MaxReconnects(-1),
+		nats.Timeout(3*time.Second),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("nats connect: %w", err)
+	}
+	js, err := nc.JetStream()
+	if err != nil {
+		nc.Close()
+		return nil, fmt.Errorf("jetstream: %w", err)
+	}
+	// 与 auditevents 同 stream，保证 subject audit.log.> 可投
+	if _, err := js.StreamInfo("audit_events"); err != nil {
+		if _, err := js.AddStream(&nats.StreamConfig{
+			Name:      "audit_events",
+			Subjects:  []string{"audit.log.>"},
+			Storage:   nats.FileStorage,
+			Retention: nats.LimitsPolicy,
+			MaxAge:    7 * 24 * time.Hour,
+		}); err != nil {
+			nc.Close()
+			return nil, fmt.Errorf("ensure stream: %w", err)
+		}
+	}
+	pub := outbox.PublisherFunc(func(ctx context.Context, subject string, payload []byte) error {
+		_, err := js.Publish(subject, payload, nats.Context(ctx))
+		return err
+	})
+	stop := outbox.StartWorker(ctx, db, pub, outbox.Options{
+		PollInterval: 2 * time.Second,
+		BatchSize:    32,
+		MaxAttempts:  8,
+		Logger: func(format string, args ...any) {
+			logger.Info(fmt.Sprintf(format, args...))
+		},
+	})
+	return func() {
+		stop()
+		nc.Close()
+	}, nil
 }

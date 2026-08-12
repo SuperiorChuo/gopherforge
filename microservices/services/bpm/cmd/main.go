@@ -7,21 +7,22 @@
 package main
 
 import (
+	"github.com/go-admin-kit/services/shared/pkg/observability"
+
 	"context"
 	"encoding/json"
 	"fmt"
+	bpmv1 "github.com/go-admin-kit/services/api/gen/bpm/v1"
+	"github.com/go-admin-kit/services/shared/pkg/grpcx"
 	"log"
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	bpmv1 "github.com/go-admin-kit/services/api/gen/bpm/v1"
 	"github.com/go-admin-kit/services/bpm/internal/api"
 	"github.com/go-admin-kit/services/bpm/internal/callback"
 	"github.com/go-admin-kit/services/bpm/internal/config"
@@ -29,12 +30,51 @@ import (
 	"github.com/go-admin-kit/services/bpm/internal/model"
 	"github.com/go-admin-kit/services/bpm/internal/store"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
-	"github.com/go-admin-kit/services/shared/pkg/grpcx"
+	"github.com/go-admin-kit/services/shared/pkg/graceful"
+	"github.com/go-admin-kit/services/shared/pkg/idempotency"
 	"github.com/go-admin-kit/services/shared/pkg/jobbeat"
 	"github.com/go-admin-kit/services/shared/pkg/metrics"
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
-	"github.com/go-admin-kit/services/shared/pkg/observability"
 )
+
+// startBpmGRPC 启动 bpm 发起审批 gRPC 服务并注册 Consul（Phase 3）。
+// ctx 取消时 GracefulStop 并注销 Consul。
+func startBpmGRPC(ctx context.Context, cfg config.Config, srv *api.Server) {
+	port := 9086
+	if v := os.Getenv("GRPC_PORT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			port = n
+		}
+	}
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		log.Printf("bpm grpc listen failed: %v", err)
+		return
+	}
+	grpcSrv := grpcx.NewServer()
+	bpmv1.RegisterBpmServiceServer(grpcSrv, api.NewBpmGRPC(srv))
+	go func() { _ = grpcSrv.Serve(lis) }()
+
+	var deregister func()
+	if consulAddr := os.Getenv("CONSUL_ADDR"); consulAddr != "disabled" {
+		host := grpcx.LocalIP()
+		if host == "" {
+			host = "127.0.0.1"
+		}
+		if d, regErr := grpcx.Register(consulAddr, grpcx.Instance{
+			ServiceName: "bpm-service",
+			Host:        host,
+			Port:        port,
+		}); regErr == nil {
+			deregister = d
+		}
+	}
+	<-ctx.Done()
+	grpcSrv.GracefulStop()
+	if deregister != nil {
+		deregister()
+	}
+}
 
 func main() {
 	cfg := config.Load()
@@ -81,20 +121,16 @@ func main() {
 	// 提醒策略的任务仅在 notify 启用时记录并发信（无通道不吞提醒，留待
 	// 通道开启后补发）。
 	scanCtx, stopScan := context.WithCancel(context.Background())
-	defer stopScan()
 	go runTimeoutLoop(scanCtx, srv, st, notify, cfg.TimeoutScanInterval)
 	log.Printf("bpm timeout: scan enabled, interval=%s remind=%v", cfg.TimeoutScanInterval, notify.Enabled())
 	go runCallbackLoop(scanCtx, st, cb)
 	log.Printf("bpm callback: persistent worker enabled")
 
 	// OpenTelemetry tracing (noop when TRACING_ENABLED != "true").
-	shutdownTracing, _ := observability.InitTracerFromEnv(context.Background(), "bpm")
-	if shutdownTracing != nil {
-		defer func() { _ = shutdownTracing(context.Background()) }()
+	shutdownTracing, err := observability.InitTracerFromEnv(context.Background(), "bpm")
+	if err != nil {
+		log.Printf("tracing init: %v", err)
 	}
-
-	// Phase 3 同步（主仓）：bpm 发起审批 + 按业务对象反查 gRPC server（Consul 发现）。
-	go startBpmGRPC(cfg, srv)
 
 	r := gin.New()
 	r.Use(observability.GinTracing("bpm", "request_id"))
@@ -110,6 +146,9 @@ func main() {
 	}))
 	srv.RegisterRoutes(r)
 
+	// Phase 3：bpm 发起审批 gRPC server（经 Consul 发现，供 crm 调）。
+	go startBpmGRPC(scanCtx, cfg, srv)
+
 	httpSrv := &http.Server{
 		Addr:              ":" + cfg.AppPort,
 		Handler:           r,
@@ -122,46 +161,21 @@ func main() {
 		}
 	}()
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	stopScan()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	_ = httpSrv.Shutdown(ctx)
-}
-
-// startBpmGRPC 启动 bpm gRPC 服务并注册 Consul（同步主仓 Phase 3）。
-func startBpmGRPC(cfg config.Config, srv *api.Server) {
-	port := 9086
-	if v := os.Getenv("GRPC_PORT"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			port = n
-		}
+	// LIFO：http → workers/gRPC → tracing
+	sh := graceful.New(graceful.WithTimeout(10 * time.Second))
+	sh.Register("tracing", func(ctx context.Context) error {
+		return shutdownTracing(ctx)
+	})
+	sh.Register("workers", func(ctx context.Context) error {
+		stopScan()
+		return nil
+	})
+	sh.Register("http", func(ctx context.Context) error {
+		return httpSrv.Shutdown(ctx)
+	})
+	if err := sh.WaitAndShutdown(); err != nil {
+		log.Printf("bpm graceful shutdown: %v", err)
 	}
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		log.Printf("bpm grpc listen failed: %v", err)
-		return
-	}
-	grpcSrv := grpcx.NewServer()
-	bpmv1.RegisterBpmServiceServer(grpcSrv, api.NewBpmGRPC(srv))
-	go func() { _ = grpcSrv.Serve(lis) }()
-
-	if consulAddr := os.Getenv("CONSUL_ADDR"); consulAddr != "disabled" {
-		host := grpcx.LocalIP()
-		if host == "" {
-			host = "127.0.0.1"
-		}
-		if deregister, regErr := grpcx.Register(consulAddr, grpcx.Instance{
-			ServiceName: "bpm-service",
-			Host:        host,
-			Port:        port,
-		}); regErr == nil {
-			defer deregister()
-		}
-	}
-	select {}
 }
 
 const callbackMaxAttempts = 8
@@ -169,6 +183,8 @@ const callbackMaxAttempts = 8
 func runCallbackLoop(ctx context.Context, st *store.Store, dispatcher *callback.Dispatcher) {
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
+	// 幂等键清理不必每 15s：累计到约 1h 跑一次
+	var sincePurge time.Time
 	for {
 		start := time.Now()
 		err := deliverCallbacksOnce(ctx, st, dispatcher)
@@ -177,6 +193,14 @@ func runCallbackLoop(ctx context.Context, st *store.Store, dispatcher *callback.
 			Description: "审批终态业务回调投递", IntervalSec: 15,
 			StartedAt: start, Err: err,
 		})
+		if sincePurge.IsZero() || time.Since(sincePurge) >= time.Hour {
+			if n, perr := idempotency.PurgeOlderThan(st.DB(), "bpm_idempotency_key", idempotency.DefaultTTL); perr != nil {
+				log.Printf("bpm idempotency purge: %v", perr)
+			} else if n > 0 {
+				log.Printf("bpm idempotency purge: deleted %d keys", n)
+			}
+			sincePurge = time.Now()
+		}
 		select {
 		case <-ticker.C:
 		case <-ctx.Done():

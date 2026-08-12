@@ -6,12 +6,14 @@
 package config
 
 import (
-	"github.com/go-admin-kit/services/shared/pkg/envsecret"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-admin-kit/services/shared/pkg/envsecret"
+	secretstrength "github.com/go-admin-kit/services/shared/pkg/secretstrength"
 )
 
 type Config struct {
@@ -275,6 +277,7 @@ func Load() error {
 func applyEnv(config *Config) {
 	config.App.Env = getEnvString("APP_ENV", config.App.Env)
 	config.App.Port = getEnvInt("APP_PORT", config.App.Port)
+	// 敏感项走 envsecret：优先 /run/secrets，再环境变量。
 	config.App.InternalToken = getSecretString("INTERNAL_TOKEN", config.App.InternalToken)
 
 	config.Database.Host = getEnvString("DB_HOST", config.Database.Host)
@@ -326,11 +329,11 @@ func applyEnv(config *Config) {
 
 	config.OAuth.Github.Enabled = getEnvBool("GITHUB_OAUTH_ENABLED", config.OAuth.Github.Enabled)
 	config.OAuth.Github.ClientID = getEnvString("GITHUB_CLIENT_ID", config.OAuth.Github.ClientID)
-	config.OAuth.Github.ClientSecret = getSecretString("GITHUB_CLIENT_SECRET", config.OAuth.Github.ClientSecret)
+	config.OAuth.Github.ClientSecret = getEnvString("GITHUB_CLIENT_SECRET", config.OAuth.Github.ClientSecret)
 	config.OAuth.Github.RedirectURI = getEnvString("GITHUB_REDIRECT_URI", config.OAuth.Github.RedirectURI)
 	config.OAuth.Wechat.Enabled = getEnvBool("WECHAT_OAUTH_ENABLED", config.OAuth.Wechat.Enabled)
 	config.OAuth.Wechat.ClientID = getEnvString("WECHAT_CLIENT_ID", config.OAuth.Wechat.ClientID)
-	config.OAuth.Wechat.ClientSecret = getSecretString("WECHAT_CLIENT_SECRET", config.OAuth.Wechat.ClientSecret)
+	config.OAuth.Wechat.ClientSecret = getEnvString("WECHAT_CLIENT_SECRET", config.OAuth.Wechat.ClientSecret)
 	config.OAuth.Wechat.RedirectURI = getEnvString("WECHAT_REDIRECT_URI", config.OAuth.Wechat.RedirectURI)
 
 	config.NATS.URL = getEnvString("NATS_URL", config.NATS.URL)
@@ -367,103 +370,25 @@ func validate(cfg Config) error {
 		}
 	}
 	return nil
-}
-
-func isProductionEnv(env string) bool {
-	return strings.EqualFold(strings.TrimSpace(env), "production")
-}
-
-func isStrongSecret(value string, minLength int) bool {
-	value = strings.TrimSpace(value)
-	return len(value) >= minLength && !isPlaceholderValue(value)
-}
-
-// isWeakCredential reports credentials that are effectively unset: empty,
-// placeholder, or a well-known development default. Criteria match the monitor
-// and bpm services; every service is its own module and its Docker build
-// context excludes shared, so this is a deliberate local copy.
-func isWeakCredential(value string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(value))
-	if normalized == "" || isPlaceholderValue(normalized) {
-		return true
-	}
-	weakValues := map[string]struct{}{
-		"123456":                {},
-		"access-key":            {},
-		"accesskey":             {},
-		"admin":                 {},
-		"aws-access-key-id":     {},
-		"aws-secret-access-key": {},
-		"aws_access_key_id":     {},
-		"aws_secret_access_key": {},
-		"awsaccesskeyid":        {},
-		"awssecretaccesskey":    {},
-		"changeme":              {},
-		"default":               {},
-		"demo":                  {},
-		"development":           {},
-		"example":               {},
-		"go-admin-kit":          {},
-		"local":                 {},
-		"minioadmin":            {},
-		"password":              {},
-		"redis":                 {},
-		"root":                  {},
-		"sample":                {},
-		"secret":                {},
-		"secret-key":            {},
-		"secretkey":             {},
-		"test":                  {},
-		"test123":               {},
-	}
-	if _, ok := weakValues[normalized]; ok {
-		return true
-	}
-	// dev- prefixed values are development placeholders by convention (bpm
-	// blacklists such tokens one by one). Kept inside the credential check so
-	// existing JWT secret criteria stay untouched.
-	return strings.HasPrefix(normalized, "dev-")
-}
-
-func isPlaceholderValue(value string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(value))
-	if normalized == "" {
-		return true
-	}
-	placeholderValues := map[string]struct{}{
-		"change-me":                           {},
-		"changeme":                            {},
-		"local-dev-secret-change-me-32-chars": {},
-		"replace-me":                          {},
-		"replace-with-at-least-32-random-characters": {},
-		"your-password":   {},
-		"your-secret-key": {},
-	}
-	if _, ok := placeholderValues[normalized]; ok {
-		return true
-	}
-	return strings.Contains(normalized, "change-me") ||
-		strings.Contains(normalized, "placeholder") ||
-		strings.Contains(normalized, "replace-with") ||
-		strings.HasPrefix(normalized, "your-")
-}
-
-func oauthConfigValueReady(value string) bool {
-	value = strings.TrimSpace(value)
-	return value != "" && !isPlaceholderValue(value)
-}
-
-
-// getSecretString reads sensitive config: Swarm secrets first, then env.
-func getSecretString(key, fallback string) string {
-	return envsecret.Get(key, fallback)
-}
+} // 凭证校验函数已迁移至 shared/pkg/secretstrength，此处保留薄包装以兼容调用方。
+var (
+	isProductionEnv       = secretstrength.IsProductionEnv
+	isStrongSecret        = secretstrength.IsStrongSecret
+	isWeakCredential      = secretstrength.IsWeakCredential
+	isPlaceholderValue    = secretstrength.IsPlaceholderValue
+	oauthConfigValueReady = secretstrength.OAuthConfigValueReady
+)
 
 func getEnvString(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return fallback
+}
+
+// getSecretString 读敏感配置：/run/secrets 优先于环境变量（Swarm secrets）。
+func getSecretString(key, fallback string) string {
+	return envsecret.Get(key, fallback)
 }
 
 func getEnvInt(key string, fallback int) int {

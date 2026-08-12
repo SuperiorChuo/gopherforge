@@ -9,9 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -33,6 +31,7 @@ import (
 	systemsvc "github.com/go-admin-kit/services/identity/internal/service/system"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
+	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
@@ -122,31 +121,6 @@ func configureGinWriters(env string) {
 	gin.DefaultErrorWriter = logger.NewGinErrorWriter()
 }
 
-func serveHTTPServer(server *http.Server, listener net.Listener, shutdownTimeout time.Duration, shutdown <-chan os.Signal) error {
-	serverErr := make(chan error, 1)
-	go func() {
-		err := server.Serve(listener)
-		if errors.Is(err, http.ErrServerClosed) {
-			err = nil
-		}
-		serverErr <- err
-	}()
-
-	select {
-	case err := <-serverErr:
-		return err
-	case sig := <-shutdown:
-		if logger.Logger != nil && sig != nil {
-			logger.Info("shutdown signal received", logger.String("signal", sig.String()))
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			return fmt.Errorf("server shutdown: %w", err)
-		}
-		return <-serverErr
-	}
-}
 
 func stopOperationLogProcessor(cancel context.CancelFunc, done <-chan struct{}, timeout time.Duration) error {
 	if cancel != nil {
@@ -339,13 +313,25 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("server listen failed: %w", err)
 	}
-	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
-	defer signal.Stop(shutdown)
 
 	printStartupBanner(config.Cfg.App.Name, config.Cfg.App.Version, config.Cfg.App.Env, port)
-	if err := serveHTTPServer(server, listener, 15*time.Second, shutdown); err != nil {
-		return fmt.Errorf("server start failed: %w", err)
+	sh := graceful.New(graceful.WithTimeout(15 * time.Second))
+	serverErr := make(chan error, 1)
+	go func() {
+		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErr <- err
+		}
+	}()
+	sh.Register("http-server", func(ctx context.Context) error {
+		return server.Shutdown(ctx)
+	})
+	if err := sh.WaitAndShutdown(); err != nil {
+		logger.Error("graceful shutdown error", logger.Err(err))
 	}
-	return nil
+	select {
+	case err := <-serverErr:
+		return err
+	default:
+		return nil
+	}
 }

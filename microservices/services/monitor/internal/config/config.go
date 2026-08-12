@@ -1,7 +1,6 @@
 package config
 
 import (
-	"github.com/go-admin-kit/services/shared/pkg/envsecret"
 	"fmt"
 	"net/url"
 	"os"
@@ -9,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	envsecret "github.com/go-admin-kit/services/shared/pkg/envsecret"
+	secretstrength "github.com/go-admin-kit/services/shared/pkg/secretstrength"
 	"gopkg.in/yaml.v3"
 )
 
@@ -377,94 +378,15 @@ func appendObjectStorageEndpointIssues(issues []string, path string, endpoint st
 	return issues
 }
 
-func isProductionEnv(env string) bool {
-	return strings.EqualFold(strings.TrimSpace(env), "production")
-}
-
-func isStrongSecret(value string, minLength int) bool {
-	value = strings.TrimSpace(value)
-	return len(value) >= minLength && !isPlaceholderValue(value)
-}
-
-// isWeakCredential reports credentials that are effectively unset: empty,
-// placeholder, or a well-known development default. Criteria match the auth,
-// audit, file, identity and system services; every service is its own module
-// and its Docker build context excludes shared, so this is a deliberate local
-// copy that has to be kept in step by hand.
-func isWeakCredential(value string) bool {
-	normalized := normalizeSecretValue(value)
-	if normalized == "" || isPlaceholderValue(normalized) {
-		return true
-	}
-	weakValues := map[string]struct{}{
-		"123456":                {},
-		"access-key":            {},
-		"accesskey":             {},
-		"admin":                 {},
-		"aws-access-key-id":     {},
-		"aws-secret-access-key": {},
-		"aws_access_key_id":     {},
-		"aws_secret_access_key": {},
-		"awsaccesskeyid":        {},
-		"awssecretaccesskey":    {},
-		"changeme":              {},
-		"default":               {},
-		"demo":                  {},
-		"development":           {},
-		"example":               {},
-		"local":                 {},
-		"minioadmin":            {},
-		"password":              {},
-		"redis":                 {},
-		"root":                  {},
-		"sample":                {},
-		"go-admin-kit":          {},
-		"secret":                {},
-		"secret-key":            {},
-		"secretkey":             {},
-		"test":                  {},
-		"test123":               {},
-	}
-	if _, ok := weakValues[normalized]; ok {
-		return true
-	}
-	// dev- prefixed values are development placeholders by convention (bpm
-	// blacklists such tokens one by one). Kept inside the credential check so
-	// existing JWT secret criteria stay untouched.
-	return strings.HasPrefix(normalized, "dev-")
-}
-
-func isPlaceholderValue(value string) bool {
-	normalized := normalizeSecretValue(value)
-	if normalized == "" {
-		return true
-	}
-	placeholderValues := map[string]struct{}{
-		"change-me":                           {},
-		"changeme":                            {},
-		"local-dev-secret-change-me-32-chars": {},
-		"replace-me":                          {},
-		"replace-with-at-least-32-random-characters": {},
-		"your-password":   {},
-		"your-secret-key": {},
-	}
-	if _, ok := placeholderValues[normalized]; ok {
-		return true
-	}
-	return strings.Contains(normalized, "change-me") ||
-		strings.Contains(normalized, "placeholder") ||
-		strings.Contains(normalized, "replace-with") ||
-		strings.HasPrefix(normalized, "your-")
-}
-
-func normalizeSecretValue(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
-}
-
-func oauthConfigValueReady(value string) bool {
-	value = strings.TrimSpace(value)
-	return value != "" && !isPlaceholderValue(value)
-}
+// Credential-check helpers moved to shared/pkg/secretstrength; thin wrappers
+// kept here for call-site compatibility.
+var (
+	isProductionEnv       = secretstrength.IsProductionEnv
+	isStrongSecret        = secretstrength.IsStrongSecret
+	isWeakCredential      = secretstrength.IsWeakCredential
+	isPlaceholderValue    = secretstrength.IsPlaceholderValue
+	oauthConfigValueReady = secretstrength.OAuthConfigValueReady
+)
 
 // replaceEnvVars replaces environment variables in the configuration.
 func replaceEnvVars(config *Config) {
@@ -474,6 +396,7 @@ func replaceEnvVars(config *Config) {
 	config.Database.Host = getEnvString("DB_HOST", config.Database.Host)
 	config.Database.Port = getEnvInt("DB_PORT", config.Database.Port)
 	config.Database.User = getEnvString("DB_USER", config.Database.User)
+	// Secrets prefer /run/secrets then env (shared/pkg/envsecret).
 	config.Database.Password = getSecretString("DB_PASSWORD", config.Database.Password)
 	config.Database.DBName = getEnvString("DB_NAME", config.Database.DBName)
 	config.Database.SSLMode = getEnvString("DB_SSLMODE", config.Database.SSLMode)
@@ -560,17 +483,17 @@ func replaceEnvVars(config *Config) {
 	config.OAuth.Wechat.RedirectURI = getEnvString("WECHAT_REDIRECT_URI", config.OAuth.Wechat.RedirectURI)
 }
 
-
-// getSecretString reads sensitive config: Swarm secrets first, then env.
-func getSecretString(key, fallback string) string {
-	return envsecret.Get(key, fallback)
-}
-
 func getEnvString(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return fallback
+}
+
+
+// getSecretString reads sensitive config: Swarm secrets first, then env.
+func getSecretString(key, fallback string) string {
+	return envsecret.Get(key, fallback)
 }
 
 func getEnvInt(key string, fallback int) int {
