@@ -9,7 +9,16 @@ help:
 	@echo "  microservices/   微服务中台脚手架"
 	@echo ""
 	@echo "微服务：make compose-up | compose-down | test | smoke-api | ..."
+	@echo "初始化：make setup（一键配置开发环境）"
 	@echo "详情：cd microservices && 查看 README"
+
+.PHONY: setup
+setup:
+	@echo "==> 安装 git hooks..."
+	@./scripts/install-git-hooks.sh
+	@echo "==> 复制 .env.example → .env（如不存在）..."
+	@test -f .env || cp .env.example .env
+	@echo "==> 完成。编辑 .env 配置数据库密码等后即可 make compose-up"
 
 .PHONY: compose-up compose-down compose-monitoring infra-up infra-down dev-backend dev-auth dev-frontend \
 	build-server test lint audit smoke-api e2e-api db-import migrate-up migrate-status \

@@ -74,6 +74,10 @@ migrate-status:
 migrate-down:
 	@$(GO) run ./cmd/migrate -config $(CONFIG_FILE) -dir $(MIGRATION_DIR) down
 
+.PHONY: migrate-rollback
+migrate-rollback:
+	@$(GO) run ./cmd/migrate -config $(CONFIG_FILE) -dir $(MIGRATION_DIR) down-to $(or $(STEP),1)
+
 .PHONY: migrate-redo
 migrate-redo:
 	@$(GO) run ./cmd/migrate -config $(CONFIG_FILE) -dir $(MIGRATION_DIR) redo

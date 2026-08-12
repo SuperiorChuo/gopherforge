@@ -40,7 +40,7 @@ WORKDIR /app
 # uploads 必须预建：compose 把 go_admin_kit_uploads 命名卷挂到 /app/uploads，
 # 卷首次初始化继承镜像挂载点的 owner——缺这步则卷归 root:root，app 用户
 # 上传时 mkdir uploads/<yyyy> 直接 permission denied（集成 smoke 实测铁证）。
-RUN apk add --no-cache tzdata \
+RUN apk add --no-cache tzdata wget \
     && addgroup -S app && adduser -S app -G app \
     && mkdir -p ./logs ./uploads \
     && chown -R app:app /app
