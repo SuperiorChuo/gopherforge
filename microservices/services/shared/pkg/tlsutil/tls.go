@@ -9,7 +9,7 @@
 //
 //   // 客户端（拨号时）
 //   creds, err := tlsutil.LoadClientCredentials(caPath)
-//   conn, err := grpcx.Dial(ctx, resolver, "crm-service", grpc.WithTransportCredentials(creds))
+//   conn, err := grpcx.Dial(ctx, resolver, "identity-service", grpc.WithTransportCredentials(creds))
 //
 //   // 服务端（启动时）
 //   srv := grpcx.NewServer(grpc.Creds(creds))
