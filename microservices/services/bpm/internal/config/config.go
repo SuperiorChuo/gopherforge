@@ -3,6 +3,7 @@
 package config
 
 import (
+	"github.com/go-admin-kit/services/shared/pkg/envsecret"
 	"fmt"
 	"log"
 	"os"
@@ -58,17 +59,17 @@ func build() Config {
 		DBHost:                getenv("DB_HOST", "127.0.0.1"),
 		DBPort:                getenv("DB_PORT", "5432"),
 		DBUser:                getenv("DB_USER", "postgres"),
-		DBPassword:            getenv("DB_PASSWORD", "123456"),
+		DBPassword:            getSecret("DB_PASSWORD", "123456"),
 		DBName:                getenv("DB_NAME", "go_admin_kit"),
 		DBSSLMode:             getenv("DB_SSLMODE", "disable"),
-		JWTSecret:             getenv("JWT_SECRET", "local-dev-secret-change-me-32-chars"),
-		InternalToken:         getenv("BPM_INTERNAL_TOKEN", ""),
-		CallbackToken:         getenv("BPM_CALLBACK_TOKEN", ""),
+		JWTSecret:             getSecret("JWT_SECRET", "local-dev-secret-change-me-32-chars"),
+		InternalToken:         getSecret("BPM_INTERNAL_TOKEN", ""),
+		CallbackToken:         getSecret("BPM_CALLBACK_TOKEN", ""),
 		NATSURL:               getenv("NATS_URL", ""),
 		NotifyAPIBase:         getenv("NOTIFY_API_BASE", "http://go-admin-kit-notify:8095"),
-		NotifyInternalToken:   getenv("NOTIFY_INTERNAL_TOKEN", ""),
+		NotifyInternalToken:   getSecret("NOTIFY_INTERNAL_TOKEN", ""),
 		IdentityAPIBase:       getenv("IDENTITY_API_BASE", "http://go-admin-kit-identity:8083"),
-		IdentityInternalToken: getenv("INTERNAL_TOKEN", ""),
+		IdentityInternalToken: getSecret("INTERNAL_TOKEN", ""),
 		TimeoutScanInterval:   getenvDuration("BPM_TIMEOUT_SCAN_INTERVAL", 5*time.Minute),
 	}
 }
@@ -238,6 +239,10 @@ func (c Config) DSN() string {
 		dsn += " search_path=" + sp
 	}
 	return dsn
+}
+
+func getSecret(key, fallback string) string {
+	return envsecret.Get(key, fallback)
 }
 
 func getenv(key, fallback string) string {

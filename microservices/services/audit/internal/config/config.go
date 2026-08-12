@@ -6,6 +6,7 @@
 package config
 
 import (
+	"github.com/go-admin-kit/services/shared/pkg/envsecret"
 	"fmt"
 	"os"
 	"strconv"
@@ -308,7 +309,7 @@ func applyEnv(config *Config) {
 	config.Database.Host = getEnvString("DB_HOST", config.Database.Host)
 	config.Database.Port = getEnvInt("DB_PORT", config.Database.Port)
 	config.Database.User = getEnvString("DB_USER", config.Database.User)
-	config.Database.Password = getEnvString("DB_PASSWORD", config.Database.Password)
+	config.Database.Password = getSecretString("DB_PASSWORD", config.Database.Password)
 	config.Database.DBName = getEnvString("DB_NAME", config.Database.DBName)
 	config.Database.SSLMode = getEnvString("DB_SSLMODE", config.Database.SSLMode)
 	config.Database.SearchPath = getEnvString("DB_SEARCH_PATH", config.Database.SearchPath)
@@ -319,10 +320,10 @@ func applyEnv(config *Config) {
 
 	config.Redis.Host = getEnvString("REDIS_HOST", config.Redis.Host)
 	config.Redis.Port = getEnvInt("REDIS_PORT", config.Redis.Port)
-	config.Redis.Password = getEnvString("REDIS_PASSWORD", config.Redis.Password)
+	config.Redis.Password = getSecretString("REDIS_PASSWORD", config.Redis.Password)
 	config.Redis.DB = getEnvInt("REDIS_DB", config.Redis.DB)
 
-	config.JWT.Secret = getEnvString("JWT_SECRET", config.JWT.Secret)
+	config.JWT.Secret = getSecretString("JWT_SECRET", config.JWT.Secret)
 	config.JWT.RefreshTokenRotation = getEnvBool("JWT_REFRESH_TOKEN_ROTATION", config.JWT.RefreshTokenRotation)
 
 	config.CORS.AllowOrigins = getEnvStringSlice("CORS_ALLOW_ORIGINS", config.CORS.AllowOrigins)
@@ -355,16 +356,16 @@ func applyEnv(config *Config) {
 
 	config.OAuth.Github.Enabled = getEnvBool("GITHUB_OAUTH_ENABLED", config.OAuth.Github.Enabled)
 	config.OAuth.Github.ClientID = getEnvString("GITHUB_CLIENT_ID", config.OAuth.Github.ClientID)
-	config.OAuth.Github.ClientSecret = getEnvString("GITHUB_CLIENT_SECRET", config.OAuth.Github.ClientSecret)
+	config.OAuth.Github.ClientSecret = getSecretString("GITHUB_CLIENT_SECRET", config.OAuth.Github.ClientSecret)
 	config.OAuth.Github.RedirectURI = getEnvString("GITHUB_REDIRECT_URI", config.OAuth.Github.RedirectURI)
 	config.OAuth.Wechat.Enabled = getEnvBool("WECHAT_OAUTH_ENABLED", config.OAuth.Wechat.Enabled)
 	config.OAuth.Wechat.ClientID = getEnvString("WECHAT_CLIENT_ID", config.OAuth.Wechat.ClientID)
-	config.OAuth.Wechat.ClientSecret = getEnvString("WECHAT_CLIENT_SECRET", config.OAuth.Wechat.ClientSecret)
+	config.OAuth.Wechat.ClientSecret = getSecretString("WECHAT_CLIENT_SECRET", config.OAuth.Wechat.ClientSecret)
 	config.OAuth.Wechat.RedirectURI = getEnvString("WECHAT_REDIRECT_URI", config.OAuth.Wechat.RedirectURI)
 
 	config.NATS.URL = getEnvString("NATS_URL", config.NATS.URL)
 	config.Notify.APIBase = getEnvString("NOTIFY_API_BASE", config.Notify.APIBase)
-	config.Notify.Token = getEnvString("NOTIFY_INTERNAL_TOKEN", config.Notify.Token)
+	config.Notify.Token = getSecretString("NOTIFY_INTERNAL_TOKEN", config.Notify.Token)
 	config.SecurityDetect.WriteThreshold = getEnvInt("SECURITY_DETECT_WRITE_THRESHOLD", 20)
 	config.SecurityDetect.PermissionThreshold = getEnvInt("SECURITY_DETECT_PERMISSION_THRESHOLD", 5)
 	config.SecurityDetect.FailureThreshold = getEnvInt("SECURITY_DETECT_FAILURE_THRESHOLD", 10)
@@ -487,6 +488,12 @@ func isPlaceholderValue(value string) bool {
 func oauthConfigValueReady(value string) bool {
 	value = strings.TrimSpace(value)
 	return value != "" && !isPlaceholderValue(value)
+}
+
+
+// getSecretString reads sensitive config: Swarm secrets first, then env.
+func getSecretString(key, fallback string) string {
+	return envsecret.Get(key, fallback)
 }
 
 func getEnvString(key, fallback string) string {

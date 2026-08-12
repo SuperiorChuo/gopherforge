@@ -9,37 +9,94 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"os"
+	"sync"
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
+
+	"github.com/go-admin-kit/services/shared/pkg/envsecret"
 )
 
 // ConsulAddr 默认 Consul 地址（go-admin-kit-net 上容器名）。
 const ConsulAddr = "go-admin-kit-consul:8500"
 
-// Resolver 基于 Consul 的服务发现解析器。
+const defaultCacheTTL = 10 * time.Second
+
 type Resolver struct {
-	client *consulapi.Client
+	client    *consulapi.Client
+	cacheMu   sync.RWMutex
+	cache     map[string]resolverCacheEntry
+	cacheTTL  time.Duration
 }
 
-// NewResolver 创建 Resolver，consulAddr 如 "go-admin-kit-consul:8500"。
-// 空串用默认值；服务启动时若 Consul 不可达，返回错误交由调用方决定降级策略。
-func NewResolver(consulAddr string) (*Resolver, error) {
+type resolverCacheEntry struct {
+	addresses []string
+	expires   time.Time
+}
+
+// resolveConsulAddr 空值回落默认；CONSUL_HTTP_ADDR 覆盖默认地址（显式传入非默认则保留）。
+func resolveConsulAddr(consulAddr string) string {
 	if consulAddr == "" {
 		consulAddr = ConsulAddr
 	}
+	if v := os.Getenv("CONSUL_HTTP_ADDR"); v != "" && consulAddr == ConsulAddr {
+		return v
+	}
+	return consulAddr
+}
+
+// consulToken 读 Consul ACL token：优先 Swarm secret，再 CONSUL_HTTP_TOKEN env。
+func consulToken() string {
+	return envsecret.Get("CONSUL_HTTP_TOKEN", "")
+}
+
+func newConsulClient(consulAddr string) (*consulapi.Client, error) {
 	cfg := consulapi.DefaultConfig()
-	cfg.Address = consulAddr
-	client, err := consulapi.NewClient(cfg)
+	cfg.Address = resolveConsulAddr(consulAddr)
+	if token := consulToken(); token != "" {
+		cfg.Token = token
+	}
+	return consulapi.NewClient(cfg)
+}
+
+func NewResolver(consulAddr string) (*Resolver, error) {
+	client, err := newConsulClient(consulAddr)
 	if err != nil {
 		return nil, fmt.Errorf("grpcx: 创建 Consul 客户端: %w", err)
 	}
-	return &Resolver{client: client}, nil
+	return &Resolver{
+		client:   client,
+		cache:    make(map[string]resolverCacheEntry),
+		cacheTTL: defaultCacheTTL,
+	}, nil
 }
 
-// Resolve 解析服务名，返回一个健康实例的 host:port。
-// 只返回 passing 的实例（健康检查过滤），多个时随机取一个做负载均衡。
 func (r *Resolver) Resolve(ctx context.Context, serviceName string) (string, error) {
+	if addr, ok := r.lookupCache(serviceName); ok {
+		return addr, nil
+	}
+	addr, err := r.resolveFromConsul(ctx, serviceName)
+	if err != nil {
+		return "", err
+	}
+	return addr, nil
+}
+
+func (r *Resolver) lookupCache(serviceName string) (string, bool) {
+	r.cacheMu.RLock()
+	defer r.cacheMu.RUnlock()
+	entry, ok := r.cache[serviceName]
+	if !ok || time.Now().After(entry.expires) {
+		return "", false
+	}
+	if len(entry.addresses) == 0 {
+		return "", false
+	}
+	return entry.addresses[rand.Intn(len(entry.addresses))], true
+}
+
+func (r *Resolver) resolveFromConsul(ctx context.Context, serviceName string) (string, error) {
 	opts := &consulapi.QueryOptions{}
 	opts = opts.WithContext(ctx)
 	entries, _, err := r.client.Health().Service(serviceName, "", true, opts)
@@ -49,12 +106,27 @@ func (r *Resolver) Resolve(ctx context.Context, serviceName string) (string, err
 	if len(entries) == 0 {
 		return "", fmt.Errorf("grpcx: 服务 %s 无健康实例", serviceName)
 	}
-	e := entries[rand.Intn(len(entries))]
-	addr := e.Service.Address
-	if addr == "" {
-		addr = e.Node.Address
+	addresses := make([]string, 0, len(entries))
+	for _, e := range entries {
+		addr := e.Service.Address
+		if addr == "" {
+			addr = e.Node.Address
+		}
+		addresses = append(addresses, fmt.Sprintf("%s:%d", addr, e.Service.Port))
 	}
-	return fmt.Sprintf("%s:%d", addr, e.Service.Port), nil
+	r.cacheMu.Lock()
+	r.cache[serviceName] = resolverCacheEntry{
+		addresses: addresses,
+		expires:   time.Now().Add(r.cacheTTL),
+	}
+	r.cacheMu.Unlock()
+	return addresses[rand.Intn(len(addresses))], nil
+}
+
+func (r *Resolver) Invalidate(serviceName string) {
+	r.cacheMu.Lock()
+	delete(r.cache, serviceName)
+	r.cacheMu.Unlock()
 }
 
 // Instance 注册信息。
@@ -70,13 +142,9 @@ type Instance struct {
 
 // Register 向 Consul 注册本服务并附带健康检查（TTL/HTTP）。
 // 返回注销函数，服务退出时调用（graceful shutdown）。
+// 与 NewResolver 共用地址解析与 ACL token（envsecret）。
 func Register(consulAddr string, inst Instance) (deregister func(), err error) {
-	if consulAddr == "" {
-		consulAddr = ConsulAddr
-	}
-	cfg := consulapi.DefaultConfig()
-	cfg.Address = consulAddr
-	client, err := consulapi.NewClient(cfg)
+	client, err := newConsulClient(consulAddr)
 	if err != nil {
 		return nil, fmt.Errorf("grpcx: 创建 Consul 客户端: %w", err)
 	}

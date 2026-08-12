@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/go-admin-kit/services/shared/pkg/envsecret"
 	"fmt"
 	"net/url"
 	"os"
@@ -473,7 +474,7 @@ func replaceEnvVars(config *Config) {
 	config.Database.Host = getEnvString("DB_HOST", config.Database.Host)
 	config.Database.Port = getEnvInt("DB_PORT", config.Database.Port)
 	config.Database.User = getEnvString("DB_USER", config.Database.User)
-	config.Database.Password = getEnvString("DB_PASSWORD", config.Database.Password)
+	config.Database.Password = getSecretString("DB_PASSWORD", config.Database.Password)
 	config.Database.DBName = getEnvString("DB_NAME", config.Database.DBName)
 	config.Database.SSLMode = getEnvString("DB_SSLMODE", config.Database.SSLMode)
 	config.Database.MaxIdleConns = getEnvInt("DB_MAX_IDLE_CONNS", config.Database.MaxIdleConns)
@@ -485,10 +486,10 @@ func replaceEnvVars(config *Config) {
 
 	config.Redis.Host = getEnvString("REDIS_HOST", config.Redis.Host)
 	config.Redis.Port = getEnvInt("REDIS_PORT", config.Redis.Port)
-	config.Redis.Password = getEnvString("REDIS_PASSWORD", config.Redis.Password)
+	config.Redis.Password = getSecretString("REDIS_PASSWORD", config.Redis.Password)
 	config.Redis.DB = getEnvInt("REDIS_DB", config.Redis.DB)
 
-	config.JWT.Secret = getEnvString("JWT_SECRET", config.JWT.Secret)
+	config.JWT.Secret = getSecretString("JWT_SECRET", config.JWT.Secret)
 	config.JWT.RefreshTokenRotation = getEnvBool("JWT_REFRESH_TOKEN_ROTATION", config.JWT.RefreshTokenRotation)
 	config.Upload.StorageType = getEnvString("UPLOAD_STORAGE_TYPE", config.Upload.StorageType)
 	config.Upload.LocalPath = getEnvString("UPLOAD_LOCAL_PATH", config.Upload.LocalPath)
@@ -498,14 +499,14 @@ func replaceEnvVars(config *Config) {
 	config.Upload.S3.Endpoint = getEnvString("UPLOAD_S3_ENDPOINT", config.Upload.S3.Endpoint)
 	config.Upload.S3.Bucket = getEnvString("UPLOAD_S3_BUCKET", config.Upload.S3.Bucket)
 	config.Upload.S3.Region = getEnvString("UPLOAD_S3_REGION", config.Upload.S3.Region)
-	config.Upload.S3.AccessKey = getEnvString("UPLOAD_S3_ACCESS_KEY", config.Upload.S3.AccessKey)
-	config.Upload.S3.SecretKey = getEnvString("UPLOAD_S3_SECRET_KEY", config.Upload.S3.SecretKey)
+	config.Upload.S3.AccessKey = getSecretString("UPLOAD_S3_ACCESS_KEY", config.Upload.S3.AccessKey)
+	config.Upload.S3.SecretKey = getSecretString("UPLOAD_S3_SECRET_KEY", config.Upload.S3.SecretKey)
 	config.Upload.S3.UseSSL = getEnvBool("UPLOAD_S3_USE_SSL", config.Upload.S3.UseSSL)
 	config.Upload.MinIO.Endpoint = getEnvString("UPLOAD_MINIO_ENDPOINT", config.Upload.MinIO.Endpoint)
 	config.Upload.MinIO.Bucket = getEnvString("UPLOAD_MINIO_BUCKET", config.Upload.MinIO.Bucket)
 	config.Upload.MinIO.Region = getEnvString("UPLOAD_MINIO_REGION", config.Upload.MinIO.Region)
-	config.Upload.MinIO.AccessKey = getEnvString("UPLOAD_MINIO_ACCESS_KEY", config.Upload.MinIO.AccessKey)
-	config.Upload.MinIO.SecretKey = getEnvString("UPLOAD_MINIO_SECRET_KEY", config.Upload.MinIO.SecretKey)
+	config.Upload.MinIO.AccessKey = getSecretString("UPLOAD_MINIO_ACCESS_KEY", config.Upload.MinIO.AccessKey)
+	config.Upload.MinIO.SecretKey = getSecretString("UPLOAD_MINIO_SECRET_KEY", config.Upload.MinIO.SecretKey)
 	config.Upload.MinIO.UseSSL = getEnvBool("UPLOAD_MINIO_USE_SSL", config.Upload.MinIO.UseSSL)
 	config.CORS.AllowOrigins = getEnvStringSlice("CORS_ALLOW_ORIGINS", config.CORS.AllowOrigins)
 	config.CORS.AllowCredentials = getEnvBool("CORS_ALLOW_CREDENTIALS", config.CORS.AllowCredentials)
@@ -528,7 +529,7 @@ func replaceEnvVars(config *Config) {
 	config.Notification.Email.SMTPHost = getEnvString("EMAIL_SMTP_HOST", config.Notification.Email.SMTPHost)
 	config.Notification.Email.SMTPPort = getEnvInt("EMAIL_SMTP_PORT", config.Notification.Email.SMTPPort)
 	config.Notification.Email.Username = getEnvString("EMAIL_SMTP_USERNAME", config.Notification.Email.Username)
-	config.Notification.Email.Password = getEnvString("EMAIL_SMTP_PASSWORD", config.Notification.Email.Password)
+	config.Notification.Email.Password = getSecretString("EMAIL_SMTP_PASSWORD", config.Notification.Email.Password)
 	config.Notification.Email.Sender = getEnvString("EMAIL_SENDER", config.Notification.Email.Sender)
 	config.Notification.Email.AlertReceiver = getEnvString("EMAIL_ALERT_RECEIVER", config.Notification.Email.AlertReceiver)
 	config.Notification.Email.AlertReceivers = getEnvStringSlice("EMAIL_ALERT_RECEIVERS", config.Notification.Email.AlertReceivers)
@@ -537,9 +538,9 @@ func replaceEnvVars(config *Config) {
 	config.Notification.Email.UseTLS = getEnvBool("EMAIL_USE_TLS", config.Notification.Email.UseTLS)
 	config.Notification.Email.StartTLS = getEnvBool("EMAIL_START_TLS", config.Notification.Email.StartTLS)
 	config.Notification.Alert.StationBaseURL = getEnvString("NOTIFY_INTERNAL_BASE_URL", config.Notification.Alert.StationBaseURL)
-	config.Notification.Alert.StationToken = getEnvString("NOTIFY_INTERNAL_TOKEN", config.Notification.Alert.StationToken)
-	config.Notification.Alert.WeComWebhook = getEnvString("ALERT_WECOM_WEBHOOK_URL", config.Notification.Alert.WeComWebhook)
-	config.Notification.Alert.WebhookURL = getEnvString("ALERT_WEBHOOK_URL", config.Notification.Alert.WebhookURL)
+	config.Notification.Alert.StationToken = getSecretString("NOTIFY_INTERNAL_TOKEN", config.Notification.Alert.StationToken)
+	config.Notification.Alert.WeComWebhook = getSecretString("ALERT_WECOM_WEBHOOK_URL", config.Notification.Alert.WeComWebhook)
+	config.Notification.Alert.WebhookURL = getSecretString("ALERT_WEBHOOK_URL", config.Notification.Alert.WebhookURL)
 	config.Observability.RequestIDHeader = getEnvString("REQUEST_ID_HEADER", config.Observability.RequestIDHeader)
 	config.Observability.MetricsEnabled = getEnvBool("METRICS_ENABLED", config.Observability.MetricsEnabled)
 	config.Observability.Tracing.Enabled = getEnvBool("TRACING_ENABLED", config.Observability.Tracing.Enabled)
@@ -551,12 +552,18 @@ func replaceEnvVars(config *Config) {
 	config.Observability.Tracing.SampleRatio = getEnvFloat64("TRACING_SAMPLE_RATIO", config.Observability.Tracing.SampleRatio)
 	config.OAuth.Github.Enabled = getEnvBool("GITHUB_OAUTH_ENABLED", config.OAuth.Github.Enabled)
 	config.OAuth.Github.ClientID = getEnvString("GITHUB_CLIENT_ID", config.OAuth.Github.ClientID)
-	config.OAuth.Github.ClientSecret = getEnvString("GITHUB_CLIENT_SECRET", config.OAuth.Github.ClientSecret)
+	config.OAuth.Github.ClientSecret = getSecretString("GITHUB_CLIENT_SECRET", config.OAuth.Github.ClientSecret)
 	config.OAuth.Github.RedirectURI = getEnvString("GITHUB_REDIRECT_URI", config.OAuth.Github.RedirectURI)
 	config.OAuth.Wechat.Enabled = getEnvBool("WECHAT_OAUTH_ENABLED", config.OAuth.Wechat.Enabled)
 	config.OAuth.Wechat.ClientID = getEnvString("WECHAT_CLIENT_ID", config.OAuth.Wechat.ClientID)
-	config.OAuth.Wechat.ClientSecret = getEnvString("WECHAT_CLIENT_SECRET", config.OAuth.Wechat.ClientSecret)
+	config.OAuth.Wechat.ClientSecret = getSecretString("WECHAT_CLIENT_SECRET", config.OAuth.Wechat.ClientSecret)
 	config.OAuth.Wechat.RedirectURI = getEnvString("WECHAT_REDIRECT_URI", config.OAuth.Wechat.RedirectURI)
+}
+
+
+// getSecretString reads sensitive config: Swarm secrets first, then env.
+func getSecretString(key, fallback string) string {
+	return envsecret.Get(key, fallback)
 }
 
 func getEnvString(key, fallback string) string {

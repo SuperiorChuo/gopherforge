@@ -5,6 +5,11 @@
 
 ## [Unreleased]
 
+### 功能
+
+- **生产硬化（同步自主项目）**：新增 `shared/pkg/envsecret`（Swarm secrets 优先于环境变量）、`secretstrength`、`tlsutil`；底座服务 config 敏感项接线；`grpcx` 支持 Consul ACL token 与可选 mTLS 连接池；附带 `scripts/prod-security-check.sh`。
+
+
 ### 修复
 
 - **公开迁移边界**：收窄 `000070_business_schema_split.sql` 为公开线实际提供的 BPM/Monitor 基础设施 schema，阻止 AI、CRM、IM 等业务域迁移泄漏到脚手架；CI 新增业务 schema 越界门禁。

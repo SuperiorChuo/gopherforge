@@ -22,12 +22,13 @@ type ConnPool struct {
 }
 
 // NewConnPool 创建连接池。resolver 为 nil 时 Get 返回错误（调用方回退 HTTP）。
+// 拨号走 DialWithEnvTLS：设置 TLS_CA_PATH 时自动 mTLS，否则明文（开发默认）。
 func NewConnPool(r *Resolver, service string) *ConnPool {
 	return &ConnPool{service: service, dial: func(ctx context.Context) (*grpc.ClientConn, error) {
 		if r == nil {
 			return nil, errNilResolver
 		}
-		return Dial(ctx, r, service)
+		return DialWithEnvTLS(ctx, r, service)
 	}}
 }
 

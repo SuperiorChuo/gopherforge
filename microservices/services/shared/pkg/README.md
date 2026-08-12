@@ -31,6 +31,7 @@ shared/pkg 下的共享包分为两类，新增包时先归位：
 | `mask` | 敏感字段脱敏 |
 | `metrics` | Prometheus 指标 |
 | `pagination` | 分页工具 |
+| `envsecret` | Swarm secrets / env sensitive config |
 | `secretstrength` | 密钥强度校验 |
 | `tlsutil` | mTLS 证书工具 |
 | `excel` | Excel 处理 |
