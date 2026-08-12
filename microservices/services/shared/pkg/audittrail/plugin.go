@@ -120,6 +120,11 @@ func Register(db *gorm.DB, config Config) error {
 	if err := plugin.validateTargets(db); err != nil {
 		return err
 	}
+	// 表 000072 就绪时全局打开事务 Outbox，使 audittrail 写路径落 public.outbox_events
+	// 并由 audit-service worker 投递（crm 等业务方可省去各自 EnableTransactional）。
+	if outbox.TableReady(db) && !outbox.TransactionalEnabled() {
+		outbox.EnableTransactional()
+	}
 	return db.Use(plugin)
 }
 

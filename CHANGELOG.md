@@ -7,6 +7,11 @@
 
 ### 功能
 
+- **安全性能 P0/P1（同步自主项目）**：grpcx 证书齐备自动 mTLS + `GRPC_TLS_REQUIRED`；audittrail 自动事务 Outbox；`slo-probe` / dev mTLS 证书脚本。
+
+
+### 功能
+
 - **BPM/韧性续同步（自主项目）**：BPM engine 去 users 直查（identityclient）；`no_direct_users` 门禁恢复；`natsx` + audittrail outbox 能力入库。
 
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-admin-kit/services/shared/pkg/tlsutil"
@@ -25,13 +26,55 @@ const (
 // grpcWriter 用于 gRPC 拦截器日志输出，默认写 stderr，可由调用方覆盖。
 var grpcWriter io.Writer = os.Stderr
 
+// exitFunc 可测：GRPC_TLS_REQUIRED 失败时调用（默认 os.Exit）。
+var exitFunc = os.Exit
+
 func SetGRPCLogWriter(w io.Writer) {
 	if w != nil {
 		grpcWriter = w
 	}
 }
 
+// tlsRequired 为 true 时：服务端/客户端缺证书不得明文启动。
+// 开关：GRPC_TLS_REQUIRED=1|true（显式强制，不默认绑 production，避免 109 无证书整栈起不来）。
+func tlsRequired() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("GRPC_TLS_REQUIRED")))
+	return v == "1" || v == "true" || v == "yes"
+}
+
+// NewServer 创建 gRPC server。
+// 若 TLS_CERT_PATH / TLS_KEY_PATH / TLS_CA_PATH 齐备 → 自动 mTLS；
+// 若 GRPC_TLS_REQUIRED 且证书不全 → 进程退出（拒绝明文）。
+// 开发默认无证书 = 明文，行为与历史一致。
 func NewServer(opts ...grpc.ServerOption) *grpc.Server {
+	return newServer(true, opts...)
+}
+
+// newServer applyEnvTLS=true 时按环境注入服务端证书。
+func newServer(applyEnvTLS bool, opts ...grpc.ServerOption) *grpc.Server {
+	if applyEnvTLS {
+		paths := tlsutil.LoadFromEnv()
+		if tlsRequired() && !paths.IsComplete() {
+			fmt.Fprintf(os.Stderr, "grpcx: GRPC_TLS_REQUIRED=1 但 TLS_CERT_PATH/TLS_KEY_PATH/TLS_CA_PATH 未齐备，拒绝明文启动\n")
+			exitFunc(1)
+			return nil
+		}
+		if paths.IsComplete() {
+			creds, err := tlsutil.LoadServerCredentials(paths)
+			if err != nil {
+				if tlsRequired() {
+					fmt.Fprintf(os.Stderr, "grpcx: 加载服务端 mTLS 失败: %v\n", err)
+					exitFunc(1)
+					return nil
+				}
+				fmt.Fprintf(grpcWriter, "grpcx: mTLS 加载失败，回退明文: %v\n", err)
+			} else {
+				opts = append([]grpc.ServerOption{grpc.Creds(creds)}, opts...)
+				fmt.Fprintf(grpcWriter, "grpcx: server mTLS enabled (cert=%s)\n", paths.CertPath)
+			}
+		}
+	}
+
 	baseOpts := []grpc.ServerOption{
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.ChainUnaryInterceptor(
@@ -50,13 +93,13 @@ func NewServer(opts ...grpc.ServerOption) *grpc.Server {
 
 func NewServerWithTLS(paths tlsutil.CertPaths) (*grpc.Server, error) {
 	if !paths.IsComplete() {
-		return NewServer(), nil
+		return newServer(false), nil
 	}
 	creds, err := tlsutil.LoadServerCredentials(paths)
 	if err != nil {
 		return nil, err
 	}
-	return NewServer(grpc.Creds(creds)), nil
+	return newServer(false, grpc.Creds(creds)), nil
 }
 
 func NewServerWithEnvTLS() (*grpc.Server, error) {
@@ -72,8 +115,11 @@ func DialWithTLS(ctx context.Context, r *Resolver, serviceName string, caPath st
 }
 
 func DialWithEnvTLS(ctx context.Context, r *Resolver, serviceName string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	caPath := os.Getenv("TLS_CA_PATH")
+	caPath := strings.TrimSpace(os.Getenv("TLS_CA_PATH"))
 	if caPath == "" {
+		if tlsRequired() {
+			return nil, fmt.Errorf("grpcx: GRPC_TLS_REQUIRED=1 但 TLS_CA_PATH 未设置")
+		}
 		return Dial(ctx, r, serviceName, opts...)
 	}
 	return DialWithTLS(ctx, r, serviceName, caPath, opts...)
@@ -84,6 +130,7 @@ func Dial(ctx context.Context, r *Resolver, serviceName string, opts ...grpc.Dia
 	if err != nil {
 		return nil, err
 	}
+	// 注意：若 opts 已含 TransportCredentials（如 DialWithTLS），后者覆盖 insecure。
 	dialOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
