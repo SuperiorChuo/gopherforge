@@ -8,7 +8,7 @@ import (
 
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/system/internal/config"
-	jwtpkg "github.com/go-admin-kit/services/system/internal/pkg/jwt"
+	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 )
 
 func TestHashSummaryMatchesConsoleSessionRules(t *testing.T) {

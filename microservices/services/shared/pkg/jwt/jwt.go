@@ -7,11 +7,42 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-admin-kit/services/monitor/internal/config"
-	"github.com/go-admin-kit/services/monitor/internal/pkg/redis"
 	jwtlib "github.com/golang-jwt/jwt/v5"
+	goredis "github.com/redis/go-redis/v9"
 	"github.com/google/uuid"
 )
+
+
+// JWTConfig 供 SetConfig 注入（替代各服务 config.Cfg.JWT）。
+type JWTConfig struct {
+	Secret                string
+	Issuer                string
+	AccessTokenExpire     int
+	RefreshTokenExpire    int
+	RefreshTokenRotation bool
+}
+
+var (
+	jwtCfgMu  sync.Mutex
+	jwtCfg    = JWTConfig{Secret: "replace-with-at-least-32-random-chars", Issuer: "go-admin-kit", AccessTokenExpire: 3600, RefreshTokenExpire: 86400}
+)
+
+// SetConfig 注入 JWT 配置（各服务启动时调用）。
+func SetConfig(cfg JWTConfig) func() {
+	jwtCfgMu.Lock()
+	previous := jwtCfg
+	if cfg.Secret != "" {
+		jwtCfg = cfg
+	}
+	jwtCfgMu.Unlock()
+	return func() { jwtCfgMu.Lock(); jwtCfg = previous; jwtCfgMu.Unlock() }
+}
+
+func currentJWTConfig() JWTConfig {
+	jwtCfgMu.Lock()
+	defer jwtCfgMu.Unlock()
+	return jwtCfg
+}
 
 var (
 	ErrInvalidToken   = errors.New("invalid token")
@@ -40,10 +71,28 @@ type tokenIDConsumer interface {
 
 var (
 	tokenBlacklistStoreMu sync.RWMutex
-	tokenBlacklistStore   TokenBlacklistStore = redisTokenBlacklistStore{}
+	tokenBlacklistStore   TokenBlacklistStore
 )
 
-type redisTokenBlacklistStore struct{}
+type redisTokenBlacklistStore struct{ client goredis.Cmdable }
+
+var (
+	redisClientMu sync.Mutex
+	redisClient   goredis.Cmdable
+)
+
+// SetRedis 注入 redis 客户端（各服务启动时调用），供默认黑名单 store 使用。
+func SetRedis(client goredis.Cmdable) {
+	redisClientMu.Lock()
+	redisClient = client
+	redisClientMu.Unlock()
+}
+
+func currentRedis() goredis.Cmdable {
+	redisClientMu.Lock()
+	defer redisClientMu.Unlock()
+	return redisClient
+}
 
 type Claims struct {
 	UserID        uint   `json:"user_id"`
@@ -81,7 +130,7 @@ func SetTokenBlacklistStore(store TokenBlacklistStore) func() {
 }
 
 func GenerateToken(userID uint, username string) (accessToken, refreshToken string, err error) {
-	cfg := config.Cfg.JWT
+	cfg := currentJWTConfig()
 	return GenerateTokenWithTenantAndAccessTTL(userID, username, 1, time.Duration(cfg.AccessTokenExpire)*time.Second)
 }
 
@@ -91,7 +140,7 @@ func GenerateTokenWithAccessTTL(userID uint, username string, accessTTL time.Dur
 
 // GenerateTokenWithTenant mints access+refresh for a tenant-scoped user.
 func GenerateTokenWithTenant(userID uint, username string, tenantID uint) (accessToken, refreshToken string, err error) {
-	cfg := config.Cfg.JWT
+	cfg := currentJWTConfig()
 	return GenerateTokenWithTenantAndAccessTTL(userID, username, tenantID, time.Duration(cfg.AccessTokenExpire)*time.Second)
 }
 
@@ -101,7 +150,7 @@ func GenerateTokenWithTenantAndAccessTTL(userID uint, username string, tenantID 
 
 // GenerateTokenWithTenantPlatformAndAccessTTL mints tokens including platform operator flag (M4).
 func GenerateTokenWithTenantPlatformAndAccessTTL(userID uint, username string, tenantID uint, platformAdmin bool, accessTTL time.Duration) (accessToken, refreshToken string, err error) {
-	cfg := config.Cfg.JWT
+	cfg := currentJWTConfig()
 	now := time.Now()
 	tenantID = NormalizeTenantID(tenantID)
 	if accessTTL <= 0 {
@@ -161,12 +210,16 @@ func GenerateTOTPChallengeWithTenant(userID uint, username string, tenantID uint
 	return generateSinglePurposeToken(userID, username, tenantID, TOTPChallengeTokenType, ttl, 5*time.Minute)
 }
 
+func GenerateWebSocketTicketWithTenant(userID uint, username string, tenantID uint, ttl time.Duration) (string, error) {
+	return generateSinglePurposeToken(userID, username, tenantID, WebSocketTicketTokenType, ttl, time.Minute)
+}
+
 func GenerateWebSocketTicket(userID uint, username string, ttl time.Duration) (string, error) {
 	return generateSinglePurposeToken(userID, username, 1, WebSocketTicketTokenType, ttl, time.Minute)
 }
 
 func generateSinglePurposeToken(userID uint, username string, tenantID uint, tokenType string, ttl, defaultTTL time.Duration) (string, error) {
-	cfg := config.Cfg.JWT
+	cfg := currentJWTConfig()
 	now := time.Now()
 	tenantID = NormalizeTenantID(tenantID)
 	if ttl <= 0 {
@@ -218,6 +271,20 @@ func ParseTokenContext(ctx context.Context, tokenString string) (*Claims, error)
 	return parseToken(ctx, tokenString, true)
 }
 
+// ParseRefreshClaimsContext validates a refresh token's signature/revocation
+// and returns its claims (including tenant_id). Errors if the token is not a
+// refresh token. Used to read the actor's tenant before rotation.
+func ParseRefreshClaimsContext(ctx context.Context, tokenString string) (*Claims, error) {
+	claims, err := parseToken(ctx, tokenString, true)
+	if err != nil {
+		return nil, err
+	}
+	if claims.TokenType != RefreshTokenType {
+		return nil, ErrWrongTokenType
+	}
+	return claims, nil
+}
+
 func TokenID(tokenString string) (string, error) {
 	claims, err := parseToken(context.Background(), tokenString, false)
 	if err != nil || claims.ID == "" {
@@ -227,7 +294,7 @@ func TokenID(tokenString string) (string, error) {
 }
 
 func parseToken(ctx context.Context, tokenString string, checkRevocation bool) (*Claims, error) {
-	cfg := config.Cfg.JWT
+	cfg := currentJWTConfig()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -264,7 +331,7 @@ func RefreshTokenContext(ctx context.Context, refreshToken string) (accessToken,
 }
 
 func refreshTokenWithBase(ctx context.Context, refreshToken string) (accessToken, newRefreshToken string, err error) {
-	cfg := config.Cfg.JWT
+	cfg := currentJWTConfig()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -325,8 +392,16 @@ func refreshTokenWithBase(ctx context.Context, refreshToken string) (accessToken
 		return "", "", err
 	}
 
-	if err := RevokeTokenContext(ctx, refreshToken, claims); err != nil {
+	// Atomically claim the old refresh token. A concurrent request may have
+	// passed the revocation read above before this point; SETNX-backed consume
+	// ensures only one of them can mint a rotated pair successfully.
+	expireTime := time.Until(claims.ExpiresAt.Time)
+	consumed, err := ConsumeTokenID(ctx, claims.ID, expireTime)
+	if err != nil {
 		return "", "", err
+	}
+	if !consumed {
+		return "", "", ErrRevokedToken
 	}
 
 	return accessToken, newRefreshToken, nil
@@ -456,29 +531,29 @@ func currentTokenBlacklistStore() TokenBlacklistStore {
 	store := tokenBlacklistStore
 	tokenBlacklistStoreMu.RUnlock()
 	if store == nil {
-		return redisTokenBlacklistStore{}
+		return redisTokenBlacklistStore{client: currentRedis()}
 	}
 	return store
 }
 
-func (redisTokenBlacklistStore) SetTokenID(ctx context.Context, tokenID string, expireTime time.Duration) error {
-	if redis.Client == nil {
+func (s redisTokenBlacklistStore) SetTokenID(ctx context.Context, tokenID string, expireTime time.Duration) error {
+	if s.client == nil {
 		return errors.New("redis client is not configured")
 	}
-	return redis.Client.Set(ctx, blacklistKey(tokenID), "1", expireTime).Err()
+	return s.client.Set(ctx, blacklistKey(tokenID), "1", expireTime).Err()
 }
 
-func (redisTokenBlacklistStore) HasTokenID(ctx context.Context, tokenID string) (bool, error) {
-	if redis.Client == nil {
+func (s redisTokenBlacklistStore) HasTokenID(ctx context.Context, tokenID string) (bool, error) {
+	if s.client == nil {
 		return false, nil
 	}
-	result, err := redis.Client.Get(ctx, blacklistKey(tokenID)).Result()
+	result, err := s.client.Get(ctx, blacklistKey(tokenID)).Result()
 	return err == nil && result == "1", nil
 }
 
-func (redisTokenBlacklistStore) ConsumeTokenID(ctx context.Context, tokenID string, expireTime time.Duration) (bool, error) {
-	if redis.Client == nil {
+func (s redisTokenBlacklistStore) ConsumeTokenID(ctx context.Context, tokenID string, expireTime time.Duration) (bool, error) {
+	if s.client == nil {
 		return false, errors.New("redis client is not configured")
 	}
-	return redis.Client.SetNX(ctx, blacklistKey(tokenID), "1", expireTime).Result()
+	return s.client.SetNX(ctx, blacklistKey(tokenID), "1", expireTime).Result()
 }

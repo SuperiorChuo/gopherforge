@@ -33,6 +33,7 @@ import (
 	authsvc "github.com/go-admin-kit/services/monitor/internal/service/auth"
 	monitorSvc "github.com/go-admin-kit/services/monitor/internal/service/monitor"
 	systemSvc "github.com/go-admin-kit/services/monitor/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/grpcx"
 
 	"github.com/go-admin-kit/services/shared/pkg/logger"
@@ -333,6 +334,7 @@ func run(ctx context.Context) error {
 	if err := redis.InitRedis(); err != nil {
 		return fmt.Errorf("redis initialization failed: %w", err)
 	}
+	jwt.SetRedis(redis.Client)
 	defer func() {
 		if err := redis.Close(); err != nil {
 			logger.Error("redis close failed", logger.Err(err))

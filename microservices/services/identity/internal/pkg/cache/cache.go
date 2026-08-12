@@ -7,7 +7,7 @@ import (
 	"time"
 
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
-	jwtpkg "github.com/go-admin-kit/services/identity/internal/pkg/jwt"
+	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/identity/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )

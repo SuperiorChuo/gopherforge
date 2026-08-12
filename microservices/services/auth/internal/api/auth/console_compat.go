@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/auth/internal/events"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
-	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	authSvc "github.com/go-admin-kit/services/auth/internal/service/auth"
 	systemSvc "github.com/go-admin-kit/services/auth/internal/service/system"

@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/auth/internal/config"
 	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
-	jwtpkg "github.com/go-admin-kit/services/auth/internal/pkg/jwt"
+	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/auth/internal/pkg/redis"
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
@@ -41,12 +41,13 @@ func setupVerifyTestRedis(t *testing.T) {
 	if err != nil {
 		t.Fatalf("start miniredis: %v", err)
 	}
-	oldClient := redisstore.Client
 	client := goredis.NewClient(&goredis.Options{Addr: store.Addr()})
 	redisstore.Client = client
+	jwtpkg.SetRedis(client)
 	t.Cleanup(func() {
 		_ = client.Close()
-		redisstore.Client = oldClient
+		redisstore.Client = nil
+		jwtpkg.SetRedis(nil)
 		store.Close()
 	})
 }

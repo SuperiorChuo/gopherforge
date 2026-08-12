@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/auth/internal/config"
-	jwtpkg "github.com/go-admin-kit/services/auth/internal/pkg/jwt"
+	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 

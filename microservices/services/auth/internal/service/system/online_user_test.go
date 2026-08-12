@@ -11,7 +11,7 @@ import (
 
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/go-admin-kit/services/auth/internal/config"
-	jwtpkg "github.com/go-admin-kit/services/auth/internal/pkg/jwt"
+	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/auth/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )
@@ -433,13 +433,14 @@ func setupOnlineUserTestRedis(t *testing.T) *miniredis.Miniredis {
 		t.Fatalf("start miniredis: %v", err)
 	}
 
-	oldClient := redisstore.Client
 	client := goredis.NewClient(&goredis.Options{Addr: store.Addr()})
 	redisstore.Client = client
+	jwtpkg.SetRedis(client)
 
 	t.Cleanup(func() {
 		_ = client.Close()
-		redisstore.Client = oldClient
+		redisstore.Client = nil
+		jwtpkg.SetRedis(nil)
 		store.Close()
 	})
 
@@ -449,17 +450,17 @@ func setupOnlineUserTestRedis(t *testing.T) *miniredis.Miniredis {
 func setOnlineUserJWTTestConfig(t *testing.T) {
 	t.Helper()
 
-	oldConfig := config.Cfg.JWT
-	config.Cfg.JWT = config.JWTConfig{
-		Secret:               "unit-test-secret-at-least-32-characters",
-		AccessTokenExpire:    3600,
-		RefreshTokenExpire:   7200,
-		RefreshTokenRotation: true,
-		Issuer:               "unit-test",
-	}
+	oldConfig := jwtpkg.JWTConfig{Secret: config.Cfg.JWT.Secret, Issuer: config.Cfg.JWT.Issuer, AccessTokenExpire: config.Cfg.JWT.AccessTokenExpire, RefreshTokenExpire: config.Cfg.JWT.RefreshTokenExpire, RefreshTokenRotation: config.Cfg.JWT.RefreshTokenRotation}
+	jwtpkg.SetConfig(jwtpkg.JWTConfig{
+		Secret:                "unit-test-secret-at-least-32-characters",
+		AccessTokenExpire:     3600,
+		RefreshTokenExpire:    7200,
+		RefreshTokenRotation:  true,
+		Issuer:                "unit-test",
+	})
 
 	t.Cleanup(func() {
-		config.Cfg.JWT = oldConfig
+		jwtpkg.SetConfig(oldConfig)
 	})
 }
 

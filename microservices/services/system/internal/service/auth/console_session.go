@@ -14,7 +14,7 @@ import (
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	"github.com/go-admin-kit/services/system/internal/pkg/cache"
-	jwtpkg "github.com/go-admin-kit/services/system/internal/pkg/jwt"
+	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	"gorm.io/gorm"
 )
 

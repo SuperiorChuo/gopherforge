@@ -13,7 +13,7 @@ import (
 	"github.com/go-admin-kit/services/auth/internal/dao/auth"
 	localmodel "github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/captcha"
-	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	model "github.com/go-admin-kit/services/shared/pkg/model"

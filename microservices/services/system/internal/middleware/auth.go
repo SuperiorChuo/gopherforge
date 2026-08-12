@@ -13,7 +13,7 @@ import (
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"github.com/go-admin-kit/services/system/internal/pkg/authz"
 	"github.com/go-admin-kit/services/system/internal/pkg/cache"
-	"github.com/go-admin-kit/services/system/internal/pkg/jwt"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 )
 
 // TenantIDContextKey stores the authenticated tenant id in context.Context

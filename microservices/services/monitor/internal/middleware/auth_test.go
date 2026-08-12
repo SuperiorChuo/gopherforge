@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/monitor/internal/config"
-	jwtpkg "github.com/go-admin-kit/services/monitor/internal/pkg/jwt"
+	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 	jwtlib "github.com/golang-jwt/jwt/v5"
@@ -131,7 +131,7 @@ func TestAuthMiddlewareUsesStableErrorCodeForExpiredToken(t *testing.T) {
 			ExpiresAt: jwtlib.NewNumericDate(time.Now().Add(-time.Minute)),
 			IssuedAt:  jwtlib.NewNumericDate(time.Now().Add(-2 * time.Minute)),
 			NotBefore: jwtlib.NewNumericDate(time.Now().Add(-2 * time.Minute)),
-			Issuer:    config.Cfg.JWT.Issuer,
+			Issuer:    "unit-test",
 			Subject:   "42",
 			ID:        "expired-token-id",
 		},
@@ -200,7 +200,7 @@ func TestAuthMiddlewareUsesRequestContextForSingleBlacklistLookup(t *testing.T) 
 			ExpiresAt: jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
 			IssuedAt:  jwtlib.NewNumericDate(time.Now()),
 			NotBefore: jwtlib.NewNumericDate(time.Now()),
-			Issuer:    config.Cfg.JWT.Issuer,
+			Issuer:    "unit-test",
 			Subject:   "42",
 			ID:        tokenID,
 		},
@@ -326,23 +326,23 @@ func assertAuthErrorCode(t *testing.T, body []byte, want response.ErrorCode) {
 func setAuthMiddlewareJWTConfig(t *testing.T) {
 	t.Helper()
 
-	oldConfig := config.Cfg.JWT
-	config.Cfg.JWT = config.JWTConfig{
-		Secret:               "unit-test-secret-at-least-32-characters",
-		AccessTokenExpire:    3600,
-		RefreshTokenExpire:   7200,
-		RefreshTokenRotation: true,
-		Issuer:               "unit-test",
-	}
+	oldConfig := jwtpkg.JWTConfig{Secret: config.Cfg.JWT.Secret, Issuer: config.Cfg.JWT.Issuer, AccessTokenExpire: config.Cfg.JWT.AccessTokenExpire, RefreshTokenExpire: config.Cfg.JWT.RefreshTokenExpire, RefreshTokenRotation: config.Cfg.JWT.RefreshTokenRotation}
+	jwtpkg.SetConfig(jwtpkg.JWTConfig{
+		Secret:                "unit-test-secret-at-least-32-characters",
+		AccessTokenExpire:     3600,
+		RefreshTokenExpire:    7200,
+		RefreshTokenRotation:  true,
+		Issuer:                "unit-test",
+	})
 	t.Cleanup(func() {
-		config.Cfg.JWT = oldConfig
+		jwtpkg.SetConfig(oldConfig)
 	})
 }
 
 func signedAuthMiddlewareToken(t *testing.T, claims jwtpkg.Claims) string {
 	t.Helper()
 
-	token, err := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims).SignedString([]byte(config.Cfg.JWT.Secret))
+	token, err := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims).SignedString([]byte("unit-test-secret-at-least-32-characters"))
 	if err != nil {
 		t.Fatalf("sign token: %v", err)
 	}

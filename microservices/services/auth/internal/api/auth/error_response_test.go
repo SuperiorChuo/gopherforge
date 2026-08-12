@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	authsvc "github.com/go-admin-kit/services/auth/internal/service/auth"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 )

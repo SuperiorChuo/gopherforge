@@ -14,7 +14,7 @@ import (
 	sharedapi "github.com/go-admin-kit/services/auth/internal/api/shared"
 	"github.com/go-admin-kit/services/auth/internal/events"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
-	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	"github.com/go-admin-kit/services/auth/internal/service/auth"
 	"github.com/go-admin-kit/services/auth/internal/service/system"

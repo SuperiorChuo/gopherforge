@@ -10,9 +10,9 @@ import (
 	"time"
 
 	miniredis "github.com/alicebob/miniredis/v2"
+	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"github.com/go-admin-kit/services/system/internal/config"
-	jwtpkg "github.com/go-admin-kit/services/system/internal/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )
@@ -282,8 +282,8 @@ func TestOnlineUserCountUsesIndexCardinalityWithoutPayloadChecks(t *testing.T) {
 			Member: "indexed-token-" + strconv.Itoa(i),
 		})
 	}
-	// The console counts from the per-tenant index, so seed that one; the point
-	// of this guard is that counting stays constant-time regardless of size.
+	// 控制台从按租户的索引计数，因此给该索引播种；这道守卫的意义在于
+	// 计数始终保持常量时间，与规模无关。
 	if err := redisstore.Client.ZAdd(ctx, testOnlineUserTenantIndexKey(1), indexedTokens...).Err(); err != nil {
 		t.Fatalf("index online users: %v", err)
 	}
@@ -436,13 +436,17 @@ func setupOnlineUserTestRedis(t *testing.T) *miniredis.Miniredis {
 		t.Fatalf("start miniredis: %v", err)
 	}
 
-	oldClient := redisstore.Client
 	client := goredis.NewClient(&goredis.Options{Addr: store.Addr()})
 	redisstore.Client = client
+	jwtpkg.SetRedis(client)
 
 	t.Cleanup(func() {
+
 		_ = client.Close()
-		redisstore.Client = oldClient
+
+		redisstore.Client = nil
+
+		jwtpkg.SetRedis(nil)
 		store.Close()
 	})
 
@@ -452,17 +456,17 @@ func setupOnlineUserTestRedis(t *testing.T) *miniredis.Miniredis {
 func setOnlineUserJWTTestConfig(t *testing.T) {
 	t.Helper()
 
-	oldConfig := config.Cfg.JWT
-	config.Cfg.JWT = config.JWTConfig{
+	oldConfig := jwtpkg.JWTConfig{Secret: config.Cfg.JWT.Secret, Issuer: config.Cfg.JWT.Issuer, AccessTokenExpire: config.Cfg.JWT.AccessTokenExpire, RefreshTokenExpire: config.Cfg.JWT.RefreshTokenExpire, RefreshTokenRotation: config.Cfg.JWT.RefreshTokenRotation}
+	jwtpkg.SetConfig(jwtpkg.JWTConfig{
 		Secret:               "unit-test-secret-at-least-32-characters",
 		AccessTokenExpire:    3600,
 		RefreshTokenExpire:   7200,
 		RefreshTokenRotation: true,
 		Issuer:               "unit-test",
-	}
+	})
 
 	t.Cleanup(func() {
-		config.Cfg.JWT = oldConfig
+		jwtpkg.SetConfig(oldConfig)
 	})
 }
 
@@ -474,10 +478,9 @@ func testOnlineUserTenantIndexKey(tenantID uint) string {
 	return "online_users:tenant:" + strconv.FormatUint(uint64(tenantID), 10)
 }
 
-// Guards multi-tenant isolation of the online-user console. The Redis session
-// index is platform-wide, so a missing tenant scope lets any operator holding
-// system:online-user:list read every tenant's usernames, IPs and token ids, and
-// kick their sessions via the token id it just learned.
+// 守卫在线用户控制台的多租户隔离。Redis 会话索引是平台级的，
+// 因此缺少租户作用域会让任何持有 system:online-user:list 权限的运维人员
+// 读到所有租户的用户名、IP 与令牌 ID，并借此刚获知的令牌 ID 踢掉他人会话。
 func TestOnlineUsersAreScopedToTheCallersTenant(t *testing.T) {
 	setupOnlineUserTestRedis(t)
 	setOnlineUserJWTTestConfig(t)
@@ -510,7 +513,7 @@ func TestOnlineUsersAreScopedToTheCallersTenant(t *testing.T) {
 		t.Fatalf("tenant 1 count = %d, want 1", countA)
 	}
 
-	// Knowing the other tenant's token id must not be enough to kick it.
+	// 知道其他租户的令牌 ID 不足以将其踢下线。
 	if err := service.ForceLogoutContext(ctxA, "token-b"); !errors.Is(err, ErrOnlineUserForbidden) {
 		t.Fatalf("cross-tenant force logout error = %v, want ErrOnlineUserForbidden", err)
 	}
@@ -518,7 +521,7 @@ func TestOnlineUsersAreScopedToTheCallersTenant(t *testing.T) {
 		t.Fatalf("tenant 2 session should survive a cross-tenant kick: list = %#v, err = %v", listB, err)
 	}
 
-	// Same-tenant kick still works.
+	// 同租户的踢下线仍然有效。
 	if err := service.ForceLogoutContext(ctxA, "token-a"); err != nil {
 		t.Fatalf("same-tenant force logout: %v", err)
 	}

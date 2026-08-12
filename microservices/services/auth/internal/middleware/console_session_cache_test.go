@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
-	"github.com/go-admin-kit/services/auth/internal/pkg/jwt"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 

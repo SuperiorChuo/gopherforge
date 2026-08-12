@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-admin-kit/services/identity/internal/pkg/jwt"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/identity/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )

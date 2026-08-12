@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	miniredis "github.com/alicebob/miniredis/v2"
-	"github.com/go-admin-kit/services/audit/internal/config"
-	redisstore "github.com/go-admin-kit/services/audit/internal/pkg/redis"
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	goredis "github.com/redis/go-redis/v9"
 )
@@ -34,10 +33,9 @@ func TestRevokeTokenRejectsInvalidClaimsAndIgnoresExpiredTokens(t *testing.T) {
 }
 
 func TestIsTokenIDBlacklistedWithoutRedisClient(t *testing.T) {
-	oldClient := redisstore.Client
-	redisstore.Client = nil
+	SetRedis(nil)
 	t.Cleanup(func() {
-		redisstore.Client = oldClient
+		SetRedis(nil)
 	})
 
 	if IsTokenIDBlacklistedContext(context.Background(), "token-id") {
@@ -86,10 +84,9 @@ func TestRevokeTokenBlacklistsUnexpiredToken(t *testing.T) {
 func TestRevokeTokenUsesInjectedBlacklistStore(t *testing.T) {
 	setJWTTestConfig(t)
 
-	oldRedis := redisstore.Client
-	redisstore.Client = nil
+	SetRedis(nil)
 	t.Cleanup(func() {
-		redisstore.Client = oldRedis
+		SetRedis(nil)
 	})
 
 	store := &stubTokenBlacklistStore{
@@ -205,6 +202,49 @@ func TestConsumeTokenIDUsesInjectedBlacklistStore(t *testing.T) {
 	}
 }
 
+func TestRefreshTokenRotationRejectsConcurrentReplay(t *testing.T) {
+	setJWTTestConfig(t)
+
+	_, refreshToken, err := GenerateToken(42, "alice")
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	refreshID, err := TokenID(refreshToken)
+	if err != nil {
+		t.Fatalf("parse refresh token id: %v", err)
+	}
+
+	store := newConcurrentRefreshStore(refreshID)
+	restore := SetTokenBlacklistStore(store)
+	t.Cleanup(restore)
+
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		go func() {
+			<-start
+			_, _, refreshErr := RefreshTokenContext(context.Background(), refreshToken)
+			results <- refreshErr
+		}()
+	}
+	close(start)
+
+	var successCount, replayCount int
+	for i := 0; i < 2; i++ {
+		switch refreshErr := <-results; {
+		case refreshErr == nil:
+			successCount++
+		case errors.Is(refreshErr, ErrRevokedToken):
+			replayCount++
+		default:
+			t.Fatalf("concurrent refresh error = %v, want ErrRevokedToken", refreshErr)
+		}
+	}
+	if successCount != 1 || replayCount != 1 {
+		t.Fatalf("concurrent refresh results = success %d, replay %d; want one of each", successCount, replayCount)
+	}
+}
+
 func TestGenerateTokenWithAccessTTLUsesCustomTTL(t *testing.T) {
 	setupJWTTestRedis(t)
 	setJWTTestConfig(t)
@@ -265,13 +305,12 @@ func setupJWTTestRedis(t *testing.T) *miniredis.Miniredis {
 		t.Fatalf("start miniredis: %v", err)
 	}
 
-	oldClient := redisstore.Client
 	client := goredis.NewClient(&goredis.Options{Addr: store.Addr()})
-	redisstore.Client = client
+	SetRedis(client)
 
 	t.Cleanup(func() {
 		_ = client.Close()
-		redisstore.Client = oldClient
+		SetRedis(nil)
 		store.Close()
 	})
 
@@ -281,17 +320,12 @@ func setupJWTTestRedis(t *testing.T) *miniredis.Miniredis {
 func setJWTTestConfig(t *testing.T) {
 	t.Helper()
 
-	oldConfig := config.Cfg.JWT
-	config.Cfg.JWT = config.JWTConfig{
+	SetConfig(JWTConfig{
 		Secret:               "unit-test-secret-at-least-32-characters",
 		AccessTokenExpire:    3600,
 		RefreshTokenExpire:   7200,
 		RefreshTokenRotation: true,
 		Issuer:               "unit-test",
-	}
-
-	t.Cleanup(func() {
-		config.Cfg.JWT = oldConfig
 	})
 }
 
@@ -300,6 +334,56 @@ type stubTokenBlacklistStore struct {
 	setTokenID      string
 	setContextValue any
 	hasContextValue any
+}
+
+type concurrentRefreshStore struct {
+	mu            sync.Mutex
+	values        map[string]time.Duration
+	barrierID     string
+	barrierCalls  int
+	barrierClosed chan struct{}
+}
+
+func newConcurrentRefreshStore(barrierID string) *concurrentRefreshStore {
+	return &concurrentRefreshStore{
+		values:        make(map[string]time.Duration),
+		barrierID:     barrierID,
+		barrierClosed: make(chan struct{}),
+	}
+}
+
+func (s *concurrentRefreshStore) SetTokenID(_ context.Context, tokenID string, expireTime time.Duration) error {
+	s.mu.Lock()
+	s.values[tokenID] = expireTime
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *concurrentRefreshStore) HasTokenID(_ context.Context, tokenID string) (bool, error) {
+	s.mu.Lock()
+	s.barrierCalls++
+	calls := s.barrierCalls
+	used := s.values[tokenID]
+	if tokenID == s.barrierID && calls == 2 {
+		close(s.barrierClosed)
+	}
+	s.mu.Unlock()
+
+	if tokenID == s.barrierID && calls <= 2 {
+		<-s.barrierClosed
+		return false, nil
+	}
+	return used > 0, nil
+}
+
+func (s *concurrentRefreshStore) ConsumeTokenID(_ context.Context, tokenID string, expireTime time.Duration) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.values[tokenID] > 0 {
+		return false, nil
+	}
+	s.values[tokenID] = expireTime
+	return true, nil
 }
 
 func (s *stubTokenBlacklistStore) SetTokenID(ctx context.Context, tokenID string, expireTime time.Duration) error {

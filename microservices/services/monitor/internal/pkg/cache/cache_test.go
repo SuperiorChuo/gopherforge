@@ -9,7 +9,7 @@ import (
 
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/go-admin-kit/services/monitor/internal/config"
-	jwtpkg "github.com/go-admin-kit/services/monitor/internal/pkg/jwt"
+	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/monitor/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )

@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-admin-kit/services/identity/internal/config"
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
-	jwtpkg "github.com/go-admin-kit/services/identity/internal/pkg/jwt"
+	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 

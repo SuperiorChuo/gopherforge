@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
-	"github.com/go-admin-kit/services/system/internal/pkg/jwt"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )

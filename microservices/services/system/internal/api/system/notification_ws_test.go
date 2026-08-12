@@ -15,7 +15,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/system/internal/config"
-	"github.com/go-admin-kit/services/system/internal/pkg/jwt"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	systemsvc "github.com/go-admin-kit/services/system/internal/service/system"
 	"github.com/gorilla/websocket"
 )
