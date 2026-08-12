@@ -30,6 +30,7 @@ import (
 	"github.com/go-admin-kit/services/file/internal/pkg/runtimeconfig"
 	authsvc "github.com/go-admin-kit/services/file/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/file/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
@@ -181,6 +182,7 @@ func run(ctx context.Context) error {
 	if err := config.Load(); err != nil {
 		return fmt.Errorf("config load failed: %w", err)
 	}
+	jwt.SetConfig(jwt.JWTConfig{Secret: config.Cfg.JWT.Secret, Issuer: config.Cfg.JWT.Issuer, AccessTokenExpire: config.Cfg.JWT.AccessTokenExpire, RefreshTokenExpire: config.Cfg.JWT.RefreshTokenExpire, RefreshTokenRotation: config.Cfg.JWT.RefreshTokenRotation})
 
 	logCfg := config.Cfg.Logger
 	logger.InitLogger(logCfg.FilePath, logCfg.Level, logCfg.MaxSize, logCfg.MaxBackups, logCfg.MaxAge)
@@ -222,6 +224,7 @@ func run(ctx context.Context) error {
 	if err := redis.InitRedis(); err != nil {
 		return fmt.Errorf("redis initialization failed: %w", err)
 	}
+	jwt.SetRedis(redis.Client)
 	defer func() {
 		if err := redis.Close(); err != nil {
 			logger.Error("redis close failed", logger.Err(err))
