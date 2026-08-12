@@ -24,7 +24,7 @@ type Server struct {
 	Store  *store.Store
 	Engine *engine.Engine
 	Secret string
-	// InternalToken 校验业务方内网调用；空=internal 端点 503。
+	// InternalToken 校验业务方（CRM 等）内网调用；空=internal 端点 503。
 	InternalToken string
 	// Notify 站内信（bpm.task_assigned / bpm.cc / bpm.result）；nil 或未配
 	// token 时静默跳过。
@@ -49,7 +49,13 @@ func (s *Server) HealthLive(c *gin.Context) {
 
 func (s *Server) HealthReady(c *gin.Context) {
 	sqlDB, err := s.Store.DB().DB()
-	if err != nil || sqlDB.Ping() != nil {
+	if err != nil {
+		fail(c, http.StatusServiceUnavailable, "database unavailable")
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+	if err := sqlDB.PingContext(ctx); err != nil {
 		fail(c, http.StatusServiceUnavailable, "database unavailable")
 		return
 	}

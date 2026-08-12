@@ -24,6 +24,8 @@ message StartInstanceRequest {
   bytes variables = 7;
   uint64 initiator_id = 8;
   uint64 initiator_dept = 9;
+  // 同一逻辑发起操作在 gRPC 超时后 HTTP fallback 仍复用此键。
+  string idempotency_key = 10;
 }
 
 message StartInstanceResponse {

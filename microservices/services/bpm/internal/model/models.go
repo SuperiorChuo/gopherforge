@@ -147,6 +147,21 @@ type ProcessInstance struct {
 
 func (ProcessInstance) TableName() string { return "bpm_process_instance" }
 
+// IdempotencyRecord stores the result of an internal write operation so a
+// gRPC timeout followed by the HTTP fallback can safely return the original
+// instance instead of creating a second one. Records are scoped by tenant and
+// the key is retained for the caller's retry window.
+type IdempotencyRecord struct {
+	ID          uint64    `gorm:"primaryKey"`
+	TenantID    uint64    `gorm:"not null;uniqueIndex:ux_bpm_idempotency_tenant_key,priority:1"`
+	Key         string    `gorm:"size:128;not null;uniqueIndex:ux_bpm_idempotency_tenant_key,priority:2"`
+	RequestHash string    `gorm:"size:64;not null"`
+	InstanceID  uint64    `gorm:"not null;default:0"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (IdempotencyRecord) TableName() string { return "bpm_idempotency_key" }
+
 // ---------- 审批任务（待办） ----------
 
 type Task struct {

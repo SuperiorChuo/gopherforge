@@ -11,6 +11,8 @@ package engine
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,23 +22,24 @@ import (
 
 	"github.com/go-admin-kit/services/bpm/internal/flow"
 	"github.com/go-admin-kit/services/bpm/internal/model"
-	"gorm.io/gorm"
-
 	"github.com/go-admin-kit/services/shared/pkg/identityclient"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 var (
-	ErrNoActiveDefinition = errors.New("流程没有已发布版本，无法发起")
-	ErrDuplicateRunning   = errors.New("该业务对象已有在途审批，不可重复发起")
-	ErrTaskNotFound       = errors.New("任务不存在")
-	ErrNotAssignee        = errors.New("仅当前处理人可操作该任务")
-	ErrTaskHandled        = errors.New("任务已被处理")
-	ErrInstanceNotFound   = errors.New("流程实例不存在")
-	ErrInstanceNotRunning = errors.New("流程实例不在审批中")
-	ErrNotInitiator       = errors.New("仅发起人可操作")
-	ErrCancelDenied       = errors.New("已有审批通过记录，不可撤销")
-	ErrCommentRequired    = errors.New("拒绝必须填写意见")
+	ErrNoActiveDefinition  = errors.New("流程没有已发布版本，无法发起")
+	ErrDuplicateRunning    = errors.New("该业务对象已有在途审批，不可重复发起")
+	ErrIdempotencyKeyReuse = errors.New("幂等键已用于不同的审批请求")
+	ErrIdempotencyRecord   = errors.New("幂等记录缺少审批实例")
+	ErrTaskNotFound        = errors.New("任务不存在")
+	ErrNotAssignee         = errors.New("仅当前处理人可操作该任务")
+	ErrTaskHandled         = errors.New("任务已被处理")
+	ErrInstanceNotFound    = errors.New("流程实例不存在")
+	ErrInstanceNotRunning  = errors.New("流程实例不在审批中")
+	ErrNotInitiator        = errors.New("仅发起人可操作")
+	ErrCancelDenied        = errors.New("已有审批通过记录，不可撤销")
+	ErrCommentRequired     = errors.New("拒绝必须填写意见")
 	// M2 新增动作错误
 	ErrTransferTarget     = errors.New("转办目标人不能为空")
 	ErrTransferSelf       = errors.New("不能转办给自己")
@@ -64,15 +67,14 @@ type Engine struct {
 	idClient *identityclient.Client
 }
 
-func New(db *gorm.DB) *Engine { return &Engine{db: db} }
-
-// SetIdentity 设置 identity owner API 客户端（gRPC 优先 + HTTP 回退）。
+// SetIdentity 设置 identity owner API 客户端（Phase 3：gRPC 优先 + HTTP 回退）。
 func (e *Engine) SetIdentity(apiBase, internalToken string) {
 	if c, err := identityclient.New(apiBase, internalToken); err == nil {
 		e.idClient = c
 	}
 }
 
+func New(db *gorm.DB) *Engine { return &Engine{db: db} }
 
 // Effects 事务内收集、提交后由调用方分发的副作用。
 type Effects struct {
@@ -109,6 +111,67 @@ type StartInput struct {
 	Variables     []byte
 	InitiatorID   uint64
 	InitiatorDept uint64
+	// IdempotencyKey is generated once by the logical caller and reused across
+	// gRPC and HTTP fallback attempts. Empty keeps the legacy non-idempotent
+	// behavior for generic/user-facing starts.
+	IdempotencyKey string
+}
+
+const maxIdempotencyKeyLength = 128
+
+func normalizeIdempotencyKey(key string) string {
+	return strings.TrimSpace(key)
+}
+
+func startRequestHash(in StartInput) string {
+	payload := struct {
+		TenantID      uint64 `json:"tenant_id"`
+		DefinitionKey string `json:"definition_key"`
+		Title         string `json:"title"`
+		BizType       string `json:"biz_type"`
+		BizID         string `json:"biz_id"`
+		FormSnapshot  []byte `json:"form_snapshot"`
+		Variables     []byte `json:"variables"`
+		InitiatorID   uint64 `json:"initiator_id"`
+		InitiatorDept uint64 `json:"initiator_dept"`
+	}{
+		TenantID: in.TenantID, DefinitionKey: strings.TrimSpace(in.DefinitionKey),
+		Title: strings.TrimSpace(in.Title), BizType: strings.TrimSpace(in.BizType),
+		BizID: strings.TrimSpace(in.BizID), FormSnapshot: in.FormSnapshot,
+		Variables: in.Variables, InitiatorID: in.InitiatorID, InitiatorDept: in.InitiatorDept,
+	}
+	b, _ := json.Marshal(payload)
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
+}
+
+// loadOrReserveIdempotency inserts the key inside the same transaction as the
+// instance. ON CONFLICT waits for a concurrent transaction on PostgreSQL; the
+// losing caller then reads the committed result and returns it without replaying
+// engine effects.
+func loadOrReserveIdempotency(tx *gorm.DB, tenantID uint64, key, requestHash string) (*model.IdempotencyRecord, bool, error) {
+	if key == "" {
+		return nil, false, nil
+	}
+	record := &model.IdempotencyRecord{
+		TenantID: tenantID, Key: key, RequestHash: requestHash,
+	}
+	result := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(record)
+	if result.Error != nil {
+		return nil, false, result.Error
+	}
+	if result.RowsAffected == 1 {
+		return record, true, nil
+	}
+	var existing model.IdempotencyRecord
+	if err := tx.Where("tenant_id = ? AND key = ?", tenantID, key).
+		Clauses(clause.Locking{Strength: "UPDATE"}).First(&existing).Error; err != nil {
+		return nil, false, err
+	}
+	if existing.RequestHash != requestHash {
+		return nil, false, ErrIdempotencyKeyReuse
+	}
+	return &existing, false, nil
 }
 
 // Start 发起流程：冻结 active 定义版本 → 建实例 → 从发起节点推进。
@@ -123,6 +186,11 @@ func (e *Engine) Start(in StartInput) (*Effects, error) {
 	if in.InitiatorID == 0 {
 		return nil, errors.New("发起人不能为空")
 	}
+	key := normalizeIdempotencyKey(in.IdempotencyKey)
+	if len(key) > maxIdempotencyKeyLength {
+		return nil, fmt.Errorf("幂等键长度不能超过 %d", maxIdempotencyKeyLength)
+	}
+	in.IdempotencyKey = key
 	var def model.ProcessDefinition
 	err := e.db.Where("tenant_id = ? AND key = ? AND status = ?",
 		in.TenantID, strings.TrimSpace(in.DefinitionKey), model.DefActive).
@@ -154,9 +222,27 @@ func (e *Engine) Start(in StartInput) (*Effects, error) {
 	if in.InitiatorDept == 0 {
 		in.InitiatorDept = e.lookupUserDept(in.TenantID, in.InitiatorID)
 	}
+	requestHash := startRequestHash(in)
 
 	eff := &Effects{}
 	err = e.db.Transaction(func(tx *gorm.DB) error {
+		if key != "" {
+			record, created, err := loadOrReserveIdempotency(tx, in.TenantID, key, requestHash)
+			if err != nil {
+				return err
+			}
+			if !created {
+				if record.InstanceID == 0 {
+					return ErrIdempotencyRecord
+				}
+				var existing model.ProcessInstance
+				if err := tx.First(&existing, record.InstanceID).Error; err != nil {
+					return fmt.Errorf("幂等记录对应的审批实例不存在: %w", err)
+				}
+				eff.Instance = &existing
+				return nil
+			}
+		}
 		// 应用层预查在途（可读报错）；部分唯一索引兜底并发窗口
 		var cnt int64
 		if err := tx.Model(&model.ProcessInstance{}).
@@ -188,6 +274,13 @@ func (e *Engine) Start(in StartInput) (*Effects, error) {
 		}
 		if err := tx.Create(inst).Error; err != nil {
 			return err
+		}
+		if key != "" {
+			if err := tx.Model(&model.IdempotencyRecord{}).
+				Where("tenant_id = ? AND key = ?", in.TenantID, key).
+				Update("instance_id", inst.ID).Error; err != nil {
+				return err
+			}
 		}
 		eff.Instance = inst
 		writeLog(tx, inst, sc.Start.ID, 0, model.ActionSubmit, in.InitiatorID,
@@ -835,7 +928,7 @@ func (e *Engine) HandleTimeout(tenantID, taskID uint64) (string, *Effects, error
 
 // Terminate 管理员强制终止：running / suspended 实例均可（挂起实例的管理
 // 出口），全部 pending 任务作废，实例落 canceled 终态——业务回调复用
-// canceled 语义（业务方可按撤销回滚），时间线以 terminate 日志区分于撤销。
+// canceled 语义（CRM 等按撤销回滚），时间线以 terminate 日志区分于撤销。
 func (e *Engine) Terminate(tenantID, instanceID, operatorID uint64, reason string) (*Effects, error) {
 	if strings.TrimSpace(reason) == "" {
 		return nil, ErrTerminateReason
@@ -1186,7 +1279,7 @@ func (e *Engine) resolveRule(tx *gorm.DB, inst *model.ProcessInstance, rule *flo
 		// Phase 2C：部门主管解析/校验改走 identity owner API，不再直查 departments/users。
 		leaderID := e.deptLeader(context.Background(), deptID, inst.TenantID)
 		if leaderID == 0 || !e.userInTenantActive(context.Background(), leaderID, inst.TenantID) {
-			return nil, nil
+			return nil, nil // 无主管/主管禁用或跨租户 → 解析为空（与 roles 规则同口径）
 		}
 		return []uint64{leaderID}, nil
 	default:
@@ -1194,6 +1287,8 @@ func (e *Engine) resolveRule(tx *gorm.DB, inst *model.ProcessInstance, rule *flo
 	}
 }
 
+// lookupUserDept 同库直读 users.department_id（与 roles 规则同路径）；
+// 查询失败（如测试库无该表/列）静默返回 0，由 emptyFallback 兜底。
 // lookupUserDept 返回用户部门（Phase 2C 走 identity owner API，不再直查 users）。
 func (e *Engine) lookupUserDept(tenantID, userID uint64) uint64 {
 	return e.userDepartment(context.Background(), userID, tenantID)

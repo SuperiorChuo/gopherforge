@@ -25,8 +25,9 @@ type startInstanceReq struct {
 	FormSnapshot  json.RawMessage `json:"form_snapshot"`
 	Variables     json.RawMessage `json:"variables"`
 	// InitiatorID / InitiatorDept 仅 internal 变体生效（业务后端权威指定）
-	InitiatorID   uint64 `json:"initiator_id"`
-	InitiatorDept uint64 `json:"initiator_dept"`
+	InitiatorID    uint64 `json:"initiator_id"`
+	InitiatorDept  uint64 `json:"initiator_dept"`
+	IdempotencyKey string `json:"idempotency_key"`
 }
 
 // CreateInstance 用户侧发起（表单构建器 M1，仅"流程表单"定义）：快照按
@@ -117,20 +118,24 @@ func (s *Server) InternalCreateInstance(c *gin.Context) {
 		fail(c, http.StatusBadRequest, "invalid body")
 		return
 	}
+	if strings.TrimSpace(req.IdempotencyKey) == "" {
+		req.IdempotencyKey = c.GetHeader("X-Idempotency-Key")
+	}
 	if req.InitiatorID == 0 {
 		fail(c, http.StatusBadRequest, "initiator_id 必填")
 		return
 	}
 	eff, err := s.Engine.Start(engine.StartInput{
-		TenantID:      internalTenant(c),
-		DefinitionKey: req.DefinitionKey,
-		Title:         req.Title,
-		BizType:       req.BizType,
-		BizID:         req.BizID,
-		FormSnapshot:  req.FormSnapshot,
-		Variables:     req.Variables,
-		InitiatorID:   req.InitiatorID,
-		InitiatorDept: req.InitiatorDept,
+		TenantID:       internalTenant(c),
+		DefinitionKey:  req.DefinitionKey,
+		Title:          req.Title,
+		BizType:        req.BizType,
+		BizID:          req.BizID,
+		FormSnapshot:   req.FormSnapshot,
+		Variables:      req.Variables,
+		InitiatorID:    req.InitiatorID,
+		InitiatorDept:  req.InitiatorDept,
+		IdempotencyKey: req.IdempotencyKey,
 	})
 	if err != nil {
 		fail(c, http.StatusBadRequest, err.Error())

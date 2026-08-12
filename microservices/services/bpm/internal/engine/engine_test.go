@@ -52,7 +52,8 @@ func openTest(t *testing.T) (*store.Store, *Engine) {
 			t.Fatalf("identity ddl: %v", err)
 		}
 	}
-	// Phase 2C：identity owner API mock（独立连接防事务死锁）
+	// Phase 2C：identity owner API mock。用独立连接查同一 cache=shared 库——
+	// 主 db SetMaxOpenConns(1) 且事务会持有唯一连接，mock 若复用会死锁超时。
 	mockDB, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		t.Fatalf("mock db: %v", err)
@@ -564,6 +565,61 @@ func TestDuplicateRunning(t *testing.T) {
 		BizType: "demo", BizID: "biz-1", InitiatorID: 1,
 	}); err != nil {
 		t.Fatalf("终态后再发起应允许: %v", err)
+	}
+}
+
+// 幂等键覆盖 gRPC 超时后 HTTP fallback 的两种情况：在途与已终态实例都
+// 返回第一次结果，且同一键复用到不同请求时拒绝执行。
+func TestIdempotencyKeyReturnsOriginalInstance(t *testing.T) {
+	st, e := openTest(t)
+	tree := mustTree(t, &flow.Schema{Version: 1,
+		Start: startNode(approvalUsers("n-a1", "审批", flow.MultiOr, []uint64{2}, nil))})
+	seedDef(t, st, 1, "flow_idempotent", tree)
+
+	input := StartInput{
+		TenantID: 1, DefinitionKey: "flow_idempotent", Title: "幂等审批",
+		BizType: "crm_contract", BizID: "42", InitiatorID: 1,
+		IdempotencyKey: "crm-contract-42-attempt-1",
+	}
+	first, err := e.Start(input)
+	if err != nil {
+		t.Fatalf("first start: %v", err)
+	}
+	second, err := e.Start(input)
+	if err != nil {
+		t.Fatalf("in-flight retry: %v", err)
+	}
+	if second.Instance.ID != first.Instance.ID || len(second.NewTasks) != 0 {
+		t.Fatalf("in-flight retry should return original instance without effects: first=%d second=%d effects=%d",
+			first.Instance.ID, second.Instance.ID, len(second.NewTasks))
+	}
+
+	if _, err := e.Start(StartInput{
+		TenantID: 1, DefinitionKey: "flow_idempotent", Title: "不同请求",
+		BizType: "crm_contract", BizID: "42", InitiatorID: 1,
+		IdempotencyKey: input.IdempotencyKey,
+	}); !errors.Is(err, ErrIdempotencyKeyReuse) {
+		t.Fatalf("same key with different request should conflict, got %v", err)
+	}
+
+	if _, err := e.Approve(1, taskOf(t, first, 2).ID, 2, "同意"); err != nil {
+		t.Fatalf("finish original instance: %v", err)
+	}
+	third, err := e.Start(input)
+	if err != nil {
+		t.Fatalf("terminal retry: %v", err)
+	}
+	if third.Instance.ID != first.Instance.ID || third.Instance.Status != model.InstApproved {
+		t.Fatalf("terminal retry should return original terminal instance: %+v", third.Instance)
+	}
+
+	var count int64
+	if err := st.DB().Model(&model.ProcessInstance{}).
+		Where("tenant_id = ? AND biz_type = ? AND biz_id = ?", 1, "crm_contract", "42").Count(&count).Error; err != nil {
+		t.Fatalf("count instances: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("idempotent retries created %d instances, want 1", count)
 	}
 }
 

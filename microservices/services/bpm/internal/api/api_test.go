@@ -101,7 +101,7 @@ func TestHTTPFlowEndToEnd(t *testing.T) {
 		},
 	}
 	w, env := call(t, r, "POST", "/api/v1/bpm/definitions", map[string]any{
-		"key": "demo_expense_approval", "name": "报销审批", "biz_type": "demo_expense",
+		"key": "crm_contract_approval", "name": "合同审批", "biz_type": "crm_contract",
 		"node_tree": tree,
 	}, asUser("1"))
 	if w.Code != 200 {
@@ -115,15 +115,15 @@ func TestHTTPFlowEndToEnd(t *testing.T) {
 		t.Fatalf("publish: %d %s", w.Code, w.Body.String())
 	}
 	// 按 key 取 active
-	if w, _ := call(t, r, "GET", "/api/v1/bpm/definitions/keys/demo_expense_approval/active", nil, asUser("1")); w.Code != 200 {
+	if w, _ := call(t, r, "GET", "/api/v1/bpm/definitions/keys/crm_contract_approval/active", nil, asUser("1")); w.Code != 200 {
 		t.Fatalf("active by key: %d %s", w.Code, w.Body.String())
 	}
 
 	// 2. internal 发起（业务方服务端到服务端）
 	w, env = call(t, r, "POST", "/api/v1/bpm/internal/instances", map[string]any{
-		"definition_key": "demo_expense_approval",
-		"title":          "报销审批：测试单据",
-		"biz_type":       "demo_expense", "biz_id": "42",
+		"definition_key": "crm_contract_approval",
+		"title":          "合同审批：测试合同",
+		"biz_type":       "crm_contract", "biz_id": "42",
 		"form_snapshot": map[string]any{"amount_cents": 120000},
 		"initiator_id":  9,
 	}, internalHdr())
@@ -152,7 +152,7 @@ func TestHTTPFlowEndToEnd(t *testing.T) {
 		Total int64 `json:"total"`
 	}
 	_ = json.Unmarshal(env.Data, &todo)
-	if todo.Total != 1 || todo.List[0].InstanceTitle != "报销审批：测试单据" {
+	if todo.Total != 1 || todo.List[0].InstanceTitle != "合同审批：测试合同" {
 		t.Fatalf("todo list: %+v", todo)
 	}
 
@@ -215,7 +215,7 @@ func TestHTTPFlowEndToEnd(t *testing.T) {
 		t.Fatalf("无关用户应 403, got %d", w.Code)
 	}
 	// by-biz internal 反查
-	w, env = call(t, r, "GET", "/api/v1/bpm/internal/instances/by-biz?biz_type=demo_expense&biz_id=42", nil, internalHdr())
+	w, env = call(t, r, "GET", "/api/v1/bpm/internal/instances/by-biz?biz_type=crm_contract&biz_id=42", nil, internalHdr())
 	if w.Code != 200 {
 		t.Fatalf("by-biz: %d", w.Code)
 	}

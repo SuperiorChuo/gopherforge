@@ -24,15 +24,16 @@ func (g *BpmGRPC) StartInstance(ctx context.Context, req *bpmv1.StartInstanceReq
 		return nil, errInitiatorRequired
 	}
 	eff, err := g.srv.Engine.Start(engine.StartInput{
-		TenantID:      req.TenantId,
-		DefinitionKey: req.DefinitionKey,
-		Title:         req.Title,
-		BizType:       req.BizType,
-		BizID:         req.BizId,
-		FormSnapshot:  req.FormSnapshot,
-		Variables:     req.Variables,
-		InitiatorID:   req.InitiatorId,
-		InitiatorDept: req.InitiatorDept,
+		TenantID:       req.TenantId,
+		DefinitionKey:  req.DefinitionKey,
+		Title:          req.Title,
+		BizType:        req.BizType,
+		BizID:          req.BizId,
+		FormSnapshot:   req.FormSnapshot,
+		Variables:      req.Variables,
+		InitiatorID:    req.InitiatorId,
+		InitiatorDept:  req.InitiatorDept,
+		IdempotencyKey: req.IdempotencyKey,
 	})
 	if err != nil {
 		return nil, err

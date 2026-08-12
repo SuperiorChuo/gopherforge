@@ -16,8 +16,8 @@ import (
 	"github.com/go-admin-kit/services/bpm/internal/flow"
 	"github.com/go-admin-kit/services/bpm/internal/form"
 	"github.com/go-admin-kit/services/bpm/internal/model"
-	"gorm.io/driver/postgres"
 	connpool "github.com/go-admin-kit/services/shared/pkg/connpool"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -51,6 +51,7 @@ func NewWithDB(db *gorm.DB) (*Store, error) {
 	if err := db.AutoMigrate(
 		&model.ProcessDefinition{}, &model.ProcessInstance{},
 		&model.Task{}, &model.CcRecord{}, &model.ProcessLog{}, &model.CallbackJob{},
+		&model.IdempotencyRecord{},
 	); err != nil {
 		return nil, err
 	}

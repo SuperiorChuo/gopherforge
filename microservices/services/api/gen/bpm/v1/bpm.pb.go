@@ -33,8 +33,10 @@ type StartInstanceRequest struct {
 	Variables     []byte `protobuf:"bytes,7,opt,name=variables,proto3" json:"variables,omitempty"`
 	InitiatorId   uint64 `protobuf:"varint,8,opt,name=initiator_id,json=initiatorId,proto3" json:"initiator_id,omitempty"`
 	InitiatorDept uint64 `protobuf:"varint,9,opt,name=initiator_dept,json=initiatorDept,proto3" json:"initiator_dept,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// 同一逻辑发起操作在 gRPC 超时后 HTTP fallback 仍复用此键。
+	IdempotencyKey string `protobuf:"bytes,10,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *StartInstanceRequest) Reset() {
@@ -128,6 +130,13 @@ func (x *StartInstanceRequest) GetInitiatorDept() uint64 {
 		return x.InitiatorDept
 	}
 	return 0
+}
+
+func (x *StartInstanceRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 type StartInstanceResponse struct {
@@ -291,7 +300,7 @@ var File_bpm_v1_bpm_proto protoreflect.FileDescriptor
 
 const file_bpm_v1_bpm_proto_rawDesc = "" +
 	"\n" +
-	"\x10bpm/v1/bpm.proto\x12\x06bpm.v1\"\xaf\x02\n" +
+	"\x10bpm/v1/bpm.proto\x12\x06bpm.v1\"\xd8\x02\n" +
 	"\x14StartInstanceRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\x04R\btenantId\x12%\n" +
 	"\x0edefinition_key\x18\x02 \x01(\tR\rdefinitionKey\x12\x14\n" +
@@ -301,7 +310,9 @@ const file_bpm_v1_bpm_proto_rawDesc = "" +
 	"\rform_snapshot\x18\x06 \x01(\fR\fformSnapshot\x12\x1c\n" +
 	"\tvariables\x18\a \x01(\fR\tvariables\x12!\n" +
 	"\finitiator_id\x18\b \x01(\x04R\vinitiatorId\x12%\n" +
-	"\x0einitiator_dept\x18\t \x01(\x04R\rinitiatorDept\"P\n" +
+	"\x0einitiator_dept\x18\t \x01(\x04R\rinitiatorDept\x12'\n" +
+	"\x0fidempotency_key\x18\n" +
+	" \x01(\tR\x0eidempotencyKey\"P\n" +
 	"\x15StartInstanceResponse\x12\x1f\n" +
 	"\vinstance_id\x18\x01 \x01(\x04R\n" +
 	"instanceId\x12\x16\n" +
