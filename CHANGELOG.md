@@ -7,6 +7,11 @@
 
 ### 功能
 
+- **韧性基建（同步自主项目）**：入库 `graceful` / `idempotency` / `outbox` / `health` / `auditevents` / `identityclient`，以及 `middleware.ServeWithGraceful`；供底座服务优雅退出、幂等、Outbox 与 identity owner 调用。
+
+
+### 功能
+
 - **生产硬化（同步自主项目）**：新增 `shared/pkg/envsecret`（Swarm secrets 优先于环境变量）、`secretstrength`、`tlsutil`；底座服务 config 敏感项接线；`grpcx` 支持 Consul ACL token 与可选 mTLS 连接池；附带 `scripts/prod-security-check.sh`。
 
 

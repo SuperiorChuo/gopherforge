@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package identity.v1;
+
+option go_package = "github.com/go-admin-kit/services/api/gen/identity/v1;identityv1";
+
+// IdentityService 身份域内部 gRPC 契约（Phase 3：owner API 从 HTTP 迁 gRPC）。
+// 供 notify/visibility/crm/bpm 等消费方经 Consul 发现 + gRPC 调 identity。
+service IdentityService {
+  // BatchUserContacts 批量取用户联系方式 + 租户归属（收件人校验）。
+  rpc BatchUserContacts(BatchUserContactsRequest) returns (BatchUserContactsResponse);
+  // BatchUserDisplayNames 批量取用户显示名。
+  rpc BatchUserDisplayNames(BatchUserDisplayNamesRequest) returns (BatchUserDisplayNamesResponse);
+  // AdminUserIDs 返回租户内启用+平台管理员 id。
+  rpc AdminUserIDs(AdminUserIDsRequest) returns (AdminUserIDsResponse);
+  // UserDepartment 返回用户所属部门。
+  rpc UserDepartment(UserDepartmentRequest) returns (UserDepartmentResponse);
+  // UsersByRoles 返回拥有指定角色的启用用户 id。
+  rpc UsersByRoles(UsersByRolesRequest) returns (UsersByRolesResponse);
+  // UserDataScope 返回用户最宽数据权限 + 部门。
+  rpc UserDataScope(UserDataScopeRequest) returns (UserDataScopeResponse);
+  // DepartmentMembers 返回部门树内全部启用成员。
+  rpc DepartmentMembers(DepartmentMembersRequest) returns (DepartmentMembersResponse);
+  // DepartmentInfo 返回部门信息（含主管）。
+  rpc DepartmentInfo(DepartmentInfoRequest) returns (DepartmentInfoResponse);
+  // Org 返回租户组织架构（部门 + 成员）。
+  rpc Org(OrgRequest) returns (OrgResponse);
+}
+
+message BatchUserContactsRequest {
+  uint64 tenant_id = 1;
+  repeated uint64 ids = 2;
+}
+message BatchUserContactsResponse {
+  map<uint64, Contact> contacts = 1;
+}
+message Contact {
+  string email = 1;
+  string phone = 2;
+}
+
+message BatchUserDisplayNamesRequest {
+  repeated uint64 ids = 1;
+}
+message BatchUserDisplayNamesResponse {
+  map<uint64, string> names = 1;
+}
+
+message AdminUserIDsRequest {
+  uint64 tenant_id = 1;
+}
+message AdminUserIDsResponse {
+  repeated uint64 ids = 1;
+}
+
+message UserDepartmentRequest {
+  uint64 user_id = 1;
+  uint64 tenant_id = 2;
+}
+message UserDepartmentResponse {
+  uint64 department_id = 1;
+}
+
+message UsersByRolesRequest {
+  uint64 tenant_id = 1;
+  repeated uint64 role_ids = 2;
+}
+message UsersByRolesResponse {
+  repeated uint64 ids = 1;
+}
+
+message UserDataScopeRequest {
+  uint64 user_id = 1;
+  uint64 tenant_id = 2;
+}
+message UserDataScopeResponse {
+  string data_scope = 1;
+  uint64 department_id = 2;
+}
+
+message DepartmentMembersRequest {
+  uint64 department_id = 1;
+  uint64 tenant_id = 2;
+}
+message DepartmentMembersResponse {
+  repeated uint64 ids = 1;
+}
+
+message DepartmentInfoRequest {
+  uint64 id = 1;
+  uint64 tenant_id = 2;
+}
+message DepartmentInfoResponse {
+  uint64 id = 1;
+  string name = 2;
+  uint64 leader_user_id = 3;
+}
+
+message OrgRequest {
+  uint64 tenant_id = 1;
+}
+message OrgResponse {
+  repeated OrgDept depts = 1;
+  repeated OrgUser users = 2;
+}
+message OrgDept {
+  uint64 id = 1;
+  string name = 2;
+}
+message OrgUser {
+  uint64 id = 1;
+  string name = 2;
+  uint64 department_id = 3;
+}
