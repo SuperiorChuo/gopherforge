@@ -27,6 +27,7 @@
 
 ### 修复
 
+- **边缘证书菜单初始化**：菜单改由 `000074` 迁移单点写入，并增加固定菜单 ID 唯一性测试，避免新环境因重复主键导致 system-service 启动失败。
 - **公开迁移边界**：收窄 `000070_business_schema_split.sql` 为公开线实际提供的 BPM/Monitor 基础设施 schema，阻止 AI、CRM、IM 等业务域迁移泄漏到脚手架；CI 新增业务 schema 越界门禁。
 - **BPM 通知配置契约**：通知通道未配置 `NOTIFY_API_BASE` 时不再发出无关的 `NOTIFY_INTERNAL_TOKEN` 生产告警。
 - **安全镜像构建**：monitor 镜像扫描改用 `microservices/services` 根上下文，修复 Dockerfile 依赖文件找不到导致的 Security Scan 失败。

@@ -47,8 +47,7 @@ var defaultMenuSeed = []model.Menu{
 	// 租户套餐：权限包 CRUD + 租户绑定，租户内角色分配受套餐约束（identity-service）
 	{ID: 29, Name: "tenant-packages", Title: "租户套餐", Icon: "appstore", Path: "/system/tenant-packages", Component: "system/tenant-packages", ParentID: 10, Sort: 8, Status: 1, Hidden: 0, Permission: "system:tenant-package:list"},
 	{ID: 23, Name: "setting", Title: "系统设置", Icon: "setting", Path: "/system/setting", Component: "system/setting/index", ParentID: 10, Sort: 9, Status: 1, Hidden: 0, Permission: "system:setting:list"},
-	// 边缘免费证书（Let's Encrypt HTTP-01）；ID 140 避开主仓业务域占用的 201
-	{ID: 140, Name: "edge-certs", Title: "边缘证书", Icon: "safety-certificate", Path: "/system/edge-certs", Component: "system/edge-certs/index", ParentID: 10, Sort: 10, Status: 1, Hidden: 0, Permission: "system:edge-cert:list"},
+	// 边缘证书菜单由迁移 000074 按 path 幂等插入，避免与固定 ID 种子重复。
 
 	// 消息中心：通知公告 / 短信
 	{ID: 135, Name: "msg-center", Title: "消息中心", Icon: "notification", Path: "/msg", Component: "Layout", ParentID: 0, Sort: 2, Status: 1, Hidden: 0},
