@@ -1,6 +1,6 @@
 // Package identityclient 共享 identity gRPC 客户端（Phase 3）。
 // 经 Consul 发现 identity-service → gRPC 调 owner API；gRPC 不可达回退 HTTP 内部端点。
-// 供 notify/visibility/crm/bpm 等消费方使用，统一内部调用通道。
+// 供底座与业务服务消费方使用，统一内部调用通道。
 package identityclient
 
 import (
