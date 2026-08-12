@@ -19,6 +19,7 @@ export const ROUTE_PERMISSIONS: Record<string, string> = {
   '/system/tenant': 'system:tenant:list',
   '/system/tenant-packages': 'system:tenant-package:list',
   '/system/setting': 'system:setting:list',
+  '/system/edge-certs': 'system:edge-cert:list',
   // 消息中心（站内信与通知模板无权限码，登录即可见）
   '/system/notice': 'system:notice:list',
   '/system/sms': 'system:sms-channel:list',

@@ -92,6 +92,7 @@ const routes: RouteObject[] = [
       { path: 'system/notice', element: lazyLoad(() => import('@/pages/system/notice')) },
       { path: 'system/online-user', element: lazyLoad(() => import('@/pages/system/online-user')) },
       { path: 'system/setting', element: lazyLoad(() => import('@/pages/system/setting')) },
+      { path: 'system/edge-certs', element: lazyLoad(() => import('@/pages/system/edge-certs')) },
       { path: 'system/tenant', element: lazyLoad(() => import('@/pages/system/tenant')) },
       { path: 'system/codegen', element: lazyLoad(() => import('@/pages/system/codegen')) },
       { path: 'system/sms', element: lazyLoad(() => import('@/pages/system/sms')) },

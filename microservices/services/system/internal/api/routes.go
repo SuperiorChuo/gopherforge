@@ -21,6 +21,9 @@ func SetupRoutes(router *gin.Engine) {
 
 // SetupRoutesWithDeps mounts the API with injected infrastructure handles.
 func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
+	// ACME HTTP-01 public challenge (no auth; Let's Encrypt callback).
+	router.GET("/.well-known/acme-challenge/:token", system.ACMEChallenge)
+
 	api := router.Group("/api/v1")
 
 	common.RegisterPublicRoutesWithDeps(api, deps)
@@ -31,6 +34,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	noticeAPI := system.NewNoticeAPI()
 	errCodeAPI := system.NewErrCodeAPI()
 	settingAPI := system.NewSettingAPI()
+	edgeCertAPI := system.NewEdgeCertAPI()
 	onlineUserAPI := system.NewOnlineUserAPI()
 	notificationAPI := system.NewNotificationAPI()
 	weatherAPI := system.NewWeatherAPI()
@@ -142,6 +146,14 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 
 		// 短信管理（渠道/模板/发送日志/发送），详见 routes_sms.go
 		registerSmsRoutes(router, protected, deps)
+
+		// Edge free certs (Let's Encrypt HTTP-01) — platform admin only.
+		edgeGuard := middleware.PlatformAdminMiddleware()
+		protected.GET("/edge-certs", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:list"), edgeCertAPI.List)
+		protected.POST("/edge-certs", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:issue"), edgeCertAPI.Create)
+		protected.POST("/edge-certs/:id/issue", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:issue"), edgeCertAPI.Issue)
+		protected.GET("/edge-certs/:id/download", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:issue"), edgeCertAPI.Download)
+		protected.DELETE("/edge-certs/:id", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:delete"), edgeCertAPI.Delete)
 
 		// Phase 1 演示：经 Consul 发现 + gRPC 调监控服务摘要（验证分布式链路）
 		protected.GET("/grpc-demo/monitor-summary", grpcDemoAPI.GetMonitorSummary)

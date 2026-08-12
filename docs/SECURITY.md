@@ -60,3 +60,14 @@ DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD=true
 - 就绪：`/api/v1/health/ready`
 - 日志：`server/logs/app.log`
 - 操作审计：系统内置操作日志表
+
+## 边缘免费证书（控制台）
+
+- 路径：系统管理 → **边缘证书**（`/system/edge-certs`）
+- 协议：Let's Encrypt **HTTP-01**（可选 Staging）
+- 公开回调：`GET /.well-known/acme-challenge/:token` → system-service（无鉴权）
+- 私钥仅「申请」权限可下载；列表接口不返回 PEM
+- 可选 `EDGE_CERT_DIR`：签发后写 `domain.crt` / `domain.key` 供 Traefik file 提供方
+- **不是** 服务间 gRPC mTLS（见 `scripts/gen-grpc-mtls-dev-certs.sh` 如有）
+- 网关：`system` 路由含 `/api/v1/edge-certs`；`system-acme` 将 `/.well-known/acme-challenge` 指到 system-service
+- 示例覆盖：`microservices/docker-compose.gateway-edge-tls.example.yml` + `microservices/certs/traefik-dynamic-edge-tls.example.yml`

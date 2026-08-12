@@ -70,3 +70,6 @@ website/node_modules/
 website/.vitepress/dist/
 website/.vitepress/cache/
 **/.bin/
+
+# Edge TLS private material (runtime)
+microservices/certs/edge/
