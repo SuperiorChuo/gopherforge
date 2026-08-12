@@ -44,7 +44,10 @@ WORKDIR /app
 # tzdata is required: the libpq DSN pins TimeZone=Asia/Shanghai and pgx
 # resolves it via the local zoneinfo database.
 RUN apk add --no-cache tzdata \
-    && addgroup -S app && adduser -S app -G app && mkdir -p ./logs && chown -R app:app /app
+	&& addgroup -S -g 10001 app \
+	&& adduser -S -D -H -u 10001 -G app app \
+	&& mkdir -p ./logs \
+	&& chown -R app:app /app
 
 COPY --from=main-src --chown=app:app /app/main .
 COPY --from=snapshot /repository-snapshot /app/repository-snapshot

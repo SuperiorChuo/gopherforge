@@ -59,3 +59,24 @@ func MenuTarget(model any) Target {
 		},
 	}
 }
+
+// EdgeTLSCertificateTarget returns the audited platform-owned certificate
+// lifecycle contract. Secret material, encrypted envelopes and provider error
+// strings are deliberately absent from the snapshot whitelist.
+func EdgeTLSCertificateTarget(model any) Target {
+	return Target{
+		Model:         model,
+		Table:         "edge_tls_certificates",
+		TargetType:    "edge_tls_certificate",
+		FixedTenantID: 1,
+		SnapshotFields: []string{
+			"id", "domain", "email", "status", "provider", "is_staging",
+			"not_before", "not_after", "cert_fingerprint_sha256",
+			"deployment_mode", "deployment_provider", "auto_renew_enabled",
+			"renew_at", "last_renewal_at", "deployment_status",
+			"deployed_fingerprint_sha256", "deployed_at", "serving_status",
+			"serving_fingerprint_sha256", "serving_not_after", "serving_issuer",
+			"serving_checked_at", "created_at", "updated_at",
+		},
+	}
+}

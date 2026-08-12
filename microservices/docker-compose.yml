@@ -6,13 +6,11 @@
 # 镜像命名（发版用）：每个可构建服务都显式声明
 #   image: ${IMAGE_PREFIX:-go-admin-kit}-<服务名>:${IMAGE_TAG:-latest}
 # 两个变量都不设时结果是 go-admin-kit-<服务名>:latest —— 与 Compose 从
-# project 名推导出来的旧名字完全一致，本机开发 / CI bake / ops 脚本全部零改动。
-# 之所以要显式声明：不写 image 时 IMAGE_TAG 只影响 build 产物名，
-# 部署侧仍去找推导出来的旧名字，构建与运行会错位。
-# 发版后要跑某个版本（先 pull 再起，不本地构建）：
-#   IMAGE_PREFIX=ghcr.io/<owner>/<repo>/go-admin-kit IMAGE_TAG=v0.2.0 \
-#     docker compose -f docker-compose.yml pull
-#   IMAGE_PREFIX=... IMAGE_TAG=v0.2.0 docker compose -f docker-compose.yml up -d --no-build
+# project 名推导出来的旧名字完全一致，本机开发 / swarm-redeploy.sh / CI bake
+# 全部零改动。发版后要跑某个版本：
+#   IMAGE_TAG=v0.2.0 docker compose ... （构建与部署用同一套名字，不会错位）
+# 要拉 registry 里的镜像而不是本地构建：
+#   IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit IMAGE_TAG=v0.2.0 ...
 # （IMAGE_PREFIX 不带结尾连字符，服务名会以 -<服务名> 追加）
 name: go-admin-kit
 
@@ -29,7 +27,7 @@ services:
     image: ${IMAGE_PREFIX:-go-admin-kit}-monitor-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-migrate
     restart: "no"
-    command: ["sh", "-c", "n=0; until ./migrate -config ./configs/config.yaml -dir ./migrations up; do n=$$((n+1)); [ $$n -ge 30 ] && exit 1; echo \"[migrate] not ready, retry $$n/30\"; sleep 2; done"]
+    command: ["sh", "-c", "n=0; until ./migrate -config ./configs/config.yaml -dir ./migrations up; do n=$$((n+1)); [ $$n -ge $${MIGRATE_MAX_RETRIES:-30} ] && exit 1; echo \"[migrate] not ready, retry $$n/$${MIGRATE_MAX_RETRIES:-30}\"; sleep $${MIGRATE_RETRY_INTERVAL:-2}; done"]
     environment:
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
@@ -42,12 +40,16 @@ services:
       - go-admin-kit-net
 
   monitor-service:
+    profiles:
+      - compose-fallback
     build:
       context: ./services
       dockerfile: monitor/Dockerfile
     image: ${IMAGE_PREFIX:-go-admin-kit}-monitor-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-monitor
     restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.5"
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8081
@@ -57,7 +59,6 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
       DB_NAME: ${POSTGRES_DB:-go_admin_kit}
       DB_SSLMODE: ${DB_SSLMODE:-disable}
-      DB_SEARCH_PATH: monitor_svc,public
       REDIS_HOST: go-admin-kit-redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -98,7 +99,7 @@ services:
       DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD: ${DEFAULT_ADMIN_FORCE_CHANGE_PASSWORD:-false}
       DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME:-admin}
       METRICS_ENABLED: ${METRICS_ENABLED:-true}
-      TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
       TRACING_ENVIRONMENT: ${TRACING_ENVIRONMENT:-development}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
@@ -108,7 +109,7 @@ services:
       NATS_URL: ""
       # Trust the compose network (see networks.ipam) so X-Forwarded-For from
       # the Traefik gateway yields the real client IP in logs and rate limits.
-      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16,172.22.0.1/32}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       # 服务信任网关注入的 X-Auth-* 头，绝不能被网关以外的来源直连：
@@ -133,6 +134,8 @@ services:
       - go-admin-kit-net
 
   auth-service:
+    profiles:
+      - compose-fallback
     build:
       context: ./services
       dockerfile: Dockerfile
@@ -141,6 +144,8 @@ services:
     image: ${IMAGE_PREFIX:-go-admin-kit}-auth-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-auth
     restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8082
@@ -170,7 +175,7 @@ services:
       CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
       # Same trusted-proxy range as backend; login events and login-limit
       # keys must see the real client IP, not the gateway's.
-      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16,172.22.0.1/32}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "${SERVICES_BIND_IP:-127.0.0.1}:${AUTH_SERVICE_PORT:-8082}:8082"
@@ -180,23 +185,10 @@ services:
       # would also capture `/api/v1/login-logs` and `/api/v1/user/me` would
       # capture `/api/v1/user/menus` (both monolith routes). Exact-path routes
       # use Path(); only true subtrees use PathPrefix() with a trailing slash.
-      traefik.http.routers.auth.rule: "Path(`/api/v1/login`) || PathPrefix(`/api/v1/login/`) || Path(`/api/v1/register`) || Path(`/api/v1/refresh`) || Path(`/api/v1/logout`) || Path(`/api/v1/captcha`) || PathPrefix(`/api/v1/captcha/`) || PathPrefix(`/api/v1/oauth/`) || PathPrefix(`/api/v1/oauth2/`) || PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/console-routes`) || PathPrefix(`/api/v1/console-routes/`) || Path(`/api/v1/user/me`) || Path(`/api/v1/user/profile`) || Path(`/api/v1/user/password`) || PathPrefix(`/api/v1/user/2fa/`)"
+      traefik.http.routers.auth.rule: "Path(`/api/v1/login`) || PathPrefix(`/api/v1/login/`) || Path(`/api/v1/register`) || Path(`/api/v1/refresh`) || Path(`/api/v1/logout`) || Path(`/api/v1/captcha`) || PathPrefix(`/api/v1/captcha/`) || PathPrefix(`/api/v1/oauth/`) || PathPrefix(`/api/v1/oauth2/`) || PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/console-routes`) || PathPrefix(`/api/v1/console-routes/`) || PathPrefix(`/api/v1/password/`) || Path(`/api/v1/user/me`) || Path(`/api/v1/user/profile`) || Path(`/api/v1/user/password`) || PathPrefix(`/api/v1/user/2fa/`)"
       traefik.http.routers.auth.entrypoints: web,websecure
       traefik.http.routers.auth.priority: "100"
       traefik.http.services.auth.loadbalancer.server.port: "8082"
-      traefik.http.middlewares.auth-verify.forwardauth.address: "http://go-admin-kit-auth:8082/internal/verify"
-      traefik.http.middlewares.auth-verify.forwardauth.authResponseHeaders: "X-Auth-User-ID,X-Auth-Username,X-Auth-Tenant-ID,X-Auth-Platform-Admin,X-Auth-Permissions"
-      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-User-ID: ""
-      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Username: ""
-      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Tenant-ID: ""
-      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Platform-Admin: ""
-      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Permissions: ""
-      traefik.http.middlewares.auth-chain.chain.middlewares: "auth-sanitize,auth-verify"
-      # 网关层全局限流：挂在 entrypoint（web）上，覆盖全部服务一处配置。
-      traefik.http.middlewares.gateway-ratelimit.ratelimit.average: "${GATEWAY_RATE_AVERAGE:-100}"
-      traefik.http.middlewares.gateway-ratelimit.ratelimit.burst: "${GATEWAY_RATE_BURST:-200}"
-      # 网关层响应压缩：API JSON 不再原文传输；前端静态已带 Content-Encoding 自动跳过
-      traefik.http.middlewares.gateway-compress.compress: "true"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -210,6 +202,8 @@ services:
       - go-admin-kit-net
 
   identity-service:
+    profiles:
+      - compose-fallback
     build:
       context: ./services
       dockerfile: Dockerfile
@@ -218,6 +212,8 @@ services:
     image: ${IMAGE_PREFIX:-go-admin-kit}-identity-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-identity
     restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8083
@@ -234,7 +230,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
       CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
-      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16,172.22.0.1/32}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "${SERVICES_BIND_IP:-127.0.0.1}:${IDENTITY_SERVICE_PORT:-8083}:8083"
@@ -260,23 +256,38 @@ services:
       - go-admin-kit-net
 
   system-service:
+    profiles:
+      - compose-fallback
     build:
-      # 上下文提到 microservices 根：代码生成器的仓库快照要拷 web/ 与
-      # monitor/migrations/ 下的接入源文件（见 services/system/Dockerfile）
       context: .
       dockerfile: services/system/Dockerfile
     image: ${IMAGE_PREFIX:-go-admin-kit}-system-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-system
     restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
     volumes:
       # 离线 IP 归属地库（在线用户归属地）；文件缺失时服务优雅降级
       - ./data:/app/data:ro
+      # 边缘证书与 Traefik 动态配置；system 以固定 uid/gid 10001 原子写入。
+      - ${EDGE_CERT_HOST_DIR:-./certs}:/var/lib/go-admin-kit/edgecert
     environment:
       IP2REGION_XDB: /app/data/ip2region.xdb
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8084
       SYSTEM_INTERNAL_TOKEN: ${SYSTEM_INTERNAL_TOKEN:-}
-      # 代码生成器：快照在镜像内固化；写入仓库默认关闭（高危能力，需显式开）
+      EDGE_CERT_CURRENT_KEY_ID: ${EDGE_CERT_CURRENT_KEY_ID:-}
+      EDGE_CERT_ENCRYPTION_KEY: ${EDGE_CERT_ENCRYPTION_KEY:-}
+      EDGE_CERT_PREVIOUS_KEY_ID: ${EDGE_CERT_PREVIOUS_KEY_ID:-}
+      EDGE_CERT_PREVIOUS_ENCRYPTION_KEY: ${EDGE_CERT_PREVIOUS_ENCRYPTION_KEY:-}
+      EDGE_CERT_STORAGE_ROOT: /var/lib/go-admin-kit/edgecert/edge
+      EDGE_CERT_TRAEFIK_DYNAMIC_DIR: /var/lib/go-admin-kit/edgecert/traefik-dynamic
+      EDGE_CERT_GATEWAY_TLS_ADDRESS: go-admin-kit-gateway:443
+      EDGE_CERT_WORKER_ENABLED: ${EDGE_CERT_WORKER_ENABLED:-true}
+      EDGE_CERT_RENEW_BEFORE_DAYS: ${EDGE_CERT_RENEW_BEFORE_DAYS:-30}
+      EDGE_CERT_TASK_POLL_SECONDS: ${EDGE_CERT_TASK_POLL_SECONDS:-5}
+      EDGE_CERT_CHALLENGE_TTL_MINUTES: ${EDGE_CERT_CHALLENGE_TTL_MINUTES:-15}
+      EDGE_CERT_CLEAR_LEGACY_SECRETS: ${EDGE_CERT_CLEAR_LEGACY_SECRETS:-false}
       CODEGEN_REPO_ROOT: ${CODEGEN_REPO_ROOT:-/app/repository-snapshot}
       CODEGEN_WRITE_ENABLED: ${CODEGEN_WRITE_ENABLED:-false}
       DB_HOST: go-admin-kit-postgres
@@ -299,7 +310,7 @@ services:
       EMAIL_ALERT_RECEIVERS: ${EMAIL_ALERT_RECEIVERS:-}
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
       CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
-      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16,172.22.0.1/32}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "${SERVICES_BIND_IP:-127.0.0.1}:${SYSTEM_SERVICE_PORT:-8084}:8084"
@@ -311,11 +322,11 @@ services:
       traefik.http.routers.system.rule: "Path(`/api/v1/menus`) || PathPrefix(`/api/v1/menus/`) || Path(`/api/v1/user/menus`) || Path(`/api/v1/dict-types`) || PathPrefix(`/api/v1/dict-types/`) || Path(`/api/v1/dict-items`) || PathPrefix(`/api/v1/dict-items/`) || Path(`/api/v1/dicts`) || PathPrefix(`/api/v1/dicts/`) || Path(`/api/v1/notices`) || PathPrefix(`/api/v1/notices/`) || Path(`/api/v1/system-settings`) || PathPrefix(`/api/v1/system-settings/`) || Path(`/api/v1/online-users`) || PathPrefix(`/api/v1/online-users/`) || Path(`/api/v1/ws/notifications`) || PathPrefix(`/api/v1/ws/notifications/`) || Path(`/api/v1/system/weather`) || PathPrefix(`/api/v1/codegen/`) || PathPrefix(`/api/v1/sms/`) || Path(`/api/v1/error-codes`) || PathPrefix(`/api/v1/error-codes/`) || Path(`/api/v1/edge-certs`) || PathPrefix(`/api/v1/edge-certs/`)"
       traefik.http.routers.system.entrypoints: web,websecure
       traefik.http.routers.system.priority: "100"
+      traefik.http.services.system.loadbalancer.server.port: "8084"
       traefik.http.routers.system-acme.rule: "PathPrefix(`/.well-known/acme-challenge`)"
       traefik.http.routers.system-acme.entrypoints: web
       traefik.http.routers.system-acme.priority: "1000"
       traefik.http.routers.system-acme.service: system
-      traefik.http.services.system.loadbalancer.server.port: "8084"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -329,6 +340,8 @@ services:
       - go-admin-kit-net
 
   audit-service:
+    profiles:
+      - compose-fallback
     build:
       context: ./services
       dockerfile: Dockerfile
@@ -337,6 +350,8 @@ services:
     image: ${IMAGE_PREFIX:-go-admin-kit}-audit-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-audit
     restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
     volumes:
       # 离线 IP 归属地库（登录日志归属地）；文件缺失时回退在线查询
       - ./data:/app/data:ro
@@ -352,7 +367,6 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
       DB_NAME: ${POSTGRES_DB:-go_admin_kit}
       DB_SSLMODE: ${DB_SSLMODE:-disable}
-      DB_SEARCH_PATH: audit_svc,public
       REDIS_HOST: go-admin-kit-redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -360,7 +374,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
       CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
-      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16,172.22.0.1/32}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "${SERVICES_BIND_IP:-127.0.0.1}:${AUDIT_SERVICE_PORT:-8085}:8085"
@@ -383,6 +397,8 @@ services:
       - go-admin-kit-net
 
   file-service:
+    profiles:
+      - compose-fallback
     build:
       context: ./services
       dockerfile: Dockerfile
@@ -391,6 +407,8 @@ services:
     image: ${IMAGE_PREFIX:-go-admin-kit}-file-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-file
     restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8086
@@ -423,7 +441,7 @@ services:
       UPLOAD_MINIO_USE_SSL: ${UPLOAD_MINIO_USE_SSL:-false}
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
       CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
-      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16,172.22.0.1/32}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "${SERVICES_BIND_IP:-127.0.0.1}:${FILE_SERVICE_PORT:-8086}:8086"
@@ -449,10 +467,469 @@ services:
     networks:
       - go-admin-kit-net
 
-  # 审批流引擎（bpm-service）：流程定义 / 实例 / 任务 / 流转日志，AutoMigrate 自管表。
-  # 鉴权走 Bearer JWT 自校验（与其它业务路由一致，网关注入的 X-Auth-* 头优先）；
-  # 终态经 HTTP 回调业务方（BPM_CALLBACK_<BIZTYPE> 注册，脚手架默认无回调目标）。
+  ai-service:
+    profiles:
+      - compose-fallback
+    build:
+      context: ./services
+      dockerfile: Dockerfile
+      args:
+        SERVICE: ai
+    image: ${IMAGE_PREFIX:-go-admin-kit}-ai-service:${IMAGE_TAG:-latest}
+    container_name: go-admin-kit-ai
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: "1.0"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8087
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      # im-service 向量检索内网 token（与 im 的 AI_INTERNAL_TOKEN 一致）
+      AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:-}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_CHAT_MODEL: ${AI_CHAT_MODEL:-}
+      AI_EMBED_MODEL: ${AI_EMBED_MODEL:-}
+      AI_EMBED_PROVIDER: ${AI_EMBED_PROVIDER:-}
+      AI_EMBED_BASE_URL: ${AI_EMBED_BASE_URL:-}
+      AI_EMBED_API_KEY: ${AI_EMBED_API_KEY:-}
+      # AI provider API key 落库前 AES-256 加密的密钥；生产必须恰好 32 字节
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      # Hermes 策略独立 Ed25519 信任根；base64 seed/private key，留空仅禁用 Hermes 签名接口
+      HERMES_POLICY_SIGNING_KEY: ${HERMES_POLICY_SIGNING_KEY:-}
+      HERMES_VERIFICATION_URI: ${HERMES_VERIFICATION_URI:-/hermes/mine}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${AI_SERVICE_PORT:-8087}:8087"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.ai.rule: "PathPrefix(`/api/v1/ai/`)"
+      traefik.http.routers.ai.entrypoints: web,websecure
+      traefik.http.routers.ai.priority: "100"
+      traefik.http.routers.ai.middlewares: auth-chain
+      # Hermes 设备面不带 JWT：enrollment（高熵 device code + 自身限流）与
+      # device/*（设备签名鉴权）放行 ForwardAuth；/ai/internal/* 是容器网络
+      # 服务间调用（X-Internal-Token 自校验），刻意不放行网关入口。
+      traefik.http.routers.ai-open.rule: "PathPrefix(`/api/v1/ai/hermes/device`)"
+      traefik.http.routers.ai-open.entrypoints: web,websecure
+      traefik.http.routers.ai-open.priority: "110"
+      traefik.http.services.ai.loadbalancer.server.port: "8087"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8087/api/v1/health/live >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  im-service:
+    profiles:
+      - compose-fallback
+    build:
+      # im 用独立 Dockerfile：除标准模板外还 COPY web-widget/web-visitor（客服嵌入浮窗/访客端静态资源）。
+      # 共享 services/Dockerfile 构建收敛时漏了这两个目录，导致 im 镜像不含客服前端资产。
+      context: ./services
+      dockerfile: im/Dockerfile
+      args:
+        SERVICE: im
+    image: ${IMAGE_PREFIX:-go-admin-kit}-im-service:${IMAGE_TAG:-latest}
+    container_name: go-admin-kit-im
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.5"
+    environment:
+      IP2REGION_XDB: /app/data/ip2region.xdb
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8088
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000}
+      TZ: ${TZ:-Asia/Shanghai}
+      # WS 跨实例广播（单实例也安全；空值退回进程内直投）
+      # 关闭会话保留天数，超期硬删消息与附件（0=永久）
+      IM_RETENTION_DAYS: ${IM_RETENTION_DAYS:-180}
+      # 知识库向量检索（M1.5）：调 ai-service 内网接口，失败降级关键词
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:8087}
+      AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:-}
+      # 转人工站内信（notify-service）
+      NOTIFY_API_BASE: ${NOTIFY_API_BASE:-http://go-admin-kit-notify:8095}
+      NOTIFY_INTERNAL_TOKEN: ${NOTIFY_INTERNAL_TOKEN:-}
+      # 附件走 MinIO（im/ 前缀共享 bucket）；本地卷保留作旧文件回源
+      IM_STORAGE_TYPE: ${IM_STORAGE_TYPE:-minio}
+      UPLOAD_MINIO_ENDPOINT: ${UPLOAD_MINIO_ENDPOINT:-go-admin-kit-minio:9000}
+      UPLOAD_MINIO_BUCKET: ${UPLOAD_MINIO_BUCKET:-go-admin-kit}
+      UPLOAD_MINIO_ACCESS_KEY: ${UPLOAD_MINIO_ACCESS_KEY:-minioadmin}
+      UPLOAD_MINIO_SECRET_KEY: ${UPLOAD_MINIO_SECRET_KEY:-minioadmin}
+      UPLOAD_MINIO_USE_SSL: ${UPLOAD_MINIO_USE_SSL:-false}
+    volumes:
+      - im_uploads:/app/uploads
+      # 离线 IP 归属地库（访客地域识别）；文件缺失时保留粗分类
+      - ./data:/app/data:ro
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${IM_SERVICE_PORT:-8088}:8088"
+    labels:
+      traefik.enable: "true"
+      # IM REST + visitor H5 + websocket
+      traefik.http.routers.im.rule: "PathPrefix(`/api/v1/im`) || PathPrefix(`/im/`)"
+      traefik.http.routers.im.entrypoints: web,websecure
+      traefik.http.routers.im.priority: "100"
+      traefik.http.routers.im.middlewares: auth-chain
+      traefik.http.services.im.loadbalancer.server.port: "8088"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      ai-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8088/api/v1/im/health/live >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  cc-service:
+    profiles:
+      - compose-fallback
+    build:
+      context: ./services
+      dockerfile: Dockerfile
+      args:
+        SERVICE: cc
+    image: ${IMAGE_PREFIX:-go-admin-kit}-cc-service:${IMAGE_TAG:-latest}
+    container_name: go-admin-kit-cc
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.5"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8089
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      # freeswitch-cc control-api 对接：webhook HMAC 密钥与 control-api 同源；
+      # CC_FS_API_BASE 为空则禁用 fs/status、fs/webhook-test 代理。
+      CC_WEBHOOK_SECRET: ${CC_WEBHOOK_SECRET:-}
+      CC_FS_API_BASE: ${CC_FS_API_BASE:-}
+      CC_FS_TOKEN: ${CC_FS_TOKEN:-}
+      CC_RECORDING_PUBLIC_BASE: ${CC_RECORDING_PUBLIC_BASE:-}
+      # mod_json_cdr 话单直投 Basic 凭据（user:pass，与 FS 侧 CC_CDR_CRED 一致）
+      CC_CDR_AUTH: ${CC_CDR_AUTH:-}
+      # CRM 打通：号码识客 + 挂机写跟进走 crm 内部端点（内网直连，X-Internal-Token）。
+      # 两者任一为空=不接 CRM（识客只返回 cc 侧数据，挂机不写跟进）。
+      CC_CRM_API_BASE: ${CC_CRM_API_BASE:-http://go-admin-kit-crm:8091}
+      CC_CRM_INTERNAL_TOKEN: ${CRM_INTERNAL_TOKEN:-}
+      # 提示音库 TTS 预生成（OpenAI 兼容 /v1/audio/speech）；CC_TTS_URL 为空=禁用 TTS
+      CC_TTS_URL: ${CC_TTS_URL:-}
+      CC_TTS_KEY: ${CC_TTS_KEY:-}
+      CC_TTS_MODEL: ${CC_TTS_MODEL:-}
+      CC_TTS_VOICE: ${CC_TTS_VOICE:-}
+      # 录音转写质检 ASR（OpenAI 兼容 /v1/audio/transcriptions）；CC_ASR_URL 为空=禁用转写
+      CC_ASR_URL: ${CC_ASR_URL:-}
+      CC_ASR_KEY: ${CC_ASR_KEY:-}
+      CC_ASR_MODEL: ${CC_ASR_MODEL:-}
+      # 余额预警：notify 内调站内信（每小时扫可用额≤阈值租户，按天去重）；Base 为空=禁用
+      CC_NOTIFY_API_BASE: ${NOTIFY_API_BASE:-http://go-admin-kit-notify:8095}
+      CC_NOTIFY_INTERNAL_TOKEN: ${NOTIFY_INTERNAL_TOKEN:-}
+      CC_BALANCE_WARN_FEN: ${CC_BALANCE_WARN_FEN:-1000}
+      CC_BALANCE_WARN_USER: ${CC_BALANCE_WARN_USER:-1}
+      # 欠费自动冻结（可用额≤0 自动冻结+联动停用线路）；默认关，生产确认后再开
+      CC_AUTO_FREEZE: ${CC_AUTO_FREEZE:-false}
+      # cc_webhook_logs 留档天数（每日清理）
+      CC_WEBHOOK_LOG_KEEP_DAYS: ${CC_WEBHOOK_LOG_KEEP_DAYS:-30}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${CC_SERVICE_PORT:-8089}:8089"
+    labels:
+      traefik.enable: "true"
+      # admin 路由走 ForwardAuth（服务内网关头优先、JWT 兜底）
+      traefik.http.routers.cc.rule: "PathPrefix(`/api/v1/cc`)"
+      traefik.http.routers.cc.entrypoints: web,websecure
+      traefik.http.routers.cc.priority: "100"
+      traefik.http.routers.cc.middlewares: auth-chain
+      # webhook（HMAC 验签）、cdr（Basic）、cid（mod_cidlookup 直连，裸文本）、
+      # ws（浏览器 WS 握手带不了 Authorization 头，端点内 ?token= 自校验）与
+      # 健康检查不走 ForwardAuth，优先级更高
+      traefik.http.routers.cc-open.rule: "Path(`/api/v1/cc/webhook`) || Path(`/api/v1/cc/cdr`) || Path(`/api/v1/cc/cid`) || Path(`/api/v1/cc/ws`) || PathPrefix(`/api/v1/cc/health`)"
+      traefik.http.routers.cc-open.entrypoints: web,websecure
+      traefik.http.routers.cc-open.priority: "110"
+      traefik.http.services.cc.loadbalancer.server.port: "8089"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8089/api/v1/cc/health/live >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  crm-service:
+    profiles:
+      - compose-fallback
+    build:
+      context: ./services
+      dockerfile: Dockerfile
+      args:
+        SERVICE: crm
+    image: ${IMAGE_PREFIX:-go-admin-kit}-crm-service:${IMAGE_TAG:-latest}
+    container_name: go-admin-kit-crm
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.5"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8091
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      # 内部端点共享密钥（cc → crm 号码识客/挂机写跟进）；为空=禁用 /internal 端点
+      CRM_INTERNAL_TOKEN: ${CRM_INTERNAL_TOKEN:-}
+      # 回访到期 / 公海回收 → notify-service 站内信
+      NOTIFY_API_BASE: ${NOTIFY_API_BASE:-http://go-admin-kit-notify:8095}
+      NOTIFY_INTERNAL_TOKEN: ${NOTIFY_INTERNAL_TOKEN:-}
+      # 合同审批流接入（BPM M1）：开关默认关闭，行为与接入前一致；
+      # 开启需同时配 BPM_INTERNAL_TOKEN（与 bpm-service 同值）
+      BPM_ENABLE: ${BPM_ENABLE:-false}
+      BPM_API_BASE: ${BPM_API_BASE:-http://go-admin-kit-bpm:8096}
+      BPM_INTERNAL_TOKEN: ${BPM_INTERNAL_TOKEN:-}
+      BPM_CONTRACT_FLOW_KEY: ${BPM_CONTRACT_FLOW_KEY:-crm_contract_approval}
+      # 回款审批（BPM M2）使用的流程定义 key
+      BPM_PAYMENT_FLOW_KEY: ${BPM_PAYMENT_FLOW_KEY:-crm_payment_approval}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${CRM_SERVICE_PORT:-8091}:8091"
+    labels:
+      traefik.enable: "true"
+      # 全部接口挂 ForwardAuth（无免鉴权入口）；health 单独放行
+      traefik.http.routers.crm.rule: "PathPrefix(`/api/v1/crm`)"
+      traefik.http.routers.crm.entrypoints: web,websecure
+      traefik.http.routers.crm.priority: "100"
+      traefik.http.routers.crm.middlewares: auth-chain
+      traefik.http.routers.crm-open.rule: "PathPrefix(`/api/v1/crm/health`)"
+      traefik.http.routers.crm-open.entrypoints: web,websecure
+      traefik.http.routers.crm-open.priority: "110"
+      traefik.http.services.crm.loadbalancer.server.port: "8091"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8091/api/v1/crm/health/live >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  visibility-service:
+    profiles:
+      - compose-fallback
+    build:
+      context: ./services
+      dockerfile: Dockerfile
+      args:
+        SERVICE: visibility
+    image: ${IMAGE_PREFIX:-go-admin-kit}-visibility-service:${IMAGE_TAG:-latest}
+    container_name: go-admin-kit-visibility
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.5"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8093
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      # 排名采集平台：bing/baidu/google/sogou/so360/duckduckgo/github
+      SERP_ENGINES: ${SERP_ENGINES:-bing,baidu,google,sogou,so360,github}
+      # GEO 提及检测每周自动跑（默认周一 04:43；GEO_CRON_ENABLED=false 关闭）
+      GEO_CRON: ${GEO_CRON:-43 4 * * 1}
+      # 检测完成 → notify-service 站内信（与其余服务同默认 token 对齐）
+      NOTIFY_API_BASE: ${NOTIFY_API_BASE:-http://go-admin-kit-notify:8095}
+      NOTIFY_INTERNAL_TOKEN: ${NOTIFY_INTERNAL_TOKEN:-}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${VISIBILITY_SERVICE_PORT:-8093}:8093"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.visibility.rule: "PathPrefix(`/api/v1/visibility`)"
+      traefik.http.routers.visibility.entrypoints: web,websecure
+      traefik.http.routers.visibility.priority: "100"
+      traefik.http.routers.visibility.middlewares: auth-chain
+      traefik.http.routers.visibility-open.rule: "PathPrefix(`/api/v1/visibility/health`)"
+      traefik.http.routers.visibility-open.entrypoints: web,websecure
+      traefik.http.routers.visibility-open.priority: "110"
+      traefik.http.services.visibility.loadbalancer.server.port: "8093"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8093/api/v1/visibility/health/live >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  # 工单 M1：客服闭环（IM 会话 → 工单 → 关单），AutoMigrate 自管表
+  # ★ 已 swarm 化（docker-stack.yml，swarm-redeploy.sh 部署）：此处仅存
+  # build 定义与回退形态，profile 门控防止 compose up 复活出双实例
+  ticket-service:
+    profiles:
+      - compose-fallback
+    build:
+      context: ./services
+      dockerfile: Dockerfile
+      args:
+        SERVICE: ticket
+    image: ${IMAGE_PREFIX:-go-admin-kit}-ticket-service:${IMAGE_TAG:-latest}
+    container_name: go-admin-kit-ticket
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8094
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      # 超时工单推站内信（notify-service internal/send）
+      NOTIFY_API_BASE: ${NOTIFY_API_BASE:-http://go-admin-kit-notify:8095}
+      NOTIFY_INTERNAL_TOKEN: ${NOTIFY_INTERNAL_TOKEN:-}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${TICKET_SERVICE_PORT:-8094}:8094"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.ticket.rule: "PathPrefix(`/api/v1/ticket`)"
+      traefik.http.routers.ticket.entrypoints: web,websecure
+      traefik.http.routers.ticket.priority: "100"
+      traefik.http.routers.ticket.middlewares: auth-chain
+      traefik.http.routers.ticket-open.rule: "PathPrefix(`/api/v1/ticket/health`)"
+      traefik.http.routers.ticket-open.entrypoints: web,websecure
+      traefik.http.routers.ticket-open.priority: "110"
+      traefik.http.services.ticket.loadbalancer.server.port: "8094"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8094/api/v1/ticket/health/live >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  # 审批流 M2：轻量审批引擎（定义/实例/任务/日志/抄送，AutoMigrate 自管表；
+  # 终态经 HTTP 回调业务方；超时提醒 ticker 见 BPM_TIMEOUT_SCAN_INTERVAL）
+  # 支付中心 M1：渠道抽象+订单/退款状态机+收银台（mock 渠道闭环，AutoMigrate 自管表）
+  # ★ 已 swarm 化（docker-stack.yml，swarm-redeploy.sh 部署）：此处仅存
+  # build 定义与回退形态，profile 门控防止 compose up 复活出双实例
+  pay-service:
+    profiles:
+      - compose-fallback
+    build:
+      context: ./services
+      dockerfile: Dockerfile
+      args:
+        SERVICE: pay
+    image: ${IMAGE_PREFIX:-go-admin-kit}-pay-service:${IMAGE_TAG:-latest}
+    container_name: go-admin-kit-pay
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8097
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      # 业务方建单/退款内部端点共享密钥；为空=禁用 /internal 端点
+      PAY_INTERNAL_TOKEN: ${PAY_INTERNAL_TOKEN:-}
+      # 终态回调业务方时携带的 X-Internal-Token（业务侧内部端点鉴权）
+      PAY_CALLBACK_TOKEN: ${PAY_CALLBACK_TOKEN:-}
+      # 回调目标按 biz_type 注册：PAY_CALLBACK_<BIZTYPE>=完整 URL（默认无，业务方自行接线）
+      PAY_ORDER_TTL_MINUTES: ${PAY_ORDER_TTL_MINUTES:-30}
+      TZ: ${TZ:-Asia/Shanghai}
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.pay.rule: "Path(`/api/v1/pay`) || PathPrefix(`/api/v1/pay/`)"
+      traefik.http.routers.pay.entrypoints: web,websecure
+      traefik.http.routers.pay.priority: "100"
+      traefik.http.routers.pay.middlewares: auth-chain
+      # 收银台（token 自校验）与 health 绕过 ForwardAuth，优先级更高；
+      # 渠道回调端点（M2 微信/支付宝）届时加入此 open 路由
+      traefik.http.routers.pay-open.rule: "PathPrefix(`/api/v1/pay/cashier/`) || PathPrefix(`/api/v1/pay/health`)"
+      traefik.http.routers.pay-open.entrypoints: web,websecure
+      traefik.http.routers.pay-open.priority: "110"
+      traefik.http.services.pay.loadbalancer.server.port: "8097"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8097/api/v1/pay/health/live >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
   bpm-service:
+    profiles:
+      - compose-fallback
     build:
       context: ./services
       dockerfile: Dockerfile
@@ -461,6 +938,8 @@ services:
     image: ${IMAGE_PREFIX:-go-admin-kit}-bpm-service:${IMAGE_TAG:-latest}
     container_name: go-admin-kit-bpm
     restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8096
@@ -470,22 +949,31 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
       DB_NAME: ${POSTGRES_DB:-go_admin_kit}
       DB_SSLMODE: ${DB_SSLMODE:-disable}
-      DB_SEARCH_PATH: bpm_svc,public
       JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
-      # internal 端点共享密钥（业务方 → bpm 发起审批 / by-biz 反查）；空=禁用 /internal 端点
+      # 内部端点共享密钥（crm → bpm 发起审批 / by-biz 反查）；为空=禁用 /internal 端点
       BPM_INTERNAL_TOKEN: ${BPM_INTERNAL_TOKEN:-}
-      # 终态回调业务方内部端点时携带的 X-Internal-Token；空=回调不带鉴权头
-      BPM_CALLBACK_TOKEN: ${BPM_CALLBACK_TOKEN:-}
-      # 回调目标按 biz_type 注册：BPM_CALLBACK_<BIZTYPE>=完整 URL（默认无，业务方自行接线）
-      # 站内信通知：另配 NOTIFY_API_BASE + NOTIFY_INTERNAL_TOKEN 后启用，两者留空则静默跳过
+      # 终态回调业务方时携带的 X-Internal-Token（业务侧内部端点鉴权，与 CRM 同值）
+      BPM_CALLBACK_TOKEN: ${CRM_INTERNAL_TOKEN:-}
+      # 回调目标按 biz_type 注册：BPM_CALLBACK_<BIZTYPE>=完整 URL
+      BPM_CALLBACK_CRM_CONTRACT: ${BPM_CALLBACK_CRM_CONTRACT:-http://go-admin-kit-crm:8091/api/v1/crm/internal/bpm/callback}
+      BPM_CALLBACK_CRM_PAYMENT: ${BPM_CALLBACK_CRM_PAYMENT:-http://go-admin-kit-crm:8091/api/v1/crm/internal/bpm/callback}
+      # 新待办/抄送/终态结果/超时提醒 → notify-service 站内信
+      NOTIFY_API_BASE: ${NOTIFY_API_BASE:-http://go-admin-kit-notify:8095}
+      NOTIFY_INTERNAL_TOKEN: ${NOTIFY_INTERNAL_TOKEN:-}
+      # 超时提醒扫描周期（M2 ticker，time.ParseDuration 语法）
+      BPM_TIMEOUT_SCAN_INTERVAL: ${BPM_TIMEOUT_SCAN_INTERVAL:-5m}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "${SERVICES_BIND_IP:-127.0.0.1}:${BPM_SERVICE_PORT:-8096}:8096"
     labels:
       traefik.enable: "true"
-      traefik.http.routers.bpm.rule: "Path(`/api/v1/bpm`) || PathPrefix(`/api/v1/bpm/`)"
+      traefik.http.routers.bpm.rule: "PathPrefix(`/api/v1/bpm`)"
       traefik.http.routers.bpm.entrypoints: web,websecure
       traefik.http.routers.bpm.priority: "100"
+      traefik.http.routers.bpm.middlewares: auth-chain
+      traefik.http.routers.bpm-open.rule: "PathPrefix(`/api/v1/bpm/health`)"
+      traefik.http.routers.bpm-open.entrypoints: web,websecure
+      traefik.http.routers.bpm-open.priority: "110"
       traefik.http.services.bpm.loadbalancer.server.port: "8096"
     depends_on:
       migrate:
@@ -499,21 +987,137 @@ services:
     networks:
       - go-admin-kit-net
 
-  frontend:
+  # 通知中心：站内信 + SMTP 邮件 + system-service 真实短信
+  # ★ 已 swarm 化（docker-stack.yml，swarm-redeploy.sh 部署）：此处仅存
+  # build 定义与回退形态，profile 门控防止 compose up 复活出双实例
+  notify-service:
+    profiles:
+      - compose-fallback
     build:
-      context: ./web
+      context: ./services
       dockerfile: Dockerfile
-    image: ${IMAGE_PREFIX:-go-admin-kit}-frontend:${IMAGE_TAG:-latest}
-    container_name: go-admin-kit-frontend
+      args:
+        SERVICE: notify
+    image: ${IMAGE_PREFIX:-go-admin-kit}-notify-service:${IMAGE_TAG:-latest}
+    container_name: go-admin-kit-notify
     restart: unless-stopped
-    # 全栈唯一无探针的服务：nginx 配置写坏也能"起来就接流量"，补上探针
+    mem_limit: 128m
+    cpus: "0.25"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8095
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      NOTIFY_INTERNAL_TOKEN: ${NOTIFY_INTERNAL_TOKEN:-}
+      NOTIFY_SYSTEM_SMS_URL: http://go-admin-kit-system:8084/internal/v1/sms/send
+      SYSTEM_INTERNAL_TOKEN: ${SYSTEM_INTERNAL_TOKEN:-}
+      # 邮件（可选）：配齐 HOST+FROM 后，模板 channels 含 email 才会发
+      NOTIFY_SMTP_HOST: ${NOTIFY_SMTP_HOST:-}
+      NOTIFY_SMTP_PORT: ${NOTIFY_SMTP_PORT:-587}
+      NOTIFY_SMTP_USER: ${NOTIFY_SMTP_USER:-}
+      NOTIFY_SMTP_PASSWORD: ${NOTIFY_SMTP_PASSWORD:-}
+      NOTIFY_SMTP_FROM: ${NOTIFY_SMTP_FROM:-}
+      # 仅演示环境可回退 stub；生产短信由 system-service 投递
+      NOTIFY_SMS_MODE: ${NOTIFY_SMS_MODE:-}
+      NOTIFY_DEFAULT_CHANNELS: ${NOTIFY_DEFAULT_CHANNELS:-inbox}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${NOTIFY_SERVICE_PORT:-8095}:8095"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.notify.rule: "PathPrefix(`/api/v1/notify`)"
+      traefik.http.routers.notify.entrypoints: web,websecure
+      traefik.http.routers.notify.priority: "100"
+      traefik.http.routers.notify.middlewares: auth-chain
+      traefik.http.routers.notify-open.rule: "PathPrefix(`/api/v1/notify/health`)"
+      traefik.http.routers.notify-open.entrypoints: web,websecure
+      traefik.http.routers.notify-open.priority: "110"
+      traefik.http.services.notify.loadbalancer.server.port: "8095"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
-      test:
-        - CMD-SHELL
-        - wget -qO- http://127.0.0.1:80/ >/dev/null || exit 1
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8095/api/v1/notify/health/live >/dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 6
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  mp-service:
+    profiles:
+      - compose-fallback
+    build:
+      context: ./services
+      dockerfile: Dockerfile
+      args:
+        SERVICE: mp
+    image: ${IMAGE_PREFIX:-go-admin-kit}-mp-service:${IMAGE_TAG:-latest}
+    container_name: go-admin-kit-mp
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.5"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: 8092
+      DB_HOST: go-admin-kit-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      DB_NAME: ${POSTGRES_DB:-go_admin_kit}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32-chars}
+      # access_token 中控（M2）用；空则 M1 仍可跑
+      REDIS_HOST: go-admin-kit-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${SERVICES_BIND_IP:-127.0.0.1}:${MP_SERVICE_PORT:-8092}:8092"
+    labels:
+      traefik.enable: "true"
+      # 后台管理接口挂 ForwardAuth
+      traefik.http.routers.mp.rule: "PathPrefix(`/api/v1/mp`) || PathPrefix(`/api/v1/social`)"
+      traefik.http.routers.mp.entrypoints: web,websecure
+      traefik.http.routers.mp.priority: "100"
+      traefik.http.routers.mp.middlewares: auth-chain
+      # 微信回调（自己做微信签名校验）与 health 绕过 ForwardAuth，优先级更高
+      traefik.http.routers.mp-open.rule: "PathPrefix(`/api/v1/mp/callback`) || PathPrefix(`/api/v1/mp/health`)"
+      traefik.http.routers.mp-open.entrypoints: web,websecure
+      traefik.http.routers.mp-open.priority: "110"
+      traefik.http.services.mp.loadbalancer.server.port: "8092"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8092/api/v1/mp/health/live >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - go-admin-kit-net
+
+  frontend:
+    profiles:
+      - compose-fallback
+    environment:
+      CC_SIP_WSS_URL: ${CC_SIP_WSS_URL:-}
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        VITE_CC_SIP_WS_URL: ${VITE_CC_SIP_WS_URL:-}
+    image: ${IMAGE_PREFIX:-go-admin-kit}-frontend:${IMAGE_TAG:-latest}
+    container_name: go-admin-kit-frontend
+    restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:80"
     labels:
@@ -522,9 +1126,6 @@ services:
       traefik.http.routers.frontend.entrypoints: web,websecure
       traefik.http.routers.frontend.priority: "1"
       traefik.http.services.frontend.loadbalancer.server.port: "80"
-    depends_on:
-      monitor-service:
-        condition: service_started
     networks:
       - go-admin-kit-net
 
@@ -534,28 +1135,87 @@ services:
     image: traefik:v3.7.10
     container_name: go-admin-kit-gateway
     restart: unless-stopped
+    labels:
+      # auth-verify 中间件定义挂在 gateway（常驻 docker provider）：
+      # auth-service 已迁 swarm，定义不能跟着走，否则两边 provider 都找不到
+      traefik.enable: "true"
+      traefik.http.middlewares.auth-verify.forwardauth.address: "http://go-admin-kit-auth:8082/internal/verify"
+      traefik.http.middlewares.auth-verify.forwardauth.authResponseHeaders: "X-Auth-User-ID,X-Auth-Username,X-Auth-Tenant-ID,X-Auth-Platform-Admin,X-Auth-Permissions"
+      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-User-ID: ""
+      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Username: ""
+      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Tenant-ID: ""
+      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Platform-Admin: ""
+      traefik.http.middlewares.auth-sanitize.headers.customRequestHeaders.X-Auth-Permissions: ""
+      traefik.http.middlewares.auth-chain.chain.middlewares: "auth-sanitize,auth-verify"
+      # 网关层全局限流：挂在 entrypoint（web）上，覆盖全部 15 个服务，一处配置。
+      # average/burst 可按部署规模调；Traefik 是令牌桶，平均速率 + 突发上限。
+      # 内网宽松为主（防滥用而非精确配额），真实域名/公网接入时应收紧。
+      traefik.http.middlewares.gateway-ratelimit.ratelimit.average: "${GATEWAY_RATE_AVERAGE:-100}"
+      traefik.http.middlewares.gateway-ratelimit.ratelimit.burst: "${GATEWAY_RATE_BURST:-200}"
+      # 网关安全响应头（全局限流之后的第二层，覆盖全部路由）：
+      # - CSP 用宽松档（保留 unsafe-inline 兼容前端内联主题脚本/runtime 配置；
+      #   阻止外域脚本注入/iframe/object/表单外跳——对 XSS 注入面有部分缓解）。
+      #   收紧需先审计前端资源清单（内联/动态来源），2026-08-12 安全测试后折中落地
+      # - HSTS 等 websecure 全量生效后再开（HTTP 下开 HSTS 会把浏览器锁死在 https）
+      traefik.http.middlewares.gateway-secure-headers.headers.customResponseHeaders.Content-Security-Policy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss: ws: https: http:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+      traefik.http.middlewares.gateway-secure-headers.headers.customResponseHeaders.X-Content-Type-Options: "nosniff"
+      traefik.http.middlewares.gateway-secure-headers.headers.customResponseHeaders.X-Frame-Options: "SAMEORIGIN"
+      traefik.http.middlewares.gateway-secure-headers.headers.customResponseHeaders.Referrer-Policy: "strict-origin-when-cross-origin"
+      traefik.http.middlewares.gateway-secure-headers.headers.customResponseHeaders.Permissions-Policy: "camera=(), microphone=(), geolocation=()"
+      # HSTS：stsSeconds>0 才下发（Traefik 无 strictTransportSecurity 字段）。
+      # 域名+真证书就绪后在 .env 配 GATEWAY_HSTS_SECONDS=31536000——浏览器会锁死 https，
+      # 自签兜底期间绝不能开（误开则用户无法回退 http）。
+      traefik.http.middlewares.gateway-secure-headers.headers.stsSeconds: "${GATEWAY_HSTS_SECONDS:-0}"
+      traefik.http.middlewares.gateway-secure-headers.headers.stsIncludeSubdomains: "true"
+      traefik.http.middlewares.gateway-secure-headers.headers.stsPreload: "true"
+      # 网关层响应压缩：API JSON 此前经 18100 全量原文传输（Go 服务无 gzip；
+      # 13100 的 nginx 反而压了）。前端静态经 nginx 已带 Content-Encoding，
+      # Traefik 对已编码响应自动跳过，不会双压；默认 >=1KB 才压。
+      traefik.http.middlewares.gateway-compress.compress: "true"
+      # HTTP→HTTPS 重定向中间件（入口 web → 跳 websecure）。不设 scheme 或设为 https
+      # 即激活全站跳转；默认 http = 不跳转（向后兼容）。
+      traefik.http.middlewares.gateway-https-redirect.redirectscheme.scheme: "${GATEWAY_HTTPS_REDIRECT_SCHEME:-http}"
+      traefik.http.middlewares.gateway-https-redirect.redirectscheme.permanent: "true"
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=go-admin-kit-net
+      # swarm provider：路由 docker-stack.yml 里的 swarm service（deploy.labels）；
+      # 与 docker provider 共存，跨 provider 引用中间件用 <name>@docker 后缀
+      - --providers.swarm=true
+      - --providers.swarm.exposedbydefault=false
+      - --providers.swarm.network=go-admin-kit-net
       - --entrypoints.web.address=:80
+      # 自定义 system-acme router 是唯一 HTTP-01 owner；允许它绕过内建 ACME router。
+      - --entrypoints.web.allowACMEByPass=true
       # 信任转发源（隧道/宿主 loopback/gwbridge/overlay）采用 Caddy 的 X-Forwarded-For 真实 IP
       - --entrypoints.web.forwardedHeaders.trustedIPs=127.0.0.1,172.22.0.1/32,172.28.0.0/16
-      - --entrypoints.web.http.middlewares=gateway-ratelimit@docker,gateway-compress@docker
-      # TLS-ready：websecure 端口 + 自签兜底；有域名配 ACME_EMAIL 启用 Let's Encrypt
+      # entrypoint 级限流：所有 web 流量先过网关限流中间件（再进 ForwardAuth）
+      - --entrypoints.web.http.middlewares=gateway-ratelimit@docker,gateway-secure-headers@docker,gateway-compress@docker
+      # TLS-ready：websecure 端口 + 自签兜底。真实证书由 system-service
+      # 唯一签发并写入 file provider，不再与 Traefik certresolver 竞争 ACME。
       - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls=true
       - --entrypoints.websecure.forwardedHeaders.trustedIPs=127.0.0.1,172.22.0.1/32,172.28.0.0/16
-      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-}
-      - --certificatesresolvers.letsencrypt.acme.storage=/acme.json
-      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      # websecure 与 web 同中间件链：限流/安全头/压缩全覆盖（此前只挂 web，
+      # TLS 落地后 443 端口裸奔）。HSTS 由 GATEWAY_HSTS_ENABLED 门控。
+      - --entrypoints.websecure.http.middlewares=gateway-ratelimit@docker,gateway-secure-headers@docker,gateway-compress@docker
+      # 证书由 system-service 签发并原子生成动态配置，避免与 Traefik resolver 双 owner。
+      - --providers.file.directory=/var/lib/go-admin-kit/edgecert/traefik-dynamic
+      - --providers.file.watch=true
+      # TLS 基线：Traefik 内置 default@internal 即 TLS 1.2+ 现代 cipher（无需自定义）。
       - --ping=true
       - --accesslog=true
       - --log.level=INFO
-      # Prometheus 指标：随 api.insecure 暴露在 :8080/metrics；router 级标签开 P99
+      # Prometheus 指标：随 api.insecure 暴露在 :8080/metrics（宿主只绑 loopback，
+      # 网络内由 prometheus 容器抓取）。router 级标签开着才有按路由的 P99。
       - --metrics.prometheus=true
       - --metrics.prometheus.addrouterslabels=true
       # Dashboard/API for inspecting routers; the host port below binds it to
       # loopback only. Remove both lines if you don't want it at all.
+      # 决策：loopback-only（127.0.0.1:8090）已保证公网不可达；若要加认证，
+      # 在此加 traefik.http.middlewares.dashboard-auth.basicauth.users 并挂到
+      # api.dashboard 路由（当前无独立 dashboard router，api.insecure 直供）。
       - --api.insecure=true
     ports:
       - "${GATEWAY_PORT:-8000}:80"
@@ -565,23 +1225,7 @@ services:
       # Docker Desktop for Mac denies container access to /var/run/docker.sock;
       # set DOCKER_SOCK=/var/run/docker.sock.raw in .env there. Linux keeps the default.
       - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock:ro
-    depends_on:
-      monitor-service:
-        condition: service_started
-      auth-service:
-        condition: service_started
-      identity-service:
-        condition: service_started
-      system-service:
-        condition: service_started
-      audit-service:
-        condition: service_started
-      file-service:
-        condition: service_started
-      bpm-service:
-        condition: service_started
-      frontend:
-        condition: service_started
+      - ${EDGE_CERT_HOST_DIR:-./certs}:/var/lib/go-admin-kit/edgecert:ro
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 30s
@@ -595,31 +1239,32 @@ services:
     container_name: go-admin-kit-prometheus
     restart: unless-stopped
     mem_limit: 1g
+    cpus: "1.5"
     profiles:
       - monitoring
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --storage.tsdb.retention.size=8GB
     ports:
       - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ../platform/deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ../platform/deploy/prometheus/rules:/etc/prometheus/rules:ro
       - go_admin_kit_prometheus_data:/prometheus
-    depends_on:
-      monitor-service:
-        condition: service_started
     networks:
       - go-admin-kit-net
 
-  # 告警出口（告警闭环）：Prometheus 规则 → 本容器分组去抖 → notify webhook
-  # 站内信。配置是模板：启动时 sed 把 NOTIFY_INTERNAL_TOKEN 注入 Bearer 凭据。
-  # 脚手架未启 notify-service 时投递失败仅记日志，不影响其余组件。
+  # 告警出口（告警闭环②）：Prometheus 规则 → 本容器分组去抖 → notify webhook
+  # 站内信。配置是模板：启动时 sed 把 NOTIFY_INTERNAL_TOKEN 注入 Bearer 凭据
+  # （真实密钥只在 .env，不进 git 的配置文件）。
   alertmanager:
     image: prom/alertmanager:v0.33.1
     container_name: go-admin-kit-alertmanager
     restart: unless-stopped
     mem_limit: 128m
+    cpus: "0.25"
     profiles:
       - monitoring
     environment:
@@ -637,12 +1282,13 @@ services:
     networks:
       - go-admin-kit-net
 
-  # 主机指标（磁盘/内存/CPU）：挂宿主根只读
+  # 主机指标（磁盘/内存/CPU）：挂宿主根只读；网络走 compose 网（够判磁盘内存）。
   node-exporter:
     image: prom/node-exporter:v1.12.1
     container_name: go-admin-kit-node-exporter
     restart: unless-stopped
     mem_limit: 64m
+    cpus: "0.10"
     profiles:
       - monitoring
     pid: host
@@ -653,13 +1299,14 @@ services:
     networks:
       - go-admin-kit-net
 
-  # 统一日志：Loki 存储 + promtail 采全容器 stdout，Grafana Explore 里查
-  # （{service="auth"} |= "关键词"）。保留 7 天，filesystem 单机存储。
+  # 统一日志（运维⑤）：Loki 存储 + promtail 采集全容器 stdout，Grafana 里查
+  # （Explore → Loki，{service="cc"} |= "keyword"）。保留 7 天，filesystem 存储。
   loki:
     image: grafana/loki:3.7.6
     container_name: go-admin-kit-loki
     restart: unless-stopped
     mem_limit: 512m
+    cpus: "0.5"
     profiles:
       - monitoring
     command:
@@ -677,12 +1324,14 @@ services:
     container_name: go-admin-kit-promtail
     restart: unless-stopped
     mem_limit: 256m
+    cpus: "0.25"
     profiles:
       - monitoring
     command:
       - -config.file=/etc/promtail/config.yml
     volumes:
       - ../platform/deploy/loki/promtail-config.yml:/etc/promtail/config.yml:ro
+      # docker_sd + 容器日志都要 docker.sock（只读）
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       loki:
@@ -695,6 +1344,7 @@ services:
     container_name: go-admin-kit-grafana
     restart: unless-stopped
     mem_limit: 512m
+    # 与 prometheus 同 profile：默认渲染不悬空 depends_on，monitoring profile 一起起
     profiles:
       - monitoring
     environment:
@@ -722,8 +1372,7 @@ services:
     image: otel/opentelemetry-collector-contrib:0.158.0
     container_name: go-admin-kit-otel-collector
     restart: unless-stopped
-    profiles:
-      - tracing
+    mem_limit: 384m
     command:
       - --config=/etc/otelcol/config.yaml
     ports:
@@ -738,30 +1387,40 @@ services:
       - go-admin-kit-net
 
   jaeger:
-    # v2 单镜像（v1 EOL 2025-12-31）。基于 OTel Collector 框架，v1 的 env
-    # COLLECTOR_OTLP_ENABLED 已失效（v2 默认收 OTLP 4317/4318 + memory 存储）。
+    # v2 单镜像（v1 已 EOL 2025-12-31，all-in-one/collector/query 组件镜像停发）。
+    # v2 基于 OTel Collector 框架，只能用 config/--set 配置，不识别 v1 的 env
+    #（COLLECTOR_OTLP_ENABLED/QUERY_BASE_PATH）；默认收 OTLP(4317/4318)+memory 存储。
     image: jaegertracing/jaeger:2.20.0
     container_name: go-admin-kit-jaeger
     restart: unless-stopped
     mem_limit: 512m
-    profiles:
-      - tracing
+    command:
+      - --set
+      - extensions.jaeger_query.base_path=/jaeger
     environment:
       TZ: ${TZ:-Asia/Shanghai}
-    ports:
-      - "${JAEGER_UI_PORT:-16686}:16686"
+    # 不再暴露宿主机端口；经 Traefik 网关 /jaeger 路径访问（需登录鉴权）。
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.jaeger.rule: PathPrefix("/jaeger")
+      traefik.http.routers.jaeger.entrypoints: web
+      traefik.http.routers.jaeger.middlewares: auth-chain@docker
+      traefik.http.services.jaeger.loadbalancer.server.port: "16686"
     networks:
       - go-admin-kit-net
 
 networks:
   # 与 infra 栈共享的外部网络。子网钉在 172.28.0.0/16（TRUSTED_PROXIES 白名单
   # 依赖它，改动需同步 backend/auth-service 的 TRUSTED_PROXIES env）；
-  # 创建命令见 docker-compose.infra.yml 头部。
+  # 另信任 172.22.0.1/32（docker_gwbridge SNAT 源——公网经 Caddy→隧道→宿主端口
+  # 映射后的实际连接源，由宿主机 Docker default-address-pool 决定，非本 compose 定义）。
+  # 创建命令见 docker-compose.infra.yml 头部，deploy 脚本已内置。
   go-admin-kit-net:
     external: true
     name: go-admin-kit-net
 
 volumes:
+  im_uploads:
   go_admin_kit_uploads:
   go_admin_kit_prometheus_data:
   go_admin_kit_alertmanager_data:

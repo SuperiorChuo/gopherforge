@@ -5,6 +5,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,7 +30,25 @@ type Config struct {
 	Notification  NotificationConfig
 	NATS          NATSConfig
 	Codegen       CodegenConfig
+	EdgeCert      EdgeCertConfig
 	InternalToken string
+}
+
+// EdgeCertConfig 是边缘证书生命周期的运行配置。加密密钥经
+// envsecret 从 /run/secrets 读取；值是 base64(raw 32 bytes)，不允许明文进仓。
+type EdgeCertConfig struct {
+	CurrentKeyID        string
+	CurrentKeyBase64    string
+	PreviousKeyID       string
+	PreviousKeyBase64   string
+	StorageRoot         string
+	TraefikDynamicDir   string
+	GatewayTLSAddress   string
+	WorkerEnabled       bool
+	RenewBeforeDays     int
+	TaskPollSeconds     int
+	ChallengeTTLMinutes int
+	ClearLegacySecrets  bool
 }
 
 type CodegenConfig struct {
@@ -289,6 +308,16 @@ func Defaults() Config {
 			WriteEnabled: false,
 			RepoRoot:     "",
 		},
+		EdgeCert: EdgeCertConfig{
+			StorageRoot:         "",
+			TraefikDynamicDir:   "",
+			GatewayTLSAddress:   "go-admin-kit-gateway:443",
+			WorkerEnabled:       true,
+			RenewBeforeDays:     30,
+			TaskPollSeconds:     5,
+			ChallengeTTLMinutes: 15,
+			ClearLegacySecrets:  false,
+		},
 	}
 }
 
@@ -368,6 +397,18 @@ func applyEnv(config *Config) {
 	config.NATS.URL = getEnvString("NATS_URL", config.NATS.URL)
 	config.Codegen.WriteEnabled = getEnvBool("CODEGEN_WRITE_ENABLED", config.Codegen.WriteEnabled)
 	config.Codegen.RepoRoot = getEnvString("CODEGEN_REPO_ROOT", config.Codegen.RepoRoot)
+	config.EdgeCert.CurrentKeyID = getEnvString("EDGE_CERT_CURRENT_KEY_ID", config.EdgeCert.CurrentKeyID)
+	config.EdgeCert.CurrentKeyBase64 = getSecretString("EDGE_CERT_ENCRYPTION_KEY", config.EdgeCert.CurrentKeyBase64)
+	config.EdgeCert.PreviousKeyID = getEnvString("EDGE_CERT_PREVIOUS_KEY_ID", config.EdgeCert.PreviousKeyID)
+	config.EdgeCert.PreviousKeyBase64 = getSecretString("EDGE_CERT_PREVIOUS_ENCRYPTION_KEY", config.EdgeCert.PreviousKeyBase64)
+	config.EdgeCert.StorageRoot = getEnvString("EDGE_CERT_STORAGE_ROOT", config.EdgeCert.StorageRoot)
+	config.EdgeCert.TraefikDynamicDir = getEnvString("EDGE_CERT_TRAEFIK_DYNAMIC_DIR", config.EdgeCert.TraefikDynamicDir)
+	config.EdgeCert.GatewayTLSAddress = getEnvString("EDGE_CERT_GATEWAY_TLS_ADDRESS", config.EdgeCert.GatewayTLSAddress)
+	config.EdgeCert.WorkerEnabled = getEnvBool("EDGE_CERT_WORKER_ENABLED", config.EdgeCert.WorkerEnabled)
+	config.EdgeCert.RenewBeforeDays = getEnvInt("EDGE_CERT_RENEW_BEFORE_DAYS", config.EdgeCert.RenewBeforeDays)
+	config.EdgeCert.TaskPollSeconds = getEnvInt("EDGE_CERT_TASK_POLL_SECONDS", config.EdgeCert.TaskPollSeconds)
+	config.EdgeCert.ChallengeTTLMinutes = getEnvInt("EDGE_CERT_CHALLENGE_TTL_MINUTES", config.EdgeCert.ChallengeTTLMinutes)
+	config.EdgeCert.ClearLegacySecrets = getEnvBool("EDGE_CERT_CLEAR_LEGACY_SECRETS", config.EdgeCert.ClearLegacySecrets)
 	config.InternalToken = getSecretString("SYSTEM_INTERNAL_TOKEN", config.InternalToken)
 
 	config.Notification.Email.Enabled = getEnvBool("EMAIL_NOTIFICATION_ENABLED", config.Notification.Email.Enabled)
@@ -405,10 +446,13 @@ func validate(cfg Config) error {
 			return err
 		}
 	}
+	if err := validateEdgeCertConfig(cfg.EdgeCert); err != nil {
+		return err
+	}
 	if isProductionEnv(cfg.App.Env) {
 		// 在失败前收集所有密钥问题，使运维可以一次修完整套配置，
 		// 而不是每个问题重启一次。
-		issues := make([]string, 0, 4)
+		issues := make([]string, 0, 5)
 		if !isStrongSecret(cfg.JWT.Secret, 32) {
 			issues = append(issues, "JWT_SECRET must be at least 32 characters and must not use a default or placeholder value")
 		}
@@ -421,6 +465,11 @@ func validate(cfg Config) error {
 		if cfg.InternalToken != "" && isWeakCredential(cfg.InternalToken) {
 			issues = append(issues, "SYSTEM_INTERNAL_TOKEN must not use a default, weak, or placeholder value")
 		}
+		// 生产环境允许“只查看外部托管 TLS”的零密钥形态；但一旦声明
+		// current key id，密钥必须同时存在且可解码。Issue/Export 还会独立 fail closed。
+		if cfg.EdgeCert.CurrentKeyID != "" && cfg.EdgeCert.CurrentKeyBase64 == "" {
+			issues = append(issues, "EDGE_CERT_ENCRYPTION_KEY is required when EDGE_CERT_CURRENT_KEY_ID is set")
+		}
 		// IsSMTPAuthUnsafe 会重新读取环境本身，在该代码块内看似冗余，
 		// 但这是刻意为之：让启动门禁走这个导出的谓词，才能保证这里的检查
 		// 与运行时配置层的 fail-closed 守卫始终基于同一份定义。
@@ -432,6 +481,66 @@ func validate(cfg Config) error {
 		}
 	}
 	return nil
+}
+
+func validateEdgeCertConfig(cfg EdgeCertConfig) error {
+	if cfg.RenewBeforeDays <= 0 || cfg.RenewBeforeDays > 60 {
+		return fmt.Errorf("EDGE_CERT_RENEW_BEFORE_DAYS must be between 1 and 60")
+	}
+	if cfg.TaskPollSeconds <= 0 || cfg.TaskPollSeconds > 60 {
+		return fmt.Errorf("EDGE_CERT_TASK_POLL_SECONDS must be between 1 and 60")
+	}
+	if cfg.ChallengeTTLMinutes < 5 || cfg.ChallengeTTLMinutes > 60 {
+		return fmt.Errorf("EDGE_CERT_CHALLENGE_TTL_MINUTES must be between 5 and 60")
+	}
+	if (cfg.PreviousKeyID == "") != (cfg.PreviousKeyBase64 == "") {
+		return fmt.Errorf("EDGE_CERT_PREVIOUS_KEY_ID and EDGE_CERT_PREVIOUS_ENCRYPTION_KEY must be configured together")
+	}
+	if (cfg.CurrentKeyID == "") != (cfg.CurrentKeyBase64 == "") {
+		return fmt.Errorf("EDGE_CERT_CURRENT_KEY_ID and EDGE_CERT_ENCRYPTION_KEY must be configured together")
+	}
+	if cfg.CurrentKeyID != "" && cfg.CurrentKeyID == cfg.PreviousKeyID {
+		return fmt.Errorf("EDGE_CERT_CURRENT_KEY_ID and EDGE_CERT_PREVIOUS_KEY_ID must differ")
+	}
+	if cfg.StorageRoot == "" && cfg.TraefikDynamicDir != "" {
+		return fmt.Errorf("EDGE_CERT_STORAGE_ROOT is required when EDGE_CERT_TRAEFIK_DYNAMIC_DIR is set")
+	}
+	if _, _, _, _, err := cfg.KeyMaterials(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// KeyMaterials decodes configured base64(raw 32-byte) edge certificate keys.
+// Empty current configuration means Issue/Export are disabled, while external
+// TLS probing and list operations can remain available.
+func (cfg EdgeCertConfig) KeyMaterials() (currentID string, current []byte, previousID string, previous []byte, err error) {
+	currentID = strings.TrimSpace(cfg.CurrentKeyID)
+	previousID = strings.TrimSpace(cfg.PreviousKeyID)
+	if currentID != "" {
+		current, err = decodeEdgeCertKey("EDGE_CERT_ENCRYPTION_KEY", cfg.CurrentKeyBase64)
+		if err != nil {
+			return "", nil, "", nil, err
+		}
+	}
+	if previousID != "" {
+		previous, err = decodeEdgeCertKey("EDGE_CERT_PREVIOUS_ENCRYPTION_KEY", cfg.PreviousKeyBase64)
+		if err != nil {
+			return "", nil, "", nil, err
+		}
+	}
+	return currentID, current, previousID, previous, nil
+}
+
+func decodeEdgeCertKey(name, encoded string) ([]byte, error) {
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(encoded))
+	if err != nil {
+		return nil, fmt.Errorf("%s must be standard base64", name)
+	}
+	if len(decoded) != 32 {
+		return nil, fmt.Errorf("%s must decode to exactly 32 bytes", name)
+	}
+	return decoded, nil
 }
 
 // smtpAuthConfigured 报告邮件通道是否真的会对 SMTP 服务器进行认证。
@@ -501,7 +610,6 @@ func getEnvString(key, fallback string) string {
 	}
 	return fallback
 }
-
 
 // getSecretString 读敏感配置：/run/secrets 优先于环境变量（Swarm secrets）。
 func getSecretString(key, fallback string) string {

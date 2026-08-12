@@ -27,6 +27,7 @@ var moduleMap = map[string]string{
 	"/api/v1/register":       "Registration",
 	"/api/v1/captcha":        "Captcha",
 	"/api/v1/operation-logs": "Operation Logs",
+	"/api/v1/edge-certs":     "Edge Certificates",
 }
 
 // 操作日志动作映射。
@@ -304,6 +305,22 @@ func getAction(method, path string) string {
 	}
 	if strings.Contains(path, "/permissions") && method == "POST" {
 		return "Assign Permissions"
+	}
+	isEdgeCertificateAction := strings.HasPrefix(path, "/api/v1/edge-certs/")
+	if isEdgeCertificateAction && strings.HasSuffix(path, "/export") && method == http.MethodPost {
+		return "Export Private Key"
+	}
+	if isEdgeCertificateAction && strings.HasSuffix(path, "/issue") && method == http.MethodPost {
+		return "Queue Certificate Issue"
+	}
+	if isEdgeCertificateAction && strings.HasSuffix(path, "/renew") && method == http.MethodPost {
+		return "Queue Certificate Renewal"
+	}
+	if isEdgeCertificateAction && strings.HasSuffix(path, "/deploy") && method == http.MethodPost {
+		return "Queue Certificate Deploy"
+	}
+	if isEdgeCertificateAction && strings.HasSuffix(path, "/probe") && method == http.MethodPost {
+		return "Queue Certificate Probe"
 	}
 
 	if action, ok := actionMap[method]; ok {

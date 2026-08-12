@@ -19,6 +19,9 @@ func TestIsSensitiveFieldSupportsSettingsAndCamelCaseNames(t *testing.T) {
 		"mfaRecoveryCodes",
 		"backup_code",
 		"totpBackupCodes",
+		"totp_code",
+		"step_up_proof",
+		"proof",
 	} {
 		if !IsSensitiveField(field) {
 			t.Errorf("IsSensitiveField(%q) = false, want true", field)

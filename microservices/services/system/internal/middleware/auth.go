@@ -10,20 +10,20 @@ import (
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"github.com/go-admin-kit/services/system/internal/pkg/authz"
 	"github.com/go-admin-kit/services/system/internal/pkg/cache"
-	"github.com/go-admin-kit/services/shared/pkg/jwt"
 )
 
-// TenantIDContextKey stores the authenticated tenant id in context.Context
+// TenantIDContextKey 在 context.Context 中保存已认证的租户 ID
 // （与 shared/pkg/tenant 同一 typed key，保证 middleware 写入与
 // tenant.FromContext 读取一致）。
 const TenantIDContextKey = tenant.ContextKey
 
 var errAuthUserStoreMissing = errors.New("auth: user store is not configured")
 
-// AuthMiddleware validates an access token and stores the actor in the request context.
+// AuthMiddleware 校验访问令牌，并将操作者信息存入请求上下文。
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -81,17 +81,18 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		tenantID := jwt.NormalizeTenantID(claims.TenantID)
-		// Prefer gateway-propagated tenant when present (ForwardAuth).
+		// 优先使用网关透传的租户（ForwardAuth 场景下）。
 		if h := c.GetHeader("X-Auth-Tenant-ID"); h != "" {
 			if n, err := strconv.ParseUint(h, 10, 64); err == nil && n > 0 {
 				tenantID = uint(n)
 			}
 		}
+		// Platform administrator authority is security-sensitive and must come
+		// from the verified JWT. X-Auth-* headers are transport metadata from
+		// ForwardAuth, but they are also client-controlled on any direct service
+		// path and therefore must never be allowed to elevate this claim.
 		platformAdmin := claims.PlatformAdmin
-		if h := c.GetHeader("X-Auth-Platform-Admin"); h == "1" || strings.EqualFold(h, "true") {
-			platformAdmin = true
-		}
-		// Platform operators may act-as another tenant via X-Act-Tenant-ID (M4).
+		// 平台运维人员可通过 X-Act-Tenant-ID 以其他租户身份操作（M4）。
 		if platformAdmin {
 			if h := c.GetHeader("X-Act-Tenant-ID"); h != "" {
 				if n, err := strconv.ParseUint(h, 10, 64); err == nil && n > 0 {
@@ -101,9 +102,10 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
+		c.Set("session_id", claims.ID)
 		c.Set("tenant_id", tenantID)
 		c.Set("platform_admin", platformAdmin)
-		// Propagate tenant into request context for DAOs/services.
+		// 将租户写入请求上下文，供 DAO/服务使用。
 		ctx := context.WithValue(c.Request.Context(), TenantIDContextKey, tenantID)
 		ctx = context.WithValue(ctx, tenant.PlatformAdminContextKey, platformAdmin)
 		c.Request = c.Request.WithContext(ctx)
@@ -113,23 +115,21 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-// consoleSessionAuthorized validates a cookie-borne console session.
+// consoleSessionAuthorized 校验基于 cookie 的控制台会话。
 //
-// The uncached path costs three SELECTs and one UPDATE per request: the session
-// row, the user row with preloaded roles, and the last_seen_at touch. Both facts
-// it establishes — the session is live, and the account is enabled — change only
-// on explicit administrative action (logout, force-logout, disable/delete), and
-// every one of those paths already invalidates this cache. So the result is held
-// in Redis for a short TTL and the whole branch collapses to a single GET.
+// 未走缓存时，每次请求要付出三次 SELECT 和一次 UPDATE：会话行、带预加载
+// 角色的用户行，以及 last_seen_at 的刷新。它确立的两个事实——会话仍然存活、
+// 账号处于启用状态——只会在显式的管理操作（登出、强制登出、禁用/删除）时
+// 改变，而所有这些路径都会使该缓存失效。因此结果会以较短的 TTL 存进 Redis，
+// 整个分支退化为一次 GET。
 //
-// Roles and permissions are deliberately not cached here. They stay on the
-// role/permission caches with their own invalidation, so a hit on this cache can
-// never hand back a privilege that was revoked.
+// 角色与权限有意不在这里缓存。它们各自放在带独立失效机制的角色/权限缓存中，
+// 这样命中本缓存绝不会返回已撤销的权限。
 func consoleSessionAuthorized(ctx context.Context, deps AuthMiddlewareDependencies, claims *jwt.Claims) bool {
 	cacheService := cache.NewCacheService()
 	if identity, ok := cacheService.GetConsoleSessionContext(ctx, claims.ID); ok {
-		// Bind the cached entry to the presented token. Without this a session id
-		// collision or a re-issued token could ride another user's cached result.
+		// 将缓存条目绑定到当前出示的令牌。若不这样做，会话 ID 冲突或
+		// 重新签发的令牌可能会误用其他用户的缓存结果。
 		if identity.UserID == claims.UserID &&
 			(claims.Username == "" || identity.Username == claims.Username) {
 			return true
@@ -145,9 +145,8 @@ func consoleSessionAuthorized(ctx context.Context, deps AuthMiddlewareDependenci
 		return false
 	}
 
-	// Feed the role cache from the user we just loaded: RoleMiddleware and
-	// PermissionMiddleware would otherwise re-read the same row and roles a few
-	// microseconds later on this very request.
+	// 用刚加载的用户回填角色缓存：否则 RoleMiddleware 和
+	// PermissionMiddleware 会在本次请求的几微秒后重新读取同一行用户及其角色。
 	codes := make([]string, 0, len(user.Roles))
 	for _, role := range user.Roles {
 		codes = append(codes, role.Code)
@@ -162,7 +161,7 @@ func consoleSessionAuthorized(ctx context.Context, deps AuthMiddlewareDependenci
 	return true
 }
 
-// RoleMiddleware allows the request when the current user has any required role.
+// RoleMiddleware 在当前用户拥有任一所需角色时放行请求。
 func RoleMiddleware(requiredRoles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
@@ -189,7 +188,7 @@ func RoleMiddleware(requiredRoles ...string) gin.HandlerFunc {
 	}
 }
 
-// PlatformAdminMiddleware restricts the route to platform operators.
+// PlatformAdminMiddleware 将路由限制为仅平台运维人员可访问。
 // 系统设置含 AI/SMTP 密钥等平台级配置，租户管理员不得读写。
 func PlatformAdminMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -202,7 +201,7 @@ func PlatformAdminMiddleware() gin.HandlerFunc {
 	}
 }
 
-// PermissionMiddleware allows the request when the current user has any required permission.
+// PermissionMiddleware 在当前用户拥有任一所需权限时放行请求。
 func PermissionMiddleware(requiredPermissions ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
@@ -212,9 +211,8 @@ func PermissionMiddleware(requiredPermissions ...string) gin.HandlerFunc {
 			return
 		}
 
-		// Memoize the codes so ResolveUserDataScopeFromContext can reuse them
-		// instead of re-reading user+roles from the database. On error we fall
-		// through exactly as before, memoizing nothing.
+		// 将角色码暂存起来，使 ResolveUserDataScopeFromContext 可以直接复用，
+		// 不必再从数据库重新读取用户+角色。出错时行为与之前完全一致，不缓存任何内容。
 		if codes, err := userRoleCodesContext(c.Request.Context(), userID.(uint)); err == nil {
 			c.Set(authz.RoleCodesContextKey, codes)
 			if containsAnyString(codes, []string{"super_admin"}) {
@@ -223,7 +221,7 @@ func PermissionMiddleware(requiredPermissions ...string) gin.HandlerFunc {
 			}
 		}
 
-		cacheService := cache.NewCacheService() // shared package-level instance
+		cacheService := cache.NewCacheService() // 包级共享实例
 		permissions, err := cacheService.GetUserPermissionsContext(c.Request.Context(), userID.(uint))
 		if err != nil || len(permissions) == 0 {
 			store := currentAuthDeps().Permissions

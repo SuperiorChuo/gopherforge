@@ -8,8 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
-	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 )
@@ -85,10 +85,11 @@ func AuthMiddleware() gin.HandlerFunc {
 				tenantID = uint(n)
 			}
 		}
+		// Platform administrator authority is security-sensitive and must come
+		// from the verified JWT. X-Auth-* headers are transport metadata from
+		// ForwardAuth, but they are also client-controlled on any direct service
+		// path and therefore must never be allowed to elevate this claim.
 		platformAdmin := claims.PlatformAdmin
-		if h := c.GetHeader("X-Auth-Platform-Admin"); h == "1" || strings.EqualFold(h, "true") {
-			platformAdmin = true
-		}
 		// Platform operators may act-as another tenant via X-Act-Tenant-ID (M4).
 		if platformAdmin {
 			if h := c.GetHeader("X-Act-Tenant-ID"); h != "" {
@@ -99,6 +100,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
+		c.Set("session_id", claims.ID)
 		c.Set("tenant_id", tenantID)
 		c.Set("platform_admin", platformAdmin)
 		// Propagate tenant into request context for DAOs/services.
@@ -187,6 +189,21 @@ func RoleMiddleware(requiredRoles ...string) gin.HandlerFunc {
 			return
 		}
 
+		c.Next()
+	}
+}
+
+// PlatformAdminMiddleware limits a route to platform operators. It relies on
+// the authenticated claim for the coarse request gate; security-sensitive
+// services must additionally re-read platform-admin status before issuing a
+// privileged artifact so revocation cannot be delayed by token lifetime.
+func PlatformAdminMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if value, ok := c.Get("platform_admin"); !ok || value != true {
+			response.Forbidden(c, "platform administrator required")
+			c.Abort()
+			return
+		}
 		c.Next()
 	}
 }

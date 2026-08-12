@@ -1,4 +1,4 @@
-// Package mask provides sensitive-field masking (struct tag driven).
+// Package mask 提供敏感字段脱敏（struct tag 驱动）。
 
 package mask
 
@@ -25,6 +25,9 @@ var sensitiveFieldNames = map[string]struct{}{
 	"old_password":      {},
 	"new_password":      {},
 	"current_password":  {},
+	"totp_code":         {},
+	"step_up_proof":     {},
+	"proof":             {},
 	"recovery_code":     {},
 	"recovery_codes":    {},
 	"backup_code":       {},

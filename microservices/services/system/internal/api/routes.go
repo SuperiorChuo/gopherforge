@@ -1,12 +1,12 @@
-// Package api wires the system service HTTP surface. The /api/v1 layout
-// matches the monolith exactly for every extracted route so the gateway can
-// switch traffic over without any client change.
+// Package api 装配 system 服务的 HTTP 对外面。所有抽取路由的 /api/v1
+// 布局都与单体完全一致，
+// 使网关可以在不改变任何客户端的前提下切换流量。
 package api
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/system/internal/api/common"
 	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
+	"github.com/go-admin-kit/services/system/internal/api/common"
 	"github.com/go-admin-kit/services/system/internal/api/system"
 	"github.com/go-admin-kit/services/system/internal/config"
 	"github.com/go-admin-kit/services/system/internal/middleware"
@@ -14,16 +14,13 @@ import (
 	systemsvc "github.com/go-admin-kit/services/system/internal/service/system"
 )
 
-// SetupRoutes mounts the system service API using legacy global fallbacks.
+// SetupRoutes 使用旧的全局回退挂载 system 服务 API。
 func SetupRoutes(router *gin.Engine) {
 	SetupRoutesWithDeps(router, sharedapi.Dependencies{})
 }
 
-// SetupRoutesWithDeps mounts the API with injected infrastructure handles.
+// SetupRoutesWithDeps 使用注入的基础设施句柄挂载 API。
 func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
-	// ACME HTTP-01 public challenge (no auth; Let's Encrypt callback).
-	router.GET("/.well-known/acme-challenge/:token", system.ACMEChallenge)
-
 	api := router.Group("/api/v1")
 
 	common.RegisterPublicRoutesWithDeps(api, deps)
@@ -34,7 +31,10 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	noticeAPI := system.NewNoticeAPI()
 	errCodeAPI := system.NewErrCodeAPI()
 	settingAPI := system.NewSettingAPI()
-	edgeCertAPI := system.NewEdgeCertAPI()
+	edgeCertAPI := system.NewEdgeCertAPIWithDB(deps.DB)
+	// ACME HTTP-01 公开挑战（无鉴权，Let's Encrypt 回调）。实例与管理 API
+	// 共用同一持久化数据库，避免多副本命中不同内存状态。
+	router.GET("/.well-known/acme-challenge/:token", edgeCertAPI.ACMEChallenge)
 	onlineUserAPI := system.NewOnlineUserAPI()
 	notificationAPI := system.NewNotificationAPI()
 	weatherAPI := system.NewWeatherAPI()
@@ -61,7 +61,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 
 	public := api.Group("/")
 	{
-		// WebSocket upgrade authenticates via one-shot ticket, not header.
+		// WebSocket 升级通过一次性 ticket 认证，而非请求头。
 		public.GET("/ws/notifications", notificationAPI.Connect)
 	}
 
@@ -147,12 +147,20 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		// 短信管理（渠道/模板/发送日志/发送），详见 routes_sms.go
 		registerSmsRoutes(router, protected, deps)
 
-		// Edge free certs (Let's Encrypt HTTP-01) — platform admin only.
+		// 边缘免费证书（Let's Encrypt HTTP-01）——平台管理员
 		edgeGuard := middleware.PlatformAdminMiddleware()
 		protected.GET("/edge-certs", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:list"), edgeCertAPI.List)
+		protected.GET("/edge-certs/capabilities", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:list"), edgeCertAPI.Capabilities)
 		protected.POST("/edge-certs", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:issue"), edgeCertAPI.Create)
 		protected.POST("/edge-certs/:id/issue", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:issue"), edgeCertAPI.Issue)
-		protected.GET("/edge-certs/:id/download", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:issue"), edgeCertAPI.Download)
+		protected.POST("/edge-certs/:id/renew", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:issue"), edgeCertAPI.Renew)
+		protected.POST("/edge-certs/:id/deploy", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:issue"), edgeCertAPI.Deploy)
+		protected.POST("/edge-certs/:id/probe", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:issue"), edgeCertAPI.Probe)
+		protected.GET("/edge-certs/:id/tasks", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:list"), edgeCertAPI.ListTasks)
+		protected.GET("/edge-certs/:id/tasks/:taskId", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:list"), edgeCertAPI.GetTask)
+		protected.GET("/edge-certs/:id/certificate", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:list"), edgeCertAPI.Certificate)
+		protected.POST("/edge-certs/:id/export", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:export"), edgeCertAPI.Export)
+		protected.GET("/edge-certs/:id/download", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:export"), edgeCertAPI.Download)
 		protected.DELETE("/edge-certs/:id", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:delete"), edgeCertAPI.Delete)
 
 		// Phase 1 演示：经 Consul 发现 + gRPC 调监控服务摘要（验证分布式链路）

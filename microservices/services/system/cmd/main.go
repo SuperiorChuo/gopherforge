@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"context"
 	"errors"
 	"fmt"
@@ -10,7 +9,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -18,18 +19,22 @@ import (
 	"github.com/go-admin-kit/services/shared/pkg/auditevents"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
+	"github.com/go-admin-kit/services/shared/pkg/exportproof"
+	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
+	"github.com/go-admin-kit/services/shared/pkg/secretbox"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 	"github.com/go-admin-kit/services/system/internal/api"
-	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	systemAPI "github.com/go-admin-kit/services/system/internal/api/system"
 	"github.com/go-admin-kit/services/system/internal/config"
 	authDAO "github.com/go-admin-kit/services/system/internal/dao/auth"
 	systemDAO "github.com/go-admin-kit/services/system/internal/dao/system"
+	"github.com/go-admin-kit/services/system/internal/edgecert"
 	"github.com/go-admin-kit/services/system/internal/middleware"
 	"github.com/go-admin-kit/services/system/internal/pkg/authz"
 	"github.com/go-admin-kit/services/system/internal/pkg/database"
@@ -38,6 +43,7 @@ import (
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
 	authsvc "github.com/go-admin-kit/services/system/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/system/internal/service/system"
+	"gorm.io/gorm"
 )
 
 func setupCORS(router *gin.Engine) {
@@ -121,7 +127,6 @@ func configureGinWriters(env string) {
 	gin.DefaultErrorWriter = logger.NewGinErrorWriter()
 }
 
-
 func stopOperationLogProcessor(cancel context.CancelFunc, done <-chan struct{}, timeout time.Duration) error {
 	if cancel != nil {
 		cancel()
@@ -142,6 +147,49 @@ func stopOperationLogProcessor(cancel context.CancelFunc, done <-chan struct{}, 
 	case <-timer.C:
 		return fmt.Errorf("operation log processor shutdown timed out after %s", timeout)
 	}
+}
+
+func buildEdgeCertificateRuntime(cfg config.EdgeCertConfig, db *gorm.DB) (*edgecert.Service, error) {
+	currentID, currentMaterial, previousID, previousMaterial, err := cfg.KeyMaterials()
+	if err != nil {
+		return nil, err
+	}
+	defer clear(currentMaterial)
+	defer clear(previousMaterial)
+
+	var keyring *secretbox.Keyring
+	if currentID != "" {
+		previous := make([]secretbox.Key, 0, 1)
+		if previousID != "" {
+			previous = append(previous, secretbox.Key{ID: previousID, Material: previousMaterial})
+		}
+		keyring, err = secretbox.NewKeyring(
+			secretbox.Key{ID: currentID, Material: currentMaterial},
+			previous...,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("initialize edge certificate keyring: %w", err)
+		}
+	}
+
+	var deployer *edgecert.FileDeployer
+	if cfg.StorageRoot != "" && cfg.TraefikDynamicDir != "" {
+		deployer = &edgecert.FileDeployer{
+			CertDir:           cfg.StorageRoot,
+			DynamicConfigDir:  cfg.TraefikDynamicDir,
+			ContainerCertDir:  cfg.StorageRoot,
+			GatewayTLSAddress: cfg.GatewayTLSAddress,
+			ProbeTimeout:      5 * time.Second,
+		}
+	}
+	issuer := edgecert.ACMEIssuer{
+		ChallengeTTL: time.Duration(cfg.ChallengeTTLMinutes) * time.Minute,
+	}
+	service := edgecert.NewService(db, keyring, issuer, deployer)
+	service.RenewBefore = time.Duration(cfg.RenewBeforeDays) * 24 * time.Hour
+	service.WorkerEnabled = cfg.WorkerEnabled
+	service.ClearLegacySecrets = cfg.ClearLegacySecrets
+	return service, nil
 }
 
 func main() {
@@ -180,7 +228,10 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("tenant scope plugin registration failed: %w", err)
 	}
 	if err := sharedaudit.Register(database.DB, sharedaudit.Config{
-		Targets: []sharedaudit.Target{sharedaudit.MenuTarget(&model.Menu{})},
+		Targets: []sharedaudit.Target{
+			sharedaudit.MenuTarget(&model.Menu{}),
+			sharedaudit.EdgeTLSCertificateTarget(&edgecert.Certificate{}),
+		},
 	}); err != nil {
 		return fmt.Errorf("audit trail plugin registration failed: %w", err)
 	}
@@ -220,8 +271,36 @@ func run(ctx context.Context) error {
 		}
 	}()
 
+	edgeCertificateService, err := buildEdgeCertificateRuntime(config.Cfg.EdgeCert, database.DB)
+	if err != nil {
+		return fmt.Errorf("edge certificate runtime configuration failed: %w", err)
+	}
+	// Backfill and key rotation must finish before HTTP opens. A wrong/missing
+	// key therefore fails closed without exposing a partially migrated service.
+	if err := edgeCertificateService.MigrateLegacySecrets(ctx); err != nil {
+		return fmt.Errorf("edge certificate secret migration failed: %w", err)
+	}
+	if err := edgeCertificateService.ValidateSecurityState(ctx); err != nil {
+		return fmt.Errorf("edge certificate security state invalid: %w", err)
+	}
+	systemAPI.ConfigureEdgeCertAPI(edgeCertificateService, exportproof.NewStore(redis.Client))
+
 	lifecycleCtx, cancelLifecycle := context.WithCancel(ctx)
 	defer cancelLifecycle()
+	var edgeCertificateWorkerDone chan struct{}
+	var edgeCertificateWorkerErr error
+	if config.Cfg.EdgeCert.WorkerEnabled {
+		worker := edgecert.NewWorker(edgeCertificateService, "")
+		worker.PollInterval = time.Duration(config.Cfg.EdgeCert.TaskPollSeconds) * time.Second
+		worker.OnError = func(err error) {
+			logger.Error("edge certificate worker task failed", logger.Err(err))
+		}
+		edgeCertificateWorkerDone = make(chan struct{})
+		go func() {
+			edgeCertificateWorkerErr = worker.Run(lifecycleCtx)
+			close(edgeCertificateWorkerDone)
+		}()
+	}
 
 	// system 服务是菜单数据的 owner，独占默认菜单播种（按 ID 补插缺失行）。
 	menuBootstrapCtx := sharedaudit.WithTenantID(
@@ -338,7 +417,18 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("server listen failed: %w", err)
 	}
 	printStartupBanner(config.Cfg.App.Name, config.Cfg.App.Version, config.Cfg.App.Env, port)
-		sh := graceful.New(graceful.WithTimeout(15 * time.Second))
+	sh := graceful.New(graceful.WithTimeout(15 * time.Second))
+	if edgeCertificateWorkerDone != nil {
+		sh.Register("edge-certificate-worker", func(ctx context.Context) error {
+			cancelLifecycle()
+			select {
+			case <-edgeCertificateWorkerDone:
+				return edgeCertificateWorkerErr
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
+	}
 	serverErr := make(chan error, 1)
 	go func() {
 		logger.Info("server listening", logger.String("addr", server.Addr))
@@ -349,14 +439,25 @@ func run(ctx context.Context) error {
 	sh.Register("http-server", func(ctx context.Context) error {
 		return server.Shutdown(ctx)
 	})
-	if err := sh.WaitAndShutdown(); err != nil {
-		logger.Error("graceful shutdown error", logger.Err(err))
-	}
+	// Derive signal handling from the caller so tests and embedding runtimes can
+	// stop the service without synthesizing an OS signal.
+	signalCtx, stopSignals := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
+	var runtimeErr error
 	select {
+	case <-signalCtx.Done():
 	case err := <-serverErr:
-		return err
-	default:
-		return nil
+		runtimeErr = err
+	case <-edgeCertificateWorkerDone:
+		if edgeCertificateWorkerErr != nil {
+			runtimeErr = fmt.Errorf("edge certificate worker exited: %w", edgeCertificateWorkerErr)
+		} else {
+			runtimeErr = errors.New("edge certificate worker exited unexpectedly")
+		}
 	}
+	if err := sh.Shutdown(); err != nil {
+		logger.Error("graceful shutdown error", logger.Err(err))
+		runtimeErr = errors.Join(runtimeErr, err)
+	}
+	return runtimeErr
 }
-

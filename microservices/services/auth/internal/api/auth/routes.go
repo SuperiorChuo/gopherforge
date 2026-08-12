@@ -2,10 +2,10 @@ package auth
 
 import (
 	"github.com/gin-gonic/gin"
-	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
 	authsvc "github.com/go-admin-kit/services/auth/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/auth/internal/service/system"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 )
 
 // newUserAPIFromDeps assembles a UserAPI from injected handles, falling back
@@ -79,9 +79,17 @@ func RegisterProtectedRoutes(r gin.IRoutes) {
 // authentication routes with injected infrastructure handles.
 func RegisterProtectedRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies) {
 	userAPI := newUserAPIFromDeps(deps)
+	edgeCertificateExportStepUpAPI := newEdgeCertificateExportStepUpAPIFromDeps(deps)
 	r.GET("/auth/me", userAPI.GetConsoleSession)
 	r.GET("/auth/routes", userAPI.GetConsoleRoutes)
 	r.POST("/auth/logout", userAPI.LogoutConsole)
+	r.POST(
+		"/auth/step-up/edge-cert-export",
+		edgeCertificateExportNoStoreHeaders(),
+		middleware.PlatformAdminMiddleware(),
+		middleware.PermissionMiddleware("system:edge-cert:export"),
+		edgeCertificateExportStepUpAPI.IssueEdgeCertificateExportProof,
+	)
 	r.GET("/console-routes", middleware.PermissionMiddleware("settings.write"), userAPI.ListConsoleRoutes)
 	r.POST("/console-routes", middleware.PermissionMiddleware("settings.write"), userAPI.CreateConsoleRoute)
 	r.GET("/console-routes/:route_key", middleware.PermissionMiddleware("settings.write"), userAPI.GetConsoleRoute)

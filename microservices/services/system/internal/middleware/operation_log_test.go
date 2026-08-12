@@ -47,6 +47,28 @@ func TestFilterSensitiveFieldsMasksCurrentPassword(t *testing.T) {
 	}
 }
 
+func TestGetActionScopesEdgeCertificateActions(t *testing.T) {
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		want   string
+	}{
+		{name: "edge export", method: "POST", path: "/api/v1/edge-certs/7/export", want: "Export Private Key"},
+		{name: "edge issue", method: "POST", path: "/api/v1/edge-certs/7/issue", want: "Queue Certificate Issue"},
+		{name: "unrelated export", method: "POST", path: "/api/v1/audit-logs/export", want: "Create"},
+		{name: "unrelated deploy", method: "POST", path: "/api/v1/releases/7/deploy", want: "Create"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := getAction(test.method, test.path); got != test.want {
+				t.Fatalf("getAction(%q, %q) = %q, want %q", test.method, test.path, got, test.want)
+			}
+		})
+	}
+}
+
 func TestOperationLogProcessorExitsAfterContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	queue := make(chan *localmodel.OperationLog)

@@ -1,7 +1,0 @@
-# Copy to the host path mounted as Traefik file provider dynamic config
-# (see docker-compose.gateway-edge-tls.example.yml).
-# certFile/keyFile are paths inside the gateway container.
-tls:
-  certificates:
-    - certFile: /certs/edge/admin.example.com.crt
-      keyFile: /certs/edge/admin.example.com.key

@@ -40,6 +40,7 @@ func TestRegisterProtectedRoutes(t *testing.T) {
 		"GET /api/v1/auth/me",
 		"GET /api/v1/auth/routes",
 		"POST /api/v1/auth/logout",
+		"POST /api/v1/auth/step-up/edge-cert-export",
 		"GET /api/v1/console-routes",
 		"POST /api/v1/console-routes",
 		"GET /api/v1/console-routes/:route_key",

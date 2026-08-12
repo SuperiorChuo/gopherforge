@@ -10,9 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
+	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 	"github.com/go-admin-kit/services/system/internal/config"
-	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	jwtlib "github.com/golang-jwt/jwt/v5"
 )
 
@@ -223,6 +223,33 @@ func TestAuthMiddlewareUsesRequestContextForSingleBlacklistLookup(t *testing.T) 
 	}
 }
 
+func TestAuthMiddlewareDoesNotTrustPlatformAdminHeader(t *testing.T) {
+	setAuthMiddlewareJWTConfig(t)
+	token := signedAuthMiddlewareToken(t, jwtpkg.Claims{
+		UserID: 42, Username: "alice", TokenType: jwtpkg.AccessTokenType,
+		PlatformAdmin: false,
+		RegisteredClaims: jwtlib.RegisteredClaims{
+			ExpiresAt: jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
+			IssuedAt:  jwtlib.NewNumericDate(time.Now()),
+			NotBefore: jwtlib.NewNumericDate(time.Now()),
+			Issuer:    "unit-test", Subject: "42", ID: "non-platform-token",
+		},
+	})
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(AuthMiddleware(), PlatformAdminMiddleware())
+	router.GET("/", func(c *gin.Context) { response.Success(c, nil) })
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Auth-Platform-Admin", "true")
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+}
+
 func requestThroughAuthMiddleware(t *testing.T, token string) *httptest.ResponseRecorder {
 	t.Helper()
 	return requestThroughAuthMiddlewareWithAuthorizationHeader(t, "Bearer "+token)
@@ -328,11 +355,11 @@ func setAuthMiddlewareJWTConfig(t *testing.T) {
 
 	oldConfig := jwtpkg.JWTConfig{Secret: config.Cfg.JWT.Secret, Issuer: config.Cfg.JWT.Issuer, AccessTokenExpire: config.Cfg.JWT.AccessTokenExpire, RefreshTokenExpire: config.Cfg.JWT.RefreshTokenExpire, RefreshTokenRotation: config.Cfg.JWT.RefreshTokenRotation}
 	jwtpkg.SetConfig(jwtpkg.JWTConfig{
-		Secret:                "unit-test-secret-at-least-32-characters",
-		AccessTokenExpire:     3600,
-		RefreshTokenExpire:    7200,
-		RefreshTokenRotation:  true,
-		Issuer:                "unit-test",
+		Secret:               "unit-test-secret-at-least-32-characters",
+		AccessTokenExpire:    3600,
+		RefreshTokenExpire:   7200,
+		RefreshTokenRotation: true,
+		Issuer:               "unit-test",
 	})
 	t.Cleanup(func() {
 		jwtpkg.SetConfig(oldConfig)
