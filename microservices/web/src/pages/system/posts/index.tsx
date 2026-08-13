@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  Card, InputNumber, Row, Col, Tooltip,
+  Table, Button, Space, Tag, Popconfirm, Form, Input, Select,
+  InputNumber, Row, Col, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -12,6 +12,9 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import * as PostAPI from '@/api/system/posts'
 import type { SystemPost } from '@/api/system/posts'
+import EntityFormModal from '@/components/EntityFormModal'
+import ListFilterForm from '@/components/ListFilterForm'
+import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
@@ -54,6 +57,7 @@ export default function PostPage() {
 
   useEffect(() => {
     fetchList(params)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params])
 
   const handleSearch = (values: { keyword?: string; status?: number }) => {
@@ -202,15 +206,15 @@ export default function PostPage() {
   ]
 
   return (
-    <div className="page-list post-page">
-      <Card className="list-filter-card" bordered={false}>
-        <Form
-          form={searchForm}
-          layout="inline"
-          className="list-filter-form"
-          onFinish={handleSearch}
-          initialValues={params}
-        >
+    <>
+      <ListPageShell
+        className="post-page"
+        filter={(
+          <ListFilterForm
+            form={searchForm}
+            onFinish={handleSearch}
+            initialValues={params}
+          >
           <Form.Item name="keyword">
             <Input placeholder={t('搜索名称 / 编码')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
@@ -226,22 +230,23 @@ export default function PostPage() {
               <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
-        </Form>
-      </Card>
-
-      <Card className="list-main-card" bordered={false}>
-        <TableToolbar
-          title="岗位列表"
-          total={total}
-          extra={
-            <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
-              {hasPerm('system:post:create') && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增岗位')}</Button>
-              )}
-            </Space>
-          }
-        />
+          </ListFilterForm>
+        )}
+        toolbar={(
+          <TableToolbar
+            title="岗位列表"
+            total={total}
+            extra={(
+              <Space wrap>
+                <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
+                {hasPerm('system:post:create') && (
+                  <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增岗位')}</Button>
+                )}
+              </Space>
+            )}
+          />
+        )}
+      >
         <Table
           rowKey="id"
           className="list-table"
@@ -261,18 +266,18 @@ export default function PostPage() {
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
-      </Card>
+      </ListPageShell>
 
-      <Modal
+      <EntityFormModal
         title={editRecord ? t('编辑岗位') : t('新增岗位')}
         open={modalOpen}
-        onOk={handleSubmit}
-        onCancel={() => setModalOpen(false)}
-        confirmLoading={submitting}
-        destroyOnHidden
+        form={form}
+        onClose={() => setModalOpen(false)}
+        onSubmit={handleSubmit}
+        submitting={submitting}
         width={560}
+        formProps={{ style: { marginTop: 16 } }}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Row gutter={16}>
             <Col xs={24} sm={12}>
               <Form.Item name="name" label={t('岗位名称')} rules={[{ required: true, message: t('请输入岗位名称') }]}>
@@ -303,8 +308,7 @@ export default function PostPage() {
           <Form.Item name="remark" label={t('备注')}>
             <Input.TextArea rows={3} maxLength={500} placeholder={t('可选')} />
           </Form.Item>
-        </Form>
-      </Modal>
-    </div>
+      </EntityFormModal>
+    </>
   )
 }

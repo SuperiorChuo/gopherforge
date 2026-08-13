@@ -2,10 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Alert,
   Button,
-  Card,
   DatePicker,
   Descriptions,
-  Drawer,
   Dropdown,
   Form,
   Grid,
@@ -32,6 +30,10 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import type { Notice } from '@/types'
 import * as NoticeAPI from '@/api/system/notice'
+import EntityDetailDrawer from '@/components/EntityDetailDrawer'
+import EntityFormModal from '@/components/EntityFormModal'
+import ListFilterForm from '@/components/ListFilterForm'
+import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
@@ -408,17 +410,16 @@ export default function NoticePage() {
   const columns = compactTable ? compactColumns : desktopColumns
 
   return (
-    <div className="page-list notice-page">
+    <>
       {confirmContextHolder}
-
-      <Card className="list-filter-card" bordered={false}>
-        <Form
-          form={searchForm}
-          layout="inline"
-          className="list-filter-form"
-          onFinish={handleSearch}
-          initialValues={params}
-        >
+      <ListPageShell
+        className="notice-page"
+        filter={(
+          <ListFilterForm
+            form={searchForm}
+            onFinish={handleSearch}
+            initialValues={params}
+          >
           <Form.Item name="keyword">
             <Input placeholder="搜索标题" prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
@@ -440,22 +441,23 @@ export default function NoticePage() {
               <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
             </Space>
           </Form.Item>
-        </Form>
-      </Card>
-
-      <Card className="list-main-card" bordered={false}>
-        <TableToolbar
-          title="通知公告"
-          total={total}
-          extra={
-            <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => void fetchList(params)}>刷新</Button>
-              {hasPerm('system:notice:create') && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增通知</Button>
-              )}
-            </Space>
-          }
-        />
+          </ListFilterForm>
+        )}
+        toolbar={(
+          <TableToolbar
+            title="通知公告"
+            total={total}
+            extra={(
+              <Space wrap>
+                <Button icon={<ReloadOutlined />} onClick={() => void fetchList(params)}>刷新</Button>
+                {hasPerm('system:notice:create') && (
+                  <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增通知</Button>
+                )}
+              </Space>
+            )}
+          />
+        )}
+      >
         {loadFailed && (
           <Alert
             className="notice-load-alert"
@@ -491,9 +493,9 @@ export default function NoticePage() {
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
-      </Card>
+      </ListPageShell>
 
-      <Drawer
+      <EntityDetailDrawer
         title="公告详情"
         open={Boolean(viewRecord)}
         onClose={() => setViewRecord(null)}
@@ -530,19 +532,19 @@ export default function NoticePage() {
             </section>
           </div>
         )}
-      </Drawer>
+      </EntityDetailDrawer>
 
-      <Modal
+      <EntityFormModal
         className="notice-form-modal"
         title={editRecord ? '编辑通知' : '新增通知'}
         open={modalOpen}
-        onOk={handleSubmit}
-        onCancel={() => setModalOpen(false)}
-        confirmLoading={submitting}
-        destroyOnHidden
+        form={form}
+        onClose={() => setModalOpen(false)}
+        onSubmit={handleSubmit}
+        submitting={submitting}
         width="min(640px, calc(100vw - 24px))"
+        formProps={{ className: 'notice-form' }}
       >
-        <Form form={form} layout="vertical" className="notice-form">
           <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
             <Input />
           </Form.Item>
@@ -598,8 +600,7 @@ export default function NoticePage() {
               />
             </Form.Item>
           </div>
-        </Form>
-      </Modal>
-    </div>
+      </EntityFormModal>
+    </>
   )
 }

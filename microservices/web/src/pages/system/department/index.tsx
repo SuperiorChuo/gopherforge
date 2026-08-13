@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  Card, InputNumber, Row, Col, TreeSelect, Segmented, Tooltip,
+  Table, Button, Space, Tag, Popconfirm, Form, Input, Select,
+  InputNumber, Row, Col, TreeSelect, Segmented, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -12,6 +12,9 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import type { Department } from '@/types'
 import * as DeptAPI from '@/api/system/department'
+import EntityFormModal from '@/components/EntityFormModal'
+import ListFilterForm from '@/components/ListFilterForm'
+import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
@@ -248,15 +251,15 @@ export default function DepartmentPage() {
   const isTree = view === 'tree'
 
   return (
-    <div className="page-list department-page">
-      <Card className="list-filter-card" bordered={false}>
-        <Form
-          form={searchForm}
-          layout="inline"
-          className="list-filter-form"
-          onFinish={handleSearch}
-          initialValues={params}
-        >
+    <>
+      <ListPageShell
+        className="department-page"
+        filter={(
+          <ListFilterForm
+            form={searchForm}
+            onFinish={handleSearch}
+            initialValues={params}
+          >
           <Form.Item name="keyword">
             <Input placeholder={t('搜索名称 / 编码')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
@@ -272,32 +275,33 @@ export default function DepartmentPage() {
               <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
-          <Form.Item style={{ marginInlineEnd: 0, marginLeft: 'auto' }}>
-            <Segmented
-              value={view}
-              onChange={(v) => setView(v as 'tree' | 'list')}
-              options={[
-                { label: t('树形'), value: 'tree' },
-                { label: t('列表'), value: 'list' },
-              ]}
-            />
-          </Form.Item>
-        </Form>
-      </Card>
-
-      <Card className="list-main-card" bordered={false}>
-        <TableToolbar
-          title="部门架构"
-          total={isTree ? countTree(tree) : total}
-          extra={
-            <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={refresh}>{t('刷新')}</Button>
-              {hasPerm('system:department:create') && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增部门')}</Button>
-              )}
-            </Space>
-          }
-        />
+            <Form.Item style={{ marginInlineEnd: 0, marginLeft: 'auto' }}>
+              <Segmented
+                value={view}
+                onChange={(v) => setView(v as 'tree' | 'list')}
+                options={[
+                  { label: t('树形'), value: 'tree' },
+                  { label: t('列表'), value: 'list' },
+                ]}
+              />
+            </Form.Item>
+          </ListFilterForm>
+        )}
+        toolbar={(
+          <TableToolbar
+            title="部门架构"
+            total={isTree ? countTree(tree) : total}
+            extra={(
+              <Space wrap>
+                <Button icon={<ReloadOutlined />} onClick={refresh}>{t('刷新')}</Button>
+                {hasPerm('system:department:create') && (
+                  <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增部门')}</Button>
+                )}
+              </Space>
+            )}
+          />
+        )}
+      >
         <Table
           rowKey="id"
           className="list-table"
@@ -322,18 +326,18 @@ export default function DepartmentPage() {
                 }
           }
         />
-      </Card>
+      </ListPageShell>
 
-      <Modal
+      <EntityFormModal
         title={editRecord ? t('编辑部门') : t('新增部门')}
         open={modalOpen}
-        onOk={handleSubmit}
-        onCancel={() => setModalOpen(false)}
-        confirmLoading={submitting}
-        destroyOnHidden
+        form={form}
+        onClose={() => setModalOpen(false)}
+        onSubmit={handleSubmit}
+        submitting={submitting}
         width={560}
+        formProps={{ style: { marginTop: 16 } }}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('请输入名称') }]}>
@@ -409,8 +413,7 @@ export default function DepartmentPage() {
               </Form.Item>
             </Col>
           </Row>
-        </Form>
-      </Modal>
-    </div>
+      </EntityFormModal>
+    </>
   )
 }
