@@ -9,23 +9,18 @@ import {
   LockOutlined,
   SafetyOutlined,
   ReloadOutlined,
-  ThunderboltOutlined,
-  SafetyCertificateOutlined,
-  RadarChartOutlined,
   CloudOutlined,
   DownOutlined,
   UpOutlined,
   CheckOutlined,
-  SunOutlined,
-  MoonOutlined,
   WarningOutlined,
 } from '@ant-design/icons'
 import { useAppDispatch, useAppSelector } from '@/hooks/store'
 import { fetchCurrentUser, login } from '@/store/slices/authSlice'
 import { getCaptcha } from '@/api/auth'
 import { setTokens } from '@/utils/request'
-import { useThemeMode } from '@/theme/ThemeContext'
 import { prefetchMainLayout } from '@/router'
+import AuthShell from '@/components/AuthShell'
 
 /**
  * 读取 ?redirect= 并做开放重定向防护：只接受站内绝对路径（单个前导斜杠，
@@ -42,7 +37,6 @@ function safeRedirectTarget(): string {
 export default function LoginPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
-  const { mode, toggle: toggleTheme } = useThemeMode()
   const { t } = useTranslation()
 
   // 登录成功后立刻要用管理台骨架，趁用户填账密的空档预取
@@ -212,275 +206,201 @@ export default function LoginPage() {
     }
   }
 
-  return (
-    <div className="login-page">
-      <div className="login-aurora login-aurora-1" />
-      <div className="login-aurora login-aurora-2" />
-      <div className="login-aurora login-aurora-3" />
-      <div className="login-grid" />
-
-      <button
-        type="button"
-        className="login-theme-toggle"
-        title={mode === 'dark' ? t('切换亮色') : t('切换深色')}
-        aria-label={mode === 'dark' ? t('切换亮色') : t('切换深色')}
-        onClick={(event) => {
-          if (event.clientX || event.clientY) {
-            toggleTheme({ x: event.clientX, y: event.clientY })
-            return
-          }
-          const rect = event.currentTarget.getBoundingClientRect()
-          toggleTheme({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
-        }}
-      >
-        {mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
-      </button>
-
-      <div className={`login-shell login-liquid is-alive${success ? ' is-success' : ''}`}>
-        <div className="login-pointer-glow" aria-hidden="true" />
-        <div className="login-liquid-sheen" aria-hidden="true">
-          <i />
-          <i />
-        </div>
-
-        <div className="login-brand">
-          <div className="login-logo">
-            <div className="login-logo-mark">
-              <SafetyOutlined />
-            </div>
-            <span className="login-logo-name">Go Admin Kit</span>
-          </div>
-
-          <div className="login-brand-copy">
-            <h1 className="login-headline">
-              {t('以工程之美，')}
-              <br />
-              {t('驱动')}
-              <em>{t('企业级')}</em>
-              {t('管理')}
-            </h1>
-            <p className="login-subline">
-              {t('以克制的架构与现代交互，')}
-              <br />
-              {t('构筑可托付的企业级中台。')}
-            </p>
-          </div>
-
-          <ul className="login-features">
-            <li>
-              <span className="login-feature-icon"><ThunderboltOutlined /></span>
-              {t('Go 与 React 协同 · 从容承载复杂业务')}
-            </li>
-            <li>
-              <span className="login-feature-icon"><SafetyCertificateOutlined /></span>
-              {t('权限精密可控 · 身份双重守护')}
-            </li>
-            <li>
-              <span className="login-feature-icon"><RadarChartOutlined /></span>
-              {t('全程可观测 · 每一次操作皆可追溯')}
-            </li>
-          </ul>
-        </div>
-
-        <div className="login-form-panel">
-          <div className="login-form-inner">
-            <p className="login-mobile-tagline">{t('以工程之美，驱动企业级管理')}</p>
-            {!totpStep ? (
-              <>
-                <h2 className="login-form-title">{t('进入控制台')}</h2>
-                <p className="login-form-sub">{t('使用企业账户继续')}</p>
-              </>
-            ) : (
-              <>
-                <div className="login-step-rail" aria-hidden="true">
-                  <span className="login-step done">{t('1 凭证')}</span>
-                  <span className="login-step-line" />
-                  <span className="login-step active">{t('2 二次验证')}</span>
-                </div>
-                <h2 className="login-form-title">{t('身份核验')}</h2>
-                <p className="login-form-sub">{t('请输入身份验证器中的 6 位动态码')}</p>
-              </>
-            )}
-
-            {error && (
-              <div className="login-error" role="alert" key={errorNonce}>
-                <span className="login-error-text">{error}</span>
-                <button
-                  type="button"
-                  className="login-error-close"
-                  aria-label={t('关闭错误提示')}
-                  onClick={() => setError(null)}
-                >
-                  ×
-                </button>
-              </div>
-            )}
-
-            {!totpStep ? (
-              <Form
-                form={form}
-                name="login"
-                onFinish={onFinish}
-                autoComplete="off"
-                size="large"
-                className="login-form"
-                requiredMark={false}
-              >
-                <div className="login-tenant">
-                  <button
-                    type="button"
-                    className="login-tenant-toggle"
-                    onClick={() => setTenantOpen((v) => !v)}
-                    aria-expanded={tenantOpen}
-                  >
-                    <CloudOutlined />
-                    <span>{t('切换组织')}</span>
-                    {tenantOpen ? <UpOutlined /> : <DownOutlined />}
-                  </button>
-                  {tenantOpen && (
-                    <Form.Item name="tenant_code" className="login-tenant-field">
-                      <Input
-                        prefix={<CloudOutlined />}
-                        placeholder={t('组织标识（可选，默认 default）')}
-                        aria-label={t('组织标识')}
-                      />
-                    </Form.Item>
-                  )}
-                </div>
-
-                <Form.Item name="username" rules={[{ required: true, message: t('请输入用户名') }]}>
-                  <Input
-                    ref={usernameRef}
-                    prefix={<UserOutlined />}
-                    placeholder={t('用户名')}
-                    aria-label={t('用户名')}
-                    autoComplete="username"
-                  />
-                </Form.Item>
-                <Form.Item name="password" rules={[{ required: true, message: t('请输入密码') }]}>
-                  <Input.Password
-                    prefix={<LockOutlined />}
-                    placeholder={t('密码')}
-                    aria-label={t('密码')}
-                    autoComplete="current-password"
-                    onKeyDown={onPasswordKey}
-                    onKeyUp={onPasswordKey}
-                    onBlur={() => setCapsLock(false)}
-                  />
-                </Form.Item>
-                <div className="login-forgot-row">
-                  <a className="login-forgot-link" href="/forgot-password">{t('忘记密码？')}</a>
-                </div>
-                {capsLock && (
-                  <div className="login-caps-hint" role="status">
-                    <WarningOutlined />
-                    {t('大写锁定已开启')}
-                  </div>
-                )}
-                <div className="login-captcha-row">
-                  <Form.Item
-                    name="captcha_code"
-                    rules={[{ required: true, message: t('请输入验证码') }]}
-                    className="login-captcha-field"
-                  >
-                    <Input
-                      ref={captchaRef}
-                      prefix={<SafetyOutlined />}
-                      placeholder={t('验证码')}
-                      maxLength={6}
-                      aria-label={t('验证码')}
-                    />
-                  </Form.Item>
-                  <button
-                    type="button"
-                    className={`login-captcha-img${captchaFlash ? ' is-flash' : ''}`}
-                    onClick={refreshCaptcha}
-                    title={t('点击刷新验证码')}
-                    aria-label={t('刷新验证码')}
-                  >
-                    {captchaImg && !captchaLoading ? (
-                      <img src={captchaImg} alt={t('图形验证码')} />
-                    ) : (
-                      <Spin size="small" indicator={<ReloadOutlined spin />} />
-                    )}
-                  </button>
-                </div>
-                <Form.Item className="login-submit-item">
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    loading={loading && !success}
-                    disabled={success}
-                    block
-                    className={success ? 'is-success' : undefined}
-                    icon={success ? <CheckOutlined /> : undefined}
-                  >
-                    {success ? t('已验证') : t('登 录')}
-                  </Button>
-                </Form.Item>
-              </Form>
-            ) : (
-              <Form
-                form={totpForm}
-                name="totp"
-                onFinish={onTotpFinish}
-                autoComplete="one-time-code"
-                size="large"
-                className="login-form"
-                requiredMark={false}
-              >
-                <Form.Item
-                  name="code"
-                  rules={[
-                    { required: true, message: t('请输入 6 位验证码') },
-                    { len: 6, message: t('请输入 6 位数字') },
-                  ]}
-                >
-                  <Input
-                    ref={totpRef}
-                    className="login-totp-input"
-                    placeholder="······"
-                    maxLength={6}
-                    inputMode="numeric"
-                    aria-label={t('6 位动态验证码')}
-                    onChange={onTotpCodeChange}
-                    disabled={success}
-                  />
-                </Form.Item>
-                <Form.Item className="login-submit-item">
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    loading={totpLoading && !success}
-                    disabled={success}
-                    block
-                    className={success ? 'is-success' : undefined}
-                    icon={success ? <CheckOutlined /> : undefined}
-                  >
-                    {success ? t('已验证') : t('验 证')}
-                  </Button>
-                </Form.Item>
-                <Button
-                  type="link"
-                  block
-                  className="login-back-link"
-                  onClick={() => {
-                    setTotpStep(false)
-                    setChallengeId(null)
-                    setError(null)
-                    totpForm.resetFields()
-                    refreshCaptcha()
-                  }}
-                >
-                  {t('返回登录')}
-                </Button>
-              </Form>
-            )}
-
-            <div className="login-footer">© {new Date().getFullYear()} Go Admin Kit</div>
-          </div>
-        </div>
+  const header = !totpStep ? (
+    <>
+      <h2 className="login-form-title">{t('进入控制台')}</h2>
+      <p className="login-form-sub">{t('使用企业账户继续')}</p>
+    </>
+  ) : (
+    <>
+      <div className="login-step-rail" aria-hidden="true">
+        <span className="login-step done">{t('1 凭证')}</span>
+        <span className="login-step-line" />
+        <span className="login-step active">{t('2 二次验证')}</span>
       </div>
-    </div>
+      <h2 className="login-form-title">{t('身份核验')}</h2>
+      <p className="login-form-sub">{t('请输入身份验证器中的 6 位动态码')}</p>
+    </>
+  )
+
+  return (
+    <AuthShell header={header} shellClassName={success ? 'is-success' : undefined}>
+      {error && (
+        <div className="login-error" role="alert" key={errorNonce}>
+          <span className="login-error-text">{error}</span>
+          <button
+            type="button"
+            className="login-error-close"
+            aria-label={t('关闭错误提示')}
+            onClick={() => setError(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {!totpStep ? (
+        <Form
+          form={form}
+          name="login"
+          onFinish={onFinish}
+          autoComplete="off"
+          size="large"
+          className="login-form"
+          requiredMark={false}
+        >
+          <div className="login-tenant">
+            <button
+              type="button"
+              className="login-tenant-toggle"
+              onClick={() => setTenantOpen((v) => !v)}
+              aria-expanded={tenantOpen}
+            >
+              <CloudOutlined />
+              <span>{t('切换组织')}</span>
+              {tenantOpen ? <UpOutlined /> : <DownOutlined />}
+            </button>
+            {tenantOpen && (
+              <Form.Item name="tenant_code" className="login-tenant-field">
+                <Input
+                  prefix={<CloudOutlined />}
+                  placeholder={t('组织标识（可选，默认 default）')}
+                  aria-label={t('组织标识')}
+                />
+              </Form.Item>
+            )}
+          </div>
+
+          <Form.Item name="username" rules={[{ required: true, message: t('请输入用户名') }]}>
+            <Input
+              ref={usernameRef}
+              prefix={<UserOutlined />}
+              placeholder={t('用户名')}
+              aria-label={t('用户名')}
+              autoComplete="username"
+            />
+          </Form.Item>
+          <Form.Item name="password" rules={[{ required: true, message: t('请输入密码') }]}>
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder={t('密码')}
+              aria-label={t('密码')}
+              autoComplete="current-password"
+              onKeyDown={onPasswordKey}
+              onKeyUp={onPasswordKey}
+              onBlur={() => setCapsLock(false)}
+            />
+          </Form.Item>
+          <div className="login-forgot-row">
+            <a className="login-forgot-link" href="/forgot-password">
+              {t('忘记密码？')}
+            </a>
+          </div>
+          {capsLock && (
+            <div className="login-caps-hint" role="status">
+              <WarningOutlined />
+              {t('大写锁定已开启')}
+            </div>
+          )}
+          <div className="login-captcha-row">
+            <Form.Item
+              name="captcha_code"
+              rules={[{ required: true, message: t('请输入验证码') }]}
+              className="login-captcha-field"
+            >
+              <Input
+                ref={captchaRef}
+                prefix={<SafetyOutlined />}
+                placeholder={t('验证码')}
+                maxLength={6}
+                aria-label={t('验证码')}
+              />
+            </Form.Item>
+            <button
+              type="button"
+              className={`login-captcha-img${captchaFlash ? ' is-flash' : ''}`}
+              onClick={refreshCaptcha}
+              title={t('点击刷新验证码')}
+              aria-label={t('刷新验证码')}
+            >
+              {captchaImg && !captchaLoading ? (
+                <img src={captchaImg} alt={t('图形验证码')} />
+              ) : (
+                <Spin size="small" indicator={<ReloadOutlined spin />} />
+              )}
+            </button>
+          </div>
+          <Form.Item className="login-submit-item">
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading && !success}
+              disabled={success}
+              block
+              className={success ? 'is-success' : undefined}
+              icon={success ? <CheckOutlined /> : undefined}
+            >
+              {success ? t('已验证') : t('登 录')}
+            </Button>
+          </Form.Item>
+        </Form>
+      ) : (
+        <Form
+          form={totpForm}
+          name="totp"
+          onFinish={onTotpFinish}
+          autoComplete="one-time-code"
+          size="large"
+          className="login-form"
+          requiredMark={false}
+        >
+          <Form.Item
+            name="code"
+            rules={[
+              { required: true, message: t('请输入 6 位验证码') },
+              { len: 6, message: t('请输入 6 位数字') },
+            ]}
+          >
+            <Input
+              ref={totpRef}
+              className="login-totp-input"
+              placeholder="······"
+              maxLength={6}
+              inputMode="numeric"
+              aria-label={t('6 位动态验证码')}
+              onChange={onTotpCodeChange}
+              disabled={success}
+            />
+          </Form.Item>
+          <Form.Item className="login-submit-item">
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={totpLoading && !success}
+              disabled={success}
+              block
+              className={success ? 'is-success' : undefined}
+              icon={success ? <CheckOutlined /> : undefined}
+            >
+              {success ? t('已验证') : t('验 证')}
+            </Button>
+          </Form.Item>
+          <Button
+            type="link"
+            block
+            className="login-back-link"
+            onClick={() => {
+              setTotpStep(false)
+              setChallengeId(null)
+              setError(null)
+              totpForm.resetFields()
+              refreshCaptcha()
+            }}
+          >
+            {t('返回登录')}
+          </Button>
+        </Form>
+      )}
+    </AuthShell>
   )
 }

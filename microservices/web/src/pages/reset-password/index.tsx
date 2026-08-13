@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Button, Card, Form, Input } from 'antd'
+import { Alert, Button, Form, Input } from 'antd'
 import { LockOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
 import { resetPassword } from '@/api/auth'
+import AuthShell from '@/components/AuthShell'
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
@@ -26,44 +27,62 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="login-shell">
-      <Card className="login-card" style={{ width: 380 }}>
-        <h2 className="login-title">{t('设置新密码')}</h2>
-        <p className="login-subtitle">{t('新密码至少 8 位，需含大小写字母和数字。')}</p>
-        {!token ? (
-          <div style={{ color: 'var(--text-secondary)' }}>{t('链接无效或已失效，请重新申请。')}</div>
-        ) : (
-          <Form onFinish={onFinish} layout="vertical" size="large" disabled={loading}>
-            <Form.Item
-              name="password"
-              rules={[{ required: true, message: t('请输入新密码') }, { min: 8, message: t('至少 8 位') }]}
-            >
-              <Input.Password prefix={<LockOutlined />} placeholder={t('新密码')} autoComplete="new-password" />
-            </Form.Item>
-            <Form.Item
-              name="confirm"
-              dependencies={['password']}
-              rules={[
-                { required: true, message: t('请再次输入新密码') },
-                ({ getFieldValue }) => ({
-                  validator: (_, value) =>
-                    !value || getFieldValue('password') === value
-                      ? Promise.resolve()
-                      : Promise.reject(new Error(t('两次输入的密码不一致'))),
-                }),
-              ]}
-            >
-              <Input.Password prefix={<LockOutlined />} placeholder={t('确认新密码')} autoComplete="new-password" />
-            </Form.Item>
+    <AuthShell title={t('设置新密码')} subtitle={t('新密码至少 8 位，需含大小写字母和数字。')}>
+      {!token ? (
+        <Alert
+          className="login-inline-alert"
+          type="warning"
+          showIcon
+          message={t('链接无效或已失效，请重新申请。')}
+        />
+      ) : (
+        <Form onFinish={onFinish} size="large" className="login-form" requiredMark={false} disabled={loading}>
+          <Form.Item
+            name="password"
+            rules={[
+              { required: true, message: t('请输入新密码') },
+              { min: 8, message: t('至少 8 位') },
+            ]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder={t('新密码')}
+              autoComplete="new-password"
+              aria-label={t('新密码')}
+            />
+          </Form.Item>
+          <Form.Item
+            name="confirm"
+            dependencies={['password']}
+            rules={[
+              { required: true, message: t('请再次输入新密码') },
+              ({ getFieldValue }) => ({
+                validator: (_, value) =>
+                  !value || getFieldValue('password') === value
+                    ? Promise.resolve()
+                    : Promise.reject(new Error(t('两次输入的密码不一致'))),
+              }),
+            ]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder={t('确认新密码')}
+              autoComplete="new-password"
+              aria-label={t('确认新密码')}
+            />
+          </Form.Item>
+          <Form.Item className="login-submit-item">
             <Button type="primary" htmlType="submit" block loading={loading}>
               {t('重置密码')}
             </Button>
-          </Form>
-        )}
-        <div style={{ marginTop: 16, textAlign: 'center' }}>
-          <Link to="/login">{t('返回登录')}</Link>
-        </div>
-      </Card>
-    </div>
+          </Form.Item>
+        </Form>
+      )}
+      <div className="login-form-links">
+        <Link to="/login" className="login-back-link">
+          {t('返回登录')}
+        </Link>
+      </div>
+    </AuthShell>
   )
 }
