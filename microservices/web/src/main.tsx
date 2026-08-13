@@ -7,6 +7,8 @@ import './list-pages.css'
 import './styles/auth-pages.css'
 import './styles/app-layout.css'
 import './styles/dashboard.css'
+import './styles/result-pages.css'
+import './styles/file-pages.css'
 import './styles/profile.css'
 import './styles/monitor.css'
 
