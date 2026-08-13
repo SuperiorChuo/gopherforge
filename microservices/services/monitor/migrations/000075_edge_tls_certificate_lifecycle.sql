@@ -127,6 +127,7 @@ COMMENT ON TABLE edge_acme_challenges IS
 
 -- 密文或任务一旦产生，回退到不认识 envelope/task 的旧镜像会造成密钥或
 -- 生命周期状态丢失。宁可显式拒绝 down，也绝不能悄悄 DROP 生产密钥。
+-- +goose StatementBegin
 DO $$
 BEGIN
     IF EXISTS (
@@ -147,6 +148,7 @@ BEGIN
         RAISE EXCEPTION 'refusing edge certificate V2 down migration: task history exists';
     END IF;
 END $$;
+-- +goose StatementEnd
 
 DELETE FROM role_permissions
 WHERE permission_id IN (
