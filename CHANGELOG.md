@@ -34,6 +34,7 @@
 
 ### 安全
 
+- **文档站依赖加固**：升级 Vite 及其 esbuild、PostCSS、nanoid 依赖，修复路径绕过、Windows NTLM 泄露、开发服务器跨源读取与 sourcemap 任意文件读取风险，GitHub Dependabot 告警清零。
 - **依赖修复**：`tools/dbdoc` 的 `golang.org/x/text` 升级至 `v0.40.0`，覆盖 Trivy 报告的已修复版本门槛。
 
 ### 文档
