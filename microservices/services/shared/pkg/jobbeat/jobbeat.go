@@ -1,11 +1,11 @@
-// Package jobbeat 上报分布式后台任务心跳到 monitor_svc.ops_job_heartbeats（任务中心）。
+// Package jobbeat 上报分布式后台任务心跳到 ops_job_heartbeats（任务中心）。
 // 各服务进程内的循环任务每轮跑完调用 Report 一次；写入软失败（只记日志，
 // 绝不影响任务本身）——表未建（如单测 sqlite 未迁移）或库抖动都不炸循环。
 //
 // 用法（循环体每轮收尾）：
 //
 //	defer jobbeat.Report(db, jobbeat.Run{
-//	    Key: "system.cleanup", Service: "system-service",
+//	    Key: "ops.disk_cleanup", Service: "my-service",
 //	    Description: "余额预警/欠费冻结扫描", IntervalSec: 3600,
 //	    StartedAt: start, Err: err,
 //	})
@@ -51,7 +51,7 @@ func Report(db *gorm.DB, r Run) {
 	durMS := time.Since(r.StartedAt).Milliseconds()
 	// PG 与 sqlite（单测）都认这个 ON CONFLICT 语法。
 	err := db.Exec(`
-INSERT INTO monitor_svc.ops_job_heartbeats
+INSERT INTO ops_job_heartbeats
   (job_key, service, description, interval_sec, last_run_at, last_status, last_error, last_duration_ms, runs, fails, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
 ON CONFLICT (job_key) DO UPDATE SET
@@ -62,8 +62,8 @@ ON CONFLICT (job_key) DO UPDATE SET
   last_status = EXCLUDED.last_status,
   last_error = EXCLUDED.last_error,
   last_duration_ms = EXCLUDED.last_duration_ms,
-  runs = monitor_svc.ops_job_heartbeats.runs + 1,
-  fails = monitor_svc.ops_job_heartbeats.fails + ?,
+  runs = ops_job_heartbeats.runs + 1,
+  fails = ops_job_heartbeats.fails + ?,
   updated_at = EXCLUDED.updated_at`,
 		r.Key, r.Service, r.Description, r.IntervalSec, time.Now(), status, lastErr, durMS,
 		failInc, time.Now(), failInc).Error
