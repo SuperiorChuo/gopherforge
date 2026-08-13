@@ -83,7 +83,7 @@ func (d *WebhookDAO) DeleteSubscription(ctx context.Context, id uint) error {
 		if result.RowsAffected == 0 {
 			return ErrWebhookNotFound
 		}
-		return scoped.Where("subscription_id = ?", id).Delete(&localmodel.WebhookDelivery{}).Error
+		return tenant.ApplyFilter(tx.WithContext(ctx).Model(&localmodel.WebhookDelivery{}), ctx).Where("subscription_id = ?", id).Delete(&localmodel.WebhookDelivery{}).Error
 	})
 }
 

@@ -166,6 +166,29 @@ func TestWebhookFanoutDeliverSignsAndPersists(t *testing.T) {
 	}
 }
 
+func TestWebhookDeleteRemovesDeliveries(t *testing.T) {
+	db := webhookTestDB(t)
+	svc := NewWebhookService(db, webhookTestRing(t), webhookx.Policy{AllowHTTP: true, AllowPrivate: true})
+	ctx := tenant.WithContext(context.Background(), 7)
+	created, err := svc.Create(ctx, WebhookMutation{Name: "CRM", EndpointURL: "http://127.0.0.1/hook", EventActions: []string{"*"}, Status: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&localmodel.WebhookDelivery{TenantID: 7, SubscriptionID: created.Subscription.ID, AuditLogID: 1, EventID: "audit_7_1", EventAction: "update", Payload: map[string]any{}, Status: localmodel.WebhookDeliveryPending, NextAttemptAt: time.Now()}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Delete(ctx, created.Subscription.ID); err != nil {
+		t.Fatal(err)
+	}
+	var count int64
+	if err := db.Model(&localmodel.WebhookDelivery{}).Where("subscription_id = ?", created.Subscription.ID).Count(&count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("delivery count=%d", count)
+	}
+}
+
 func TestWebhookRetryDoesNotInflateTerminalFailureCounter(t *testing.T) {
 	db := webhookTestDB(t)
 	sub := localmodel.WebhookSubscription{TenantID: 1, Name: "test", EndpointURL: "http://127.0.0.1:1", EventActions: []string{"*"}, SecretHash: "x", SecretCiphertext: "x", Status: 1}
