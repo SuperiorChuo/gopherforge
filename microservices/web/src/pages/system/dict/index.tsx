@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
@@ -17,6 +17,8 @@ import GlassEmpty from '@/components/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import { EnableStatusPill } from '@/components/StatusPill'
+import { useConfirmAction } from '@/hooks/useConfirmAction'
+import { useTableQuery } from '@/hooks/useTableQuery'
 
 interface PageParams {
   page: number
@@ -26,9 +28,6 @@ interface PageParams {
 }
 
 function DictTypeCRUD() {
-  const [list, setList] = useState<DictType[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useState<PageParams>({ page: 1, page_size: 10 })
   const [modalOpen, setModalOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<DictType | null>(null)
@@ -38,20 +37,13 @@ function DictTypeCRUD() {
   const { t } = useTranslation()
   const { hasPerm } = usePermission()
 
-  const fetchList = async (p: PageParams) => {
-    setLoading(true)
-    try {
-      const res = await DictAPI.getDictTypeList(p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error(t('获取字典类型列表失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { fetchList(params) }, [params]) // eslint-disable-line react-hooks/exhaustive-deps
+  const fetchList = useCallback((p: PageParams) => DictAPI.getDictTypeList(p), [])
+  const onLoadError = useCallback(() => message.error(t('获取字典类型列表失败')), [t])
+  const { list, total, loading, reload } = useTableQuery({
+    params,
+    fetcher: fetchList,
+    onError: onLoadError,
+  })
 
   const handleSearch = (values: { keyword?: string; status?: number }) => {
     setParams({ ...params, page: 1, ...values })
@@ -74,18 +66,20 @@ function DictTypeCRUD() {
     setModalOpen(true)
   }
 
-  const handleDelete = async (id: number) => {
-    try {
-      await DictAPI.deleteDictType(id)
-      message.success(t('删除成功'))
-      if (list.length === 1 && params.page > 1) {
-        setParams({ ...params, page: params.page - 1 })
-      } else {
-        fetchList(params)
-      }
-    } catch {
-      message.error(t('删除失败'))
-    }
+  const confirmAction = useConfirmAction()
+  const handleDelete = (id: number) => {
+    void confirmAction.run({
+      action: () => DictAPI.deleteDictType(id),
+      onSuccess: () => {
+        message.success(t('删除成功'))
+        if (list.length === 1 && params.page > 1) {
+          setParams({ ...params, page: params.page - 1 })
+        } else {
+          void reload()
+        }
+      },
+      onError: () => message.error(t('删除失败')),
+    })
   }
 
   const handleSubmit = async () => {
@@ -101,7 +95,7 @@ function DictTypeCRUD() {
         message.success(t('创建成功'))
       }
       setModalOpen(false)
-      fetchList(params)
+      void reload()
     } catch {
       message.error(t('操作失败'))
     } finally {
@@ -182,7 +176,7 @@ function DictTypeCRUD() {
           total={total}
           extra={
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>
               {hasPerm('system:dict:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增字典类型')}</Button>
               )}
@@ -239,9 +233,6 @@ function DictTypeCRUD() {
 function DictItemCRUD() {
   const [dictTypes, setDictTypes] = useState<DictType[]>([])
   const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null)
-  const [list, setList] = useState<DictItem[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useState<PageParams>({ page: 1, page_size: 10 })
   const [modalOpen, setModalOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<DictItem | null>(null)
@@ -263,23 +254,16 @@ function DictItemCRUD() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const fetchItems = async (typeId: number, p: PageParams) => {
-    setLoading(true)
-    try {
-      const res = await DictAPI.getDictItemList(typeId, p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error(t('获取字典项列表失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (selectedTypeId) fetchItems(selectedTypeId, params)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTypeId, params])
+  const fetchItems = useCallback(
+    (p: PageParams) => selectedTypeId ? DictAPI.getDictItemList(selectedTypeId, p) : Promise.resolve({ list: [], total: 0 }),
+    [selectedTypeId],
+  )
+  const onItemsLoadError = useCallback(() => message.error(t('获取字典项列表失败')), [t])
+  const { list, total, loading, reload } = useTableQuery({
+    params,
+    fetcher: fetchItems,
+    onError: onItemsLoadError,
+  })
 
   const handleSearch = (values: { keyword?: string; status?: number }) => {
     setParams({ ...params, page: 1, ...values })
@@ -309,18 +293,20 @@ function DictItemCRUD() {
     setModalOpen(true)
   }
 
-  const handleDelete = async (id: number) => {
-    try {
-      await DictAPI.deleteDictItem(id)
-      message.success(t('删除成功'))
-      if (list.length === 1 && params.page > 1) {
-        setParams({ ...params, page: params.page - 1 })
-      } else if (selectedTypeId) {
-        fetchItems(selectedTypeId, params)
-      }
-    } catch {
-      message.error(t('删除失败'))
-    }
+  const confirmAction = useConfirmAction()
+  const handleDelete = (id: number) => {
+    void confirmAction.run({
+      action: () => DictAPI.deleteDictItem(id),
+      onSuccess: () => {
+        message.success(t('删除成功'))
+        if (list.length === 1 && params.page > 1) {
+          setParams({ ...params, page: params.page - 1 })
+        } else {
+          void reload()
+        }
+      },
+      onError: () => message.error(t('删除失败')),
+    })
   }
 
   const handleSubmit = async () => {
@@ -336,7 +322,7 @@ function DictItemCRUD() {
         message.success(t('创建成功'))
       }
       setModalOpen(false)
-      if (selectedTypeId) fetchItems(selectedTypeId, params)
+      void reload()
     } catch {
       message.error(t('操作失败'))
     } finally {
@@ -433,7 +419,7 @@ function DictItemCRUD() {
             <Space wrap>
               <Button
                 icon={<ReloadOutlined />}
-                onClick={() => selectedTypeId && fetchItems(selectedTypeId, params)}
+                onClick={() => void reload()}
                 disabled={!selectedTypeId}
               >
                 {t('刷新')}
