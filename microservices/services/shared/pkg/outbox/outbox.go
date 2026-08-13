@@ -1,7 +1,8 @@
 // Package outbox 事务性 Outbox：业务写与事件落库同一事务，worker 异步投递 NATS。
 //
 // 状态机：pending → sending → sent
-//                    ↘ pending（退避重试）→ failed（超过 MaxAttempts）
+//
+//	↘ pending（退避重试）→ failed（超过 MaxAttempts）
 //
 // 用法：
 //
@@ -116,7 +117,12 @@ func Insert(tx *gorm.DB, tenantID uint64, subject string, payload []byte) error 
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	return tx.Table(tableRef(tx)).Create(&ev).Error
+	// Insert may run from another GORM plugin's after-callback while the caller's
+	// Statement still describes the audited business model. Start a fresh
+	// statement on the same transaction/ConnPool so Table does not mutate or
+	// reuse that callback state (which would make the audit plugin treat the
+	// outbox row as an unsupported mutation of the business model).
+	return tx.Session(&gorm.Session{NewDB: true}).Table(tableRef(tx)).Create(&ev).Error
 }
 
 // EnsureTable AutoMigrate（测试 / 无 goose 场景）；生产以 000072 迁移为准。
