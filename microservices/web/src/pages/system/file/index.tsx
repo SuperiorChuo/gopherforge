@@ -12,6 +12,7 @@ import type { ColumnsType } from 'antd/es/table'
 import type { FileRecord } from '@/types'
 import * as FileAPI from '@/api/system/file'
 import ListFilterForm from '@/components/ListFilterForm'
+import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import CountUpValue from '@/components/CountUpValue'
 import GlassEmpty from '@/components/GlassEmpty'
@@ -263,92 +264,84 @@ export default function FilePage() {
     },
   ]
 
-  return (
-    <div
-      className="page-list file-page"
-      onDragEnter={onDragEnter}
-      onDragOver={(e) => { if (canUpload) e.preventDefault() }}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
-    >
-      {dragging && (
-        <div className="file-drop-veil">
-          <div className="file-drop-panel">
-            <UploadOutlined className="file-drop-icon" />
-            <div className="file-drop-title">{t('松手上传')}</div>
-            <div className="file-drop-sub">{t('文件将上传到文件管理')}</div>
-          </div>
+  const statsCard = stats && stats.total > 0 ? (
+    <Card className="list-filter-card file-stats-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
+      <div className="log-stats-row">
+        <div className="log-stat">
+          <span className="log-stat-label">{t('文件总数')}</span>
+          <span className="log-stat-value"><CountUpValue value={stats.total} /></span>
         </div>
-      )}
-      {stats && stats.total > 0 && (
-        <Card className="list-filter-card file-stats-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
-          <div className="log-stats-row">
-            <div className="log-stat">
-              <span className="log-stat-label">{t('文件总数')}</span>
-              <span className="log-stat-value"><CountUpValue value={stats.total} /></span>
-            </div>
-            <div className="log-stat">
-              <span className="log-stat-label">{t('占用空间')}</span>
-              <span className="log-stat-value log-stat-accent">{formatSize(stats.total_size)}</span>
-            </div>
-            {stats.storage_quota_mb == null ? (
-              <div className="log-stat">
-                <span className="log-stat-label">{t('存储配额')}</span>
-                <span className="log-stat-value cell-muted">{t('查询失败')}</span>
-              </div>
-            ) : stats.storage_quota_mb > 0 ? (
-              <div className="log-stat">
-                <span className="log-stat-label">{t('存储配额')}</span>
-                <span className="log-stat-value">{formatSize(stats.storage_quota_mb * 1024 * 1024)}</span>
-              </div>
-            ) : null}
-            {Object.keys(stats.by_type ?? {}).length > 0 && (
-              <>
-                <div className="log-stat-divider" />
-                <div className="log-stat file-type-stat">
-                  <span className="log-stat-label">{t('类型分布')}</span>
-                  <span className="file-type-breakdown">
-                    {Object.entries(stats.by_type ?? {})
-                      .sort((a, b) => b[1].count - a[1].count)
-                      .map(([t, s]) => (
-                        <Tag key={t} variant="filled">
-                          {t} {s.count} · {formatSize(s.size)}
-                        </Tag>
-                      ))}
-                  </span>
-                </div>
-              </>
-            )}
+        <div className="log-stat">
+          <span className="log-stat-label">{t('占用空间')}</span>
+          <span className="log-stat-value log-stat-accent">{formatSize(stats.total_size)}</span>
+        </div>
+        {stats.storage_quota_mb == null ? (
+          <div className="log-stat">
+            <span className="log-stat-label">{t('存储配额')}</span>
+            <span className="log-stat-value cell-muted">{t('查询失败')}</span>
           </div>
-        </Card>
-      )}
+        ) : stats.storage_quota_mb > 0 ? (
+          <div className="log-stat">
+            <span className="log-stat-label">{t('存储配额')}</span>
+            <span className="log-stat-value">{formatSize(stats.storage_quota_mb * 1024 * 1024)}</span>
+          </div>
+        ) : null}
+        {Object.keys(stats.by_type ?? {}).length > 0 && (
+          <>
+            <div className="log-stat-divider" />
+            <div className="log-stat file-type-stat">
+              <span className="log-stat-label">{t('类型分布')}</span>
+              <span className="file-type-breakdown">
+                {Object.entries(stats.by_type ?? {})
+                  .sort((a, b) => b[1].count - a[1].count)
+                  .map(([t, s]) => (
+                    <Tag key={t} variant="filled">
+                      {t} {s.count} · {formatSize(s.size)}
+                    </Tag>
+                  ))}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    </Card>
+  ) : null
 
-      <Card className="list-filter-card" bordered={false}>
-        <ListFilterForm
-          form={searchForm}
-          onFinish={handleSearch}
-          initialValues={params}
-        >
-          <Form.Item name="keyword">
-            <Input placeholder={t('搜索文件名')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
-          </Form.Item>
-          <Form.Item name="file_type">
-            <Input placeholder={t('文件类型')} allowClear style={{ width: 140 }} />
-          </Form.Item>
-          <Form.Item className="list-filter-actions">
-            <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
-            </Space>
-          </Form.Item>
-        </ListFilterForm>
-      </Card>
+  const filter = (
+    <>
+      {statsCard}
+      <ListFilterForm form={searchForm} onFinish={handleSearch} initialValues={params}>
+        <Form.Item name="keyword">
+          <Input placeholder={t('搜索文件名')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
+        </Form.Item>
+        <Form.Item name="file_type">
+          <Input placeholder={t('文件类型')} allowClear style={{ width: 140 }} />
+        </Form.Item>
+        <Form.Item className="list-filter-actions">
+          <Space>
+            <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+            <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
+          </Space>
+        </Form.Item>
+      </ListFilterForm>
+    </>
+  )
 
-      <Card className="list-main-card" bordered={false}>
+  return (
+    <ListPageShell
+      className="file-page"
+      wrapperProps={{
+        onDragEnter,
+        onDragOver: (e) => { if (canUpload) e.preventDefault() },
+        onDragLeave,
+        onDrop,
+      }}
+      filter={filter}
+      toolbar={(
         <TableToolbar
           title="文件列表"
           total={total}
-          extra={
+          extra={(
             <Space wrap className="file-toolbar-actions">
               {selectedIds.length > 0 && hasPerm('system:file:delete') && (
                 <Popconfirm
@@ -367,31 +360,41 @@ export default function FilePage() {
                 </Upload>
               )}
             </Space>
-          }
+          )}
         />
-        <Table
-          rowKey="id"
-          className="list-table"
-          columns={columns}
-          dataSource={list}
-          loading={loading}
-          scroll={{ x: 'max-content' }}
-          locale={{ emptyText: <GlassEmpty text="暂无文件，拖入文件即可上传" compact /> }}
-          rowSelection={{
-            selectedRowKeys: selectedIds,
-            onChange: (keys) => setSelectedIds(keys as number[]),
-          }}
-          pagination={{
-            total,
-            current: params.page,
-            pageSize: params.page_size,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (n) => t('共 {{n}} 条', { n }),
-            onChange: (page, page_size) => setParams({ ...params, page, page_size }),
-          }}
-        />
-      </Card>
+      )}
+    >
+      {dragging && (
+        <div className="file-drop-veil">
+          <div className="file-drop-panel">
+            <UploadOutlined className="file-drop-icon" />
+            <div className="file-drop-title">{t('松手上传')}</div>
+            <div className="file-drop-sub">{t('文件将上传到文件管理')}</div>
+          </div>
+        </div>
+      )}
+      <Table
+        rowKey="id"
+        className="list-table"
+        columns={columns}
+        dataSource={list}
+        loading={loading}
+        scroll={{ x: 'max-content' }}
+        locale={{ emptyText: <GlassEmpty text="暂无文件，拖入文件即可上传" compact /> }}
+        rowSelection={{
+          selectedRowKeys: selectedIds,
+          onChange: (keys) => setSelectedIds(keys as number[]),
+        }}
+        pagination={{
+          total,
+          current: params.page,
+          pageSize: params.page_size,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (n) => t('共 {{n}} 条', { n }),
+          onChange: (page, page_size) => setParams({ ...params, page, page_size }),
+        }}
+      />
 
       {previewUrl && (
         <Image
@@ -406,6 +409,6 @@ export default function FilePage() {
           }}
         />
       )}
-    </div>
+    </ListPageShell>
   )
 }

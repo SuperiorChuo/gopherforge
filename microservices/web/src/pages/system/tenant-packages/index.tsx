@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type Key } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Card, Checkbox, Form, Input, InputNumber, Popconfirm, Select, Space, Table, Tag, Tooltip, Tree } from 'antd'
+import { Button, Checkbox, Form, Input, InputNumber, Popconfirm, Select, Space, Table, Tag, Tooltip, Tree } from 'antd'
 import {
   DeleteOutlined,
   EditOutlined,
@@ -18,6 +18,7 @@ import * as PackageAPI from '@/api/system/tenantPackages'
 import { getPermissionList } from '@/api/system/permission'
 import EntityFormModal from '@/components/EntityFormModal'
 import ListFilterForm from '@/components/ListFilterForm'
+import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import StatusPill from '@/components/StatusPill'
@@ -262,13 +263,10 @@ export default function TenantPackagePage() {
   ]
 
   return (
-    <div className="page-list tenant-package-page">
-      <Card className="list-filter-card" bordered={false}>
-        <ListFilterForm
-          form={searchForm}
-          onFinish={handleSearch}
-          initialValues={params}
-        >
+    <ListPageShell
+      className="tenant-package-page"
+      filter={(
+        <ListFilterForm form={searchForm} onFinish={handleSearch} initialValues={params}>
           <Form.Item name="keyword">
             <Input placeholder={t('搜索套餐名称')} prefix={<SearchOutlined />} allowClear style={{ width: 240 }} />
           </Form.Item>
@@ -279,13 +277,12 @@ export default function TenantPackagePage() {
             </Space>
           </Form.Item>
         </ListFilterForm>
-      </Card>
-
-      <Card className="list-main-card" bordered={false}>
+      )}
+      toolbar={(
         <TableToolbar
           title="租户套餐"
           total={total}
-          extra={
+          extra={(
             <Space wrap>
               <Button icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>
               {hasPerm('system:tenant-package:create') && (
@@ -294,9 +291,11 @@ export default function TenantPackagePage() {
                 </Button>
               )}
             </Space>
-          }
+          )}
         />
-        <Table
+      )}
+    >
+      <Table
           rowKey="id"
           className="list-table"
           loading={loading}
@@ -313,8 +312,7 @@ export default function TenantPackagePage() {
             showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
-        />
-      </Card>
+      />
 
       <EntityFormModal
         title={editModal.record ? t('编辑套餐 #{{id}}', { id: editModal.record.id }) : t('新建套餐')}
@@ -398,6 +396,6 @@ export default function TenantPackagePage() {
             </div>
           </Form.Item>
       </EntityFormModal>
-    </div>
+    </ListPageShell>
   )
 }
