@@ -121,7 +121,11 @@ func (s *WebhookService) Update(ctx context.Context, id uint, input WebhookMutat
 	if err := s.validate(ctx, &input); err != nil {
 		return nil, err
 	}
-	if err := s.dao.UpdateSubscription(ctx, id, map[string]any{"name": input.Name, "endpoint_url": input.EndpointURL, "event_actions": input.EventActions, "status": input.Status, "consecutive_failures": 0, "last_error": "", "updated_at": time.Now()}); err != nil {
+	actionsJSON, err := json.Marshal(input.EventActions)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.dao.UpdateSubscription(ctx, id, map[string]any{"name": input.Name, "endpoint_url": input.EndpointURL, "event_actions": string(actionsJSON), "status": input.Status, "consecutive_failures": 0, "last_error": "", "updated_at": time.Now()}); err != nil {
 		return nil, err
 	}
 	return s.dao.GetSubscription(ctx, id)

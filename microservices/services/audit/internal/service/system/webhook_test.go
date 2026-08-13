@@ -91,6 +91,23 @@ func TestWebhookCreateStartsCursorAtCurrentAuditTail(t *testing.T) {
 	}
 }
 
+func TestWebhookUpdatePersistsJSONActions(t *testing.T) {
+	db := webhookTestDB(t)
+	svc := NewWebhookService(db, webhookTestRing(t), webhookx.Policy{AllowHTTP: true, AllowPrivate: true})
+	ctx := tenant.WithContext(context.Background(), 7)
+	created, err := svc.Create(ctx, WebhookMutation{Name: "CRM", EndpointURL: "http://127.0.0.1/hook", EventActions: []string{"create"}, Status: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := svc.Update(ctx, created.Subscription.ID, WebhookMutation{Name: "CRM 2", EndpointURL: "http://127.0.0.1/hook2", EventActions: []string{"delete", "update"}, Status: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(updated.EventActions) != 2 || updated.EventActions[0] != "delete" || updated.EventActions[1] != "update" {
+		t.Fatalf("actions=%v", updated.EventActions)
+	}
+}
+
 func TestWebhookFanoutDeliverSignsAndPersists(t *testing.T) {
 	db := webhookTestDB(t)
 	ring := webhookTestRing(t)
