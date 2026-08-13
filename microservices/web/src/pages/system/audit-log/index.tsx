@@ -1,15 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Card, Input, Select, Form, Drawer, Descriptions, Tooltip,
+  Table, Button, Space, Tag, Input, Select, Form, Descriptions, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import { SearchOutlined, ReloadOutlined, EyeOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getAuditLogList, type AuditLog, type AuditLogListResult } from '@/api/system/audit-log'
+import EntityDetailDrawer from '@/components/EntityDetailDrawer'
+import ListFilterForm from '@/components/ListFilterForm'
+import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
+import { useCrudModal } from '@/hooks/useCrudModal'
+import { useTableQuery } from '@/hooks/useTableQuery'
 import { formatDateTime } from '@/utils/format'
 import './styles.css'
 
@@ -32,32 +37,26 @@ function JsonBlock({ title, data }: { title: string; data?: Record<string, unkno
 }
 
 export default function AuditLogPage() {
-  const [list, setList] = useState<AuditLog[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [facets, setFacets] = useState<AuditLogListResult['facets'] | null>(null)
-  const [detail, setDetail] = useState<AuditLog | null>(null)
+  const detailModal = useCrudModal<AuditLog>()
   const [searchForm] = Form.useForm()
   const { t } = useTranslation()
 
-  const fetchList = async (p: SearchParams) => {
-    setLoading(true)
-    try {
-      const res = await getAuditLogList(p)
-      setList(res.items ?? [])
-      setTotal(res.pagination?.total ?? 0)
-      if (res.facets) setFacets(res.facets)
-    } catch {
-      message.error(t('获取审计日志失败'))
-    } finally {
-      setLoading(false)
+  const fetchList = useCallback(async (p: SearchParams) => {
+    const res = await getAuditLogList(p)
+    if (res.facets) setFacets(res.facets)
+    return {
+      list: res.items ?? [],
+      total: res.pagination?.total ?? 0,
     }
-  }
-
-  useEffect(() => {
-    fetchList(params)
-  }, [params])
+  }, [])
+  const onLoadError = useCallback(() => message.error(t('获取审计日志失败')), [t])
+  const { list, total, loading, reload } = useTableQuery({
+    params,
+    fetcher: fetchList,
+    onError: onLoadError,
+  })
 
   const handleSearch = (values: { keyword?: string; action?: string; target_type?: string }) => {
     setParams({ ...params, page: 1, ...values })
@@ -122,7 +121,7 @@ export default function AuditLogPage() {
             className="audit-row-action"
             aria-label={t('查看审计日志详情')}
             icon={<EyeOutlined />}
-            onClick={() => setDetail(record)}
+            onClick={() => detailModal.openEdit(record)}
           />
         </Tooltip>
       ),
@@ -130,12 +129,11 @@ export default function AuditLogPage() {
   ]
 
   return (
-    <div className="page-list audit-log-page">
-      <Card className="list-filter-card" bordered={false}>
-        <Form
+    <ListPageShell
+      className="audit-log-page"
+      filter={(
+        <ListFilterForm
           form={searchForm}
-          layout="inline"
-          className="list-filter-form"
           onFinish={handleSearch}
           initialValues={params}
         >
@@ -162,16 +160,17 @@ export default function AuditLogPage() {
               <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
-        </Form>
-      </Card>
-
-      <Card className="list-main-card" bordered={false}>
+        </ListFilterForm>
+      )}
+      toolbar={(
         <TableToolbar
           title="审计日志"
           total={total}
-          extra={<Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>}
+          extra={<Button icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>}
         />
-        <Table
+      )}
+    >
+      <Table
           rowKey="id"
           className="list-table audit-log-table"
           columns={columns}
@@ -188,40 +187,38 @@ export default function AuditLogPage() {
             showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
-        />
-      </Card>
+      />
 
-      <Drawer
+      <EntityDetailDrawer
         title={t('审计详情')}
-        open={!!detail}
-        onClose={() => setDetail(null)}
+        open={detailModal.open}
+        onClose={detailModal.close}
         width="min(720px, 100vw)"
-        destroyOnHidden
       >
-        {detail && (
+        {detailModal.record && (
           <div className="audit-detail-content">
             <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
-              <Descriptions.Item label="ID">{detail.id}</Descriptions.Item>
-              <Descriptions.Item label={t('时间')}>{formatDateTime(detail.created_at)}</Descriptions.Item>
+              <Descriptions.Item label="ID">{detailModal.record.id}</Descriptions.Item>
+              <Descriptions.Item label={t('时间')}>{formatDateTime(detailModal.record.created_at)}</Descriptions.Item>
               <Descriptions.Item label={t('操作者')}>
-                <Tag variant="filled">{detail.actor_type}</Tag>
-                <span className="cell-mono audit-detail-long">{detail.actor_id}</span>
+                <Tag variant="filled">{detailModal.record.actor_type}</Tag>
+                <span className="cell-mono audit-detail-long">{detailModal.record.actor_id}</span>
               </Descriptions.Item>
               <Descriptions.Item label={t('动作')}>
-                <Tag color="geekblue" variant="filled" className="cell-mono audit-detail-tag">{detail.action}</Tag>
+                <Tag color="geekblue" variant="filled" className="cell-mono audit-detail-tag">{detailModal.record.action}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label={t('目标')} span={2}>
-                <span className="cell-mono audit-detail-long">{detail.target_type}#{detail.target_id}</span>
+                <span className="cell-mono audit-detail-long">{detailModal.record.target_type}#{detailModal.record.target_id}</span>
               </Descriptions.Item>
-              {detail.summary && (
-                <Descriptions.Item label={t('摘要')} span={2}>{detail.summary}</Descriptions.Item>
+              {detailModal.record.summary && (
+                <Descriptions.Item label={t('摘要')} span={2}>{detailModal.record.summary}</Descriptions.Item>
               )}
             </Descriptions>
-            <JsonBlock title={t('变更前 (before)')} data={detail.before} />
-            <JsonBlock title={t('变更后 (after)')} data={detail.after} />
+            <JsonBlock title={t('变更前 (before)')} data={detailModal.record.before} />
+            <JsonBlock title={t('变更后 (after)')} data={detailModal.record.after} />
           </div>
         )}
-      </Drawer>
-    </div>
+      </EntityDetailDrawer>
+    </ListPageShell>
   )
 }

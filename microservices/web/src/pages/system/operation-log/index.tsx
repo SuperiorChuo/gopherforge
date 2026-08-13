@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Card, Input, Select, Form, Modal, Descriptions, DatePicker,
-  InputNumber, Drawer, Tooltip,
+  Table, Button, Space, Tag, Card, Input, Select, Form, Descriptions, DatePicker,
+  InputNumber, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import { SearchOutlined, ReloadOutlined, EyeOutlined, DownloadOutlined, ClearOutlined } from '@ant-design/icons'
@@ -12,12 +12,18 @@ import {
   getOperationLogList, getOperationLogDetail, exportOperationLogs, clearOperationLogs,
   getOperationLogStats, type OperationLogStats,
 } from '@/api/system/log'
+import EntityDetailDrawer from '@/components/EntityDetailDrawer'
+import EntityFormModal from '@/components/EntityFormModal'
+import ListFilterForm from '@/components/ListFilterForm'
+import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import CountUpValue from '@/components/CountUpValue'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
+import { useCrudModal } from '@/hooks/useCrudModal'
+import { useTableQuery } from '@/hooks/useTableQuery'
 import dayjs from 'dayjs'
 import './styles.css'
 
@@ -64,12 +70,8 @@ function ScanText({ value, mono = false }: { value?: string; mono?: boolean }) {
 }
 
 export default function OperationLogPage() {
-  const [list, setList] = useState<OperationLog[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
-  const [detailOpen, setDetailOpen] = useState(false)
-  const [detail, setDetail] = useState<OperationLog | null>(null)
+  const detailModal = useCrudModal<OperationLog>()
   const [exporting, setExporting] = useState(false)
   const [clearOpen, setClearOpen] = useState(false)
   const [clearing, setClearing] = useState(false)
@@ -88,22 +90,16 @@ export default function OperationLogPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const fetchList = async (p: SearchParams) => {
-    setLoading(true)
-    try {
-      const res = await getOperationLogList(p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error(t('获取操作日志失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchList(params)
-  }, [params])
+  const fetchList = useCallback(async (p: SearchParams) => {
+    const res = await getOperationLogList(p)
+    return { list: res.list, total: res.total }
+  }, [])
+  const onLoadError = useCallback(() => message.error(t('获取操作日志失败')), [t])
+  const { list, total, loading, reload } = useTableQuery({
+    params,
+    fetcher: fetchList,
+    onError: onLoadError,
+  })
 
   const handleSearch = (values: {
     username?: string
@@ -131,8 +127,7 @@ export default function OperationLogPage() {
   const openDetail = async (id: number) => {
     try {
       const res = await getOperationLogDetail(id)
-      setDetail(res)
-      setDetailOpen(true)
+      detailModal.openEdit(res)
     } catch {
       message.error(t('获取详情失败'))
     }
@@ -159,7 +154,7 @@ export default function OperationLogPage() {
       const res = await clearOperationLogs(values.days)
       message.success(t('清理成功，共删除 {{n}} 条日志', { n: res.deleted_count }))
       setClearOpen(false)
-      fetchList({ ...params, page: 1 })
+      setParams({ ...params, page: 1 })
       // 顶部统计与列表同屏，清完必须一起刷新，否则两块数据互相矛盾
       loadStats()
     } catch {
@@ -280,11 +275,10 @@ export default function OperationLogPage() {
         </Card>
       )}
 
-      <Card className="list-filter-card" bordered={false}>
-        <Form
-          form={searchForm}
-          layout="inline"
-          className="list-filter-form"
+      <ListPageShell
+        filter={(
+          <ListFilterForm
+            form={searchForm}
           onFinish={handleSearch}
           initialValues={{
             ...params,
@@ -321,13 +315,12 @@ export default function OperationLogPage() {
               <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
-        </Form>
-      </Card>
-
-      <Card className="list-main-card" bordered={false}>
-        <TableToolbar
-          title="操作日志"
-          total={total}
+          </ListFilterForm>
+        )}
+        toolbar={(
+          <TableToolbar
+            title="操作日志"
+            total={total}
           extra={
             <Space wrap className="operation-toolbar-actions">
               {hasPerm('system:log:operation:clear') && (
@@ -342,10 +335,12 @@ export default function OperationLogPage() {
               <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>
                 {t('导出 CSV')}
               </Button>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>
             </Space>
           }
-        />
+          />
+        )}
+        >
         <Table
           rowKey="id"
           className="list-table operation-log-table"
@@ -364,28 +359,28 @@ export default function OperationLogPage() {
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
-      </Card>
+      </ListPageShell>
 
-      <Drawer
+      <EntityDetailDrawer
         title={t('请求诊断')}
-        open={detailOpen}
-        onClose={() => setDetailOpen(false)}
+        open={detailModal.open}
+        onClose={detailModal.close}
         width="min(720px, 100vw)"
         destroyOnHidden
       >
-        {detail && (
+        {detailModal.record && (
           <div className="operation-detail-content">
             <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
-              <Descriptions.Item label={t('用户')}>{detail.username || '-'}</Descriptions.Item>
-              <Descriptions.Item label={t('时间')}>{formatDateTime(detail.created_at)}</Descriptions.Item>
+              <Descriptions.Item label={t('用户')}>{detailModal.record.username || '-'}</Descriptions.Item>
+              <Descriptions.Item label={t('时间')}>{formatDateTime(detailModal.record.created_at)}</Descriptions.Item>
               <Descriptions.Item label={t('方法 / 状态')}>
-                <Tag variant="filled" className="cell-mono operation-method-tag">{detail.method}</Tag>
-                <Tag color={statusColor(detail.status)} variant="filled" className="cell-mono operation-status-tag">{detail.status}</Tag>
+                <Tag variant="filled" className="cell-mono operation-method-tag">{detailModal.record.method}</Tag>
+                <Tag color={statusColor(detailModal.record.status)} variant="filled" className="cell-mono operation-status-tag">{detailModal.record.status}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label={t('耗时')}>
-                {typeof detail.latency === 'number' ? (
-                  <span className={`cell-mono ${latencyClass(detail.latency)}`}>
-                    {detail.latency}ms
+                {typeof detailModal.record.latency === 'number' ? (
+                  <span className={`cell-mono ${latencyClass(detailModal.record.latency)}`}>
+                    {detailModal.record.latency}ms
                   </span>
                 ) : (
                   '-'
@@ -393,59 +388,60 @@ export default function OperationLogPage() {
               </Descriptions.Item>
               <Descriptions.Item label={t('路径')} span={2}>
                 <span className="cell-mono operation-detail-long">
-                  {detail.path}
-                  {detail.query ? `?${detail.query}` : ''}
+                  {detailModal.record.path}
+                  {detailModal.record.query ? `?${detailModal.record.query}` : ''}
                 </span>
               </Descriptions.Item>
               <Descriptions.Item label={t('模块 / 动作')}>
-                {[detail.module, detail.action].filter(Boolean).join(' / ') || '-'}
+                {[detailModal.record.module, detailModal.record.action].filter(Boolean).join(' / ') || '-'}
               </Descriptions.Item>
               <Descriptions.Item label="IP">
-                <span className="cell-mono">{detail.ip || '-'}</span>
+                <span className="cell-mono">{detailModal.record.ip || '-'}</span>
               </Descriptions.Item>
               <Descriptions.Item label={t('请求ID')} span={2}>
-                <span className="cell-mono operation-detail-long">{detail.request_id || '-'}</span>
+                <span className="cell-mono operation-detail-long">{detailModal.record.request_id || '-'}</span>
               </Descriptions.Item>
-              {detail.user_agent && (
+              {detailModal.record.user_agent && (
                 <Descriptions.Item label="User-Agent" span={2}>
-                  <span className="card-extra-note operation-detail-long">{detail.user_agent}</span>
+                  <span className="card-extra-note operation-detail-long">{detailModal.record.user_agent}</span>
                 </Descriptions.Item>
               )}
             </Descriptions>
 
-            {detail.error_msg && (
+            {detailModal.record.error_msg && (
               <div className="log-detail-block log-detail-error">
                 <div className="log-detail-block-title">{t('错误信息')}</div>
-                <pre>{detail.error_msg}</pre>
+                <pre>{detailModal.record.error_msg}</pre>
               </div>
             )}
-            {detail.request_body && (
+            {detailModal.record.request_body && (
               <div className="log-detail-block">
                 <div className="log-detail-block-title">{t('请求体')}</div>
-                <pre>{tryPrettyJson(detail.request_body)}</pre>
+                <pre>{tryPrettyJson(detailModal.record.request_body)}</pre>
               </div>
             )}
-            {detail.response_body && (
+            {detailModal.record.response_body && (
               <div className="log-detail-block">
                 <div className="log-detail-block-title">{t('响应体')}</div>
-                <pre>{tryPrettyJson(detail.response_body)}</pre>
+                <pre>{tryPrettyJson(detailModal.record.response_body)}</pre>
               </div>
             )}
           </div>
         )}
-      </Drawer>
+      </EntityDetailDrawer>
 
-      <Modal
+      <EntityFormModal
         title={t('清理操作日志')}
         open={clearOpen}
-        onOk={handleClear}
-        onCancel={() => setClearOpen(false)}
-        confirmLoading={clearing}
+        form={clearForm}
+        onSubmit={handleClear}
+        onClose={() => setClearOpen(false)}
+        submitting={clearing}
         okButtonProps={{ danger: true }}
         okText={t('确认清理')}
         destroyOnHidden
+        formProps={{ style: { marginTop: 16 } }}
       >
-        <Form form={clearForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="days"
             label={t('保留最近天数（早于该范围的日志将被删除，不可恢复）')}
@@ -454,8 +450,7 @@ export default function OperationLogPage() {
           >
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
-        </Form>
-      </Modal>
+      </EntityFormModal>
     </div>
   )
 }
