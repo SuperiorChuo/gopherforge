@@ -7,6 +7,7 @@
     "api:contract": "npm run openapi && npm run api:types",
     "test:smoke:unit": "node --test tests/api-smoke-lib.test.mjs",
     "test:contract": "node --test tests/openapi-contract.test.mjs",
+    "test:compose:config": "node --test tests/compose-config.test.mjs",
     "smoke:api": "node tests/api-smoke.mjs",
     "e2e:api": "node tests/api-smoke.mjs",
     "e2e:frontend": "cd web && npm run build"

@@ -73,3 +73,4 @@ website/.vitepress/cache/
 
 # Edge TLS private material (runtime)
 microservices/certs/edge/
+microservices/certs/traefik-dynamic/

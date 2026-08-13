@@ -73,6 +73,7 @@ jobs:
         run: |
           npm run api:contract
           npm run test:contract
+          npm run test:compose:config
           npm run test:smoke:unit
 
       - name: Check generated OpenAPI is committed

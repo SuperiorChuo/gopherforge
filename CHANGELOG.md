@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **边缘证书生命周期 V2（同步自主项目）**：控制台支持持久化异步签发、续期、部署与指纹探测；Compose 网关由 system-service 唯一接管 HTTP-01，并通过 Traefik file provider 热加载证书。
+
 ### 功能
 
 - **安全性能 P0/P1（同步自主项目）**：grpcx 证书齐备自动 mTLS + `GRPC_TLS_REQUIRED`；audittrail 自动事务 Outbox；`slo-probe` / dev mTLS 证书脚本。
@@ -27,6 +31,7 @@
 
 ### 修复
 
+- **监控服务优雅关停与前端国际化**：恢复可注入上下文的 HTTP 排空路径，并补齐 5 个英文词典条目，解除 CI 门禁阻断。
 - **边缘证书菜单初始化**：菜单改由 `000074` 迁移单点写入，并增加固定菜单 ID 唯一性测试，避免新环境因重复主键导致 system-service 启动失败。
 - **公开迁移边界**：收窄 `000070_business_schema_split.sql` 为公开线实际提供的 BPM/Monitor 基础设施 schema，阻止 AI、CRM、IM 等业务域迁移泄漏到脚手架；CI 新增业务 schema 越界门禁。
 - **BPM 通知配置契约**：通知通道未配置 `NOTIFY_API_BASE` 时不再发出无关的 `NOTIFY_INTERNAL_TOKEN` 生产告警。
@@ -35,6 +40,7 @@
 ### 安全
 
 - **文档站依赖加固**：升级 Vite 及其 esbuild、PostCSS、nanoid 依赖，修复路径绕过、Windows NTLM 泄露、开发服务器跨源读取与 sourcemap 任意文件读取风险，GitHub Dependabot 告警清零。
+- **边缘证书私钥保护（同步自主项目）**：ACME 账户密钥与证书私钥改为 AES-256-GCM envelope 加密；私钥导出新增独立权限、密码+TOTP 二次验证、单次短时 proof、同步审计与 `no-store` 响应，并禁止网关头伪造平台管理员身份。
 - **依赖修复**：`tools/dbdoc` 的 `golang.org/x/text` 升级至 `v0.40.0`，覆盖 Trivy 报告的已修复版本门槛。
 
 ### 文档

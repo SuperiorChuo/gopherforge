@@ -265,11 +265,11 @@ func recoveryTestIssueRequest(t *testing.T) (IssueRequest, []byte, *[]IssueProgr
 	if err != nil {
 		t.Fatalf("loadOrCreateCertificateKey() error = %v", err)
 	}
-	certificateDER := recoveryTestCertificateDER(t, certKeyPEM, "admin.chouai.cc.cd")
+	certificateDER := recoveryTestCertificateDER(t, certKeyPEM, "admin.example.com")
 	progress := new([]IssueProgress)
 	return IssueRequest{
 		CertificateID: 1,
-		Domain:        "admin.chouai.cc.cd",
+		Domain:        "admin.example.com",
 		Email:         "ops@example.com",
 		AccountKeyPEM: accountKeyPEM,
 		CertKeyPEM:    certKeyPEM,

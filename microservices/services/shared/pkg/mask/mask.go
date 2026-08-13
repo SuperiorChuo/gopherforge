@@ -1,4 +1,4 @@
-// Package mask 提供敏感字段脱敏（struct tag 驱动）。
+// Package mask provides sensitive-field masking (struct tag driven).
 
 package mask
 

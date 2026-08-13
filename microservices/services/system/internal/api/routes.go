@@ -1,6 +1,6 @@
-// Package api 装配 system 服务的 HTTP 对外面。所有抽取路由的 /api/v1
-// 布局都与单体完全一致，
-// 使网关可以在不改变任何客户端的前提下切换流量。
+// Package api wires the system service HTTP surface. The /api/v1 layout
+// matches the monolith exactly for every extracted route so the gateway can
+// switch traffic over without any client change.
 package api
 
 import (
@@ -14,12 +14,12 @@ import (
 	systemsvc "github.com/go-admin-kit/services/system/internal/service/system"
 )
 
-// SetupRoutes 使用旧的全局回退挂载 system 服务 API。
+// SetupRoutes mounts the system service API using legacy global fallbacks.
 func SetupRoutes(router *gin.Engine) {
 	SetupRoutesWithDeps(router, sharedapi.Dependencies{})
 }
 
-// SetupRoutesWithDeps 使用注入的基础设施句柄挂载 API。
+// SetupRoutesWithDeps mounts the API with injected infrastructure handles.
 func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	api := router.Group("/api/v1")
 
@@ -32,8 +32,8 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	errCodeAPI := system.NewErrCodeAPI()
 	settingAPI := system.NewSettingAPI()
 	edgeCertAPI := system.NewEdgeCertAPIWithDB(deps.DB)
-	// ACME HTTP-01 公开挑战（无鉴权，Let's Encrypt 回调）。实例与管理 API
-	// 共用同一持久化数据库，避免多副本命中不同内存状态。
+	// ACME HTTP-01 public challenge (no auth; Let's Encrypt callback). It shares
+	// the persistent store with the management API so replicas see one state.
 	router.GET("/.well-known/acme-challenge/:token", edgeCertAPI.ACMEChallenge)
 	onlineUserAPI := system.NewOnlineUserAPI()
 	notificationAPI := system.NewNotificationAPI()
@@ -61,7 +61,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 
 	public := api.Group("/")
 	{
-		// WebSocket 升级通过一次性 ticket 认证，而非请求头。
+		// WebSocket upgrade authenticates via one-shot ticket, not header.
 		public.GET("/ws/notifications", notificationAPI.Connect)
 	}
 
@@ -147,7 +147,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		// 短信管理（渠道/模板/发送日志/发送），详见 routes_sms.go
 		registerSmsRoutes(router, protected, deps)
 
-		// 边缘免费证书（Let's Encrypt HTTP-01）——平台管理员
+		// Edge free certs (Let's Encrypt HTTP-01) — platform admin only.
 		edgeGuard := middleware.PlatformAdminMiddleware()
 		protected.GET("/edge-certs", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:list"), edgeCertAPI.List)
 		protected.GET("/edge-certs/capabilities", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:list"), edgeCertAPI.Capabilities)
