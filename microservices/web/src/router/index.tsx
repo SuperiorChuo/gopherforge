@@ -80,6 +80,7 @@ const routes: RouteObject[] = [
       { path: 'system/user', element: lazyLoad(() => import('@/pages/system/user')) },
       { path: 'system/role', element: lazyLoad(() => import('@/pages/system/role')) },
       { path: 'system/permission', element: lazyLoad(() => import('@/pages/system/permission')) },
+      { path: 'system/permission-diagnostics', element: lazyLoad(() => import('@/pages/system/permission-diagnostics')) },
       { path: 'system/menu', element: lazyLoad(() => import('@/pages/system/menu')) },
       { path: 'system/department', element: lazyLoad(() => import('@/pages/system/department')) },
       { path: 'system/dict', element: lazyLoad(() => import('@/pages/system/dict')) },

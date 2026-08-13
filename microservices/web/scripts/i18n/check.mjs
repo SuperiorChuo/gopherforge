@@ -61,6 +61,7 @@ const MIGRATED = [
   'src/pages/system/online-user/index.tsx',
   'src/pages/system/operation-log/index.tsx',
   'src/pages/system/permission/index.tsx',
+  'src/pages/system/permission-diagnostics/index.tsx',
   'src/pages/system/posts/index.tsx',
   'src/pages/system/role/index.tsx',
   'src/pages/system/setting/index.tsx',

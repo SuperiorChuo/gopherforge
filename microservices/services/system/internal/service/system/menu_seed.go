@@ -39,14 +39,15 @@ var defaultMenuSeed = []model.Menu{
 	{ID: 11, Name: "user", Title: "用户管理", Icon: "user", Path: "/system/user", Component: "system/user/index", ParentID: 10, Sort: 1, Status: 1, Hidden: 0, Permission: "system:user:list"},
 	{ID: 12, Name: "role", Title: "角色管理", Icon: "user-safety", Path: "/system/role", Component: "system/role/index", ParentID: 10, Sort: 2, Status: 1, Hidden: 0, Permission: "system:role:list"},
 	{ID: 13, Name: "permission", Title: "权限管理", Icon: "secured", Path: "/system/permission", Component: "system/permission/index", ParentID: 10, Sort: 3, Status: 1, Hidden: 0, Permission: "system:permission:list"},
-	{ID: 14, Name: "menu", Title: "菜单管理", Icon: "menu", Path: "/system/menu", Component: "system/menu/index", ParentID: 10, Sort: 4, Status: 1, Hidden: 0, Permission: "system:menu:list"},
-	{ID: 15, Name: "department", Title: "部门管理", Icon: "root-list", Path: "/system/department", Component: "system/department/index", ParentID: 10, Sort: 5, Status: 1, Hidden: 0, Permission: "system:department:list"},
+	{ID: 140, Name: "permission-diagnostics", Title: "权限诊断", Icon: "safety", Path: "/system/permission-diagnostics", Component: "system/permission-diagnostics/index", ParentID: 10, Sort: 4, Status: 1, Hidden: 0, Permission: "system:permission:diagnose"},
+	{ID: 14, Name: "menu", Title: "菜单管理", Icon: "menu", Path: "/system/menu", Component: "system/menu/index", ParentID: 10, Sort: 5, Status: 1, Hidden: 0, Permission: "system:menu:list"},
+	{ID: 15, Name: "department", Title: "部门管理", Icon: "root-list", Path: "/system/department", Component: "system/department/index", ParentID: 10, Sort: 6, Status: 1, Hidden: 0, Permission: "system:department:list"},
 	// 岗位管理：岗位 CRUD + 用户选岗（identity-service）
-	{ID: 28, Name: "post", Title: "岗位管理", Icon: "idcard", Path: "/system/post", Component: "system/posts", ParentID: 10, Sort: 6, Status: 1, Hidden: 0, Permission: "system:post:list"},
-	{ID: 24, Name: "tenant", Title: "租户管理", Icon: "team", Path: "/system/tenant", Component: "system/tenant/index", ParentID: 10, Sort: 7, Status: 1, Hidden: 0, Permission: "system:tenant:list"},
+	{ID: 28, Name: "post", Title: "岗位管理", Icon: "idcard", Path: "/system/post", Component: "system/posts", ParentID: 10, Sort: 7, Status: 1, Hidden: 0, Permission: "system:post:list"},
+	{ID: 24, Name: "tenant", Title: "租户管理", Icon: "team", Path: "/system/tenant", Component: "system/tenant/index", ParentID: 10, Sort: 8, Status: 1, Hidden: 0, Permission: "system:tenant:list"},
 	// 租户套餐：权限包 CRUD + 租户绑定，租户内角色分配受套餐约束（identity-service）
-	{ID: 29, Name: "tenant-packages", Title: "租户套餐", Icon: "appstore", Path: "/system/tenant-packages", Component: "system/tenant-packages", ParentID: 10, Sort: 8, Status: 1, Hidden: 0, Permission: "system:tenant-package:list"},
-	{ID: 23, Name: "setting", Title: "系统设置", Icon: "setting", Path: "/system/setting", Component: "system/setting/index", ParentID: 10, Sort: 9, Status: 1, Hidden: 0, Permission: "system:setting:list"},
+	{ID: 29, Name: "tenant-packages", Title: "租户套餐", Icon: "appstore", Path: "/system/tenant-packages", Component: "system/tenant-packages", ParentID: 10, Sort: 9, Status: 1, Hidden: 0, Permission: "system:tenant-package:list"},
+	{ID: 23, Name: "setting", Title: "系统设置", Icon: "setting", Path: "/system/setting", Component: "system/setting/index", ParentID: 10, Sort: 10, Status: 1, Hidden: 0, Permission: "system:setting:list"},
 	// 边缘证书菜单由迁移 000074 按 path 幂等插入，避免与固定 ID 种子重复。
 
 	// 消息中心：通知公告 / 短信

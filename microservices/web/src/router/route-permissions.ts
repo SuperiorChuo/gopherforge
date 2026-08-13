@@ -13,6 +13,7 @@ export const ROUTE_PERMISSIONS: Record<string, string> = {
   '/system/user': 'system:user:list',
   '/system/role': 'system:role:list',
   '/system/permission': 'system:permission:list',
+  '/system/permission-diagnostics': 'system:permission:diagnose',
   '/system/menu': 'system:menu:list',
   '/system/department': 'system:department:list',
   '/system/post': 'system:post:list',

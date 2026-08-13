@@ -1,0 +1,45 @@
+.permission-diagnostics-page .list-page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.permission-diagnostics-page .list-page-heading .ant-typography {
+  margin-top: 0;
+}
+
+.permission-diagnostics-page .page-heading-icon {
+  flex: 0 0 auto;
+  color: var(--ant-color-primary);
+  font-size: 30px;
+}
+
+.permission-diagnostics-page .diagnostic-role-row {
+  padding: 14px;
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: var(--ant-border-radius-lg);
+  background: var(--ant-color-fill-quaternary);
+}
+
+.permission-diagnostics-page .diagnostic-role-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.permission-diagnostics-page .diagnostic-permission-tags {
+  margin-top: 10px;
+}
+
+@media (max-width: 575px) {
+  .permission-diagnostics-page .diagnostic-role-title {
+    flex-direction: column;
+  }
+
+  .permission-diagnostics-page .page-heading-icon {
+    display: none;
+  }
+}

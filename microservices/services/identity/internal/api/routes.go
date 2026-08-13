@@ -6,10 +6,10 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/identity/internal/api/common"
-	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/identity/internal/api/system"
 	"github.com/go-admin-kit/services/identity/internal/middleware"
 	systemsvc "github.com/go-admin-kit/services/identity/internal/service/system"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 )
 
 // SetupRoutes mounts the identity service API using legacy global fallbacks.
@@ -26,6 +26,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	userMgmtAPI := system.NewUserManagementAPI()
 	roleMgmtAPI := system.NewRoleManagementAPI()
 	permissionMgmtAPI := system.NewPermissionManagementAPI()
+	var permissionDiagnosticAPI *system.PermissionDiagnosticAPI
 	departmentAPI := system.NewDepartmentAPI()
 	postAPI := system.NewPostAPI()
 	var tenantAPI *system.TenantAPI
@@ -35,6 +36,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		userMgmtAPI = system.NewUserManagementAPIWithService(systemsvc.NewUserServiceWithDB(deps.DB))
 		roleMgmtAPI = system.NewRoleManagementAPIWithService(systemsvc.NewRoleServiceWithDB(deps.DB))
 		permissionMgmtAPI = system.NewPermissionManagementAPIWithService(systemsvc.NewPermissionServiceWithDB(deps.DB))
+		permissionDiagnosticAPI = system.NewPermissionDiagnosticAPIWithService(systemsvc.NewPermissionDiagnosticServiceWithDB(deps.DB))
 		departmentAPI = system.NewDepartmentAPIWithService(systemsvc.NewDepartmentServiceWithDB(deps.DB))
 		postAPI = system.NewPostAPIWithService(systemsvc.NewPostServiceWithDB(deps.DB))
 		tenantAPI = system.NewTenantAPIWithService(systemsvc.NewTenantServiceWithDB(deps.DB))
@@ -93,6 +95,9 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		protected.POST("/roles/:id/permissions", middleware.PermissionMiddleware("system:role:update"), roleMgmtAPI.AssignPermissions)
 
 		protected.GET("/permissions", middleware.PermissionMiddleware("system:permission:list"), permissionMgmtAPI.GetPermissionList)
+		if permissionDiagnosticAPI != nil {
+			protected.POST("/permissions/diagnose", middleware.PermissionMiddleware("system:permission:diagnose"), permissionDiagnosticAPI.DiagnosePermission)
+		}
 		protected.GET("/permissions/tree", middleware.PermissionMiddleware("system:permission:list"), permissionMgmtAPI.GetPermissionTree)
 		protected.GET("/permissions/:id", middleware.PermissionMiddleware("system:permission:list"), permissionMgmtAPI.GetPermission)
 		protected.POST("/permissions", middleware.PermissionMiddleware("system:permission:create"), permissionMgmtAPI.CreatePermission)
