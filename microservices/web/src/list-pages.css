@@ -56,3 +56,84 @@
   .setting-config-card .ant-card-extra { margin-inline-start: 0; }
   .setting-save-item .ant-btn { width: 100%; }
 }
+
+/* ===== List page tables ===== */
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.table-toolbar-title {
+  display: flex;
+  flex: 1 1 320px;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.table-toolbar-title::before {
+  content: '';
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #818cf8, #4f46e5);
+}
+
+/* 有徽章图标时去掉竖线,改用玻璃徽章 */
+.table-toolbar-title-iconed::before {
+  display: none;
+}
+
+.table-toolbar-badge {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1.5px 0 rgba(0, 0, 0, 0.2),
+    0 6px 16px var(--badge-glow, rgba(79, 70, 229, 0.4)),
+    0 0 24px var(--badge-glow, rgba(79, 70, 229, 0.25));
+}
+
+.table-toolbar-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.table-toolbar-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 0;
+}
+
+.table-toolbar-desc {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  color: rgba(148, 163, 184, 0.7);
+}
+
+[data-theme='light'] .table-toolbar-desc {
+  color: #94a3b8;
+}
