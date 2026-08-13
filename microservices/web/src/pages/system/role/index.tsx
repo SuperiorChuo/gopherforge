@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Modal, Form, Input,
-  Card, Checkbox, Grid,
+  Checkbox, Grid,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -28,6 +28,8 @@ function fetchAllPermissions(): Promise<Permission[]> {
   }
   return permListCache
 }
+import ListFilterForm from '@/components/ListFilterForm'
+import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import TableRowActions from '@/components/TableRowActions'
 import GlassEmpty from '@/components/GlassEmpty'
@@ -235,12 +237,12 @@ export default function RolePage() {
   ]
 
   return (
-    <div className="page-list role-page">
-      <Card className="list-filter-card" bordered={false}>
-        <Form
+    <>
+      <ListPageShell
+      className="role-page"
+      filter={(
+        <ListFilterForm
           form={searchForm}
-          layout="inline"
-          className="list-filter-form"
           onFinish={handleSearch}
           initialValues={params}
         >
@@ -253,22 +255,23 @@ export default function RolePage() {
               <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
-        </Form>
-      </Card>
-
-      <Card className="list-main-card" bordered={false}>
+        </ListFilterForm>
+      )}
+      toolbar={(
         <TableToolbar
           title="角色列表"
           total={total}
-          extra={
+          extra={(
             <Space wrap>
               <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
               {hasPerm('system:role:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增角色')}</Button>
               )}
             </Space>
-          }
+          )}
         />
+      )}
+    >
         <Table
           rowKey="id"
           className="list-table"
@@ -287,7 +290,7 @@ export default function RolePage() {
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
-      </Card>
+      </ListPageShell>
 
       <Modal
         title={editRecord ? t('编辑角色') : t('新增角色')}
@@ -372,6 +375,6 @@ export default function RolePage() {
           )}
         </div>
       </Modal>
-    </div>
+    </>
   )
 }

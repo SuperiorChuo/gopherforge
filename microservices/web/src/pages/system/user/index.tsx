@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Modal, Form, Input, Select, Alert,
-  Card, Row, Col, Avatar, Tooltip, Switch, Grid,
+  Row, Col, Avatar, Tooltip, Switch, Grid,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -17,6 +17,8 @@ import { getRoleList } from '@/api/system/role'
 import { getDepartmentList } from '@/api/system/department'
 import { getAllPosts } from '@/api/system/posts'
 import type { SystemPost } from '@/api/system/posts'
+import ListFilterForm from '@/components/ListFilterForm'
+import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import TableRowActions from '@/components/TableRowActions'
 import GlassEmpty from '@/components/GlassEmpty'
@@ -389,12 +391,12 @@ export default function UserPage() {
   }
 
   return (
-    <div className="page-list user-page">
-      <Card className="list-filter-card" bordered={false}>
-        <Form
+    <>
+      <ListPageShell
+      className="user-page"
+      filter={(
+        <ListFilterForm
           form={searchForm}
-          layout="inline"
-          className="list-filter-form"
           onFinish={handleSearch}
           initialValues={params}
         >
@@ -427,14 +429,13 @@ export default function UserPage() {
               </Button>
             </Space>
           </Form.Item>
-        </Form>
-      </Card>
-
-      <Card className="list-main-card" bordered={false}>
+        </ListFilterForm>
+      )}
+      toolbar={(
         <TableToolbar
           title="用户列表"
           total={total}
-          extra={
+          extra={(
             <Space wrap>
               <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>
                 {t('刷新')}
@@ -467,8 +468,10 @@ export default function UserPage() {
                 </Button>
               )}
             </Space>
-          }
+          )}
         />
+      )}
+    >
         <Table
           rowKey="id"
           className="list-table"
@@ -488,7 +491,7 @@ export default function UserPage() {
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
-      </Card>
+      </ListPageShell>
 
       <Modal
         className="user-form-modal"
@@ -695,6 +698,6 @@ export default function UserPage() {
           </Form>
         </Modal>
       )}
-    </div>
+    </>
   )
 }
