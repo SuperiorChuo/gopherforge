@@ -1556,5 +1556,11 @@
   "账号状态": "Account status",
   "选择要诊断的用户": "Select a user to diagnose",
   "选择用户并输入权限码后开始诊断": "Select a user and enter a permission code to run diagnosis",
-  "该用户没有角色": "This user has no roles"
+  "该用户没有角色": "This user has no roles",
+  "资源与菜单链": "Resource and menu chain",
+  "已登记资源": "Registered resource",
+  "权限码未登记为资源": "Permission code is not a registered resource",
+  "该权限码不在权限资源表中，可能是历史数据或配置漂移": "This permission code is absent from the resource registry and may indicate legacy data or configuration drift",
+  "菜单链暂不可用": "Menu chain is temporarily unavailable",
+  "没有菜单绑定此权限": "No menu is bound to this permission"
 }

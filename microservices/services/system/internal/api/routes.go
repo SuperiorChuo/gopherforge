@@ -1,6 +1,6 @@
-// Package api wires the system service HTTP surface. The /api/v1 layout
-// matches the monolith exactly for every extracted route so the gateway can
-// switch traffic over without any client change.
+// Package api 装配 system 服务的 HTTP 对外面。所有抽取路由的 /api/v1
+// 布局都与单体完全一致，
+// 使网关可以在不改变任何客户端的前提下切换流量。
 package api
 
 import (
@@ -14,12 +14,12 @@ import (
 	systemsvc "github.com/go-admin-kit/services/system/internal/service/system"
 )
 
-// SetupRoutes mounts the system service API using legacy global fallbacks.
+// SetupRoutes 使用旧的全局回退挂载 system 服务 API。
 func SetupRoutes(router *gin.Engine) {
 	SetupRoutesWithDeps(router, sharedapi.Dependencies{})
 }
 
-// SetupRoutesWithDeps mounts the API with injected infrastructure handles.
+// SetupRoutesWithDeps 使用注入的基础设施句柄挂载 API。
 func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	api := router.Group("/api/v1")
 
@@ -27,13 +27,14 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 
 	menuMgmtAPI := system.NewMenuManagementAPI()
 	menuUserAPI := system.NewMenuAPI()
+	var permissionMenuDiagnosticAPI *system.PermissionMenuDiagnosticAPI
 	dictAPI := system.NewDictAPI()
 	noticeAPI := system.NewNoticeAPI()
 	errCodeAPI := system.NewErrCodeAPI()
 	settingAPI := system.NewSettingAPI()
 	edgeCertAPI := system.NewEdgeCertAPIWithDB(deps.DB)
-	// ACME HTTP-01 public challenge (no auth; Let's Encrypt callback). It shares
-	// the persistent store with the management API so replicas see one state.
+	// ACME HTTP-01 公开挑战（无鉴权，Let's Encrypt 回调）。实例与管理 API
+	// 共用同一持久化数据库，避免多副本命中不同内存状态。
 	router.GET("/.well-known/acme-challenge/:token", edgeCertAPI.ACMEChallenge)
 	onlineUserAPI := system.NewOnlineUserAPI()
 	notificationAPI := system.NewNotificationAPI()
@@ -46,6 +47,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	if deps.DB != nil {
 		menuMgmtAPI = system.NewMenuManagementAPIWithService(systemsvc.NewMenuServiceWithDB(deps.DB))
 		menuUserAPI = system.NewMenuAPIWithService(systemsvc.NewMenuUserServiceWithDB(deps.DB))
+		permissionMenuDiagnosticAPI = system.NewPermissionMenuDiagnosticAPIWithService(systemsvc.NewPermissionMenuDiagnosticServiceWithDB(deps.DB))
 		dictAPI = system.NewDictAPIWithService(systemsvc.NewDictServiceWithDB(deps.DB))
 		noticeAPI = system.NewNoticeAPIWithService(systemsvc.NewNoticeServiceWithDB(deps.DB))
 		errCodeAPI = system.NewErrCodeAPIWithService(systemsvc.NewErrCodeServiceWithDB(deps.DB))
@@ -61,7 +63,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 
 	public := api.Group("/")
 	{
-		// WebSocket upgrade authenticates via one-shot ticket, not header.
+		// WebSocket 升级通过一次性 ticket 认证，而非请求头。
 		public.GET("/ws/notifications", notificationAPI.Connect)
 	}
 
@@ -86,6 +88,9 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		}
 
 		protected.GET("/menus", middleware.PermissionMiddleware("system:menu:list"), menuMgmtAPI.GetMenuList)
+		if permissionMenuDiagnosticAPI != nil {
+			protected.GET("/permissions/diagnose/menus", middleware.PermissionMiddleware("system:permission:diagnose"), permissionMenuDiagnosticAPI.DiagnoseMenus)
+		}
 		protected.GET("/menus/tree", middleware.PermissionMiddleware("system:menu:list"), menuMgmtAPI.GetMenuTree)
 		protected.GET("/menus/:id", middleware.PermissionMiddleware("system:menu:list"), menuMgmtAPI.GetMenu)
 		protected.POST("/menus", middleware.PermissionMiddleware("system:menu:create"), menuMgmtAPI.CreateMenu)
@@ -147,7 +152,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		// 短信管理（渠道/模板/发送日志/发送），详见 routes_sms.go
 		registerSmsRoutes(router, protected, deps)
 
-		// Edge free certs (Let's Encrypt HTTP-01) — platform admin only.
+		// 边缘免费证书（Let's Encrypt HTTP-01）——平台管理员
 		edgeGuard := middleware.PlatformAdminMiddleware()
 		protected.GET("/edge-certs", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:list"), edgeCertAPI.List)
 		protected.GET("/edge-certs/capabilities", edgeGuard, middleware.PermissionMiddleware("system:edge-cert:list"), edgeCertAPI.Capabilities)

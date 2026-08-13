@@ -81,3 +81,20 @@ func (d *PermissionDiagnosticDAO) GetTenantPackageContext(ctx context.Context, i
 	err := d.dbWithContext(ctx).First(&target, id).Error
 	return &target, err
 }
+
+func (d *PermissionDiagnosticDAO) GetPermissionByCodeContext(ctx context.Context, code string) (*model.Permission, error) {
+	var permission model.Permission
+	err := d.dbWithContext(ctx).Where("code = ?", code).First(&permission).Error
+	return &permission, err
+}
+
+func (d *PermissionDiagnosticDAO) ListPermissionOptionsContext(ctx context.Context, keyword string, limit int) ([]model.Permission, error) {
+	query := d.dbWithContext(ctx).Model(&model.Permission{})
+	if keyword != "" {
+		pattern := "%" + keyword + "%"
+		query = query.Where("code ILIKE ? OR name ILIKE ? OR path ILIKE ?", pattern, pattern, pattern)
+	}
+	var permissions []model.Permission
+	err := query.Order("code ASC").Limit(limit).Find(&permissions).Error
+	return permissions, err
+}

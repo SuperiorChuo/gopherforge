@@ -67,6 +67,24 @@ type PermissionDiagnosticDataScope struct {
 	DepartmentIDs []uint `json:"department_ids"`
 }
 
+type PermissionDiagnosticResource struct {
+	Registered  bool   `json:"registered"`
+	ID          uint   `json:"id,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Type        int8   `json:"type,omitempty"`
+	Path        string `json:"path,omitempty"`
+	Method      string `json:"method,omitempty"`
+}
+
+type PermissionDiagnosticOption struct {
+	ID     uint   `json:"id"`
+	Name   string `json:"name"`
+	Code   string `json:"code"`
+	Path   string `json:"path"`
+	Method string `json:"method"`
+}
+
 type PermissionDiagnosticResult struct {
 	Allowed              bool                          `json:"allowed"`
 	Reason               string                        `json:"reason"`
@@ -77,6 +95,7 @@ type PermissionDiagnosticResult struct {
 	EffectivePermissions []string                      `json:"effective_permissions"`
 	Package              PermissionDiagnosticPackage   `json:"package"`
 	DataScope            PermissionDiagnosticDataScope `json:"data_scope"`
+	Resource             PermissionDiagnosticResource  `json:"resource"`
 }
 
 var ErrPermissionDiagnosticUserNotFound = errors.New("permission diagnostic user not found")
@@ -151,6 +170,9 @@ func (s *PermissionDiagnosticService) DiagnoseContext(ctx context.Context, req P
 	}
 	sort.Strings(result.EffectivePermissions)
 
+	if err := s.fillResourceContext(targetContext, permission, result); err != nil {
+		return nil, err
+	}
 	if err := s.fillPackageContext(targetContext, user.TenantID, permission, result); err != nil {
 		return nil, err
 	}
@@ -163,6 +185,45 @@ func (s *PermissionDiagnosticService) DiagnoseContext(ctx context.Context, req P
 		result.Reason = "user account is disabled"
 	}
 	return result, nil
+}
+
+func (s *PermissionDiagnosticService) ListOptionsContext(ctx context.Context, keyword string, limit int) ([]PermissionDiagnosticOption, error) {
+	keyword = strings.TrimSpace(keyword)
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	permissions, err := s.dao.ListPermissionOptionsContext(tenant.DisableScope(ctx), keyword, limit)
+	if err != nil {
+		return nil, err
+	}
+	options := make([]PermissionDiagnosticOption, 0, len(permissions))
+	for _, permission := range permissions {
+		options = append(options, PermissionDiagnosticOption{
+			ID: permission.ID, Name: permission.Name, Code: permission.Code,
+			Path: permission.Path, Method: permission.Method,
+		})
+	}
+	return options, nil
+}
+
+func (s *PermissionDiagnosticService) fillResourceContext(ctx context.Context, code string, result *PermissionDiagnosticResult) error {
+	permission, err := s.dao.GetPermissionByCodeContext(tenant.DisableScope(ctx), code)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			result.Resource = PermissionDiagnosticResource{Registered: false}
+			return nil
+		}
+		return err
+	}
+	result.Resource = PermissionDiagnosticResource{
+		Registered: true, ID: permission.ID, Name: permission.Name,
+		Description: permission.Description, Type: permission.Type,
+		Path: permission.Path, Method: permission.Method,
+	}
+	return nil
 }
 
 func (s *PermissionDiagnosticService) fillPackageContext(ctx context.Context, tenantID uint, permission string, result *PermissionDiagnosticResult) error {

@@ -96,6 +96,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 
 		protected.GET("/permissions", middleware.PermissionMiddleware("system:permission:list"), permissionMgmtAPI.GetPermissionList)
 		if permissionDiagnosticAPI != nil {
+			protected.GET("/permissions/diagnose/options", middleware.PermissionMiddleware("system:permission:diagnose"), permissionDiagnosticAPI.ListPermissionOptions)
 			protected.POST("/permissions/diagnose", middleware.PermissionMiddleware("system:permission:diagnose"), permissionDiagnosticAPI.DiagnosePermission)
 		}
 		protected.GET("/permissions/tree", middleware.PermissionMiddleware("system:permission:list"), permissionMgmtAPI.GetPermissionTree)

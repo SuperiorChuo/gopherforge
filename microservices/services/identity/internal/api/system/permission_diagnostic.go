@@ -2,6 +2,8 @@ package system
 
 import (
 	"errors"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	systemsvc "github.com/go-admin-kit/services/identity/internal/service/system"
@@ -19,6 +21,24 @@ func NewPermissionDiagnosticAPIWithService(service systemsvc.PermissionDiagnosti
 }
 
 // DiagnosePermission returns the user's role, permission, package, and data-scope chain.
+func (a *PermissionDiagnosticAPI) ListPermissionOptions(c *gin.Context) {
+	limit := 50
+	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 || parsed > 100 {
+			response.BadRequest(c, "limit must be between 1 and 100")
+			return
+		}
+		limit = parsed
+	}
+	options, err := a.service.ListOptionsContext(c.Request.Context(), c.Query("keyword"), limit)
+	if err != nil {
+		internalServerError(c, "failed to list permission options", err)
+		return
+	}
+	response.Success(c, options)
+}
+
 func (a *PermissionDiagnosticAPI) DiagnosePermission(c *gin.Context) {
 	var req systemsvc.PermissionDiagnosticRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -1,12 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Alert, Button, Card, Col, Descriptions, Form, Input, Row, Select, Space, Spin, Tag, Typography,
+  Alert, Button, Card, Col, Descriptions, Form, Row, Select, Space, Spin, Tag, Typography,
 } from 'antd'
-import { SafetyCertificateOutlined, SearchOutlined } from '@ant-design/icons'
+import { ApiOutlined, SafetyCertificateOutlined, SearchOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
 import GlassEmpty from '@/components/GlassEmpty'
-import { diagnosePermission, type PermissionDiagnosticResult } from '@/api/system/permission-diagnostic'
+import {
+  diagnosePermission,
+  getPermissionDiagnosticMenus,
+  getPermissionDiagnosticOptions,
+  type PermissionDiagnosticOption,
+  type PermissionDiagnosticResult,
+  type PermissionMenuBinding,
+} from '@/api/system/permission-diagnostic'
 import { getUserList } from '@/api/system/user'
 import type { SystemUser } from '@/types'
 import './styles.css'
@@ -27,9 +34,13 @@ export default function PermissionDiagnosticsPage() {
   const { t } = useTranslation()
   const [form] = Form.useForm()
   const [users, setUsers] = useState<SystemUser[]>([])
+  const [permissionOptions, setPermissionOptions] = useState<PermissionDiagnosticOption[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
+  const [permissionsLoading, setPermissionsLoading] = useState(false)
   const [diagnosing, setDiagnosing] = useState(false)
   const [result, setResult] = useState<PermissionDiagnosticResult | null>(null)
+  const [menus, setMenus] = useState<PermissionMenuBinding[]>([])
+  const [menusUnavailable, setMenusUnavailable] = useState(false)
 
   useEffect(() => {
     setUsersLoading(true)
@@ -39,17 +50,49 @@ export default function PermissionDiagnosticsPage() {
       .finally(() => setUsersLoading(false))
   }, [t])
 
+  const loadPermissionOptions = async (keyword = '') => {
+    setPermissionsLoading(true)
+    try {
+      setPermissionOptions(await getPermissionDiagnosticOptions({ keyword, limit: 100 }))
+    } catch {
+      message.error(t('加载权限失败'))
+    } finally {
+      setPermissionsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    setPermissionsLoading(true)
+    getPermissionDiagnosticOptions({ limit: 100 })
+      .then(setPermissionOptions)
+      .catch(() => message.error(t('加载权限失败')))
+      .finally(() => setPermissionsLoading(false))
+  }, [t])
+
+  const permissionSelectOptions = useMemo(() => permissionOptions.map((permission) => ({
+    value: permission.code,
+    label: permission.path
+      ? `${permission.code} · ${permission.method || '--'} ${permission.path}`
+      : `${permission.code} · ${permission.name}`,
+  })), [permissionOptions])
+
   const handleDiagnose = async () => {
     const values = await form.validateFields().catch(() => null)
     if (!values) return
+    const permission = values.permission.trim()
     setDiagnosing(true)
+    setMenusUnavailable(false)
     try {
-      setResult(await diagnosePermission({
-        user_id: values.user_id,
-        permission: values.permission.trim(),
-      }))
+      const [diagnosticResult, menuResult] = await Promise.all([
+        diagnosePermission({ user_id: values.user_id, permission }),
+        getPermissionDiagnosticMenus(permission).catch(() => null),
+      ])
+      setResult(diagnosticResult)
+      setMenus(menuResult?.menus ?? [])
+      setMenusUnavailable(menuResult === null)
     } catch {
       setResult(null)
+      setMenus([])
       message.error(t('权限诊断失败'))
     } finally {
       setDiagnosing(false)
@@ -84,7 +127,16 @@ export default function PermissionDiagnosticsPage() {
             </Col>
             <Col xs={24} md={10}>
               <Form.Item name="permission" label={t('权限码')} rules={[{ required: true, whitespace: true, message: t('请输入权限码') }]}>
-                <Input allowClear placeholder="system:user:list" prefix={<SafetyCertificateOutlined />} />
+                <Select
+                  showSearch
+                  allowClear
+                  filterOption={false}
+                  loading={permissionsLoading}
+                  placeholder="system:user:list"
+                  options={permissionSelectOptions}
+                  onSearch={loadPermissionOptions}
+                  notFoundContent={permissionsLoading ? <Spin size="small" /> : t('无匹配权限')}
+                />
               </Form.Item>
             </Col>
             <Col xs={24} md={4}>
@@ -132,6 +184,43 @@ export default function PermissionDiagnosticsPage() {
                   )}
                 </Descriptions.Item>
               </Descriptions>
+
+              <Card size="small" title={<Space><ApiOutlined />{t('资源与菜单链')}</Space>}>
+                <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                  {result.resource.registered ? (
+                    <div className="diagnostic-resource-row">
+                      <Space wrap>
+                        <Tag color="success">{t('已登记资源')}</Tag>
+                        <strong>{result.resource.name}</strong>
+                        {result.resource.method && <Tag color="blue">{result.resource.method}</Tag>}
+                        <code>{result.resource.path || result.requested_permission}</code>
+                      </Space>
+                      {result.resource.description && <Typography.Text type="secondary">{result.resource.description}</Typography.Text>}
+                    </div>
+                  ) : (
+                    <Alert type="warning" showIcon message={t('权限码未登记为资源')} description={t('该权限码不在权限资源表中，可能是历史数据或配置漂移')} />
+                  )}
+                  {menusUnavailable ? (
+                    <Alert type="warning" showIcon message={t('菜单链暂不可用')} />
+                  ) : menus.length === 0 ? (
+                    <GlassEmpty compact text={t('没有菜单绑定此权限')} />
+                  ) : (
+                    <div className="diagnostic-menu-grid">
+                      {menus.map((menu) => (
+                        <div className="diagnostic-menu-row" key={menu.id}>
+                          <Space wrap>
+                            <strong>{menu.title}</strong>
+                            <code>{menu.path || '--'}</code>
+                            {menu.status !== 1 && <Tag color="error">{t('停用')}</Tag>}
+                            {menu.hidden === 1 && <Tag>{t('隐藏')}</Tag>}
+                          </Space>
+                          <Typography.Text type="secondary">{menu.component || '--'}</Typography.Text>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Space>
+              </Card>
 
               <Card size="small" title={t('角色授权链')}>
                 {result.roles.length === 0 ? <GlassEmpty compact text="该用户没有角色" /> : (

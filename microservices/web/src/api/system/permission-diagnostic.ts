@@ -11,6 +11,25 @@ export interface PermissionDiagnosticRole {
   match_reason?: string
 }
 
+export interface PermissionDiagnosticOption {
+  id: number
+  name: string
+  code: string
+  path?: string
+  method?: string
+}
+
+export interface PermissionMenuBinding {
+  id: number
+  title: string
+  path?: string
+  component?: string
+  parent_id: number
+  status: number
+  hidden: number
+  permission?: string
+}
+
 export interface PermissionDiagnosticResult {
   allowed: boolean
   reason: string
@@ -39,7 +58,24 @@ export interface PermissionDiagnosticResult {
     department_id: number
     department_ids: number[]
   }
+  resource: {
+    registered: boolean
+    id?: number
+    name?: string
+    description?: string
+    type?: number
+    path?: string
+    method?: string
+  }
 }
+
+export const getPermissionDiagnosticOptions = (params?: { keyword?: string; limit?: number }) =>
+  request.get<unknown, PermissionDiagnosticOption[]>('/api/v1/permissions/diagnose/options', { params })
+
+export const getPermissionDiagnosticMenus = (permission: string) =>
+  request.get<unknown, { permission: string; menus: PermissionMenuBinding[] }>('/api/v1/permissions/diagnose/menus', {
+    params: { permission },
+  })
 
 export const diagnosePermission = (data: { user_id: number; permission: string }) =>
   request.post<unknown, PermissionDiagnosticResult>('/api/v1/permissions/diagnose', data)
