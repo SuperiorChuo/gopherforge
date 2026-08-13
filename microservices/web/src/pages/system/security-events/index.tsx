@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button, Select, Space, Table, Tag } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSecurityEventList, type SecurityEvent } from '@/api/system/security-events'
 import GlassEmpty from '@/components/GlassEmpty'
+import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import { formatDateTime } from '@/utils/format'
+import { useTableQuery } from '@/hooks/useTableQuery'
 
 const RULE_LABELS: Record<string, string> = {
   high_volume_write: '写入操作激增',
@@ -22,30 +24,19 @@ const SEVERITY_META: Record<string, { label: string; color: string }> = {
 
 export default function SecurityEventsPage() {
   const { t } = useTranslation()
-  const [list, setList] = useState<SecurityEvent[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useState<{ page: number; page_size: number; severity?: string }>({
     page: 1,
     page_size: 10,
   })
 
   const fetchList = useCallback(async (p: typeof params) => {
-    setLoading(true)
-    try {
-      const res = await getSecurityEventList(p)
-      setList(res.list ?? [])
-      setTotal(res.total ?? 0)
-    } catch {
-      setList([])
-    } finally {
-      setLoading(false)
-    }
+    const res = await getSecurityEventList(p)
+    return { list: res.list ?? [], total: res.total ?? 0 }
   }, [])
-
-  useEffect(() => {
-    void fetchList(params)
-  }, [params, fetchList])
+  const { list, total, loading, reload } = useTableQuery({
+    params,
+    fetcher: fetchList,
+  })
 
   const columns: ColumnsType<SecurityEvent> = [
     {
@@ -81,8 +72,10 @@ export default function SecurityEventsPage() {
   ]
 
   return (
-    <div className="page-list security-events-page">
-      <TableToolbar
+    <ListPageShell
+      className="security-events-page"
+      toolbar={(
+        <TableToolbar
         title="安全事件"
         total={total}
         extra={
@@ -94,12 +87,14 @@ export default function SecurityEventsPage() {
               onChange={(v?: string) => setParams({ ...params, page: 1, severity: v })}
               options={Object.entries(SEVERITY_META).map(([value, meta]) => ({ value, label: t(meta.label) }))}
             />
-            <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)} loading={loading}>
+            <Button icon={<ReloadOutlined />} onClick={() => void reload()} loading={loading}>
               {t('刷新')}
             </Button>
           </Space>
         }
-      />
+        />
+      )}
+      >
       <Table
         rowKey="id"
         className="list-table"
@@ -117,6 +112,6 @@ export default function SecurityEventsPage() {
           onChange: (page, page_size) => setParams({ ...params, page, page_size }),
         }}
       />
-    </div>
+    </ListPageShell>
   )
 }

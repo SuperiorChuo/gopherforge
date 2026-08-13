@@ -1,16 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Table, Button, Popconfirm, Card, Space, Tag, Tooltip } from 'antd'
+import { Table, Button, Popconfirm, Space, Tag, Tooltip } from 'antd'
 import { message } from '@/utils/feedback'
 import { ReloadOutlined, DisconnectOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { OnlineUser } from '@/types'
 import { getOnlineUserList, kickUser } from '@/api/system/online-user'
+import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
+import { useTableQuery } from '@/hooks/useTableQuery'
 
 function tokenFingerprint(tokenId: string): string {
   if (tokenId.length <= 16) return tokenId
@@ -18,39 +20,30 @@ function tokenFingerprint(tokenId: string): string {
 }
 
 export default function OnlineUserPage() {
-  const [list, setList] = useState<OnlineUser[]>([])
-  const [loading, setLoading] = useState(false)
   const { t } = useTranslation()
   const { hasPerm } = usePermission()
-
-  const fetchList = async () => {
-    setLoading(true)
-    try {
-      const res = await getOnlineUserList()
-      setList(res)
-    } catch {
-      message.error(t('获取在线用户列表失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchList()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fetchList = useCallback(async () => {
+    const list = await getOnlineUserList()
+    return { list, total: list.length }
   }, [])
+  const onLoadError = useCallback(() => message.error(t('获取在线用户列表失败')), [t])
+  const { list, loading, reload } = useTableQuery({
+    params: null,
+    fetcher: fetchList,
+    onError: onLoadError,
+  })
 
   // 在线会话有实时语义，静默轮询避免表格 loading 闪烁；
   // 后台标签页暂停，回前台立即补一次
   useVisibilityInterval(() => {
-    getOnlineUserList().then(setList).catch(() => {})
+    void reload({ silent: true })
   }, 30000, false)
 
   const handleKick = async (tokenId: string) => {
     try {
       await kickUser(tokenId)
       message.success(t('已踢出该用户'))
-      fetchList()
+      void reload()
     } catch {
       message.error(t('踢出失败'))
     }
@@ -149,8 +142,9 @@ export default function OnlineUserPage() {
   ]
 
   return (
-    <div className="page-list online-user-page">
-      <Card className="list-main-card" bordered={false}>
+    <ListPageShell
+      className="online-user-page"
+      toolbar={(
         <TableToolbar
           title="在线用户"
           total={list.length}
@@ -160,23 +154,24 @@ export default function OnlineUserPage() {
                 <span className="live-dot" />
                 {t('每 30 秒自动刷新')}
               </span>
-              <Button icon={<ReloadOutlined />} onClick={fetchList} loading={loading}>
+              <Button icon={<ReloadOutlined />} onClick={() => void reload()} loading={loading}>
                 {t('刷新')}
               </Button>
             </>
           }
         />
-        <Table
-          rowKey="token_id"
+      )}
+      >
+      <Table
+        rowKey="token_id"
           className="list-table"
           columns={columns}
           dataSource={list}
           loading={loading}
           scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="当前没有在线会话" compact /> }}
-          pagination={{ showTotal: (n) => t('共 {{n}} 条', { n }), showSizeChanger: true }}
-        />
-      </Card>
-    </div>
+        pagination={{ showTotal: (n) => t('共 {{n}} 条', { n }), showSizeChanger: true }}
+      />
+    </ListPageShell>
   )
 }

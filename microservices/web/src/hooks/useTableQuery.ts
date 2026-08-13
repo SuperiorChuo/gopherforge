@@ -22,14 +22,16 @@ export function useTableQuery<T, P>({ params, fetcher, onError }: UseTableQueryO
     error: false,
   })
 
-  const reload = useCallback(async () => {
-    setState((current) => ({ ...current, loading: true, error: false }))
+  const reload = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setState((current) => ({ ...current, loading: true, error: false }))
+    }
     try {
       const result = await fetcher(params)
       setState({ list: result.list, total: result.total, loading: false, error: false })
     } catch {
-      setState((current) => ({ ...current, loading: false, error: true }))
-      onError?.()
+      setState((current) => ({ ...current, loading: false, error: options?.silent ? current.error : true }))
+      if (!options?.silent) onError?.()
     }
   }, [fetcher, onError, params])
 

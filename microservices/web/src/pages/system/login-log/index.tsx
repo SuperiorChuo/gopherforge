@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Table, Button, Space, Tag, Card, Input, Select, Form, DatePicker, Modal, InputNumber, Tooltip, Segmented, Skeleton,
+  Table, Button, Space, Tag, Card, Input, Select, Form, DatePicker, InputNumber, Tooltip, Segmented, Skeleton,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import { SearchOutlined, ReloadOutlined, ClearOutlined, DownloadOutlined } from '@ant-design/icons'
@@ -9,6 +9,8 @@ import type { LoginLog } from '@/types'
 import { getLoginLogList, clearLoginLogs, getLoginStats, getLoginGeoDistribution, exportLoginLogs, type LoginLogStats, type LoginGeoItem } from '@/api/system/log'
 import GeoMap, { type GeoMapPoint } from '@/components/GeoMap'
 import { resolveGeoPoint, resolveProvinceShort } from '@/utils/chinaGeo'
+import EntityFormModal from '@/components/EntityFormModal'
+import ListFilterForm from '@/components/ListFilterForm'
 import TableToolbar from '@/components/TableToolbar'
 import CountUpValue from '@/components/CountUpValue'
 import MetricCard from '@/components/MetricCard'
@@ -18,6 +20,7 @@ import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
+import { useTableQuery } from '@/hooks/useTableQuery'
 import dayjs from 'dayjs'
 import './styles.css'
 
@@ -37,9 +40,6 @@ const loginTypeLabels: Record<number, string> = { 1: '密码登录', 2: 'GitHub'
 const loginTypeColors: Record<number, string> = { 1: 'geekblue', 2: 'purple', 3: 'green', 4: 'cyan' }
 
 export default function LoginLogPage() {
-  const [list, setList] = useState<LoginLog[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [clearOpen, setClearOpen] = useState(false)
   const [clearing, setClearing] = useState(false)
@@ -124,22 +124,16 @@ export default function LoginLogPage() {
     return { points, ranking, max: ranking[0]?.total ?? 0, provinceTotals }
   }, [geoData])
 
-  const fetchList = async (p: SearchParams) => {
-    setLoading(true)
-    try {
-      const res = await getLoginLogList(p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error('获取登录日志失败')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchList(params)
-  }, [params])
+  const fetchList = useCallback(async (p: SearchParams) => {
+    const res = await getLoginLogList(p)
+    return { list: res.list, total: res.total }
+  }, [])
+  const onLoadError = useCallback(() => message.error('获取登录日志失败'), [])
+  const { list, total, loading, reload } = useTableQuery({
+    params,
+    fetcher: fetchList,
+    onError: onLoadError,
+  })
 
   const handleSearch = (values: {
     username?: string
@@ -184,7 +178,7 @@ export default function LoginLogPage() {
       const res = await clearLoginLogs(values.days)
       message.success(`清理成功，共删除 ${res.deleted_count} 条日志`)
       setClearOpen(false)
-      fetchList({ ...params, page: 1 })
+      setParams({ ...params, page: 1 })
     } catch {
       message.error('清理失败')
     } finally {
@@ -344,10 +338,8 @@ export default function LoginLogPage() {
       )}
 
       <Card className="list-filter-card" bordered={false}>
-        <Form
+        <ListFilterForm
           form={searchForm}
-          layout="inline"
-          className="list-filter-form"
           onFinish={handleSearch}
           initialValues={{
             ...params,
@@ -380,7 +372,7 @@ export default function LoginLogPage() {
               <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
             </Space>
           </Form.Item>
-        </Form>
+        </ListFilterForm>
       </Card>
 
       <Card className="list-main-card" bordered={false}>
@@ -409,7 +401,7 @@ export default function LoginLogPage() {
                 </Tooltip>
               )}
               <Tooltip title="刷新">
-                <Button aria-label="刷新登录日志" icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+                <Button aria-label="刷新登录日志" icon={<ReloadOutlined />} onClick={() => void reload()}>刷新</Button>
               </Tooltip>
             </Space>
           }
@@ -434,17 +426,17 @@ export default function LoginLogPage() {
         />
       </Card>
 
-      <Modal
+      <EntityFormModal
         title="清理登录日志"
         open={clearOpen}
-        onOk={handleClear}
-        onCancel={() => setClearOpen(false)}
-        confirmLoading={clearing}
+        form={clearForm}
+        onSubmit={handleClear}
+        onClose={() => setClearOpen(false)}
+        submitting={clearing}
         okButtonProps={{ danger: true }}
         okText="确认清理"
-        destroyOnHidden
+        formProps={{ style: { marginTop: 16 } }}
       >
-        <Form form={clearForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="days"
             label="保留最近天数（早于该范围的日志将被删除，不可恢复）"
@@ -453,8 +445,7 @@ export default function LoginLogPage() {
           >
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
-        </Form>
-      </Modal>
+      </EntityFormModal>
     </div>
   )
 }
