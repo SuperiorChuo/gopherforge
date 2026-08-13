@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Popconfirm, Card, Input, Form,
@@ -11,12 +11,14 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import type { FileRecord } from '@/types'
 import * as FileAPI from '@/api/system/file'
+import ListFilterForm from '@/components/ListFilterForm'
 import TableToolbar from '@/components/TableToolbar'
 import CountUpValue from '@/components/CountUpValue'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
+import { useTableQuery } from '@/hooks/useTableQuery'
 import './styles.css'
 
 interface SearchParams {
@@ -34,9 +36,6 @@ function formatSize(bytes: number): string {
 }
 
 export default function FilePage() {
-  const [list, setList] = useState<FileRecord[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [uploading, setUploading] = useState(false)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
@@ -58,22 +57,16 @@ export default function FilePage() {
     FileAPI.getFileStats().then(setStats).catch(() => {})
   }
 
-  const fetchList = async (p: SearchParams) => {
-    setLoading(true)
-    try {
-      const res = await FileAPI.getFileList(p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error(t('获取文件列表失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchList(params)
-  }, [params])
+  const fetchList = useCallback(async (p: SearchParams) => {
+    const res = await FileAPI.getFileList(p)
+    return { list: res.list, total: res.total }
+  }, [])
+  const onLoadError = useCallback(() => message.error(t('获取文件列表失败')), [t])
+  const { list, total, loading, reload } = useTableQuery({
+    params,
+    fetcher: fetchList,
+    onError: onLoadError,
+  })
 
   const handleSearch = (values: { keyword?: string; file_type?: string }) => {
     setParams({ ...params, page: 1, ...values })
@@ -92,7 +85,7 @@ export default function FilePage() {
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
-        fetchList(params)
+        void reload()
       }
     } catch {
       message.error(t('删除失败'))
@@ -110,7 +103,7 @@ export default function FilePage() {
         await FileAPI.uploadFile(files[0])
         message.success(t('上传成功'))
       }
-      fetchList(params)
+      void reload()
       refreshStats()
     } catch {
       message.error(t('上传失败'))
@@ -181,7 +174,7 @@ export default function FilePage() {
       if (selectedIds.length >= list.length && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
-        fetchList(params)
+        void reload()
       }
     } catch {
       message.error(t('批量删除失败'))
@@ -331,10 +324,8 @@ export default function FilePage() {
       )}
 
       <Card className="list-filter-card" bordered={false}>
-        <Form
+        <ListFilterForm
           form={searchForm}
-          layout="inline"
-          className="list-filter-form"
           onFinish={handleSearch}
           initialValues={params}
         >
@@ -350,7 +341,7 @@ export default function FilePage() {
               <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
-        </Form>
+        </ListFilterForm>
       </Card>
 
       <Card className="list-main-card" bordered={false}>
@@ -367,7 +358,7 @@ export default function FilePage() {
                   <Button danger icon={<DeleteOutlined />}>{t('批量删除 ({{n}})', { n: selectedIds.length })}</Button>
                 </Popconfirm>
               )}
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>
               {hasPerm('system:file:upload') && (
                 <Upload beforeUpload={beforeUpload} showUploadList={false} multiple>
                   <Button type="primary" icon={<UploadOutlined />} loading={uploading}>

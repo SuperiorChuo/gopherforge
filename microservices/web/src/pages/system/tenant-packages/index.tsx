@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type Key } from 'react'
+import { useCallback, useEffect, useMemo, useState, type Key } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Card, Checkbox, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Tree } from 'antd'
+import { Button, Card, Checkbox, Form, Input, InputNumber, Popconfirm, Select, Space, Table, Tag, Tooltip, Tree } from 'antd'
 import {
   DeleteOutlined,
   EditOutlined,
@@ -16,11 +16,15 @@ import { message } from '@/utils/feedback'
 import type { Permission, TenantPackageInfo } from '@/types'
 import * as PackageAPI from '@/api/system/tenantPackages'
 import { getPermissionList } from '@/api/system/permission'
+import EntityFormModal from '@/components/EntityFormModal'
+import ListFilterForm from '@/components/ListFilterForm'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import StatusPill from '@/components/StatusPill'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { usePermission } from '@/hooks/usePermission'
+import { useCrudModal } from '@/hooks/useCrudModal'
+import { useTableQuery } from '@/hooks/useTableQuery'
 import { formatDateTime } from '@/utils/format'
 import './styles.css'
 
@@ -52,12 +56,8 @@ function buildPermissionTree(perms: Permission[]): DataNode[] {
 
 export default function TenantPackagePage() {
   const { t } = useTranslation()
-  const [list, setList] = useState<TenantPackageInfo[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editRecord, setEditRecord] = useState<TenantPackageInfo | null>(null)
+  const editModal = useCrudModal<TenantPackageInfo>()
   const [submitting, setSubmitting] = useState(false)
   const [allPerms, setAllPerms] = useState<Permission[]>([])
   const [checkedCodes, setCheckedCodes] = useState<string[]>([])
@@ -110,39 +110,30 @@ export default function TenantPackagePage() {
   }, [permissionFilterActive, visibleCodes])
 
   useEffect(() => {
-    if (!modalOpen || !pendingInitialExpand || rootCodes.length === 0) return
+    if (!editModal.open || !pendingInitialExpand || rootCodes.length === 0) return
     setExpandedKeys(rootCodes)
     setPendingInitialExpand(false)
-  }, [modalOpen, pendingInitialExpand, rootCodes])
+  }, [editModal.open, pendingInitialExpand, rootCodes])
 
-  const fetchList = async (p: SearchParams) => {
-    setLoading(true)
-    try {
-      const res = await PackageAPI.getTenantPackageList({
-        page: p.page,
-        page_size: p.page_size,
-        keyword: p.keyword || undefined,
-      })
-      setList(res.list || [])
-      setTotal(res.total ?? 0)
-    } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : t('获取套餐列表失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchList(params)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params])
+  const fetchList = useCallback(async (p: SearchParams) => {
+    const res = await PackageAPI.getTenantPackageList({
+      page: p.page,
+      page_size: p.page_size,
+      keyword: p.keyword || undefined,
+    })
+    return { list: res.list || [], total: res.total ?? 0 }
+  }, [])
+  const onLoadError = useCallback((error?: unknown) => {
+    message.error(error instanceof Error ? error.message : t('获取套餐列表失败'))
+  }, [t])
+  const { list, total, loading, reload } = useTableQuery({ params, fetcher: fetchList, onError: onLoadError })
 
   useEffect(() => {
     // 权限树复用权限管理页的数据源（平铺列表，前端组树）
     getPermissionList({ page: 1, page_size: 500 })
       .then((res) => setAllPerms(res.list || []))
       .catch(() => message.error(t('加载权限树失败')))
-  }, [])
+  }, [t])
 
   const handleSearch = (values: { keyword?: string }) => {
     setParams({ ...params, page: 1, ...values })
@@ -154,7 +145,6 @@ export default function TenantPackagePage() {
   }
 
   function openCreate() {
-    setEditRecord(null)
     form.resetFields()
     form.setFieldsValue({ status: 1 })
     setCheckedCodes([])
@@ -162,18 +152,17 @@ export default function TenantPackagePage() {
     setShowSelectedOnly(false)
     setExpandedKeys(rootCodes)
     setPendingInitialExpand(rootCodes.length === 0)
-    setModalOpen(true)
+    editModal.openCreate()
   }
 
   function openEdit(row: TenantPackageInfo) {
-    setEditRecord(row)
+    editModal.openEdit(row)
     form.setFieldsValue({ name: row.name, status: row.status, remark: row.remark, storage_quota_mb: row.storage_quota_mb ?? 0 })
     setCheckedCodes(row.permission_codes || [])
     setPermissionKeyword('')
     setShowSelectedOnly(false)
     setExpandedKeys(rootCodes)
     setPendingInitialExpand(rootCodes.length === 0)
-    setModalOpen(true)
   }
 
   function updateExpandedKeys(keys: Key[]) {
@@ -186,8 +175,8 @@ export default function TenantPackagePage() {
     if (!values) return
     setSubmitting(true)
     try {
-      if (editRecord) {
-        await PackageAPI.updateTenantPackage(editRecord.id, {
+      if (editModal.record) {
+        await PackageAPI.updateTenantPackage(editModal.record.id, {
           name: values.name,
           permission_codes: checkedCodes,
           storage_quota_mb: values.storage_quota_mb ?? 0,
@@ -205,8 +194,8 @@ export default function TenantPackagePage() {
         })
         message.success(t('套餐已创建'))
       }
-      setModalOpen(false)
-      fetchList(params)
+      editModal.close()
+      void reload()
     } catch (e: unknown) {
       message.error(e instanceof Error ? e.message : t('保存失败'))
     } finally {
@@ -218,7 +207,7 @@ export default function TenantPackagePage() {
     try {
       await PackageAPI.deleteTenantPackage(row.id)
       message.success(t('套餐已删除'))
-      fetchList(params)
+      void reload()
     } catch (e: unknown) {
       message.error(e instanceof Error ? e.message : t('删除失败（有租户绑定时需先解绑）'))
     }
@@ -275,10 +264,8 @@ export default function TenantPackagePage() {
   return (
     <div className="page-list tenant-package-page">
       <Card className="list-filter-card" bordered={false}>
-        <Form
+        <ListFilterForm
           form={searchForm}
-          layout="inline"
-          className="list-filter-form"
           onFinish={handleSearch}
           initialValues={params}
         >
@@ -291,7 +278,7 @@ export default function TenantPackagePage() {
               <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
-        </Form>
+        </ListFilterForm>
       </Card>
 
       <Card className="list-main-card" bordered={false}>
@@ -300,7 +287,7 @@ export default function TenantPackagePage() {
           total={total}
           extra={
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>
               {hasPerm('system:tenant-package:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                   {t('新建套餐')}
@@ -329,15 +316,15 @@ export default function TenantPackagePage() {
         />
       </Card>
 
-      <Modal
-        title={editRecord ? t('编辑套餐 #{{id}}', { id: editRecord.id }) : t('新建套餐')}
-        open={modalOpen}
-        onCancel={() => setModalOpen(false)}
-        onOk={() => void onSubmit()}
-        confirmLoading={submitting}
+      <EntityFormModal
+        title={editModal.record ? t('编辑套餐 #{{id}}', { id: editModal.record.id }) : t('新建套餐')}
+        open={editModal.open}
+        form={form}
+        onClose={editModal.close}
+        onSubmit={onSubmit}
+        submitting={submitting}
         width={640}
       >
-        <Form form={form} layout="vertical">
           <Form.Item name="name" label={t('套餐名称')} rules={[{ required: true, message: t('必填') }]}>
             <Input placeholder={t('如：基础版 / 专业版')} maxLength={128} />
           </Form.Item>
@@ -410,8 +397,7 @@ export default function TenantPackagePage() {
               )}
             </div>
           </Form.Item>
-        </Form>
-      </Modal>
+      </EntityFormModal>
     </div>
   )
 }
