@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  Card, Switch, Tabs, Descriptions,
+  Table, Button, Space, Tag, Modal, Form, Input, Select,
+  Card, Switch, Tabs, Descriptions, Grid,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -13,6 +13,7 @@ import type { ColumnsType } from 'antd/es/table'
 import * as SmsAPI from '@/api/system/sms'
 import type { SmsChannel, SmsTemplate, SmsLog, SmsProvider, SmsChannelConfig } from '@/api/system/sms'
 import TableToolbar from '@/components/TableToolbar'
+import TableRowActions from '@/components/TableRowActions'
 import GlassEmpty from '@/components/GlassEmpty'
 import StatusPill from '@/components/StatusPill'
 import { formatDateTime } from '@/utils/format'
@@ -66,6 +67,8 @@ function ChannelTab() {
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
   const provider = Form.useWatch<SmsProvider | undefined>('provider', form)
 
   const fetchList = useCallback(async (p: ChannelSearchParams) => {
@@ -225,18 +228,33 @@ function ChannelTab() {
     { title: t('创建时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
     {
       title: t('操作'),
-      width: 140,
+      width: compactActions ? 48 : 96,
+      align: 'center' as const,
+      fixed: 'right' as const,
       render: (_, record) => (
-        <Space size={0} className="table-actions">
-          {hasPerm('system:sms-channel:update') && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>{t('编辑')}</Button>
-          )}
-          {hasPerm('system:sms-channel:delete') && (
-            <Popconfirm title={t('确认删除该渠道?')} onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>{t('删除')}</Button>
-            </Popconfirm>
-          )}
-        </Space>
+        <TableRowActions
+          menuOnly={compactActions}
+          maxInline={2}
+          ariaLabel={t('更多操作：{{name}}', { name: record.name })}
+          actions={[
+            {
+              key: 'edit',
+              label: t('编辑'),
+              icon: <EditOutlined />,
+              show: hasPerm('system:sms-channel:update'),
+              onClick: () => openEdit(record),
+            },
+            {
+              key: 'delete',
+              label: t('删除'),
+              icon: <DeleteOutlined />,
+              danger: true,
+              show: hasPerm('system:sms-channel:delete'),
+              confirm: t('确认删除该渠道?'),
+              onClick: () => { void handleDelete(record.id) },
+            },
+          ]}
+        />
       ),
     },
   ]
@@ -414,6 +432,8 @@ function TemplateTab() {
   const [searchForm] = Form.useForm()
   const [testForm] = Form.useForm()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
 
   const channelNames = useMemo(() => {
     const map = new Map<number, string>()
@@ -605,21 +625,40 @@ function TemplateTab() {
     },
     {
       title: t('操作'),
-      width: 210,
+      width: compactActions ? 48 : 120,
+      align: 'center' as const,
+      fixed: 'right' as const,
       render: (_, record) => (
-        <Space size={0} className="table-actions">
-          {hasPerm('system:sms:send') && (
-            <Button type="link" size="small" icon={<SendOutlined />} onClick={() => openTest(record)}>{t('测试')}</Button>
-          )}
-          {hasPerm('system:sms-template:update') && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>{t('编辑')}</Button>
-          )}
-          {hasPerm('system:sms-template:delete') && (
-            <Popconfirm title={t('确认删除该模板?')} onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>{t('删除')}</Button>
-            </Popconfirm>
-          )}
-        </Space>
+        <TableRowActions
+          menuOnly={compactActions}
+          maxInline={2}
+          ariaLabel={t('更多操作：{{name}}', { name: record.name || record.code })}
+          actions={[
+            {
+              key: 'test',
+              label: t('测试'),
+              icon: <SendOutlined />,
+              show: hasPerm('system:sms:send'),
+              onClick: () => openTest(record),
+            },
+            {
+              key: 'edit',
+              label: t('编辑'),
+              icon: <EditOutlined />,
+              show: hasPerm('system:sms-template:update'),
+              onClick: () => openEdit(record),
+            },
+            {
+              key: 'delete',
+              label: t('删除'),
+              icon: <DeleteOutlined />,
+              danger: true,
+              show: hasPerm('system:sms-template:delete'),
+              confirm: t('确认删除该模板?'),
+              onClick: () => { void handleDelete(record.id) },
+            },
+          ]}
+        />
       ),
     },
   ]
@@ -872,9 +911,21 @@ function LogTab() {
     { title: t('发送时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
     {
       title: t('操作'),
-      width: 80,
+      width: 48,
+      align: 'center' as const,
+      fixed: 'right' as const,
       render: (_, record) => (
-        <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => setDetail(record)}>{t('详情')}</Button>
+        <TableRowActions
+          maxInline={1}
+          actions={[
+            {
+              key: 'detail',
+              label: t('详情'),
+              icon: <EyeOutlined />,
+              onClick: () => setDetail(record),
+            },
+          ]}
+        />
       ),
     },
   ]

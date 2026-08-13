@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Card, Col, Form, InputNumber, Popconfirm, Row, Select, Space, Spin, Switch, Table, Tabs, Tag } from 'antd'
+import { Button, Card, Col, Form, InputNumber, Row, Select, Space, Spin, Switch, Table, Tabs, Tag, Grid } from 'antd'
 import { message } from '@/utils/feedback'
-import { ReloadOutlined, SafetyCertificateOutlined, SaveOutlined } from '@ant-design/icons'
+import { CheckOutlined, ReloadOutlined, SafetyCertificateOutlined, SaveOutlined, UnlockOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSettingList, upsertSetting } from '@/api/system/setting'
 import { getBlockedIPs, unblockIP, type BlockedIPEntry } from '@/api/system/login-security'
 import { getLoginRiskEvents, processLoginRiskEvent, type LoginRiskEvent } from '@/api/system/login-risk-events'
 import GlassEmpty from '@/components/GlassEmpty'
 import TableToolbar from '@/components/TableToolbar'
+import TableRowActions from '@/components/TableRowActions'
 import { formatDateTime } from '@/utils/format'
 import './styles.css'
 
@@ -20,6 +21,8 @@ const REASON_LABELS: Record<string, string> = {
 export default function LoginSecurityPage() {
   const { t } = useTranslation()
   const [form] = Form.useForm()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
 
   // ── 风控参数 ──
   const [configLoading, setConfigLoading] = useState(false)
@@ -123,11 +126,22 @@ export default function LoginSecurityPage() {
     {
       title: t('操作'),
       key: 'action',
-      width: 100,
+      width: 48,
+      align: 'center' as const,
+      fixed: 'right' as const,
       render: (_, row) => (
-        <Popconfirm title={t('确认解封该 IP？')} onConfirm={() => doUnblock(row.ip)}>
-          <Button type="link" size="small">{t('解封')}</Button>
-        </Popconfirm>
+        <TableRowActions
+          maxInline={1}
+          actions={[
+            {
+              key: 'unblock',
+              label: t('解封'),
+              icon: <UnlockOutlined />,
+              confirm: t('确认解封该 IP？'),
+              onClick: () => { void doUnblock(row.ip) },
+            },
+          ]}
+        />
       ),
     },
   ]
@@ -163,12 +177,24 @@ export default function LoginSecurityPage() {
     {
       title: t('处理'),
       dataIndex: 'processed',
-      width: 110,
+      width: compactActions ? 48 : 100,
+      align: 'center' as const,
       render: (v: boolean, row) =>
         v ? (
           <Tag color="blue">{t('已处理')}</Tag>
         ) : (
-          <Button type="link" size="small" onClick={() => doProcess(row.id)}>{t('标记处理')}</Button>
+          <TableRowActions
+            menuOnly={compactActions}
+            maxInline={1}
+            actions={[
+              {
+                key: 'process',
+                label: t('标记处理'),
+                icon: <CheckOutlined />,
+                onClick: () => { void doProcess(row.id) },
+              },
+            ]}
+          />
         ),
     },
   ]

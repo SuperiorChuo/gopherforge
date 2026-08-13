@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select, Alert,
-  Card, Row, Col, Avatar, Tooltip, Switch,
+  Table, Button, Space, Tag, Modal, Form, Input, Select, Alert,
+  Card, Row, Col, Avatar, Tooltip, Switch, Grid,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -18,6 +18,7 @@ import { getDepartmentList } from '@/api/system/department'
 import { getAllPosts } from '@/api/system/posts'
 import type { SystemPost } from '@/api/system/posts'
 import TableToolbar from '@/components/TableToolbar'
+import TableRowActions from '@/components/TableRowActions'
 import GlassEmpty from '@/components/GlassEmpty'
 import ExcelImportModal from '@/components/ExcelImportModal'
 import { useUrlParams } from '@/hooks/useUrlParams'
@@ -104,6 +105,8 @@ export default function UserPage() {
   const [searchForm] = Form.useForm()
   const [inviteForm] = Form.useForm()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
 
   const deptNameMap = useMemo(() => {
     const m = new Map<number, string>()
@@ -332,27 +335,41 @@ export default function UserPage() {
     },
     {
       title: t('操作'),
-      width: 132,
+      width: compactActions ? 48 : 132,
+      align: 'center' as const,
+      fixed: 'right' as const,
       render: (_, record) => (
-        <Space size={4} className="table-actions user-row-actions">
-          {hasPerm('system:user:update') && (
-            <Tooltip title={t('编辑')}>
-              <Button type="text" size="small" aria-label={t('编辑用户')} icon={<EditOutlined />} onClick={() => openEdit(record)} />
-            </Tooltip>
-          )}
-          {hasPerm('system:user:update') && (
-            <Tooltip title={t('重置密码')}>
-              <Button type="text" size="small" aria-label={t('重置用户密码')} icon={<KeyOutlined />} onClick={() => openReset(record)} />
-            </Tooltip>
-          )}
-          {hasPerm('system:user:delete') && (
-            <Popconfirm title={t('确认删除该用户？')} description={t('删除后不可恢复')} onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title={t('删除')}>
-                <Button type="text" size="small" danger aria-label={t('删除用户')} icon={<DeleteOutlined />} />
-              </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
+        <TableRowActions
+          className="user-row-actions"
+          menuOnly={compactActions}
+          maxInline={3}
+          ariaLabel={t('更多操作：{{name}}', { name: record.username })}
+          actions={[
+            {
+              key: 'edit',
+              label: t('编辑'),
+              icon: <EditOutlined />,
+              show: hasPerm('system:user:update'),
+              onClick: () => openEdit(record),
+            },
+            {
+              key: 'reset',
+              label: t('重置密码'),
+              icon: <KeyOutlined />,
+              show: hasPerm('system:user:update'),
+              onClick: () => openReset(record),
+            },
+            {
+              key: 'delete',
+              label: t('删除'),
+              icon: <DeleteOutlined />,
+              danger: true,
+              show: hasPerm('system:user:delete'),
+              confirm: { title: t('确认删除该用户？'), description: t('删除后不可恢复') },
+              onClick: () => { void handleDelete(record.id) },
+            },
+          ]}
+        />
       ),
     },
   ]

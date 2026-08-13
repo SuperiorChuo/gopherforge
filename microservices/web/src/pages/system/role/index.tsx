@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Popconfirm, Modal, Form, Input,
-  Card, Checkbox, Tooltip,
+  Table, Button, Space, Tag, Modal, Form, Input,
+  Card, Checkbox, Grid,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -29,6 +29,7 @@ function fetchAllPermissions(): Promise<Permission[]> {
   return permListCache
 }
 import TableToolbar from '@/components/TableToolbar'
+import TableRowActions from '@/components/TableRowActions'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
@@ -58,6 +59,8 @@ export default function RolePage() {
   const [searchForm] = Form.useForm()
   const { t } = useTranslation()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
 
   const fetchList = async (p: SearchParams) => {
     setLoading(true)
@@ -192,27 +195,41 @@ export default function RolePage() {
     { title: t('创建时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: t('操作'),
-      width: 132,
+      width: compactActions ? 48 : 132,
+      align: 'center' as const,
+      fixed: 'right' as const,
       render: (_, record) => (
-        <Space size={4} className="table-actions role-row-actions">
-          {hasPerm('system:role:update') && (
-            <Tooltip title={t('编辑')}>
-              <Button type="text" size="small" aria-label={t('编辑角色')} icon={<EditOutlined />} onClick={() => openEdit(record)} />
-            </Tooltip>
-          )}
-          {hasPerm('system:role:update') && (
-            <Tooltip title={t('分配权限')}>
-              <Button type="text" size="small" aria-label={t('分配角色权限')} icon={<SafetyOutlined />} onClick={() => openPermModal(record)} />
-            </Tooltip>
-          )}
-          {hasPerm('system:role:delete') && (
-            <Popconfirm title={t('确认删除该角色?')} onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title={t('删除')}>
-                <Button type="text" size="small" danger aria-label={t('删除角色')} icon={<DeleteOutlined />} />
-              </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
+        <TableRowActions
+          className="role-row-actions"
+          menuOnly={compactActions}
+          maxInline={3}
+          ariaLabel={t('更多操作：{{name}}', { name: record.name })}
+          actions={[
+            {
+              key: 'edit',
+              label: t('编辑'),
+              icon: <EditOutlined />,
+              show: hasPerm('system:role:update'),
+              onClick: () => openEdit(record),
+            },
+            {
+              key: 'perm',
+              label: t('分配权限'),
+              icon: <SafetyOutlined />,
+              show: hasPerm('system:role:update'),
+              onClick: () => openPermModal(record),
+            },
+            {
+              key: 'delete',
+              label: t('删除'),
+              icon: <DeleteOutlined />,
+              danger: true,
+              show: hasPerm('system:role:delete'),
+              confirm: t('确认删除该角色?'),
+              onClick: () => { void handleDelete(record.id) },
+            },
+          ]}
+        />
       ),
     },
   ]
