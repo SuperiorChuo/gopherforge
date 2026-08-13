@@ -1,0 +1,991 @@
+/* 框架文字层级（从 index.css 拆出） */
+
+/* ===== 框架文字层级 ===== */
+/* 卡片标题：加字距，右上 extra 退为注释层 */
+.ant-card .ant-card-head-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.ant-card .ant-card-head-wrapper {
+  min-width: 0;
+  gap: 12px;
+}
+
+.ant-card .ant-card-extra {
+  max-width: 100%;
+  min-width: 0;
+  color: rgba(148, 163, 184, 0.75);
+}
+
+@media (max-width: 575px) {
+  .ant-card .ant-card-head-wrapper {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .ant-card .ant-card-head-title {
+    flex: 1 1 180px;
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .ant-card .ant-card-extra {
+    flex: 0 1 auto;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .ant-card .ant-card-extra > .ant-space {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+/* 弹窗标题层级 */
+.ant-modal .ant-modal-title {
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: 0.3px;
+}
+
+/* 描述列表：label 退为小注释，内容为主 */
+.ant-descriptions .ant-descriptions-item-label {
+  font-size: 12.5px;
+  letter-spacing: 0.5px;
+  color: rgba(148, 163, 184, 0.75) !important;
+}
+
+.ant-descriptions .ant-descriptions-item-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 575px) {
+  .ant-descriptions .ant-descriptions-view table {
+    table-layout: fixed;
+  }
+
+  .ant-descriptions .ant-descriptions-item-label {
+    width: 88px;
+    min-width: 0;
+    white-space: normal;
+  }
+}
+
+/* 面包屑：干净文字路径（无胶囊外壳） */
+.app-breadcrumb.ant-breadcrumb {
+  margin: 0;
+  padding: 0;
+  font-size: 13.5px;
+  letter-spacing: 0.2px;
+  background: none;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.app-breadcrumb.ant-breadcrumb ol {
+  align-items: center;
+}
+
+.app-breadcrumb .ant-breadcrumb-separator {
+  margin-inline: 8px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.app-bc-sep {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(148, 163, 184, 0.5);
+  line-height: 1;
+}
+
+.app-bc-link {
+  appearance: none;
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  cursor: pointer;
+  color: rgba(148, 163, 184, 0.82);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  transition: color 0.15s ease;
+}
+
+.app-bc-link .anticon {
+  font-size: 13px;
+}
+
+.app-bc-link:hover {
+  color: #a5b4fc;
+}
+
+.app-bc-mid {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(148, 163, 184, 0.78);
+  font-weight: 500;
+}
+
+.app-bc-mid .anticon {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.app-bc-current {
+  color: rgba(241, 245, 249, 0.96);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.app-breadcrumb.ant-breadcrumb li:last-child {
+  color: rgba(241, 245, 249, 0.96);
+  font-weight: 600;
+}
+
+[data-theme='light'] .app-bc-sep {
+  color: rgba(148, 163, 184, 0.7);
+}
+
+[data-theme='light'] .app-bc-link {
+  color: #64748b;
+}
+
+[data-theme='light'] .app-bc-link:hover {
+  color: #2563eb;
+}
+
+[data-theme='light'] .app-bc-mid {
+  color: #64748b;
+}
+
+[data-theme='light'] .app-bc-current,
+[data-theme='light'] .app-breadcrumb.ant-breadcrumb li:last-child {
+  color: #0f172a;
+}
+
+/* 侧边栏菜单文字节奏 */
+.app-sider .ant-menu-item,
+.app-sider .ant-menu-submenu-title {
+  font-size: 13.5px;
+  letter-spacing: 0.4px;
+}
+
+/* Tabs 标签 */
+.ant-tabs .ant-tabs-tab {
+  font-size: 14px;
+  letter-spacing: 0.3px;
+}
+
+.ant-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  font-weight: 600;
+}
+
+/* 空状态文字 */
+.ant-empty-description {
+  color: rgba(148, 163, 184, 0.6) !important;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+
+/* 表格内 Tag：统一小号胶囊节奏 */
+.ant-table-cell .ant-tag {
+  font-size: 12px;
+  line-height: 20px;
+  padding-inline: 8px;
+  border-radius: 6px;
+  margin-inline-end: 4px;
+}
+
+/* 操作列链接按钮：收紧内边距，让多按钮排列更整齐 */
+.ant-table-cell .ant-btn-link {
+  padding-inline: 4px;
+  font-size: 13px;
+}
+
+/* 表单标签统一层级 */
+.ant-form-item .ant-form-item-label > label {
+  color: rgba(203, 213, 225, 0.85);
+  font-size: 13.5px;
+  letter-spacing: 0.2px;
+}
+
+/* 输入框占位符收敛 */
+.ant-input::placeholder,
+.ant-select-selection-placeholder {
+  letter-spacing: 0.3px;
+}
+
+/* 按钮文字节奏（登录页有独立覆写，不受影响） */
+.ant-btn {
+  letter-spacing: 0.5px;
+}
+
+.ant-btn.ant-btn-primary {
+  font-weight: 550;
+}
+
+/* Popconfirm/Tooltip 文字 */
+.ant-popover .ant-popconfirm-title {
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+/* User cell: avatar + name + sub line */
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.user-cell-text {
+  min-width: 0;
+}
+
+/* 列表头像:浮雕受光 + 行 hover 时轻微放大 */
+.user-cell .ant-avatar {
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    0 3px 10px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  font-weight: 600;
+}
+
+.ant-table-tbody > tr:hover .user-cell .ant-avatar {
+  transform: scale(1.06);
+}
+
+.user-cell-name {
+  overflow: hidden;
+  font-weight: 600;
+  color: rgba(248, 250, 252, 0.95);
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-cell-sub {
+  overflow: hidden;
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.78);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-contact {
+  min-width: 0;
+}
+
+.user-contact-main {
+  overflow: hidden;
+  color: rgba(226, 232, 240, 0.9);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-contact-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.72);
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+
+.user-page .user-tag-list {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: nowrap;
+}
+
+.user-page .user-tag-list > .ant-space-item {
+  min-width: 0;
+}
+
+.user-page .user-tag-list .ant-tag {
+  max-width: 78px;
+  margin-inline-end: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-page .user-tag-list .user-tag-more {
+  min-width: 34px;
+  max-width: none;
+  cursor: help;
+  text-align: center;
+}
+
+.user-page .user-row-actions {
+  flex-wrap: nowrap;
+}
+
+.user-page .user-row-actions .ant-btn {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding-inline: 0;
+  border: 1px solid transparent;
+}
+
+.user-page .user-row-actions .ant-btn:hover {
+  border-color: rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.role-page .role-cell-name {
+  font-weight: 600;
+  color: rgba(248, 250, 252, 0.94);
+}
+
+.role-page .role-code-tag {
+  max-width: 190px;
+  margin-inline-end: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-page .role-row-actions {
+  flex-wrap: nowrap;
+}
+
+.role-page .role-row-actions .ant-btn {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding-inline: 0;
+  border: 1px solid transparent;
+}
+
+.role-page .role-row-actions .ant-btn:hover {
+  border-color: rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+[data-theme='light'] .role-page .role-cell-name {
+  color: #1e293b;
+}
+
+.department-page .department-name-cell {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 8px;
+  font-weight: 600;
+  color: rgba(248, 250, 252, 0.94);
+  vertical-align: middle;
+}
+
+.department-page .department-name-text,
+.department-page .department-code-tag {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.department-page .department-name-text {
+  min-width: 0;
+}
+
+.department-page .department-code-tag {
+  max-width: 170px;
+  margin-inline-end: 0;
+}
+
+.department-page .department-row-actions {
+  flex-wrap: nowrap;
+}
+
+.department-page .department-row-actions .ant-btn {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding-inline: 0;
+  border: 1px solid transparent;
+}
+
+.department-page .department-row-actions .ant-btn:hover {
+  border-color: rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.department-page .department-row-disabled > td {
+  background: rgba(100, 116, 139, 0.045) !important;
+}
+
+.department-page .department-row-disabled .department-name-cell {
+  color: rgba(148, 163, 184, 0.72);
+}
+
+[data-theme='light'] .department-page .department-name-cell {
+  color: #1e293b;
+}
+
+[data-theme='light'] .department-page .department-row-disabled > td {
+  background: rgba(148, 163, 184, 0.08) !important;
+}
+
+[data-theme='light'] .department-page .department-row-disabled .department-name-cell {
+  color: #64748b;
+}
+
+.post-page .post-name-cell {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 8px;
+  font-weight: 600;
+  color: rgba(248, 250, 252, 0.94);
+  vertical-align: middle;
+}
+
+.post-page .post-name-cell .tree-title-icon {
+  margin-right: 0;
+}
+
+.post-page .post-name-text,
+.post-page .post-code-tag {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-page .post-name-text {
+  min-width: 0;
+}
+
+.post-page .post-code-tag {
+  max-width: 170px;
+  margin-inline-end: 0;
+}
+
+.post-page .post-row-actions {
+  flex-wrap: nowrap;
+}
+
+.post-page .post-row-actions .ant-btn {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding-inline: 0;
+  border: 1px solid transparent;
+}
+
+.post-page .post-row-actions .ant-btn:hover {
+  border-color: rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.post-page .post-row-actions .post-status-stop {
+  color: #fbbf24;
+}
+
+.post-page .post-row-actions .post-status-start {
+  color: #34d399;
+}
+
+.post-page .post-row-disabled > td {
+  background: rgba(100, 116, 139, 0.045) !important;
+}
+
+.post-page .post-row-disabled .post-name-cell {
+  color: rgba(148, 163, 184, 0.72);
+}
+
+.post-page .post-row-disabled .post-code-tag {
+  opacity: 0.62;
+}
+
+.post-page .post-row-disabled:hover > td {
+  background: rgba(100, 116, 139, 0.08) !important;
+}
+
+[data-theme='light'] .post-page .post-name-cell {
+  color: #1e293b;
+}
+
+[data-theme='light'] .post-page .post-row-disabled > td {
+  background: rgba(148, 163, 184, 0.08) !important;
+}
+
+[data-theme='light'] .post-page .post-row-disabled:hover > td {
+  background: rgba(148, 163, 184, 0.13) !important;
+}
+
+[data-theme='light'] .post-page .post-row-disabled .post-name-cell {
+  color: #64748b;
+}
+
+.menu-page .menu-title-cell {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 8px;
+  font-weight: 600;
+  color: rgba(248, 250, 252, 0.94);
+  vertical-align: middle;
+}
+
+.menu-page .menu-title-cell .tree-title-icon {
+  margin-right: 0;
+}
+
+.menu-page .menu-title-text,
+.menu-page .menu-name-cell,
+.menu-page .menu-path-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-page .menu-title-text {
+  min-width: 0;
+}
+
+.menu-page .menu-name-cell {
+  display: block;
+  font-size: 12px;
+}
+
+.menu-page .menu-path-cell {
+  display: block;
+}
+
+.menu-page .menu-row-actions {
+  flex-wrap: nowrap;
+}
+
+.menu-page .menu-row-actions .ant-btn {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding-inline: 0;
+  border: 1px solid transparent;
+}
+
+.menu-page .menu-row-actions .ant-btn:hover {
+  border-color: rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.menu-page .menu-view-switch {
+  margin-inline-end: 0;
+}
+
+@media (max-width: 767px) {
+  .menu-page .menu-view-switch,
+  .menu-page .menu-view-switch .ant-segmented {
+    width: 100%;
+  }
+}
+
+.menu-page .menu-row-disabled > td {
+  background: rgba(100, 116, 139, 0.045) !important;
+}
+
+.menu-page .menu-row-disabled .menu-title-cell,
+.menu-page .menu-row-disabled .menu-name-cell,
+.menu-page .menu-row-disabled .menu-path-cell {
+  color: rgba(148, 163, 184, 0.72);
+}
+
+.menu-page .menu-row-disabled:hover > td {
+  background: rgba(100, 116, 139, 0.08) !important;
+}
+
+[data-theme='light'] .menu-page .menu-title-cell {
+  color: #1e293b;
+}
+
+[data-theme='light'] .menu-page .menu-row-disabled > td {
+  background: rgba(148, 163, 184, 0.08) !important;
+}
+
+[data-theme='light'] .menu-page .menu-row-disabled:hover > td {
+  background: rgba(148, 163, 184, 0.13) !important;
+}
+
+[data-theme='light'] .menu-page .menu-row-disabled .menu-title-cell,
+[data-theme='light'] .menu-page .menu-row-disabled .menu-name-cell,
+[data-theme='light'] .menu-page .menu-row-disabled .menu-path-cell {
+  color: #64748b;
+}
+
+.user-page .user-row-disabled > td {
+  background: rgba(100, 116, 139, 0.045) !important;
+}
+
+.user-page .user-row-disabled .user-cell .ant-avatar {
+  opacity: 0.62;
+  filter: grayscale(0.72);
+}
+
+.user-page .user-row-disabled .user-cell-name,
+.user-page .user-row-disabled .user-contact-main {
+  color: rgba(148, 163, 184, 0.72);
+}
+
+.user-page .user-row-disabled:hover > td {
+  background: rgba(100, 116, 139, 0.08) !important;
+}
+
+[data-theme='light'] .user-page .user-row-disabled > td {
+  background: rgba(148, 163, 184, 0.08) !important;
+}
+
+[data-theme='light'] .user-page .user-row-disabled .user-cell-name,
+[data-theme='light'] .user-page .user-row-disabled .user-contact-main {
+  color: #64748b;
+}
+
+[data-theme='light'] .user-page .user-row-disabled:hover > td {
+  background: rgba(148, 163, 184, 0.13) !important;
+}
+
+@media (max-width: 575px) {
+  .user-page .table-actions .ant-btn {
+    width: 32px;
+    min-width: 32px;
+    padding-inline: 0;
+  }
+
+  .user-page .table-actions .ant-btn > span:not(.ant-btn-icon) {
+    display: none;
+  }
+
+  .user-page .list-table col:last-child {
+    width: 132px !important;
+    min-width: 132px !important;
+  }
+
+  .user-page .user-cell {
+    gap: 9px;
+  }
+
+  .user-page .user-cell .ant-avatar {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    line-height: 34px;
+  }
+}
+
+.cell-muted {
+  color: rgba(148, 163, 184, 0.55);
+  font-size: 13px;
+}
+
+/* 耗时语义色（操作日志等），浅色主题在 light 覆盖块加深 */
+.latency-high {
+  color: #f87171;
+}
+
+.latency-mid {
+  color: #fbbf24;
+}
+
+.latency-low {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.table-actions .ant-btn-link {
+  padding-inline: 6px;
+}
+
+/* 列表页骨架 */
+.page-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.list-filter-card.ant-card {
+  border-radius: 14px !important;
+  background: rgba(18, 20, 34, 0.42) !important;
+  border: 1px solid rgba(148, 163, 184, 0.12) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 8px 24px rgba(0, 0, 0, 0.14) !important;
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+}
+
+.list-filter-card .ant-card-body {
+  padding: 14px 16px !important;
+}
+
+.list-filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 0;
+  row-gap: 8px;
+}
+
+.list-filter-form .ant-form-item {
+  margin-bottom: 0 !important;
+  margin-inline-end: 12px !important;
+}
+
+.list-filter-form .ant-input-affix-wrapper,
+.list-filter-form .ant-select-selector {
+  border-radius: 10px !important;
+}
+
+.list-filter-actions {
+  margin-inline-start: auto !important;
+  margin-inline-end: 0 !important;
+}
+
+.list-main-card.ant-card {
+  border-radius: 14px !important;
+  background: rgba(18, 20, 34, 0.38) !important;
+  border: 1px solid rgba(148, 163, 184, 0.1) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 12px 32px rgba(0, 0, 0, 0.16) !important;
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+}
+
+.list-main-card .ant-card-body {
+  padding: 16px 18px 12px !important;
+}
+
+.list-table .ant-table-thead > tr > th {
+  white-space: nowrap;
+}
+
+.list-table .ant-table-tbody > tr > td {
+  vertical-align: middle;
+}
+
+.list-table .ant-table-tbody > tr.ant-table-row:hover > td {
+  background: rgba(99, 102, 241, 0.06) !important;
+}
+
+/* 用户表单弹窗 */
+.user-form-modal .ant-modal-content {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.user-form-modal .user-form .ant-form-item {
+  margin-bottom: 14px;
+}
+
+.user-form-modal .user-form .ant-form-item-label > label {
+  font-weight: 500;
+  color: rgba(226, 232, 240, 0.88);
+}
+
+[data-theme='light'] .user-form-modal .user-form .ant-form-item-label > label {
+  color: #334155;
+}
+
+[data-theme='light'] .list-filter-card.ant-card {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border-color: rgba(15, 23, 42, 0.07) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 8px 22px rgba(37, 99, 235, 0.05) !important;
+}
+
+[data-theme='light'] .list-main-card.ant-card {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-color: rgba(15, 23, 42, 0.07) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 12px 28px rgba(37, 99, 235, 0.06) !important;
+}
+
+[data-theme='light'] .list-table .ant-table-tbody > tr.ant-table-row:hover > td {
+  background: rgba(239, 246, 255, 0.9) !important;
+}
+
+[data-theme='light'] .user-cell-name {
+  color: #0f172a;
+}
+
+[data-theme='light'] .user-cell-sub,
+[data-theme='light'] .user-contact-sub {
+  color: #64748b;
+}
+
+[data-theme='light'] .user-contact-main {
+  color: #334155;
+}
+
+[data-theme='light'] .cell-muted {
+  color: #94a3b8;
+}
+
+[data-theme='light'] .latency-high {
+  color: #dc2626;
+}
+
+[data-theme='light'] .latency-mid {
+  color: #d97706;
+}
+
+[data-theme='light'] .latency-low {
+  color: #64748b;
+}
+
+@media (max-width: 768px) {
+  .list-filter-form .ant-form-item {
+    margin-inline-end: 0 !important;
+    width: 100%;
+  }
+
+  .list-filter-form .ant-input-affix-wrapper,
+  .list-filter-form .ant-select,
+  .list-filter-form .ant-picker,
+  .list-filter-form .ant-input-number {
+    width: 100% !important;
+  }
+
+  .list-filter-actions {
+    margin-inline-start: 0 !important;
+    width: 100%;
+  }
+
+  .list-filter-actions .ant-space {
+    width: 100%;
+  }
+
+  .list-filter-actions .ant-btn {
+    flex: 1;
+  }
+}
+
+/* Card-style tab bar for pages whose top level is Tabs */
+.page-tabs > .ant-tabs-nav {
+  background: rgba(15, 16, 32, 0.6);
+  padding: 4px 16px 0;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  margin-bottom: 16px;
+}
+
+.page-tabs > .ant-tabs-nav::before {
+  border-bottom: none;
+}
+
+.page-tabs > .ant-tabs-nav .ant-tabs-nav-more {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  transition:
+    color var(--dur-fast) ease,
+    background var(--dur-fast) ease;
+}
+
+.page-tabs > .ant-tabs-nav .ant-tabs-nav-more:hover {
+  background: color-mix(in srgb, var(--c-primary) 12%, transparent);
+}
+
+@media (max-width: 767px) {
+  .page-tabs > .ant-tabs-nav {
+    padding-inline: 10px;
+  }
+
+  .page-tabs > .ant-tabs-nav .ant-tabs-extra-content .ant-btn {
+    width: 32px;
+    padding-inline: 0;
+  }
+
+  .page-tabs > .ant-tabs-nav .ant-tabs-extra-content .ant-btn > span:not(.ant-btn-icon) {
+    display: none;
+  }
+}
+
+/* Permission assign modal */
+.perm-assign-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 16px 0 12px;
+}
+
+.perm-assign-count {
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 13px;
+}
+
+.perm-assign-count b {
+  color: #a5b4fc;
+}
+
+.perm-assign-list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  align-content: start;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* 整行可点的权限胶囊 */
+.perm-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.perm-pill:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.perm-pill-on {
+  background: rgba(99, 102, 241, 0.13);
+  border-color: rgba(129, 140, 248, 0.35);
+}
+
+.perm-pill-name {
+  font-size: 13px;
+  color: rgba(226, 232, 240, 0.88);
+  white-space: nowrap;
+}
+
+.perm-pill-code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: rgba(148, 163, 184, 0.6);
+}

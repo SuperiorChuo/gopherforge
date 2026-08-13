@@ -1,0 +1,960 @@
+/* 亮色主题样式（从 index.css 拆出） */
+
+/* ============================================================
+   白蓝液态玻璃主题（[data-theme='light']）
+   登录页与 403/404/500 保持深空风格（独立品牌页），不受影响
+   ============================================================ */
+
+[data-theme='light'] {
+  --app-bg: #edf3fb;
+  --sider-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(242, 247, 255, 0.8) 100%);
+  --c-primary: #2563eb;
+  --c-success: #059669;
+  --c-success-strong: #047857;
+  --c-warning: #d97706;
+  --c-orange: #ea580c;
+  --c-error: #dc2626;
+  --c-error-strong: #b91c1c;
+  --c-purple: #7c3aed;
+  --c-cyan: #0891b2;
+  --c-gold: #b45309;
+  --text-secondary: rgba(71, 85, 105, 0.9);
+  --text-tertiary: rgba(100, 116, 139, 0.75);
+  --text-disabled: rgba(148, 163, 184, 0.8);
+  --card-bg: rgba(255, 255, 255, 0.72);
+}
+
+[data-theme='light'] body {
+  color: rgba(15, 23, 42, 0.88);
+}
+
+/* 环境光：天蓝色斑 */
+[data-theme='light'] .app-content-glow {
+  background:
+    radial-gradient(ellipse 55% 45% at 12% -5%, rgba(59, 130, 246, 0.14), transparent 60%),
+    radial-gradient(ellipse 50% 45% at 95% 110%, rgba(14, 165, 233, 0.1), transparent 60%);
+}
+
+/* 选区与滚动条 */
+[data-theme='light'] ::selection {
+  background: rgba(37, 99, 235, 0.2);
+  color: #0f172a;
+}
+
+[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: rgba(37, 99, 235, 0.25);
+}
+
+[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(37, 99, 235, 0.45);
+}
+
+[data-theme='light'] :focus-visible {
+  outline-color: rgba(37, 99, 235, 0.6);
+}
+
+/* ---- 布局骨架 ---- */
+[data-theme='light'] .app-sider {
+  box-shadow: 2px 0 16px rgba(15, 23, 42, 0.06);
+  border-right: 1px solid rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+}
+
+[data-theme='light'] .app-logo {
+  border-bottom-color: rgba(15, 23, 42, 0.06);
+}
+
+[data-theme='light'] .app-logo-mark {
+  background: linear-gradient(135deg, #60a5fa, #2563eb);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+[data-theme='light'] .app-logo-text {
+  color: #0f172a;
+}
+
+[data-theme='light'] .app-menu-scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.15);
+}
+
+[data-theme='light'] .app-sider .ant-menu-light .ant-menu-item-selected {
+  background: linear-gradient(100deg, #3b82f6, #2563eb) !important;
+  color: #fff !important;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
+}
+
+[data-theme='light'] .app-header {
+  background: rgba(255, 255, 255, 0.65) !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+[data-theme='light'] .app-trigger {
+  color: #475569;
+}
+
+[data-theme='light'] .app-trigger:hover {
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+}
+
+[data-theme='light'] .app-user:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+
+[data-theme='light'] .app-user-name {
+  color: #334155;
+}
+
+[data-theme='light'] .app-search-hint {
+  border-color: rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.55);
+  color: rgba(100, 116, 139, 0.8);
+}
+
+[data-theme='light'] .app-search-hint:hover {
+  border-color: rgba(37, 99, 235, 0.45);
+  color: #475569;
+}
+
+[data-theme='light'] .app-search-hint kbd {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.15);
+  color: #64748b;
+}
+
+/* ---- 液态玻璃卡片 ---- */
+[data-theme='light'] .ant-card {
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border-color: rgba(15, 23, 42, 0.07) !important;
+  box-shadow: 0 8px 30px rgba(37, 99, 235, 0.06);
+}
+
+/* 玻璃上沿高光：白色反光 */
+[data-theme='light'] .ant-card::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+}
+
+[data-theme='light'] .ant-modal .ant-modal-content {
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme='light'] .ant-modal .ant-modal-content::before {
+  background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.55), transparent);
+}
+
+[data-theme='light'] .ant-table-tbody > tr:nth-child(even) > td {
+  background: rgba(37, 99, 235, 0.018);
+}
+
+[data-theme='light'] .ant-form-item .ant-form-item-label > label {
+  color: #334155;
+}
+
+[data-theme='light'] #nprogress .bar {
+  background: linear-gradient(90deg, #2563eb, #60a5fa) !important;
+}
+
+[data-theme='light'] #nprogress .peg {
+  box-shadow: 0 0 10px #3b82f6, 0 0 5px #3b82f6 !important;
+}
+
+/* ---- 仪表盘 ---- */
+[data-theme='light'] .dash-hero {
+  background: linear-gradient(120deg, #2563eb 0%, #3b82f6 55%, #0ea5e9 100%);
+  border-color: transparent;
+  box-shadow: 0 16px 40px rgba(37, 99, 235, 0.3);
+}
+
+[data-theme='light'] .dash-hero::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+}
+
+[data-theme='light'] .dash-hero-greeting em {
+  background: linear-gradient(100deg, #ffffff 0%, #dbeafe 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+[data-theme='light'] .dash-hero-glow {
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), transparent 70%);
+}
+
+[data-theme='light'] .stat-card-title {
+  color: #64748b;
+}
+
+[data-theme='light'] .stat-card-value {
+  color: #0f172a;
+}
+
+[data-theme='light'] .stat-card-foot {
+  border-top-color: rgba(15, 23, 42, 0.06);
+  color: #94a3b8;
+}
+
+[data-theme='light'] .stat-card:hover {
+  border-color: rgba(37, 99, 235, 0.35) !important;
+  box-shadow:
+    0 18px 44px rgba(37, 99, 235, 0.14),
+    0 0 0 1px rgba(37, 99, 235, 0.08);
+}
+
+[data-theme='light'] .stat-card:hover .stat-card-foot {
+  color: #2563eb;
+}
+
+[data-theme='light'] .dash-online-num {
+  background: linear-gradient(120deg, #60a5fa 0%, #2563eb 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+[data-theme='light'] .trend-count {
+  color: #475569;
+}
+
+[data-theme='light'] .trend-date {
+  color: #94a3b8;
+}
+
+[data-theme='light'] .trend-legend {
+  color: #64748b;
+}
+
+[data-theme='light'] .trend-bar-success {
+  background: linear-gradient(180deg, #60a5fa, #2563eb);
+}
+
+[data-theme='light'] .dash-notice-item {
+  border-bottom-color: rgba(15, 23, 42, 0.07);
+}
+
+[data-theme='light'] .dash-notice-title {
+  color: #334155;
+}
+
+[data-theme='light'] .dash-notice-time {
+  color: #94a3b8;
+}
+
+/* ---- 表格与工具栏 ---- */
+[data-theme='light'] .table-toolbar-title {
+  color: #0f172a;
+}
+
+[data-theme='light'] .table-toolbar-title::before {
+  background: linear-gradient(180deg, #60a5fa, #2563eb);
+}
+
+[data-theme='light'] .table-count {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+[data-theme='light'] .ant-table-cell.cell-time {
+  color: #64748b;
+}
+
+[data-theme='light'] .user-cell-name {
+  color: #1e293b;
+}
+
+[data-theme='light'] .user-cell-sub {
+  color: #94a3b8;
+}
+
+/* ---- 监控 ---- */
+/* 见 styles/monitor.css */
+
+/* ---- 日志统计条与详情 ---- */
+[data-theme='light'] .log-stat-label {
+  color: #94a3b8;
+}
+
+[data-theme='light'] .log-stat-value {
+  color: #0f172a;
+}
+
+[data-theme='light'] .log-stat-divider {
+  background: rgba(15, 23, 42, 0.07);
+}
+
+[data-theme='light'] .log-detail-block-title {
+  color: #94a3b8;
+}
+
+[data-theme='light'] .log-detail-block pre {
+  background: rgba(15, 23, 42, 0.03);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme='light'] .log-detail-error pre {
+  background: rgba(220, 38, 38, 0.05);
+  border-color: rgba(220, 38, 38, 0.25);
+  color: #b91c1c;
+}
+
+/* ---- 通知铃铛 ---- */
+[data-theme='light'] .notice-bell-item {
+  border-bottom-color: rgba(15, 23, 42, 0.07);
+}
+
+[data-theme='light'] .notice-bell-item-title {
+  color: #1e293b;
+}
+
+[data-theme='light'] .notice-bell-item-content {
+  color: #64748b;
+}
+
+[data-theme='light'] .notice-bell-item-time {
+  color: #94a3b8;
+}
+
+/* ---- 用户下拉 ---- */
+[data-theme='light'] .user-drop-name {
+  color: #0f172a;
+}
+
+[data-theme='light'] .user-drop-meta {
+  color: #64748b;
+}
+
+[data-theme='light'] .user-drop-role {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.25);
+  color: #2563eb;
+}
+
+/* ---- 命令面板 ---- */
+[data-theme='light'] .cmdk-input-wrap,
+[data-theme='light'] .cmdk-foot {
+  border-color: rgba(15, 23, 42, 0.07);
+}
+
+[data-theme='light'] .cmdk-item-active {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+[data-theme='light'] .cmdk-item-icon {
+  color: #2563eb;
+}
+
+[data-theme='light'] .cmdk-item-label {
+  color: #1e293b;
+}
+
+[data-theme='light'] .cmdk-item-group {
+  color: #94a3b8;
+}
+
+[data-theme='light'] .cmdk-item-enter {
+  color: rgba(37, 99, 235, 0.6);
+}
+
+[data-theme='light'] .cmdk-foot {
+  color: #94a3b8;
+}
+
+[data-theme='light'] .cmdk-foot kbd,
+[data-theme='light'] .cmdk-modal kbd {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.15);
+  color: #475569;
+}
+
+/* ---- 权限胶囊 ---- */
+[data-theme='light'] .perm-assign-list {
+  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(15, 23, 42, 0.02);
+}
+
+[data-theme='light'] .perm-pill:hover {
+  background: rgba(37, 99, 235, 0.05);
+}
+
+[data-theme='light'] .perm-pill-on {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+[data-theme='light'] .perm-pill-name {
+  color: #1e293b;
+}
+
+[data-theme='light'] .perm-pill-code {
+  color: #94a3b8;
+}
+
+[data-theme='light'] .perm-assign-count {
+  color: #64748b;
+}
+
+[data-theme='light'] .perm-assign-count b {
+  color: #2563eb;
+}
+
+/* ---- 个人中心 hero：白蓝渐变横幅 ---- */
+/* 见 styles/profile.css */
+
+/* ============================================================
+   主题感知工具类 + 亮色补漏
+   ============================================================ */
+
+/* 弱化的等宽文本（路径/编码等） */
+.cell-dim {
+  color: rgba(203, 213, 225, 0.75);
+}
+
+[data-theme='light'] .cell-dim {
+  color: #64748b;
+}
+
+/* 统计强调数值 */
+.log-stat-accent {
+  color: #818cf8;
+}
+
+[data-theme='light'] .log-stat-accent {
+  color: #2563eb;
+}
+
+/* 统计成功/失败数值(替换页面内联色,亮色主题用深一号) */
+.log-stat-success {
+  color: #34d399;
+}
+
+.log-stat-danger {
+  color: #f87171;
+}
+
+[data-theme='light'] .log-stat-success {
+  color: #059669;
+}
+
+[data-theme='light'] .log-stat-danger {
+  color: #dc2626;
+}
+
+/* 树形表格首列图标(菜单/部门标题列) */
+.tree-title-icon {
+  margin-right: 8px;
+  color: rgba(129, 140, 248, 0.8);
+}
+
+[data-theme='light'] .tree-title-icon {
+  color: rgba(37, 99, 235, 0.75);
+}
+
+/* 卡片右上角的弱说明文字(设置页"更新于...") */
+.card-extra-note {
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.7);
+}
+
+[data-theme='light'] .card-extra-note {
+  color: #94a3b8;
+}
+
+/* ============================================================
+   页面打磨 · 表单控件玻璃化收尾
+   Switch 液滴滑块 / 校验错误提示浮现 / 必填星号呼吸
+   ============================================================ */
+
+/* Switch:开启后轨道渐变流动,手柄是一颗受光的玻璃液滴 */
+.ant-switch {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.ant-switch.ant-switch-checked {
+  background: linear-gradient(100deg, #6366f1 0%, #7c3aed 55%, #6366f1 100%) !important;
+  background-size: 220% 100% !important;
+  animation: liquid-btn-flow 7s linear infinite;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 2px 10px rgba(99, 102, 241, 0.4);
+}
+
+[data-theme='light'] .ant-switch.ant-switch-checked {
+  background: linear-gradient(100deg, #2563eb 0%, #0ea5e9 55%, #2563eb 100%) !important;
+  background-size: 220% 100% !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 2px 10px rgba(37, 99, 235, 0.35);
+}
+
+.ant-switch .ant-switch-handle::before {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* 校验错误:轻微下滑浮现 + 输入框摇头提示 */
+.ant-form-item-explain-error {
+  animation: form-error-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes form-error-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ant-form-item-has-error .ant-input-affix-wrapper,
+.ant-form-item-has-error .ant-input,
+.ant-form-item-has-error .ant-select .ant-select-selector,
+.ant-form-item-has-error .ant-input-number {
+  animation: form-error-shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes form-error-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-3px); }
+  40%, 60% { transform: translateX(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ant-form-item-has-error .ant-input-affix-wrapper,
+  .ant-form-item-has-error .ant-input,
+  .ant-form-item-has-error .ant-select .ant-select-selector,
+  .ant-form-item-has-error .ant-input-number,
+  .ant-form-item-explain-error {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   页面打磨 · 登录页聚焦光波纹
+   输入框聚焦时,一圈光晕从输入框向外扩散一次
+   ============================================================ */
+
+.login-page .ant-input-affix-wrapper-focused,
+.login-page .ant-input-affix-wrapper:focus-within {
+  animation: login-focus-ripple 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes login-focus-ripple {
+  0% {
+    outline: 2px solid rgba(129, 140, 248, 0.55);
+    outline-offset: 0;
+  }
+  100% {
+    outline: 2px solid rgba(129, 140, 248, 0);
+    outline-offset: 14px;
+  }
+}
+
+[data-theme='light'] .login-page .ant-input-affix-wrapper-focused,
+[data-theme='light'] .login-page .ant-input-affix-wrapper:focus-within {
+  animation: login-focus-ripple-light 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes login-focus-ripple-light {
+  0% {
+    outline: 2px solid rgba(59, 130, 246, 0.45);
+    outline-offset: 0;
+  }
+  100% {
+    outline: 2px solid rgba(59, 130, 246, 0);
+    outline-offset: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-page .ant-input-affix-wrapper-focused,
+  .login-page .ant-input-affix-wrapper:focus-within {
+    animation: none !important;
+  }
+}
+
+/* 新通知到达:铃铛以顶部为轴摇一下 */
+.bell-ringing {
+  display: inline-block;
+  transform-origin: 50% 2px;
+  animation: bell-ring 0.9s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes bell-ring {
+  0% { transform: rotate(0); }
+  12% { transform: rotate(16deg); }
+  28% { transform: rotate(-13deg); }
+  44% { transform: rotate(9deg); }
+  60% { transform: rotate(-6deg); }
+  76% { transform: rotate(3deg); }
+  100% { transform: rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bell-ringing {
+    animation: none !important;
+  }
+}
+
+/* 玻璃内嵌槽（恢复码等代码块容器） */
+.glass-well {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+}
+
+[data-theme='light'] .glass-well {
+  background: rgba(15, 23, 42, 0.03);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+/* 补漏：面包屑当前页在亮色下不能是白字 */
+[data-theme='light'] .ant-breadcrumb li:last-child {
+  color: #0f172a;
+}
+
+/* 补漏：Tabs 卡片头（设置/字典页）亮色玻璃 */
+[data-theme='light'] .page-tabs > .ant-tabs-nav {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(15, 23, 42, 0.07);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+}
+
+/* 补漏：描述列表 label / 空状态文字 */
+[data-theme='light'] .ant-descriptions .ant-descriptions-item-label {
+  color: #64748b !important;
+}
+
+[data-theme='light'] .ant-empty-description {
+  color: #94a3b8 !important;
+}
+
+/* 补漏：蓝色渐变 hero 上的副文案改用白系 */
+[data-theme='light'] .dash-hero-sub {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+[data-theme='light'] .dash-hero-meta {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 补漏：趋势柱悬浮辉光换蓝 */
+[data-theme='light'] .trend-bar-area:hover .trend-bar-success,
+[data-theme='light'] .trend-bar-area:hover .trend-bar-failed {
+  box-shadow: 0 0 14px rgba(37, 99, 235, 0.45);
+}
+
+/* ============================================================
+   登录页 & 结果页跟随主题：白蓝液态玻璃变体
+   ============================================================ */
+
+[data-theme='light'] .login-page {
+  background: #eaf1fa;
+}
+
+[data-theme='light'] .login-aurora-1 {
+  background: radial-gradient(circle at 30% 30%, #3b82f6, transparent 65%);
+  opacity: 0.3;
+}
+
+[data-theme='light'] .login-aurora-2 {
+  background: radial-gradient(circle at 40% 40%, #0ea5e9, transparent 65%);
+  opacity: 0.26;
+}
+
+[data-theme='light'] .login-aurora-3 {
+  background: radial-gradient(circle at 50% 50%, #60a5fa, transparent 65%);
+  opacity: 0.18;
+}
+
+[data-theme='light'] .login-grid {
+  background-image:
+    linear-gradient(rgba(37, 99, 235, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.07) 1px, transparent 1px);
+}
+
+[data-theme='light'] .login-shell {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow:
+    0 40px 100px rgba(37, 99, 235, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+[data-theme='light'] .login-shell::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+}
+
+[data-theme='light'] .login-brand {
+  border-right-color: rgba(15, 23, 42, 0.06);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.13), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(14, 165, 233, 0.1), transparent 55%);
+}
+
+[data-theme='light'] .login-logo-mark {
+  background: linear-gradient(135deg, #60a5fa, #2563eb);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+}
+
+[data-theme='light'] .login-logo-name {
+  color: #0f172a;
+}
+
+[data-theme='light'] .login-headline {
+  color: #0f172a;
+}
+
+[data-theme='light'] .login-headline em {
+  background: linear-gradient(100deg, #2563eb 0%, #3b82f6 40%, #0ea5e9 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+[data-theme='light'] .login-subline {
+  color: #64748b;
+}
+
+[data-theme='light'] .login-features li {
+  color: #475569;
+}
+
+[data-theme='light'] .login-feature-icon {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+[data-theme='light'] .login-form-title {
+  color: #0f172a;
+}
+
+[data-theme='light'] .login-form-sub {
+  color: #64748b;
+}
+
+[data-theme='light'] .login-footer {
+  color: #94a3b8;
+}
+
+/* 输入框：白玻璃（原暗色覆盖带 !important，需同权重压过） */
+[data-theme='light'] .login-page .ant-input-affix-wrapper,
+[data-theme='light'] .login-page .ant-input-outlined,
+[data-theme='light'] .login-page .ant-input {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  color: rgba(15, 23, 42, 0.88) !important;
+}
+
+[data-theme='light'] .login-page .ant-input::placeholder {
+  color: rgba(100, 116, 139, 0.6);
+}
+
+[data-theme='light'] .login-page .ant-input-prefix {
+  color: rgba(100, 116, 139, 0.75);
+}
+
+[data-theme='light'] .login-page .ant-input-password-icon,
+[data-theme='light'] .login-page .ant-input-password-icon:hover {
+  color: rgba(100, 116, 139, 0.85);
+}
+
+[data-theme='light'] .login-page .ant-input-affix-wrapper-focused,
+[data-theme='light'] .login-page .ant-input-affix-wrapper:focus-within,
+[data-theme='light'] .login-page .ant-input:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
+
+[data-theme='light'] .login-page .ant-btn-primary {
+  background: linear-gradient(100deg, #2563eb 0%, #0ea5e9 100%);
+  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.35);
+}
+
+[data-theme='light'] .login-page .ant-btn-primary:not(:disabled):hover {
+  box-shadow: 0 14px 34px rgba(37, 99, 235, 0.5);
+}
+
+[data-theme='light'] .login-page .ant-btn-link {
+  color: #2563eb;
+}
+
+[data-theme='light'] .login-captcha-img {
+  border-color: rgba(15, 23, 42, 0.14);
+}
+
+[data-theme='light'] .login-captcha-img:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+/* ---- 403/404/500 结果页亮色 ---- */
+/* 见 styles/result-pages.css */
+
+/* ============================================================
+   液态流动层：光斑漂移 + 流光扫过 + 渐变流动
+   ============================================================ */
+
+/* 环境光升级为流动光斑：透过半透明卡片可感知的缓慢流动 */
+.app-content-glow::before,
+.app-content-glow::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  will-change: transform;
+}
+
+.app-content-glow::before {
+  width: 55vw;
+  height: 55vw;
+  top: -25vw;
+  left: -15vw;
+  background: radial-gradient(circle at 35% 35%, rgba(79, 70, 229, 0.16), transparent 65%);
+  animation: liquid-drift-1 30s ease-in-out infinite alternate;
+}
+
+.app-content-glow::after {
+  width: 48vw;
+  height: 48vw;
+  bottom: -22vw;
+  right: -12vw;
+  background: radial-gradient(circle at 40% 40%, rgba(124, 58, 237, 0.13), transparent 65%);
+  animation: liquid-drift-2 36s ease-in-out infinite alternate;
+}
+
+@keyframes liquid-drift-1 {
+  to {
+    transform: translate(14vw, 10vh) scale(1.15);
+  }
+}
+
+@keyframes liquid-drift-2 {
+  to {
+    transform: translate(-12vw, -8vh) scale(0.9);
+  }
+}
+
+[data-theme='light'] .app-content-glow::before {
+  background: radial-gradient(circle at 35% 35%, rgba(59, 130, 246, 0.17), transparent 65%);
+}
+
+[data-theme='light'] .app-content-glow::after {
+  background: radial-gradient(circle at 40% 40%, rgba(14, 165, 233, 0.14), transparent 65%);
+}
+
+/* 暗色卡片也加背照模糊：流动光斑透过玻璃可见（亮色已有更强版本） */
+.ant-card {
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+}
+
+/* hero 流光：一道柔和光带周期性扫过玻璃表面
+   （动 transform 而非 left——left 每帧触发 layout，流光是常驻无限动画，
+   必须走合成器。位移用自身宽度百分比：190% 父宽 ÷ 36% 自宽 ≈ 530%） */
+.dash-hero::after,
+.profile-hero::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  bottom: -60%;
+  width: 36%;
+  left: -55%;
+  background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.07) 50%, transparent 100%);
+  transform: skewX(-18deg);
+  animation: liquid-sheen 9s ease-in-out infinite;
+  will-change: transform;
+  pointer-events: none;
+}
+
+[data-theme='light'] .dash-hero::after,
+[data-theme='light'] .profile-hero::after {
+  background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100%);
+}
+
+@keyframes liquid-sheen {
+  0%, 55% {
+    transform: translateX(0) skewX(-18deg);
+  }
+  85%, 100% {
+    transform: translateX(var(--sheen-travel, 530%)) skewX(-18deg);
+  }
+}
+
+/* 主按钮：渐变缓慢流动（危险按钮除外） */
+.ant-btn-primary:not(.ant-btn-dangerous):not(:disabled) {
+  background-image: linear-gradient(100deg, #6366f1 0%, #7c3aed 45%, #6366f1 90%) !important;
+  background-size: 220% 100% !important;
+  animation: liquid-btn-flow 7s linear infinite;
+  border: none;
+}
+
+[data-theme='light'] .ant-btn-primary:not(.ant-btn-dangerous):not(:disabled) {
+  background-image: linear-gradient(100deg, #2563eb 0%, #0ea5e9 45%, #2563eb 90%) !important;
+}
+
+@keyframes liquid-btn-flow {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+/* 侧边栏选中项同样流动 */
+.app-sider .ant-menu-dark .ant-menu-item-selected {
+  background-size: 220% 100% !important;
+  animation: liquid-btn-flow 8s linear infinite;
+}
+
+[data-theme='light'] .app-sider .ant-menu-light .ant-menu-item-selected {
+  background: linear-gradient(100deg, #3b82f6 0%, #2563eb 45%, #3b82f6 90%) !important;
+  background-size: 220% 100% !important;
+  animation: liquid-btn-flow 8s linear infinite;
+}
+
+/* 减少动态效果：流动层全部静止（delay 也要归零,否则 backwards 填充会让卡片空窗) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* 登录卡与结果卡：同款流光扫过（自宽 30%，位移换算 185%÷30% ≈ 620%） */
+.login-shell::after,
+.space-result-card::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  bottom: -60%;
+  width: 30%;
+  left: -50%;
+  --sheen-travel: 620%;
+  background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.05) 50%, transparent 100%);
+  transform: skewX(-18deg);
+  animation: liquid-sheen 11s ease-in-out infinite;
+  will-change: transform;
+  pointer-events: none;
+  z-index: 1;
+}
+
+[data-theme='light'] .login-shell::after,
+[data-theme='light'] .space-result-card::after {
+  background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.35) 50%, transparent 100%);
+}
+
+/* 登录页网格随呼吸微微起伏（缩放遮罩而非平移，避免"传送带"感） */
+.login-grid {
+  animation: login-grid-breathe 14s ease-in-out infinite alternate;
+}
+
+@keyframes login-grid-breathe {
+  to {
+    opacity: 0.55;
+  }
+}

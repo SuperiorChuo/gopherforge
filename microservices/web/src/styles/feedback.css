@@ -1,0 +1,99 @@
+/* 空状态样式（从 index.css 拆出） */
+
+/* ============================================================
+   页面打磨 · 空状态(GlassEmpty) —— 玻璃托盘 + 呼吸光晕
+   经 ConfigProvider renderEmpty 注入全站
+   ============================================================ */
+
+.glass-empty {
+  padding: 40px 0 32px;
+  text-align: center;
+}
+
+.glass-empty-compact {
+  padding: 20px 0 16px;
+}
+
+.glass-empty-compact .glass-empty-icon {
+  width: 48px;
+  height: 48px;
+  font-size: 22px;
+  border-radius: 14px;
+}
+
+.glass-empty-compact .glass-empty-text {
+  margin-top: 12px;
+}
+
+.glass-empty-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  font-size: 28px;
+  color: rgba(148, 163, 184, 0.55);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px) saturate(1.3);
+  -webkit-backdrop-filter: blur(8px) saturate(1.3);
+}
+
+/* 托盘底下一汪呼吸的光 */
+.glass-empty-icon::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -14px;
+  width: 54px;
+  height: 10px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(99, 102, 241, 0.25), transparent 70%);
+  filter: blur(4px);
+  animation: glass-empty-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes glass-empty-breathe {
+  0%, 100% {
+    opacity: 0.9;
+    transform: translateX(-50%) scaleX(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: translateX(-50%) scaleX(0.75);
+  }
+}
+
+.glass-empty-text {
+  margin-top: 18px;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: rgba(148, 163, 184, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-empty-icon::after {
+    animation: none;
+    opacity: 0.55;
+  }
+}
+
+[data-theme='light'] .glass-empty-icon {
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.9);
+}
+
+[data-theme='light'] .glass-empty-icon::after {
+  background: radial-gradient(ellipse, rgba(37, 99, 235, 0.2), transparent 70%);
+}
+
+[data-theme='light'] .glass-empty-text {
+  color: #94a3b8;
+}

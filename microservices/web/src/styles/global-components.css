@@ -1,0 +1,1006 @@
+/* 全局组件样式（从 index.css 拆出） */
+
+/* ============================================================
+   页面打磨 · 回到顶部玻璃悬浮钮
+   ============================================================ */
+
+.back-top-btn {
+  position: fixed;
+  right: 28px;
+  bottom: 32px;
+  /* 低于 .app-sider-mask 的 90:移动端展开侧栏时遮罩必须压住它 */
+  z-index: 80;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(21, 23, 41, 0.6);
+  color: rgba(203, 213, 225, 0.9);
+  font-size: 17px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 10px 28px rgba(0, 0, 0, 0.4);
+  animation: glass-rise-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.back-top-btn:hover {
+  transform: translateY(-3px);
+  color: #a5b4fc;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 14px 34px rgba(0, 0, 0, 0.45),
+    0 0 24px rgba(99, 102, 241, 0.3);
+}
+
+[data-theme='light'] .back-top-btn {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #475569;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 10px 28px rgba(15, 23, 42, 0.12);
+}
+
+[data-theme='light'] .back-top-btn:hover {
+  color: #2563eb;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 14px 34px rgba(37, 99, 235, 0.18),
+    0 0 24px rgba(37, 99, 235, 0.2);
+}
+
+/* ============================================================
+   页面打磨 · 路由懒加载兜底
+   两块玻璃占位(工具条+内容卡)带扫光,接近成品布局不跳变
+   ============================================================ */
+
+.route-fallback {
+  animation: glass-rise-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.route-fallback-bar,
+.route-fallback-card {
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.05) 25%,
+    rgba(148, 163, 184, 0.1) 40%,
+    rgba(148, 163, 184, 0.05) 55%
+  );
+  background-size: 400% 100%;
+  animation: glass-skeleton-sweep 1.6s ease infinite;
+}
+
+.route-fallback-bar {
+  height: 64px;
+  margin-bottom: 16px;
+}
+
+.route-fallback-card {
+  height: 420px;
+}
+
+[data-theme='light'] .route-fallback-bar,
+[data-theme='light'] .route-fallback-card {
+  border-color: rgba(15, 23, 42, 0.06);
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.03) 25%,
+    rgba(15, 23, 42, 0.07) 40%,
+    rgba(15, 23, 42, 0.03) 55%
+  );
+  background-size: 400% 100%;
+}
+
+/* ============================================================
+   管理员下拉 · 干净实底（小面板不做波浪/涟漪）
+   ============================================================ */
+
+.user-drop-popup.ant-dropdown {
+  padding-top: 4px;
+}
+
+.user-drop-popup .user-drop-menu.ant-dropdown-menu {
+  min-width: 220px;
+  padding: 8px !important;
+  border-radius: 12px !important;
+  background: #16182a !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.user-drop-popup .user-drop-menu .ant-dropdown-menu-item,
+.user-drop-popup .user-drop-menu .ant-dropdown-menu-item .anticon {
+  color: #f1f5f9 !important;
+}
+
+.user-drop-popup .user-drop-menu .ant-dropdown-menu-item-danger,
+.user-drop-popup .user-drop-menu .ant-dropdown-menu-item-danger .anticon {
+  color: #fca5a5 !important;
+}
+
+.user-drop-popup .user-drop-menu .ant-dropdown-menu-item {
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  margin: 1px 0 !important;
+  transition: background 0.15s ease;
+}
+
+.user-drop-popup .user-drop-menu .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-disabled):hover {
+  background: rgba(99, 102, 241, 0.18) !important;
+}
+
+.user-drop-popup .user-drop-menu .ant-dropdown-menu-item-danger:hover {
+  background: rgba(248, 113, 113, 0.14) !important;
+}
+
+.user-drop-popup .user-drop-menu .ant-dropdown-menu-item-divider {
+  margin: 6px 8px !important;
+  background: rgba(148, 163, 184, 0.18) !important;
+}
+
+/* 顶部用户信息：纯文字，不要嵌套卡片 */
+.user-drop-popup .user-drop-menu .ant-dropdown-menu-item.user-drop-info-item,
+.user-drop-popup .user-drop-menu .ant-dropdown-menu-item:has(.user-drop-head) {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  margin: 0 0 2px !important;
+  padding: 6px 12px 8px !important;
+  cursor: default !important;
+  opacity: 1 !important;
+}
+
+.user-drop-popup .user-drop-menu .ant-dropdown-menu-item.user-drop-info-item:hover,
+.user-drop-popup .user-drop-menu .ant-dropdown-menu-item:has(.user-drop-head):hover {
+  background: transparent !important;
+}
+
+[data-theme='light'] .user-drop-popup .user-drop-menu.ant-dropdown-menu {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12) !important;
+}
+
+[data-theme='light'] .user-drop-popup .user-drop-menu .ant-dropdown-menu-item,
+[data-theme='light'] .user-drop-popup .user-drop-menu .ant-dropdown-menu-item .anticon {
+  color: #0f172a !important;
+}
+
+[data-theme='light'] .user-drop-popup .user-drop-menu .ant-dropdown-menu-item-danger,
+[data-theme='light'] .user-drop-popup .user-drop-menu .ant-dropdown-menu-item-danger .anticon {
+  color: #dc2626 !important;
+}
+
+[data-theme='light'] .user-drop-popup .user-drop-menu .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-disabled):hover {
+  background: rgba(37, 99, 235, 0.08) !important;
+}
+
+[data-theme='light'] .user-drop-popup .user-drop-menu .ant-dropdown-menu-item-danger:hover {
+  background: rgba(220, 38, 38, 0.06) !important;
+}
+
+[data-theme='light'] .user-drop-popup .user-drop-menu .ant-dropdown-menu-item.user-drop-info-item,
+[data-theme='light'] .user-drop-popup .user-drop-menu .ant-dropdown-menu-item:has(.user-drop-head),
+[data-theme='light'] .user-drop-popup .user-drop-menu .ant-dropdown-menu-item.user-drop-info-item:hover,
+[data-theme='light'] .user-drop-popup .user-drop-menu .ant-dropdown-menu-item:has(.user-drop-head):hover {
+  background: transparent !important;
+}
+
+[data-theme='light'] .user-drop-popup .user-drop-menu .ant-dropdown-menu-item-divider {
+  background: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* 其它通用下拉：同样走清晰实底 */
+.ant-dropdown:not(.user-drop-popup) .ant-dropdown-menu {
+  padding: 6px !important;
+  border-radius: 12px !important;
+  background: #16182a !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: none !important;
+}
+
+.ant-dropdown:not(.user-drop-popup) .ant-dropdown-menu .ant-dropdown-menu-item,
+.ant-dropdown:not(.user-drop-popup) .ant-dropdown-menu .ant-dropdown-menu-item .anticon {
+  color: #f1f5f9 !important;
+}
+
+[data-theme='light'] .ant-dropdown:not(.user-drop-popup) .ant-dropdown-menu {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12) !important;
+}
+
+[data-theme='light'] .ant-dropdown:not(.user-drop-popup) .ant-dropdown-menu .ant-dropdown-menu-item,
+[data-theme='light'] .ant-dropdown:not(.user-drop-popup) .ant-dropdown-menu .ant-dropdown-menu-item .anticon {
+  color: #0f172a !important;
+}
+
+/* ============================================================
+   页面打磨 · 悬浮层家族拉齐(Popover/Select/DatePicker/Cascader)
+   与重制后的 Dropdown 同一标准:薄底 + 深透镜 + 受光 + 顶线
+   ============================================================ */
+
+.ant-popover .ant-popover-inner,
+.ant-select-dropdown,
+.ant-picker-dropdown .ant-picker-panel-container,
+.ant-cascader-dropdown {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px !important;
+  background: rgba(21, 23, 41, 0.62) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  backdrop-filter: blur(32px) saturate(1.7) brightness(1.06);
+  -webkit-backdrop-filter: blur(32px) saturate(1.7) brightness(1.06);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.12),
+    inset 1px 0 0 rgba(255, 255, 255, 0.05),
+    inset -1px 0 0 rgba(255, 255, 255, 0.05),
+    0 18px 50px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(99, 102, 241, 0.12) !important;
+}
+
+[data-theme='light'] .ant-popover .ant-popover-inner,
+[data-theme='light'] .ant-select-dropdown,
+[data-theme='light'] .ant-picker-dropdown .ant-picker-panel-container,
+[data-theme='light'] .ant-cascader-dropdown {
+  background: rgba(255, 255, 255, 0.66) !important;
+  border-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(36px) saturate(1.9) brightness(1.03);
+  -webkit-backdrop-filter: blur(36px) saturate(1.9) brightness(1.03);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 1),
+    inset 1px 0 0 rgba(255, 255, 255, 0.7),
+    inset -1px 0 0 rgba(255, 255, 255, 0.7),
+    0 18px 50px rgba(37, 99, 235, 0.15),
+    0 0 40px rgba(37, 99, 235, 0.08) !important;
+}
+
+/* Popover 的实心小箭头同样穿帮,隐藏 */
+.ant-popover .ant-popover-arrow {
+  display: none;
+}
+
+/* Select/Cascader 选项:圆角胶囊 + 玻璃 hover + 选中左缘光线 */
+.ant-select-dropdown .ant-select-item,
+.ant-cascader-dropdown .ant-cascader-menu-item {
+  position: relative;
+  border-radius: 8px !important;
+  transition: background 0.13s ease;
+}
+
+.ant-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled),
+.ant-cascader-dropdown .ant-cascader-menu-item:hover {
+  background: rgba(99, 102, 241, 0.14) !important;
+}
+
+.ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: rgba(99, 102, 241, 0.2) !important;
+}
+
+.ant-select-dropdown .ant-select-item-option-selected::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 22%;
+  bottom: 22%;
+  width: 2.5px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, transparent, rgba(129, 140, 248, 0.9), transparent);
+}
+
+[data-theme='light'] .ant-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled),
+[data-theme='light'] .ant-cascader-dropdown .ant-cascader-menu-item:hover {
+  background: rgba(37, 99, 235, 0.09) !important;
+}
+
+[data-theme='light'] .ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: rgba(37, 99, 235, 0.12) !important;
+}
+
+[data-theme='light'] .ant-select-dropdown .ant-select-item-option-selected::before {
+  background: linear-gradient(180deg, transparent, rgba(37, 99, 235, 0.85), transparent);
+}
+
+/* 命令面板选中项:同款左缘光线,和全站语言合流 */
+.cmdk-item {
+  position: relative;
+}
+
+.cmdk-item-active::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 22%;
+  bottom: 22%;
+  width: 2.5px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, transparent, rgba(129, 140, 248, 0.9), transparent);
+}
+
+[data-theme='light'] .cmdk-item-active::before {
+  background: linear-gradient(180deg, transparent, rgba(37, 99, 235, 0.85), transparent);
+}
+
+/* ============================================================
+   页面打磨 · 表格密度切换(头部按钮,html[data-density] 驱动)
+   ============================================================ */
+
+html[data-density='compact'] .ant-table-tbody > tr > td {
+  padding-block: 7px !important;
+  font-size: 13px;
+}
+
+html[data-density='compact'] .ant-table-thead > tr > th {
+  padding-block: 8px !important;
+}
+
+html[data-density='compact'] .ant-table-wrapper .ant-pagination {
+  margin-top: 14px !important;
+}
+
+/* ============================================================
+   页面打磨 · 移动端头部收纳
+   ============================================================ */
+
+/* ============================================================
+   页面打磨 · 日期选择面板玻璃重制
+   外壳此前已玻璃化,但内部还是原生方块("砖头"):
+   圆形玻璃日格 + 渐变选中 + 液态范围光带 + 玻璃头部/页脚
+   ============================================================ */
+
+/* 弹出动效:与下拉家族同款浮起(替换生硬的默认 slide) */
+.ant-picker-dropdown.ant-slide-up-enter .ant-picker-panel-container,
+.ant-picker-dropdown.ant-slide-up-appear .ant-picker-panel-container,
+.ant-picker-dropdown.ant-slide-down-enter .ant-picker-panel-container,
+.ant-picker-dropdown.ant-slide-down-appear .ant-picker-panel-container {
+  animation: liquid-pop-in 0.26s cubic-bezier(0.22, 1.3, 0.36, 1) both;
+}
+
+/* 面板内部全透明,让外壳的玻璃透镜说话 */
+.ant-picker-dropdown .ant-picker-panel {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* 头部:年月按钮变玻璃胶囊,底部一条渐隐光线 */
+.ant-picker-dropdown .ant-picker-header {
+  border-bottom: none !important;
+  position: relative;
+  padding: 2px 8px;
+}
+
+.ant-picker-dropdown .ant-picker-header::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.28), transparent);
+}
+
+.ant-picker-dropdown .ant-picker-header button {
+  border-radius: 8px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ant-picker-dropdown .ant-picker-header button:hover {
+  background: rgba(99, 102, 241, 0.14);
+  color: #a5b4fc;
+}
+
+.ant-picker-dropdown .ant-picker-header-view {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* 星期行:退为小注释层 */
+.ant-picker-dropdown .ant-picker-content th {
+  color: rgba(148, 163, 184, 0.55) !important;
+  font-size: 11.5px;
+  letter-spacing: 1px;
+  padding-bottom: 4px;
+}
+
+/* 日格:圆角玻璃,hover 衬底 + 微微浮起 */
+.ant-picker-dropdown .ant-picker-cell .ant-picker-cell-inner {
+  border-radius: 9px !important;
+  transition: background 0.13s ease, box-shadow 0.13s ease, transform 0.13s ease;
+}
+
+.ant-picker-dropdown .ant-picker-cell:hover:not(.ant-picker-cell-selected):not(.ant-picker-cell-range-start):not(.ant-picker-cell-range-end) .ant-picker-cell-inner {
+  background: rgba(99, 102, 241, 0.14) !important;
+  transform: translateY(-1px);
+}
+
+/* 今天:细光环,不抢选中态 */
+.ant-picker-dropdown .ant-picker-cell-today .ant-picker-cell-inner::before {
+  border: 1px solid rgba(129, 140, 248, 0.55) !important;
+  border-radius: 9px !important;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.25);
+}
+
+/* 选中/范围端点:渐变玻璃药丸 + 辉光,与主按钮同语言 */
+.ant-picker-dropdown .ant-picker-cell-selected .ant-picker-cell-inner,
+.ant-picker-dropdown .ant-picker-cell-range-start .ant-picker-cell-inner,
+.ant-picker-dropdown .ant-picker-cell-range-end .ant-picker-cell-inner {
+  background: linear-gradient(135deg, #6366f1, #7c3aed) !important;
+  color: #fff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    0 4px 14px rgba(99, 102, 241, 0.45),
+    0 0 20px rgba(124, 58, 237, 0.3) !important;
+}
+
+/* 范围中段:液态光带(半透明靛蓝,像一段被点亮的玻璃槽) */
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-in-range::before,
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-start:not(.ant-picker-cell-range-start-single)::before,
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-end:not(.ant-picker-cell-range-end-single)::before {
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.16), rgba(124, 58, 237, 0.12)) !important;
+}
+
+/* 页脚:顶部渐隐光线;"此刻/今天"链接用主题色 */
+.ant-picker-dropdown .ant-picker-footer {
+  border-top: none !important;
+  position: relative;
+}
+
+.ant-picker-dropdown .ant-picker-footer::before {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.28), transparent);
+}
+
+.ant-picker-dropdown .ant-picker-now-btn {
+  color: #a5b4fc;
+}
+
+/* 时间列:分割线换光线,选中项玻璃胶囊 */
+.ant-picker-dropdown .ant-picker-time-panel {
+  border-inline-start: 1px solid rgba(148, 163, 184, 0.14) !important;
+}
+
+.ant-picker-dropdown .ant-picker-time-panel-column:not(:first-child) {
+  border-inline-start: 1px solid rgba(148, 163, 184, 0.1) !important;
+}
+
+.ant-picker-dropdown .ant-picker-time-panel-cell-inner {
+  border-radius: 7px !important;
+  transition: background 0.13s ease;
+}
+
+.ant-picker-dropdown .ant-picker-time-panel-cell-selected .ant-picker-time-panel-cell-inner {
+  background: rgba(99, 102, 241, 0.22) !important;
+  color: #c7d2fe !important;
+}
+
+/* 双月面板间的分界:渐隐光线替代实线 */
+.ant-picker-dropdown .ant-picker-panels > .ant-picker-panel:not(:last-child) {
+  border-inline-end: 1px solid transparent !important;
+  background-image: linear-gradient(180deg, transparent, rgba(148, 163, 184, 0.2) 30%, rgba(148, 163, 184, 0.2) 70%, transparent) !important;
+  background-position: right center;
+  background-size: 1px 100%;
+  background-repeat: no-repeat;
+}
+
+/* 输入框下的激活条:渐变光条 */
+.ant-picker .ant-picker-active-bar {
+  background: linear-gradient(90deg, #6366f1, #a78bfa) !important;
+  height: 2px !important;
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.55);
+}
+
+/* ---- 亮色主题 ---- */
+[data-theme='light'] .ant-picker-dropdown .ant-picker-header button:hover {
+  background: rgba(37, 99, 235, 0.09);
+  color: #2563eb;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-content th {
+  color: #94a3b8 !important;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell:hover:not(.ant-picker-cell-selected):not(.ant-picker-cell-range-start):not(.ant-picker-cell-range-end) .ant-picker-cell-inner {
+  background: rgba(37, 99, 235, 0.09) !important;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-today .ant-picker-cell-inner::before {
+  border-color: rgba(37, 99, 235, 0.5) !important;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.2);
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-selected .ant-picker-cell-inner,
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-range-start .ant-picker-cell-inner,
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-range-end .ant-picker-cell-inner {
+  background: linear-gradient(135deg, #2563eb, #0ea5e9) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+    0 4px 14px rgba(37, 99, 235, 0.4),
+    0 0 20px rgba(14, 165, 233, 0.25) !important;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-in-range::before,
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-start:not(.ant-picker-cell-range-start-single)::before,
+[data-theme='light'] .ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-end:not(.ant-picker-cell-range-end-single)::before {
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.1), rgba(14, 165, 233, 0.08)) !important;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-now-btn {
+  color: #2563eb;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-time-panel-cell-selected .ant-picker-time-panel-cell-inner {
+  background: rgba(37, 99, 235, 0.12) !important;
+  color: #1d4ed8 !important;
+}
+
+[data-theme='light'] .ant-picker-dropdown .ant-picker-header::after,
+[data-theme='light'] .ant-picker-dropdown .ant-picker-footer::before {
+  background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.12), transparent);
+}
+
+[data-theme='light'] .ant-picker .ant-picker-active-bar {
+  background: linear-gradient(90deg, #2563eb, #38bdf8) !important;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ant-picker-dropdown.ant-slide-up-enter .ant-picker-panel-container,
+  .ant-picker-dropdown.ant-slide-up-appear .ant-picker-panel-container,
+  .ant-picker-dropdown.ant-slide-down-enter .ant-picker-panel-container,
+  .ant-picker-dropdown.ant-slide-down-appear .ant-picker-panel-container {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   页面打磨 · 复选框/步骤条/树选择 玻璃化收官
+   ============================================================ */
+
+/* Checkbox:选中态渐变填充 + 辉光,与 Switch/主按钮同语言
+   (antd v6 无 -inner 元素,勾选盒就是 .ant-checkbox 本体) */
+.ant-checkbox {
+  border-radius: 5px;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ant-checkbox-checked,
+.ant-checkbox-indeterminate {
+  background: linear-gradient(135deg, #6366f1, #7c3aed) !important;
+  border-color: transparent !important;
+}
+
+.ant-checkbox-checked {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 2px 8px rgba(99, 102, 241, 0.4);
+}
+
+/* 半选态小方块:白色浮在渐变底上 */
+.ant-checkbox-indeterminate::after {
+  background: #fff !important;
+}
+
+[data-theme='light'] .ant-checkbox-checked,
+[data-theme='light'] .ant-checkbox-indeterminate {
+  background: linear-gradient(135deg, #2563eb, #0ea5e9) !important;
+}
+
+[data-theme='light'] .ant-checkbox-checked {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 2px 8px rgba(37, 99, 235, 0.35);
+}
+
+/* 表格选中行:整行衬玻璃色,和 hover 区分靠深浅 */
+.ant-table-tbody > tr.ant-table-row-selected > td {
+  background: rgba(99, 102, 241, 0.1) !important;
+}
+
+.ant-table-tbody > tr.ant-table-row-selected:hover > td {
+  background: rgba(99, 102, 241, 0.14) !important;
+}
+
+[data-theme='light'] .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: rgba(37, 99, 235, 0.06) !important;
+}
+
+[data-theme='light'] .ant-table-tbody > tr.ant-table-row-selected:hover > td {
+  background: rgba(37, 99, 235, 0.09) !important;
+}
+
+/* Steps:完成/进行中的圆点变渐变玻璃徽章,连接线亮成光线 */
+.ant-steps .ant-steps-item-process .ant-steps-item-icon,
+.ant-steps .ant-steps-item-finish .ant-steps-item-icon {
+  background: linear-gradient(135deg, #6366f1, #7c3aed) !important;
+  border-color: transparent !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.ant-steps .ant-steps-item-finish .ant-steps-item-icon .ant-steps-icon {
+  color: #fff !important;
+}
+
+/* 连接线:antd v6 是 rail 元素,完成段亮成主色(线色走 CSS 变量) */
+.ant-steps .ant-steps-item-rail-finish {
+  --ant-cmp-steps-item-solid-line-color: #818cf8;
+}
+
+[data-theme='light'] .ant-steps .ant-steps-item-rail-finish {
+  --ant-cmp-steps-item-solid-line-color: #3b82f6;
+}
+
+[data-theme='light'] .ant-steps .ant-steps-item-process .ant-steps-item-icon,
+[data-theme='light'] .ant-steps .ant-steps-item-finish .ant-steps-item-icon {
+  background: linear-gradient(135deg, #2563eb, #0ea5e9) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+/* TreeSelect/Tree 弹层:节点圆角胶囊 + 玻璃 hover + 选中光线 */
+.ant-tree-select-dropdown .ant-select-tree-treenode {
+  border-radius: 8px;
+  transition: background 0.13s ease;
+}
+
+.ant-tree-select-dropdown .ant-select-tree-node-content-wrapper {
+  border-radius: 7px !important;
+  transition: background 0.13s ease;
+}
+
+.ant-tree-select-dropdown .ant-select-tree-node-content-wrapper:hover {
+  background: rgba(99, 102, 241, 0.14) !important;
+}
+
+.ant-tree-select-dropdown .ant-select-tree-node-content-wrapper.ant-select-tree-node-selected {
+  background: rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme='light'] .ant-tree-select-dropdown .ant-select-tree-node-content-wrapper:hover {
+  background: rgba(37, 99, 235, 0.08) !important;
+}
+
+[data-theme='light'] .ant-tree-select-dropdown .ant-select-tree-node-content-wrapper.ant-select-tree-node-selected {
+  background: rgba(37, 99, 235, 0.12) !important;
+}
+
+/* ============================================================
+   页面打磨 · 细节收尾:Tabs 光条 / 图片预览玻璃 / Logo 呼吸辉光
+   ============================================================ */
+
+/* Tabs 指示条:渐变发光条,与日期输入激活条同语言 */
+.ant-tabs .ant-tabs-ink-bar {
+  background: linear-gradient(90deg, #6366f1, #a78bfa) !important;
+  height: 2.5px !important;
+  border-radius: 2px;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.55);
+}
+
+[data-theme='light'] .ant-tabs .ant-tabs-ink-bar {
+  background: linear-gradient(90deg, #2563eb, #38bdf8) !important;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.45);
+}
+
+/* 图片预览:遮罩磨砂 + 操作条玻璃胶囊 */
+.ant-image-preview-mask {
+  background: rgba(10, 11, 20, 0.6) !important;
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+
+.ant-image-preview-actions {
+  background: rgba(21, 23, 41, 0.55) !important;
+  border-radius: 999px;
+  margin-top: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.ant-image-preview-actions .ant-image-preview-actions-action:hover {
+  color: #a5b4fc;
+}
+
+/* Logo 徽章:缓慢的呼吸辉光,全站的"心跳"
+   （辉光叠在 ::after 上只动 opacity——直接动 box-shadow 每帧纯重绘,无法合成器加速） */
+.app-logo-mark {
+  position: relative;
+}
+
+.app-logo-mark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    0 4px 16px rgba(79, 70, 229, 0.35),
+    0 0 28px rgba(99, 102, 241, 0.35);
+  opacity: 0;
+  animation: logo-breathe 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes logo-breathe {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+[data-theme='light'] .app-logo-mark::after {
+  box-shadow:
+    0 4px 16px rgba(37, 99, 235, 0.3),
+    0 0 28px rgba(37, 99, 235, 0.3);
+}
+
+/* InputNumber 步进钮:玻璃 hover */
+.ant-input-number .ant-input-number-handler:hover {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.ant-input-number .ant-input-number-handler:hover .anticon {
+  color: #a5b4fc !important;
+}
+
+[data-theme='light'] .ant-input-number .ant-input-number-handler:hover {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+[data-theme='light'] .ant-input-number .ant-input-number-handler:hover .anticon {
+  color: #2563eb !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-logo-mark::after {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   页面打磨 · 登录趋势图切换防抖
+   切换期间旧图雾化保留,新柱从底部生长入场(共享日期的柱平滑变高)
+   ============================================================ */
+
+.trend-chart {
+  transition: opacity 0.25s ease, filter 0.25s ease;
+}
+
+.trend-chart-switching {
+  opacity: 0.45;
+  filter: blur(1.5px);
+  pointer-events: none;
+}
+
+.trend-bar-area {
+  transform-origin: bottom;
+  animation: trend-bar-grow 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@keyframes trend-bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@media (max-width: 767px) {
+  .user-drop-popup {
+    inset-inline-start: auto !important;
+    inset-inline-end: 8px !important;
+    max-width: calc(100vw - 16px);
+  }
+
+  .user-drop-popup .user-drop-menu.ant-dropdown-menu {
+    min-width: min(240px, calc(100vw - 16px));
+  }
+
+  .user-drop-popup .user-drop-menu .ant-dropdown-menu-item {
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .notice-bell-popover {
+    inset-inline: 8px !important;
+    width: auto;
+  }
+
+  .notice-bell-popover .notice-bell-panel {
+    width: 100%;
+    max-height: min(380px, calc(100dvh - 96px));
+  }
+
+  .app-header {
+    height: calc(56px + env(safe-area-inset-top));
+    padding-left: calc(10px + env(safe-area-inset-left)) !important;
+    padding-right: calc(10px + env(safe-area-inset-right)) !important;
+    padding-top: env(safe-area-inset-top) !important;
+    gap: 8px;
+  }
+
+  .app-header-leading {
+    min-width: 0;
+    flex: 1;
+    gap: 8px !important;
+    overflow: hidden;
+  }
+
+  .app-header-leading > .ant-space-item:last-child {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .app-header-actions {
+    flex: none;
+    gap: 2px !important;
+  }
+
+  .app-mobile-title {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    gap: 7px;
+    color: rgba(241, 245, 249, 0.94);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    max-width: 100%;
+    flex: 1;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .app-mobile-title-icon {
+    display: inline-flex;
+    flex: none;
+    color: #a5b4fc;
+    font-size: 14px;
+  }
+
+  .app-mobile-title-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-header .app-user {
+    gap: 0;
+    padding: 4px;
+  }
+
+  .app-header .app-trigger,
+  .app-header .app-user {
+    min-width: 40px;
+    height: 40px;
+  }
+
+  .app-header .app-trigger {
+    width: 40px;
+    border-radius: 10px;
+  }
+
+  /* 窄屏收起低频操作 → app-display-more */
+  .app-search-hint,
+  .app-density-trigger,
+  .app-lang-trigger,
+  .app-fullscreen-trigger,
+  .app-user-name,
+  .ant-breadcrumb {
+    display: none !important;
+  }
+
+  .app-display-more {
+    display: inline-flex !important;
+  }
+
+  .app-content {
+    margin: 12px;
+  }
+
+  .back-top-btn {
+    right: calc(16px + env(safe-area-inset-right));
+    bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 360px) {
+  .app-header {
+    padding-left: calc(6px + env(safe-area-inset-left)) !important;
+    padding-right: calc(6px + env(safe-area-inset-right)) !important;
+    gap: 4px;
+  }
+
+  .app-header-leading,
+  .app-header-actions {
+    gap: 0 !important;
+  }
+
+  .app-mobile-title {
+    gap: 5px;
+    font-size: 14px;
+  }
+}
+
+[data-theme='light'] .app-mobile-title {
+  color: #0f172a;
+}
+
+[data-theme='light'] .app-mobile-title-icon {
+  color: #2563eb;
+}
+
+.table-count {
+  padding: 1px 10px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.table-toolbar-extra {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 767px) {
+  .table-toolbar {
+    align-items: flex-start;
+  }
+
+  .table-toolbar-title,
+  .table-toolbar-extra {
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  .table-toolbar-extra {
+    justify-content: flex-start;
+  }
+}
+
+.cell-mono {
+  font-family: 'SF Mono', SFMono-Regular, ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  letter-spacing: -0.2px;
+}
+
+.ant-table-cell.cell-time {
+  color: rgba(148, 163, 184, 0.75);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}

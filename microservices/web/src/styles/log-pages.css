@@ -1,0 +1,446 @@
+/* 日志与地域分布样式（从 index.css 拆出） */
+
+/* ---------- 日志详情：请求/响应块 ---------- */
+.log-detail-block {
+  margin-top: 14px;
+}
+
+.log-detail-block-title {
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: rgba(148, 163, 184, 0.7);
+  margin-bottom: 6px;
+}
+
+.log-detail-block pre {
+  margin: 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.log-detail-error pre {
+  background: rgba(248, 113, 113, 0.07);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #fca5a5;
+}
+
+/* ---------- 日志页：统计条 ---------- */
+.log-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 48px;
+  align-items: center;
+}
+
+.log-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 80px;
+}
+
+.log-stat-label {
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.7);
+  letter-spacing: 1.5px;
+}
+
+.log-stat-value {
+  font-size: 23px;
+  font-weight: 650;
+  letter-spacing: -0.5px;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.2;
+}
+
+.log-stat-divider {
+  width: 1px;
+  height: 34px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ---------- 登录日志：地域分布图 ---------- */
+.geo-dist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.geo-dist-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.geo-dist-body {
+  display: flex;
+  gap: 16px;
+}
+
+.geo-dist-map {
+  flex: 1;
+  min-width: 0;
+}
+
+.geo-map {
+  width: 100%;
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  /* 深空底：中心微光 + 极光色斑，与登录页同语言 */
+  background:
+    radial-gradient(ellipse 60% 55% at 62% 42%, rgba(99, 102, 241, 0.1), transparent 65%),
+    radial-gradient(ellipse 45% 40% at 25% 75%, rgba(34, 211, 238, 0.06), transparent 60%),
+    radial-gradient(ellipse 80% 70% at 50% 50%, rgba(15, 23, 42, 0.4), rgba(2, 6, 23, 0.9)),
+    #020617;
+}
+
+.geo-map svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 世界版图打底：比中国省界更暗一档，纯背景层 */
+.geo-country {
+  fill: rgba(51, 65, 85, 0.28);
+  stroke: rgba(100, 116, 139, 0.22);
+  stroke-width: 0.6;
+  pointer-events: none;
+}
+
+/* 省份版图：玻璃填充 + 微光描边；--heat 由组件按登录量写入 */
+.geo-province {
+  fill: rgba(99, 102, 241, calc(var(--heat, 0) * 1));
+  stroke: rgba(129, 140, 248, 0.35);
+  stroke-width: 0.7;
+  transition: fill 0.3s ease, stroke 0.3s ease;
+  cursor: default;
+}
+
+.geo-province:hover {
+  fill: rgba(129, 140, 248, calc(0.12 + var(--heat, 0) * 1));
+  stroke: rgba(165, 180, 252, 0.7);
+}
+
+/* 飞线：静态轨迹 + 流动虚线 + 彗星头（animateMotion） */
+.geo-flight-track {
+  fill: none;
+  stroke: rgba(34, 211, 238, 0.14);
+  stroke-width: 1;
+}
+
+.geo-flight-dash {
+  fill: none;
+  stroke: rgba(34, 211, 238, 0.55);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  animation: geoFlightFlow 1.6s linear infinite;
+}
+
+@keyframes geoFlightFlow {
+  to {
+    stroke-dashoffset: var(--dash-period, -16px);
+  }
+}
+
+.geo-flight-comet {
+  fill: #67e8f9;
+  filter: drop-shadow(0 0 4px rgba(103, 232, 249, 0.9));
+}
+
+.geo-flight-abroad .geo-flight-track {
+  stroke: rgba(167, 139, 250, 0.16);
+}
+
+.geo-flight-abroad .geo-flight-dash {
+  stroke: rgba(167, 139, 250, 0.55);
+}
+
+.geo-flight-abroad .geo-flight-comet {
+  fill: #c4b5fd;
+  filter: drop-shadow(0 0 4px rgba(196, 181, 253, 0.9));
+}
+
+/* 城市光点：核心 + 涟漪扩散 */
+.geo-point {
+  cursor: pointer;
+}
+
+.geo-point-core {
+  fill: rgba(34, 211, 238, 0.9);
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 1;
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.8));
+}
+
+.geo-point-ripple {
+  fill: none;
+  stroke: rgba(34, 211, 238, 0.7);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: geoRipple 2.8s ease-out infinite;
+}
+
+@keyframes geoRipple {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.geo-point-alarm .geo-point-core {
+  fill: rgba(248, 113, 113, 0.92);
+  filter: drop-shadow(0 0 7px rgba(248, 113, 113, 0.85));
+}
+
+.geo-point-alarm .geo-point-ripple {
+  stroke: rgba(248, 113, 113, 0.75);
+  animation-duration: 1.6s;
+}
+
+/* 海外来源：紫色系与国内青色区分 */
+.geo-point-abroad .geo-point-core {
+  fill: rgba(167, 139, 250, 0.92);
+  filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.8));
+}
+
+.geo-point-abroad .geo-point-ripple {
+  stroke: rgba(167, 139, 250, 0.7);
+}
+
+.geo-point-label {
+  fill: rgba(226, 232, 240, 0.85);
+  font-size: 13px;
+  text-anchor: middle;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: rgba(2, 6, 23, 0.8);
+  stroke-width: 3px;
+  letter-spacing: 0.5px;
+}
+
+/* 悬停提示：玻璃拟态浮层（SVG 内定位换算成百分比挂容器上；贴近容器顶时翻转到光标下方） */
+.geo-map-tip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 8px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.geo-map-tip-below {
+  transform: translate(-50%, 16px);
+}
+
+.geo-dist-side {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.geo-rank-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.geo-rank-name {
+  color: rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.geo-rank-name-muted {
+  color: rgba(148, 163, 184, 0.75);
+}
+
+.geo-rank-count {
+  color: rgba(148, 163, 184, 0.9);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.geo-rank-count em {
+  color: #fca5a5;
+  font-style: normal;
+  margin-left: 6px;
+  font-size: 11.5px;
+}
+
+.geo-rank-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  margin-top: 5px;
+  overflow: hidden;
+}
+
+.geo-rank-bar i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #22d3ee, #34d399);
+  /* 长度用 scaleX 表达(JSX 写 --ratio),切天数时 12 根条同变不触发重排 */
+  transform: scaleX(var(--ratio, 0));
+  transform-origin: left;
+  transition: transform 0.4s ease;
+}
+
+.geo-rank-bar i.geo-rank-bar-alarm {
+  background: linear-gradient(90deg, #f87171, #fb923c);
+}
+
+/* 地图气泡文字（悬停提示复用） */
+.geo-map-popup-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.geo-map-popup-detail {
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.9);
+  margin-top: 2px;
+}
+
+@media (max-width: 768px) {
+  .geo-dist-body {
+    flex-direction: column;
+  }
+
+  .geo-dist-side {
+    width: 100%;
+    max-height: 220px;
+  }
+}
+
+[data-theme='light'] .geo-dist-title {
+  color: rgba(15, 23, 42, 0.88);
+}
+
+[data-theme='light'] .geo-rank-name {
+  color: rgba(15, 23, 42, 0.85);
+}
+
+[data-theme='light'] .geo-rank-count {
+  color: rgba(71, 85, 105, 0.9);
+}
+
+[data-theme='light'] .geo-rank-bar {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme='light'] .geo-map {
+  background:
+    radial-gradient(ellipse 60% 55% at 62% 42%, rgba(37, 99, 235, 0.07), transparent 65%),
+    radial-gradient(ellipse 80% 70% at 50% 50%, rgba(255, 255, 255, 0.6), rgba(226, 236, 248, 0.95)),
+    #e8f0fa;
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme='light'] .geo-country {
+  fill: rgba(148, 163, 184, 0.18);
+  stroke: rgba(100, 116, 139, 0.25);
+}
+
+[data-theme='light'] .geo-flight-track {
+  stroke: rgba(14, 165, 233, 0.15);
+}
+
+[data-theme='light'] .geo-flight-dash {
+  stroke: rgba(14, 165, 233, 0.5);
+}
+
+[data-theme='light'] .geo-flight-comet {
+  fill: #0ea5e9;
+  filter: drop-shadow(0 0 4px rgba(14, 165, 233, 0.7));
+}
+
+[data-theme='light'] .geo-flight-abroad .geo-flight-dash {
+  stroke: rgba(124, 58, 237, 0.45);
+}
+
+[data-theme='light'] .geo-flight-abroad .geo-flight-comet {
+  fill: #7c3aed;
+  filter: drop-shadow(0 0 4px rgba(124, 58, 237, 0.7));
+}
+
+[data-theme='light'] .geo-point-abroad .geo-point-core {
+  fill: rgba(124, 58, 237, 0.9);
+  filter: drop-shadow(0 0 5px rgba(124, 58, 237, 0.6));
+}
+
+[data-theme='light'] .geo-point-abroad .geo-point-ripple {
+  stroke: rgba(124, 58, 237, 0.55);
+}
+
+[data-theme='light'] .geo-province {
+  fill: rgba(37, 99, 235, calc(var(--heat, 0) * 1));
+  stroke: rgba(37, 99, 235, 0.3);
+}
+
+[data-theme='light'] .geo-province:hover {
+  fill: rgba(37, 99, 235, calc(0.1 + var(--heat, 0) * 1));
+  stroke: rgba(37, 99, 235, 0.55);
+}
+
+[data-theme='light'] .geo-point-core {
+  fill: rgba(14, 165, 233, 0.92);
+  filter: drop-shadow(0 0 5px rgba(14, 165, 233, 0.6));
+}
+
+[data-theme='light'] .geo-point-ripple {
+  stroke: rgba(14, 165, 233, 0.6);
+}
+
+[data-theme='light'] .geo-point-label {
+  fill: rgba(15, 23, 42, 0.85);
+  stroke: rgba(255, 255, 255, 0.85);
+}
+
+[data-theme='light'] .geo-map-tip {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(15, 23, 42, 0.1);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+}
+
+[data-theme='light'] .geo-map-popup-title {
+  color: rgba(15, 23, 42, 0.9);
+}
+
+[data-theme='light'] .geo-map-popup-detail {
+  color: rgba(71, 85, 105, 0.9);
+}

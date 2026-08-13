@@ -1,0 +1,198 @@
+/* 命令面板、用户下拉与通知样式（从 index.css 拆出） */
+
+/* ---------- 命令面板（⌘K） ---------- */
+.cmdk-modal .ant-modal-content {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.cmdk-input-wrap {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.cmdk-search-icon {
+  color: rgba(148, 163, 184, 0.6);
+}
+
+[data-theme='light'] .cmdk-search-icon {
+  color: #94a3b8;
+}
+
+.cmdk-list {
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.cmdk-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.cmdk-item-active {
+  background: rgba(99, 102, 241, 0.16);
+}
+
+.cmdk-item-icon {
+  width: 18px;
+  color: rgba(129, 140, 248, 0.85);
+  display: inline-flex;
+  justify-content: center;
+}
+
+.cmdk-item-label {
+  flex: 1;
+  font-size: 14px;
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.cmdk-item-group {
+  font-size: 11.5px;
+  letter-spacing: 0.5px;
+  color: rgba(148, 163, 184, 0.55);
+}
+
+.cmdk-item-enter {
+  color: rgba(129, 140, 248, 0.7);
+  font-size: 12px;
+}
+
+.cmdk-foot {
+  display: flex;
+  gap: 16px;
+  padding: 8px 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  font-size: 11.5px;
+  color: rgba(148, 163, 184, 0.55);
+}
+
+.cmdk-foot kbd {
+  display: inline-block;
+  min-width: 16px;
+  padding: 0 4px;
+  margin-right: 3px;
+  text-align: center;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 17px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: rgba(203, 213, 225, 0.8);
+}
+
+/* 用户下拉：顶部信息（纯文字，无卡片/徽章） */
+.user-drop-head {
+  padding: 2px 0 0;
+  min-width: 188px;
+  cursor: default;
+  white-space: normal;
+}
+
+.user-drop-name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #f8fafc;
+}
+
+.user-drop-meta {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(148, 163, 184, 0.88);
+  word-break: break-all;
+}
+
+[data-theme='light'] .user-drop-name {
+  color: #0f172a;
+}
+
+[data-theme='light'] .user-drop-meta {
+  color: #64748b;
+}
+
+/* 头部搜索提示按钮 */.app-search-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(148, 163, 184, 0.65);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.app-search-hint:hover {
+  border-color: rgba(129, 140, 248, 0.5);
+  color: rgba(203, 213, 225, 0.85);
+}
+
+.app-search-hint kbd {
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+/* ---------- 头部：通知铃铛 ---------- */
+.notice-bell-panel {
+  width: min(320px, calc(100vw - 32px));
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.notice-bell-item {
+  padding: 10px 4px;
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.15);
+}
+
+.notice-bell-item:last-child {
+  border-bottom: none;
+}
+
+.notice-bell-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notice-bell-item-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notice-bell-item-content {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.85);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notice-bell-item-time {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.7);
+}
