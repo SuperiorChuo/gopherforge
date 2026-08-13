@@ -6,10 +6,10 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/file/internal/api/common"
-	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/file/internal/api/system"
 	"github.com/go-admin-kit/services/file/internal/middleware"
 	systemsvc "github.com/go-admin-kit/services/file/internal/service/system"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 )
 
 // SetupRoutes mounts the file service API using legacy global fallbacks.
@@ -28,9 +28,14 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		fileAPI = system.NewFileAPIWithService(systemsvc.NewFileServiceWithDB(deps.DB))
 	}
 
+	// Avatar bytes are public capability URLs backed by unguessable tokens.
+	api.GET("/files/avatars/:token", fileAPI.ServeAvatar)
+
 	protected := api.Group("/")
 	protected.Use(middleware.AuthMiddleware(), middleware.OperationLogger())
 	{
+		protected.POST("/files/avatar", fileAPI.UploadAvatar)
+		protected.POST("/files/avatar/cleanup", fileAPI.CleanupAvatars)
 		protected.POST("/files/upload", middleware.PermissionMiddleware("system:file:upload"), fileAPI.Upload)
 		protected.POST("/files/upload/multiple", middleware.PermissionMiddleware("system:file:upload"), fileAPI.UploadMultiple)
 		protected.POST("/files/upload/init", middleware.PermissionMiddleware("system:file:upload"), fileAPI.InitChunkedUpload)

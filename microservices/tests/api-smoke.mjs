@@ -22,6 +22,8 @@ const state = {
   fileId: '',
   noticeId: '',
   originalNickname: '',
+  originalAvatar: '',
+  avatarToken: '',
   oauth2ClientDbId: '',
   profileNeedsRestore: false,
   loggedOut: false,
@@ -243,7 +245,14 @@ async function cleanup() {
   }
 
   if (state.profileNeedsRestore && state.accessToken) {
-    await cleanupRequest('PUT', '/user/profile', jsonObject({ nickname: state.originalNickname }));
+    await cleanupRequest('PUT', '/user/profile', jsonObject({ nickname: state.originalNickname, avatar: state.originalAvatar }));
+  }
+
+  if (state.avatarToken && state.accessToken) {
+    const originalToken = String(state.originalAvatar || '').startsWith('/api/v1/files/avatars/')
+      ? String(state.originalAvatar).split('/').pop()
+      : '';
+    await cleanupRequest('POST', '/files/avatar/cleanup', jsonObject({ keep_tokens: originalToken ? [originalToken] : [] }));
   }
 
   if (state.roleId && state.accessToken) {
@@ -280,6 +289,11 @@ function hasItemWithId(items, id) {
 
 const smokePng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR42mP8z8BQDwAFgwJ/lK3g7wAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+const smokeAvatarPng = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAL0lEQVR4nO3OIQEAAAgDMOIQkbB0gRg3E/Ornr2kEhAQEBAQEBAQEBAQEBAQSAcerfPsiPrfqzEAAAAASUVORK5CYII=',
   'base64',
 );
 
@@ -338,6 +352,7 @@ async function main() {
     'user/me did not return the logged-in user',
   );
   state.originalNickname = getJsonPath(response.data, 'data.nickname');
+  state.originalAvatar = getJsonPath(response.data, 'data.avatar') || '';
 
   step('user menus');
   response = await request('GET', '/user/menus', 200, '', state.accessToken);
@@ -366,9 +381,39 @@ async function main() {
   state.profileNeedsRestore = true;
   assertResponse(response.data?.code === 200 && response.data?.data?.nickname === newNickname, 'profile nickname did not update');
 
-  step('profile restore');
-  response = await request('PUT', '/user/profile', 200, jsonObject({ nickname: state.originalNickname }), state.accessToken);
-  assertResponse(response.data?.code === 200 && response.data?.data?.nickname === state.originalNickname, 'profile nickname did not restore');
+  step('self-service avatar upload');
+  const avatarForm = new FormData();
+  avatarForm.set('file', new Blob([smokeAvatarPng], { type: 'image/png' }), `avatar-${config.safeRunId}.png`);
+  response = await requestMultipart('/files/avatar', 200, avatarForm, state.accessToken);
+  const avatarURL = getJsonPath(response.data, 'data.url');
+  state.avatarToken = String(avatarURL || '').split('/').pop() || '';
+  assertResponse(
+    typeof avatarURL === 'string' && /^\/api\/v1\/files\/avatars\/[A-Za-z0-9_-]{43}$/.test(avatarURL),
+    'avatar upload did not return a managed stable URL',
+  );
+
+  step('avatar profile update and public read');
+  response = await request('PUT', '/user/profile', 200, jsonObject({ avatar: avatarURL }), state.accessToken);
+  assertResponse(response.data?.data?.avatar === avatarURL, 'profile avatar did not update');
+  const avatarResponse = await fetch(`${config.apiBaseUrl}${avatarURL}`);
+  assertResponse(
+    avatarResponse.status === 200 && avatarResponse.headers.get('content-type') === 'image/png' &&
+      Buffer.from(await avatarResponse.arrayBuffer()).equals(smokeAvatarPng),
+    'public avatar URL did not return uploaded bytes',
+  );
+
+  step('profile and avatar restore');
+  response = await request('PUT', '/user/profile', 200, jsonObject({ nickname: state.originalNickname, avatar: state.originalAvatar }), state.accessToken);
+  assertResponse(
+    response.data?.code === 200 && response.data?.data?.nickname === state.originalNickname && response.data?.data?.avatar === state.originalAvatar,
+    'profile did not restore',
+  );
+  const originalAvatarToken = String(state.originalAvatar || '').startsWith('/api/v1/files/avatars/')
+    ? String(state.originalAvatar).split('/').pop()
+    : '';
+  response = await request('POST', '/files/avatar/cleanup', 200, jsonObject({ keep_tokens: originalAvatarToken ? [originalAvatarToken] : [] }), state.accessToken);
+  assertResponse(response.data?.code === 200, 'avatar cleanup failed');
+  state.avatarToken = '';
   state.profileNeedsRestore = false;
 
   step('system settings upsert');

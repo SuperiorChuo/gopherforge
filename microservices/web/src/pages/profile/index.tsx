@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Card, Row, Col, Form, Input, Button,
-  Modal, Steps, Space, Avatar, Table,
+  Modal, Steps, Space, Avatar, Table, Upload,
 } from 'antd'
+import type { UploadProps } from 'antd'
 import { message } from '@/utils/feedback'
 import { copyToClipboard } from '@/utils/clipboard'
 import {
   UserOutlined, MailOutlined, PhoneOutlined, HistoryOutlined, SafetyCertificateOutlined,
+  CameraOutlined,
 } from '@ant-design/icons'
 import StatusPill from '@/components/StatusPill'
 import GlassEmpty from '@/components/GlassEmpty'
@@ -22,6 +24,7 @@ import { fetchCurrentUser } from '@/store/slices/authSlice'
 import { getMyLoginLogs } from '@/api/system/log'
 import type { LoginLog } from '@/types'
 import { formatDateTime } from '@/utils/format'
+import { cleanupOldAvatars, uploadAvatar } from '@/api/system/file'
 
 export default function ProfilePage() {
   const dispatch = useAppDispatch()
@@ -54,6 +57,7 @@ export default function ProfilePage() {
   const [profileForm] = Form.useForm()
   const [pwdForm] = Form.useForm()
   const [profileLoading, setProfileLoading] = useState(false)
+  const [avatarLoading, setAvatarLoading] = useState(false)
   const [pwdLoading, setPwdLoading] = useState(false)
 
   const [enableTotpOpen, setEnableTotpOpen] = useState(false)
@@ -82,6 +86,33 @@ export default function ProfilePage() {
       .catch(() => setMyLogs([]))
       .finally(() => setLogsLoading(false))
   }, [])
+
+  const handleAvatarUpload: UploadProps['beforeUpload'] = async (file) => {
+    const allowedType = file.type === 'image/jpeg' || file.type === 'image/png'
+    if (!allowedType) {
+      message.error(t('仅支持 JPG 或 PNG 图片'))
+      return Upload.LIST_IGNORE
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      message.error(t('头像图片不能超过 2 MB'))
+      return Upload.LIST_IGNORE
+    }
+
+    setAvatarLoading(true)
+    try {
+      const { url } = await uploadAvatar(file)
+      await updateProfile({ avatar: url })
+      await dispatch(fetchCurrentUser()).unwrap()
+      const token = url.split('/').pop()
+      if (token) void cleanupOldAvatars([token]).catch(() => undefined)
+      message.success(t('头像更新成功'))
+    } catch {
+      message.error(t('头像更新失败'))
+    } finally {
+      setAvatarLoading(false)
+    }
+    return false
+  }
 
   const handleSaveProfile = async () => {
     const values = await profileForm.validateFields().catch(() => null)
@@ -204,9 +235,17 @@ export default function ProfilePage() {
   return (
     <div className="page-list profile-page">
       <div className="profile-hero">
-        <div className="profile-hero-avatar-ring">
-          <Avatar size={72} src={userInfo?.avatar || undefined} icon={<UserOutlined />} className="profile-hero-avatar" />
-        </div>
+        <Upload accept="image/jpeg,image/png" beforeUpload={handleAvatarUpload} showUploadList={false} disabled={avatarLoading}>
+          <button type="button" className="profile-avatar-upload" aria-label={t('更换头像')} disabled={avatarLoading}>
+            <div className="profile-hero-avatar-ring">
+              <Avatar size={72} src={userInfo?.avatar || undefined} icon={<UserOutlined />} className="profile-hero-avatar" />
+            </div>
+            <span className="profile-avatar-upload-mask">
+              <CameraOutlined spin={avatarLoading} />
+              <span>{avatarLoading ? t('上传中') : t('更换头像')}</span>
+            </span>
+          </button>
+        </Upload>
         <div className="profile-hero-info">
           <div className="profile-hero-name">
             {userInfo?.nickname || userInfo?.username}

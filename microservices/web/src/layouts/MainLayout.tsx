@@ -768,6 +768,7 @@ export default function MainLayout() {
               <div className="app-user">
                 <Avatar
                   size={34}
+                  src={userInfo.avatar || undefined}
                   icon={<UserOutlined />}
                   style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
                 />

@@ -46,6 +46,40 @@ func (d *FileDAO) GetByIDInScopeContext(ctx context.Context, id uint, dataScope 
 	return &file, result.Error
 }
 
+func (d *FileDAO) GetAvatarByPublicTokenContext(ctx context.Context, token string) (*localmodel.File, error) {
+	var file localmodel.File
+	result := d.dbWithContext(tenant.DisableScope(authz.DisableDataScope(ctx))).
+		Where("public_token = ? AND purpose = ?", token, "avatar").
+		First(&file)
+	return &file, result.Error
+}
+
+func (d *FileDAO) CreateAvatarContext(ctx context.Context, file *localmodel.File, publicToken string) error {
+	if file != nil && file.TenantID == 0 {
+		file.TenantID = tenant.IDFromContext(ctx)
+	}
+	now := time.Now()
+	return d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		row := tx.Raw(`
+			INSERT INTO files (
+				tenant_id, user_id, file_name, file_path, file_size, image_width, image_height,
+				thumbnail_path, thumbnail_url, thumbnail_width, thumbnail_height, file_type,
+				mime_type, extension, storage_type, url, hash, purpose, public_token, created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'avatar', ?, ?, ?)
+			RETURNING id`,
+			file.TenantID, file.UserID, file.FileName, file.FilePath, file.FileSize, file.ImageWidth, file.ImageHeight,
+			file.ThumbnailPath, file.ThumbnailURL, file.ThumbnailWidth, file.ThumbnailHeight, file.FileType,
+			file.MimeType, file.Extension, file.StorageType, file.URL, file.Hash, publicToken, now, now,
+		).Row()
+		if err := row.Scan(&file.ID); err != nil {
+			return err
+		}
+		file.CreatedAt = now
+		file.UpdatedAt = now
+		return nil
+	})
+}
+
 func (d *FileDAO) GetByHashContext(ctx context.Context, hash string) (*localmodel.File, error) {
 	var file localmodel.File
 	result := tenant.ApplyFilter(d.dbWithContext(authz.DisableDataScope(ctx)), ctx).Where("hash = ?", hash).First(&file)
@@ -106,6 +140,19 @@ func (d *FileDAO) DeleteContext(ctx context.Context, id uint) error {
 
 func (d *FileDAO) DeleteByIDsContext(ctx context.Context, ids []uint) error {
 	return tenant.ApplyFilter(d.dbWithContext(ctx), ctx).Delete(&localmodel.File{}, ids).Error
+}
+
+func (d *FileDAO) ListOtherAvatarsContext(ctx context.Context, userID uint, keepTokens []string) ([]localmodel.File, error) {
+	var files []localmodel.File
+	query := tenant.ApplyFilter(d.dbWithContext(ctx).Model(&localmodel.File{}), ctx).
+		Where("user_id = ? AND purpose = ?", userID, "avatar")
+	if len(keepTokens) > 0 {
+		query = query.Where("public_token NOT IN ?", keepTokens)
+	}
+	if err := query.Find(&files).Error; err != nil {
+		return nil, err
+	}
+	return files, nil
 }
 
 // CountByFilePathExcludingIDContext counts storage references without tenant filter so

@@ -30,6 +30,9 @@ var (
 	ErrFileTooLarge         = errors.New("file too large")
 	ErrStorageQuotaExceeded = errors.New("storage quota exceeded")
 	ErrFileTypeNotAllowed   = errors.New("file type not allowed")
+	ErrAvatarTooLarge       = errors.New("avatar image must not exceed 2 MB")
+	ErrAvatarTypeNotAllowed = errors.New("avatar image must be JPG or PNG")
+	ErrAvatarDimensions     = errors.New("avatar image dimensions must be between 32 and 4096 pixels")
 )
 
 // FileInfo describes an uploaded file.

@@ -14,6 +14,17 @@ export const uploadFile = (file: File) => {
   })
 }
 
+export const uploadAvatar = (file: File) => {
+  const form = new FormData()
+  form.append('file', file)
+  return request.post<unknown, { url: string }>('/api/v1/files/avatar', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
+
+export const cleanupOldAvatars = (keepTokens: string[]) =>
+  request.post('/api/v1/files/avatar/cleanup', { keep_tokens: keepTokens })
+
 // 批量上传，后端字段名为 files
 export const uploadFiles = (files: File[]) => {
   const form = new FormData()
@@ -29,8 +40,8 @@ export const deleteFile = (id: number) =>
 export interface FileStats {
   total: number
   total_size: number
+  storage_quota_mb?: number | null
   by_type?: Record<string, { count: number; size: number }>
-  storage_quota_mb?: number
 }
 
 export const getFileStats = () =>

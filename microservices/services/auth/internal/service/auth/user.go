@@ -13,9 +13,9 @@ import (
 	"github.com/go-admin-kit/services/auth/internal/dao/auth"
 	localmodel "github.com/go-admin-kit/services/auth/internal/model"
 	"github.com/go-admin-kit/services/auth/internal/pkg/captcha"
-	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -446,6 +446,9 @@ func (s *UserService) UpdateProfileContext(ctx context.Context, userID uint, req
 		avatar := strings.TrimSpace(*req.Avatar)
 		if len(avatar) > 255 {
 			return nil, ProfileValidationError{Message: "avatar must be no more than 255 characters"}
+		}
+		if avatar != "" && !strings.HasPrefix(avatar, "/api/v1/files/avatars/") && !strings.HasPrefix(avatar, "https://") {
+			return nil, ProfileValidationError{Message: "avatar must be a managed upload or HTTPS URL"}
 		}
 		updates["avatar"] = avatar
 	}

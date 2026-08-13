@@ -69,6 +69,58 @@
    ============================================================ */
 
 /* 头像:锥形渐变旋转光环,像玻璃透镜边缘折射的一圈光 */
+.profile-avatar-upload {
+  position: relative;
+  z-index: 1;
+  display: block;
+  flex-shrink: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.profile-avatar-upload:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 4px;
+}
+
+.profile-avatar-upload:disabled {
+  cursor: wait;
+}
+
+.profile-avatar-upload-mask {
+  position: absolute;
+  z-index: 2;
+  inset: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.profile-avatar-upload:hover .profile-avatar-upload-mask,
+.profile-avatar-upload:focus-visible .profile-avatar-upload-mask,
+.profile-avatar-upload:disabled .profile-avatar-upload-mask {
+  opacity: 1;
+}
+
+.profile-avatar-upload-mask .anticon {
+  font-size: 17px;
+}
+
 .profile-hero-avatar-ring {
   position: relative;
   flex-shrink: 0;
@@ -113,6 +165,24 @@
   box-shadow:
     inset 0 2px 0 rgba(255, 255, 255, 0.3),
     0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+@media (hover: none) {
+  .profile-avatar-upload-mask {
+    inset: auto 3px 3px auto;
+    width: 25px;
+    height: 25px;
+    opacity: 1;
+    background: rgba(15, 23, 42, 0.82);
+  }
+
+  .profile-avatar-upload-mask span {
+    display: none;
+  }
+
+  .profile-avatar-upload-mask .anticon {
+    font-size: 13px;
+  }
 }
 
 /* 2FA 徽章:hero 渐变底上的白玻璃胶囊 */

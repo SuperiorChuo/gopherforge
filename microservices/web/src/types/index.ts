@@ -102,6 +102,7 @@ export interface UpdateProfileRequest {
   nickname?: string
   email?: string
   phone?: string
+  avatar?: string
 }
 
 // /user/menus 返回的菜单树节点（后端 model.Menu 的 JSON 形状）
@@ -212,7 +213,12 @@ export interface FileRecord {
   file_path: string
   file_size: number
   file_type: string
+  mime_type?: string
   storage_type: string
+  url?: string
+  thumbnail_url?: string
+  image_width?: number
+  image_height?: number
   user_id: number
   created_at?: string
 }

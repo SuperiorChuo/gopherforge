@@ -1517,5 +1517,11 @@
   "运行 {{n}}": "Running {{n}}",
   "运行中": "Running",
   "近 {{n}}h 失败 {{m}}": "Failed {{m}} in the last {{n}}h",
-  "选择业务类型（可选）": "Select Business Type (Optional)"
+  "选择业务类型（可选）": "Select Business Type (Optional)",
+  "仅支持 JPG 或 PNG 图片": "Only JPG or PNG images are supported",
+  "头像图片不能超过 2 MB": "Avatar image must not exceed 2 MB",
+  "头像更新成功": "Avatar updated",
+  "头像更新失败": "Failed to update avatar",
+  "更换头像": "Change avatar",
+  "上传中": "Uploading"
 }
