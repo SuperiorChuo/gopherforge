@@ -4,6 +4,7 @@ import '@/i18n/init'
 import App from './App.tsx'
 import './index.css'
 import './list-pages.css'
+import './styles/auth-pages.css'
 
 async function bootstrap() {
   // 演示模式（GitHub Pages）：装假数据 adapter；正常构建时此分支被静态消除

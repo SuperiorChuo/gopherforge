@@ -46,6 +46,7 @@ import {
   MenuUnfoldOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
+  MoreOutlined,
   SearchOutlined,
   AimOutlined,
   IdcardOutlined,
@@ -513,6 +514,39 @@ export default function MainLayout() {
       ? userInfo.roles.map((r) => r.name).join(' · ')
       : ''
 
+  const openCommandPalette = () => {
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'k', metaKey: isMac, ctrlKey: !isMac }),
+    )
+  }
+
+  const displayMenuItems: MenuProps['items'] = [
+    {
+      key: 'search',
+      icon: <SearchOutlined />,
+      label: t('搜索'),
+      onClick: openCommandPalette,
+    },
+    {
+      key: 'density',
+      icon: <ColumnHeightOutlined />,
+      label: density === 'compact' ? t('切换为舒适密度') : t('切换为紧凑密度'),
+      onClick: () => setDensity((d) => (d === 'compact' ? 'comfortable' : 'compact')),
+    },
+    {
+      key: 'locale',
+      icon: <GlobalOutlined />,
+      label: locale === 'zh' ? 'English' : '中文',
+      onClick: () => setLocale(locale === 'en' ? 'zh' : 'en'),
+    },
+    {
+      key: 'fullscreen',
+      icon: fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />,
+      label: fullscreen ? t('退出全屏') : t('全屏'),
+      onClick: toggleFullscreen,
+    },
+  ]
+
   const userMenuItems: MenuProps['items'] = [
     {
       key: 'userinfo',
@@ -713,6 +747,17 @@ export default function MainLayout() {
             <span className="app-trigger app-fullscreen-trigger" onClick={toggleFullscreen} title={fullscreen ? t('退出全屏') : t('全屏')}>
               {fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
             </span>
+            <Dropdown placement="bottomRight" trigger={['click']} menu={{ items: displayMenuItems }}>
+              <span
+                className="app-trigger app-display-more"
+                title={t('显示与语言')}
+                role="button"
+                tabIndex={0}
+                aria-label={t('显示与语言')}
+              >
+                <MoreOutlined />
+              </span>
+            </Dropdown>
             <NotificationBell />
             <Dropdown
               placement="bottomRight"

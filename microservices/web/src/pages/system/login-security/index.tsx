@@ -250,7 +250,7 @@ export default function LoginSecurityPage() {
             children: (
               <>
                 <TableToolbar
-                  title={t('被屏蔽 IP')}
+                  title="被屏蔽 IP"
                   total={blocked.length}
                   icon={<SafetyCertificateOutlined />}
                   extra={
@@ -267,7 +267,7 @@ export default function LoginSecurityPage() {
                   columns={blockedColumns}
                   pagination={false}
                   locale={{ emptyText: <GlassEmpty text={t('当前没有被屏蔽的 IP')} compact /> }}
-                />
+                 scroll={{ x: 960 }} />
               </>
             ),
           },
@@ -277,7 +277,7 @@ export default function LoginSecurityPage() {
             children: (
               <>
                 <TableToolbar
-                  title={t('异常登录事件')}
+                  title="异常登录事件"
                   total={eventTotal}
                   icon={<SafetyCertificateOutlined />}
                   extra={
@@ -320,7 +320,7 @@ export default function LoginSecurityPage() {
                     showTotal: (t2) => `共 ${t2} 条`,
                     onChange: (page, page_size) => setEventParams({ ...eventParams, page, page_size }),
                   }}
-                />
+                 scroll={{ x: 960 }} />
               </>
             ),
           },

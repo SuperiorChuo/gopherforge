@@ -323,7 +323,7 @@ export default function PermissionPage() {
 
       <Card className="list-main-card" bordered={false}>
         <TableToolbar
-          title={t('权限结构')}
+          title="权限结构"
           total={isTree ? tree.reduce((acc, n) => acc + 1 + (n.children?.length ?? 0), 0) : total}
           extra={
             <Space wrap>

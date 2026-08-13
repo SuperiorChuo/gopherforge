@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Card, Select, Space, Table, Tag } from 'antd'
-import { ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { useTranslation } from 'react-i18next'
+import { Button, Select, Space, Table, Tag } from 'antd'
+import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSecurityEventList, type SecurityEvent } from '@/api/system/security-events'
 import GlassEmpty from '@/components/GlassEmpty'
@@ -20,6 +21,7 @@ const SEVERITY_META: Record<string, { label: string; color: string }> = {
 }
 
 export default function SecurityEventsPage() {
+  const { t } = useTranslation()
   const [list, setList] = useState<SecurityEvent[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -47,30 +49,31 @@ export default function SecurityEventsPage() {
 
   const columns: ColumnsType<SecurityEvent> = [
     {
-      title: '级别',
+      title: t('级别'),
       dataIndex: 'severity',
       width: 90,
       render: (v: string) => {
         const meta = SEVERITY_META[v] ?? SEVERITY_META.info
-        return <Tag color={meta.color}>{meta.label}</Tag>
+        return <Tag color={meta.color}>{t(meta.label)}</Tag>
       },
     },
     {
-      title: '规则',
+      title: t('规则'),
       dataIndex: 'rule',
       width: 140,
-      render: (v: string) => RULE_LABELS[v] ?? v,
+      render: (v: string) => (RULE_LABELS[v] ? t(RULE_LABELS[v]) : v),
     },
-    { title: '操作者', dataIndex: 'actor_id', width: 160, ellipsis: true },
-    { title: '摘要', dataIndex: 'summary', ellipsis: true },
+    { title: t('操作者'), dataIndex: 'actor_id', width: 160, ellipsis: true },
+    { title: t('摘要'), dataIndex: 'summary', ellipsis: true },
     {
-      title: '通知',
+      title: t('通知'),
       dataIndex: 'notified_at',
       width: 100,
-      render: (v: string | null) => (v ? <Tag color="green">已通知</Tag> : <Tag>未通知</Tag>),
+      render: (v: string | null) =>
+        v ? <Tag color="green">{t('已通知')}</Tag> : <Tag>{t('未通知')}</Tag>,
     },
     {
-      title: '发生时间',
+      title: t('发生时间'),
       dataIndex: 'occurred_at',
       width: 180,
       render: (v: string) => formatDateTime(v),
@@ -78,29 +81,21 @@ export default function SecurityEventsPage() {
   ]
 
   return (
-    <Card
-      className="glass-rise"
-      title={
-        <Space>
-          <SafetyCertificateOutlined className="card-title-icon" /> 安全事件
-        </Space>
-      }
-    >
+    <div className="page-list security-events-page">
       <TableToolbar
         title="安全事件"
         total={total}
-        icon={<SafetyCertificateOutlined />}
         extra={
           <Space>
             <Select
               allowClear
-              placeholder="全部级别"
+              placeholder={t('全部级别')}
               style={{ width: 140 }}
               onChange={(v?: string) => setParams({ ...params, page: 1, severity: v })}
-              options={Object.entries(SEVERITY_META).map(([value, meta]) => ({ value, label: meta.label }))}
+              options={Object.entries(SEVERITY_META).map(([value, meta]) => ({ value, label: t(meta.label) }))}
             />
             <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)} loading={loading}>
-              刷新
+              {t('刷新')}
             </Button>
           </Space>
         }
@@ -111,16 +106,17 @@ export default function SecurityEventsPage() {
         loading={loading}
         dataSource={list}
         columns={columns}
+        scroll={{ x: 960 }}
         locale={{ emptyText: <GlassEmpty text="暂无安全事件" compact /> }}
         pagination={{
           total,
           current: params.page,
           pageSize: params.page_size,
           showSizeChanger: true,
-          showTotal: (t) => `共 ${t} 条`,
+          showTotal: (n) => t('共 {{n}} 条', { n }),
           onChange: (page, page_size) => setParams({ ...params, page, page_size }),
         }}
       />
-    </Card>
+    </div>
   )
 }

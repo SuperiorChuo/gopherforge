@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button, Card, Drawer, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd'
 import {
   ApartmentOutlined,
@@ -44,12 +45,15 @@ interface SearchParams {
   page_size: number
 }
 
-const BIZ_TYPE_OPTIONS = Object.entries(BPM_BIZ_TYPE_PRESETS).map(([value, meta]) => ({
-  value,
-  label: meta.label,
-}))
-
 export default function BpmDefinitionsPage() {
+  const { t } = useTranslation()
+  const BIZ_TYPE_OPTIONS = useMemo(
+    () => Object.entries(BPM_BIZ_TYPE_PRESETS).map(([value, meta]) => ({
+      value,
+      label: t(meta.label),
+    })),
+    [t],
+  )
   const isPlatform = !!useAppSelector((s) => s.auth.userInfo)?.is_platform_admin
   const [statsOpen, setStatsOpen] = useState(false)
   const [list, setList] = useState<BpmDefinition[]>([])
@@ -94,7 +98,7 @@ export default function BpmDefinitionsPage() {
         remark: values.remark || undefined,
         node_tree: createDefaultFlowSchema(values.biz_type),
       })
-      message.success('已创建草稿，进入设计器配置节点')
+      message.success(t('已创建草稿，进入设计器配置节点'))
       setCreateOpen(false)
       createForm.resetFields()
       if (res?.id) {
@@ -112,7 +116,7 @@ export default function BpmDefinitionsPage() {
   const onPublish = async (row: BpmDefinition) => {
     try {
       await publishDefinition(row.id)
-      message.success(`「${row.name}」v${row.version} 已发布`)
+      message.success(t('「{{name}}」v{{version}} 已发布', { name: row.name, version: row.version }))
       void fetchList(params)
     } catch {
       // 后端 Schema 校验失败等，拦截器已提示；建议进设计器修正后再发布
@@ -122,7 +126,7 @@ export default function BpmDefinitionsPage() {
   const onNewVersion = async (row: BpmDefinition) => {
     try {
       const res = await newDefinitionVersion(row.id)
-      message.success('已复制出新草稿版本')
+      message.success(t('已复制出新草稿版本'))
       if (res?.id) {
         setDesign({ id: res.id, readOnly: false })
       } else {
@@ -136,7 +140,7 @@ export default function BpmDefinitionsPage() {
   const onSuspend = async (row: BpmDefinition) => {
     try {
       await suspendDefinition(row.id)
-      message.success('已停用，不再允许新发起（在途实例不受影响）')
+      message.success(t('已停用，不再允许新发起（在途实例不受影响）'))
       void fetchList(params)
     } catch {
       // 错误提示由 request 拦截器统一弹出
@@ -145,7 +149,7 @@ export default function BpmDefinitionsPage() {
 
   const columns: ColumnsType<BpmDefinition> = [
     {
-      title: '流程名称',
+      title: t('流程名称'),
       dataIndex: 'name',
       render: (v: string, row) => (
         <div>
@@ -159,15 +163,15 @@ export default function BpmDefinitionsPage() {
       ),
     },
     {
-      title: '业务类型',
+      title: t('业务类型'),
       dataIndex: 'biz_type',
       width: 150,
       responsive: ['sm'],
       render: (v?: string) =>
-        v ? <Tag variant="filled">{BPM_BIZ_TYPE_PRESETS[v]?.label ?? v}</Tag> : <span className="cell-muted">—</span>,
+        v ? <Tag variant="filled">{t(BPM_BIZ_TYPE_PRESETS[v]?.label ?? v)}</Tag> : <span className="cell-muted">—</span>,
     },
     {
-      title: '版本',
+      title: t('版本'),
       width: 150,
       responsive: ['md'],
       render: (_, row) => (
@@ -175,14 +179,14 @@ export default function BpmDefinitionsPage() {
           <Tag>v{row.version}</Tag>
           {row.active_version && row.active_version !== row.version ? (
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              生效 v{row.active_version}
+              {t('生效 v{{n}}', { n: row.active_version })}
             </Typography.Text>
           ) : null}
         </Space>
       ),
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 110,
       responsive: ['sm'],
@@ -192,14 +196,14 @@ export default function BpmDefinitionsPage() {
       },
     },
     {
-      title: '更新时间',
+      title: t('更新时间'),
       width: 170,
       className: 'cell-time',
       responsive: ['lg'],
       render: (_, row) => formatDateTime(row.updated_at || row.created_at),
     },
     {
-      title: '操作',
+      title: t('操作'),
       width: 240,
       render: (_, row) => (
         <Space size={0} className="table-actions">
@@ -212,17 +216,17 @@ export default function BpmDefinitionsPage() {
                   icon={<EditOutlined />}
                   onClick={() => setDesign({ id: row.id, readOnly: false })}
                 >
-                  设计
+                  {t('设计')}
                 </Button>
               )}
               {hasPerm('bpm:definition:publish') && (
                 <Popconfirm
-                  title="发布该草稿版本？"
-                  description="发布后立即生效，同一 key 的旧生效版本将自动归档"
+                  title={t('发布该草稿版本？')}
+                  description={t('发布后立即生效，同一 key 的旧生效版本将自动归档')}
                   onConfirm={() => void onPublish(row)}
                 >
                   <Button type="link" size="small" icon={<SendOutlined />}>
-                    发布
+                    {t('发布')}
                   </Button>
                 </Popconfirm>
               )}
@@ -235,21 +239,21 @@ export default function BpmDefinitionsPage() {
                 icon={<EyeOutlined />}
                 onClick={() => setDesign({ id: row.id, readOnly: true })}
               >
-                查看
+                {t('查看')}
               </Button>
               {hasPerm('bpm:definition:update') && (
                 <Button type="link" size="small" icon={<CopyOutlined />} onClick={() => void onNewVersion(row)}>
-                  新版本
+                  {t('新版本')}
                 </Button>
               )}
               {row.status === 'active' && hasPerm('bpm:definition:update') && (
                 <Popconfirm
-                  title="停用该流程？"
-                  description="停用后不允许新发起，在途实例不受影响"
+                  title={t('停用该流程？')}
+                  description={t('停用后不允许新发起，在途实例不受影响')}
                   onConfirm={() => void onSuspend(row)}
                 >
                   <Button type="link" size="small" danger icon={<PauseCircleOutlined />}>
-                    停用
+                    {t('停用')}
                   </Button>
                 </Popconfirm>
               )}
@@ -285,15 +289,15 @@ export default function BpmDefinitionsPage() {
           onFinish={(v) => setParams({ ...params, page: 1, keyword: v.keyword, biz_type: v.biz_type })}
         >
           <Form.Item name="keyword">
-            <Input placeholder="搜索名称 / key" prefix={<SearchOutlined />} allowClear style={{ width: 240 }} />
+            <Input placeholder={t('搜索名称 / key')} prefix={<SearchOutlined />} allowClear style={{ width: 240 }} />
           </Form.Item>
           <Form.Item name="biz_type">
-            <Select placeholder="业务类型" style={{ width: 160 }} allowClear options={BIZ_TYPE_OPTIONS} />
+            <Select placeholder={t('业务类型')} style={{ width: 160 }} allowClear options={BIZ_TYPE_OPTIONS} />
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
               <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
-                查询
+                {t('查询')}
               </Button>
               <Button
                 icon={<ReloadOutlined />}
@@ -302,7 +306,7 @@ export default function BpmDefinitionsPage() {
                   setParams({ page: 1, page_size: 10 })
                 }}
               >
-                重置
+                {t('重置')}
               </Button>
             </Space>
           </Form.Item>
@@ -321,15 +325,15 @@ export default function BpmDefinitionsPage() {
             <Space wrap>
               {isPlatform && (
                 <Button icon={<BarChartOutlined />} onClick={() => setStatsOpen(true)}>
-                  审批统计
+                  {t('审批统计')}
                 </Button>
               )}
               <Button icon={<ReloadOutlined />} onClick={() => void fetchList(params)}>
-                刷新
+                {t('刷新')}
               </Button>
               {hasPerm('bpm:definition:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-                  新建流程
+                  {t('新建流程')}
                 </Button>
               )}
             </Space>
@@ -347,54 +351,54 @@ export default function BpmDefinitionsPage() {
             current: params.page,
             pageSize: params.page_size,
             showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
-        />
+         scroll={{ x: 960 }} />
       </Card>
 
       <Modal
-        title="新建审批流程"
+        title={t('新建审批流程')}
         open={createOpen}
         onOk={() => void onCreate()}
         onCancel={() => setCreateOpen(false)}
         confirmLoading={creating}
-        okText="创建并进入设计器"
+        okText={t('创建并进入设计器')}
         destroyOnHidden
         width={520}
       >
         <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="key"
-            label="流程标识 key"
-            tooltip="业务方按此 key 发起审批；同一 key 可多版本，同时仅一个生效版本"
+            label={t('流程标识 key')}
+            tooltip={t('业务方按此 key 发起审批；同一 key 可多版本，同时仅一个生效版本')}
             rules={[
-              { required: true, message: '请输入流程标识' },
+              { required: true, message: t('请输入流程标识') },
               {
                 pattern: /^[a-z][a-z0-9_]{1,63}$/,
-                message: '小写字母开头，仅含小写字母/数字/下划线，2-64 位',
+                message: t('小写字母开头，仅含小写字母/数字/下划线，2-64 位'),
               },
             ]}
           >
-            <Input placeholder="如：expense_approval" />
+            <Input placeholder={t('如：crm_contract_approval')} />
           </Form.Item>
-          <Form.Item name="name" label="流程名称" rules={[{ required: true, message: '请输入流程名称' }]}>
-            <Input placeholder="如：报销审批" maxLength={128} />
+          <Form.Item name="name" label={t('流程名称')} rules={[{ required: true, message: t('请输入流程名称') }]}>
+            <Input placeholder={t('如：合同审批')} maxLength={128} />
           </Form.Item>
           <Form.Item
             name="biz_type"
-            label="业务类型"
-            tooltip="决定发起表单快照字段与终态回写目标；留空为通用流程"
+            label={t('业务类型')}
+            tooltip={t('决定发起表单快照字段与终态回写目标；留空为通用流程')}
           >
-            <Select placeholder="选择业务类型（可选）" allowClear options={BIZ_TYPE_OPTIONS} />
+            <Select placeholder={t('选择业务类型（可选）')} allowClear options={BIZ_TYPE_OPTIONS} />
           </Form.Item>
-          <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={2} maxLength={256} placeholder="可选" />
+          <Form.Item name="remark" label={t('备注')}>
+            <Input.TextArea rows={2} maxLength={256} placeholder={t('可选')} />
           </Form.Item>
         </Form>
       </Modal>
       <Drawer
-        title="审批统计"
+        title={t('审批统计')}
         open={statsOpen}
         onClose={() => setStatsOpen(false)}
         width={720}

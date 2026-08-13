@@ -301,7 +301,7 @@ function ChannelTab() {
           showTotal: (n) => t('共 {{n}} 条', { n }),
           onChange: (page, page_size) => setParams({ ...params, page, page_size }),
         }}
-      />
+       scroll={{ x: 960 }} />
 
       <Modal
         title={editRecord ? t('编辑渠道') : t('新增渠道')}
@@ -691,7 +691,7 @@ function TemplateTab() {
           showTotal: (n) => t('共 {{n}} 条', { n }),
           onChange: (page, page_size) => setParams({ ...params, page, page_size }),
         }}
-      />
+       scroll={{ x: 960 }} />
 
       <Modal
         title={editRecord ? t('编辑模板') : t('新增模板')}
@@ -931,7 +931,7 @@ function LogTab() {
           showTotal: (n) => t('共 {{n}} 条', { n }),
           onChange: (page, page_size) => setParams({ ...params, page, page_size }),
         }}
-      />
+       scroll={{ x: 960 }} />
 
       <Modal
         title={t('发送详情')}

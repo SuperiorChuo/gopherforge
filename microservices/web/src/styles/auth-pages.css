@@ -1,0 +1,242 @@
+/* 认证页样式（login / AuthShell / 忘记密码等）
+ * 从 index.css 拆出，降低全路由 CSS 体积。后续登录精修块仍可能在 index.css。
+ */
+
+/* ===== Login page ===== */
+.login-page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: hidden;
+  background: #07070f;
+}
+
+/* 极光：三团大色斑缓慢漂移 */
+.login-aurora {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.5;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.login-aurora-1 {
+  width: 640px;
+  height: 640px;
+  top: -220px;
+  left: -140px;
+  background: radial-gradient(circle at 30% 30%, #4f46e5, transparent 65%);
+  animation: login-drift-1 18s ease-in-out infinite alternate;
+}
+
+.login-aurora-2 {
+  width: 560px;
+  height: 560px;
+  bottom: -240px;
+  right: -120px;
+  background: radial-gradient(circle at 40% 40%, #7c3aed, transparent 65%);
+  animation: login-drift-2 22s ease-in-out infinite alternate;
+}
+
+.login-aurora-3 {
+  width: 420px;
+  height: 420px;
+  top: 30%;
+  left: 55%;
+  background: radial-gradient(circle at 50% 50%, #0ea5e9, transparent 65%);
+  opacity: 0.28;
+  animation: login-drift-3 26s ease-in-out infinite alternate;
+}
+
+@keyframes login-drift-1 {
+  to { transform: translate(90px, 70px) scale(1.12); }
+}
+
+@keyframes login-drift-2 {
+  to { transform: translate(-80px, -60px) scale(1.08); }
+}
+
+@keyframes login-drift-3 {
+  to { transform: translate(-120px, 60px) scale(0.92); }
+}
+
+/* 细网格，向中心渐隐 */
+.login-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 45%, #000 20%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 45%, #000 20%, transparent 75%);
+}
+
+.login-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 920px;
+  max-width: 100%;
+  min-height: 560px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: rgba(15, 16, 32, 0.62);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  box-shadow:
+    0 40px 100px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  animation: login-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes login-rise {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 顶部一条渐变高光线 */
+.login-shell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(129, 140, 248, 0.8), transparent);
+}
+
+.login-brand {
+  position: relative;
+  flex: 1 1 46%;
+  padding: 56px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(79, 70, 229, 0.22), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(124, 58, 237, 0.16), transparent 55%);
+}
+
+.login-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.login-logo-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #7c3aed);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.45);
+}
+
+.login-logo-name {
+  font-size: 17px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: 0.4px;
+}
+
+.login-headline {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 14px;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.login-headline em {
+  font-style: normal;
+  background: linear-gradient(100deg, #a5b4fc 0%, #818cf8 40%, #c4b5fd 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.login-subline {
+  color: rgba(203, 213, 225, 0.66);
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 0;
+}
+
+.login-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login-features li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(203, 213, 225, 0.78);
+  font-size: 13.5px;
+}
+
+.login-feature-icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.22);
+}
+
+.login-form-panel {
+  flex: 1 1 54%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 48px;
+}
+
+.login-form-inner {
+  width: 100%;
+  max-width: 340px;
+}
+
+.login-form-title {
+  font-size: 24px;
+  font-weight: 650;
+  color: #fff;
+  margin: 0 0 8px;
+  letter-spacing: -0.3px;
+}
+
+.login-form-sub {
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 13.5px;
+  margin: 0;
+}
+
+.login-footer {
+  margin-top: 32px;
+  text-align: center;
+  color: rgba(100, 116, 139, 0.7);
+  font-size: 12px;
+}
+

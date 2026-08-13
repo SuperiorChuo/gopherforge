@@ -688,7 +688,7 @@ export default function EdgeCertsPage() {
   )
 
   return (
-    <div>
+    <div className="page-list edge-certs-page">
       {confirmContextHolder}
       <TableToolbar
         title="边缘证书"

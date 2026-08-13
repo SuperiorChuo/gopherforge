@@ -39,7 +39,6 @@ import BpmResubmitModal from '@/components/BpmResubmitModal'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useAppSelector } from '@/hooks/store'
-import { useLocale } from '@/i18n/LocaleContext'
 import { displayUserName, useUserNameMap } from '@/hooks/useUserNameMap'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
@@ -52,7 +51,6 @@ interface SearchParams {
 
 export default function BpmInstancesPage() {
   const { t } = useTranslation()
-  const { locale } = useLocale()
   const isPlatform = !!useAppSelector((s) => s.auth.userInfo)?.is_platform_admin
   const userMap = useUserNameMap()
   const [list, setList] = useState<BpmInstance[]>([])
@@ -78,7 +76,7 @@ export default function BpmInstancesPage() {
       value,
       label: t(meta.label),
     })),
-    [locale],
+    [t],
   )
 
   const detectResubmitable = async (rows: BpmInstance[]) => {
@@ -314,7 +312,7 @@ export default function BpmInstancesPage() {
             showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
-        />
+         scroll={{ x: 960 }} />
       </Card>
 
       <Drawer
