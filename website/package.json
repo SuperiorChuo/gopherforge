@@ -10,5 +10,8 @@
   "devDependencies": {
     "node-html-parser": "^9.0.0",
     "vitepress": "^1.6.3"
+  },
+  "overrides": {
+    "vite": "6.4.3"
   }
 }
