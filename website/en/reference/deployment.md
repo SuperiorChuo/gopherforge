@@ -2,7 +2,7 @@
 
 The full production guide is maintained in Chinese: [生产部署（中文）](/reference/deployment) · [source on GitHub](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/deployment.md).
 
-> Current release: `v0.5.0` ([Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.5.0)). It is a 0.x release: APIs and database schemas may change. Complete backups, migration compatibility checks and a rollback rehearsal before production use. See the [upgrade notes](/en/reference/upgrade).
+> Current release: `v0.6.0` ([Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.6.0)). It is a 0.x release: APIs and database schemas may change. Complete backups, migration compatibility checks and a rollback rehearsal before production use. See the [upgrade notes](/en/reference/upgrade).
 
 ## Quick start with official images (v0.2.0+, recommended)
 
@@ -18,7 +18,7 @@ docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
 docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d   # data stack
 
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.5.0
+export IMAGE_TAG=v0.6.0
 docker compose pull && docker compose up -d --no-build                   # app stack
 ```
 

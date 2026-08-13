@@ -5,47 +5,38 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-13
+
 ### 新增
 
-- **边缘证书生命周期 V2（同步自主项目）**：控制台支持持久化异步签发、续期、部署与指纹探测；Compose 网关由 system-service 唯一接管 HTTP-01，并通过 Traefik file provider 热加载证书。
+- **边缘证书生命周期 V2**：控制台支持持久化异步签发、续期、部署与指纹探测；Compose 网关由 system-service 唯一接管 HTTP-01，并通过 Traefik file provider 热加载证书。
+- **微服务发现与契约**：引入 Consul 服务发现、gRPC 契约与生成代码、连接池和重试策略；BPM 发起支持幂等键，服务具备优雅关停与健康状态聚合能力。
+- **韧性与事务一致性底座**：新增 `graceful`、`idempotency`、`outbox`、`health`、`auditevents`、`identityclient` 与 `natsx` 共享能力，事务审计可自动写入 Outbox。
+- **前端底座完善**：权限管理支持树形/列表双视图，补充 Jaeger 入口与主题 cssVar，并将认证页、布局、监控和表格样式拆分为按页面加载的 CSS 模块。
 
-### 功能
+### 变更
 
-- **安全性能 P0/P1（同步自主项目）**：grpcx 证书齐备自动 mTLS + `GRPC_TLS_REQUIRED`；audittrail 自动事务 Outbox；`slo-probe` / dev mTLS 证书脚本。
-
-
-### 功能
-
-- **BPM/韧性续同步（自主项目）**：BPM engine 去 users 直查（identityclient）；`no_direct_users` 门禁恢复；`natsx` + audittrail outbox 能力入库。
-
-
-### 功能
-
-- **韧性基建（同步自主项目）**：入库 `graceful` / `idempotency` / `outbox` / `health` / `auditevents` / `identityclient`，以及 `middleware.ServeWithGraceful`；供底座服务优雅退出、幂等、Outbox 与 identity owner 调用。
-
-
-### 功能
-
-- **生产硬化（同步自主项目）**：新增 `shared/pkg/envsecret`（Swarm secrets 优先于环境变量）、`secretstrength`、`tlsutil`；底座服务 config 敏感项接线；`grpcx` 支持 Consul ACL token 与可选 mTLS 连接池；附带 `scripts/prod-security-check.sh`。
-
+- **服务边界收敛**：BPM 不再直查用户表，公共 model、DAO、JWT、middleware、连接池与 API 依赖统一下沉到 `shared/pkg`。
+- **数据与运行时升级**：基础设施基线升级至 PostgreSQL 18、Redis 8、NATS 2.12、Traefik 3.7、Prometheus 3.13、Grafana 13、Loki 3.7 与 Jaeger v2；前端升级 Vite 8、Axios 1.19 和 Ant Design 6.5。
+- **迁移发布门禁**：增加 schema 拆分、fresh DB 迁移演练、Compose 编排合同和 gRPC buf lint/breaking 检查。
 
 ### 修复
 
-- **监控服务优雅关停与前端国际化**：恢复可注入上下文的 HTTP 排空路径，并补齐 5 个英文词典条目，解除 CI 门禁阻断。
-- **边缘证书菜单初始化**：菜单改由 `000074` 迁移单点写入，并增加固定菜单 ID 唯一性测试，避免新环境因重复主键导致 system-service 启动失败。
-- **公开迁移边界**：收窄 `000070_business_schema_split.sql` 为公开线实际提供的 BPM/Monitor 基础设施 schema，阻止 AI、CRM、IM 等业务域迁移泄漏到脚手架；CI 新增业务 schema 越界门禁。
-- **BPM 通知配置契约**：通知通道未配置 `NOTIFY_API_BASE` 时不再发出无关的 `NOTIFY_INTERNAL_TOKEN` 生产告警。
-- **安全镜像构建**：monitor 镜像扫描改用 `microservices/services` 根上下文，修复 Dockerfile 依赖文件找不到导致的 Security Scan 失败。
+- **监控服务优雅关停与前端国际化**：恢复可注入上下文的 HTTP 排空路径并补齐公开词典，解除 CI 门禁阻断。
+- **边缘证书菜单初始化**：菜单改由迁移单点写入并增加固定菜单 ID 唯一性测试，避免新环境因重复主键启动失败。
+- **公开迁移边界**：迁移仅保留公开 BPM/Monitor 基础设施 schema，阻止业务域结构进入脚手架。
+- **后台任务与事务审计**：修复任务心跳表兼容和 Outbox 回调污染 GORM Statement 导致的事务写入失败。
+- **构建与发布链**：修复 monitor 镜像上下文、前端上传目录、国际化门禁和文档站构建依赖问题。
 
 ### 安全
 
-- **文档站依赖加固**：升级 Vite 及其 esbuild、PostCSS、nanoid 依赖，修复路径绕过、Windows NTLM 泄露、开发服务器跨源读取与 sourcemap 任意文件读取风险，GitHub Dependabot 告警清零。
-- **边缘证书私钥保护（同步自主项目）**：ACME 账户密钥与证书私钥改为 AES-256-GCM envelope 加密；私钥导出新增独立权限、密码+TOTP 二次验证、单次短时 proof、同步审计与 `no-store` 响应，并禁止网关头伪造平台管理员身份。
-- **依赖修复**：`tools/dbdoc` 的 `golang.org/x/text` 升级至 `v0.40.0`，覆盖 Trivy 报告的已修复版本门槛。
+- **边缘证书私钥保护**：ACME 账户密钥与证书私钥采用 AES-256-GCM envelope 加密；导出要求独立权限、密码+TOTP 二次验证、单次短时 proof 与同步审计，并禁止网关头伪造平台管理员身份。
+- **生产密钥与服务通信**：增加容器密钥文件读取、密钥强度检查、Consul ACL 与可强制的 gRPC mTLS 策略，附带生产安全自检和 SLO 探针。
+- **供应链加固**：升级 Vite、esbuild、PostCSS、nanoid 与 `golang.org/x/text`；Dependabot、Code Scanning 和 Secret Scanning 开放告警清零。
 
 ### 文档
 
-- **版本与运行时口径**：文档、示例与部署页统一指向已发布的 `v0.5.0`，并将 PG/Redis 版本更新为当前 PG18/Redis8 基线。
+- **版本与部署口径**：文档、示例与部署页统一指向 `v0.6.0`，并补齐迁移演练、生产安全与边缘证书部署说明。
 
 ## [0.5.0] - 2026-08-09
 

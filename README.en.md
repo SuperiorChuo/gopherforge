@@ -52,7 +52,7 @@ Prefer not to build locally? Pull the **official multi-arch images** (amd64 / ar
 ```bash
 cd microservices
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.5.0          # use the latest stable tag
+export IMAGE_TAG=v0.6.0          # use the latest stable tag
 docker compose pull && docker compose up -d --no-build
 ```
 
