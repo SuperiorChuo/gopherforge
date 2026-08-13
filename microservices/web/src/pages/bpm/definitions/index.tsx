@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Card, Drawer, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd'
+import { Button, Card, Drawer, Form, Input, Modal, Select, Space, Table, Tag, Typography, Grid } from 'antd'
 import {
   ApartmentOutlined,
   CopyOutlined,
@@ -32,6 +32,7 @@ const FlowDesigner = lazy(() => import('@/pages/bpm/designer'))
 import BpmStatsPanel from '@/components/BpmStatsPanel'
 import { useAppSelector } from '@/hooks/store'
 import TableToolbar from '@/components/TableToolbar'
+import TableRowActions from '@/components/TableRowActions'
 import GlassEmpty from '@/components/GlassEmpty'
 import StatusPill from '@/components/StatusPill'
 import { usePermission } from '@/hooks/usePermission'
@@ -67,6 +68,8 @@ export default function BpmDefinitionsPage() {
   const [createForm] = Form.useForm()
   const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
 
   const fetchList = async (p: SearchParams) => {
     setLoading(true)
@@ -204,62 +207,65 @@ export default function BpmDefinitionsPage() {
     },
     {
       title: t('操作'),
-      width: 240,
+      width: compactActions ? 48 : 132,
+      align: 'center' as const,
+      fixed: 'right' as const,
       render: (_, row) => (
-        <Space size={0} className="table-actions">
-          {row.status === 'draft' ? (
-            <>
-              {hasPerm('bpm:definition:update') && (
-                <Button
-                  type="link"
-                  size="small"
-                  icon={<EditOutlined />}
-                  onClick={() => setDesign({ id: row.id, readOnly: false })}
-                >
-                  {t('设计')}
-                </Button>
-              )}
-              {hasPerm('bpm:definition:publish') && (
-                <Popconfirm
-                  title={t('发布该草稿版本？')}
-                  description={t('发布后立即生效，同一 key 的旧生效版本将自动归档')}
-                  onConfirm={() => void onPublish(row)}
-                >
-                  <Button type="link" size="small" icon={<SendOutlined />}>
-                    {t('发布')}
-                  </Button>
-                </Popconfirm>
-              )}
-            </>
-          ) : (
-            <>
-              <Button
-                type="link"
-                size="small"
-                icon={<EyeOutlined />}
-                onClick={() => setDesign({ id: row.id, readOnly: true })}
-              >
-                {t('查看')}
-              </Button>
-              {hasPerm('bpm:definition:update') && (
-                <Button type="link" size="small" icon={<CopyOutlined />} onClick={() => void onNewVersion(row)}>
-                  {t('新版本')}
-                </Button>
-              )}
-              {row.status === 'active' && hasPerm('bpm:definition:update') && (
-                <Popconfirm
-                  title={t('停用该流程？')}
-                  description={t('停用后不允许新发起，在途实例不受影响')}
-                  onConfirm={() => void onSuspend(row)}
-                >
-                  <Button type="link" size="small" danger icon={<PauseCircleOutlined />}>
-                    {t('停用')}
-                  </Button>
-                </Popconfirm>
-              )}
-            </>
-          )}
-        </Space>
+        <TableRowActions
+          menuOnly={compactActions}
+          maxInline={2}
+          ariaLabel={t('更多操作：{{name}}', { name: row.name })}
+          actions={
+            row.status === 'draft'
+              ? [
+                  {
+                    key: 'design',
+                    label: t('设计'),
+                    icon: <EditOutlined />,
+                    show: hasPerm('bpm:definition:update'),
+                    onClick: () => setDesign({ id: row.id, readOnly: false }),
+                  },
+                  {
+                    key: 'publish',
+                    label: t('发布'),
+                    icon: <SendOutlined />,
+                    show: hasPerm('bpm:definition:publish'),
+                    confirm: {
+                      title: t('发布该草稿版本？'),
+                      description: t('发布后立即生效，同一 key 的旧生效版本将自动归档'),
+                    },
+                    onClick: () => { void onPublish(row) },
+                  },
+                ]
+              : [
+                  {
+                    key: 'view',
+                    label: t('查看'),
+                    icon: <EyeOutlined />,
+                    onClick: () => setDesign({ id: row.id, readOnly: true }),
+                  },
+                  {
+                    key: 'newver',
+                    label: t('新版本'),
+                    icon: <CopyOutlined />,
+                    show: hasPerm('bpm:definition:update'),
+                    onClick: () => { void onNewVersion(row) },
+                  },
+                  {
+                    key: 'suspend',
+                    label: t('停用'),
+                    icon: <PauseCircleOutlined />,
+                    danger: true,
+                    show: row.status === 'active' && hasPerm('bpm:definition:update'),
+                    confirm: {
+                      title: t('停用该流程？'),
+                      description: t('停用后不允许新发起，在途实例不受影响'),
+                    },
+                    onClick: () => { void onSuspend(row) },
+                  },
+                ]
+          }
+        />
       ),
     },
   ]

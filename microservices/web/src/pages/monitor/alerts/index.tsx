@@ -11,7 +11,6 @@ import {
   Input,
   InputNumber,
   Modal,
-  Popconfirm,
   Segmented,
   Select,
   Space,
@@ -57,6 +56,7 @@ import {
 import GlassEmpty from '@/components/GlassEmpty'
 import StatusPill, { type StatusTone } from '@/components/StatusPill'
 import TableToolbar from '@/components/TableToolbar'
+import TableRowActions from '@/components/TableRowActions'
 import { usePermission } from '@/hooks/usePermission'
 import { formatDateTime } from '@/utils/format'
 import { message } from '@/utils/feedback'
@@ -431,48 +431,41 @@ export default function AlertRulesPage() {
       title: t('操作'),
       width: 116,
       fixed: screens.lg ? 'right' : undefined,
-      align: 'center',
+      align: 'center' as const,
       className: 'alert-rule-actions-cell',
       render: (_, rule) => (
-        <Space size={2} className="table-actions compact-table-actions alert-rule-actions">
-          {hasPerm('system:alert:evaluate') && (
-            <Tooltip title={rule.enabled ? t('立即使用真实指标评估') : t('停用规则不能评估')}>
-              <Button
-                type="text"
-                size="small"
-                icon={<ThunderboltOutlined />}
-                aria-label={t('评估告警规则 {{name}}', { name: rule.name })}
-                disabled={!rule.enabled}
-                loading={evaluatingID === rule.id}
-                onClick={() => evaluateRule(rule)}
-              />
-            </Tooltip>
-          )}
-          {hasPerm('system:alert:update') && (
-            <Tooltip title={t('编辑')}>
-              <Button
-                type="text"
-                size="small"
-                icon={<EditOutlined />}
-                aria-label={t('编辑告警规则 {{name}}', { name: rule.name })}
-                onClick={() => openEdit(rule)}
-              />
-            </Tooltip>
-          )}
-          {hasPerm('system:alert:delete') && (
-            <Popconfirm title={t('删除规则后历史事件仍会保留，确认删除?')} onConfirm={() => removeRule(rule)}>
-              <Tooltip title={t('删除')}>
-                <Button
-                  type="text"
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  aria-label={t('删除告警规则 {{name}}', { name: rule.name })}
-                />
-              </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
+        <TableRowActions
+          className="alert-rule-actions"
+          maxInline={3}
+          ariaLabel={t('更多操作：{{name}}', { name: rule.name })}
+          actions={[
+            {
+              key: 'evaluate',
+              label: rule.enabled ? t('立即使用真实指标评估') : t('停用规则不能评估'),
+              icon: <ThunderboltOutlined />,
+              show: hasPerm('system:alert:evaluate'),
+              disabled: !rule.enabled,
+              loading: evaluatingID === rule.id,
+              onClick: () => { void evaluateRule(rule) },
+            },
+            {
+              key: 'edit',
+              label: t('编辑'),
+              icon: <EditOutlined />,
+              show: hasPerm('system:alert:update'),
+              onClick: () => openEdit(rule),
+            },
+            {
+              key: 'delete',
+              label: t('删除'),
+              icon: <DeleteOutlined />,
+              danger: true,
+              show: hasPerm('system:alert:delete'),
+              confirm: t('删除规则后历史事件仍会保留，确认删除?'),
+              onClick: () => { void removeRule(rule) },
+            },
+          ]}
+        />
       ),
     },
   ]

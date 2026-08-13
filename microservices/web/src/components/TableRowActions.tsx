@@ -9,6 +9,7 @@ export type TableRowAction = {
   icon?: ReactNode
   danger?: boolean
   disabled?: boolean
+  loading?: boolean
   /** false 时不渲染该动作 */
   show?: boolean
   /** 点击前确认；菜单模式走 Modal.confirm */
@@ -79,6 +80,7 @@ export default function TableRowActions({
         size="small"
         danger={action.danger}
         disabled={action.disabled}
+        loading={action.loading}
         icon={action.icon}
         aria-label={action.label}
         onClick={action.confirm ? undefined : () => action.onClick()}
@@ -106,7 +108,7 @@ export default function TableRowActions({
     label: action.label,
     icon: action.icon,
     danger: action.danger,
-    disabled: action.disabled,
+    disabled: action.disabled || action.loading,
     onClick: () => run(action),
   }))
 

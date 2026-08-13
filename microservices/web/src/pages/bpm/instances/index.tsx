@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Drawer,
+  Grid,
   Input,
   Modal,
   Popconfirm,
@@ -37,6 +38,7 @@ import {
 import BpmInstanceTimeline from '@/components/BpmInstanceTimeline'
 import BpmResubmitModal from '@/components/BpmResubmitModal'
 import TableToolbar from '@/components/TableToolbar'
+import TableRowActions from '@/components/TableRowActions'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useAppSelector } from '@/hooks/store'
 import { displayUserName, useUserNameMap } from '@/hooks/useUserNameMap'
@@ -52,6 +54,8 @@ interface SearchParams {
 export default function BpmInstancesPage() {
   const { t } = useTranslation()
   const isPlatform = !!useAppSelector((s) => s.auth.userInfo)?.is_platform_admin
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
   const userMap = useUserNameMap()
   const [list, setList] = useState<BpmInstance[]>([])
   const [total, setTotal] = useState(0)
@@ -208,48 +212,53 @@ export default function BpmInstancesPage() {
     },
     {
       title: t('操作'),
-      width: scope === 'all' ? 150 : 200,
+      width: compactActions ? 48 : scope === 'all' ? 96 : 132,
+      align: 'center' as const,
+      fixed: 'right' as const,
       render: (_, row) => (
-        <Space size={0} className="table-actions">
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => setDetail(row)}>
-            {t('详情')}
-          </Button>
-          {scope === 'my' && row.status === 'running' && resubmitable[row.id] && (
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => setResubmitFor(row.id)}
-            >
-              {t('重新提交')}
-            </Button>
-          )}
-          {scope === 'my' && row.status === 'running' && (
-            <Popconfirm
-              title={t('撤销该审批？')}
-              description={t('仅在尚无人审批时可撤销')}
-              onConfirm={() => void onCancel(row)}
-            >
-              <Button type="link" size="small" danger icon={<RollbackOutlined />}>
-                {t('撤销')}
-              </Button>
-            </Popconfirm>
-          )}
-          {isPlatform && (row.status === 'running' || row.status === 'suspended') && (
-            <Button
-              type="link"
-              size="small"
-              danger
-              icon={<StopOutlined />}
-              onClick={() => {
+        <TableRowActions
+          menuOnly={compactActions}
+          maxInline={2}
+          ariaLabel={t('更多操作：{{title}}', { title: row.title })}
+          actions={[
+            {
+              key: 'detail',
+              label: t('详情'),
+              icon: <EyeOutlined />,
+              onClick: () => setDetail(row),
+            },
+            {
+              key: 'resubmit',
+              label: t('重新提交'),
+              icon: <EditOutlined />,
+              show: scope === 'my' && row.status === 'running' && Boolean(resubmitable[row.id]),
+              onClick: () => setResubmitFor(row.id),
+            },
+            {
+              key: 'cancel',
+              label: t('撤销'),
+              icon: <RollbackOutlined />,
+              danger: true,
+              show: scope === 'my' && row.status === 'running',
+              confirm: {
+                title: t('撤销该审批？'),
+                description: t('仅在尚无人审批时可撤销'),
+              },
+              onClick: () => { void onCancel(row) },
+            },
+            {
+              key: 'terminate',
+              label: t('终止'),
+              icon: <StopOutlined />,
+              danger: true,
+              show: isPlatform && (row.status === 'running' || row.status === 'suspended'),
+              onClick: () => {
                 setTerminateReason('')
                 setTerminateFor(row)
-              }}
-            >
-              {t('终止')}
-            </Button>
-          )}
-        </Space>
+              },
+            },
+          ]}
+        />
       ),
     },
   ]

@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
-  Card, InputNumber, Drawer, Tooltip,
+  Table, Button, Space, Tag, Modal, Form, Input, Select,
+  Card, InputNumber, Drawer, Grid, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -20,6 +21,7 @@ import {
   getJobLogList, type ScheduledJobLog,
 } from '@/api/monitor'
 import TableToolbar from '@/components/TableToolbar'
+import TableRowActions from '@/components/TableRowActions'
 import StatusPill from '@/components/StatusPill'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
@@ -35,6 +37,7 @@ interface SearchParams {
 }
 
 export default function JobPage() {
+  const { t } = useTranslation()
   const [list, setList] = useState<ScheduledJob[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -57,6 +60,8 @@ export default function JobPage() {
   const [cleanupForm] = Form.useForm()
   const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
 
   const fetchList = useCallback(async (p: SearchParams) => {
     setLoading(true)
@@ -65,7 +70,7 @@ export default function JobPage() {
       setList(res.list)
       setTotal(res.total)
     } catch {
-      message.error('获取任务列表失败')
+      message.error(t('获取任务列表失败'))
     } finally {
       setLoading(false)
     }
@@ -74,7 +79,7 @@ export default function JobPage() {
       .catch(() => {
         // ignore
       })
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchList(params)
@@ -102,11 +107,11 @@ export default function JobPage() {
       setLogs(res.list ?? [])
       setLogTotal(res.total ?? 0)
     } catch {
-      message.error('获取执行日志失败')
+      message.error(t('获取执行日志失败'))
     } finally {
       setLogLoading(false)
     }
-  }, [])
+  }, [t])
 
   const openLogs = (record: ScheduledJob | null) => {
     setLogJob(record ?? ({ id: 0, name: '全部任务' } as ScheduledJob))
@@ -150,15 +155,15 @@ export default function JobPage() {
     try {
       if (editRecord) {
         await updateJob(editRecord.id, values)
-        message.success('更新成功')
+        message.success(t('更新成功'))
       } else {
         await createJob(values)
-        message.success('创建成功')
+        message.success(t('创建成功'))
       }
       setModalOpen(false)
       fetchList(params)
     } catch {
-      message.error('操作失败')
+      message.error(t('操作失败'))
     } finally {
       setSubmitting(false)
     }
@@ -167,43 +172,43 @@ export default function JobPage() {
   const handleDelete = async (id: number) => {
     try {
       await deleteJob(id)
-      message.success('删除成功')
+      message.success(t('删除成功'))
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
         fetchList(params)
       }
     } catch {
-      message.error('删除失败')
+      message.error(t('删除失败'))
     }
   }
 
   const handleStart = async (id: number) => {
     try {
       await startJob(id)
-      message.success('启动成功')
+      message.success(t('启动成功'))
       fetchList(params)
     } catch {
-      message.error('启动失败')
+      message.error(t('启动失败'))
     }
   }
 
   const handleStop = async (id: number) => {
     try {
       await stopJob(id)
-      message.success('停止成功')
+      message.success(t('停止成功'))
       fetchList(params)
     } catch {
-      message.error('停止失败')
+      message.error(t('停止失败'))
     }
   }
 
   const handleRun = async (id: number) => {
     try {
       await runJob(id)
-      message.success('执行成功')
+      message.success(t('执行成功'))
     } catch {
-      message.error('执行失败')
+      message.error(t('执行失败'))
     }
   }
 
@@ -213,11 +218,11 @@ export default function JobPage() {
     setCleanupSubmitting(true)
     try {
       const res = await cleanupJobLogs(values.retention_days)
-      message.success(`清理成功，共删除 ${res.deleted_rows} 条日志`)
+      message.success(t('清理成功，共删除 {{n}} 条日志', { n: res.deleted_rows }))
       setCleanupModalOpen(false)
       cleanupForm.resetFields()
     } catch {
-      message.error('清理失败')
+      message.error(t('清理失败'))
     } finally {
       setCleanupSubmitting(false)
     }
@@ -226,7 +231,7 @@ export default function JobPage() {
   const columns: ColumnsType<ScheduledJob> = [
     { title: 'ID', dataIndex: 'id', width: 70 },
     {
-      title: '名称',
+      title: t('名称'),
       dataIndex: 'name',
       width: 180,
       ellipsis: { showTitle: false },
@@ -237,7 +242,7 @@ export default function JobPage() {
       ),
     },
     {
-      title: '分组',
+      title: t('分组'),
       dataIndex: 'group_name',
       width: 120,
       ellipsis: { showTitle: false },
@@ -248,7 +253,7 @@ export default function JobPage() {
       ) : <span className="cell-muted">—</span>,
     },
     {
-      title: 'Cron表达式',
+      title: t('Cron表达式'),
       dataIndex: 'cron_expression',
       width: 150,
       ellipsis: { showTitle: false },
@@ -259,7 +264,7 @@ export default function JobPage() {
       ),
     },
     {
-      title: '调用目标',
+      title: t('调用目标'),
       dataIndex: 'invoke_target',
       width: 200,
       ellipsis: { showTitle: false },
@@ -267,23 +272,23 @@ export default function JobPage() {
         const known = JOB_TARGET_LABELS[v]
         // 历史数据可能存着白名单外的目标（写入校验是后加的），标出来而不是
         // 让它看起来正常——它一触发就会失败。
-        const listed = targets.some((t) => t.target === v)
+        const listed = targets.some((tg) => tg.target === v)
         if (!known && !listed) {
           return (
-            <Tooltip title="该目标不在调度器的内置清单里，任务触发时会直接失败；请改选一个有效目标">
-              <Tag color="error" className="cell-mono job-table-tag">{v} · 无效</Tag>
+            <Tooltip title={t('该目标不在调度器的内置清单里，任务触发时会直接失败；请改选一个有效目标')}>
+              <Tag color="error" className="cell-mono job-table-tag">{v} · {t('无效')}</Tag>
             </Tooltip>
           )
         }
         return (
-          <Tooltip title={known?.hint ?? targets.find((t) => t.target === v)?.description ?? v}>
-            <span className="cell-mono cell-dim job-cell-ellipsis">{known?.label ?? v}</span>
+          <Tooltip title={t(known?.hint ?? targets.find((tg) => tg.target === v)?.description ?? v)}>
+            <span className="cell-mono cell-dim job-cell-ellipsis">{t(known?.label ?? v)}</span>
           </Tooltip>
         )
       },
     },
     {
-      title: '说明',
+      title: t('说明'),
       dataIndex: 'description',
       width: 220,
       ellipsis: { showTitle: false },
@@ -294,7 +299,7 @@ export default function JobPage() {
       ) : <span className="cell-muted">—</span>,
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 100,
       render: (v: number) => (
@@ -302,53 +307,66 @@ export default function JobPage() {
       ),
     },
     {
-      title: '下次执行',
+      title: t('下次执行'),
       dataIndex: 'next_run_time',
       width: 170,
       className: 'cell-time',
       render: formatDateTime,
     },
     {
-      title: '操作',
-      width: 200,
-      fixed: 'right',
-      align: 'center',
+      title: t('操作'),
+      width: compactActions ? 48 : 148,
+      fixed: 'right' as const,
+      align: 'center' as const,
       render: (_, record) => (
-        <Space size={2} className="table-actions compact-table-actions job-row-actions">
-          {hasPerm('system:job:update') && (
-            <Tooltip title="编辑">
-              <Button type="text" size="small" aria-label="编辑定时任务" icon={<EditOutlined />} onClick={() => openEdit(record)} />
-            </Tooltip>
-          )}
-          {hasPerm('system:job:run') && (
-            record.status === 0 ? (
-              <Tooltip title="启动">
-                <Button type="text" size="small" aria-label="启动定时任务" icon={<PlayCircleOutlined />} onClick={() => handleStart(record.id)} />
-              </Tooltip>
-            ) : (
-              <Tooltip title="暂停">
-                <Button type="text" size="small" aria-label="暂停定时任务" icon={<PauseCircleOutlined />} onClick={() => handleStop(record.id)} />
-              </Tooltip>
-            )
-          )}
-          {hasPerm('system:job:run') && (
-            <Popconfirm title="确认立即执行该任务?" onConfirm={() => handleRun(record.id)}>
-              <Tooltip title="立即执行">
-                <Button type="text" size="small" aria-label="立即执行定时任务" icon={<ThunderboltOutlined />} />
-              </Tooltip>
-            </Popconfirm>
-          )}
-          <Tooltip title="执行日志">
-            <Button type="text" size="small" aria-label="查看定时任务执行日志" icon={<HistoryOutlined />} onClick={() => openLogs(record)} />
-          </Tooltip>
-          {hasPerm('system:job:delete') && (
-            <Popconfirm title="确认删除该任务?" onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title="删除">
-                <Button type="text" size="small" danger aria-label="删除定时任务" icon={<DeleteOutlined />} />
-              </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
+        <TableRowActions
+          className="job-row-actions"
+          menuOnly={compactActions}
+          maxInline={3}
+          ariaLabel={t('更多操作：{{name}}', { name: record.name })}
+          actions={[
+            {
+              key: 'edit',
+              label: t('编辑'),
+              icon: <EditOutlined />,
+              show: hasPerm('system:job:update'),
+              onClick: () => openEdit(record),
+            },
+            {
+              key: 'toggle',
+              label: record.status === 0 ? t('启动') : t('暂停'),
+              icon: record.status === 0 ? <PlayCircleOutlined /> : <PauseCircleOutlined />,
+              show: hasPerm('system:job:run'),
+              onClick: () => {
+                if (record.status === 0) void handleStart(record.id)
+                else void handleStop(record.id)
+              },
+            },
+            {
+              key: 'run',
+              label: t('立即执行'),
+              icon: <ThunderboltOutlined />,
+              show: hasPerm('system:job:run'),
+              confirm: t('确认立即执行该任务?'),
+              onClick: () => { void handleRun(record.id) },
+            },
+            {
+              key: 'logs',
+              label: t('执行日志'),
+              icon: <HistoryOutlined />,
+              onClick: () => openLogs(record),
+            },
+            {
+              key: 'delete',
+              label: t('删除'),
+              icon: <DeleteOutlined />,
+              danger: true,
+              show: hasPerm('system:job:delete'),
+              confirm: t('确认删除该任务?'),
+              onClick: () => { void handleDelete(record.id) },
+            },
+          ]}
+        />
       ),
     },
   ]
@@ -364,30 +382,30 @@ export default function JobPage() {
           initialValues={params}
         >
           <Form.Item name="name">
-            <Input placeholder="搜索任务名称" prefix={<SearchOutlined />} allowClear style={{ width: 220 }} />
+            <Input placeholder={t('搜索任务名称')} prefix={<SearchOutlined />} allowClear style={{ width: 220 }} />
           </Form.Item>
           <Form.Item name="status">
-            <Select placeholder="状态" style={{ width: 110 }} allowClear>
-              <Select.Option value={1}>运行中</Select.Option>
-              <Select.Option value={0}>已暂停</Select.Option>
+            <Select placeholder={t('状态')} style={{ width: 110 }} allowClear>
+              <Select.Option value={1}>{t('运行中')}</Select.Option>
+              <Select.Option value={0}>{t('已暂停')}</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleSearchReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleSearchReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
           {health && (
             <Form.Item className="job-health-summary">
               <Space size={8} wrap>
-                <span className="health-pill">共 {health.total}</span>
+                <span className="health-pill">{t('共 {{n}}', { n: health.total })}</span>
                 <span className="health-pill health-pill-success">
-                  <span className="live-dot" />运行 {health.enabled}
+                  <span className="live-dot" />{t('运行 {{n}}', { n: health.enabled })}
                 </span>
-                <span className="health-pill">暂停 {health.paused}</span>
+                <span className="health-pill">{t('暂停 {{n}}', { n: health.paused })}</span>
                 <span className={`health-pill ${health.recent_failed > 0 ? 'health-pill-danger' : ''}`}>
-                  近 {health.window_hours}h 失败 {health.recent_failed}
+                  {t('近 {{n}}h 失败 {{m}}', { n: health.window_hours, m: health.recent_failed })}
                 </span>
               </Space>
             </Form.Item>
@@ -401,18 +419,18 @@ export default function JobPage() {
           total={total}
           extra={
             <Space wrap className="job-toolbar-actions">
-              <Button icon={<HistoryOutlined />} onClick={() => openLogs(null)}>执行日志</Button>
+              <Button icon={<HistoryOutlined />} onClick={() => openLogs(null)}>{t('执行日志')}</Button>
               {hasPerm('system:job:run') && (
                 <Button
                   icon={<ClearOutlined />}
                   onClick={() => { cleanupForm.resetFields(); setCleanupModalOpen(true) }}
                 >
-                  清理日志
+                  {t('清理日志')}
                 </Button>
               )}
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
               {hasPerm('system:job:create') && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增任务</Button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增任务')}</Button>
               )}
             </Space>
           }
@@ -432,14 +450,14 @@ export default function JobPage() {
             pageSize: params.page_size,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
       </Card>
 
       <Modal
-        title={editRecord ? '编辑任务' : '新增任务'}
+        title={editRecord ? t('编辑任务') : t('新增任务')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
@@ -448,59 +466,59 @@ export default function JobPage() {
         width={560}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入任务名称' }]}>
+          <Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('请输入任务名称') }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="group_name" label="分组">
+          <Form.Item name="group_name" label={t('分组')}>
             <Input />
           </Form.Item>
-          <Form.Item name="cron_expression" label="Cron表达式" rules={[{ required: true, message: '请输入Cron表达式' }]}>
-            <Input placeholder="如: 0 * * * * *（秒 分 时 日 月 周）" />
+          <Form.Item name="cron_expression" label={t('Cron表达式')} rules={[{ required: true, message: t('请输入Cron表达式') }]}>
+            <Input placeholder={t('如: 0 * * * * *（秒 分 时 日 月 周）')} />
           </Form.Item>
           {/* 目标必须是调度器内置的，自由文本会存进库、等触发时才失败。
               清单接口取不到时退回输入框，至少不挡住建任务（后端仍会校验）。 */}
           <Form.Item
             name="invoke_target"
-            label="调用目标"
-            rules={[{ required: true, message: '请选择调用目标' }]}
-            tooltip="仅可选择调度器内置的目标；后端会在保存时校验"
+            label={t('调用目标')}
+            rules={[{ required: true, message: t('请选择调用目标') }]}
+            tooltip={t('仅可选择调度器内置的目标；后端会在保存时校验')}
           >
             {targets.length > 0 ? (
               <Select
-                placeholder="请选择调用目标"
+                placeholder={t('请选择调用目标')}
                 optionLabelProp="label"
-                options={targets.map((t) => ({
-                  value: t.target,
-                  label: JOB_TARGET_LABELS[t.target]?.label ?? t.target,
-                  title: t.description,
+                options={targets.map((tg) => ({
+                  value: tg.target,
+                  label: JOB_TARGET_LABELS[tg.target]?.label ?? tg.target,
+                  title: tg.description,
                 }))}
                 optionRender={(option) => (
                   <div>
-                    <div>{option.data.label}</div>
+                    <div>{t(option.data.label)}</div>
                     <div className="cell-dim" style={{ fontSize: 12 }}>
-                      {JOB_TARGET_LABELS[option.data.value as string]?.hint ?? option.data.title}
+                      {t(JOB_TARGET_LABELS[option.data.value as string]?.hint ?? option.data.title)}
                     </div>
                   </div>
                 )}
               />
             ) : (
-              <Input placeholder="目标清单加载失败，可手动输入（保存时后端仍会校验）" />
+              <Input placeholder={t('目标清单加载失败，可手动输入（保存时后端仍会校验）')} />
             )}
           </Form.Item>
-          <Form.Item name="description" label="说明">
+          <Form.Item name="description" label={t('说明')}>
             <Input />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue={0}>
+          <Form.Item name="status" label={t('状态')} initialValue={0}>
             <Select>
-              <Select.Option value={1}>运行中</Select.Option>
-              <Select.Option value={0}>已暂停</Select.Option>
+              <Select.Option value={1}>{t('运行中')}</Select.Option>
+              <Select.Option value={0}>{t('已暂停')}</Select.Option>
             </Select>
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
-        title="清理任务日志"
+        title={t('清理任务日志')}
         open={cleanupModalOpen}
         onOk={handleCleanup}
         onCancel={() => setCleanupModalOpen(false)}
@@ -510,8 +528,8 @@ export default function JobPage() {
         <Form form={cleanupForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="retention_days"
-            label="保留天数"
-            rules={[{ required: true, message: '请输入保留天数' }]}
+            label={t('保留天数')}
+            rules={[{ required: true, message: t('请输入保留天数') }]}
             initialValue={30}
           >
             <InputNumber min={1} style={{ width: '100%' }} />
@@ -520,7 +538,7 @@ export default function JobPage() {
       </Modal>
 
       <Drawer
-        title={logJob?.id ? `执行日志 · ${logJob.name}` : '执行日志 · 全部任务'}
+        title={logJob?.id ? t('执行日志 · {{name}}', { name: logJob.name }) : t('执行日志 · 全部任务')}
         open={!!logJob}
         onClose={() => setLogJob(null)}
         size="min(760px, 100vw)"
@@ -530,7 +548,7 @@ export default function JobPage() {
         <Space className="job-log-toolbar" style={{ marginBottom: 12 }} wrap>
           <Select
             allowClear
-            placeholder="执行结果"
+            placeholder={t('执行结果')}
             style={{ width: 160 }}
             value={logStatus}
             onChange={(value) => {
@@ -539,15 +557,15 @@ export default function JobPage() {
               fetchLogs(logJob?.id ?? 0, 1, value)
             }}
             options={[
-              { value: 1, label: '成功' },
-              { value: 0, label: '失败' },
+              { value: 1, label: t('成功') },
+              { value: 0, label: t('失败') },
             ]}
           />
           <Button
             icon={<ReloadOutlined />}
             onClick={() => fetchLogs(logJob?.id ?? 0, logPage, logStatus)}
           >
-            刷新
+            {t('刷新')}
           </Button>
         </Space>
         <Table
@@ -572,7 +590,7 @@ export default function JobPage() {
             ...(logJob?.id
               ? []
               : [{
-                title: '任务',
+                title: t('任务'),
                 dataIndex: 'job_name',
                 width: 170,
                 ellipsis: { showTitle: false },
@@ -583,20 +601,20 @@ export default function JobPage() {
                 ),
               }]),
             {
-              title: '结果',
+              title: t('结果'),
               dataIndex: 'status',
               width: 90,
               render: (v: number) =>
-                v === 1 ? <Tag color="success">成功</Tag> : <Tag color="error">失败</Tag>,
+                v === 1 ? <Tag color="success">{t('成功')}</Tag> : <Tag color="error">{t('失败')}</Tag>,
             },
             {
-              title: '耗时',
+              title: t('耗时'),
               dataIndex: 'duration',
               width: 100,
               render: (v: number) => <span className="cell-mono">{v} ms</span>,
             },
             {
-              title: '输出',
+              title: t('输出'),
               dataIndex: 'message',
               width: 260,
               ellipsis: { showTitle: false },
@@ -607,7 +625,7 @@ export default function JobPage() {
               ),
             },
             {
-              title: '时间',
+              title: t('时间'),
               dataIndex: 'created_at',
               width: 170,
               className: 'cell-time',
@@ -625,6 +643,7 @@ export default function JobPage() {
 // 服务任务心跳：monitor 进程外的分布式任务（各服务内循环 + 主机 shell cron）
 // 最近运行状态。stale（超期未上报）标红——静默停摆在这里现形。
 function HeartbeatsCard() {
+  const { t } = useTranslation()
   const [list, setList] = useState<JobHeartbeat[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -634,25 +653,25 @@ function HeartbeatsCard() {
       const res = await getJobHeartbeats()
       setList(res.list ?? [])
     } catch {
-      message.error('获取任务心跳失败')
+      message.error(t('获取任务心跳失败'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => { void load() }, [load])
 
   const fmtInterval = (sec: number) => {
     if (!sec) return '—'
-    if (sec % 86400 === 0) return `${sec / 86400} 天`
-    if (sec % 3600 === 0) return `${sec / 3600} 小时`
-    if (sec % 60 === 0) return `${sec / 60} 分钟`
-    return `${sec} 秒`
+    if (sec % 86400 === 0) return t('{{n}} 天', { n: sec / 86400 })
+    if (sec % 3600 === 0) return t('{{n}} 小时', { n: sec / 3600 })
+    if (sec % 60 === 0) return t('{{n}} 分钟', { n: sec / 60 })
+    return t('{{n}} 秒', { n: sec })
   }
 
   const columns: ColumnsType<JobHeartbeat> = [
     {
-      title: '任务',
+      title: t('任务'),
       dataIndex: 'job_key',
       width: 240,
       render: (v: string, r) => (
@@ -667,7 +686,7 @@ function HeartbeatsCard() {
       ),
     },
     {
-      title: '来源',
+      title: t('来源'),
       dataIndex: 'service',
       width: 130,
       render: (v: string) => (
@@ -676,16 +695,16 @@ function HeartbeatsCard() {
         </Tooltip>
       ),
     },
-    { title: '期望间隔', dataIndex: 'interval_sec', width: 110, render: fmtInterval },
+    { title: t('期望间隔'), dataIndex: 'interval_sec', width: 110, render: fmtInterval },
     {
-      title: '上次运行',
+      title: t('上次运行'),
       dataIndex: 'last_run_at',
       width: 170,
       className: 'cell-time',
       render: formatDateTime,
     },
     {
-      title: '状态',
+      title: t('状态'),
       key: 'beat_status',
       width: 130,
       render: (_, r) =>
@@ -698,17 +717,17 @@ function HeartbeatsCard() {
         ),
     },
     {
-      title: '累计（失败/总数）',
+      title: t('累计（失败/总数）'),
       key: 'beat_runs',
       width: 150,
       render: (_, r) => (
         <span className="cell-mono">
-          {r.fails > 0 ? <span style={{ color: '#cf1322' }}>{r.fails}</span> : 0} / {r.runs}
+          {r.fails > 0 ? <span style={{ color: 'var(--c-error-strong)' }}>{r.fails}</span> : 0} / {r.runs}
         </span>
       ),
     },
     {
-      title: '最近错误',
+      title: t('最近错误'),
       dataIndex: 'last_error',
       width: 260,
       ellipsis: { showTitle: false },
@@ -725,7 +744,7 @@ function HeartbeatsCard() {
       <TableToolbar
         title="服务任务心跳"
         total={list.length}
-        extra={<Button icon={<ReloadOutlined />} onClick={() => void load()}>刷新</Button>}
+        extra={<Button icon={<ReloadOutlined />} onClick={() => void load()}>{t('刷新')}</Button>}
       />
       <Table
         rowKey="job_key"

@@ -16,6 +16,7 @@ import {
 import BpmInstanceTimeline from '@/components/BpmInstanceTimeline'
 import BpmTaskActions from '@/components/BpmTaskActions'
 import TableToolbar from '@/components/TableToolbar'
+import TableRowActions from '@/components/TableRowActions'
 import GlassEmpty from '@/components/GlassEmpty'
 import StatusPill from '@/components/StatusPill'
 import { displayUserName, useUserNameMap } from '@/hooks/useUserNameMap'
@@ -234,19 +235,20 @@ export default function BpmTasksPage() {
     { title: t('抄送时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: t('操作'),
-      width: 90,
+      width: 48,
+      align: 'center' as const,
       render: (_, row) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={(e) => {
-            e.stopPropagation()
-            openCc(row)
-          }}
-        >
-          {t('查看')}
-        </Button>
+        <TableRowActions
+          maxInline={1}
+          actions={[
+            {
+              key: 'view',
+              label: t('查看'),
+              icon: <EyeOutlined />,
+              onClick: () => openCc(row),
+            },
+          ]}
+        />
       ),
     },
   ]
