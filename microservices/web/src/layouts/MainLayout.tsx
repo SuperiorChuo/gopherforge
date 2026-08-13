@@ -137,6 +137,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   control: <ControlOutlined />,
   sound: <SoundOutlined />,
   gateway: <ApiOutlined />,
+  api: <ApiOutlined />,
   fork: <ForkOutlined />,
   fund: <FundOutlined />,
   queue: <TeamOutlined />,
@@ -244,6 +245,7 @@ const MENU_DEFS: MenuDef[] = [
       { label: '文件管理', key: '/system/file', icon: <FileOutlined /> },
       { label: '错误码管理', key: '/system/errcodes', icon: <WarningOutlined /> },
       { label: 'OAuth2 应用', key: '/system/oauth2', icon: <ApiOutlined /> },
+      { label: 'Webhook 订阅', key: '/system/webhooks', icon: <ApiOutlined /> },
     ],
   },
   {

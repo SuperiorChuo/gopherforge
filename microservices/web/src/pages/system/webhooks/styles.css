@@ -1,0 +1,49 @@
+.webhooks-page .ant-alert {
+  margin-bottom: 16px;
+}
+
+.webhooks-page .webhook-endpoint.ant-typography {
+  display: block;
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webhooks-page .webhook-row-actions {
+  flex-wrap: nowrap;
+}
+
+.webhooks-page .webhook-row-actions .ant-btn {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding-inline: 0;
+}
+
+.webhook-secret {
+  margin-top: 16px;
+}
+
+.webhook-secret code {
+  display: block;
+  padding: 12px;
+  overflow-wrap: anywhere;
+  border-radius: 8px;
+}
+
+.webhook-delivery-table {
+  margin-top: 16px;
+}
+
+@media (max-width: 575px) {
+  .webhooks-page .table-toolbar-extra,
+  .webhooks-page .table-toolbar-extra > .ant-space {
+    width: 100%;
+  }
+
+  .webhooks-page .table-toolbar-extra .ant-btn {
+    flex: 1;
+  }
+}

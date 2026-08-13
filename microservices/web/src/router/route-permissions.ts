@@ -37,6 +37,7 @@ export const ROUTE_PERMISSIONS: Record<string, string> = {
   '/system/file': 'system:file:list',
   '/system/errcodes': 'system:errcode:list',
   '/system/oauth2': 'system:oauth2-client:list',
+  '/system/webhooks': 'system:webhook:list',
   // 监控（/monitor/grafana 种子无权限码，不拦）
   '/monitor/server': 'system:monitor:server',
   '/monitor/mysql': 'system:monitor:mysql',

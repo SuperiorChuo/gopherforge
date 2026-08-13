@@ -6,6 +6,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strconv"
@@ -30,6 +31,7 @@ type Config struct {
 	Retention      RetentionConfig
 	Notify         NotifyConfig
 	SecurityDetect SecurityDetectConfig
+	Webhook        WebhookConfig
 }
 
 type AppCfg struct {
@@ -167,6 +169,18 @@ type SecurityDetectConfig struct {
 	FailureThreshold    int
 }
 
+// WebhookConfig controls outbound webhook secret encryption and delivery.
+type WebhookConfig struct {
+	EncryptionKeyBase64   string
+	KeyID                 string
+	AllowHTTP             bool
+	AllowPrivate          bool
+	ScanIntervalSeconds   int
+	BatchSize             int
+	MaxAttempts           int
+	RequestTimeoutSeconds int
+}
+
 type NATSConfig struct {
 	// URL is the NATS server URL; empty disables event publishing.
 	URL string
@@ -289,6 +303,10 @@ func Defaults() Config {
 			LogRetentionDays:                0,
 			LogRetentionScanIntervalSeconds: 86400,
 		},
+		Webhook: WebhookConfig{
+			KeyID: "current", ScanIntervalSeconds: 2, BatchSize: 50,
+			MaxAttempts: 5, RequestTimeoutSeconds: 10,
+		},
 	}
 }
 
@@ -372,8 +390,29 @@ func applyEnv(config *Config) {
 	config.SecurityDetect.WriteThreshold = getEnvInt("SECURITY_DETECT_WRITE_THRESHOLD", 20)
 	config.SecurityDetect.PermissionThreshold = getEnvInt("SECURITY_DETECT_PERMISSION_THRESHOLD", 5)
 	config.SecurityDetect.FailureThreshold = getEnvInt("SECURITY_DETECT_FAILURE_THRESHOLD", 10)
+	config.Webhook.EncryptionKeyBase64 = getSecretString("WEBHOOK_ENCRYPTION_KEY", config.Webhook.EncryptionKeyBase64)
+	config.Webhook.KeyID = getEnvString("WEBHOOK_KEY_ID", config.Webhook.KeyID)
+	config.Webhook.AllowHTTP = getEnvBool("WEBHOOK_ALLOW_HTTP", false)
+	config.Webhook.AllowPrivate = getEnvBool("WEBHOOK_ALLOW_PRIVATE", false)
+	config.Webhook.ScanIntervalSeconds = getEnvInt("WEBHOOK_SCAN_INTERVAL_SECONDS", config.Webhook.ScanIntervalSeconds)
+	config.Webhook.BatchSize = getEnvInt("WEBHOOK_BATCH_SIZE", config.Webhook.BatchSize)
+	config.Webhook.MaxAttempts = getEnvInt("WEBHOOK_MAX_ATTEMPTS", config.Webhook.MaxAttempts)
+	config.Webhook.RequestTimeoutSeconds = getEnvInt("WEBHOOK_REQUEST_TIMEOUT_SECONDS", config.Webhook.RequestTimeoutSeconds)
 	config.Retention.LogRetentionDays = getEnvInt("AUDIT_LOG_RETENTION_DAYS", config.Retention.LogRetentionDays)
 	config.Retention.LogRetentionScanIntervalSeconds = getEnvInt("AUDIT_LOG_RETENTION_SCAN_INTERVAL_SECONDS", config.Retention.LogRetentionScanIntervalSeconds)
+}
+
+// WebhookEncryptionKey decodes the AES-256 key used for subscription secrets.
+func WebhookEncryptionKey(cfg Config) ([]byte, error) {
+	value := strings.TrimSpace(cfg.Webhook.EncryptionKeyBase64)
+	if value == "" {
+		return nil, nil
+	}
+	decoded, err := base64.StdEncoding.Strict().DecodeString(value)
+	if err != nil || len(decoded) != 32 {
+		return nil, fmt.Errorf("WEBHOOK_ENCRYPTION_KEY must be base64 for exactly 32 bytes")
+	}
+	return decoded, nil
 }
 
 func validate(cfg Config) error {
@@ -388,6 +427,9 @@ func validate(cfg Config) error {
 	}
 	if cfg.Security.PasswordHistoryCount < 0 {
 		return fmt.Errorf("PASSWORD_HISTORY_COUNT must be greater than or equal to 0")
+	}
+	if _, err := WebhookEncryptionKey(cfg); err != nil {
+		return err
 	}
 	if isProductionEnv(cfg.App.Env) {
 		// Collect every secret problem before failing so an operator fixes the
@@ -422,7 +464,6 @@ func getEnvString(key, fallback string) string {
 	}
 	return fallback
 }
-
 
 // getSecretString 读敏感配置：/run/secrets 优先于环境变量（Swarm secrets）。
 func getSecretString(key, fallback string) string {

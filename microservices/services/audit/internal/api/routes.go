@@ -6,10 +6,10 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/audit/internal/api/common"
-	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/audit/internal/api/system"
 	"github.com/go-admin-kit/services/audit/internal/middleware"
 	systemsvc "github.com/go-admin-kit/services/audit/internal/service/system"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 )
 
 // SetupRoutes mounts the audit service API using legacy global fallbacks.
@@ -28,12 +28,14 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 	auditLogAPI := system.NewAuditLogAPI()
 	var securityEventAPI *system.SecurityEventAPI
 	var loginRiskEventAPI *system.LoginRiskEventAPI
+	var webhookAPI *system.WebhookAPI
 	if deps.DB != nil {
 		loginLogAPI = system.NewLoginLogAPIWithService(systemsvc.NewLoginLogServiceWithDB(deps.DB))
 		opLogAPI = system.NewOperationLogAPIWithService(systemsvc.NewOperationLogServiceWithDB(deps.DB))
 		auditLogAPI = system.NewAuditLogAPIWithService(systemsvc.NewAuditLogServiceWithDB(deps.DB))
 		securityEventAPI = system.NewSecurityEventAPIWithDB(deps.DB)
 		loginRiskEventAPI = system.NewLoginRiskEventAPIWithDB(deps.DB)
+		webhookAPI = system.NewWebhookAPI(systemsvc.NewWebhookService(deps.DB, systemsvc.DefaultWebhookKeyring(), systemsvc.DefaultWebhookPolicy()))
 	}
 
 	protected := api.Group("/")
@@ -63,6 +65,14 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		if loginRiskEventAPI != nil {
 			protected.GET("/login-risk-events", middleware.PermissionMiddleware("system:login-security:list"), loginRiskEventAPI.ListLoginRiskEvents)
 			protected.POST("/login-risk-events/:id/process", middleware.PermissionMiddleware("system:login-security:manage"), loginRiskEventAPI.ProcessLoginRiskEvent)
+		}
+		if webhookAPI != nil {
+			protected.GET("/webhooks", middleware.PermissionMiddleware("system:webhook:list"), webhookAPI.List)
+			protected.POST("/webhooks", middleware.PermissionMiddleware("system:webhook:create"), webhookAPI.Create)
+			protected.PUT("/webhooks/:id", middleware.PermissionMiddleware("system:webhook:update"), webhookAPI.Update)
+			protected.DELETE("/webhooks/:id", middleware.PermissionMiddleware("system:webhook:delete"), webhookAPI.Delete)
+			protected.POST("/webhooks/:id/reset-secret", middleware.PermissionMiddleware("system:webhook:reset-secret"), webhookAPI.ResetSecret)
+			protected.GET("/webhook-deliveries", middleware.PermissionMiddleware("system:webhook:list"), webhookAPI.ListDeliveries)
 		}
 	}
 }

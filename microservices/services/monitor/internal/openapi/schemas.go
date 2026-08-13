@@ -302,6 +302,28 @@ func coreSchemas() map[string]Schema {
 			"dbsize": integerSchema(),
 			"dbs":    mapOfSchema(mapOfSchema(integerSchema())),
 		}, []string{"dbsize", "dbs"}),
+		"WebhookSubscription": objectSchema(map[string]Schema{
+			"id": integerSchema(), "tenant_id": integerSchema(), "name": stringSchema(),
+			"endpoint_url": stringSchema(), "event_actions": arraySchema(stringSchema()),
+			"status": integerSchema(), "consecutive_failures": integerSchema(),
+			"last_delivered_at": dateTimeSchema(), "last_error": stringSchema(),
+			"created_at": dateTimeSchema(), "updated_at": dateTimeSchema(),
+		}, []string{"id", "tenant_id", "name", "endpoint_url", "event_actions", "status", "consecutive_failures", "created_at", "updated_at"}),
+		"WebhookDelivery": objectSchema(map[string]Schema{
+			"id": integerSchema(), "subscription_id": integerSchema(), "event_id": stringSchema(),
+			"event_action": stringSchema(), "status": stringSchema(), "attempts": integerSchema(),
+			"response_status": integerSchema(), "response_body": stringSchema(), "last_error": stringSchema(),
+			"delivered_at": dateTimeSchema(), "created_at": dateTimeSchema(),
+		}, []string{"id", "subscription_id", "event_id", "event_action", "status", "attempts", "created_at"}),
+		"WebhookMutationRequest": objectSchema(map[string]Schema{
+			"name": stringSchema(), "endpoint_url": stringSchema(),
+			"event_actions": arraySchema(stringSchema()), "status": integerSchema(),
+		}, []string{"name", "endpoint_url", "event_actions", "status"}),
+		"WebhookSecretResult": objectSchema(map[string]Schema{
+			"subscription": refSchema("WebhookSubscription"), "secret": stringSchema(),
+		}, []string{"subscription", "secret"}),
+		"WebhookSubscriptionList": pageSchema(refSchema("WebhookSubscription")),
+		"WebhookDeliveryList":     pageSchema(refSchema("WebhookDelivery")),
 		"RedisInfo": objectSchema(map[string]Schema{
 			"status":   stringSchema(),
 			"server":   refSchema("RedisServerInfo"),
@@ -329,7 +351,11 @@ func coreSchemas() map[string]Schema {
 		"ServicesHealthEnvelope":      "ServicesHealthResponse",
 		"ServerInfoEnvelope":          "ServerInfo",
 		"MySQLInfoEnvelope":           "MySQLInfo",
-		"RedisInfoEnvelope":           "RedisInfo",
+		"RedisInfoEnvelope":               "RedisInfo",
+		"WebhookSubscriptionEnvelope":     "WebhookSubscription",
+		"WebhookSecretEnvelope":           "WebhookSecretResult",
+		"WebhookSubscriptionListEnvelope": "WebhookSubscriptionList",
+		"WebhookDeliveryListEnvelope":     "WebhookDeliveryList",
 	} {
 		schemas[envelopeName] = envelopeFor(refSchema(schemaName))
 	}
@@ -361,6 +387,12 @@ func contractFor(method, path string) (routeContract, bool) {
 		"POST /api/v1/monitor/jobs/{id}/stop":            {ResponseSchema: "EmptyEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
 		"POST /api/v1/monitor/jobs/{id}/run":             {ResponseSchema: "EmptyEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
 		"POST /api/v1/monitor/job-logs/cleanup":          {RequestSchema: "JobLogCleanupRequest", ResponseSchema: "JobLogCleanupResultEnvelope", QueryParams: []Parameter{queryParam("retention_days", minimumIntegerSchema(1))}, OptionalRequestBody: true, UnavailableResponse: true},
+		"GET /api/v1/webhooks":                          {ResponseSchema: "WebhookSubscriptionListEnvelope", QueryParams: pagingQueryParams()},
+		"POST /api/v1/webhooks":                         {RequestSchema: "WebhookMutationRequest", ResponseSchema: "WebhookSecretEnvelope"},
+		"PUT /api/v1/webhooks/{id}":                     {RequestSchema: "WebhookMutationRequest", ResponseSchema: "WebhookSubscriptionEnvelope"},
+		"DELETE /api/v1/webhooks/{id}":                  {ResponseSchema: "EmptyEnvelope"},
+		"POST /api/v1/webhooks/{id}/reset-secret":       {ResponseSchema: "WebhookSecretEnvelope", NoRequestBody: true},
+		"GET /api/v1/webhook-deliveries":                {ResponseSchema: "WebhookDeliveryListEnvelope", QueryParams: pagingQueryParams("subscription_id")},
 	}
 	contract, ok := contracts[method+" "+path]
 	return contract, ok
@@ -440,6 +472,8 @@ func pagingQueryParams(names ...string) []Parameter {
 		schema := stringSchema()
 		if name == "status" {
 			schema = integerEnumSchema(0, 1)
+		} else if name == "subscription_id" {
+			schema = minimumIntegerSchema(1)
 		}
 		params = append(params, queryParam(name, schema))
 	}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"context"
 	"errors"
 	"fmt"
@@ -17,7 +16,6 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/audit/internal/api"
-	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/audit/internal/config"
 	authDAO "github.com/go-admin-kit/services/audit/internal/dao/auth"
 	systemDAO "github.com/go-admin-kit/services/audit/internal/dao/system"
@@ -31,6 +29,7 @@ import (
 	authsvc "github.com/go-admin-kit/services/audit/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/audit/internal/service/system"
 	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
+	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"github.com/go-admin-kit/services/shared/pkg/grpcx"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
@@ -38,7 +37,10 @@ import (
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
 	"github.com/go-admin-kit/services/shared/pkg/outbox"
+	"github.com/go-admin-kit/services/shared/pkg/secretbox"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
+	"github.com/go-admin-kit/services/shared/pkg/webhookx"
 
 	auditv1 "github.com/go-admin-kit/services/api/gen/audit/v1"
 	"github.com/nats-io/nats.go"
@@ -125,7 +127,6 @@ func configureGinWriters(env string) {
 	gin.DefaultWriter = logger.NewGinWriter()
 	gin.DefaultErrorWriter = logger.NewGinErrorWriter()
 }
-
 
 func stopOperationLogProcessor(cancel context.CancelFunc, done <-chan struct{}, timeout time.Duration) error {
 	if cancel != nil {
@@ -229,6 +230,20 @@ func run(ctx context.Context) error {
 	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {
 		return fmt.Errorf("data scope plugin registration failed: %w", err)
 	}
+	webhookKey, err := config.WebhookEncryptionKey(config.Cfg)
+	if err != nil {
+		return err
+	}
+	var webhookKeyring *secretbox.Keyring
+	if len(webhookKey) == 32 {
+		webhookKeyring, err = secretbox.NewKeyring(secretbox.Key{ID: config.Cfg.Webhook.KeyID, Material: webhookKey})
+		clear(webhookKey)
+		if err != nil {
+			return fmt.Errorf("initialize webhook keyring: %w", err)
+		}
+	}
+	webhookPolicy := webhookx.Policy{AllowHTTP: config.Cfg.Webhook.AllowHTTP, AllowPrivate: config.Cfg.Webhook.AllowPrivate}
+	systemsvc.ConfigureWebhookDefaults(webhookKeyring, webhookPolicy)
 	// Phase 2D：审计事件消费者（订阅 audit.log.> 写 audit_svc）。
 	// Phase 5：Outbox worker——投递 public.outbox_events → NATS（业务方同事务写入）。
 	if natsURL := config.Cfg.NATS.URL; natsURL != "" {
@@ -309,6 +324,18 @@ func run(ctx context.Context) error {
 	}) {
 		logger.Info("log retention cleaner enabled",
 			logger.Int("retention_days", config.Cfg.Retention.LogRetentionDays))
+	}
+
+	if worker := systemsvc.StartWebhookWorker(lifecycleCtx, database.DB, webhookKeyring, systemsvc.WebhookWorkerOptions{
+		ScanInterval:   time.Duration(config.Cfg.Webhook.ScanIntervalSeconds) * time.Second,
+		BatchSize:      config.Cfg.Webhook.BatchSize,
+		MaxAttempts:    config.Cfg.Webhook.MaxAttempts,
+		RequestTimeout: time.Duration(config.Cfg.Webhook.RequestTimeoutSeconds) * time.Second,
+		Policy:         webhookPolicy,
+	}); worker != nil {
+		logger.Info("webhook delivery worker enabled")
+	} else {
+		logger.Warn("webhook delivery disabled: WEBHOOK_ENCRYPTION_KEY is not configured")
 	}
 
 	// 安全事件检测器：扫审计日志异常模式（写入激增/权限风暴/失败激增），
@@ -415,7 +442,7 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("server listen failed: %w", err)
 	}
 	printStartupBanner(config.Cfg.App.Name, config.Cfg.App.Version, config.Cfg.App.Env, port)
-		sh := graceful.New(graceful.WithTimeout(15 * time.Second))
+	sh := graceful.New(graceful.WithTimeout(15 * time.Second))
 	if grpcCleanup != nil {
 		sh.Register("grpc", func(ctx context.Context) error {
 			grpcCleanup()
@@ -442,7 +469,6 @@ func run(ctx context.Context) error {
 		return nil
 	}
 }
-
 
 // startOutboxWorker 连接 NATS JetStream，轮询 outbox_events 并同步 Publish。
 // 生产方（如 crm 开启 outbox.EnableTransactional）在业务事务内写入该表。

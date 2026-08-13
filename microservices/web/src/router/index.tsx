@@ -98,6 +98,7 @@ const routes: RouteObject[] = [
       { path: 'system/codegen', element: lazyLoad(() => import('@/pages/system/codegen')) },
       { path: 'system/sms', element: lazyLoad(() => import('@/pages/system/sms')) },
       { path: 'system/oauth2', element: lazyLoad(() => import('@/pages/system/oauth2')) },
+      { path: 'system/webhooks', element: lazyLoad(() => import('@/pages/system/webhooks')) },
       { path: 'system/errcodes', element: lazyLoad(() => import('@/pages/system/errcodes')) },
       { path: 'system/post', element: lazyLoad(() => import('@/pages/system/posts')) },
       { path: 'system/tenant-packages', element: lazyLoad(() => import('@/pages/system/tenant-packages')) },

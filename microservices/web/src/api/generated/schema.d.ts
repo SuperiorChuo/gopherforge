@@ -1670,6 +1670,74 @@ export interface components {
       list: components["schemas"]["ServiceHealthRow"][];
       total: number;
     };
+    WebhookDelivery: {
+      attempts: number;
+      created_at: string;
+      delivered_at?: string;
+      event_action: string;
+      event_id: string;
+      id: number;
+      last_error?: string;
+      response_body?: string;
+      response_status?: number;
+      status: string;
+      subscription_id: number;
+    };
+    WebhookDeliveryList: {
+      list: components["schemas"]["WebhookDelivery"][];
+      page: number;
+      page_size: number;
+      total: number;
+    };
+    WebhookDeliveryListEnvelope: {
+      code: number;
+      data: components["schemas"]["WebhookDeliveryList"];
+      message: string;
+    };
+    WebhookMutationRequest: {
+      endpoint_url: string;
+      event_actions: string[];
+      name: string;
+      status: number;
+    };
+    WebhookSecretEnvelope: {
+      code: number;
+      data: components["schemas"]["WebhookSecretResult"];
+      message: string;
+    };
+    WebhookSecretResult: {
+      secret: string;
+      subscription: components["schemas"]["WebhookSubscription"];
+    };
+    WebhookSubscription: {
+      consecutive_failures: number;
+      created_at: string;
+      endpoint_url: string;
+      event_actions: string[];
+      id: number;
+      last_delivered_at?: string;
+      last_error?: string;
+      name: string;
+      status: number;
+      tenant_id: number;
+      updated_at: string;
+    };
+    WebhookSubscriptionEnvelope: {
+      code: number;
+      data: components["schemas"]["WebhookSubscription"];
+      message: string;
+    };
+    WebhookSubscriptionList: {
+      list: components["schemas"]["WebhookSubscription"][];
+      page: number;
+      page_size: number;
+      total: number;
+    };
+    WebhookSubscriptionListEnvelope: {
+      code: number;
+      data: components["schemas"]["WebhookSubscriptionList"];
+      message: string;
+    };
   };
   securitySchemes: {
     BearerAuth: {

@@ -80,6 +80,15 @@ func TestLoadRejectsWeakDBPasswordFromEnv(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsInvalidWebhookEncryptionKey(t *testing.T) {
+	previous := Cfg
+	t.Cleanup(func() { Cfg = previous })
+	t.Setenv("WEBHOOK_ENCRYPTION_KEY", "not-base64")
+	if err := Load(); err == nil || !strings.Contains(err.Error(), "WEBHOOK_ENCRYPTION_KEY") {
+		t.Fatalf("Load() error = %v, want webhook key rejection", err)
+	}
+}
+
 func TestLoadAcceptsStrongDBPasswordFromEnv(t *testing.T) {
 	previous := Cfg
 	t.Cleanup(func() { Cfg = previous })

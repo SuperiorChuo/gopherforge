@@ -358,6 +358,14 @@ services:
       IP2REGION_XDB: /app/data/ip2region.xdb
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8085
+      WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY:-}
+      WEBHOOK_KEY_ID: ${WEBHOOK_KEY_ID:-current}
+      WEBHOOK_ALLOW_HTTP: ${WEBHOOK_ALLOW_HTTP:-false}
+      WEBHOOK_ALLOW_PRIVATE: ${WEBHOOK_ALLOW_PRIVATE:-false}
+      WEBHOOK_SCAN_INTERVAL_SECONDS: ${WEBHOOK_SCAN_INTERVAL_SECONDS:-2}
+      WEBHOOK_BATCH_SIZE: ${WEBHOOK_BATCH_SIZE:-50}
+      WEBHOOK_MAX_ATTEMPTS: ${WEBHOOK_MAX_ATTEMPTS:-5}
+      WEBHOOK_REQUEST_TIMEOUT_SECONDS: ${WEBHOOK_REQUEST_TIMEOUT_SECONDS:-10}
       # 操作/登录日志保留天数；<=0（默认）关闭自动清理，audit_logs 不在清理范围
       AUDIT_LOG_RETENTION_DAYS: ${AUDIT_LOG_RETENTION_DAYS:-0}
       DB_HOST: go-admin-kit-postgres
@@ -380,7 +388,7 @@ services:
       - "${SERVICES_BIND_IP:-127.0.0.1}:${AUDIT_SERVICE_PORT:-8085}:8085"
     labels:
       traefik.enable: "true"
-      traefik.http.routers.audit.rule: "Path(`/api/v1/login-logs`) || PathPrefix(`/api/v1/login-logs/`) || Path(`/api/v1/operation-logs`) || PathPrefix(`/api/v1/operation-logs/`) || Path(`/api/v1/logs/audit`)"
+      traefik.http.routers.audit.rule: "Path(`/api/v1/login-logs`) || PathPrefix(`/api/v1/login-logs/`) || Path(`/api/v1/operation-logs`) || PathPrefix(`/api/v1/operation-logs/`) || Path(`/api/v1/logs/audit`) || Path(`/api/v1/webhooks`) || PathPrefix(`/api/v1/webhooks/`) || Path(`/api/v1/webhook-deliveries`)"
       traefik.http.routers.audit.entrypoints: web,websecure
       traefik.http.routers.audit.priority: "100"
       traefik.http.services.audit.loadbalancer.server.port: "8085"
