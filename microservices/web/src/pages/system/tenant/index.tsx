@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert, Button, Card, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip } from 'antd'
 import { PlusOutlined, ReloadOutlined, SwapOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
@@ -7,12 +7,16 @@ import type { ColumnsType } from 'antd/es/table'
 import type { TenantInfo, TenantPackageInfo } from '@/types'
 import * as TenantAPI from '@/api/system/tenant'
 import { getAllTenantPackages } from '@/api/system/tenantPackages'
+import EntityFormModal from '@/components/EntityFormModal'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import StatusPill from '@/components/StatusPill'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { useAppSelector } from '@/hooks/store'
 import { clearActTenantId, getActTenantId, setActTenantId } from '@/utils/request'
+import { useConfirmAction } from '@/hooks/useConfirmAction'
+import { useCrudModal } from '@/hooks/useCrudModal'
+import { useTableQuery } from '@/hooks/useTableQuery'
 import './styles.css'
 
 interface SearchParams {
@@ -27,41 +31,29 @@ export default function TenantPage() {
   const { t } = useTranslation()
   const userInfo = useAppSelector((s) => s.auth.userInfo)
   const isPlatform = !!userInfo?.is_platform_admin
-  const [list, setList] = useState<TenantInfo[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 20 })
   const [createOpen, setCreateOpen] = useState(false)
   const [createdAdmin, setCreatedAdmin] = useState<TenantAPI.TenantCreateResult['admin']>(null)
-  const [editRow, setEditRow] = useState<TenantInfo | null>(null)
+  const editModal = useCrudModal<TenantInfo>()
   const [actTenant, setActTenant] = useState<string | null>(getActTenantId())
   const [packages, setPackages] = useState<TenantPackageInfo[]>([])
   const [form] = Form.useForm()
   const [editForm] = Form.useForm()
   const [searchForm] = Form.useForm()
 
-  const fetchList = async (p: SearchParams) => {
-    setLoading(true)
-    try {
-      const data = (await TenantAPI.getTenantList({
-        page: p.page,
-        page_size: p.page_size,
-        keyword: p.keyword || undefined,
-      })) as { list?: TenantInfo[]; total?: number }
-      const rows = data.list || []
-      setList(rows)
-      setTotal(data.total ?? rows.length)
-    } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : t('加载失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchList(params)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params])
+  const fetchList = useCallback(async (p: SearchParams) => {
+    const data = (await TenantAPI.getTenantList({
+      page: p.page,
+      page_size: p.page_size,
+      keyword: p.keyword || undefined,
+    })) as { list?: TenantInfo[]; total?: number }
+    const rows = data.list || []
+    return { list: rows, total: data.total ?? rows.length }
+  }, [])
+  const onLoadError = useCallback((error?: unknown) => {
+    message.error(error instanceof Error ? error.message : t('加载失败'))
+  }, [t])
+  const { list, total, loading, reload } = useTableQuery({ params, fetcher: fetchList, onError: onLoadError })
 
   useEffect(() => {
     // 权限套餐下拉与列名映射（无权限或接口失败时静默降级为仅显示 ID）
@@ -107,18 +99,20 @@ export default function TenantPage() {
     }
   }
 
-  async function onDelete(row: TenantInfo) {
-    try {
-      await TenantAPI.deleteTenant(row.id)
-      message.success(t('已删除租户「{{name}}」及其账号体系数据', { name: row.name }))
-      setParams({ ...params, page: 1 })
-    } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : t('删除失败'))
-    }
+  const confirmAction = useConfirmAction()
+  function onDelete(row: TenantInfo) {
+    void confirmAction.run({
+      action: () => TenantAPI.deleteTenant(row.id),
+      onSuccess: () => {
+        message.success(t('已删除租户「{{name}}」及其账号体系数据', { name: row.name }))
+        setParams({ ...params, page: 1 })
+      },
+      onError: () => message.error(t('删除失败')),
+    })
   }
 
   function openEdit(row: TenantInfo) {
-    setEditRow(row)
+    editModal.openEdit(row)
     editForm.setFieldsValue({
       name: row.name,
       plan: row.plan,
@@ -129,11 +123,11 @@ export default function TenantPage() {
   }
 
   async function onSaveEdit() {
-    if (!editRow) return
+    if (!editModal.record) return
     const values = await editForm.validateFields().catch(() => null)
     if (!values) return
     try {
-      await TenantAPI.updateTenant(editRow.id, {
+      await TenantAPI.updateTenant(editModal.record.id, {
         name: values.name,
         plan: values.plan,
         max_users: values.max_users,
@@ -142,8 +136,8 @@ export default function TenantPage() {
         package_id: values.package_id ?? 0,
       })
       message.success(t('已保存'))
-      setEditRow(null)
-      fetchList(params)
+      editModal.close()
+      void reload()
     } catch (e: unknown) {
       message.error(e instanceof Error ? e.message : t('保存失败'))
     }
@@ -315,7 +309,7 @@ export default function TenantPage() {
           total={total}
           extra={
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
                 {t('新建租户')}
               </Button>
@@ -409,13 +403,13 @@ export default function TenantPage() {
         </Modal>
       ) : null}
 
-      <Modal
-        title={editRow ? t('编辑租户 #{{id}}', { id: editRow.id }) : t('编辑')}
-        open={!!editRow}
-        onCancel={() => setEditRow(null)}
-        onOk={() => void onSaveEdit()}
+      <EntityFormModal
+        title={editModal.record ? t('编辑租户 #{{id}}', { id: editModal.record.id }) : t('编辑')}
+        open={editModal.open}
+        form={editForm}
+        onClose={editModal.close}
+        onSubmit={onSaveEdit}
       >
-        <Form form={editForm} layout="vertical">
           <Form.Item name="name" label={t('名称')} rules={[{ required: true }]}>
             <Input />
           </Form.Item>
@@ -449,8 +443,7 @@ export default function TenantPage() {
               ]}
             />
           </Form.Item>
-        </Form>
-      </Modal>
+      </EntityFormModal>
     </div>
   )
 }

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Popconfirm, Modal, Form, Input, Select,
+  Table, Button, Space, Tag, Popconfirm, Form, Input, Select,
   Card, Row, Col, Segmented, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
@@ -14,10 +14,14 @@ import type { ColumnsType } from 'antd/es/table'
 import type { Permission, MenuItem } from '@/types'
 import * as PermAPI from '@/api/system/permission'
 import * as MenuAPI from '@/api/system/menu'
+import EntityFormModal from '@/components/EntityFormModal'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { usePermission } from '@/hooks/usePermission'
+import { useConfirmAction } from '@/hooks/useConfirmAction'
+import { useCrudModal } from '@/hooks/useCrudModal'
+import { useTableQuery } from '@/hooks/useTableQuery'
 
 interface SearchParams {
   keyword?: string
@@ -101,14 +105,11 @@ function collectExpandableKeys(nodes: PermRow[]): string[] {
 }
 
 export default function PermissionPage() {
-  const [list, setList] = useState<Permission[]>([])
   const [tree, setTree] = useState<PermRow[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [view, setView] = useState<'tree' | 'list'>('tree')
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editRecord, setEditRecord] = useState<Permission | null>(null)
+  const [treeLoading, setTreeLoading] = useState(false)
+  const editModal = useCrudModal<Permission>()
   const [submitting, setSubmitting] = useState(false)
   const [expandedKeys, setExpandedKeys] = useState<readonly React.Key[]>([])
   const [form] = Form.useForm()
@@ -116,21 +117,18 @@ export default function PermissionPage() {
   const { t } = useTranslation()
   const { hasPerm } = usePermission()
 
-  const fetchList = async (p: SearchParams) => {
-    setLoading(true)
-    try {
-      const res = await PermAPI.getPermissionList(p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error(t('获取权限列表失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
+  const fetchList = useCallback((p: SearchParams) => (
+    view === 'list' ? PermAPI.getPermissionList(p) : Promise.resolve({ list: [], total: 0 })
+  ), [view])
+  const onListError = useCallback(() => message.error(t('获取权限列表失败')), [t])
+  const { list, total, loading, reload } = useTableQuery({
+    params,
+    fetcher: fetchList,
+    onError: onListError,
+  })
 
   const fetchTree = async () => {
-    setLoading(true)
+    setTreeLoading(true)
     try {
       const [menuTree, permTree] = await Promise.all([
         MenuAPI.getMenuTree(),
@@ -142,21 +140,17 @@ export default function PermissionPage() {
     } catch {
       message.error(t('获取权限树失败'))
     } finally {
-      setLoading(false)
+      setTreeLoading(false)
     }
   }
 
   useEffect(() => {
-    if (view === 'list') fetchList(params)
-  }, [params, view])
-
-  useEffect(() => {
-    fetchTree()
+    void fetchTree()
   }, [])
 
   const refresh = () => {
-    fetchTree()
-    if (view === 'list') fetchList(params)
+    void fetchTree()
+    if (view === 'list') void reload()
   }
 
   const handleSearch = (values: { keyword?: string }) => {
@@ -170,13 +164,12 @@ export default function PermissionPage() {
   }
 
   const openCreate = () => {
-    setEditRecord(null)
     form.resetFields()
-    setModalOpen(true)
+    editModal.openCreate()
   }
 
   const openEdit = (record: Permission) => {
-    setEditRecord(record)
+    editModal.openEdit(record)
     form.setFieldsValue({
       name: record.name,
       code: record.code,
@@ -186,17 +179,18 @@ export default function PermissionPage() {
       parent_id: record.parent_id === 0 ? undefined : record.parent_id,
       description: record.description,
     })
-    setModalOpen(true)
   }
 
-  const handleDelete = async (id: number) => {
-    try {
-      await PermAPI.deletePermission(id)
-      message.success(t('删除成功'))
-      refresh()
-    } catch {
-      message.error(t('删除失败'))
-    }
+  const confirmAction = useConfirmAction()
+  const handleDelete = (id: number) => {
+    void confirmAction.run({
+      action: () => PermAPI.deletePermission(id),
+      onSuccess: () => {
+        message.success(t('删除成功'))
+        refresh()
+      },
+      onError: () => message.error(t('删除失败')),
+    })
   }
 
   const handleSubmit = async () => {
@@ -205,14 +199,14 @@ export default function PermissionPage() {
     setSubmitting(true)
     try {
       const payload = { ...values, parent_id: values.parent_id ?? 0 }
-      if (editRecord) {
-        await PermAPI.updatePermission(editRecord.id, payload)
+      if (editModal.record) {
+        await PermAPI.updatePermission(editModal.record.id, payload)
         message.success(t('更新成功'))
       } else {
         await PermAPI.createPermission(payload)
         message.success(t('创建成功'))
       }
-      setModalOpen(false)
+      editModal.close()
       refresh()
     } catch {
       message.error(t('操作失败'))
@@ -349,7 +343,7 @@ export default function PermissionPage() {
           className="list-table"
           columns={columns}
           dataSource={isTree ? tree : list.map(p => ({ ...p, key: `perm-${p.id}`, isMenu: false } as PermRow))}
-          loading={loading}
+          loading={view === 'tree' ? treeLoading : loading}
           scroll={{ x: 'max-content' }}
           locale={{ emptyText: <GlassEmpty text="暂无权限" compact /> }}
           expandable={isTree ? { expandedRowKeys: expandedKeys, onExpandedRowsChange: setExpandedKeys, rowExpandable: (r: PermRow) => (r.children?.length ?? 0) > 0 } : undefined}
@@ -369,16 +363,16 @@ export default function PermissionPage() {
         />
       </Card>
 
-      <Modal
-        title={editRecord ? t('编辑权限') : t('新增权限')}
-        open={modalOpen}
-        onOk={handleSubmit}
-        onCancel={() => setModalOpen(false)}
-        confirmLoading={submitting}
-        destroyOnHidden
+      <EntityFormModal
+        title={editModal.record ? t('编辑权限') : t('新增权限')}
+        open={editModal.open}
+        form={form}
+        onClose={editModal.close}
+        onSubmit={handleSubmit}
+        submitting={submitting}
         width={560}
+        formProps={{ style: { marginTop: 16 } }}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Row gutter={16}>
             <Col xs={24} sm={12}>
               <Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('请输入名称') }]}>
@@ -418,8 +412,7 @@ export default function PermissionPage() {
           <Form.Item name="description" label={t('描述')}>
             <Input.TextArea rows={2} />
           </Form.Item>
-        </Form>
-      </Modal>
+      </EntityFormModal>
     </div>
   )
 }
