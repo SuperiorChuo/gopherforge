@@ -11,6 +11,8 @@ import GeoMap, { type GeoMapPoint } from '@/components/GeoMap'
 import { resolveGeoPoint, resolveProvinceShort } from '@/utils/chinaGeo'
 import TableToolbar from '@/components/TableToolbar'
 import CountUpValue from '@/components/CountUpValue'
+import MetricCard from '@/components/MetricCard'
+import StatsGrid, { StatsGridDivider } from '@/components/StatsGrid'
 import StatusPill from '@/components/StatusPill'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
@@ -278,28 +280,18 @@ export default function LoginLogPage() {
     <div className="page-list login-log-page">
       {stats && (
         <Card className="list-filter-card login-log-stats-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
-          <div className="log-stats-row">
-            <div className="log-stat">
-              <span className="log-stat-label">近 7 天登录</span>
-              <span className="log-stat-value"><CountUpValue value={stats.total} /></span>
-            </div>
-            <div className="log-stat-divider" />
-            <div className="log-stat">
-              <span className="log-stat-label">成功</span>
-              <span className="log-stat-value log-stat-success"><CountUpValue value={stats.success} /></span>
-            </div>
-            <div className="log-stat">
-              <span className="log-stat-label">失败</span>
-              <span className={`log-stat-value ${stats.failed > 0 ? 'log-stat-danger' : ''}`}>
-                <CountUpValue value={stats.failed} />
-              </span>
-            </div>
-            <div className="log-stat-divider" />
-            <div className="log-stat">
-              <span className="log-stat-label">今日活跃用户</span>
-              <span className="log-stat-value log-stat-accent"><CountUpValue value={stats.today_users} /></span>
-            </div>
-          </div>
+          <StatsGrid className="login-log-stats-grid">
+            <MetricCard label="近 7 天登录" value={<CountUpValue value={stats.total} />} />
+            <StatsGridDivider />
+            <MetricCard label="成功" value={<CountUpValue value={stats.success} />} valueClassName="log-stat-success" />
+            <MetricCard
+              label="失败"
+              value={<CountUpValue value={stats.failed} />}
+              valueClassName={stats.failed > 0 ? 'log-stat-danger' : undefined}
+            />
+            <StatsGridDivider />
+            <MetricCard label="今日活跃用户" value={<CountUpValue value={stats.today_users} />} valueClassName="log-stat-accent" />
+          </StatsGrid>
         </Card>
       )}
 

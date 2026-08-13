@@ -18,6 +18,8 @@ import ListFilterForm from '@/components/ListFilterForm'
 import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import CountUpValue from '@/components/CountUpValue'
+import MetricCard from '@/components/MetricCard'
+import StatsGrid, { StatsGridDivider } from '@/components/StatsGrid'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
@@ -230,48 +232,48 @@ export default function OperationLogPage() {
     <div className="page-list operation-log-page">
       {stats && (
         <Card className="list-filter-card operation-stats-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
-          <div className="log-stats-row">
-            <div className="log-stat">
-              <span className="log-stat-label">{t('近 7 天操作')}</span>
-              <span className="log-stat-value"><CountUpValue value={stats.total} /></span>
-            </div>
-            <div className="log-stat">
-              <span className="log-stat-label">{t('异常请求')}</span>
-              <span className={`log-stat-value ${stats.error_count > 0 ? 'log-stat-danger' : 'log-stat-success'}`}>
-                <CountUpValue value={stats.error_count} />
-              </span>
-            </div>
+          <StatsGrid className="operation-stats-grid">
+            <MetricCard label={t('近 7 天操作')} value={<CountUpValue value={stats.total} />} />
+            <MetricCard
+              label={t('异常请求')}
+              value={<CountUpValue value={stats.error_count} />}
+              valueClassName={stats.error_count > 0 ? 'log-stat-danger' : 'log-stat-success'}
+            />
             {Object.keys(stats.by_method ?? {}).length > 0 && (
               <>
-                <div className="log-stat-divider" />
-                <div className="log-stat">
-                  <span className="log-stat-label">{t('方法分布')}</span>
-                  <span className="operation-stat-tags">
-                    {Object.entries(stats.by_method ?? {}).map(([m, n]) => (
-                      <Tag key={m} variant="filled" className="cell-mono operation-method-tag">
-                        {m} {n}
-                      </Tag>
-                    ))}
-                  </span>
-                </div>
+                <StatsGridDivider />
+                <MetricCard
+                  label={t('方法分布')}
+                  value={(
+                    <span className="operation-stat-tags">
+                      {Object.entries(stats.by_method ?? {}).map(([m, n]) => (
+                        <Tag key={m} variant="filled" className="cell-mono operation-method-tag">
+                          {m} {n}
+                        </Tag>
+                      ))}
+                    </span>
+                  )}
+                />
               </>
             )}
             {topModules.length > 0 && (
               <>
-                <div className="log-stat-divider" />
-                <div className="log-stat">
-                  <span className="log-stat-label">{t('活跃模块 Top{{n}}', { n: topModules.length })}</span>
-                  <span className="operation-stat-tags">
-                    {topModules.map(([m, n]) => (
-                      <Tooltip key={m} title={m}>
-                        <Tag variant="filled" className="operation-module-tag">{m} {n}</Tag>
-                      </Tooltip>
-                    ))}
-                  </span>
-                </div>
+                <StatsGridDivider />
+                <MetricCard
+                  label={t('活跃模块 Top{{n}}', { n: topModules.length })}
+                  value={(
+                    <span className="operation-stat-tags">
+                      {topModules.map(([m, n]) => (
+                        <Tooltip key={m} title={m}>
+                          <Tag variant="filled" className="operation-module-tag">{m} {n}</Tag>
+                        </Tooltip>
+                      ))}
+                    </span>
+                  )}
+                />
               </>
             )}
-          </div>
+          </StatsGrid>
         </Card>
       )}
 

@@ -84,18 +84,18 @@
     padding: 14px 16px !important;
   }
 
-  .operation-log-page .log-stats-row {
+  .operation-log-page .stats-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
     gap: 14px 12px;
   }
 
-  .operation-log-page .log-stat {
+  .operation-log-page .metric-card {
     min-width: 0;
   }
 
-  .operation-log-page .log-stat-divider {
+  .operation-log-page .stats-grid-divider {
     display: none;
   }
 

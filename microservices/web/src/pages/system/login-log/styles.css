@@ -34,13 +34,13 @@
     padding: 14px 16px !important;
   }
 
-  .login-log-page .log-stats-row {
+  .login-log-page .stats-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
 
-  .login-log-page .log-stat {
+  .login-log-page .metric-card {
     min-width: 0;
     padding: 10px 12px;
     border: 1px solid rgba(148, 163, 184, 0.1);
@@ -48,17 +48,17 @@
     background: rgba(100, 116, 139, 0.06);
   }
 
-  [data-theme='light'] .login-log-page .log-stat {
+  [data-theme='light'] .login-log-page .metric-card {
     border-color: rgba(100, 116, 139, 0.12);
     background: rgba(148, 163, 184, 0.08);
   }
 
-  .login-log-page .log-stat-label,
-  .login-log-page .log-stat-value {
+  .login-log-page .metric-card-label,
+  .login-log-page .metric-card-value {
     letter-spacing: 0;
   }
 
-  .login-log-page .log-stat-divider {
+  .login-log-page .stats-grid-divider {
     display: none;
   }
 

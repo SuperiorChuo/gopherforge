@@ -8,6 +8,8 @@
 [data-theme='light'] {
   --app-bg: #edf3fb;
   --sider-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(242, 247, 255, 0.8) 100%);
+
+  /* 语义色亮色覆盖：白底要压深，暗色那套亮调在白底上对比度不足 */
   --c-primary: #2563eb;
   --c-success: #059669;
   --c-success-strong: #047857;
@@ -269,15 +271,18 @@
 /* 见 styles/monitor.css */
 
 /* ---- 日志统计条与详情 ---- */
-[data-theme='light'] .log-stat-label {
+[data-theme='light'] .log-stat-label,
+[data-theme='light'] .metric-card-label {
   color: #94a3b8;
 }
 
-[data-theme='light'] .log-stat-value {
+[data-theme='light'] .log-stat-value,
+[data-theme='light'] .metric-card-value {
   color: #0f172a;
 }
 
-[data-theme='light'] .log-stat-divider {
+[data-theme='light'] .log-stat-divider,
+[data-theme='light'] .stats-grid-divider {
   background: rgba(15, 23, 42, 0.07);
 }
 
