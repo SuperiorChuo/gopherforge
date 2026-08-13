@@ -73,7 +73,7 @@ export const getPermissionDiagnosticOptions = (params?: { keyword?: string; limi
   request.get<unknown, PermissionDiagnosticOption[]>('/api/v1/permissions/diagnose/options', { params })
 
 export const getPermissionDiagnosticMenus = (permission: string) =>
-  request.get<unknown, { permission: string; menus: PermissionMenuBinding[] }>('/api/v1/permissions/diagnose/menus', {
+  request.get<unknown, { permission: string; menus: PermissionMenuBinding[] }>('/api/v1/menus/permission-diagnostics', {
     params: { permission },
   })
 

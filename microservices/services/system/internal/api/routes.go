@@ -89,7 +89,7 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 
 		protected.GET("/menus", middleware.PermissionMiddleware("system:menu:list"), menuMgmtAPI.GetMenuList)
 		if permissionMenuDiagnosticAPI != nil {
-			protected.GET("/permissions/diagnose/menus", middleware.PermissionMiddleware("system:permission:diagnose"), permissionMenuDiagnosticAPI.DiagnoseMenus)
+			protected.GET("/menus/permission-diagnostics", middleware.PermissionMiddleware("system:permission:diagnose"), permissionMenuDiagnosticAPI.DiagnoseMenus)
 		}
 		protected.GET("/menus/tree", middleware.PermissionMiddleware("system:menu:list"), menuMgmtAPI.GetMenuTree)
 		protected.GET("/menus/:id", middleware.PermissionMiddleware("system:menu:list"), menuMgmtAPI.GetMenu)

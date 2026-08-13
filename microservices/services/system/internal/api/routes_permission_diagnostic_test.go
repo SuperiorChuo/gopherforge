@@ -25,9 +25,9 @@ func TestPermissionMenuDiagnosticRouteIsRegistered(t *testing.T) {
 	router := gin.New()
 	SetupRoutesWithDeps(router, sharedapi.Dependencies{DB: db})
 	for _, route := range router.Routes() {
-		if route.Method == "GET" && route.Path == "/api/v1/permissions/diagnose/menus" {
+		if route.Method == "GET" && route.Path == "/api/v1/menus/permission-diagnostics" {
 			return
 		}
 	}
-	t.Fatal("GET /api/v1/permissions/diagnose/menus is not registered")
+	t.Fatal("GET /api/v1/menus/permission-diagnostics is not registered")
 }
