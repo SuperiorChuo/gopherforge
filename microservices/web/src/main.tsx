@@ -7,6 +7,8 @@ import './list-pages.css'
 import './styles/auth-pages.css'
 import './styles/app-layout.css'
 import './styles/dashboard.css'
+import './styles/profile.css'
+import './styles/monitor.css'
 
 async function bootstrap() {
   // 演示模式（GitHub Pages）：装假数据 adapter；正常构建时此分支被静态消除

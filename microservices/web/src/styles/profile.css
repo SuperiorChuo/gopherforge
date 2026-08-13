@@ -1,0 +1,271 @@
+/* 个人中心样式（从 index.css 拆出） */
+
+/* ===== Profile hero ===== */
+.profile-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 28px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(79, 70, 229, 0.4), transparent 50%),
+    radial-gradient(circle at 100% 120%, rgba(219, 39, 119, 0.22), transparent 55%),
+    rgba(18, 20, 34, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.profile-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(129, 140, 248, 0.7), transparent);
+}
+
+.profile-hero-info {
+  min-width: 0;
+}
+
+.profile-hero-name {
+  display: flex;
+  align-items: center;
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.profile-hero-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+}
+
+.profile-hero-meta .anticon {
+  opacity: 0.85;
+}
+
+/* ---- 个人中心 hero：白蓝渐变横幅 ---- */
+[data-theme='light'] .profile-hero {
+  background: linear-gradient(120deg, #2563eb 0%, #3b82f6 60%, #38bdf8 130%);
+  border-color: transparent;
+  box-shadow: 0 16px 40px rgba(37, 99, 235, 0.28);
+}
+
+[data-theme='light'] .profile-hero::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+}
+
+/* ============================================================
+   页面打磨 · 个人中心 —— 头像光环 + 2FA 玻璃徽章 + TOTP 面板
+   ============================================================ */
+
+/* 头像:锥形渐变旋转光环,像玻璃透镜边缘折射的一圈光 */
+.profile-hero-avatar-ring {
+  position: relative;
+  flex-shrink: 0;
+  padding: 4px;
+  border-radius: 50%;
+}
+
+.profile-hero-avatar-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  padding: 2.5px;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 255, 255, 0.85),
+    rgba(255, 255, 255, 0.08) 30%,
+    rgba(255, 255, 255, 0.5) 55%,
+    rgba(255, 255, 255, 0.05) 80%,
+    rgba(255, 255, 255, 0.85)
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: avatar-ring-spin 10s linear infinite;
+}
+
+@keyframes avatar-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.profile-hero-avatar.ant-avatar {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px) saturate(1.3);
+  -webkit-backdrop-filter: blur(8px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  font-size: 32px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.3),
+    0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* 2FA 徽章:hero 渐变底上的白玻璃胶囊 */
+.profile-hero-2fa {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 550;
+  letter-spacing: 0.5px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* TOTP 面板:盾牌徽章 + 状态描述 + 操作,替代干巴巴的描述列表 */
+.totp-panel {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.totp-panel-on {
+  border-color: rgba(52, 211, 153, 0.28);
+  background:
+    radial-gradient(ellipse 60% 100% at 0% 50%, rgba(52, 211, 153, 0.07), transparent 70%),
+    rgba(255, 255, 255, 0.025);
+}
+
+[data-theme='light'] .totp-panel {
+  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(15, 23, 42, 0.02);
+}
+
+[data-theme='light'] .totp-panel-on {
+  border-color: rgba(5, 150, 105, 0.25);
+  background:
+    radial-gradient(ellipse 60% 100% at 0% 50%, rgba(5, 150, 105, 0.06), transparent 70%),
+    rgba(15, 23, 42, 0.02);
+}
+
+/* 盾牌:未启用是暗玻璃,启用后点亮成绿玻璃徽章 */
+.totp-shield {
+  flex-shrink: 0;
+  width: 54px;
+  height: 54px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  color: rgba(148, 163, 184, 0.6);
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: color 0.3s ease, background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.totp-shield-on {
+  color: #fff;
+  background: linear-gradient(135deg, #34d399, #059669);
+  border-color: transparent;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+    0 8px 20px rgba(5, 150, 105, 0.35),
+    0 0 32px rgba(52, 211, 153, 0.2);
+}
+
+.totp-panel-info {
+  flex: 1;
+  min-width: 220px;
+}
+
+.totp-panel-state {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  margin-bottom: 4px;
+}
+
+.totp-panel-on .totp-panel-state {
+  color: #34d399;
+}
+
+.totp-panel-desc {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.totp-panel-actions {
+  flex-shrink: 0;
+}
+
+[data-theme='light'] .totp-panel-state {
+  color: #0f172a;
+}
+
+[data-theme='light'] .totp-panel-on .totp-panel-state {
+  color: #059669;
+}
+
+[data-theme='light'] .totp-panel-desc {
+  color: #64748b;
+}
+
+/* 弹窗里的提示行:主题感知(替换内联色) */
+.modal-note {
+  margin: 12px 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.modal-note-warn {
+  color: #fbbf24;
+}
+
+.modal-note-danger {
+  color: #f87171;
+}
+
+[data-theme='light'] .modal-note-warn {
+  color: #d97706;
+}
+
+[data-theme='light'] .modal-note-danger {
+  color: #dc2626;
+}
+
+/* 白底二维码容器:外缘加一圈玻璃投影,浮在弹窗玻璃上 */
+.qr-white-box {
+  display: inline-block;
+  padding: 12px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px rgba(148, 163, 184, 0.2),
+    0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='light'] .qr-white-box {
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.06),
+    0 12px 32px rgba(37, 99, 235, 0.12);
+}
