@@ -20,7 +20,7 @@ import {
   type CodegenSchema,
   type CodegenTable,
   type CodegenTplType,
-} from '@/api/codegen'
+} from '@/api/system/codegen'
 import { getDictTypeList } from '@/api/system/dict'
 import FieldConfigTable, { type DictTypeOption } from './FieldConfigTable'
 import PlanPreview from './PlanPreview'

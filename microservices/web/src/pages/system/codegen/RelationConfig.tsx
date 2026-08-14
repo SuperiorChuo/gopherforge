@@ -9,7 +9,7 @@ import type {
   CodegenSubConfig,
   CodegenTplType,
   CodegenTreeConfig,
-} from '@/api/codegen'
+} from '@/api/system/codegen'
 import FieldConfigTable, { type DictTypeOption } from './FieldConfigTable'
 
 export type RelationConfigValue = {

@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Button, Spin, Avatar } from 'antd'
 import { SafetyOutlined, CheckCircleOutlined, UserOutlined, MailOutlined } from '@ant-design/icons'
 import { getToken } from '@/utils/request'
-import { getOAuth2Authorize, postOAuth2Authorize } from '@/api/oauth2'
-import type { OAuth2AuthorizeView } from '@/api/oauth2'
+import { getOAuth2Authorize, postOAuth2Authorize } from '@/api/auth/oauth2'
+import type { OAuth2AuthorizeView } from '@/api/auth/oauth2'
 
 // scope → 面向用户的说明（授权确认页展示）
 const SCOPE_LABELS: Record<string, { title: string; desc: string; icon: React.ReactNode }> = {

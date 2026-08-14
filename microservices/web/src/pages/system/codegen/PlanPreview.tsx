@@ -9,7 +9,7 @@ import {
   SaveOutlined,
   WarningOutlined,
 } from '@ant-design/icons'
-import type { CodegenArtifact, CodegenCapabilities, CodegenPlan } from '@/api/codegen'
+import type { CodegenArtifact, CodegenCapabilities, CodegenPlan } from '@/api/system/codegen'
 
 type Props = {
   plan: CodegenPlan

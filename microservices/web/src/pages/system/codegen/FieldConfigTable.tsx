@@ -1,7 +1,7 @@
 import { Button, Checkbox, Input, Select, Space, Table, Tag } from 'antd'
 import { useTranslation } from 'react-i18next'
 import type { ColumnsType } from 'antd/es/table'
-import type { CodegenColumn, CodegenFieldConfig, CodegenFormComponent } from '@/api/codegen'
+import type { CodegenColumn, CodegenFieldConfig, CodegenFormComponent } from '@/api/system/codegen'
 
 export type DictTypeOption = { label: string; value: string }
 

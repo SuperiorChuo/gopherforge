@@ -10,9 +10,9 @@ import {
   KeyOutlined, StopOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import * as OAuth2API from '@/api/oauth2'
-import type { OAuth2Client, OAuth2AccessToken, OAuth2ClientSaveData } from '@/api/oauth2'
-import { CLIENT_TYPE } from '@/api/oauth2'
+import * as OAuth2API from '@/api/auth/oauth2'
+import type { OAuth2Client, OAuth2AccessToken, OAuth2ClientSaveData } from '@/api/auth/oauth2'
+import { CLIENT_TYPE } from '@/api/auth/oauth2'
 import TableToolbar from '@/components/common/TableToolbar'
 import GlassEmpty from '@/components/common/GlassEmpty'
 import StatusPill from '@/components/common/StatusPill'
