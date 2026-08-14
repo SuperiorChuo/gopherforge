@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Modal, Form, Input, Select,
-  Card, Switch, Tabs, Descriptions, Grid,
+  Switch, Tabs, Descriptions, Grid,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -12,12 +12,17 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import * as SmsAPI from '@/api/system/sms'
 import type { SmsChannel, SmsTemplate, SmsLog, SmsProvider, SmsChannelConfig } from '@/api/system/sms'
+import EntityFormModal from '@/components/EntityFormModal'
+import ListFilterForm from '@/components/ListFilterForm'
+import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import TableRowActions from '@/components/TableRowActions'
 import GlassEmpty from '@/components/GlassEmpty'
 import StatusPill from '@/components/StatusPill'
 import { formatDateTime } from '@/utils/format'
+import { useCrudModal } from '@/hooks/useCrudModal'
 import { usePermission } from '@/hooks/usePermission'
+import { useTableQuery } from '@/hooks/useTableQuery'
 
 const providerLabels: Record<SmsProvider, string> = {
   debug: '调试',
@@ -57,12 +62,8 @@ interface ChannelSearchParams {
 
 function ChannelTab() {
   const { t } = useTranslation()
-  const [list, setList] = useState<SmsChannel[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useState<ChannelSearchParams>({ page: 1, page_size: 10 })
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editRecord, setEditRecord] = useState<SmsChannel | null>(null)
+  const editModal = useCrudModal<SmsChannel>()
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
@@ -72,21 +73,13 @@ function ChannelTab() {
   const provider = Form.useWatch<SmsProvider | undefined>('provider', form)
 
   const fetchList = useCallback(async (p: ChannelSearchParams) => {
-    setLoading(true)
-    try {
-      const res = await SmsAPI.getSmsChannelList(p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error(t('获取短信渠道列表失败'))
-    } finally {
-      setLoading(false)
-    }
+    const res = await SmsAPI.getSmsChannelList(p)
+    return { list: res.list, total: res.total }
   }, [])
-
-  useEffect(() => {
-    fetchList(params)
-  }, [params, fetchList])
+  const onLoadError = useCallback(() => {
+    message.error(t('获取短信渠道列表失败'))
+  }, [t])
+  const { list, total, loading, reload } = useTableQuery({ params, fetcher: fetchList, onError: onLoadError })
 
   const handleSearch = (values: { keyword?: string; provider?: string; status?: number }) => {
     setParams({ ...params, page: 1, ...values })
@@ -98,13 +91,12 @@ function ChannelTab() {
   }
 
   const openCreate = () => {
-    setEditRecord(null)
     form.resetFields()
-    setModalOpen(true)
+    editModal.openCreate()
   }
 
   const openEdit = (record: SmsChannel) => {
-    setEditRecord(record)
+    editModal.openEdit(record)
     const config = record.config ?? {}
     form.setFieldsValue({
       name: record.name,
@@ -120,7 +112,6 @@ function ChannelTab() {
       config_sdk_app_id: config.sdk_app_id,
       config_region: config.region,
     })
-    setModalOpen(true)
   }
 
   const handleDelete = async (id: number) => {
@@ -130,7 +121,7 @@ function ChannelTab() {
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
-        fetchList(params)
+        void reload()
       }
     } catch {
       // 拦截器已提示（被模板引用时后端返回 400）
@@ -141,7 +132,7 @@ function ChannelTab() {
     try {
       await SmsAPI.updateSmsChannelStatus(record.id, checked ? 1 : 0)
       message.success(checked ? t('已启用') : t('已停用'))
-      fetchList(params)
+      void reload()
     } catch {
       message.error(t('状态更新失败'))
     }
@@ -175,15 +166,15 @@ function ChannelTab() {
         remark: values.remark ?? '',
         config,
       }
-      if (editRecord) {
-        await SmsAPI.updateSmsChannel(editRecord.id, payload)
+      if (editModal.record) {
+        await SmsAPI.updateSmsChannel(editModal.record.id, payload)
         message.success(t('更新成功'))
       } else {
         await SmsAPI.createSmsChannel(payload)
         message.success(t('创建成功'))
       }
-      setModalOpen(false)
-      fetchList(params)
+      editModal.close()
+      void reload()
     } catch {
       // 拦截器已提示
     } finally {
@@ -261,12 +252,10 @@ function ChannelTab() {
 
   return (
     <>
-      <Form
+      <ListFilterForm
         form={searchForm}
-        layout="inline"
-        className="list-filter-form"
         onFinish={handleSearch}
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 0 }}
       >
         <Form.Item name="keyword">
           <Input placeholder={t('搜索渠道名称')} prefix={<SearchOutlined />} allowClear style={{ width: 220 }} />
@@ -290,14 +279,14 @@ function ChannelTab() {
             <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
           </Space>
         </Form.Item>
-      </Form>
+      </ListFilterForm>
 
       <TableToolbar
         title="短信渠道"
         total={total}
         extra={
           <Space wrap>
-            <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
+            <Button icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>
             {hasPerm('system:sms-channel:create') && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增渠道')}</Button>
             )}
@@ -321,16 +310,16 @@ function ChannelTab() {
         }}
        scroll={{ x: 960 }} />
 
-      <Modal
-        title={editRecord ? t('编辑渠道') : t('新增渠道')}
-        open={modalOpen}
-        onOk={handleSubmit}
-        onCancel={() => setModalOpen(false)}
-        confirmLoading={submitting}
-        destroyOnHidden
+      <EntityFormModal
+        title={editModal.record ? t('编辑渠道') : t('新增渠道')}
+        open={editModal.open}
+        form={form}
+        onClose={editModal.close}
+        onSubmit={handleSubmit}
+        submitting={submitting}
         width={560}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <>
           <Form.Item name="name" label={t('渠道名称')} rules={[{ required: true, message: t('请输入渠道名称') }]}>
             <Input placeholder={t('如：阿里云主渠道')} />
           </Form.Item>
@@ -358,8 +347,8 @@ function ChannelTab() {
               <Form.Item
                 name="config_access_key_secret"
                 label="AccessKey Secret"
-                rules={editRecord ? [] : [{ required: true, message: t('请输入 AccessKey Secret') }]}
-                extra={editRecord ? t('留空或保持 ****** 表示不修改') : undefined}
+                rules={editModal.record ? [] : [{ required: true, message: t('请输入 AccessKey Secret') }]}
+                extra={editModal.record ? t('留空或保持 ****** 表示不修改') : undefined}
               >
                 <Input.Password placeholder={t('密钥只保存在服务端')} autoComplete="new-password" />
               </Form.Item>
@@ -376,8 +365,8 @@ function ChannelTab() {
               <Form.Item
                 name="config_secret_key"
                 label="SecretKey"
-                rules={editRecord ? [] : [{ required: true, message: t('请输入 SecretKey') }]}
-                extra={editRecord ? t('留空或保持 ****** 表示不修改') : undefined}
+                rules={editModal.record ? [] : [{ required: true, message: t('请输入 SecretKey') }]}
+                extra={editModal.record ? t('留空或保持 ****** 表示不修改') : undefined}
               >
                 <Input.Password placeholder={t('密钥只保存在服务端')} autoComplete="new-password" />
               </Form.Item>
@@ -398,8 +387,8 @@ function ChannelTab() {
           <Form.Item name="remark" label={t('备注')}>
             <Input.TextArea rows={2} maxLength={255} />
           </Form.Item>
-        </Form>
-      </Modal>
+        </>
+      </EntityFormModal>
     </>
   )
 }
@@ -417,13 +406,9 @@ interface TemplateSearchParams {
 
 function TemplateTab() {
   const { t } = useTranslation()
-  const [list, setList] = useState<SmsTemplate[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useState<TemplateSearchParams>({ page: 1, page_size: 10 })
   const [channels, setChannels] = useState<SmsChannel[]>([])
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editRecord, setEditRecord] = useState<SmsTemplate | null>(null)
+  const editModal = useCrudModal<SmsTemplate>()
   const [submitting, setSubmitting] = useState(false)
   // 测试发送弹窗
   const [testRecord, setTestRecord] = useState<SmsTemplate | null>(null)
@@ -442,21 +427,13 @@ function TemplateTab() {
   }, [channels])
 
   const fetchList = useCallback(async (p: TemplateSearchParams) => {
-    setLoading(true)
-    try {
-      const res = await SmsAPI.getSmsTemplateList(p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error(t('获取短信模板列表失败'))
-    } finally {
-      setLoading(false)
-    }
+    const res = await SmsAPI.getSmsTemplateList(p)
+    return { list: res.list, total: res.total }
   }, [])
-
-  useEffect(() => {
-    fetchList(params)
-  }, [params, fetchList])
+  const onLoadError = useCallback(() => {
+    message.error(t('获取短信模板列表失败'))
+  }, [t])
+  const { list, total, loading, reload } = useTableQuery({ params, fetcher: fetchList, onError: onLoadError })
 
   useEffect(() => {
     SmsAPI.getEnabledSmsChannels()
@@ -474,13 +451,12 @@ function TemplateTab() {
   }
 
   const openCreate = () => {
-    setEditRecord(null)
     form.resetFields()
-    setModalOpen(true)
+    editModal.openCreate()
   }
 
   const openEdit = (record: SmsTemplate) => {
-    setEditRecord(record)
+    editModal.openEdit(record)
     form.setFieldsValue({
       code: record.code,
       name: record.name,
@@ -491,7 +467,6 @@ function TemplateTab() {
       status: record.status,
       remark: record.remark,
     })
-    setModalOpen(true)
   }
 
   const openTest = (record: SmsTemplate) => {
@@ -513,7 +488,7 @@ function TemplateTab() {
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
-        fetchList(params)
+        void reload()
       }
     } catch {
       message.error(t('删除失败'))
@@ -524,7 +499,7 @@ function TemplateTab() {
     try {
       await SmsAPI.updateSmsTemplateStatus(record.id, checked ? 1 : 0)
       message.success(checked ? t('已启用') : t('已停用'))
-      fetchList(params)
+      void reload()
     } catch {
       message.error(t('状态更新失败'))
     }
@@ -535,15 +510,15 @@ function TemplateTab() {
     if (!values) return
     setSubmitting(true)
     try {
-      if (editRecord) {
-        await SmsAPI.updateSmsTemplate(editRecord.id, values)
+      if (editModal.record) {
+        await SmsAPI.updateSmsTemplate(editModal.record.id, values)
         message.success(t('更新成功'))
       } else {
         await SmsAPI.createSmsTemplate(values)
         message.success(t('创建成功'))
       }
-      setModalOpen(false)
-      fetchList(params)
+      editModal.close()
+      void reload()
     } catch {
       // 拦截器已提示（code 重复等后端返回 400）
     } finally {
@@ -665,12 +640,10 @@ function TemplateTab() {
 
   return (
     <>
-      <Form
+      <ListFilterForm
         form={searchForm}
-        layout="inline"
-        className="list-filter-form"
         onFinish={handleSearch}
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 0 }}
       >
         <Form.Item name="keyword">
           <Input placeholder={t('搜索编码 / 名称')} prefix={<SearchOutlined />} allowClear style={{ width: 200 }} />
@@ -701,14 +674,14 @@ function TemplateTab() {
             <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
           </Space>
         </Form.Item>
-      </Form>
+      </ListFilterForm>
 
       <TableToolbar
         title="短信模板"
         total={total}
         extra={
           <Space wrap>
-            <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
+            <Button icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>
             {hasPerm('system:sms-template:create') && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增模板')}</Button>
             )}
@@ -732,23 +705,23 @@ function TemplateTab() {
         }}
        scroll={{ x: 960 }} />
 
-      <Modal
-        title={editRecord ? t('编辑模板') : t('新增模板')}
-        open={modalOpen}
-        onOk={handleSubmit}
-        onCancel={() => setModalOpen(false)}
-        confirmLoading={submitting}
-        destroyOnHidden
+      <EntityFormModal
+        title={editModal.record ? t('编辑模板') : t('新增模板')}
+        open={editModal.open}
+        form={form}
+        onClose={editModal.close}
+        onSubmit={handleSubmit}
+        submitting={submitting}
         width={600}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <>
           <Form.Item
             name="code"
             label={t('模板编码')}
             rules={[{ required: true, message: t('请输入模板编码') }]}
             extra={t('业务调用发送接口时使用，租户内唯一，如 user-register')}
           >
-            <Input placeholder="user-register" disabled={!!editRecord} />
+            <Input placeholder="user-register" disabled={!!editModal.record} />
           </Form.Item>
           <Form.Item name="name" label={t('模板名称')} rules={[{ required: true, message: t('请输入模板名称') }]}>
             <Input placeholder={t('如：注册验证码')} />
@@ -793,8 +766,8 @@ function TemplateTab() {
           <Form.Item name="remark" label={t('备注')}>
             <Input.TextArea rows={2} maxLength={255} />
           </Form.Item>
-        </Form>
-      </Modal>
+        </>
+      </EntityFormModal>
 
       <Modal
         title={testRecord ? t('测试发送：{{name}}', { name: testRecord.name }) : t('测试发送')}
@@ -857,29 +830,18 @@ const logStatusPill = (status: SmsLog['status']) => {
 
 function LogTab() {
   const { t } = useTranslation()
-  const [list, setList] = useState<SmsLog[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useState<LogSearchParams>({ page: 1, page_size: 10 })
   const [detail, setDetail] = useState<SmsLog | null>(null)
   const [searchForm] = Form.useForm()
 
   const fetchList = useCallback(async (p: LogSearchParams) => {
-    setLoading(true)
-    try {
-      const res = await SmsAPI.getSmsLogList(p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error(t('获取发送日志失败'))
-    } finally {
-      setLoading(false)
-    }
+    const res = await SmsAPI.getSmsLogList(p)
+    return { list: res.list, total: res.total }
   }, [])
-
-  useEffect(() => {
-    fetchList(params)
-  }, [params, fetchList])
+  const onLoadError = useCallback(() => {
+    message.error(t('获取发送日志失败'))
+  }, [t])
+  const { list, total, loading, reload } = useTableQuery({ params, fetcher: fetchList, onError: onLoadError })
 
   const handleSearch = (values: { mobile?: string; template_code?: string; status?: string }) => {
     setParams({ ...params, page: 1, ...values })
@@ -932,12 +894,10 @@ function LogTab() {
 
   return (
     <>
-      <Form
+      <ListFilterForm
         form={searchForm}
-        layout="inline"
-        className="list-filter-form"
         onFinish={handleSearch}
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 0 }}
       >
         <Form.Item name="mobile">
           <Input placeholder={t('手机号')} prefix={<SearchOutlined />} allowClear style={{ width: 170 }} />
@@ -958,13 +918,13 @@ function LogTab() {
             <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
           </Space>
         </Form.Item>
-      </Form>
+      </ListFilterForm>
 
       <TableToolbar
         title="发送日志"
         total={total}
         extra={
-          <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
+          <Button icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>
         }
       />
       <Table
@@ -1025,17 +985,15 @@ function LogTab() {
 export default function SmsPage() {
   const { t } = useTranslation()
   return (
-    <div className="page-list sms-page">
-      <Card className="list-main-card" bordered={false}>
-        <Tabs
+    <ListPageShell className="sms-page" toolbar={null}>
+      <Tabs
           defaultActiveKey="channel"
           items={[
             { key: 'channel', label: t('短信渠道'), children: <ChannelTab /> },
             { key: 'template', label: t('短信模板'), children: <TemplateTab /> },
             { key: 'log', label: t('发送日志'), children: <LogTab /> },
           ]}
-        />
-      </Card>
-    </div>
+      />
+    </ListPageShell>
   )
 }
