@@ -5,7 +5,7 @@ import { Alert, Button, Form, Input } from 'antd'
 import { LockOutlined, MailOutlined, UserOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
 import { register } from '@/api/auth'
-import AuthShell from '@/components/AuthShell'
+import AuthShell from '@/components/auth/AuthShell'
 
 // 邀请注册：仅受邀用户可通过邀请链接进入（?invite=<token>），无公开自注册。
 export default function RegisterPage() {

@@ -20,7 +20,7 @@ import { fetchCurrentUser, login } from '@/store/slices/authSlice'
 import { getCaptcha } from '@/api/auth'
 import { setTokens } from '@/utils/request'
 import { prefetchMainLayout } from '@/router'
-import AuthShell from '@/components/AuthShell'
+import AuthShell from '@/components/auth/AuthShell'
 
 /**
  * 读取 ?redirect= 并做开放重定向防护：只接受站内绝对路径（单个前导斜杠，

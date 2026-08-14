@@ -84,7 +84,7 @@ if (list.length === 1 && params.page > 1) {
 
 ## TableToolbar
 
-`src/components/TableToolbar.tsx` 统一了筛选区与操作区，减少重复：
+`src/components/common/TableToolbar.tsx` 统一了筛选区与操作区，减少重复：
 
 - `preset`：筛选表单布局预设（`filter` 等，见组件内 `ToolbarPreset`）。
 - `formItems`：筛选表单项数组（name / label / el）。

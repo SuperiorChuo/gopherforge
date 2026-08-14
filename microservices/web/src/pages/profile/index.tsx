@@ -11,8 +11,8 @@ import {
   UserOutlined, MailOutlined, PhoneOutlined, HistoryOutlined, SafetyCertificateOutlined,
   CameraOutlined,
 } from '@ant-design/icons'
-import StatusPill from '@/components/StatusPill'
-import GlassEmpty from '@/components/GlassEmpty'
+import StatusPill from '@/components/common/StatusPill'
+import GlassEmpty from '@/components/common/GlassEmpty'
 import type { ColumnsType } from 'antd/es/table'
 import { useAppSelector } from '@/hooks/store'
 import {

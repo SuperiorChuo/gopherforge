@@ -20,10 +20,10 @@ import {
   getJobTargets, type JobTarget, JOB_TARGET_LABELS,
   getJobLogList, type ScheduledJobLog,
 } from '@/api/monitor'
-import TableToolbar from '@/components/TableToolbar'
-import TableRowActions from '@/components/TableRowActions'
-import StatusPill from '@/components/StatusPill'
-import GlassEmpty from '@/components/GlassEmpty'
+import TableToolbar from '@/components/common/TableToolbar'
+import TableRowActions from '@/components/common/TableRowActions'
+import StatusPill from '@/components/common/StatusPill'
+import GlassEmpty from '@/components/common/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'

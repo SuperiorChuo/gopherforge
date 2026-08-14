@@ -5,7 +5,7 @@ import { Alert, Button, Form, Input } from 'antd'
 import { LockOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
 import { resetPassword } from '@/api/auth'
-import AuthShell from '@/components/AuthShell'
+import AuthShell from '@/components/auth/AuthShell'
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate()

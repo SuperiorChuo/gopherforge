@@ -5,7 +5,7 @@ import { Alert, Button, Form, Input } from 'antd'
 import { MailOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
 import { forgotPassword } from '@/api/auth'
-import AuthShell from '@/components/AuthShell'
+import AuthShell from '@/components/auth/AuthShell'
 
 export default function ForgotPasswordPage() {
   const { t } = useTranslation()

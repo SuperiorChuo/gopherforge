@@ -28,8 +28,8 @@ import { getActiveNotices } from '@/api/system/notice'
 import { getLiveWeather, type LiveWeather } from '@/api/system/weather'
 import type { Notice } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
-import GlassEmpty from '@/components/GlassEmpty'
-import CountUpValue from '@/components/CountUpValue'
+import GlassEmpty from '@/components/common/GlassEmpty'
+import CountUpValue from '@/components/common/CountUpValue'
 import dayjs from 'dayjs'
 
 interface StatCard {

@@ -28,11 +28,11 @@ function fetchAllPermissions(): Promise<Permission[]> {
   }
   return permListCache
 }
-import ListFilterForm from '@/components/ListFilterForm'
-import ListPageShell from '@/components/ListPageShell'
-import TableToolbar from '@/components/TableToolbar'
-import TableRowActions from '@/components/TableRowActions'
-import GlassEmpty from '@/components/GlassEmpty'
+import ListFilterForm from '@/components/common/ListFilterForm'
+import ListPageShell from '@/components/common/ListPageShell'
+import TableToolbar from '@/components/common/TableToolbar'
+import TableRowActions from '@/components/common/TableRowActions'
+import GlassEmpty from '@/components/common/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'

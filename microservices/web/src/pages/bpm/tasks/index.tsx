@@ -13,12 +13,12 @@ import {
   type BpmCcRecord,
   type BpmTask,
 } from '@/api/bpm'
-import BpmInstanceTimeline from '@/components/BpmInstanceTimeline'
-import BpmTaskActions from '@/components/BpmTaskActions'
-import TableToolbar from '@/components/TableToolbar'
-import TableRowActions from '@/components/TableRowActions'
-import GlassEmpty from '@/components/GlassEmpty'
-import StatusPill from '@/components/StatusPill'
+import BpmInstanceTimeline from '@/components/bpm/BpmInstanceTimeline'
+import BpmTaskActions from '@/components/bpm/BpmTaskActions'
+import TableToolbar from '@/components/common/TableToolbar'
+import TableRowActions from '@/components/common/TableRowActions'
+import GlassEmpty from '@/components/common/GlassEmpty'
+import StatusPill from '@/components/common/StatusPill'
 import { displayUserName, useUserNameMap } from '@/hooks/useUserNameMap'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'

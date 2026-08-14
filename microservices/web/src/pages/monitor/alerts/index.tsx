@@ -53,10 +53,10 @@ import {
   type MonitorAlertRule,
   type MonitorAlertSummary,
 } from '@/api/monitor'
-import GlassEmpty from '@/components/GlassEmpty'
-import StatusPill, { type StatusTone } from '@/components/StatusPill'
-import TableToolbar from '@/components/TableToolbar'
-import TableRowActions from '@/components/TableRowActions'
+import GlassEmpty from '@/components/common/GlassEmpty'
+import StatusPill, { type StatusTone } from '@/components/common/StatusPill'
+import TableToolbar from '@/components/common/TableToolbar'
+import TableRowActions from '@/components/common/TableRowActions'
 import { usePermission } from '@/hooks/usePermission'
 import { formatDateTime } from '@/utils/format'
 import { message } from '@/utils/feedback'

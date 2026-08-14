@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Card, Segmented, Space } from 'antd'
 import { LineChartOutlined } from '@ant-design/icons'
 import { getMetricTrends, TREND_RANGES, type MetricTrend, type TrendRange } from '@/api/monitor'
-import TrendChart from '@/components/TrendChart'
+import TrendChart from '@/components/common/TrendChart'
 
 interface MetricTrendCardProps {
   title: string

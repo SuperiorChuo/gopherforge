@@ -22,7 +22,7 @@ import {
   transferTask,
   type BpmTask,
 } from '@/api/bpm'
-import BpmResubmitModal from '@/components/BpmResubmitModal'
+import BpmResubmitModal from '@/components/bpm/BpmResubmitModal'
 import { useUserNameMap } from '@/hooks/useUserNameMap'
 
 // 任务详情 actions 缺省（后端未返回动作列表）时的基线：M1/M2 常规审批动作。

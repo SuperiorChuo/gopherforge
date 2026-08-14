@@ -12,12 +12,12 @@ import {
   type OpsTaskRun, type TaskRunListParams, type TaskRunSource,
   type TaskRunStatus, type TaskRunSummary,
 } from '@/api/monitor'
-import GlassEmpty from '@/components/GlassEmpty'
-import ListFilterForm from '@/components/ListFilterForm'
-import MetricCard from '@/components/MetricCard'
-import StatsGrid from '@/components/StatsGrid'
-import TableRowActions from '@/components/TableRowActions'
-import TableToolbar from '@/components/TableToolbar'
+import GlassEmpty from '@/components/common/GlassEmpty'
+import ListFilterForm from '@/components/common/ListFilterForm'
+import MetricCard from '@/components/common/MetricCard'
+import StatsGrid from '@/components/common/StatsGrid'
+import TableRowActions from '@/components/common/TableRowActions'
+import TableToolbar from '@/components/common/TableToolbar'
 import { useTableQuery } from '@/hooks/useTableQuery'
 import { message } from '@/utils/feedback'
 import { formatDateTime } from '@/utils/format'

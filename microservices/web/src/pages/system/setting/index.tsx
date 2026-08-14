@@ -9,7 +9,7 @@ import {
   SaveOutlined, ReloadOutlined, SafetyOutlined, BellOutlined, CloudOutlined, SettingOutlined,
   RobotOutlined, EnvironmentOutlined, PhoneOutlined, MailOutlined,
 } from '@ant-design/icons'
-import GlassEmpty from '@/components/GlassEmpty'
+import GlassEmpty from '@/components/common/GlassEmpty'
 import type { SystemSetting } from '@/types'
 import { getSettingList, upsertSetting, getTenantSettingList, upsertTenantSetting, deleteTenantSetting } from '@/api/system/setting'
 import { formatDateTime } from '@/utils/format'

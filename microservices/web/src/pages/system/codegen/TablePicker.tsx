@@ -3,7 +3,7 @@ import { Button, Input, Space, Table, Tag, Tooltip } from 'antd'
 import { ReloadOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { CodegenTable } from '@/api/codegen'
-import GlassEmpty from '@/components/GlassEmpty'
+import GlassEmpty from '@/components/common/GlassEmpty'
 
 type Props = {
   tables: CodegenTable[]

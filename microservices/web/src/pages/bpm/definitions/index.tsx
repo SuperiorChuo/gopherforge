@@ -29,12 +29,12 @@ import {
 // 设计器是全项目最大的页面组件，只在点「编辑流程」时才需要——静态引入会把
 // 它整个拖进定义列表的路由包，改懒加载让列表页轻装。
 const FlowDesigner = lazy(() => import('@/pages/bpm/designer'))
-import BpmStatsPanel from '@/components/BpmStatsPanel'
+import BpmStatsPanel from '@/components/bpm/BpmStatsPanel'
 import { useAppSelector } from '@/hooks/store'
-import TableToolbar from '@/components/TableToolbar'
-import TableRowActions from '@/components/TableRowActions'
-import GlassEmpty from '@/components/GlassEmpty'
-import StatusPill from '@/components/StatusPill'
+import TableToolbar from '@/components/common/TableToolbar'
+import TableRowActions from '@/components/common/TableRowActions'
+import GlassEmpty from '@/components/common/GlassEmpty'
+import StatusPill from '@/components/common/StatusPill'
 import { usePermission } from '@/hooks/usePermission'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'

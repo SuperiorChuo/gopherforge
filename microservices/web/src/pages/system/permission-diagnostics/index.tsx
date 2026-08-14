@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import { ApiOutlined, SafetyCertificateOutlined, SearchOutlined } from '@ant-design/icons'
 import { message } from '@/utils/feedback'
-import GlassEmpty from '@/components/GlassEmpty'
+import GlassEmpty from '@/components/common/GlassEmpty'
 import {
   diagnosePermission,
   getPermissionDiagnosticMenus,

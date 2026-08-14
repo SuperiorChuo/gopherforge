@@ -3,7 +3,7 @@ import { Badge, Popover, Tag, Tooltip } from 'antd'
 import { BellOutlined } from '@ant-design/icons'
 import { createNotificationTicket } from '@/api/system/notice'
 import { formatDateTime } from '@/utils/format'
-import GlassEmpty from '@/components/GlassEmpty'
+import GlassEmpty from '@/components/common/GlassEmpty'
 
 interface NotificationItem {
   id: string

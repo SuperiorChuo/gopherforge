@@ -35,11 +35,11 @@ import {
   terminateInstance,
   type BpmInstance,
 } from '@/api/bpm'
-import BpmInstanceTimeline from '@/components/BpmInstanceTimeline'
-import BpmResubmitModal from '@/components/BpmResubmitModal'
-import TableToolbar from '@/components/TableToolbar'
-import TableRowActions from '@/components/TableRowActions'
-import GlassEmpty from '@/components/GlassEmpty'
+import BpmInstanceTimeline from '@/components/bpm/BpmInstanceTimeline'
+import BpmResubmitModal from '@/components/bpm/BpmResubmitModal'
+import TableToolbar from '@/components/common/TableToolbar'
+import TableRowActions from '@/components/common/TableRowActions'
+import GlassEmpty from '@/components/common/GlassEmpty'
 import { useAppSelector } from '@/hooks/store'
 import { displayUserName, useUserNameMap } from '@/hooks/useUserNameMap'
 import { useUrlParams } from '@/hooks/useUrlParams'

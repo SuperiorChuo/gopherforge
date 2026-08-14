@@ -11,8 +11,8 @@ import {
 } from '@ant-design/icons'
 import { getRedisInfo } from '@/api/monitor'
 import { formatDuration } from '@/utils/format'
-import CountUpValue from '@/components/CountUpValue'
-import MetricTrendCard from '@/components/MetricTrendCard'
+import CountUpValue from '@/components/common/CountUpValue'
+import MetricTrendCard from '@/components/monitor/MetricTrendCard'
 import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
 import '../monitor-page.css'
 

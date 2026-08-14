@@ -22,8 +22,8 @@ import {
   type ServiceHealthRow,
 } from '@/api/monitor'
 import { formatBytes, formatDateTime } from '@/utils/format'
-import MonitorGaugeCard from '@/components/MonitorGaugeCard'
-import MetricTrendCard from '@/components/MetricTrendCard'
+import MonitorGaugeCard from '@/components/monitor/MonitorGaugeCard'
+import MetricTrendCard from '@/components/monitor/MetricTrendCard'
 import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
 import '../monitor-page.css'
 import './styles.css'

@@ -11,9 +11,9 @@ import {
 } from '@ant-design/icons'
 import { getMySQLInfo } from '@/api/monitor'
 import { formatBytes, formatDuration } from '@/utils/format'
-import MonitorGaugeCard from '@/components/MonitorGaugeCard'
-import MetricTrendCard from '@/components/MetricTrendCard'
-import CountUpValue from '@/components/CountUpValue'
+import MonitorGaugeCard from '@/components/monitor/MonitorGaugeCard'
+import MetricTrendCard from '@/components/monitor/MetricTrendCard'
+import CountUpValue from '@/components/common/CountUpValue'
 import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
 import '../monitor-page.css'
 

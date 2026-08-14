@@ -9,8 +9,8 @@ import {
   SafetyCertificateOutlined, SearchOutlined, SyncOutlined, ThunderboltOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import TableToolbar from '@/components/TableToolbar'
-import GlassEmpty from '@/components/GlassEmpty'
+import TableToolbar from '@/components/common/TableToolbar'
+import GlassEmpty from '@/components/common/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
 import { message } from '@/utils/feedback'
 import { usePermission } from '@/hooks/usePermission'

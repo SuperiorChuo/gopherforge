@@ -79,7 +79,7 @@ import {
   type DesignerBranch,
   type StartNode,
 } from '@/api/bpm'
-import StatusPill from '@/components/StatusPill'
+import StatusPill from '@/components/common/StatusPill'
 import { useLocale } from '@/i18n/LocaleContext'
 
 const { Text } = Typography

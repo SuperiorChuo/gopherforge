@@ -84,7 +84,7 @@ if (list.length === 1 && params.page > 1) {
 
 ## TableToolbar
 
-`src/components/TableToolbar.tsx` standardises the filter + action area:
+`src/components/common/TableToolbar.tsx` standardises the filter + action area:
 
 - `preset`: filter-form layout preset (see `ToolbarPreset` in the component).
 - `formItems`: filter items (`name` / `label` / `el`).

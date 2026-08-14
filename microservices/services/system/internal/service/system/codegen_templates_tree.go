@@ -484,8 +484,8 @@ import {
 [[- if .DictTypes]]
 import { getDictItems, type DictItem } from '@/api/dict'
 [[- end]]
-import TableToolbar from '@/components/TableToolbar'
-import GlassEmpty from '@/components/GlassEmpty'
+import TableToolbar from '@/components/common/TableToolbar'
+import GlassEmpty from '@/components/common/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 

@@ -1,6 +1,6 @@
 import { Component, type ReactNode } from 'react'
 import { Button } from 'antd'
-import SpaceResult from '@/components/SpaceResult'
+import SpaceResult from '@/components/common/SpaceResult'
 import i18n from '@/i18n/init'
 
 interface Props {

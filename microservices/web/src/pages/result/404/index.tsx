@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Button } from 'antd'
 import { useNavigate } from 'react-router-dom'
-import SpaceResult from '@/components/SpaceResult'
+import SpaceResult from '@/components/common/SpaceResult'
 
 export default function Page404() {
   const { t } = useTranslation()
