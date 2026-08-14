@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Popconfirm, Form, Input, Select,
-  InputNumber, Row, Col, Tooltip,
+  Table, Button, Grid, Space, Tag, Form, Input, Select,
+  InputNumber, Row, Col,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -15,6 +15,7 @@ import type { SystemPost } from '@/api/system/posts'
 import EntityFormModal from '@/components/EntityFormModal'
 import ListFilterForm from '@/components/ListFilterForm'
 import ListPageShell from '@/components/ListPageShell'
+import TableRowActions from '@/components/TableRowActions'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
@@ -41,6 +42,8 @@ export default function PostPage() {
   const [searchForm] = Form.useForm()
   const { t } = useTranslation()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
 
   const fetchList = async (p: SearchParams) => {
     setLoading(true)
@@ -172,35 +175,45 @@ export default function PostPage() {
     { title: t('创建时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: t('操作'),
-      width: 132,
+      width: compactActions ? 48 : 132,
       fixed: 'right',
+      align: 'center',
       render: (_, record) => (
-        <Space size={4} className="table-actions post-row-actions">
-          {hasPerm('system:post:update') && (
-            <Tooltip title={record.status === 1 ? t('停用') : t('启用')}>
-              <Button
-                type="text"
-                size="small"
-                className={record.status === 1 ? 'post-status-stop' : 'post-status-start'}
-                aria-label={record.status === 1 ? t('停用岗位') : t('启用岗位')}
-                icon={<PoweroffOutlined />}
-                onClick={() => handleToggleStatus(record)}
-              />
-            </Tooltip>
-          )}
-          {hasPerm('system:post:update') && (
-            <Tooltip title={t('编辑')}>
-              <Button type="text" size="small" aria-label={t('编辑岗位')} icon={<EditOutlined />} onClick={() => openEdit(record)} />
-            </Tooltip>
-          )}
-          {hasPerm('system:post:delete') && (
-            <Popconfirm title={t('确认删除该岗位?')} description={t('仍有用户关联时将无法删除')} onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title={t('删除')}>
-                <Button type="text" size="small" danger aria-label={t('删除岗位')} icon={<DeleteOutlined />} />
-              </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
+        <TableRowActions
+          menuOnly={compactActions}
+          maxInline={3}
+          ariaLabel={t('更多操作：{{name}}', { name: record.name })}
+          className="post-row-actions"
+          actions={[
+            {
+              key: 'status',
+              label: record.status === 1 ? t('停用') : t('启用'),
+              icon: <PoweroffOutlined />,
+              danger: record.status === 1,
+              show: hasPerm('system:post:update'),
+              onClick: () => handleToggleStatus(record),
+            },
+            {
+              key: 'edit',
+              label: t('编辑'),
+              icon: <EditOutlined />,
+              show: hasPerm('system:post:update'),
+              onClick: () => openEdit(record),
+            },
+            {
+              key: 'delete',
+              label: t('删除'),
+              icon: <DeleteOutlined />,
+              danger: true,
+              show: hasPerm('system:post:delete'),
+              confirm: {
+                title: t('确认删除该岗位?'),
+                description: t('仍有用户关联时将无法删除'),
+              },
+              onClick: () => handleDelete(record.id),
+            },
+          ]}
+        />
       ),
     },
   ]

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Popconfirm, Form, Input, Select,
+  Table, Button, Grid, Space, Tag, Form, Input, Select,
   Alert, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
@@ -15,6 +15,7 @@ import type { ErrorCodeItem } from '@/api/system/errcodes'
 import EntityFormModal from '@/components/EntityFormModal'
 import ListFilterForm from '@/components/ListFilterForm'
 import ListPageShell from '@/components/ListPageShell'
+import TableRowActions from '@/components/TableRowActions'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
@@ -44,6 +45,8 @@ export default function ErrCodesPage() {
   const [searchForm] = Form.useForm()
   const { t } = useTranslation()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
 
   const fetchList = async (p: PageParams) => {
     setLoading(true)
@@ -192,40 +195,43 @@ export default function ErrCodesPage() {
     { title: t('更新时间'), dataIndex: 'updated_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: t('操作'),
-      width: 132,
+      width: compactActions ? 48 : 132,
       fixed: 'right',
+      align: 'center',
       render: (_, record) => (
-        <Space size={2} className="table-actions errcode-row-actions">
-          {hasPerm('system:errcode:update') && (
-            <Tooltip title={t('编辑')}>
-              <Button type="text" size="small" aria-label={`${t('编辑错误码')} ${record.code}`} icon={<EditOutlined />} onClick={() => openEdit(record)} />
-            </Tooltip>
-          )}
-          {hasPerm('system:errcode:update') && (
-            <Popconfirm
-              title={record.status === 1 ? t('停用后各服务将回落到默认文案，确认停用?') : t('确认启用?')}
-              onConfirm={() => handleToggleStatus(record)}
-            >
-              <Tooltip title={record.status === 1 ? t('停用') : t('启用')}>
-                <Button
-                  type="text"
-                  size="small"
-                  danger={record.status === 1}
-                  className={record.status === 1 ? 'errcode-status-stop' : 'errcode-status-start'}
-                  aria-label={`${record.status === 1 ? t('停用') : t('启用')}${t('错误码')} ${record.code}`}
-                  icon={<PoweroffOutlined />}
-                />
-              </Tooltip>
-            </Popconfirm>
-          )}
-          {hasPerm('system:errcode:delete') && (
-            <Popconfirm title={t('确认删除?')} onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title={t('删除')}>
-                <Button type="text" size="small" danger aria-label={`${t('删除错误码')} ${record.code}`} icon={<DeleteOutlined />} />
-              </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
+        <TableRowActions
+          menuOnly={compactActions}
+          maxInline={3}
+          ariaLabel={t('更多操作：{{name}}', { name: record.code })}
+          className="errcode-row-actions"
+          actions={[
+            {
+              key: 'edit',
+              label: t('编辑'),
+              icon: <EditOutlined />,
+              show: hasPerm('system:errcode:update'),
+              onClick: () => openEdit(record),
+            },
+            {
+              key: 'status',
+              label: record.status === 1 ? t('停用') : t('启用'),
+              icon: <PoweroffOutlined />,
+              danger: record.status === 1,
+              show: hasPerm('system:errcode:update'),
+              confirm: record.status === 1 ? t('停用后各服务将回落到默认文案，确认停用?') : t('确认启用?'),
+              onClick: () => handleToggleStatus(record),
+            },
+            {
+              key: 'delete',
+              label: t('删除'),
+              icon: <DeleteOutlined />,
+              danger: true,
+              show: hasPerm('system:errcode:delete'),
+              confirm: t('确认删除?'),
+              onClick: () => handleDelete(record.id),
+            },
+          ]}
+        />
       ),
     },
   ]

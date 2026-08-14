@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Popconfirm, Form, Input, Select,
-  Card, Row, Col, Segmented, Tooltip,
+  Table, Button, Space, Tag, Form, Grid, Input, Select,
+  Row, Col, Segmented, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -15,6 +15,9 @@ import type { Permission, MenuItem } from '@/types'
 import * as PermAPI from '@/api/system/permission'
 import * as MenuAPI from '@/api/system/menu'
 import EntityFormModal from '@/components/EntityFormModal'
+import ListFilterForm from '@/components/ListFilterForm'
+import ListPageShell from '@/components/ListPageShell'
+import TableRowActions from '@/components/TableRowActions'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
@@ -116,6 +119,8 @@ export default function PermissionPage() {
   const [searchForm] = Form.useForm()
   const { t } = useTranslation()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
 
   const fetchList = useCallback((p: SearchParams) => (
     view === 'list' ? PermAPI.getPermissionList(p) : Promise.resolve({ list: [], total: 0 })
@@ -259,24 +264,34 @@ export default function PermissionPage() {
     },
     {
       title: t('操作'),
-      width: 96,
+      width: compactActions ? 48 : 96,
       fixed: 'right',
+      align: 'center',
       render: (_: unknown, record: PermRow) =>
         record.isMenu ? null : (
-          <Space size={4} className="table-actions compact-table-actions">
-            {hasPerm('system:permission:update') && (
-              <Tooltip title={t('编辑')}>
-                <Button type="text" size="small" aria-label={t('编辑权限')} icon={<EditOutlined />} onClick={() => openEdit(record as unknown as Permission)} />
-              </Tooltip>
-            )}
-            {hasPerm('system:permission:delete') && (
-              <Popconfirm title={t('确认删除该权限?')} onConfirm={() => handleDelete(record.id)}>
-                <Tooltip title={t('删除')}>
-                  <Button type="text" size="small" danger aria-label={t('删除权限')} icon={<DeleteOutlined />} />
-                </Tooltip>
-              </Popconfirm>
-            )}
-          </Space>
+          <TableRowActions
+            menuOnly={compactActions}
+            maxInline={2}
+            ariaLabel={t('更多操作：{{name}}', { name: record.name })}
+            actions={[
+              {
+                key: 'edit',
+                label: t('编辑'),
+                icon: <EditOutlined />,
+                show: hasPerm('system:permission:update'),
+                onClick: () => openEdit(record as unknown as Permission),
+              },
+              {
+                key: 'delete',
+                label: t('删除'),
+                icon: <DeleteOutlined />,
+                danger: true,
+                show: hasPerm('system:permission:delete'),
+                confirm: t('确认删除该权限?'),
+                onClick: () => handleDelete(record.id),
+              },
+            ]}
+          />
         ),
     },
   ]
@@ -284,15 +299,15 @@ export default function PermissionPage() {
   const isTree = view === 'tree'
 
   return (
-    <div className="page-list permission-page">
-      <Card className="list-filter-card" bordered={false}>
-        <Form
-          form={searchForm}
-          layout="inline"
-          className="list-filter-form"
-          onFinish={handleSearch}
-          initialValues={params}
-        >
+    <>
+      <ListPageShell
+        className="permission-page"
+        filter={(
+          <ListFilterForm
+            form={searchForm}
+            onFinish={handleSearch}
+            initialValues={params}
+          >
           <Form.Item name="keyword">
             <Input placeholder={t('搜索名称 / 编码')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
@@ -312,11 +327,10 @@ export default function PermissionPage() {
               ]}
             />
           </Form.Item>
-        </Form>
-      </Card>
-
-      <Card className="list-main-card" bordered={false}>
-        <TableToolbar
+          </ListFilterForm>
+        )}
+        toolbar={(
+          <TableToolbar
           title="权限结构"
           total={isTree ? tree.reduce((acc, n) => acc + 1 + (n.children?.length ?? 0), 0) : total}
           extra={
@@ -337,7 +351,9 @@ export default function PermissionPage() {
               )}
             </Space>
           }
-        />
+          />
+        )}
+      >
         <Table
           rowKey="key"
           className="list-table"
@@ -361,7 +377,7 @@ export default function PermissionPage() {
                 }
           }
         />
-      </Card>
+      </ListPageShell>
 
       <EntityFormModal
         title={editModal.record ? t('编辑权限') : t('新增权限')}
@@ -413,6 +429,6 @@ export default function PermissionPage() {
             <Input.TextArea rows={2} />
           </Form.Item>
       </EntityFormModal>
-    </div>
+    </>
   )
 }

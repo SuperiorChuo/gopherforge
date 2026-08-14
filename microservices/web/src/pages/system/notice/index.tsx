@@ -4,7 +4,6 @@ import {
   Button,
   DatePicker,
   Descriptions,
-  Dropdown,
   Form,
   Grid,
   Input,
@@ -15,7 +14,6 @@ import {
   Table,
   Tag,
   Tooltip,
-  type MenuProps,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -34,6 +32,7 @@ import EntityDetailDrawer from '@/components/EntityDetailDrawer'
 import EntityFormModal from '@/components/EntityFormModal'
 import ListFilterForm from '@/components/ListFilterForm'
 import ListPageShell from '@/components/ListPageShell'
+import TableRowActions from '@/components/TableRowActions'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
@@ -256,30 +255,29 @@ export default function NoticePage() {
     />
   )
 
-  const compactActions = (): MenuProps['items'] => [
+  const rowActions = (record: Notice) => [
     {
       key: 'view',
-      icon: <EyeOutlined />,
       label: '查看详情',
+      icon: <EyeOutlined />,
+      onClick: () => setViewRecord(record),
     },
-    hasPerm('system:notice:update') ? {
+    {
       key: 'edit',
+      label: '编辑',
       icon: <EditOutlined />,
-      label: '编辑通知',
-    } : null,
-    hasPerm('system:notice:delete') ? {
+      show: hasPerm('system:notice:update'),
+      onClick: () => openEdit(record),
+    },
+    {
       key: 'delete',
+      label: '删除',
       icon: <DeleteOutlined />,
-      label: '删除通知',
       danger: true,
-    } : null,
-  ].filter((item): item is NonNullable<typeof item> => item !== null)
-
-  const runCompactAction = (key: string, record: Notice) => {
-    if (key === 'view') setViewRecord(record)
-    if (key === 'edit') openEdit(record)
-    if (key === 'delete') confirmDelete(record)
-  }
+      show: hasPerm('system:notice:delete'),
+      onClick: () => confirmDelete(record),
+    },
+  ]
 
   const desktopColumns: ColumnsType<Notice> = [
     { title: 'ID', dataIndex: 'id', width: 64, responsive: ['xl'] },
@@ -333,40 +331,12 @@ export default function NoticePage() {
       align: 'center',
       className: 'notice-actions-cell',
       render: (_, record) => (
-        <Space size={2} className="table-actions compact-table-actions notice-actions">
-          <Tooltip title="查看详情">
-            <Button
-              type="text"
-              size="small"
-              icon={<EyeOutlined />}
-              aria-label={`查看通知：${record.title}`}
-              onClick={() => setViewRecord(record)}
-            />
-          </Tooltip>
-          {hasPerm('system:notice:update') && (
-            <Tooltip title="编辑">
-              <Button
-                type="text"
-                size="small"
-                icon={<EditOutlined />}
-                aria-label={`编辑通知：${record.title}`}
-                onClick={() => openEdit(record)}
-              />
-            </Tooltip>
-          )}
-          {hasPerm('system:notice:delete') && (
-            <Tooltip title="删除">
-              <Button
-                type="text"
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-                aria-label={`删除通知：${record.title}`}
-                onClick={() => confirmDelete(record)}
-              />
-            </Tooltip>
-          )}
-        </Space>
+        <TableRowActions
+          maxInline={3}
+          ariaLabel={`更多操作：${record.title}`}
+          className="notice-actions"
+          actions={rowActions(record)}
+        />
       ),
     },
   ]
@@ -391,18 +361,12 @@ export default function NoticePage() {
       align: 'center',
       className: 'notice-more-cell',
       render: (_, record) => (
-        <Dropdown
-          trigger={['click']}
-          placement="bottomRight"
-          menu={{ items: compactActions(), onClick: ({ key }) => runCompactAction(key, record) }}
-        >
-          <Button
-            type="text"
-            size="small"
-            icon={<MoreOutlined />}
-            aria-label={`更多操作：${record.title}`}
-          />
-        </Dropdown>
+        <TableRowActions
+          menuOnly
+          ariaLabel={`更多操作：${record.title}`}
+          className="notice-actions"
+          actions={rowActions(record)}
+        />
       ),
     },
   ]

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Popconfirm, Form, Input, Select,
-  InputNumber, Row, Col, TreeSelect, Segmented, Tooltip,
+  Table, Button, Grid, Space, Tag, Form, Input, Select,
+  InputNumber, Row, Col, TreeSelect, Segmented,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -15,6 +15,7 @@ import * as DeptAPI from '@/api/system/department'
 import EntityFormModal from '@/components/EntityFormModal'
 import ListFilterForm from '@/components/ListFilterForm'
 import ListPageShell from '@/components/ListPageShell'
+import TableRowActions from '@/components/TableRowActions'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
@@ -71,6 +72,8 @@ export default function DepartmentPage() {
   const [searchForm] = Form.useForm()
   const { t } = useTranslation()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
   // 部门主管选人与列表主管姓名展示共用一份用户映射（模块级缓存，403 静默降级）
   const userMap = useUserNameMap()
   const userOptions = useMemo(
@@ -228,22 +231,34 @@ export default function DepartmentPage() {
     { title: t('创建时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime },
     {
       title: t('操作'),
-      width: 96,
+      width: compactActions ? 48 : 96,
+      align: 'center',
+      fixed: 'right',
       render: (_, record) => (
-        <Space size={4} className="table-actions department-row-actions">
-          {hasPerm('system:department:update') && (
-            <Tooltip title={t('编辑')}>
-              <Button type="text" size="small" aria-label={t('编辑部门')} icon={<EditOutlined />} onClick={() => openEdit(record)} />
-            </Tooltip>
-          )}
-          {hasPerm('system:department:delete') && (
-            <Popconfirm title={t('确认删除该部门?')} onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title={t('删除')}>
-                <Button type="text" size="small" danger aria-label={t('删除部门')} icon={<DeleteOutlined />} />
-              </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
+        <TableRowActions
+          menuOnly={compactActions}
+          maxInline={2}
+          ariaLabel={t('更多操作：{{name}}', { name: record.name })}
+          className="department-row-actions"
+          actions={[
+            {
+              key: 'edit',
+              label: t('编辑'),
+              icon: <EditOutlined />,
+              show: hasPerm('system:department:update'),
+              onClick: () => openEdit(record),
+            },
+            {
+              key: 'delete',
+              label: t('删除'),
+              icon: <DeleteOutlined />,
+              danger: true,
+              show: hasPerm('system:department:delete'),
+              confirm: t('确认删除该部门?'),
+              onClick: () => handleDelete(record.id),
+            },
+          ]}
+        />
       ),
     },
   ]

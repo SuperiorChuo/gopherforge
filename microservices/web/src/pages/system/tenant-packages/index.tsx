@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type Key } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Checkbox, Form, Input, InputNumber, Popconfirm, Select, Space, Table, Tag, Tooltip, Tree } from 'antd'
+import { Button, Checkbox, Form, Grid, Input, InputNumber, Select, Space, Table, Tag, Tooltip, Tree } from 'antd'
 import {
   DeleteOutlined,
   EditOutlined,
@@ -19,6 +19,7 @@ import { getPermissionList } from '@/api/system/permission'
 import EntityFormModal from '@/components/EntityFormModal'
 import ListFilterForm from '@/components/ListFilterForm'
 import ListPageShell from '@/components/ListPageShell'
+import TableRowActions from '@/components/TableRowActions'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import StatusPill from '@/components/StatusPill'
@@ -70,6 +71,8 @@ export default function TenantPackagePage() {
   const [form] = Form.useForm()
   const [searchForm] = Form.useForm()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
 
   const allCodes = useMemo(() => allPerms.map((p) => p.code), [allPerms])
   const rootCodes = useMemo(() => {
@@ -241,23 +244,34 @@ export default function TenantPackagePage() {
     { title: t('创建时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: t('操作'),
-      width: 96,
+      width: compactActions ? 48 : 96,
       fixed: 'right',
+      align: 'center',
       render: (_, row) => (
-        <Space size={4} className="table-actions tenant-package-row-actions">
-          {hasPerm('system:tenant-package:update') && (
-            <Tooltip title={t('编辑')}>
-              <Button type="text" size="small" aria-label={t('编辑租户套餐 {{name}}', { name: row.name })} icon={<EditOutlined />} onClick={() => openEdit(row)} />
-            </Tooltip>
-          )}
-          {hasPerm('system:tenant-package:delete') && (
-            <Popconfirm title={t('确定删除该套餐？有租户绑定时将拒绝删除。')} onConfirm={() => void onDelete(row)}>
-              <Tooltip title={t('删除')}>
-                <Button type="text" size="small" danger aria-label={t('删除租户套餐 {{name}}', { name: row.name })} icon={<DeleteOutlined />} />
-              </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
+        <TableRowActions
+          menuOnly={compactActions}
+          maxInline={2}
+          ariaLabel={t('更多操作：{{name}}', { name: row.name })}
+          className="tenant-package-row-actions"
+          actions={[
+            {
+              key: 'edit',
+              label: t('编辑'),
+              icon: <EditOutlined />,
+              show: hasPerm('system:tenant-package:update'),
+              onClick: () => openEdit(row),
+            },
+            {
+              key: 'delete',
+              label: t('删除'),
+              icon: <DeleteOutlined />,
+              danger: true,
+              show: hasPerm('system:tenant-package:delete'),
+              confirm: t('确定删除该套餐？有租户绑定时将拒绝删除。'),
+              onClick: () => { void onDelete(row) },
+            },
+          ]}
+        />
       ),
     },
   ]

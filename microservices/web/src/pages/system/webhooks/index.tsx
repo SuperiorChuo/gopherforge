@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, Button, Descriptions, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Alert, Button, Descriptions, Form, Grid, Input, Modal, Select, Space, Table, Tag, Typography } from 'antd'
 import { ApiOutlined, DeleteOutlined, EditOutlined, KeyOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import * as WebhookAPI from '@/api/system/webhook'
@@ -10,6 +10,7 @@ import EntityFormModal from '@/components/EntityFormModal'
 import GlassEmpty from '@/components/GlassEmpty'
 import ListPageShell from '@/components/ListPageShell'
 import StatusPill from '@/components/StatusPill'
+import TableRowActions from '@/components/TableRowActions'
 import TableToolbar from '@/components/TableToolbar'
 import { useCrudModal } from '@/hooks/useCrudModal'
 import { usePermission } from '@/hooks/usePermission'
@@ -31,6 +32,8 @@ const deliveryColors: Record<string, string> = { sent: 'green', failed: 'red', r
 export default function WebhooksPage() {
   const { t } = useTranslation()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
   const [params, setParams] = useState({ page: 1, page_size: 10 })
   const modal = useCrudModal<WebhookSubscription>()
   const [form] = Form.useForm<WebhookMutation>()
@@ -88,12 +91,52 @@ export default function WebhooksPage() {
     { title: t('状态'), dataIndex: 'status', width: 90, render: (value) => value === 1 ? <StatusPill tone="success" label="启用" /> : <StatusPill tone="muted" label="停用" /> },
     { title: t('连续失败'), dataIndex: 'consecutive_failures', width: 100, responsive: ['lg'], render: (v) => v || 0 },
     { title: t('最近投递'), dataIndex: 'last_delivered_at', width: 170, responsive: ['lg'], render: formatDateTime },
-    { title: t('操作'), width: 150, fixed: 'right', render: (_, row) => <Space size={2} className="table-actions webhook-row-actions">
-      <Tooltip title={t('查看投递')}><Button type="text" size="small" icon={<ApiOutlined />} aria-label={t('查看 Webhook 投递')} onClick={() => setDeliverySubscription(row)} /></Tooltip>
-      {hasPerm('system:webhook:update') && <Tooltip title={t('编辑')}><Button type="text" size="small" icon={<EditOutlined />} aria-label={t('编辑 Webhook 订阅')} onClick={() => openEdit(row)} /></Tooltip>}
-      {hasPerm('system:webhook:reset-secret') && <Popconfirm title={t('旧密钥将立即失效，确认重置？')} onConfirm={() => void resetSecret(row)}><Tooltip title={t('重置密钥')}><Button type="text" size="small" icon={<KeyOutlined />} aria-label={t('重置 Webhook 密钥')} /></Tooltip></Popconfirm>}
-      {hasPerm('system:webhook:delete') && <Popconfirm title={t('确认删除该 Webhook 订阅？')} onConfirm={() => void remove(row.id)}><Tooltip title={t('删除')}><Button type="text" size="small" danger icon={<DeleteOutlined />} aria-label={t('删除 Webhook 订阅')} /></Tooltip></Popconfirm>}
-    </Space> },
+    {
+      title: t('操作'),
+      width: compactActions ? 48 : 150,
+      fixed: 'right',
+      align: 'center',
+      render: (_, row) => (
+        <TableRowActions
+          menuOnly={compactActions}
+          maxInline={3}
+          ariaLabel={t('更多操作：{{name}}', { name: row.name })}
+          className="webhook-row-actions"
+          actions={[
+            {
+              key: 'deliveries',
+              label: t('查看投递'),
+              icon: <ApiOutlined />,
+              onClick: () => setDeliverySubscription(row),
+            },
+            {
+              key: 'edit',
+              label: t('编辑'),
+              icon: <EditOutlined />,
+              show: hasPerm('system:webhook:update'),
+              onClick: () => openEdit(row),
+            },
+            {
+              key: 'reset-secret',
+              label: t('重置密钥'),
+              icon: <KeyOutlined />,
+              show: hasPerm('system:webhook:reset-secret'),
+              confirm: t('旧密钥将立即失效，确认重置？'),
+              onClick: () => { void resetSecret(row) },
+            },
+            {
+              key: 'delete',
+              label: t('删除'),
+              icon: <DeleteOutlined />,
+              danger: true,
+              show: hasPerm('system:webhook:delete'),
+              confirm: t('确认删除该 Webhook 订阅？'),
+              onClick: () => { void remove(row.id) },
+            },
+          ]}
+        />
+      ),
+    },
   ]
 
   return <>

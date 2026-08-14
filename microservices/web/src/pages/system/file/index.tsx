@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Popconfirm, Card, Input, Form,
+  Table, Button, Grid, Space, Popconfirm, Card, Input, Form,
   Upload, Tag, Image, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
@@ -13,6 +13,7 @@ import type { FileRecord } from '@/types'
 import * as FileAPI from '@/api/system/file'
 import ListFilterForm from '@/components/ListFilterForm'
 import ListPageShell from '@/components/ListPageShell'
+import TableRowActions from '@/components/TableRowActions'
 import TableToolbar from '@/components/TableToolbar'
 import CountUpValue from '@/components/CountUpValue'
 import GlassEmpty from '@/components/GlassEmpty'
@@ -48,6 +49,8 @@ export default function FilePage() {
   const [searchForm] = Form.useForm()
   const { t } = useTranslation()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
 
   useEffect(() => {
     FileAPI.getFileStats().then(setStats).catch(() => setStats(null))
@@ -222,44 +225,40 @@ export default function FilePage() {
     { title: t('上传时间'), dataIndex: 'created_at', width: 170, className: 'cell-time', render: formatDateTime, responsive: ['lg'] },
     {
       title: t('操作'),
-      width: 136,
+      width: compactActions ? 48 : 136,
       fixed: 'right',
+      align: 'center',
       render: (_, record) => (
-        <Space size={4} className="table-actions file-row-actions">
-          {record.file_type === 'image' && (
-            <Tooltip title={t('预览')}>
-              <Button
-                type="text"
-                size="small"
-                icon={<EyeOutlined />}
-                aria-label={`${t('预览文件')} ${record.file_name}`}
-                onClick={() => handlePreview(record)}
-              />
-            </Tooltip>
-          )}
-          <Tooltip title={t('下载')}>
-            <Button
-              type="text"
-              size="small"
-              icon={<DownloadOutlined />}
-              aria-label={`${t('下载文件')} ${record.file_name}`}
-              onClick={() => handleDownload(record)}
-            />
-          </Tooltip>
-          {hasPerm('system:file:delete') && (
-            <Popconfirm title={t('确认删除该文件?')} onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title={t('删除')}>
-                <Button
-                  type="text"
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  aria-label={`${t('删除文件')} ${record.file_name}`}
-                />
-              </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
+        <TableRowActions
+          menuOnly={compactActions}
+          maxInline={3}
+          ariaLabel={t('更多操作：{{name}}', { name: record.file_name })}
+          className="file-row-actions"
+          actions={[
+            {
+              key: 'preview',
+              label: t('预览'),
+              icon: <EyeOutlined />,
+              show: record.file_type === 'image',
+              onClick: () => handlePreview(record),
+            },
+            {
+              key: 'download',
+              label: t('下载'),
+              icon: <DownloadOutlined />,
+              onClick: () => handleDownload(record),
+            },
+            {
+              key: 'delete',
+              label: t('删除'),
+              icon: <DeleteOutlined />,
+              danger: true,
+              show: hasPerm('system:file:delete'),
+              confirm: t('确认删除该文件?'),
+              onClick: () => handleDelete(record.id),
+            },
+          ]}
+        />
       ),
     },
   ]

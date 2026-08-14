@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Popconfirm, Form, Input, Select,
-  Card, InputNumber, Switch, TreeSelect, Segmented, Row, Col, Tooltip,
+  Table, Button, Space, Form, Grid, Input, Select,
+  InputNumber, Switch, TreeSelect, Segmented, Row, Col, Tooltip,
 } from 'antd'
 import { message } from '@/utils/feedback'
 import {
@@ -13,6 +13,9 @@ import type { ColumnsType } from 'antd/es/table'
 import type { Menu } from '@/types'
 import * as MenuAPI from '@/api/system/menu'
 import EntityFormModal from '@/components/EntityFormModal'
+import ListFilterForm from '@/components/ListFilterForm'
+import ListPageShell from '@/components/ListPageShell'
+import TableRowActions from '@/components/TableRowActions'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
@@ -67,6 +70,8 @@ export default function MenuPage() {
   const [searchForm] = Form.useForm()
   const { t } = useTranslation()
   const { hasPerm } = usePermission()
+  const screens = Grid.useBreakpoint()
+  const compactActions = !screens.md
 
   const fetchList = useCallback((p: SearchParams) => (
     view === 'list' ? MenuAPI.getMenuList(p) : Promise.resolve({ list: [], total: 0 })
@@ -218,23 +223,36 @@ export default function MenuPage() {
     },
     {
       title: t('操作'),
-      width: 96,
+      width: compactActions ? 48 : 96,
       fixed: 'right',
+      align: 'center',
       render: (_, record) => (
-        <Space size={4} className="table-actions menu-row-actions">
-          {hasPerm('system:menu:update') && (
-            <Tooltip title={t('编辑')}>
-              <Button type="text" size="small" aria-label={t('编辑菜单')} icon={<EditOutlined />} onClick={() => openEdit(record)} />
-            </Tooltip>
-          )}
-          {hasPerm('system:menu:delete') && (
-            <Popconfirm title={t('确认删除该菜单?')} description={t('存在子菜单时将无法删除')} onConfirm={() => handleDelete(record.id)}>
-              <Tooltip title={t('删除')}>
-                <Button type="text" size="small" danger aria-label={t('删除菜单')} icon={<DeleteOutlined />} />
-              </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
+        <TableRowActions
+          menuOnly={compactActions}
+          maxInline={2}
+          ariaLabel={t('更多操作：{{name}}', { name: record.title || record.name })}
+          actions={[
+            {
+              key: 'edit',
+              label: t('编辑'),
+              icon: <EditOutlined />,
+              show: hasPerm('system:menu:update'),
+              onClick: () => openEdit(record),
+            },
+            {
+              key: 'delete',
+              label: t('删除'),
+              icon: <DeleteOutlined />,
+              danger: true,
+              show: hasPerm('system:menu:delete'),
+              confirm: {
+                title: t('确认删除该菜单?'),
+                description: t('存在子菜单时将无法删除'),
+              },
+              onClick: () => handleDelete(record.id),
+            },
+          ]}
+        />
       ),
     },
   ]
@@ -242,15 +260,15 @@ export default function MenuPage() {
   const isTree = view === 'tree'
 
   return (
-    <div className="page-list menu-page">
-      <Card className="list-filter-card" bordered={false}>
-        <Form
-          form={searchForm}
-          layout="inline"
-          className="list-filter-form"
-          onFinish={handleSearch}
-          initialValues={params}
-        >
+    <>
+      <ListPageShell
+        className="menu-page"
+        filter={(
+          <ListFilterForm
+            form={searchForm}
+            onFinish={handleSearch}
+            initialValues={params}
+          >
           <Form.Item name="keyword">
             <Input placeholder={t('搜索名称 / 路径')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
@@ -276,11 +294,10 @@ export default function MenuPage() {
               ]}
             />
           </Form.Item>
-        </Form>
-      </Card>
-
-      <Card className="list-main-card" bordered={false}>
-        <TableToolbar
+          </ListFilterForm>
+        )}
+        toolbar={(
+          <TableToolbar
           title="菜单结构"
           total={isTree ? countTree(tree) : total}
           extra={
@@ -300,7 +317,9 @@ export default function MenuPage() {
               )}
             </Space>
           }
-        />
+          />
+        )}
+      >
         <Table
           rowKey="id"
           className="list-table"
@@ -325,7 +344,7 @@ export default function MenuPage() {
                 }
           }
         />
-      </Card>
+      </ListPageShell>
 
       <EntityFormModal
         title={editModal.record ? t('编辑菜单') : t('新增菜单')}
@@ -401,6 +420,6 @@ export default function MenuPage() {
             </Col>
           </Row>
       </EntityFormModal>
-    </div>
+    </>
   )
 }

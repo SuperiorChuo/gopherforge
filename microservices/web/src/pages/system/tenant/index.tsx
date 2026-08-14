@@ -8,6 +8,8 @@ import type { TenantInfo, TenantPackageInfo } from '@/types'
 import * as TenantAPI from '@/api/system/tenant'
 import { getAllTenantPackages } from '@/api/system/tenantPackages'
 import EntityFormModal from '@/components/EntityFormModal'
+import ListFilterForm from '@/components/ListFilterForm'
+import ListPageShell from '@/components/ListPageShell'
 import TableToolbar from '@/components/TableToolbar'
 import GlassEmpty from '@/components/GlassEmpty'
 import StatusPill from '@/components/StatusPill'
@@ -262,9 +264,13 @@ export default function TenantPage() {
   ]
 
   return (
-    <div className="page-list tenant-page">
-      {isPlatform && (
-        <Alert
+    <>
+      <ListPageShell
+        className="tenant-page"
+        filter={(
+          <>
+            {isPlatform && (
+              <Alert
           type="info"
           showIcon
           message={t('平台运营账号（platform_admin）')}
@@ -280,17 +286,13 @@ export default function TenantPage() {
               </Button>
             ) : null
           }
-        />
-      )}
-
-      <Card className="list-filter-card" bordered={false}>
-        <Form
-          form={searchForm}
-          layout="inline"
-          className="list-filter-form"
-          onFinish={handleSearch}
-          initialValues={params}
-        >
+              />
+            )}
+            <ListFilterForm
+              form={searchForm}
+              onFinish={handleSearch}
+              initialValues={params}
+            >
           <Form.Item name="keyword">
             <Input placeholder={t('搜索 Code / 名称')} prefix={<SearchOutlined />} allowClear style={{ width: 260 }} />
           </Form.Item>
@@ -300,11 +302,11 @@ export default function TenantPage() {
               <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
-        </Form>
-      </Card>
-
-      <Card className="list-main-card" bordered={false}>
-        <TableToolbar
+            </ListFilterForm>
+          </>
+        )}
+        toolbar={(
+          <TableToolbar
           title="租户管理"
           total={total}
           extra={
@@ -315,7 +317,9 @@ export default function TenantPage() {
               </Button>
             </Space>
           }
-        />
+          />
+        )}
+      >
         <Table
           rowKey="id"
           className="list-table"
@@ -338,7 +342,7 @@ export default function TenantPage() {
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
-      </Card>
+      </ListPageShell>
 
       <Modal title={t('新建租户')} open={createOpen} onCancel={() => setCreateOpen(false)} onOk={() => void onCreate()}>
         <Form form={form} layout="vertical" initialValues={{ plan: 'free', max_users: 0 }}>
@@ -444,6 +448,6 @@ export default function TenantPage() {
             />
           </Form.Item>
       </EntityFormModal>
-    </div>
+    </>
   )
 }
