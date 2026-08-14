@@ -105,6 +105,10 @@ var jobCronParser = cron.NewParser(
 	cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor,
 )
 
+type taskRunCleaner interface {
+	CleanupTaskRunsBeforeContext(ctx context.Context, before time.Time) (int64, error)
+}
+
 type jobDAO interface {
 	GetJobByIDContext(ctx context.Context, id uint) (*localmodel.ScheduledJob, error)
 	GetJobListContext(ctx context.Context, req pagination.PageRequest, name string, status *int8) ([]localmodel.ScheduledJob, int64, error)
@@ -129,9 +133,11 @@ type JobService struct {
 }
 
 type JobLogCleanupResult struct {
-	RetentionDays int       `json:"retention_days"`
-	CutoffTime    time.Time `json:"cutoff_time"`
-	DeletedRows   int64     `json:"deleted_rows"`
+	RetentionDays   int       `json:"retention_days"`
+	CutoffTime      time.Time `json:"cutoff_time"`
+	DeletedRows     int64     `json:"deleted_rows"`
+	DeletedJobLogs  int64     `json:"deleted_job_logs"`
+	DeletedTaskRuns int64     `json:"deleted_task_runs"`
 }
 
 type JobHealthCheck struct {
@@ -256,40 +262,41 @@ func (s *JobService) StopJob(jobID uint) {
 	}
 }
 
-// runTask executes a job and records a log entry for cron and manual runs.
+// runTask executes a cron-triggered job and records both the compatibility log
+// and the unified task-run lifecycle.
 func (s *JobService) runTask(job localmodel.ScheduledJob) {
-	s.runTaskContext(context.Background(), job)
+	s.runTaskContext(context.Background(), job, "scheduled")
 }
 
-func (s *JobService) runTaskContext(ctx context.Context, job localmodel.ScheduledJob) {
+func (s *JobService) runTaskContext(ctx context.Context, job localmodel.ScheduledJob, trigger string) {
 	startTime := time.Now()
+	trackedRun := beginScheduledTaskRun(ctx, s.dao, job, trigger, startTime)
+
 	var status int8 = 1
 	message := "Success"
-
-	// Execute the task.
-	executeMessage, err := s.executeTaskContext(ctx, job.InvokeTarget)
-	if err != nil {
+	executeMessage, runErr := s.executeTaskContext(ctx, job.InvokeTarget)
+	if runErr != nil {
 		status = 0
-		message = err.Error()
+		message = runErr.Error()
 	} else if executeMessage != "" {
 		message = executeMessage
 	}
 
-	duration := int(time.Since(startTime).Milliseconds())
+	finishedAt := time.Now()
+	durationMS := finishedAt.Sub(startTime).Milliseconds()
+	if durationMS < 0 {
+		durationMS = 0
+	}
+	trackedRun.Finish(ctx, runErr, message, finishedAt, durationMS)
 
-	// Record the job log.
 	logEntry := localmodel.ScheduledJobLog{
-		JobID:    job.ID,
-		JobName:  job.Name,
-		Status:   status,
-		Message:  message,
-		Duration: duration,
+		JobID: job.ID, JobName: job.Name, Status: status,
+		Message: message, Duration: int(durationMS),
 	}
 	if err := s.dao.CreateJobLogContext(ctx, &logEntry); err != nil {
 		log.Printf("Failed to create job log for %s: %v", job.Name, err)
 	}
 
-	// Update the job's last run time.
 	job.LastRunTime = &startTime
 	if err := s.dao.UpdateJobContext(ctx, &job); err != nil {
 		log.Printf("Failed to update last run time for %s: %v", job.Name, err)
@@ -319,15 +326,24 @@ func (s *JobService) CleanupJobLogsContext(ctx context.Context, retentionDays in
 	}
 
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)
-	deletedRows, err := s.dao.CleanupJobLogsBeforeContext(ctx, cutoff)
+	deletedJobLogs, err := s.dao.CleanupJobLogsBeforeContext(ctx, cutoff)
 	if err != nil {
 		return nil, err
 	}
+	var deletedTaskRuns int64
+	if cleaner, ok := s.dao.(taskRunCleaner); ok {
+		deletedTaskRuns, err = cleaner.CleanupTaskRunsBeforeContext(ctx, cutoff)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return &JobLogCleanupResult{
-		RetentionDays: retentionDays,
-		CutoffTime:    cutoff,
-		DeletedRows:   deletedRows,
+		RetentionDays:   retentionDays,
+		CutoffTime:      cutoff,
+		DeletedRows:     deletedJobLogs + deletedTaskRuns,
+		DeletedJobLogs:  deletedJobLogs,
+		DeletedTaskRuns: deletedTaskRuns,
 	}, nil
 }
 
@@ -540,7 +556,7 @@ func (s *JobService) RunJobContext(ctx context.Context, id uint) error {
 	}
 
 	// Execute asynchronously and record the job log.
-	go s.runTaskContext(context.WithoutCancel(ctx), *job)
+	go s.runTaskContext(context.WithoutCancel(ctx), *job, "manual")
 	return nil
 }
 

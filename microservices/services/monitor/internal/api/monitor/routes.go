@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
 	"github.com/go-admin-kit/services/monitor/internal/middleware"
 	monitorsvc "github.com/go-admin-kit/services/monitor/internal/service/monitor"
 	"github.com/go-admin-kit/services/shared/pkg/response"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 )
 
 // RegisterProtectedRoutes mounts authenticated system monitoring routes.
@@ -39,8 +39,10 @@ func RegisterProtectedRoutesWithDeps(r *gin.RouterGroup, deps sharedapi.Dependen
 	alertAPI := NewAlertAPIWithService(monitorsvc.NewAlertService(deps.DB, deps.Redis))
 
 	var jobAPI *JobAPI
+	var taskRunAPI *TaskRunAPI
 	if deps.DB != nil {
 		jobAPI = &JobAPI{service: monitorsvc.InitJobService(deps.DB)}
+		taskRunAPI = &TaskRunAPI{service: monitorsvc.NewTaskRunService(deps.DB)}
 	} else if svc := monitorsvc.GetJobService(); svc != nil {
 		jobAPI = &JobAPI{service: svc}
 	}
@@ -60,6 +62,17 @@ func RegisterProtectedRoutesWithDeps(r *gin.RouterGroup, deps sharedapi.Dependen
 	monitorGroup.POST("/alert-rules/:id/evaluate", middleware.PermissionMiddleware("system:alert:evaluate"), alertAPI.EvaluateRule)
 	monitorGroup.GET("/alert-events", middleware.PermissionMiddleware("system:alert:list"), alertAPI.GetEvents)
 	registerJobRoutes(monitorGroup, jobAPI)
+	registerTaskRunRoutes(monitorGroup, taskRunAPI)
+}
+
+func registerTaskRunRoutes(group *gin.RouterGroup, api *TaskRunAPI) {
+	list, summary, detail := unavailableMonitorHandler, unavailableMonitorHandler, unavailableMonitorHandler
+	if api != nil {
+		list, summary, detail = api.List, api.Summary, api.Get
+	}
+	group.GET("/task-runs", middleware.PermissionMiddleware("system:job:list"), list)
+	group.GET("/task-runs/summary", middleware.PermissionMiddleware("system:job:list"), summary)
+	group.GET("/task-runs/:id", middleware.PermissionMiddleware("system:job:list"), detail)
 }
 
 func unavailableMonitorHandler(c *gin.Context) {

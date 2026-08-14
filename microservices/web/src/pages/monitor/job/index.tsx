@@ -27,6 +27,7 @@ import GlassEmpty from '@/components/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
+import TaskRunsPanel from './TaskRunsPanel'
 import './styles.css'
 
 interface SearchParams {
@@ -373,6 +374,8 @@ export default function JobPage() {
 
   return (
     <div className="page-list job-page">
+      <TaskRunsPanel />
+
       <Card className="list-filter-card" bordered={false}>
         <Form
           form={searchForm}

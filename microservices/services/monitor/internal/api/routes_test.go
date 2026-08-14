@@ -28,6 +28,9 @@ func TestSetupRoutesIncludesDependencyBackedMonitorRoutes(t *testing.T) {
 		"POST /api/v1/monitor/jobs/:id/stop",
 		"POST /api/v1/monitor/jobs/:id/run",
 		"POST /api/v1/monitor/job-logs/cleanup",
+		"GET /api/v1/monitor/task-runs",
+		"GET /api/v1/monitor/task-runs/summary",
+		"GET /api/v1/monitor/task-runs/:id",
 	} {
 		if _, ok := routes[route]; !ok {
 			t.Fatalf("route registration is missing: %s", route)

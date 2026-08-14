@@ -32,7 +32,7 @@ func TestJobServiceGetJobListContextPropagatesContext(t *testing.T) {
 }
 
 func TestCleanupJobLogsDeletesOlderThanRetention(t *testing.T) {
-	dao := &fakeJobDAO{cleanupRows: 3}
+	dao := &fakeJobDAO{cleanupRows: 3, cleanupTaskRows: 2}
 	service := &JobService{dao: dao}
 
 	startCutoff := time.Now().AddDate(0, 0, -7)
@@ -45,14 +45,36 @@ func TestCleanupJobLogsDeletesOlderThanRetention(t *testing.T) {
 	if result.RetentionDays != 7 {
 		t.Fatalf("retention days = %d, want 7", result.RetentionDays)
 	}
-	if result.DeletedRows != 3 {
-		t.Fatalf("deleted rows = %d, want 3", result.DeletedRows)
+	if result.DeletedRows != 5 || result.DeletedJobLogs != 3 || result.DeletedTaskRuns != 2 {
+		t.Fatalf("deleted rows = total:%d logs:%d runs:%d, want 5/3/2", result.DeletedRows, result.DeletedJobLogs, result.DeletedTaskRuns)
 	}
 	if dao.cleanupBefore.Before(startCutoff.Add(-time.Second)) || dao.cleanupBefore.After(endCutoff.Add(time.Second)) {
 		t.Fatalf("cleanup cutoff = %s, want between %s and %s", dao.cleanupBefore, startCutoff, endCutoff)
 	}
 	if !result.CutoffTime.Equal(dao.cleanupBefore) {
 		t.Fatalf("result cutoff = %s, dao cutoff = %s", result.CutoffTime, dao.cleanupBefore)
+	}
+}
+
+func TestScheduledJobWritesUnifiedTaskRun(t *testing.T) {
+	dao := &fakeJobDAO{}
+	service := &JobService{dao: dao}
+	job := localmodel.ScheduledJob{ID: 42, Name: "health", Description: "health check", InvokeTarget: "HealthCheck"}
+
+	service.runTaskContext(context.Background(), job, "manual")
+
+	if len(dao.taskRuns) != 1 {
+		t.Fatalf("task runs = %d, want 1", len(dao.taskRuns))
+	}
+	run := dao.taskRuns[0]
+	if run.TaskKey != "monitor.scheduled.42" || run.TriggerType != "manual" || run.Status != localmodel.TaskRunStatusSucceeded {
+		t.Fatalf("unexpected task run: %#v", run)
+	}
+	if run.FinishedAt == nil || run.RunID == "" {
+		t.Fatalf("task run lifecycle incomplete: %#v", run)
+	}
+	if len(dao.logs[42]) != 1 || dao.logs[42][0].Status != 1 {
+		t.Fatalf("compatibility job log missing: %#v", dao.logs[42])
 	}
 }
 
@@ -252,6 +274,8 @@ type fakeJobDAO struct {
 	logs              map[uint][]localmodel.ScheduledJobLog
 	cleanupBefore     time.Time
 	cleanupRows       int64
+	cleanupTaskRows   int64
+	taskRuns          []localmodel.OpsTaskRun
 	cleanupStarted    chan struct{}
 	cleanupContinue   chan struct{}
 	panicOnActiveJobs bool
@@ -345,6 +369,34 @@ func (d *fakeJobDAO) CleanupJobLogsBeforeContext(ctx context.Context, before tim
 	d.contextMarker = ctx.Value(jobContextTestKey{})
 	d.cleanupBefore = before
 	return d.cleanupRows, nil
+}
+
+func (d *fakeJobDAO) CleanupTaskRunsBeforeContext(ctx context.Context, before time.Time) (int64, error) {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	d.cleanupBefore = before
+	return d.cleanupTaskRows, nil
+}
+
+func (d *fakeJobDAO) StartTaskRunContext(ctx context.Context, run *localmodel.OpsTaskRun) error {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	d.taskRuns = append(d.taskRuns, *run)
+	return nil
+}
+
+func (d *fakeJobDAO) FinishTaskRunContext(ctx context.Context, runID, status, message, errorMessage string, finishedAt time.Time, durationMS int64) error {
+	d.contextMarker = ctx.Value(jobContextTestKey{})
+	for i := range d.taskRuns {
+		if d.taskRuns[i].RunID != runID {
+			continue
+		}
+		d.taskRuns[i].Status = status
+		d.taskRuns[i].Message = message
+		d.taskRuns[i].ErrorMessage = errorMessage
+		d.taskRuns[i].FinishedAt = &finishedAt
+		d.taskRuns[i].DurationMS = durationMS
+		return nil
+	}
+	return gorm.ErrRecordNotFound
 }
 
 func (d *fakeJobDAO) CountJobsByStatusContext(ctx context.Context, status *int8) (int64, error) {

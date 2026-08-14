@@ -229,6 +229,60 @@ export interface JobHeartbeat {
 export const getJobHeartbeats = () =>
   request.get<unknown, { list: JobHeartbeat[]; total: number }>('/api/v1/monitor/jobs/heartbeats')
 
+export type TaskRunStatus = 'running' | 'succeeded' | 'failed' | 'cancelled'
+export type TaskRunSource = 'worker' | 'scheduler' | 'ops-cron'
+
+export interface OpsTaskRun {
+  id: number
+  run_id: string
+  task_key: string
+  service: string
+  description: string
+  source: TaskRunSource
+  trigger_type: string
+  status: TaskRunStatus
+  attempt: number
+  correlation_id: string
+  started_at: string
+  finished_at?: string | null
+  duration_ms: number
+  message: string
+  error_message: string
+  created_at: string
+}
+
+export interface TaskRunListParams extends PageRequest {
+  keyword?: string
+  service?: string
+  status?: TaskRunStatus
+  source?: TaskRunSource
+  start_time?: string
+  end_time?: string
+}
+
+export interface TaskRunSummary {
+  total: number
+  running: number
+  succeeded: number
+  failed: number
+  cancelled: number
+  services: number
+  success_rate: number
+  average_duration_ms: number
+  latest_run_time?: string | null
+  window_hours: number
+  checked_at: string
+}
+
+export const getTaskRuns = (params: TaskRunListParams) =>
+  request.get<unknown, PageResponse<OpsTaskRun>>('/api/v1/monitor/task-runs', { params })
+
+export const getTaskRun = (id: number) =>
+  request.get<unknown, OpsTaskRun>(`/api/v1/monitor/task-runs/${id}`)
+
+export const getTaskRunSummary = (window_hours = 24) =>
+  request.get<unknown, TaskRunSummary>('/api/v1/monitor/task-runs/summary', { params: { window_hours } })
+
 // 微服务健康总览：monitor 并发探测各服务 /health/ready
 export interface ServiceHealthRow {
   name: string
@@ -262,7 +316,10 @@ export const runJob = (id: number) =>
   request.post<unknown, void>(`/api/v1/monitor/jobs/${id}/run`)
 
 export const cleanupJobLogs = (retention_days: number) =>
-  request.post<unknown, { deleted_rows: number }>('/api/v1/monitor/job-logs/cleanup', { retention_days })
+  request.post<unknown, { deleted_rows: number; deleted_job_logs: number; deleted_task_runs: number }>(
+    '/api/v1/monitor/job-logs/cleanup',
+    { retention_days },
+  )
 
 // 可调度的内置目标。后端与执行分发共用同一张表，所以下拉里出现的目标一定
 // 跑得起来；title/description 是英文（monitor 服务源码强制英文），中文标签
@@ -277,7 +334,7 @@ export const getJobTargets = () =>
   request.get<unknown, { list: JobTarget[] }>('/api/v1/monitor/jobs/targets')
 
 export const JOB_TARGET_LABELS: Record<string, { label: string; hint: string }> = {
-  CleanExpiredLogs: { label: '清理过期任务日志', hint: '删除 30 天前的调度执行日志' },
+  CleanExpiredLogs: { label: '清理过期任务日志', hint: '删除 30 天前的调度日志与统一执行记录' },
   HealthCheck: { label: '调度健康巡检', hint: '统计近 24 小时的任务运行与失败情况' },
 }
 

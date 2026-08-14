@@ -77,7 +77,7 @@ var defaultMenuSeed = []model.Menu{
 	// 再加一条会在同一路径上种出第二个菜单。
 
 	{ID: 30, Name: "monitor", Title: "系统监控", Icon: "chart-analytics", Path: "/monitor", Component: "Layout", ParentID: 0, Sort: 5, Status: 1, Hidden: 0},
-	{ID: 31, Name: "monitor-job", Title: "定时任务", Icon: "time", Path: "/monitor/job", Component: "monitor/job/index", ParentID: 30, Sort: 1, Status: 1, Hidden: 0, Permission: "system:job:list"},
+	{ID: 31, Name: "monitor-job", Title: "任务中心", Icon: "time", Path: "/monitor/job", Component: "monitor/job/index", ParentID: 30, Sort: 1, Status: 1, Hidden: 0, Permission: "system:job:list"},
 	{ID: 32, Name: "monitor-server", Title: "服务器监控", Icon: "server", Path: "/monitor/server", Component: "monitor/server/index", ParentID: 30, Sort: 2, Status: 1, Hidden: 0, Permission: "system:monitor:server"},
 	{ID: 33, Name: "monitor-mysql", Title: "数据库监控", Icon: "data-base", Path: "/monitor/mysql", Component: "monitor/mysql/index", ParentID: 30, Sort: 3, Status: 1, Hidden: 0, Permission: "system:monitor:mysql"},
 	{ID: 34, Name: "monitor-redis", Title: "缓存监控", Icon: "data", Path: "/monitor/redis", Component: "monitor/redis/index", ParentID: 30, Sort: 4, Status: 1, Hidden: 0, Permission: "system:monitor:redis"},

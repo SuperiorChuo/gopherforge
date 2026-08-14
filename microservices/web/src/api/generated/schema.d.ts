@@ -96,6 +96,15 @@ export interface paths {
   "/api/v1/monitor/services": {
     get: operations["getApiV1MonitorServices"];
   };
+  "/api/v1/monitor/task-runs": {
+    get: operations["getApiV1MonitorTaskRuns"];
+  };
+  "/api/v1/monitor/task-runs/summary": {
+    get: operations["getApiV1MonitorTaskRunsSummary"];
+  };
+  "/api/v1/monitor/task-runs/{id}": {
+    get: operations["getApiV1MonitorTaskRunsId"];
+  };
 }
 
 export interface operations {
@@ -1269,6 +1278,138 @@ export interface operations {
       };
     };
   };
+  "getApiV1MonitorTaskRuns": {
+    parameters: {
+      query: {
+        page?: number;
+        page_size?: number;
+        keyword?: string;
+        service?: string;
+        status?: string;
+        source?: string;
+        start_time?: string;
+        end_time?: string;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["TaskRunListEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorTaskRunsSummary": {
+    parameters: {
+      query: {
+        window_hours?: number;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["TaskRunSummaryEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
+  "getApiV1MonitorTaskRunsId": {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    security: [{"BearerAuth":[]}];
+    responses: {
+      "200": {
+        content: {
+          "application/json": components["schemas"]["TaskRunEnvelope"];
+        };
+      };
+      "400": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "401": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "403": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "404": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "500": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+      "503": {
+        content: {
+          "application/json": components["schemas"]["ApiResponse"];
+        };
+      };
+    };
+  };
 }
 
 export interface components {
@@ -1411,7 +1552,9 @@ export interface components {
     };
     JobLogCleanupResult: {
       cutoff_time: string;
+      deleted_job_logs: number;
       deleted_rows: number;
+      deleted_task_runs: number;
       retention_days: number;
     };
     JobLogCleanupResultEnvelope: {
@@ -1513,6 +1656,24 @@ export interface components {
       bytes_received_human: string;
       bytes_sent: number;
       bytes_sent_human: string;
+    };
+    OpsTaskRun: {
+      attempt: number;
+      correlation_id?: string;
+      created_at: string;
+      description?: string;
+      duration_ms: number;
+      error_message?: string;
+      finished_at?: string;
+      id: number;
+      message?: string;
+      run_id: string;
+      service: string;
+      source: string;
+      started_at: string;
+      status: string;
+      task_key: string;
+      trigger_type: string;
     };
     RedisClientsInfo: {
       blocked: number;
@@ -1669,6 +1830,40 @@ export interface components {
       healthy: number;
       list: components["schemas"]["ServiceHealthRow"][];
       total: number;
+    };
+    TaskRunEnvelope: {
+      code: number;
+      data: components["schemas"]["OpsTaskRun"];
+      message: string;
+    };
+    TaskRunListEnvelope: {
+      code: number;
+      data: components["schemas"]["TaskRunListResponse"];
+      message: string;
+    };
+    TaskRunListResponse: {
+      list: components["schemas"]["OpsTaskRun"][];
+      page: number;
+      page_size: number;
+      total: number;
+    };
+    TaskRunSummary: {
+      average_duration_ms: number;
+      cancelled: number;
+      checked_at: string;
+      failed: number;
+      latest_run_time?: string;
+      running: number;
+      services: number;
+      succeeded: number;
+      success_rate: number;
+      total: number;
+      window_hours: number;
+    };
+    TaskRunSummaryEnvelope: {
+      code: number;
+      data: components["schemas"]["TaskRunSummary"];
+      message: string;
     };
     WebhookDelivery: {
       attempts: number;

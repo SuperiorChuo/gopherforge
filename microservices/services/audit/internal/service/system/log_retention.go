@@ -64,6 +64,15 @@ func runLogRetentionOnce(
 	opts LogRetentionOptions,
 ) {
 	start := time.Now()
+	execution := jobbeat.Start(db, jobbeat.Run{
+		Key:         "audit.log_retention",
+		Service:     "audit-service",
+		Description: "操作/登录日志/风控事件按保留天数清理（audit_logs 不清理）",
+		Source:      "worker",
+		Trigger:     "scheduled",
+		IntervalSec: int64(opts.ScanInterval / time.Second),
+		StartedAt:   start,
+	})
 	opDeleted, opErr := opSvc.ClearLogsAllTenantsContext(ctx, opts.RetentionDays)
 	loginDeleted, loginErr := loginSvc.ClearLogsAllTenantsContext(ctx, opts.RetentionDays)
 	riskDeleted, riskErr := loginSvc.ClearRiskEventsContext(ctx, opts.RetentionDays)
@@ -79,12 +88,5 @@ func runLogRetentionOnce(
 			logger.Int64("login_logs_deleted", loginDeleted),
 			logger.Int64("risk_events_deleted", riskDeleted))
 	}
-	jobbeat.Report(db, jobbeat.Run{
-		Key:         "audit.log_retention",
-		Service:     "audit-service",
-		Description: "操作/登录日志/风控事件按保留天数清理（audit_logs 不清理）",
-		IntervalSec: int64(opts.ScanInterval / time.Second),
-		StartedAt:   start,
-		Err:         err,
-	})
+	execution.Finish(err, "日志保留清理完成")
 }

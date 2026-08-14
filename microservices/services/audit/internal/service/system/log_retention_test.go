@@ -60,10 +60,14 @@ func TestRunLogRetentionOnceDeletesAcrossTenants(t *testing.T) {
 	opSvc := NewOperationLogServiceWithDB(db)
 	loginSvc := NewLoginLogServiceWithDB(db)
 
+	mock.ExpectExec(`INSERT INTO ops_task_runs`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec(`^DELETE FROM "operation_logs" WHERE created_at < \$1$`).
 		WillReturnResult(sqlmock.NewResult(0, 3))
 	mock.ExpectExec(`^DELETE FROM "login_logs" WHERE created_at < \$1$`).
 		WillReturnResult(sqlmock.NewResult(0, 2))
+	mock.ExpectExec(`UPDATE ops_task_runs`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(`INSERT INTO ops_job_heartbeats`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -73,16 +77,20 @@ func TestRunLogRetentionOnceDeletesAcrossTenants(t *testing.T) {
 	})
 }
 
-// 删除报错不 panic，心跳仍要上报（error 状态由 jobbeat 落表）。
+// 删除报错不 panic，执行账本与心跳都要记录失败。
 func TestRunLogRetentionOnceReportsHeartbeatOnError(t *testing.T) {
 	db, mock := newRetentionTestDB(t)
 	opSvc := NewOperationLogServiceWithDB(db)
 	loginSvc := NewLoginLogServiceWithDB(db)
 
+	mock.ExpectExec(`INSERT INTO ops_task_runs`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec(`^DELETE FROM "operation_logs" WHERE created_at < \$1$`).
 		WillReturnError(context.DeadlineExceeded)
 	mock.ExpectExec(`^DELETE FROM "login_logs" WHERE created_at < \$1$`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`UPDATE ops_task_runs`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(`INSERT INTO ops_job_heartbeats`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 

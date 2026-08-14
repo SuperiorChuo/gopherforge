@@ -109,10 +109,27 @@ func coreSchemas() map[string]Schema {
 			"retention_days": minimumIntegerSchema(1),
 		}, nil),
 		"JobLogCleanupResult": objectSchema(map[string]Schema{
-			"retention_days": integerSchema(),
-			"cutoff_time":    dateTimeSchema(),
-			"deleted_rows":   integerSchema(),
-		}, []string{"retention_days", "cutoff_time", "deleted_rows"}),
+			"retention_days":    integerSchema(),
+			"cutoff_time":       dateTimeSchema(),
+			"deleted_rows":      integerSchema(),
+			"deleted_job_logs":  integerSchema(),
+			"deleted_task_runs": integerSchema(),
+		}, []string{"retention_days", "cutoff_time", "deleted_rows", "deleted_job_logs", "deleted_task_runs"}),
+		"OpsTaskRun": objectSchema(map[string]Schema{
+			"id": integerSchema(), "run_id": stringSchema(), "task_key": stringSchema(),
+			"service": stringSchema(), "description": stringSchema(), "source": stringSchema(),
+			"trigger_type": stringSchema(), "status": stringSchema(), "attempt": integerSchema(),
+			"correlation_id": stringSchema(), "started_at": dateTimeSchema(), "finished_at": dateTimeSchema(),
+			"duration_ms": integerSchema(), "message": stringSchema(), "error_message": stringSchema(),
+			"created_at": dateTimeSchema(),
+		}, []string{"id", "run_id", "task_key", "service", "source", "trigger_type", "status", "attempt", "started_at", "duration_ms", "created_at"}),
+		"TaskRunListResponse": pageSchema(refSchema("OpsTaskRun")),
+		"TaskRunSummary": objectSchema(map[string]Schema{
+			"total": integerSchema(), "running": integerSchema(), "succeeded": integerSchema(),
+			"failed": integerSchema(), "cancelled": integerSchema(), "services": integerSchema(),
+			"success_rate": numberSchema(), "average_duration_ms": numberSchema(),
+			"latest_run_time": dateTimeSchema(), "window_hours": integerSchema(), "checked_at": dateTimeSchema(),
+		}, []string{"total", "running", "succeeded", "failed", "cancelled", "services", "success_rate", "average_duration_ms", "window_hours", "checked_at"}),
 		"JobAbnormalStatus": objectSchema(map[string]Schema{
 			"id":                   integerSchema(),
 			"name":                 stringSchema(),
@@ -336,21 +353,24 @@ func coreSchemas() map[string]Schema {
 	}
 
 	for envelopeName, schemaName := range map[string]string{
-		"EmptyEnvelope":               "EmptyResponse",
-		"AlertMetricListEnvelope":     "AlertMetricList",
-		"AlertSummaryEnvelope":        "MonitorAlertSummary",
-		"AlertRuleEnvelope":           "MonitorAlertRule",
-		"AlertRuleListEnvelope":       "AlertRuleListResponse",
-		"AlertEventListEnvelope":      "AlertEventListResponse",
-		"AlertEvaluationEnvelope":     "AlertEvaluationResult",
-		"JobEnvelope":                 "ScheduledJob",
-		"JobListEnvelope":             "JobListResponse",
-		"JobHealthEnvelope":           "JobHealthCheck",
-		"JobHeartbeatsEnvelope":       "JobHeartbeatsResponse",
-		"JobLogCleanupResultEnvelope": "JobLogCleanupResult",
-		"ServicesHealthEnvelope":      "ServicesHealthResponse",
-		"ServerInfoEnvelope":          "ServerInfo",
-		"MySQLInfoEnvelope":           "MySQLInfo",
+		"EmptyEnvelope":                   "EmptyResponse",
+		"AlertMetricListEnvelope":         "AlertMetricList",
+		"AlertSummaryEnvelope":            "MonitorAlertSummary",
+		"AlertRuleEnvelope":               "MonitorAlertRule",
+		"AlertRuleListEnvelope":           "AlertRuleListResponse",
+		"AlertEventListEnvelope":          "AlertEventListResponse",
+		"AlertEvaluationEnvelope":         "AlertEvaluationResult",
+		"JobEnvelope":                     "ScheduledJob",
+		"JobListEnvelope":                 "JobListResponse",
+		"JobHealthEnvelope":               "JobHealthCheck",
+		"JobHeartbeatsEnvelope":           "JobHeartbeatsResponse",
+		"JobLogCleanupResultEnvelope":     "JobLogCleanupResult",
+		"TaskRunEnvelope":                 "OpsTaskRun",
+		"TaskRunListEnvelope":             "TaskRunListResponse",
+		"TaskRunSummaryEnvelope":          "TaskRunSummary",
+		"ServicesHealthEnvelope":          "ServicesHealthResponse",
+		"ServerInfoEnvelope":              "ServerInfo",
+		"MySQLInfoEnvelope":               "MySQLInfo",
 		"RedisInfoEnvelope":               "RedisInfo",
 		"WebhookSubscriptionEnvelope":     "WebhookSubscription",
 		"WebhookSecretEnvelope":           "WebhookSecretResult",
@@ -387,12 +407,15 @@ func contractFor(method, path string) (routeContract, bool) {
 		"POST /api/v1/monitor/jobs/{id}/stop":            {ResponseSchema: "EmptyEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
 		"POST /api/v1/monitor/jobs/{id}/run":             {ResponseSchema: "EmptyEnvelope", NoRequestBody: true, UnavailableResponse: true, NotFoundResponse: true},
 		"POST /api/v1/monitor/job-logs/cleanup":          {RequestSchema: "JobLogCleanupRequest", ResponseSchema: "JobLogCleanupResultEnvelope", QueryParams: []Parameter{queryParam("retention_days", minimumIntegerSchema(1))}, OptionalRequestBody: true, UnavailableResponse: true},
-		"GET /api/v1/webhooks":                          {ResponseSchema: "WebhookSubscriptionListEnvelope", QueryParams: pagingQueryParams()},
-		"POST /api/v1/webhooks":                         {RequestSchema: "WebhookMutationRequest", ResponseSchema: "WebhookSecretEnvelope"},
-		"PUT /api/v1/webhooks/{id}":                     {RequestSchema: "WebhookMutationRequest", ResponseSchema: "WebhookSubscriptionEnvelope"},
-		"DELETE /api/v1/webhooks/{id}":                  {ResponseSchema: "EmptyEnvelope"},
-		"POST /api/v1/webhooks/{id}/reset-secret":       {ResponseSchema: "WebhookSecretEnvelope", NoRequestBody: true},
-		"GET /api/v1/webhook-deliveries":                {ResponseSchema: "WebhookDeliveryListEnvelope", QueryParams: pagingQueryParams("subscription_id")},
+		"GET /api/v1/monitor/task-runs":                  {ResponseSchema: "TaskRunListEnvelope", QueryParams: taskRunQueryParams(), UnavailableResponse: true},
+		"GET /api/v1/monitor/task-runs/summary":          {ResponseSchema: "TaskRunSummaryEnvelope", QueryParams: []Parameter{queryParam("window_hours", minimumIntegerSchema(1))}, UnavailableResponse: true},
+		"GET /api/v1/monitor/task-runs/{id}":             {ResponseSchema: "TaskRunEnvelope", UnavailableResponse: true, NotFoundResponse: true},
+		"GET /api/v1/webhooks":                           {ResponseSchema: "WebhookSubscriptionListEnvelope", QueryParams: pagingQueryParams()},
+		"POST /api/v1/webhooks":                          {RequestSchema: "WebhookMutationRequest", ResponseSchema: "WebhookSecretEnvelope"},
+		"PUT /api/v1/webhooks/{id}":                      {RequestSchema: "WebhookMutationRequest", ResponseSchema: "WebhookSubscriptionEnvelope"},
+		"DELETE /api/v1/webhooks/{id}":                   {ResponseSchema: "EmptyEnvelope"},
+		"POST /api/v1/webhooks/{id}/reset-secret":        {ResponseSchema: "WebhookSecretEnvelope", NoRequestBody: true},
+		"GET /api/v1/webhook-deliveries":                 {ResponseSchema: "WebhookDeliveryListEnvelope", QueryParams: pagingQueryParams("subscription_id")},
 	}
 	contract, ok := contracts[method+" "+path]
 	return contract, ok
@@ -478,6 +501,15 @@ func pagingQueryParams(names ...string) []Parameter {
 		params = append(params, queryParam(name, schema))
 	}
 	return params
+}
+
+func taskRunQueryParams() []Parameter {
+	return []Parameter{
+		queryParam("page", integerSchema()), queryParam("page_size", integerSchema()),
+		queryParam("keyword", stringSchema()), queryParam("service", stringSchema()),
+		queryParam("status", stringSchema()), queryParam("source", stringSchema()),
+		queryParam("start_time", dateTimeSchema()), queryParam("end_time", dateTimeSchema()),
+	}
 }
 
 func alertRuleQueryParams() []Parameter {

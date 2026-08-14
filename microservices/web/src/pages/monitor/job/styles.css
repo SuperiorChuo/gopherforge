@@ -125,9 +125,72 @@
   }
 }
 
+.job-page .task-runs-panel {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.job-page .task-summary-loading {
+  opacity: 0.68;
+}
+
+.job-page .task-run-name,
+.job-page .task-run-source {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.job-page .task-run-name .cell-dim,
+.job-page .task-run-source .cell-dim {
+  font-size: 12px;
+}
+
+.job-page .task-run-source .ant-tag {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline-end: 0;
+}
+
+.job-page .task-run-error {
+  color: var(--c-error-strong);
+}
+
+.job-page .task-runs-panel .list-main-card > .ant-alert {
+  margin-bottom: 12px;
+}
+
+.job-page .task-runs-panel .ant-picker-range {
+  width: min(340px, 100%);
+}
+
+.task-run-drawer .task-run-detail-text {
+  display: block;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.task-run-drawer .ant-descriptions-item-label {
+  width: 126px;
+}
+
 @media (max-width: 575px) {
   .job-log-drawer .job-log-toolbar > .ant-space-item:first-child,
-  .job-log-drawer .job-log-toolbar .ant-select {
+  .job-log-drawer .job-log-toolbar .ant-select,
+  .job-page .task-runs-panel .ant-picker-range {
     width: 100% !important;
+  }
+
+  .task-run-drawer .ant-drawer-body {
+    padding: 16px;
+  }
+
+  .task-run-drawer .ant-descriptions-item-label {
+    width: 104px;
   }
 }

@@ -123,6 +123,12 @@ const PRESETS: Record<string, ToolbarPreset> = {
     glow: 'rgba(2, 132, 199, 0.4)',
     description: '当前活跃会话,可强制下线',
   },
+  统一执行记录: {
+    icon: <HourglassOutlined />,
+    gradient: 'linear-gradient(135deg, #38bdf8, #2563eb)',
+    glow: 'rgba(37, 99, 235, 0.4)',
+    description: '跨服务离散任务的逐次执行账本',
+  },
   定时任务: {
     icon: <ScheduleOutlined />,
     gradient: 'linear-gradient(135deg, #34d399, #059669)',

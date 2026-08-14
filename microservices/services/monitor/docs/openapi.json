@@ -2627,6 +2627,337 @@
           }
         }
       }
+    },
+    "/api/v1/monitor/task-runs": {
+      "get": {
+        "tags": [
+          "monitor"
+        ],
+        "summary": "GET /api/v1/monitor/task-runs",
+        "operationId": "getApiV1MonitorTaskRuns",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "service",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskRunListEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Monitor dependency unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/monitor/task-runs/summary": {
+      "get": {
+        "tags": [
+          "monitor"
+        ],
+        "summary": "GET /api/v1/monitor/task-runs/summary",
+        "operationId": "getApiV1MonitorTaskRunsSummary",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "window_hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskRunSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Monitor dependency unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/monitor/task-runs/{id}": {
+      "get": {
+        "tags": [
+          "monitor"
+        ],
+        "summary": "GET /api/v1/monitor/task-runs/{id}",
+        "operationId": "getApiV1MonitorTaskRunsId",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskRunEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated or session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Monitor dependency unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3209,14 +3540,24 @@
         "required": [
           "retention_days",
           "cutoff_time",
-          "deleted_rows"
+          "deleted_rows",
+          "deleted_job_logs",
+          "deleted_task_runs"
         ],
         "properties": {
           "cutoff_time": {
             "type": "string",
             "format": "date-time"
           },
+          "deleted_job_logs": {
+            "type": "integer",
+            "format": "int64"
+          },
           "deleted_rows": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "deleted_task_runs": {
             "type": "integer",
             "format": "int64"
           },
@@ -3634,6 +3975,78 @@
             "format": "int64"
           },
           "bytes_sent_human": {
+            "type": "string"
+          }
+        }
+      },
+      "OpsTaskRun": {
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "task_key",
+          "service",
+          "source",
+          "trigger_type",
+          "status",
+          "attempt",
+          "started_at",
+          "duration_ms",
+          "created_at"
+        ],
+        "properties": {
+          "attempt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "correlation_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "error_message": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "type": "string"
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "task_key": {
+            "type": "string"
+          },
+          "trigger_type": {
             "type": "string"
           }
         }
@@ -4267,6 +4680,156 @@
           "total": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "TaskRunEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/OpsTaskRun"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "TaskRunListEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TaskRunListResponse"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "TaskRunListResponse": {
+        "type": "object",
+        "required": [
+          "list",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsTaskRun"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page_size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "TaskRunSummary": {
+        "type": "object",
+        "required": [
+          "total",
+          "running",
+          "succeeded",
+          "failed",
+          "cancelled",
+          "services",
+          "success_rate",
+          "average_duration_ms",
+          "window_hours",
+          "checked_at"
+        ],
+        "properties": {
+          "average_duration_ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "cancelled": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "latest_run_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "running": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "services": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "succeeded": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "success_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "window_hours": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "TaskRunSummaryEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TaskRunSummary"
+          },
+          "message": {
+            "type": "string"
           }
         }
       },
