@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Form, Grid, Input, Select,
@@ -25,6 +25,7 @@ import { usePermission } from '@/hooks/usePermission'
 import { useConfirmAction } from '@/hooks/useConfirmAction'
 import { useCrudModal } from '@/hooks/useCrudModal'
 import { useTableQuery } from '@/hooks/useTableQuery'
+import { useTreeQuery } from '@/hooks/useTreeQuery'
 
 interface SearchParams {
   keyword?: string
@@ -108,10 +109,8 @@ function collectExpandableKeys(nodes: PermRow[]): string[] {
 }
 
 export default function PermissionPage() {
-  const [tree, setTree] = useState<PermRow[]>([])
   const [view, setView] = useState<'tree' | 'list'>('tree')
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
-  const [treeLoading, setTreeLoading] = useState(false)
   const editModal = useCrudModal<Permission>()
   const [submitting, setSubmitting] = useState(false)
   const [expandedKeys, setExpandedKeys] = useState<readonly React.Key[]>([])
@@ -122,39 +121,32 @@ export default function PermissionPage() {
   const screens = Grid.useBreakpoint()
   const compactActions = !screens.md
 
-  const fetchList = useCallback((p: SearchParams) => (
-    view === 'list' ? PermAPI.getPermissionList(p) : Promise.resolve({ list: [], total: 0 })
-  ), [view])
+  const fetchList = useCallback((p: SearchParams) => PermAPI.getPermissionList(p), [])
   const onListError = useCallback(() => message.error(t('获取权限列表失败')), [t])
   const { list, total, loading, reload } = useTableQuery({
     params,
     fetcher: fetchList,
     onError: onListError,
+    enabled: view === 'list',
   })
 
-  const fetchTree = async () => {
-    setTreeLoading(true)
-    try {
-      const [menuTree, permTree] = await Promise.all([
-        MenuAPI.getMenuTree(),
-        PermAPI.getPermissionTree(),
-      ])
-      const combined = buildPermTree(menuTree ?? [], permTree ?? [])
-      setTree(combined)
-      setExpandedKeys(collectExpandableKeys(combined))
-    } catch {
-      message.error(t('获取权限树失败'))
-    } finally {
-      setTreeLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    void fetchTree()
+  const fetchTree = useCallback(async () => {
+    const [menuTree, permTree] = await Promise.all([
+      MenuAPI.getMenuTree(),
+      PermAPI.getPermissionTree(),
+    ])
+    const combined = buildPermTree(menuTree ?? [], permTree ?? [])
+    setExpandedKeys(collectExpandableKeys(combined))
+    return combined
   }, [])
+  const onTreeError = useCallback(() => message.error(t('获取权限树失败')), [t])
+  const { tree, loading: treeLoading, reload: reloadTree } = useTreeQuery({
+    fetcher: fetchTree,
+    onError: onTreeError,
+  })
 
   const refresh = () => {
-    void fetchTree()
+    void reloadTree()
     if (view === 'list') void reload()
   }
 

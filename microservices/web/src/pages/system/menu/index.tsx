@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Form, Grid, Input, Select,
@@ -23,6 +23,7 @@ import { usePermission } from '@/hooks/usePermission'
 import { useConfirmAction } from '@/hooks/useConfirmAction'
 import { useCrudModal } from '@/hooks/useCrudModal'
 import { useTableQuery } from '@/hooks/useTableQuery'
+import { useTreeQuery } from '@/hooks/useTreeQuery'
 import StatusPill, { EnableStatusPill } from '@/components/common/StatusPill'
 
 interface SearchParams {
@@ -59,10 +60,8 @@ function collectExpandableKeys(nodes: Menu[]): number[] {
 }
 
 export default function MenuPage() {
-  const [tree, setTree] = useState<Menu[]>([])
   const [view, setView] = useState<'tree' | 'list'>('tree')
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
-  const [treeLoading, setTreeLoading] = useState(false)
   const editModal = useCrudModal<Menu>()
   const [submitting, setSubmitting] = useState(false)
   const [expandedKeys, setExpandedKeys] = useState<readonly React.Key[]>([])
@@ -73,35 +72,29 @@ export default function MenuPage() {
   const screens = Grid.useBreakpoint()
   const compactActions = !screens.md
 
-  const fetchList = useCallback((p: SearchParams) => (
-    view === 'list' ? MenuAPI.getMenuList(p) : Promise.resolve({ list: [], total: 0 })
-  ), [view])
+  const fetchList = useCallback((p: SearchParams) => MenuAPI.getMenuList(p), [])
   const onListError = useCallback(() => message.error(t('获取菜单列表失败')), [t])
   const { list, total, loading, reload } = useTableQuery({
     params,
     fetcher: fetchList,
     onError: onListError,
+    enabled: view === 'list',
   })
 
-  const fetchTree = async () => {
-    setTreeLoading(true)
-    try {
-      const res = await MenuAPI.getMenuTree()
-      setTree(res ?? [])
-      setExpandedKeys(collectExpandableKeys(res ?? []))
-    } catch {
-      message.error(t('获取菜单树失败'))
-    } finally {
-      setTreeLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    void fetchTree()
+  const fetchTree = useCallback(async () => {
+    const res = await MenuAPI.getMenuTree()
+    const next = res ?? []
+    setExpandedKeys(collectExpandableKeys(next))
+    return next
   }, [])
+  const onTreeError = useCallback(() => message.error(t('获取菜单树失败')), [t])
+  const { tree, loading: treeLoading, reload: reloadTree } = useTreeQuery({
+    fetcher: fetchTree,
+    onError: onTreeError,
+  })
 
   const refresh = () => {
-    void fetchTree()
+    void reloadTree()
     if (view === 'list') void reload()
   }
 
