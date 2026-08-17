@@ -4,17 +4,15 @@ import (
 	"context"
 
 	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
+	sharedruntimeconfig "github.com/go-admin-kit/services/shared/pkg/runtimeconfig"
 )
 
-// RuntimeConfigInvalidationChannel matches the monolith's channel so cache
-// invalidations published by either service refresh both processes.
-const RuntimeConfigInvalidationChannel = "go_admin_kit:runtime_config:invalidate"
+const RuntimeConfigInvalidationChannel = sharedruntimeconfig.InvalidationChannel
 
 func PublishInvalidation(ctx context.Context, key string) error {
-	if !isRuntimeConfigInvalidationKey(key) {
-		return nil
-	}
-	return redisstore.PublishString(ctx, RuntimeConfigInvalidationChannel, key)
+	return sharedruntimeconfig.InvalidationHandler{
+		Channel: RuntimeConfigInvalidationChannel, IsSupported: isRuntimeConfigInvalidationKey, Refresh: RefreshByKey,
+	}.Publish(ctx, key)
 }
 
 func RefreshByKey(ctx context.Context, key string) error {
@@ -30,11 +28,9 @@ func RefreshByKey(ctx context.Context, key string) error {
 }
 
 func StartInvalidationListener(ctx context.Context) (*redisstore.StringSubscriber, error) {
-	return redisstore.StartSubscriber(ctx, RuntimeConfigInvalidationChannel, func(ctx context.Context, payload string) {
-		if isRuntimeConfigInvalidationKey(payload) {
-			_ = RefreshByKey(ctx, payload)
-		}
-	})
+	return sharedruntimeconfig.InvalidationHandler{
+		Channel: RuntimeConfigInvalidationChannel, IsSupported: isRuntimeConfigInvalidationKey, Refresh: RefreshByKey,
+	}.Start(ctx)
 }
 
 func isRuntimeConfigInvalidationKey(key string) bool {
