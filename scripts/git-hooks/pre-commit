@@ -58,6 +58,13 @@ if [ -n "$assign" ]; then
   fi
 fi
 
+# 4) 无界 Find 增量机检：暂存区相对 HEAD 新增候选才拦截，存量只列不改。
+if [ -x "$(git rev-parse --show-toplevel)/scripts/scan-unbounded-find.sh" ]; then
+  if ! bash "$(git rev-parse --show-toplevel)/scripts/scan-unbounded-find.sh" --staged; then
+    report "暂存区新增无界 GORM Find（加 Limit/First/Take/Count，或写 //nolint:unbounded-find）"
+  fi
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo ""
   echo "如确认是误报: git commit --no-verify 跳过本次检查。"

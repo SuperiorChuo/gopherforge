@@ -11,6 +11,7 @@
 - **系统管理列表骨架收敛（同步自主项目）**：字典、菜单、权限与租户页面补齐公共列表骨架；部门、错误码、文件、公告、岗位、租户套餐与 Webhook 操作列在窄屏统一收进更多菜单。
 - **authz 收敛（同步自主项目）**：新增 `shared/pkg/authz` 与 `shared/pkg/tenantctx`，system/audit/monitor/file/identity 删除本地 authz 拷贝并统一装配数据范围插件。
 - **生效公告查询上限（同步自主项目）**：前台生效公告列表加 50 条硬上限，避免异常写入把首页一次拉爆。
+- **无界 Find 机检（同步自主项目）**：新增 `scripts/scan-unbounded-find.sh`，存量只列、暂存区相对 HEAD 新增才阻断；pre-commit 已接入。
 
 ## [0.6.0] - 2026-08-13
 
