@@ -103,7 +103,7 @@ func integrationPatchSpecs(req GenerateRequest) []integrationPatchSpec {
 			},
 		},
 		{
-			path: "microservices/web/src/layouts/MainLayout.tsx",
+			path: "microservices/web/src/layouts/menu-defs.tsx",
 			apply: func(source string) (string, error) {
 				var err error
 				source, err = patchAfterUniqueAnchor(source,

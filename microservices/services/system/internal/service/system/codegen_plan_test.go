@@ -68,7 +68,7 @@ func setup() {
   { path: 'system/codegen', element: lazyLoad(() => import('@/pages/system/codegen')) },
 ]
 `,
-		"microservices/web/src/layouts/MainLayout.tsx": `const MENU_DEFS = [
+		"microservices/web/src/layouts/menu-defs.tsx": `const MENU_DEFS = [
       { label: '代码生成', key: '/system/codegen', icon: <CodeOutlined /> },
 ]
 const pathBreadcrumbMap = {
@@ -170,7 +170,7 @@ func TestBuildPlanCreatesHashGuardedIntegrationPatches(t *testing.T) {
 	for _, path := range []string{
 		"microservices/services/system/internal/api/routes.go",
 		"microservices/web/src/router/index.tsx",
-		"microservices/web/src/layouts/MainLayout.tsx",
+		"microservices/web/src/layouts/menu-defs.tsx",
 		"microservices/services/system/internal/service/system/menu_seed.go",
 	} {
 		artifact := findArtifact(t, plan, path)

@@ -14,68 +14,23 @@ import {
   type MenuProps,
 } from 'antd'
 import {
-  ApiOutlined,
-  AudioOutlined,
-  AuditOutlined,
-  CheckSquareOutlined,
-  SendOutlined,
-  ControlOutlined,
-  ForkOutlined,
-  SoundOutlined,
-  DashboardOutlined,
   UserOutlined,
-  TeamOutlined,
-  SafetyOutlined,
-  MenuOutlined,
-  ApartmentOutlined,
-  DatabaseOutlined,
-  FileOutlined,
-  LoginOutlined,
-  FileTextOutlined,
-  NotificationOutlined,
-  SettingOutlined,
-  CodeOutlined,
-  StopOutlined,
-  MonitorOutlined,
-  CloudServerOutlined,
   LogoutOutlined,
   LockOutlined,
-  ScheduleOutlined,
-  BarsOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
   MoreOutlined,
   SearchOutlined,
-  AimOutlined,
-  IdcardOutlined,
-  ThunderboltOutlined,
-  WarningOutlined,
+  SafetyOutlined,
   SunOutlined,
   MoonOutlined,
-  ToolOutlined,
   HomeOutlined,
   VerticalAlignTopOutlined,
   ColumnHeightOutlined,
-  BookOutlined,
   GlobalOutlined,
-  PhoneOutlined,
-  FundOutlined,
-  RadarChartOutlined,
-  VideoCameraOutlined,
-  MailOutlined,
-  ClockCircleOutlined,
-  BellOutlined,
-  BarChartOutlined,
-  PayCircleOutlined,
-  SafetyCertificateOutlined,
-  DesktopOutlined,
-  AppstoreOutlined,
-  EditOutlined,
-  ShareAltOutlined,
 } from '@ant-design/icons'
-import type { MenuItem as ApiMenuItem } from '@/types'
 import { useAppDispatch, useAppSelector } from '@/hooks/store'
 import { fetchCurrentUser, logout } from '@/store/slices/authSlice'
 import { getToken } from '@/utils/request'
@@ -85,269 +40,15 @@ import { changePassword } from '@/api/auth'
 import { message } from '@/utils/feedback'
 import NotificationBell from '@/components/common/NotificationBell'
 import ErrorBoundary from '@/components/common/ErrorBoundary'
-import CommandPalette, { type PaletteItem } from '@/components/common/CommandPalette'
+import CommandPalette from '@/components/common/CommandPalette'
 import { useThemeMode } from '@/theme/ThemeContext'
 import { useLocale } from '@/i18n/LocaleContext'
 import { useTranslation } from 'react-i18next'
 import i18n from '@/i18n/init'
+import { MENU_DEFS, GROUP_META, pathBreadcrumbMap, type MenuDef } from './menu-defs'
+import { apiMenusToDefs, buildMenuItems, buildPaletteItems } from './menu-build'
 
 const { Header, Sider, Content } = Layout
-
-type MenuItem2 = Required<MenuProps>['items'][number]
-
-function makeItem(
-  label: React.ReactNode,
-  key: string,
-  icon?: React.ReactNode,
-  children?: MenuItem2[],
-): MenuItem2 {
-  return { label, key, icon, children } as MenuItem2
-}
-
-interface MenuDef {
-  label: string
-  key: string
-  icon: React.ReactNode
-  perm?: string
-  children?: MenuDef[]
-}
-
-// 后端菜单 icon 字段（字符串）→ antd 图标
-const ICON_MAP: Record<string, React.ReactNode> = {
-  dashboard: <DashboardOutlined />,
-  setting: <SettingOutlined />,
-  user: <UserOutlined />,
-  'user-safety': <TeamOutlined />,
-  secured: <SafetyOutlined />,
-  menu: <MenuOutlined />,
-  'root-list': <ApartmentOutlined />,
-  file: <FileOutlined />,
-  'data-base': <DatabaseOutlined />,
-  notification: <NotificationOutlined />,
-  'user-list': <MonitorOutlined />,
-  time: <ScheduleOutlined />,
-  'chart-analytics': <CloudServerOutlined />,
-  server: <CloudServerOutlined />,
-  data: <BarsOutlined />,
-  'user-circle': <UserOutlined />,
-  team: <TeamOutlined />,
-  book: <BookOutlined />,
-  global: <GlobalOutlined />,
-  phone: <PhoneOutlined />,
-  control: <ControlOutlined />,
-  sound: <SoundOutlined />,
-  gateway: <ApiOutlined />,
-  api: <ApiOutlined />,
-  fork: <ForkOutlined />,
-  fund: <FundOutlined />,
-  queue: <TeamOutlined />,
-  audio: <AudioOutlined />,
-  stop: <StopOutlined />,
-  radar: <RadarChartOutlined />,
-  video: <VideoCameraOutlined />,
-  mail: <MailOutlined />,
-  clock: <ClockCircleOutlined />,
-  bell: <BellOutlined />,
-  alert: <BellOutlined />,
-  chart: <BarChartOutlined />,
-  money: <PayCircleOutlined />,
-  safety: <SafetyCertificateOutlined />,
-  desktop: <DesktopOutlined />,
-  edit: <EditOutlined />,
-  share: <ShareAltOutlined />,
-  audit: <AuditOutlined />,
-  check: <CheckSquareOutlined />,
-  send: <SendOutlined />,
-  appstore: <AppstoreOutlined />,
-  aim: <AimOutlined />,
-  search: <SearchOutlined />,
-  thunderbolt: <ThunderboltOutlined />,
-  warning: <WarningOutlined />,
-  idcard: <IdcardOutlined />,
-  'file-text': <FileTextOutlined />,
-  tool: <ToolOutlined />,
-  code: <CodeOutlined />,
-}
-
-function iconOf(name?: string): React.ReactNode {
-  return (name && ICON_MAP[name]) || <AppstoreOutlined />
-}
-
-// /user/menus 树 → 侧栏定义。后端已按权限过滤，这里只做展示映射。
-function apiMenusToDefs(menus: ApiMenuItem[], topLevel = true): MenuDef[] {
-  return [...menus]
-    .filter((m) => m.hidden !== 1)
-    .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
-    .map((m): MenuDef | null => {
-      const kids = m.children?.length ? apiMenusToDefs(m.children, false) : []
-      const isContainer = (m.children?.length ?? 0) > 0 || m.component === 'Layout'
-      if (isContainer) {
-        if (kids.length === 0) return null
-        // 单子项容器折叠为叶子（如"仪表盘"Layout + 唯一 index 页），跳容器自身路径
-        if (kids.length === 1 && topLevel) {
-          return { label: m.title, key: m.path, icon: iconOf(m.icon), perm: kids[0].perm }
-        }
-        return { label: m.title, key: m.path, icon: iconOf(m.icon), children: kids }
-      }
-      return { label: m.title, key: m.path, icon: iconOf(m.icon), perm: m.permission || undefined }
-    })
-    .filter((d): d is MenuDef => d !== null)
-}
-
-// 后端菜单为空（未播种/请求失败）时的静态兜底，与路由表保持一致
-const MENU_DEFS: MenuDef[] = [
-  { label: '仪表盘', key: '/dashboard', icon: <DashboardOutlined /> },
-  // 与 menu_seed.go 的拆组一致：系统管理只留组织+权限，其余拆入 消息中心/日志审计/系统工具。
-  // 子菜单 path 不变，分组 key 不再是子路径前缀。
-  {
-    label: '系统管理',
-    key: '/system',
-    icon: <SettingOutlined />,
-    children: [
-      { label: '用户管理', key: '/system/user', icon: <UserOutlined /> },
-      { label: '角色管理', key: '/system/role', icon: <TeamOutlined /> },
-      { label: '权限管理', key: '/system/permission', icon: <SafetyOutlined /> },
-      { label: '菜单管理', key: '/system/menu', icon: <MenuOutlined /> },
-      { label: '部门管理', key: '/system/department', icon: <ApartmentOutlined /> },
-      { label: '岗位管理', key: '/system/post', icon: <IdcardOutlined /> },
-      { label: '租户管理', key: '/system/tenant', icon: <TeamOutlined /> },
-      { label: '租户套餐', key: '/system/tenant-packages', icon: <AppstoreOutlined /> },
-      { label: '系统设置', key: '/system/setting', icon: <SettingOutlined /> },
-    ],
-  },
-  {
-    label: '消息中心',
-    key: '/msg',
-    icon: <NotificationOutlined />,
-    children: [
-      { label: '公告管理', key: '/system/notice', icon: <NotificationOutlined /> },
-      { label: '短信管理', key: '/system/sms', icon: <MailOutlined /> },
-    ],
-  },
-  {
-    label: '日志审计',
-    key: '/logs',
-    icon: <FileTextOutlined />,
-    children: [
-      { label: '操作日志', key: '/system/operation-log', icon: <FileTextOutlined /> },
-      { label: '登录日志', key: '/system/login-log', icon: <LoginOutlined /> },
-      { label: '审计日志', key: '/system/audit-log', icon: <SafetyOutlined /> },
-      { label: '在线用户', key: '/system/online-user', icon: <MonitorOutlined /> },
-    ],
-  },
-  {
-    label: '系统工具',
-    key: '/tools',
-    icon: <ToolOutlined />,
-    children: [
-      { label: '代码生成', key: '/system/codegen', icon: <CodeOutlined /> },
-      { label: '字典管理', key: '/system/dict', icon: <DatabaseOutlined /> },
-      { label: '文件管理', key: '/system/file', icon: <FileOutlined /> },
-      { label: '错误码管理', key: '/system/errcodes', icon: <WarningOutlined /> },
-      { label: 'OAuth2 应用', key: '/system/oauth2', icon: <ApiOutlined /> },
-      { label: 'Webhook 订阅', key: '/system/webhooks', icon: <ApiOutlined /> },
-    ],
-  },
-  {
-    label: '运维监控',
-    key: '/monitor',
-    icon: <CloudServerOutlined />,
-    children: [
-      { label: '服务器监控', key: '/monitor/server', icon: <CloudServerOutlined /> },
-      { label: '数据库监控', key: '/monitor/mysql', icon: <DatabaseOutlined /> },
-      { label: 'Redis 监控', key: '/monitor/redis', icon: <BarsOutlined /> },
-      { label: '定时任务', key: '/monitor/job', icon: <ScheduleOutlined /> },
-      { label: '告警规则', key: '/monitor/alerts', icon: <BellOutlined /> },
-    ],
-  },
-  {
-    label: '审批中心',
-    key: '/bpm',
-    icon: <AuditOutlined />,
-    children: [
-      { label: '待办中心', key: '/bpm/tasks', icon: <CheckSquareOutlined /> },
-      { label: '我发起的', key: '/bpm/instances', icon: <SendOutlined /> },
-      { label: '流程定义', key: '/bpm/definitions', icon: <ForkOutlined /> },
-    ],
-  },
-]
-
-// 叶子可见性：菜单自带权限码优先，否则回落到路由权限表；两者都无则登录即可见
-function leafVisible(d: MenuDef, hasPerm: (code?: string) => boolean): boolean {
-  return hasPerm(d.perm ?? ROUTE_PERMISSIONS[d.key])
-}
-
-function buildMenuItems(defs: MenuDef[], hasPerm: (code?: string) => boolean): MenuItem2[] {
-  return defs
-    .map((d) => {
-      if (d.children) {
-        const children = buildMenuItems(d.children, hasPerm)
-        return children.length > 0 ? makeItem(i18n.t(d.label), d.key, d.icon, children) : null
-      }
-      return leafVisible(d, hasPerm) ? makeItem(i18n.t(d.label), d.key, d.icon) : null
-    })
-    .filter((item): item is MenuItem2 => item !== null)
-}
-
-// 命令面板数据：与菜单同源、同权限过滤
-function buildPaletteItems(defs: MenuDef[], hasPerm: (code?: string) => boolean): PaletteItem[] {
-  const result: PaletteItem[] = []
-  const walk = (nodes: MenuDef[], group: string) => {
-    nodes.forEach((d) => {
-      if (d.children) {
-        walk(d.children, i18n.t(d.label))
-      } else if (leafVisible(d, hasPerm)) {
-        result.push({ label: i18n.t(d.label), path: d.key, group, icon: d.icon })
-      }
-    })
-  }
-  walk(defs, i18n.t('导航'))
-  result.push({ label: i18n.t('个人中心'), path: '/profile', group: i18n.t('导航'), icon: <UserOutlined /> })
-  return result
-}
-
-const pathBreadcrumbMap: Record<string, string> = {
-  '/dashboard': '仪表盘',
-  '/profile': '个人中心',
-  '/system/user': '用户管理',
-  '/system/role': '角色管理',
-  '/system/permission': '权限管理',
-  '/system/menu': '菜单管理',
-  '/system/department': '部门管理',
-  '/system/dict': '字典管理',
-  '/system/file': '文件管理',
-  '/system/notice': '公告管理',
-  '/system/login-log': '登录日志',
-  '/system/operation-log': '操作日志',
-  '/system/audit-log': '审计日志',
-  '/system/online-user': '在线用户',
-  '/system/setting': '系统设置',
-  '/system/tenant': '租户管理',
-  '/system/codegen': '代码生成',
-  '/system/sms': '短信管理',
-  '/system/oauth2': 'OAuth2 应用',
-  '/system/errcodes': '错误码管理',
-  '/system/post': '岗位管理',
-  '/system/tenant-packages': '租户套餐',
-  '/monitor/server': '服务器监控',
-  '/monitor/mysql': '数据库监控',
-  '/monitor/redis': 'Redis 监控',
-  '/monitor/job': '定时任务',
-  '/monitor/alerts': '告警规则',
-  '/bpm/tasks': '待办中心',
-  '/bpm/instances': '我发起的',
-  '/bpm/definitions': '流程定义',
-}
-
-// 分组 key（含前导 /）→ 面包屑上的分组名和图标
-const GROUP_META: Record<string, { label: string; icon: React.ReactNode }> = {
-  '/system': { label: '系统管理', icon: <SettingOutlined /> },
-  '/msg': { label: '消息中心', icon: <NotificationOutlined /> },
-  '/logs': { label: '日志审计', icon: <FileTextOutlined /> },
-  '/tools': { label: '系统工具', icon: <ToolOutlined /> },
-  '/monitor': { label: '运维监控', icon: <CloudServerOutlined /> },
-  '/bpm': { label: '审批中心', icon: <AuditOutlined /> },
-}
 
 export default function MainLayout() {
   const dispatch = useAppDispatch()

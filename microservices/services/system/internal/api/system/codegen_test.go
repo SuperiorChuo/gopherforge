@@ -195,7 +195,7 @@ func setup() {
   { path: 'system/codegen', element: lazyLoad(() => import('@/pages/system/codegen')) },
 ]
 `,
-		"microservices/web/src/layouts/MainLayout.tsx": `const MENU_DEFS = [
+		"microservices/web/src/layouts/menu-defs.tsx": `const MENU_DEFS = [
       { label: '代码生成', key: '/system/codegen', icon: <CodeOutlined /> },
 ]
 const pathBreadcrumbMap = {

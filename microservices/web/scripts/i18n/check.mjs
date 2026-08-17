@@ -31,6 +31,8 @@ const MIGRATED = [
   'src/components/common/StatusPill.tsx',
   'src/components/common/TrendChart.tsx',
   'src/layouts/MainLayout.tsx',
+  'src/layouts/menu-defs.tsx',
+  'src/layouts/menu-build.tsx',
   'src/pages/bpm/designer/index.tsx',
   'src/pages/bpm/instances/index.tsx',
   'src/pages/bpm/tasks/index.tsx',

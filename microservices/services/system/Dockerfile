@@ -26,7 +26,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM alpine:3.20 AS snapshot
 COPY services/system/internal/api/routes.go /repository-snapshot/microservices/services/system/internal/api/routes.go
 COPY web/src/router/index.tsx /repository-snapshot/microservices/web/src/router/index.tsx
-COPY web/src/layouts/MainLayout.tsx /repository-snapshot/microservices/web/src/layouts/MainLayout.tsx
+COPY web/src/layouts/menu-defs.tsx /repository-snapshot/microservices/web/src/layouts/menu-defs.tsx
 COPY services/system/internal/service/system/menu_seed.go /repository-snapshot/microservices/services/system/internal/service/system/menu_seed.go
 COPY services/monitor/migrations/ /repository-snapshot/microservices/services/monitor/migrations/
 
