@@ -30,9 +30,8 @@ var allowedBareAPIConstructorCalls = map[string]int{
 	"api/monitor/routes.go|RegisterProtectedRoutesWithDeps|NewRedisAPI":  1,
 	"api/monitor/routes.go|RegisterProtectedRoutesWithDeps|NewServerAPI": 1,
 
-	// api/common/routes.go: legacy zero-value branch for health, plus
-	// IPInfoAPI, which has no injectable infrastructure.
-	"api/common/routes.go|newHealthAPIFromDeps|NewHealthAPI":         1,
+	// api/common/routes.go: IPInfoAPI has no injectable infrastructure.
+	// Health now comes from shared/pkg/health.New*, which is not a New*API call.
 	"api/common/routes.go|RegisterPublicRoutesWithDeps|NewIPInfoAPI": 1,
 }
 

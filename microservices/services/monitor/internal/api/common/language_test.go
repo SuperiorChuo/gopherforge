@@ -8,7 +8,6 @@ import (
 
 func TestCommonAPIUsesEnglishSourceText(t *testing.T) {
 	for _, filename := range []string{
-		"health.go",
 		"ipinfo.go",
 	} {
 		content, err := os.ReadFile(filename)

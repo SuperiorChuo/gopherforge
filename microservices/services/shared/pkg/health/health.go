@@ -1,9 +1,6 @@
-// Package health provides a shared, dependency-injected health check API for
-// all services. Each service wires its own *sql.DB / redis.UniversalClient via
-// the constructor; no service-specific imports leak into shared.
-//
-// Previously 7 infrastructure services each carried a near-identical copy of
-// health.go; 9 business services had no readiness/dependency checks at all.
+// Package health provides a shared, dependency-injected health check API.
+// Services inject their *gorm.DB / *redis.Client; no service-specific
+// imports leak into this package.
 package health
 
 import (
@@ -26,17 +23,38 @@ type RedisPingClient interface {
 	Ping(ctx context.Context) *goredis.StatusCmd
 }
 
-// API exposes /health/live, /health/ready, /health and /health/check.
-// Zero-value is usable; all dependency checks are skipped when no client
-// is injected (ready always reports ok).
-type API struct {
-	db    *sql.DB
-	redis RedisPingClient
+// DatabaseClient is the database command subset used for health checks.
+// *gorm.DB satisfies this interface.
+type DatabaseClient interface {
+	DB() (*sql.DB, error)
 }
 
-// New creates a HealthAPI. Nil parameters skip the corresponding check.
-func New(db *sql.DB, redis RedisPingClient) *API {
-	return &API{db: db, redis: redis}
+// API exposes /health, /health/live, /health/ready and /health/check.
+type API struct {
+	databaseClient DatabaseClient
+	redisClient    RedisPingClient
+}
+
+// New creates an API with no clients. CheckDependencies then reports
+// database/redis as uninitialized.
+func New() *API {
+	return &API{}
+}
+
+// NewWithRedisClient creates an API with an injected Redis client.
+func NewWithRedisClient(client RedisPingClient) *API {
+	return &API{redisClient: client}
+}
+
+// NewWithDatabaseClient creates an API with an injected database client.
+func NewWithDatabaseClient(client DatabaseClient) *API {
+	return &API{databaseClient: client}
+}
+
+// NewWithClients creates an API with injected database and Redis clients.
+// A nil client is treated as uninitialized at check time.
+func NewWithClients(databaseClient DatabaseClient, redisClient RedisPingClient) *API {
+	return &API{databaseClient: databaseClient, redisClient: redisClient}
 }
 
 // Health returns a lightweight health snapshot.
@@ -59,7 +77,7 @@ func (a *API) Liveness(c *gin.Context) {
 
 // Readiness reports 503 when any dependency is unreachable.
 func (a *API) Readiness(c *gin.Context) {
-	h := a.checkDependencies()
+	h := a.CheckDependencies()
 	if h["status"] != "ok" {
 		c.JSON(http.StatusServiceUnavailable, response.Response{
 			Code:      http.StatusServiceUnavailable,
@@ -74,32 +92,37 @@ func (a *API) Readiness(c *gin.Context) {
 
 // HealthCheck returns dependency details without affecting the HTTP status.
 func (a *API) HealthCheck(c *gin.Context) {
-	response.Success(c, a.checkDependencies())
+	response.Success(c, a.CheckDependencies())
 }
 
-func (a *API) checkDependencies() gin.H {
-	h := gin.H{
+// CheckDependencies probes database and Redis. Raw dependency errors are
+// replaced with "unavailable" so health endpoints never leak credentials.
+func (a *API) CheckDependencies() gin.H {
+	health := gin.H{
 		"status":    "ok",
 		"timestamp": time.Now().Format(time.RFC3339),
 		"runtime":   runtimeSnapshot(),
 		"services":  gin.H{},
 	}
-	services := h["services"].(gin.H)
+	services := health["services"].(gin.H)
 
-	// ---- database ----
 	dbCheck := gin.H{"status": "ok"}
-	if a == nil || a.db == nil {
-		dbCheck["status"] = "ok"
-		dbCheck["note"] = "not configured"
-	} else {
+	dbStart := time.Now()
+	databaseClient := a.databaseStatusClient()
+	if databaseClient == nil {
+		dbCheck["status"] = "error"
+		dbCheck["error"] = "database not initialized"
+		health["status"] = "degraded"
+	} else if sqlDB, err := databaseClient.DB(); err == nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := a.db.PingContext(ctx); err != nil {
+		if err := sqlDB.PingContext(ctx); err != nil {
 			dbCheck["status"] = "error"
 			dbCheck["error"] = dependencyUnavailableMessage
-			h["status"] = "degraded"
+			health["status"] = "degraded"
 		}
-		stats := a.db.Stats()
+		stats := sqlDB.Stats()
+		dbCheck["ping_latency_ms"] = float64(time.Since(dbStart)) / float64(time.Millisecond)
 		dbCheck["pool"] = gin.H{
 			"open_connections":     stats.OpenConnections,
 			"in_use":               stats.InUse,
@@ -110,38 +133,60 @@ func (a *API) checkDependencies() gin.H {
 			"max_idle_time_closed": stats.MaxIdleTimeClosed,
 			"max_lifetime_closed":  stats.MaxLifetimeClosed,
 		}
+	} else {
+		dbCheck["status"] = "error"
+		dbCheck["error"] = dependencyUnavailableMessage
+		health["status"] = "degraded"
 	}
 	services["database"] = dbCheck
 
-	// ---- redis ----
 	redisCheck := gin.H{"status": "ok"}
-	if a == nil || isNilRedis(a.redis) {
-		redisCheck["status"] = "ok"
-		redisCheck["note"] = "not configured"
+	redisStart := time.Now()
+	redisClient := a.redisPingClient()
+	if redisClient == nil {
+		redisCheck["status"] = "error"
+		redisCheck["error"] = "redis not initialized"
+		health["status"] = "degraded"
 	} else {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := a.redis.Ping(ctx).Err(); err != nil {
+		if err := redisClient.Ping(ctx).Err(); err != nil {
 			redisCheck["status"] = "error"
 			redisCheck["error"] = dependencyUnavailableMessage
-			h["status"] = "degraded"
+			health["status"] = "degraded"
 		}
 	}
+	redisCheck["ping_latency_ms"] = float64(time.Since(redisStart)) / float64(time.Millisecond)
 	services["redis"] = redisCheck
 
-	return h
+	return health
 }
 
-func isNilRedis(client any) bool {
+func (a *API) databaseStatusClient() DatabaseClient {
+	if a != nil && !isNilClient(a.databaseClient) {
+		return a.databaseClient
+	}
+	return nil
+}
+
+func (a *API) redisPingClient() RedisPingClient {
+	if a != nil && !isNilClient(a.redisClient) {
+		return a.redisClient
+	}
+	return nil
+}
+
+func isNilClient(client any) bool {
 	if client == nil {
 		return true
 	}
-	v := reflect.ValueOf(client)
-	switch v.Kind() {
+	value := reflect.ValueOf(client)
+	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
-		return v.IsNil()
+		return value.IsNil()
+	default:
+		return false
 	}
-	return false
 }
 
 func runtimeSnapshot() gin.H {

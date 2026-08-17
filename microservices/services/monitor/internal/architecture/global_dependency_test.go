@@ -23,10 +23,7 @@ var guardedGlobalPackages = map[string]map[string]string{
 	},
 }
 
-var allowedAPIGlobalReferences = map[string]int{
-	"api/common/health.go|databaseStatusClient|database.DB": 2,
-	"api/common/health.go|redisPingClient|redis.Client":     2,
-}
+var allowedAPIGlobalReferences = map[string]int{}
 
 func TestAPILayerDoesNotUseGlobalDatabaseOrRedisClients(t *testing.T) {
 	apiDir := filepath.Join(internalDir, "api")

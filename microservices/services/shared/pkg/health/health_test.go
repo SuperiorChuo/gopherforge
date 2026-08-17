@@ -1,4 +1,4 @@
-package common
+package health
 
 import (
 	"context"
@@ -10,8 +10,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/file/internal/pkg/database"
-	internalredis "github.com/go-admin-kit/services/file/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -19,10 +17,9 @@ import (
 
 func TestCheckDependenciesDoesNotExposeDatabasePingError(t *testing.T) {
 	rawErr := "dial tcp 10.9.8.7:3306: access denied for user root with password topsecret"
-	setupHealthTestRedisNil(t)
-	setupHealthTestDBPingError(t, errors.New(rawErr))
+	db := pingErrorDB(t, errors.New(rawErr))
 
-	health := NewHealthAPI().checkDependencies()
+	health := NewWithClients(db, nil).CheckDependencies()
 
 	if health["status"] != "degraded" {
 		t.Fatalf("status = %v, want degraded", health["status"])
@@ -47,10 +44,17 @@ func TestCheckDependenciesDoesNotExposeDatabasePingError(t *testing.T) {
 
 func TestCheckDependenciesDoesNotExposeRedisPingError(t *testing.T) {
 	rawErr := "dial tcp redis.internal:6379: auth token topsecret rejected"
-	setupHealthTestDBNil(t)
-	setupHealthTestRedisPingError(t, errors.New(rawErr))
+	client := goredis.NewClient(&goredis.Options{
+		Addr: "redis.internal:6379",
+		Dialer: func(context.Context, string, string) (net.Conn, error) {
+			return nil, errors.New(rawErr)
+		},
+		MaxRetries:    -1,
+		DialerRetries: 1,
+	})
+	t.Cleanup(func() { _ = client.Close() })
 
-	health := NewHealthAPI().checkDependencies()
+	health := NewWithClients(nil, client).CheckDependencies()
 
 	if health["status"] != "degraded" {
 		t.Fatalf("status = %v, want degraded", health["status"])
@@ -71,9 +75,6 @@ func TestCheckDependenciesDoesNotExposeRedisPingError(t *testing.T) {
 }
 
 func TestHealthAPIWithRedisClientUsesInjectedClient(t *testing.T) {
-	setupHealthTestDBNil(t)
-	setupHealthTestRedisNil(t)
-
 	store, err := miniredis.Run()
 	if err != nil {
 		t.Fatalf("start injected miniredis: %v", err)
@@ -84,7 +85,7 @@ func TestHealthAPIWithRedisClientUsesInjectedClient(t *testing.T) {
 		store.Close()
 	})
 
-	health := NewHealthAPIWithRedisClient(client).checkDependencies()
+	health := NewWithRedisClient(client).CheckDependencies()
 
 	redisCheck := healthService(t, health, "redis")
 	if redisCheck["status"] != "ok" {
@@ -96,18 +97,12 @@ func TestHealthAPIWithRedisClientUsesInjectedClient(t *testing.T) {
 }
 
 func TestHealthAPIWithDatabaseClientUsesInjectedDatabase(t *testing.T) {
-	setupHealthTestDBNil(t)
-	setupHealthTestRedisNil(t)
-
 	sqlDB, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
 	}
 	mock.ExpectPing()
-
-	db, err := gorm.Open(postgres.New(postgres.Config{
-		Conn: sqlDB,
-	}), &gorm.Config{DisableAutomaticPing: true})
+	db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{DisableAutomaticPing: true})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)
 	}
@@ -118,7 +113,7 @@ func TestHealthAPIWithDatabaseClientUsesInjectedDatabase(t *testing.T) {
 		_ = sqlDB.Close()
 	})
 
-	health := NewHealthAPIWithDatabaseClient(db).checkDependencies()
+	health := NewWithDatabaseClient(db).CheckDependencies()
 
 	databaseCheck := healthService(t, health, "database")
 	if databaseCheck["status"] != "ok" {
@@ -132,76 +127,41 @@ func TestHealthAPIWithDatabaseClientUsesInjectedDatabase(t *testing.T) {
 	}
 }
 
-func setupHealthTestDBPingError(t *testing.T, pingErr error) {
-	t.Helper()
+func TestMissingClientsReportUninitialized(t *testing.T) {
+	health := New().CheckDependencies()
+	if health["status"] != "degraded" {
+		t.Fatalf("status = %v, want degraded", health["status"])
+	}
+	if healthService(t, health, "database")["error"] != "database not initialized" {
+		t.Fatalf("database error = %v", healthService(t, health, "database")["error"])
+	}
+	if healthService(t, health, "redis")["error"] != "redis not initialized" {
+		t.Fatalf("redis error = %v", healthService(t, health, "redis")["error"])
+	}
+}
 
-	oldDB := database.DB
+func pingErrorDB(t *testing.T, pingErr error) *gorm.DB {
+	t.Helper()
 	sqlDB, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
 	if err != nil {
 		t.Fatalf("open sqlmock db: %v", err)
 	}
 	mock.ExpectPing().WillReturnError(pingErr)
-
-	db, err := gorm.Open(postgres.New(postgres.Config{
-		Conn: sqlDB,
-	}), &gorm.Config{DisableAutomaticPing: true})
+	db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{DisableAutomaticPing: true})
 	if err != nil {
 		t.Fatalf("open gorm sqlmock db: %v", err)
 	}
-	database.DB = db
-
 	t.Cleanup(func() {
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatalf("unmet database expectations: %v", err)
 		}
 		_ = sqlDB.Close()
-		database.DB = oldDB
 	})
-}
-
-func setupHealthTestDBNil(t *testing.T) {
-	t.Helper()
-
-	oldDB := database.DB
-	database.DB = nil
-	t.Cleanup(func() {
-		database.DB = oldDB
-	})
-}
-
-func setupHealthTestRedisPingError(t *testing.T, pingErr error) {
-	t.Helper()
-
-	oldClient := internalredis.Client
-	client := goredis.NewClient(&goredis.Options{
-		Addr: "redis.internal:6379",
-		Dialer: func(context.Context, string, string) (net.Conn, error) {
-			return nil, pingErr
-		},
-		MaxRetries:    -1,
-		DialerRetries: 1,
-	})
-	internalredis.Client = client
-
-	t.Cleanup(func() {
-		_ = client.Close()
-		internalredis.Client = oldClient
-	})
-}
-
-func setupHealthTestRedisNil(t *testing.T) {
-	t.Helper()
-
-	oldClient := internalredis.Client
-	internalredis.Client = nil
-	t.Cleanup(func() {
-		internalredis.Client = oldClient
-	})
+	return db
 }
 
 func healthService(t *testing.T, health gin.H, name string) gin.H {
 	t.Helper()
-
 	services, ok := health["services"].(gin.H)
 	if !ok {
 		t.Fatalf("services = %T, want gin.H", health["services"])

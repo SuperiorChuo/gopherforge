@@ -2,18 +2,16 @@ package common
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/services/shared/pkg/health"
 	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 )
 
-// RegisterPublicRoutes mounts unauthenticated health routes using legacy
-// global fallbacks.
+// RegisterPublicRoutes 使用旧的零值装配挂载无需认证的健康路由。
 func RegisterPublicRoutes(r gin.IRoutes) {
 	RegisterPublicRoutesWithDeps(r, sharedapi.Dependencies{})
 }
 
-// RegisterPublicRoutesWithDeps mounts unauthenticated health routes with
-// injected infrastructure handles. The metrics and IP lookup routes from the
-// monolith are not part of the auth service surface.
+// RegisterPublicRoutesWithDeps 使用注入的基础设施句柄挂载无需认证的健康路由。
 func RegisterPublicRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies) {
 	healthAPI := newHealthAPIFromDeps(deps)
 	r.GET("/health", healthAPI.Health)
@@ -22,20 +20,9 @@ func RegisterPublicRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies) {
 	r.GET("/health/ready", healthAPI.Readiness)
 }
 
-// newHealthAPIFromDeps assembles a HealthAPI from injected handles, falling
-// back to the legacy zero-value wiring when no handles are provided. The nil
-// guards keep typed-nil pointers out of the client interfaces.
-func newHealthAPIFromDeps(deps sharedapi.Dependencies) *HealthAPI {
-	var databaseClient DatabaseClient
-	if deps.DB != nil {
-		databaseClient = deps.DB
+func newHealthAPIFromDeps(deps sharedapi.Dependencies) *health.API {
+	if deps.DB == nil && deps.Redis == nil {
+		return health.New()
 	}
-	var redisClient RedisPingClient
-	if deps.Redis != nil {
-		redisClient = deps.Redis
-	}
-	if databaseClient == nil && redisClient == nil {
-		return NewHealthAPI()
-	}
-	return NewHealthAPIWithClients(databaseClient, redisClient)
+	return health.NewWithClients(deps.DB, deps.Redis)
 }

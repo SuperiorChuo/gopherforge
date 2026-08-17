@@ -2,11 +2,15 @@ package common
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/services/monitor/internal/middleware"
+	"github.com/go-admin-kit/services/shared/pkg/health"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
+	"net/http"
 )
 
 // RegisterPublicRoutes mounts unauthenticated health, metrics, and IP lookup
-// routes using legacy global fallbacks.
+// routes using the zero-value wiring.
 func RegisterPublicRoutes(r gin.IRoutes) {
 	RegisterPublicRoutesWithDeps(r, sharedapi.Dependencies{})
 }
@@ -19,8 +23,12 @@ func RegisterPublicRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies) {
 	r.GET("/health/check", healthAPI.HealthCheck)
 	r.GET("/health/live", healthAPI.Liveness)
 	r.GET("/health/ready", healthAPI.Readiness)
-	r.GET("/metrics/json", healthAPI.MetricsSnapshot)
-	r.GET("/metrics", healthAPI.PrometheusMetrics)
+	r.GET("/metrics/json", func(c *gin.Context) {
+		response.Success(c, middleware.MetricsSnapshot())
+	})
+	r.GET("/metrics", func(c *gin.Context) {
+		c.String(http.StatusOK, middleware.PrometheusMetrics())
+	})
 
 	ipInfoAPI := NewIPInfoAPI()
 	r.GET("/ip/info", ipInfoAPI.GetIPInfo)
@@ -28,20 +36,9 @@ func RegisterPublicRoutesWithDeps(r gin.IRoutes, deps sharedapi.Dependencies) {
 	r.GET("/ip/me", ipInfoAPI.GetMyIPInfo)
 }
 
-// newHealthAPIFromDeps assembles a HealthAPI from injected handles, falling
-// back to the legacy zero-value wiring when no handles are provided. The nil
-// guards keep typed-nil pointers out of the client interfaces.
-func newHealthAPIFromDeps(deps sharedapi.Dependencies) *HealthAPI {
-	var databaseClient DatabaseClient
-	if deps.DB != nil {
-		databaseClient = deps.DB
+func newHealthAPIFromDeps(deps sharedapi.Dependencies) *health.API {
+	if deps.DB == nil && deps.Redis == nil {
+		return health.New()
 	}
-	var redisClient RedisPingClient
-	if deps.Redis != nil {
-		redisClient = deps.Redis
-	}
-	if databaseClient == nil && redisClient == nil {
-		return NewHealthAPI()
-	}
-	return NewHealthAPIWithClients(databaseClient, redisClient)
+	return health.NewWithClients(deps.DB, deps.Redis)
 }

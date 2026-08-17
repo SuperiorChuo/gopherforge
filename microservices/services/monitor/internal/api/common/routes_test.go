@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/services/shared/pkg/health"
 )
 
 func TestRegisterPublicRoutes(t *testing.T) {
@@ -35,7 +36,7 @@ func TestRegisterPublicRoutes(t *testing.T) {
 func TestHealthIncludesRuntimeInfo(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	api := NewHealthAPI()
+	api := health.New()
 	router.GET("/api/v1/health", api.Health)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
