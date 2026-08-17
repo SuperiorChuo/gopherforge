@@ -20,6 +20,7 @@ import TableRowActions from '@/components/common/TableRowActions'
 import GlassEmpty from '@/components/common/GlassEmpty'
 import StatusPill from '@/components/common/StatusPill'
 import { displayUserName, useUserNameMap } from '@/hooks/useUserNameMap'
+import { useTableQuery } from '@/hooks/useTableQuery'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 
@@ -33,21 +34,18 @@ interface SearchParams {
 
 export default function BpmTasksPage() {
   const { t } = useTranslation()
-  const [list, setList] = useState<BpmTask[]>([])
-  const [ccList, setCcList] = useState<BpmCcRecord[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   // 待办行动作按任务详情返回的动作列表动态渲染：列表加载后批量静默预取（task_id → actions）
   const [actionsMap, setActionsMap] = useState<Record<number, string[] | undefined>>({})
-  // 抄送我的：未读数（Tab 徽标）与查看抽屉
+  // 抄送我的：未读数（Tab 徽标）与查看抽屉；已读覆盖避免乐观更新后再打列表
   const [ccUnread, setCcUnread] = useState(0)
   const [ccDetail, setCcDetail] = useState<BpmCcRecord | null>(null)
+  const [ccReadAt, setCcReadAt] = useState<Record<number, string>>({})
   const userMap = useUserNameMap()
 
   const tab = params.tab === 'done' ? 'done' : params.tab === 'cc' ? 'cc' : 'todo'
 
-  const loadActions = async (rows: BpmTask[]) => {
+  const loadActions = useCallback(async (rows: BpmTask[]) => {
     const entries = await Promise.all(
       rows.map(async (task) => {
         const d = await getTask(task.id, true).catch(() => null)
@@ -61,33 +59,26 @@ export default function BpmTasksPage() {
       })
       return next
     })
-  }
+  }, [])
 
-  const fetchList = async (p: SearchParams) => {
-    setLoading(true)
-    try {
-      if (p.tab === 'cc') {
-        const res = await listMyCc({ page: p.page, page_size: p.page_size })
-        setCcList(res.list ?? [])
-        setTotal(res.total ?? 0)
-      } else {
-        const query = { page: p.page, page_size: p.page_size }
-        const res = p.tab === 'done' ? await listDoneTasks(query) : await listTodoTasks(query)
-        setList(res.list ?? [])
-        setTotal(res.total ?? 0)
-        if (p.tab !== 'done') void loadActions(res.list ?? [])
-      }
-    } catch {
-      // 错误提示由 request 拦截器统一弹出
-    } finally {
-      setLoading(false)
+  const fetchList = useCallback(async (p: SearchParams) => {
+    const query = { page: p.page, page_size: p.page_size }
+    if (p.tab === 'cc') {
+      const res = await listMyCc(query)
+      return { list: (res.list ?? []) as Array<BpmTask | BpmCcRecord>, total: res.total ?? 0 }
     }
-  }
-
-  useEffect(() => {
-    void fetchList(params)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params])
+    const res = p.tab === 'done' ? await listDoneTasks(query) : await listTodoTasks(query)
+    const rows = res.list ?? []
+    if (p.tab !== 'done') void loadActions(rows)
+    return { list: rows as Array<BpmTask | BpmCcRecord>, total: res.total ?? 0 }
+  }, [loadActions])
+  const { list, total, loading, reload } = useTableQuery({ params, fetcher: fetchList })
+  const taskList = tab === 'cc' ? [] : (list as BpmTask[])
+  const ccList = tab === 'cc'
+    ? (list as BpmCcRecord[]).map((row) => (
+        ccReadAt[row.id] && !row.read_at ? { ...row, read_at: ccReadAt[row.id] } : row
+      ))
+    : []
 
   const refreshUnread = useCallback(() => {
     // 未读计数探针：unread_only + page_size=1，仅取 total；失败静默（后端未上线时不打扰）
@@ -101,7 +92,7 @@ export default function BpmTasksPage() {
   }, [refreshUnread])
 
   const refresh = () => {
-    void fetchList(params)
+    void reload()
     refreshUnread()
   }
 
@@ -111,9 +102,7 @@ export default function BpmTasksPage() {
     if (!row.read_at) {
       readCcRecord(row.id, true)
         .then(() => {
-          setCcList((prev) =>
-            prev.map((r) => (r.id === row.id ? { ...r, read_at: new Date().toISOString() } : r)),
-          )
+          setCcReadAt((prev) => ({ ...prev, [row.id]: new Date().toISOString() }))
           setCcUnread((n) => Math.max(0, n - 1))
         })
         .catch(() => {})
@@ -310,7 +299,7 @@ export default function BpmTasksPage() {
             rowKey="id"
             className="list-table"
             columns={tab === 'done' ? doneColumns : todoColumns}
-            dataSource={list}
+            dataSource={taskList}
             loading={loading}
             locale={{
               emptyText: (
