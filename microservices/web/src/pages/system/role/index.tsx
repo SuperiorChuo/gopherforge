@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Modal, Form, Input,
@@ -34,6 +34,7 @@ import TableToolbar from '@/components/common/TableToolbar'
 import TableRowActions from '@/components/common/TableRowActions'
 import GlassEmpty from '@/components/common/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
+import { useTableQuery } from '@/hooks/useTableQuery'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 
@@ -44,9 +45,6 @@ interface SearchParams {
 }
 
 export default function RolePage() {
-  const [list, setList] = useState<SystemRole[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [modalOpen, setModalOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<SystemRole | null>(null)
@@ -64,23 +62,9 @@ export default function RolePage() {
   const screens = Grid.useBreakpoint()
   const compactActions = !screens.md
 
-  const fetchList = async (p: SearchParams) => {
-    setLoading(true)
-    try {
-      const res = await RoleAPI.getRoleList(p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error(t('获取角色列表失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchList(params)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params])
+  const fetchList = useCallback((p: SearchParams) => RoleAPI.getRoleList(p), [])
+  const onLoadError = useCallback(() => message.error(t('获取角色列表失败')), [t])
+  const { list, total, loading, reload } = useTableQuery({ params, fetcher: fetchList, onError: onLoadError })
 
   const handleSearch = (values: { keyword?: string }) => {
     setParams({ ...params, page: 1, ...values })
@@ -114,7 +98,7 @@ export default function RolePage() {
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
-        fetchList(params)
+        void reload()
       }
     } catch {
       message.error(t('删除失败'))
@@ -134,7 +118,7 @@ export default function RolePage() {
         message.success(t('创建成功'))
       }
       setModalOpen(false)
-      fetchList(params)
+      void reload()
     } catch {
       message.error(t('操作失败'))
     } finally {
@@ -263,7 +247,7 @@ export default function RolePage() {
           total={total}
           extra={(
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>
               {hasPerm('system:role:create') && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增角色')}</Button>
               )}
