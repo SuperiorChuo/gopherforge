@@ -12,7 +12,7 @@ import (
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/go-admin-kit/services/auth/internal/config"
 	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
-	redisstore "github.com/go-admin-kit/services/auth/internal/pkg/redis"
+	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -452,11 +452,11 @@ func setOnlineUserJWTTestConfig(t *testing.T) {
 
 	oldConfig := jwtpkg.JWTConfig{Secret: config.Cfg.JWT.Secret, Issuer: config.Cfg.JWT.Issuer, AccessTokenExpire: config.Cfg.JWT.AccessTokenExpire, RefreshTokenExpire: config.Cfg.JWT.RefreshTokenExpire, RefreshTokenRotation: config.Cfg.JWT.RefreshTokenRotation}
 	jwtpkg.SetConfig(jwtpkg.JWTConfig{
-		Secret:                "unit-test-secret-at-least-32-characters",
-		AccessTokenExpire:     3600,
-		RefreshTokenExpire:    7200,
-		RefreshTokenRotation:  true,
-		Issuer:                "unit-test",
+		Secret:               "unit-test-secret-at-least-32-characters",
+		AccessTokenExpire:    3600,
+		RefreshTokenExpire:   7200,
+		RefreshTokenRotation: true,
+		Issuer:               "unit-test",
 	})
 
 	t.Cleanup(func() {

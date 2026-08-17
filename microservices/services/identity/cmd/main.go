@@ -22,7 +22,6 @@ import (
 	"github.com/go-admin-kit/services/identity/internal/middleware"
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	"github.com/go-admin-kit/services/identity/internal/pkg/database"
-	"github.com/go-admin-kit/services/identity/internal/pkg/redis"
 	"github.com/go-admin-kit/services/identity/internal/pkg/runtimeconfig"
 	authsvc "github.com/go-admin-kit/services/identity/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/identity/internal/service/system"
@@ -35,6 +34,7 @@ import (
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/observability"
+	"github.com/go-admin-kit/services/shared/pkg/redis"
 	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 
@@ -209,7 +209,13 @@ func run(ctx context.Context) error {
 	}()
 
 	logger.Info("initializing redis")
-	if err := redis.InitRedis(); err != nil {
+	if err := redis.InitRedis(redis.Config{
+		Host:     config.Cfg.Redis.Host,
+		Port:     config.Cfg.Redis.Port,
+		Password: config.Cfg.Redis.Password,
+		DB:       config.Cfg.Redis.DB,
+		PoolSize: config.Cfg.Redis.PoolSize,
+	}); err != nil {
 		return fmt.Errorf("redis initialization failed: %w", err)
 	}
 	authz.SetRemoteCache(authz.NewGoRedisRemoteCache(redis.Client))

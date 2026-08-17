@@ -7,8 +7,8 @@ import (
 	"time"
 
 	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
-	redisstore "github.com/go-admin-kit/services/audit/internal/pkg/redis"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
+	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )
 

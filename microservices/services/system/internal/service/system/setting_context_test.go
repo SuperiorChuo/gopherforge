@@ -9,7 +9,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	miniredis "github.com/alicebob/miniredis/v2"
-	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
+	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
 	goredis "github.com/redis/go-redis/v9"
 	"gorm.io/gorm"

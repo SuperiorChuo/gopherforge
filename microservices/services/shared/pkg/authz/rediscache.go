@@ -8,9 +8,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// goRedisRemoteCache 是 RemoteCache 的 go-redis 通用实现（authz 收敛批次 1）：
-// 各服务 internal/pkg/redis 拷贝同构（已验证仅 config 路径差异），服务侧装配时
-// 一行注入：authz.SetRemoteCache(authz.NewGoRedisRemoteCache(redisstore.Client))。
+// goRedisRemoteCache 是 RemoteCache 的 go-redis 通用实现：
+// 服务侧装配时一行注入：authz.SetRemoteCache(authz.NewGoRedisRemoteCache(redis.Client))。
 type goRedisRemoteCache struct {
 	client *redis.Client
 }
@@ -37,7 +36,7 @@ func (c *goRedisRemoteCache) PublishString(ctx context.Context, channel, payload
 }
 
 // StartSubscriber 订阅 channel 并派发 handler，返回的 io.Closer 停止订阅。
-// 与各服务原 internal/pkg/redis.StartSubscriber 语义一致。
+// 与 shared/pkg/redis.StartSubscriber 语义一致。
 func (c *goRedisRemoteCache) StartSubscriber(ctx context.Context, channel string, handler func(context.Context, string)) (io.Closer, error) {
 	if ctx == nil {
 		ctx = context.Background()

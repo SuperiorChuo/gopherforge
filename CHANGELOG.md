@@ -14,6 +14,7 @@
 - **无界 Find 机检（同步自主项目）**：新增 `scripts/scan-unbounded-find.sh`，存量只列、暂存区相对 HEAD 新增才阻断；pre-commit 已接入。
 - **健康检查收敛（同步自主项目）**：六服务删除本地 `health.go`，统一使用 `shared/pkg/health`；monitor 的 `/metrics` 仍留本服务。
 - **tracing 收敛（同步自主项目）**：六服务删除本地 `observability` 包，统一使用 `shared/pkg/observability.InitTracer`。
+- **Redis 收敛（同步自主项目）**：六服务删除本地 `redis` 包，统一使用 `shared/pkg/redis`。
 
 ## [0.6.0] - 2026-08-13
 

@@ -8,9 +8,9 @@ import (
 	"time"
 
 	miniredis "github.com/alicebob/miniredis/v2"
-	"github.com/go-admin-kit/services/system/internal/config"
 	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
-	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
+	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
+	"github.com/go-admin-kit/services/system/internal/config"
 	goredis "github.com/redis/go-redis/v9"
 )
 

@@ -3,7 +3,7 @@ package runtimeconfig
 import (
 	"context"
 
-	redisstore "github.com/go-admin-kit/services/monitor/internal/pkg/redis"
+	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
 )
 
 const RuntimeConfigInvalidationChannel = "go_admin_kit:runtime_config:invalidate"

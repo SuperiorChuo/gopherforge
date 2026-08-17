@@ -11,9 +11,9 @@ import (
 
 	miniredis "github.com/alicebob/miniredis/v2"
 	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
+	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"github.com/go-admin-kit/services/system/internal/config"
-	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )
 

@@ -8,9 +8,9 @@ import (
 
 	miniredis "github.com/alicebob/miniredis/v2"
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
-	redisstore "github.com/go-admin-kit/services/identity/internal/pkg/redis"
 	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
+	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )

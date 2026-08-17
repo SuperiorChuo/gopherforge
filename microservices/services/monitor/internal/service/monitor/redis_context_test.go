@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	internalredis "github.com/go-admin-kit/services/monitor/internal/pkg/redis"
+	internalredis "github.com/go-admin-kit/services/shared/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )
 

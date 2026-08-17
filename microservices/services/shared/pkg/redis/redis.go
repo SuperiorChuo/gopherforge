@@ -5,29 +5,35 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/go-admin-kit/services/auth/internal/config"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 var (
-	Client *redis.Client
+	Client *goredis.Client
 )
+
+// Config describes Redis connection settings for infrastructure services.
+type Config struct {
+	Host     string
+	Port     int
+	Password string
+	DB       int
+	PoolSize int
+}
 
 type StringSubscriber struct {
 	cancel  context.CancelFunc
 	channel string
-	pubsub  *redis.PubSub
+	pubsub  *goredis.PubSub
 	once    sync.Once
 	err     error
 	done    chan struct{}
 }
 
-// InitRedis initializes the Redis connection.
-func InitRedis() error {
-	cfg := config.Cfg.Redis
-
-	Client = redis.NewClient(&redis.Options{
+// InitRedis initializes the process-wide Redis client.
+func InitRedis(cfg Config) error {
+	Client = goredis.NewClient(&goredis.Options{
 		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		Password: cfg.Password,
 		DB:       cfg.DB,

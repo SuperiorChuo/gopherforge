@@ -3,7 +3,7 @@ package runtimeconfig
 import (
 	"context"
 
-	redisstore "github.com/go-admin-kit/services/identity/internal/pkg/redis"
+	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
 )
 
 // RuntimeConfigInvalidationChannel matches the monolith's channel so cache

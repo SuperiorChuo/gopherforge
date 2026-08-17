@@ -10,7 +10,7 @@ import (
 	"github.com/go-admin-kit/services/shared/pkg/response"
 
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
-	redisstore "github.com/go-admin-kit/services/system/internal/pkg/redis"
+	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
 	goredis "github.com/redis/go-redis/v9"
 )
