@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "lint:i18n": "node scripts/i18n/check.mjs",
-    "test": "node --test --experimental-strip-types scripts/table-query.test.mjs",
+    "test": "node --test --experimental-strip-types scripts/*.test.mjs",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install --with-deps chromium"

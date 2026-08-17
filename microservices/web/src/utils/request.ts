@@ -8,6 +8,17 @@ import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { message } from './feedback'
 import { getDeviceID } from './device'
+import {
+  canAcquireRefreshLease,
+  createRefreshLease,
+  hasUsableTokenPair,
+  ownsRefreshLease,
+  parseRefreshLease,
+  sameTokenPair,
+  tokenPairChanged,
+  type RefreshLease,
+  type TokenPair,
+} from './request-refresh'
 
 const TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
@@ -28,11 +39,6 @@ const AUTH_REFRESH_REQUEST_TIMEOUT_MS = 15_000
 /** Platform admin act-as tenant (M4); honored only when JWT platform_admin=true */
 const ACT_TENANT_KEY = 'act_tenant_id'
 
-type TokenPair = {
-  access: string
-  refresh: string
-}
-
 type AuthRequestConfig = AxiosRequestConfig & {
   _retry?: boolean
   _authAccessToken?: string
@@ -45,11 +51,6 @@ type AuthLockManager = {
     options: { ifAvailable?: boolean; signal?: AbortSignal },
     callback: (lock: object | null) => Promise<T>,
   ): Promise<T>
-}
-
-type RefreshLease = {
-  owner: string
-  expiresAt: number
 }
 
 type RefreshLeaseHandle = {
@@ -188,35 +189,10 @@ let loginRedirectStarted = false
 
 const readTokenPair = (): TokenPair => readStoredTokenPair() || { access: '', refresh: '' }
 
-const hasUsableTokenPair = (pair: TokenPair) => Boolean(pair.access && pair.refresh)
-
-const tokenPairChanged = (current: TokenPair, previous: TokenPair) =>
-  hasUsableTokenPair(current) &&
-  (current.access !== previous.access || current.refresh !== previous.refresh)
-
 function getWebLockManager(): AuthLockManager | null {
   if (typeof navigator === 'undefined') return null
   const locks = (navigator as Navigator & { locks?: AuthLockManager }).locks
   return locks ?? null
-}
-
-function normalizeRefreshLease(value: unknown): RefreshLease | null {
-  if (typeof value === 'string') {
-    if (!value) return null
-    try {
-      value = JSON.parse(value)
-    } catch {
-      return null
-    }
-  }
-  if (!value || typeof value !== 'object') return null
-  const lease = value as Partial<RefreshLease>
-  if (typeof lease.owner !== 'string' || typeof lease.expiresAt !== 'number') return null
-  return { owner: lease.owner, expiresAt: lease.expiresAt }
-}
-
-function parseRefreshLease(value: string | null): RefreshLease | null {
-  return normalizeRefreshLease(value)
 }
 
 function invalidateRefreshLockDatabase(database?: IDBDatabase) {
@@ -320,7 +296,7 @@ async function tryAcquireIndexedDBLease(deadline: number): Promise<IndexedDBLeas
       const store = transaction.objectStore(AUTH_REFRESH_DB_STORE)
       const request = store.get(AUTH_REFRESH_LOCK_KEY)
       request.onsuccess = () => {
-        const current = normalizeRefreshLease(request.result)
+        const current = parseRefreshLease(request.result)
         if (current && current.owner !== tabID && current.expiresAt > Date.now()) return
 
         store.put(
@@ -373,7 +349,7 @@ async function releaseIndexedDBLease(deadline: number) {
       const store = transaction.objectStore(AUTH_REFRESH_DB_STORE)
       const request = store.get(AUTH_REFRESH_LOCK_KEY)
       request.onsuccess = () => {
-        const current = normalizeRefreshLease(request.result)
+        const current = parseRefreshLease(request.result)
         if (current?.owner === tabID) store.delete(AUTH_REFRESH_LOCK_KEY)
       }
       transaction.oncomplete = () => finish()
@@ -392,20 +368,18 @@ async function releaseIndexedDBLease(deadline: number) {
 }
 
 function tryAcquireStorageLease(): boolean {
-  const current = parseRefreshLease(localStorage.getItem(AUTH_REFRESH_LOCK_KEY))
-  if (current && current.owner !== tabID && current.expiresAt > Date.now()) return false
+  const now = Date.now()
+  if (!canAcquireRefreshLease(localStorage.getItem(AUTH_REFRESH_LOCK_KEY), tabID, now)) return false
 
-  const lease: RefreshLease = {
-    owner: tabID,
-    expiresAt: Date.now() + AUTH_REFRESH_LOCK_TTL_MS,
-  }
+  const lease = createRefreshLease(tabID, now, AUTH_REFRESH_LOCK_TTL_MS)
   localStorage.setItem(AUTH_REFRESH_LOCK_KEY, JSON.stringify(lease))
-  return parseRefreshLease(localStorage.getItem(AUTH_REFRESH_LOCK_KEY))?.owner === tabID
+  return ownsRefreshLease(localStorage.getItem(AUTH_REFRESH_LOCK_KEY), tabID)
 }
 
 function releaseStorageLease() {
-  const current = parseRefreshLease(localStorage.getItem(AUTH_REFRESH_LOCK_KEY))
-  if (current?.owner === tabID) localStorage.removeItem(AUTH_REFRESH_LOCK_KEY)
+  if (ownsRefreshLease(localStorage.getItem(AUTH_REFRESH_LOCK_KEY), tabID)) {
+    localStorage.removeItem(AUTH_REFRESH_LOCK_KEY)
+  }
 }
 
 async function acquireRefreshLease(deadline: number): Promise<RefreshLeaseHandle | null> {
@@ -508,10 +482,6 @@ async function requestFreshTokenPair(used: TokenPair, deadline: number): Promise
     }
     throw error
   }
-}
-
-function sameTokenPair(left: TokenPair, right: TokenPair) {
-  return left.access === right.access && left.refresh === right.refresh
 }
 
 async function refreshWithStorageLease(previous: TokenPair, deadline: number): Promise<TokenPair> {
