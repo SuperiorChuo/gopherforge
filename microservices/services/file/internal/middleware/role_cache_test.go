@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-admin-kit/services/file/internal/pkg/cache"
+	"github.com/go-admin-kit/services/shared/pkg/cache"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 

@@ -11,7 +11,6 @@ import (
 var allowedFallbackGlobalReferences = map[string]int{
 	"middleware/login_limit.go|redisClient|redis.Client":               1,
 	"middleware/rate_limit.go|redisClient|redis.Client":                1,
-	"pkg/cache/cache.go|redisClient|redis.Client":                      1,
 	"pkg/runtimeconfig/security_policy.go|GetByKeyContext|database.DB": 1,
 	"service/monitor/redis.go|redisClient|redis.Client":                1,
 }

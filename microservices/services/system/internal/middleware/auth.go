@@ -11,9 +11,9 @@ import (
 	"github.com/go-admin-kit/services/shared/pkg/response"
 
 	"github.com/go-admin-kit/services/shared/pkg/authz"
+	"github.com/go-admin-kit/services/shared/pkg/cache"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
-	"github.com/go-admin-kit/services/system/internal/pkg/cache"
 )
 
 // TenantIDContextKey 在 context.Context 中保存已认证的租户 ID

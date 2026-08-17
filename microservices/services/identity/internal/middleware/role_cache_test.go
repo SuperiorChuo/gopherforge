@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
-	"github.com/go-admin-kit/services/identity/internal/pkg/cache"
+	"github.com/go-admin-kit/services/shared/pkg/cache"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 

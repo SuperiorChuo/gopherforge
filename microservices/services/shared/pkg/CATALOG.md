@@ -8,7 +8,7 @@
 
 | 类别 | 包 | 归属说明 |
 |---|---|---|
-| 运行基础 | `connpool`、`graceful`、`logger`、`metrics`、`middleware`、`response`、`pagination`、`errors`、`health`、`redis`、`database`、`captcha` | 服务启动、HTTP 响应、分页、错误、健康检查、Redis、Postgres 和验证码等通用运行能力 |
+| 运行基础 | `connpool`、`graceful`、`logger`、`metrics`、`middleware`、`response`、`pagination`、`errors`、`health`、`redis`、`database`、`captcha`、`cache` | 服务启动、HTTP 响应、分页、错误、健康检查、Redis、Postgres、验证码和会话缓存等通用运行能力 |
 | 配置与安全 | `envsecret`、`secretstrength`、`mask`、`secretbox`、`jwt`、`consoleauth`、`authdao`、`tenant`、`tenantctx`、`authz` | 配置密钥、凭据、身份会话、租户上下文和数据权限；`authz`/`tenantctx` 的服务消费者由 authz 收敛批次负责 |
 | 服务间通信 | `grpcx`、`identityclient`、`notifyclient`、`internalhttp`、`resilience`、`tlsutil`、`natsx`、`sharedapi` | gRPC/HTTP 客户端、重试、TLS、NATS 和跨服务契约适配 |
 | 网关与事件 | `gatewayauth`、`outbox`、`webhookx`、`audittrail`、`auditevents` | 网关鉴权、可靠事件、Webhook 和审计事件链路 |
@@ -24,6 +24,7 @@
 - `redis` 是七个基础设施服务进程级 Redis 客户端 / pubsub 的单一真源。
 - `database` 是七个基础设施服务进程级 GORM 客户端的单一真源；DSN / search_path 仍由各服务 config 计算。
 - `captcha` 是登录验证码的单一真源；渲染用 auth 生产实现，存储由服务注入。
+- `cache` 是七个基础设施服务会话 / 权限 / 验证码 / 字典 / OAuth2 缓存的单一真源。
 - `errors`、`internalhttp`、`tlsutil` 存在 shared 包之间的传递消费者；不能用“直接 import 数量”判断为孤立包。
 - 主仓特有的 `authz`、`tenantctx` 不同步到公开 micro 线；其消费者迁移由独立 authz 批次处理，本清单不覆盖并行实现。
 

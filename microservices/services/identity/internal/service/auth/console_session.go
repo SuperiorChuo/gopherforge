@@ -11,9 +11,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
-	"github.com/go-admin-kit/services/identity/internal/pkg/cache"
+	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
+	"github.com/go-admin-kit/services/shared/pkg/cache"
 	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"

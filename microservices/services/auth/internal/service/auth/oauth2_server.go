@@ -14,7 +14,7 @@ import (
 	authdao "github.com/go-admin-kit/services/auth/internal/dao/auth"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
 	localmodel "github.com/go-admin-kit/services/auth/internal/model"
-	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
+	"github.com/go-admin-kit/services/shared/pkg/cache"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )

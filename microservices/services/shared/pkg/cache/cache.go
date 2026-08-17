@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )
@@ -54,9 +54,8 @@ const (
 	KeyUserPermissionsIndex = "user:permissions:index"
 	KeyUserRoles            = "user:roles:%d"
 	KeyUserRolesIndex       = "user:roles:index"
-	// KeyUserPermHeader mirrors the normalized permissions-header cache written
-	// by the auth ForwardAuth verify handler. Identity only invalidates it
-	// (same funnel as the roles/permissions caches); reads/writes live in auth.
+	// KeyUserPermHeader stores the normalized X-Auth-Permissions header string
+	// produced by the ForwardAuth verify handler ("*" / "" / "a,b,c").
 	KeyUserPermHeader      = "user:permheader:%d"
 	KeyUserPermHeaderIndex = "user:permheader:index"
 )
@@ -69,6 +68,7 @@ const (
 	UserInfoExpire        = 1 * time.Hour
 	UserPermissionsExpire = 1 * time.Hour
 	UserRolesExpire       = 1 * time.Hour
+	UserPermHeaderExpire  = 1 * time.Hour
 )
 
 var (
@@ -172,14 +172,14 @@ func (s *CacheService) ConsumeOAuthStateContext(ctx context.Context, state strin
 	return verifier, err
 }
 
-func (s *CacheService) SetUserInfoContext(ctx context.Context, user *localmodel.User) error {
+func (s *CacheService) SetUserInfoContext(ctx context.Context, user *model.User) error {
 	key := fmt.Sprintf(KeyUserInfo, user.ID)
 	return s.redisClient().Set(ctx, key, user, UserInfoExpire).Err()
 }
 
-func (s *CacheService) GetUserInfoContext(ctx context.Context, userID uint) (*localmodel.User, error) {
+func (s *CacheService) GetUserInfoContext(ctx context.Context, userID uint) (*model.User, error) {
 	key := fmt.Sprintf(KeyUserInfo, userID)
-	var user localmodel.User
+	var user model.User
 	err := s.redisClient().Get(ctx, key).Scan(&user)
 	return &user, err
 }
@@ -234,24 +234,6 @@ func (s *CacheService) DelUserPermissionsBatchContext(ctx context.Context, userI
 	return err
 }
 
-func (s *CacheService) DelAllUserPermissionsContext(ctx context.Context) error {
-	keys, err := s.redisClient().SMembers(ctx, KeyUserPermissionsIndex).Result()
-	if err != nil {
-		return err
-	}
-
-	pipe := s.redisClient().TxPipeline()
-	if len(keys) > 0 {
-		pipe.Del(ctx, keys...)
-	}
-	pipe.Del(ctx, KeyUserPermissionsIndex)
-	_, err = pipe.Exec(ctx)
-	return err
-}
-
-// Normalized permissions-header cache (written by auth verify). The identity
-// side exposes Get/Set only so the invalidation wiring can be tested;
-// production reads/writes live in auth.
 func (s *CacheService) GetUserPermHeaderContext(ctx context.Context, userID uint) (string, bool) {
 	key := fmt.Sprintf(KeyUserPermHeader, userID)
 	value, err := s.redisClient().Get(ctx, key).Result()
@@ -264,7 +246,7 @@ func (s *CacheService) GetUserPermHeaderContext(ctx context.Context, userID uint
 func (s *CacheService) SetUserPermHeaderContext(ctx context.Context, userID uint, header string) error {
 	key := fmt.Sprintf(KeyUserPermHeader, userID)
 	pipe := s.redisClient().TxPipeline()
-	pipe.Set(ctx, key, header, UserPermissionsExpire)
+	pipe.Set(ctx, key, header, UserPermHeaderExpire)
 	pipe.SAdd(ctx, KeyUserPermHeaderIndex, key)
 	_, err := pipe.Exec(ctx)
 	return err
@@ -297,6 +279,21 @@ func (s *CacheService) DelAllUserPermHeadersContext(ctx context.Context) error {
 		pipe.Del(ctx, keys...)
 	}
 	pipe.Del(ctx, KeyUserPermHeaderIndex)
+	_, err = pipe.Exec(ctx)
+	return err
+}
+
+func (s *CacheService) DelAllUserPermissionsContext(ctx context.Context) error {
+	keys, err := s.redisClient().SMembers(ctx, KeyUserPermissionsIndex).Result()
+	if err != nil {
+		return err
+	}
+
+	pipe := s.redisClient().TxPipeline()
+	if len(keys) > 0 {
+		pipe.Del(ctx, keys...)
+	}
+	pipe.Del(ctx, KeyUserPermissionsIndex)
 	_, err = pipe.Exec(ctx)
 	return err
 }

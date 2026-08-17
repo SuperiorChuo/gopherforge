@@ -10,7 +10,7 @@ import (
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/auth/internal/config"
-	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
+	"github.com/go-admin-kit/services/shared/pkg/cache"
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
 	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	model "github.com/go-admin-kit/services/shared/pkg/model"

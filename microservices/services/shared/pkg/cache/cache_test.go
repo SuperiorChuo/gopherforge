@@ -8,7 +8,6 @@ import (
 	"time"
 
 	miniredis "github.com/alicebob/miniredis/v2"
-	"github.com/go-admin-kit/services/monitor/internal/config"
 	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
@@ -310,17 +309,50 @@ func setupCacheTestRedis(t *testing.T) *miniredis.Miniredis {
 
 func setCacheJWTTestConfig(t *testing.T) {
 	t.Helper()
-
-	oldConfig := config.Cfg.JWT
-	config.Cfg.JWT = config.JWTConfig{
-		Secret:               "unit-test-secret-at-least-32-characters",
-		AccessTokenExpire:    3600,
-		RefreshTokenExpire:   7200,
-		RefreshTokenRotation: true,
-		Issuer:               "unit-test",
-	}
-
-	t.Cleanup(func() {
-		config.Cfg.JWT = oldConfig
+	restore := jwtpkg.SetConfig(jwtpkg.JWTConfig{
+		Secret:             "unit-test-secret-at-least-32-characters",
+		AccessTokenExpire:  3600,
+		RefreshTokenExpire: 7200,
+		Issuer:             "unit-test",
 	})
+	t.Cleanup(restore)
+}
+
+func TestUserPermHeaderCacheRoundTrip(t *testing.T) {
+	setupCacheTestRedis(t)
+	svc := NewCacheService()
+	ctx := context.Background()
+
+	if _, ok := svc.GetUserPermHeaderContext(ctx, 42); ok {
+		t.Fatal("empty cache must miss")
+	}
+	if err := svc.SetUserPermHeaderContext(ctx, 42, "crm:read,crm:write"); err != nil {
+		t.Fatalf("set header: %v", err)
+	}
+	header, ok := svc.GetUserPermHeaderContext(ctx, 42)
+	if !ok || header != "crm:read,crm:write" {
+		t.Fatalf("get = (%q, %v), want cached header", header, ok)
+	}
+	if err := svc.SetUserPermHeaderContext(ctx, 43, ""); err != nil {
+		t.Fatalf("set empty header: %v", err)
+	}
+	header, ok = svc.GetUserPermHeaderContext(ctx, 43)
+	if !ok || header != "" {
+		t.Fatalf("empty header get = (%q, %v), want hit with empty value", header, ok)
+	}
+	if err := svc.DelUserPermHeaderBatchContext(ctx, []uint{42, 43}); err != nil {
+		t.Fatalf("del batch: %v", err)
+	}
+	if _, ok := svc.GetUserPermHeaderContext(ctx, 42); ok {
+		t.Fatal("header survived batch delete")
+	}
+	if err := svc.SetUserPermHeaderContext(ctx, 44, "*"); err != nil {
+		t.Fatalf("set for del-all: %v", err)
+	}
+	if err := svc.DelAllUserPermHeadersContext(ctx); err != nil {
+		t.Fatalf("del all: %v", err)
+	}
+	if _, ok := svc.GetUserPermHeaderContext(ctx, 44); ok {
+		t.Fatal("header survived del-all")
+	}
 }

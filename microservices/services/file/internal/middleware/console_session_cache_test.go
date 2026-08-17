@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-admin-kit/services/file/internal/pkg/cache"
+	"github.com/go-admin-kit/services/shared/pkg/cache"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 )

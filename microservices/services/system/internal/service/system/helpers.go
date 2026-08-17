@@ -3,7 +3,7 @@ package system
 import (
 	"context"
 
-	"github.com/go-admin-kit/services/system/internal/pkg/cache"
+	"github.com/go-admin-kit/services/shared/pkg/cache"
 )
 
 // InvalidatePermissionCacheAllContext drops every cached user permission set.

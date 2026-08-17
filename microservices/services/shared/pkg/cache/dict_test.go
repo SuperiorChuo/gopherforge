@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-
-	localmodel "github.com/go-admin-kit/services/system/internal/model"
 )
 
 func TestDictCodeCacheRoundTripsEntries(t *testing.T) {
@@ -14,9 +12,8 @@ func TestDictCodeCacheRoundTripsEntries(t *testing.T) {
 	ctx := context.Background()
 
 	entries := map[string]DictEntry{
-		"gender": {Found: true, Items: []localmodel.DictItem{{ID: 1, DictTypeID: 7, Label: "男", Value: "1"}}},
-		// A known-absent code is cached too, so a bogus code stops hitting the
-		// database on every request.
+		"gender": {Found: true, Items: []DictItem{{ID: 1, DictTypeID: 7, Label: "男", Value: "1"}}},
+		// 已知不存在的编码也会被缓存，这样错误的编码就不会每次请求都查询数据库。
 		"missing": {Found: false},
 	}
 	if err := service.SetDictCodesContext(ctx, 1, entries); err != nil {
@@ -53,12 +50,12 @@ func TestDictCacheIsolatesTenants(t *testing.T) {
 	ctx := context.Background()
 
 	if err := service.SetDictCodesContext(ctx, 1, map[string]DictEntry{
-		"gender": {Found: true, Items: []localmodel.DictItem{{ID: 1, Label: "tenant-one"}}},
+		"gender": {Found: true, Items: []DictItem{{ID: 1, Label: "tenant-one"}}},
 	}); err != nil {
 		t.Fatalf("SetDictCodesContext(tenant 1): %v", err)
 	}
 	if err := service.SetDictCodesContext(ctx, 2, map[string]DictEntry{
-		"gender": {Found: true, Items: []localmodel.DictItem{{ID: 2, Label: "tenant-two"}}},
+		"gender": {Found: true, Items: []DictItem{{ID: 2, Label: "tenant-two"}}},
 	}); err != nil {
 		t.Fatalf("SetDictCodesContext(tenant 2): %v", err)
 	}
@@ -72,7 +69,7 @@ func TestDictCacheIsolatesTenants(t *testing.T) {
 		t.Fatalf("tenant 2 read = %+v, want tenant-two", two["gender"])
 	}
 
-	// A tenant with nothing cached must miss rather than borrow another's data.
+	// 没有任何缓存数据的租户必须未命中，而不能借用其他租户的数据。
 	if hits := service.GetDictCodesContext(ctx, 3, []string{"gender"}); len(hits) != 0 {
 		t.Fatalf("tenant 3 read = %+v, want a miss", hits)
 	}
@@ -83,7 +80,7 @@ func TestDictAllCacheRoundTripsPerTenant(t *testing.T) {
 	service := NewCacheService()
 	ctx := context.Background()
 
-	data := map[string][]localmodel.DictItem{
+	data := map[string][]DictItem{
 		"gender": {{ID: 1, Label: "男", Value: "1"}},
 		"status": {{ID: 2, Label: "启用", Value: "1"}},
 	}
@@ -106,16 +103,16 @@ func TestDelAllDictDataContextClearsEveryTenantAndKind(t *testing.T) {
 	ctx := context.Background()
 
 	if err := service.SetDictCodesContext(ctx, 1, map[string]DictEntry{
-		"gender": {Found: true, Items: []localmodel.DictItem{{ID: 1}}},
+		"gender": {Found: true, Items: []DictItem{{ID: 1}}},
 	}); err != nil {
 		t.Fatalf("SetDictCodesContext(tenant 1): %v", err)
 	}
 	if err := service.SetDictCodesContext(ctx, 2, map[string]DictEntry{
-		"gender": {Found: true, Items: []localmodel.DictItem{{ID: 2}}},
+		"gender": {Found: true, Items: []DictItem{{ID: 2}}},
 	}); err != nil {
 		t.Fatalf("SetDictCodesContext(tenant 2): %v", err)
 	}
-	if err := service.SetAllDictDataContext(ctx, 1, map[string][]localmodel.DictItem{"gender": {{ID: 1}}}); err != nil {
+	if err := service.SetAllDictDataContext(ctx, 1, map[string][]DictItem{"gender": {{ID: 1}}}); err != nil {
 		t.Fatalf("SetAllDictDataContext(): %v", err)
 	}
 
@@ -123,8 +120,8 @@ func TestDelAllDictDataContextClearsEveryTenantAndKind(t *testing.T) {
 		t.Fatalf("DelAllDictDataContext(): %v", err)
 	}
 
-	// One write must leave nothing behind: both tenants' per-code entries, the
-	// /dicts/all blob, and the index itself.
+	// 一次写入不能留下任何残留：两个租户各自的编码条目、
+	// /dicts/all 数据块，以及索引本身。
 	for _, key := range []string{
 		fmt.Sprintf(KeyDictData, uint(1), "gender"),
 		fmt.Sprintf(KeyDictData, uint(2), "gender"),
@@ -180,8 +177,8 @@ func TestDictDataExpireClampsConfiguredTTL(t *testing.T) {
 }
 
 func TestDictCacheDegradesWithoutRedis(t *testing.T) {
-	// No Redis configured: reads must miss and writes must report the cache as
-	// unavailable instead of panicking on the typed-nil global client.
+	// 未配置 Redis：读取必须未命中，写入必须报告缓存不可用，
+	// 而不能在类型化 nil 的全局 client 上 panic。
 	service := NewCacheServiceWithClient(nil)
 	ctx := context.Background()
 

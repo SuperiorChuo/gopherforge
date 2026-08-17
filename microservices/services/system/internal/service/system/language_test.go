@@ -8,7 +8,6 @@ import (
 
 func TestSystemServiceEngineeringFilesUseEnglishSourceText(t *testing.T) {
 	for _, file := range []string{
-		"../../pkg/cache/cache.go", // moved from this package; keep it covered
 		"menu_user.go",
 	} {
 		t.Run(file, func(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
-	"github.com/go-admin-kit/services/identity/internal/pkg/cache"
+	"github.com/go-admin-kit/services/shared/pkg/cache"
 )
 
 // PermissionCacheStore resolves the users affected by role or permission changes.

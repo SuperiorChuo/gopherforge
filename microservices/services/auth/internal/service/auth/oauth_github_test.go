@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/auth/internal/config"
-	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
+	"github.com/go-admin-kit/services/shared/pkg/cache"
 )
 
 func TestGithubOAuthClientAuthURLStoresStateAndPKCE(t *testing.T) {

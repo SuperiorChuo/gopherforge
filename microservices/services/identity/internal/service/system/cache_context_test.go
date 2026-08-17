@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
-	"github.com/go-admin-kit/services/identity/internal/pkg/cache"
+	"github.com/go-admin-kit/services/shared/pkg/cache"
 )
 
 func TestInvalidatePermissionCacheByRolesContextHonorsCanceledContext(t *testing.T) {

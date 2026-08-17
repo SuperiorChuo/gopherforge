@@ -5,11 +5,11 @@ import (
 	"errors"
 	"strings"
 
+	cachepkg "github.com/go-admin-kit/services/shared/pkg/cache"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
 	localmodel "github.com/go-admin-kit/services/system/internal/model"
-	cachepkg "github.com/go-admin-kit/services/system/internal/pkg/cache"
 	"gorm.io/gorm"
 )
 
@@ -18,7 +18,7 @@ type DictService struct {
 	cache   *cachepkg.CacheService
 }
 
-// NewDictServiceWithDB builds a DictService backed by an injected database handle.
+// NewDictServiceWithDB 构建一个基于注入的数据库句柄的 DictService。
 func NewDictServiceWithDB(db *gorm.DB) DictService {
 	return DictService{
 		dictDAO: *systemdao.NewDictDAO(db),
@@ -26,8 +26,8 @@ func NewDictServiceWithDB(db *gorm.DB) DictService {
 	}
 }
 
-// NewDictServiceWithCache builds a DictService with an explicit cache handle
-// (tests inject a dedicated Redis client this way).
+// NewDictServiceWithCache 构建带显式缓存句柄的 DictService
+// （测试借此注入专用 Redis 客户端）。
 func NewDictServiceWithCache(db *gorm.DB, cache *cachepkg.CacheService) DictService {
 	return DictService{
 		dictDAO: *systemdao.NewDictDAO(db),
@@ -35,8 +35,8 @@ func NewDictServiceWithCache(db *gorm.DB, cache *cachepkg.CacheService) DictServ
 	}
 }
 
-// cacheService resolves the cache handle, falling back to the shared instance
-// so a zero-value DictService still behaves like the injected one.
+// cacheService 解析缓存句柄，回退到共享实例，
+// 使零值 DictService 也能表现得与注入实例一致。
 func (s *DictService) cacheService() *cachepkg.CacheService {
 	if s.cache != nil {
 		return s.cache
@@ -44,11 +44,10 @@ func (s *DictService) cacheService() *cachepkg.CacheService {
 	return cachepkg.NewCacheService()
 }
 
-// invalidateDictCache drops every cached dictionary payload. Called after each
-// dictionary write; see cache/dict.go for why invalidation is namespace-wide.
+// invalidateDictCache 删除所有缓存的字典负载。每次字典写入后调用；
+// 关于失效为何按命名空间整体进行，见 cache/dict.go。
 func (s *DictService) invalidateDictCache(ctx context.Context) {
-	// Best effort: a cache that cannot be reached must not fail the write. The
-	// bounded TTL is the backstop.
+	// 尽力而为：缓存不可达不能导致写入失败。有界 TTL 是兜底。
 	_ = s.cacheService().DelAllDictDataContext(ctx)
 }
 
@@ -293,8 +292,8 @@ func (s *DictService) DeleteItemContext(ctx context.Context, id uint) error {
 	return nil
 }
 
-// GetDictDataContext returns one code's active items, served from cache when
-// warm. GET /dicts/:code.
+// GetDictDataContext 返回单个 code 的启用条目，缓存热时直接命中。
+// GET /dicts/:code。
 func (s *DictService) GetDictDataContext(ctx context.Context, code string) ([]localmodel.DictItem, error) {
 	resolved, err := s.resolveDictCodesContext(ctx, []string{code})
 	if err != nil {
@@ -307,16 +306,16 @@ func (s *DictService) GetDictDataContext(ctx context.Context, code string) ([]lo
 	return items, nil
 }
 
-// GetMultipleDictDataContext returns active items for several codes at once.
-// GET /dicts?codes=a,b,c. Warm cache costs zero queries; a cold or partial
-// cache costs two queries total (types by code, then their items) instead of
-// the two-per-code it replaces. Unknown codes are omitted, as before.
+// GetMultipleDictDataContext 一次返回多个 code 的启用条目。
+// GET /dicts?codes=a,b,c。缓存热时零查询；缓存冷或部分命中时总共两次查询
+// （先按 code 查类型，再查其条目），取代原先每个 code 两次查询的做法。
+// 未知 code 同样会被省略。
 func (s *DictService) GetMultipleDictDataContext(ctx context.Context, codes []string) (map[string][]localmodel.DictItem, error) {
 	return s.resolveDictCodesContext(ctx, codes)
 }
 
-// resolveDictCodesContext is the shared cache-aside path for the by-code
-// endpoints. Codes absent from the returned map have no active dict type.
+// resolveDictCodesContext 是按 code 查询各端点的共享旁路缓存路径。
+// 返回的 map 中缺失的 code 表示没有启用的字典类型。
 func (s *DictService) resolveDictCodesContext(ctx context.Context, codes []string) (map[string][]localmodel.DictItem, error) {
 	wanted := normalizeDictCodes(codes)
 	result := make(map[string][]localmodel.DictItem, len(wanted))
@@ -336,10 +335,10 @@ func (s *DictService) resolveDictCodesContext(ctx context.Context, codes []strin
 				missing = append(missing, code)
 				continue
 			}
-			// A cached miss (Found=false) is an answer too: the code has no
-			// active dict type, so it stays out of the result without a query.
+			// 缓存的未命中（Found=false）同样是答案：该 code 没有
+			// 启用的字典类型，因此无需查询即可从结果中排除。
 			if entry.Found {
-				result[code] = entry.Items
+				result[code] = dictItemsFromCache(entry.Items)
 			}
 		}
 	}
@@ -358,21 +357,21 @@ func (s *DictService) resolveDictCodesContext(ctx context.Context, codes []strin
 		if found {
 			result[code] = items
 		}
-		entries[code] = cachepkg.DictEntry{Found: found, Items: items}
+		entries[code] = cachepkg.DictEntry{Found: found, Items: dictItemsToCache(items)}
 	}
-	// Best effort: a cache write failure only costs the next request a query.
+	// 尽力而为：缓存写入失败只会让下一个请求多一次查询。
 	_ = cache.SetDictCodesContext(ctx, tenantID, entries)
 
 	return result, nil
 }
 
-// GetAllDictDataContext returns every active code with its active items.
-// GET /dicts/all. Two queries on a cold cache (down from 1+N), zero when warm.
+// GetAllDictDataContext 返回所有启用 code 及其启用条目。
+// GET /dicts/all。缓存冷时两次查询（由 1+N 降下来），热时零查询。
 func (s *DictService) GetAllDictDataContext(ctx context.Context) (map[string][]localmodel.DictItem, error) {
 	tenantID := tenant.FromContextOrDefault(ctx)
 	cache := s.cacheService()
 	if cached, ok := cache.GetAllDictDataContext(ctx, tenantID); ok {
-		return cached, nil
+		return dictDataFromCache(cached), nil
 	}
 
 	types, err := s.dictDAO.GetAllTypesWithItemsContext(ctx)
@@ -385,12 +384,12 @@ func (s *DictService) GetAllDictDataContext(ctx context.Context) (map[string][]l
 		result[t.Code] = t.Items
 	}
 
-	_ = cache.SetAllDictDataContext(ctx, tenantID, result)
+	_ = cache.SetAllDictDataContext(ctx, tenantID, dictDataToCache(result))
 	return result, nil
 }
 
-// normalizeDictCodes trims, drops empties and de-duplicates the requested
-// codes so a repeated code cannot multiply the cache round trip.
+// normalizeDictCodes 对请求的 codes 做去空格、去空值与去重，
+// 避免重复 code 成倍增加缓存往返。
 func normalizeDictCodes(codes []string) []string {
 	seen := make(map[string]struct{}, len(codes))
 	normalized := make([]string, 0, len(codes))
@@ -406,4 +405,42 @@ func normalizeDictCodes(codes []string) []string {
 		normalized = append(normalized, code)
 	}
 	return normalized
+}
+
+func dictItemsToCache(items []localmodel.DictItem) []cachepkg.DictItem {
+	out := make([]cachepkg.DictItem, len(items))
+	for i, item := range items {
+		out[i] = cachepkg.DictItem{
+			ID: item.ID, DictTypeID: item.DictTypeID, Label: item.Label,
+			Value: item.Value, Sort: item.Sort, Status: item.Status, Remark: item.Remark,
+		}
+	}
+	return out
+}
+
+func dictItemsFromCache(items []cachepkg.DictItem) []localmodel.DictItem {
+	out := make([]localmodel.DictItem, len(items))
+	for i, item := range items {
+		out[i] = localmodel.DictItem{
+			ID: item.ID, DictTypeID: item.DictTypeID, Label: item.Label,
+			Value: item.Value, Sort: item.Sort, Status: item.Status, Remark: item.Remark,
+		}
+	}
+	return out
+}
+
+func dictDataToCache(data map[string][]localmodel.DictItem) map[string][]cachepkg.DictItem {
+	out := make(map[string][]cachepkg.DictItem, len(data))
+	for code, items := range data {
+		out[code] = dictItemsToCache(items)
+	}
+	return out
+}
+
+func dictDataFromCache(data map[string][]cachepkg.DictItem) map[string][]localmodel.DictItem {
+	out := make(map[string][]localmodel.DictItem, len(data))
+	for code, items := range data {
+		out[code] = dictItemsFromCache(items)
+	}
+	return out
 }
