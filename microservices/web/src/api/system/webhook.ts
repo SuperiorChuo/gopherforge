@@ -1,47 +1,15 @@
 import request from '@/utils/request'
+import type { Schema } from '@/api/generated'
 
-export interface WebhookSubscription {
-  id: number
-  tenant_id: number
-  name: string
-  endpoint_url: string
-  event_actions: string[]
-  status: number
-  consecutive_failures: number
-  last_delivered_at?: string
-  last_error?: string
-  created_at: string
-  updated_at: string
-}
-
-export interface WebhookDelivery {
-  id: number
-  subscription_id: number
-  event_id: string
-  event_action: string
-  status: 'pending' | 'retrying' | 'sent' | 'failed'
-  attempts: number
-  response_status?: number
-  response_body?: string
-  last_error?: string
-  delivered_at?: string
-  created_at: string
-}
-
-export interface WebhookMutation {
-  name: string
-  endpoint_url: string
-  event_actions: string[]
-  status: number
-}
-
-export interface WebhookSecretResult {
-  subscription: WebhookSubscription
-  secret: string
-}
+export type WebhookSubscription = Schema<'WebhookSubscription'>
+export type WebhookDelivery = Schema<'WebhookDelivery'>
+export type WebhookMutation = Schema<'WebhookMutationRequest'>
+export type WebhookSecretResult = Schema<'WebhookSecretResult'>
+export type WebhookSubscriptionList = Schema<'WebhookSubscriptionList'>
+export type WebhookDeliveryList = Schema<'WebhookDeliveryList'>
 
 export const listWebhooks = (params?: { page?: number; page_size?: number }) =>
-  request.get<unknown, { list: WebhookSubscription[]; total: number; page: number; page_size: number }>('/api/v1/webhooks', { params })
+  request.get<unknown, WebhookSubscriptionList>('/api/v1/webhooks', { params })
 
 export const createWebhook = (data: WebhookMutation) =>
   request.post<unknown, WebhookSecretResult>('/api/v1/webhooks', data)
@@ -55,4 +23,4 @@ export const resetWebhookSecret = (id: number) =>
   request.post<unknown, WebhookSecretResult>(`/api/v1/webhooks/${id}/reset-secret`)
 
 export const listWebhookDeliveries = (params?: { subscription_id?: number; page?: number; page_size?: number }) =>
-  request.get<unknown, { list: WebhookDelivery[]; total: number; page: number; page_size: number }>('/api/v1/webhook-deliveries', { params })
+  request.get<unknown, WebhookDeliveryList>('/api/v1/webhook-deliveries', { params })
