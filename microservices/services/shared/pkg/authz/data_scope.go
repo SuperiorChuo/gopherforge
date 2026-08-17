@@ -4,15 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"slices"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	localmodel "github.com/go-admin-kit/services/identity/internal/model"
-	"github.com/go-admin-kit/services/identity/internal/pkg/database"
-	redisstore "github.com/go-admin-kit/services/identity/internal/pkg/redis"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
@@ -53,15 +51,63 @@ type departmentTreeCacheRow struct {
 
 // DataScopeStore loads data permission dependencies.
 type DataScopeStore interface {
-	ListDepartments(ctx context.Context) ([]localmodel.Department, error)
+	ListDepartments(ctx context.Context) ([]model.Department, error)
 	ListRoleDataScopeDepartmentIDs(ctx context.Context, roleIDs []uint) ([]uint, error)
 }
 
 // DepartmentTreeCache caches department tree rows for data-scope resolution.
 type DepartmentTreeCache interface {
-	GetDepartmentTree(ctx context.Context) ([]localmodel.Department, bool)
-	SetDepartmentTree(ctx context.Context, depts []localmodel.Department) error
+	GetDepartmentTree(ctx context.Context) ([]model.Department, bool)
+	SetDepartmentTree(ctx context.Context, depts []model.Department) error
 	InvalidateDepartmentTree(ctx context.Context) error
+}
+
+// RemoteCache 是部门树跨实例失效的远端缓存抽象（authz 收敛批次 1 引入）。
+// 服务侧用 SetRemoteCache 注入各自 redis 客户端（shared/pkg/authz 提供
+// NewGoRedisRemoteCache 通用适配器）；未装配时缓存降级为纯本地（与原
+// redisstore.Client == nil 语义一致）。
+type RemoteCache interface {
+	Get(ctx context.Context, key string) ([]byte, error)
+	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
+	Del(ctx context.Context, key string) error
+	PublishString(ctx context.Context, channel, payload string) error
+	// StartSubscriber 订阅 channel，返回的 io.Closer 停止订阅。
+	StartSubscriber(ctx context.Context, channel string, handler func(context.Context, string)) (io.Closer, error)
+}
+
+var (
+	remoteCacheMu sync.RWMutex
+	remoteCache   RemoteCache
+	defaultDB     *gorm.DB
+)
+
+// SetRemoteCache 安装部门树远端缓存（nil 时降级为纯本地缓存）。
+func SetRemoteCache(c RemoteCache) {
+	remoteCacheMu.Lock()
+	defer remoteCacheMu.Unlock()
+	remoteCache = c
+}
+
+// currentRemoteCache 返回已装配的远端缓存；未装配时返回 nil（调用方降级）。
+func currentRemoteCache() RemoteCache {
+	remoteCacheMu.RLock()
+	defer remoteCacheMu.RUnlock()
+	return remoteCache
+}
+
+// SetDefaultDB 安装 databaseDataScopeStore 零值兜底所用的默认数据库连接。
+// 服务启动装配时调用（原实现直接引用各服务 internal/pkg/database.DB 全局）。
+func SetDefaultDB(db *gorm.DB) {
+	remoteCacheMu.Lock()
+	defer remoteCacheMu.Unlock()
+	defaultDB = db
+}
+
+// currentDefaultDB 返回装配的默认数据库连接（可能为 nil，调用方自行处理）。
+func currentDefaultDB() *gorm.DB {
+	remoteCacheMu.RLock()
+	defer remoteCacheMu.RUnlock()
+	return defaultDB
 }
 
 // DataScopeResolver resolves user data permissions with injectable persistence.
@@ -115,16 +161,16 @@ type UserDataScope struct {
 	RoleCodes     []string
 }
 
-func ResolveUserDataScopeContext(ctx context.Context, user *localmodel.User) (UserDataScope, error) {
+func ResolveUserDataScopeContext(ctx context.Context, user *model.User) (UserDataScope, error) {
 	return NewDataScopeResolver(nil).ResolveUserDataScopeContext(ctx, user)
 }
 
 // ResolveUserDataScopeFallbackContext resolves scope and falls back to self scope on dependency errors.
-func ResolveUserDataScopeFallbackContext(ctx context.Context, user *localmodel.User) UserDataScope {
+func ResolveUserDataScopeFallbackContext(ctx context.Context, user *model.User) UserDataScope {
 	return NewDataScopeResolver(nil).ResolveUserDataScopeFallbackContext(ctx, user)
 }
 
-func (r *DataScopeResolver) ResolveUserDataScopeFallbackContext(ctx context.Context, user *localmodel.User) UserDataScope {
+func (r *DataScopeResolver) ResolveUserDataScopeFallbackContext(ctx context.Context, user *model.User) UserDataScope {
 	scope, err := r.ResolveUserDataScopeContext(ctx, user)
 	if err == nil {
 		return scope
@@ -140,7 +186,7 @@ func (r *DataScopeResolver) ResolveUserDataScopeFallbackContext(ctx context.Cont
 	}
 }
 
-func (r *DataScopeResolver) ResolveUserDataScopeContext(ctx context.Context, user *localmodel.User) (UserDataScope, error) {
+func (r *DataScopeResolver) ResolveUserDataScopeContext(ctx context.Context, user *model.User) (UserDataScope, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -376,7 +422,7 @@ func (r *DataScopeResolver) resolveDepartmentTreeIDsContext(ctx context.Context,
 	return ids, nil
 }
 
-func (r *DataScopeResolver) loadDepartmentTreeContext(ctx context.Context) ([]localmodel.Department, error) {
+func (r *DataScopeResolver) loadDepartmentTreeContext(ctx context.Context) ([]model.Department, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -394,10 +440,10 @@ func (r *DataScopeResolver) loadDepartmentTreeContext(ctx context.Context) ([]lo
 	return depts, nil
 }
 
-func departmentRowsToModels(rows []departmentTreeCacheRow) []localmodel.Department {
-	depts := make([]localmodel.Department, 0, len(rows))
+func departmentRowsToModels(rows []departmentTreeCacheRow) []model.Department {
+	depts := make([]model.Department, 0, len(rows))
 	for _, row := range rows {
-		depts = append(depts, localmodel.Department{
+		depts = append(depts, model.Department{
 			ID:       row.ID,
 			ParentID: row.ParentID,
 		})
@@ -405,7 +451,7 @@ func departmentRowsToModels(rows []departmentTreeCacheRow) []localmodel.Departme
 	return depts
 }
 
-func departmentModelsToRows(depts []localmodel.Department) []departmentTreeCacheRow {
+func departmentModelsToRows(depts []model.Department) []departmentTreeCacheRow {
 	rows := make([]departmentTreeCacheRow, 0, len(depts))
 	for _, dept := range depts {
 		rows = append(rows, departmentTreeCacheRow{
@@ -428,20 +474,21 @@ func cloneDepartmentTreeRows(rows []departmentTreeCacheRow) []departmentTreeCach
 	return cloned
 }
 
-func (c *layeredDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]localmodel.Department, bool) {
+func (c *layeredDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]model.Department, bool) {
 	tenantID := tenant.FromContext(ctx)
 	if rows, ok := c.getLocalRows(tenantID); ok {
 		return departmentRowsToModels(rows), true
 	}
 
-	if redisstore.Client == nil {
+	rc := currentRemoteCache()
+	if rc == nil {
 		return nil, false
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	data, err := redisstore.Client.Get(ctx, departmentTreeCacheKey(tenantID)).Bytes()
+	data, err := rc.Get(ctx, departmentTreeCacheKey(tenantID))
 	if err != nil {
 		return nil, false
 	}
@@ -456,12 +503,13 @@ func (c *layeredDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]l
 	return departmentRowsToModels(rows), true
 }
 
-func (c *layeredDepartmentTreeCache) SetDepartmentTree(ctx context.Context, depts []localmodel.Department) error {
+func (c *layeredDepartmentTreeCache) SetDepartmentTree(ctx context.Context, depts []model.Department) error {
 	tenantID := tenant.FromContext(ctx)
 	rows := departmentModelsToRows(depts)
 	c.setLocalRows(tenantID, rows)
 
-	if redisstore.Client == nil {
+	rc := currentRemoteCache()
+	if rc == nil {
 		return nil
 	}
 	if ctx == nil {
@@ -472,15 +520,19 @@ func (c *layeredDepartmentTreeCache) SetDepartmentTree(ctx context.Context, dept
 	if err != nil {
 		return err
 	}
-	return redisstore.Client.Set(ctx, departmentTreeCacheKey(tenantID), data, departmentTreeCacheTTL).Err()
+	return rc.Set(ctx, departmentTreeCacheKey(tenantID), data, departmentTreeCacheTTL)
 }
 
 func InvalidateDepartmentTreeCacheContext(ctx context.Context) error {
 	return defaultDepartmentTreeCache.InvalidateDepartmentTree(ctx)
 }
 
-func StartDepartmentTreeInvalidationListener(ctx context.Context) (*redisstore.StringSubscriber, error) {
-	return redisstore.StartSubscriber(ctx, departmentTreeInvalidateChannel, func(_ context.Context, payload string) {
+func StartDepartmentTreeInvalidationListener(ctx context.Context) (io.Closer, error) {
+	rc := currentRemoteCache()
+	if rc == nil {
+		return nil, fmt.Errorf("authz remote cache not configured")
+	}
+	return rc.StartSubscriber(ctx, departmentTreeInvalidateChannel, func(_ context.Context, payload string) {
 		// "clear" is still honoured so that a peer running the pre-sharding build
 		// can invalidate this process during a rolling deploy.
 		if payload == departmentTreeInvalidatePayloadClear {
@@ -499,7 +551,8 @@ func (c *layeredDepartmentTreeCache) InvalidateDepartmentTree(ctx context.Contex
 	tenantID := tenant.FromContext(ctx)
 	c.clearLocal(tenantID)
 
-	if redisstore.Client == nil {
+	rc := currentRemoteCache()
+	if rc == nil {
 		return nil
 	}
 	if ctx == nil {
@@ -509,7 +562,7 @@ func (c *layeredDepartmentTreeCache) InvalidateDepartmentTree(ctx context.Contex
 	if err := c.deleteRemote(ctx, tenantID); err != nil {
 		return err
 	}
-	return redisstore.PublishString(ctx, departmentTreeInvalidateChannel, strconv.FormatUint(uint64(tenantID), 10))
+	return rc.PublishString(ctx, departmentTreeInvalidateChannel, strconv.FormatUint(uint64(tenantID), 10))
 }
 
 func (c *layeredDepartmentTreeCache) getLocalRows(tenantID uint) ([]departmentTreeCacheRow, bool) {
@@ -573,13 +626,14 @@ func (c *layeredDepartmentTreeCache) clearAllLocal() {
 }
 
 func (c *layeredDepartmentTreeCache) deleteRemote(ctx context.Context, tenantID uint) error {
-	if redisstore.Client == nil {
+	rc := currentRemoteCache()
+	if rc == nil {
 		return nil
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return redisstore.Client.Del(ctx, departmentTreeCacheKey(tenantID)).Err()
+	return rc.Del(ctx, departmentTreeCacheKey(tenantID))
 }
 
 func resolveRoleDataScope(role model.Role) DataScope {
@@ -673,17 +727,20 @@ func (r *DataScopeResolver) departmentTreeCache() DepartmentTreeCache {
 	return defaultDepartmentTreeCache
 }
 
-func (s databaseDataScopeStore) ListDepartments(ctx context.Context) ([]localmodel.Department, error) {
+func (s databaseDataScopeStore) ListDepartments(ctx context.Context) ([]model.Department, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
 	db := s.db
 	if db == nil {
-		db = database.DB
+		db = currentDefaultDB()
 	}
-	var depts []localmodel.Department
-	if err := db.WithContext(ctx).Model(&localmodel.Department{}).Select("id", "parent_id").Find(&depts).Error; err != nil {
+	if db == nil {
+		return nil, fmt.Errorf("authz default db not configured")
+	}
+	var depts []model.Department
+	if err := db.WithContext(ctx).Model(&model.Department{}).Select("id", "parent_id").Find(&depts).Error; err != nil {
 		return nil, err
 	}
 	return depts, nil
@@ -696,7 +753,10 @@ func (s databaseDataScopeStore) ListRoleDataScopeDepartmentIDs(ctx context.Conte
 
 	db := s.db
 	if db == nil {
-		db = database.DB
+		db = currentDefaultDB()
+	}
+	if db == nil {
+		return nil, fmt.Errorf("authz default db not configured")
 	}
 	var relations []model.RoleDataScopeDepartment
 	if err := db.WithContext(ctx).
@@ -735,7 +795,7 @@ func uniqueUintIDs(ids []uint) []uint {
 	return unique
 }
 
-func collectChildDepartmentIDs(depts []localmodel.Department, parentID uint, ids *[]uint) {
+func collectChildDepartmentIDs(depts []model.Department, parentID uint, ids *[]uint) {
 	for _, dept := range depts {
 		if dept.ParentID == parentID {
 			*ids = append(*ids, dept.ID)

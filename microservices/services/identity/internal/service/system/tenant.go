@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-admin-kit/services/identity/internal/dao/system"
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
-	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
@@ -165,11 +165,14 @@ func (s *TenantService) Create(ctx context.Context, req CreateTenantRequest) (*l
 	if err := s.dao.CreateContext(ctx, t); err != nil {
 		return nil, nil, err
 	}
-	// 开通：建初始管理员角色 + 授权 + 管理员用户。失败则回滚租户行，保持原子。
+	// 开通：建初始管理员角色 + 授权 + 管理员用户。
+	// 失败用 Delete 全量级联清理（角色/用户/join 表），勿只删 tenants 行留下孤儿。
 	admin, err := s.provision(t)
 	if err != nil {
-		_ = s.dao.DeleteContext(tenant.WithContext(context.Background(), t.ID), t.ID)
-		return nil, nil, fmt.Errorf("租户已创建但开通失败（已回滚）：%w", err)
+		if delErr := s.Delete(context.Background(), t.ID); delErr != nil {
+			return nil, nil, fmt.Errorf("租户开通失败：%w（级联清理也失败：%v）", err, delErr)
+		}
+		return nil, nil, fmt.Errorf("租户开通失败（已回滚）：%w", err)
 	}
 	return t, admin, nil
 }
@@ -227,10 +230,12 @@ func (s *TenantService) provision(t *localmodel.Tenant) (*ProvisionedAdmin, erro
 	if err != nil {
 		return nil, err
 	}
+	mustChange := true
 	adminUser, err := userSvc.CreateUserContext(pctx, CreateUserRequest{
-		Username: "admin",
-		Password: initialPwd,
-		Nickname: "管理员",
+		Username:   "admin",
+		Password:   initialPwd,
+		Nickname:   "管理员",
+		MustChange: &mustChange,
 	})
 	if err != nil {
 		return nil, err

@@ -9,6 +9,7 @@ import (
 	miniredis "github.com/alicebob/miniredis/v2"
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
 	redisstore "github.com/go-admin-kit/services/identity/internal/pkg/redis"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	goredis "github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -158,10 +159,12 @@ func setupDepartmentServiceTestRedis(t *testing.T) *miniredis.Miniredis {
 	oldClient := redisstore.Client
 	client := goredis.NewClient(&goredis.Options{Addr: store.Addr()})
 	redisstore.Client = client
+	authz.SetRemoteCache(authz.NewGoRedisRemoteCache(client))
 
 	t.Cleanup(func() {
 		_ = client.Close()
 		redisstore.Client = oldClient
+		authz.SetRemoteCache(nil)
 		store.Close()
 	})
 

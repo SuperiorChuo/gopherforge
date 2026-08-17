@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -21,7 +22,7 @@ import (
 	systemDAO "github.com/go-admin-kit/services/audit/internal/dao/system"
 	"github.com/go-admin-kit/services/audit/internal/events"
 	"github.com/go-admin-kit/services/audit/internal/middleware"
-	"github.com/go-admin-kit/services/audit/internal/pkg/authz"
+	localmodel "github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/audit/internal/pkg/database"
 	"github.com/go-admin-kit/services/audit/internal/pkg/observability"
 	"github.com/go-admin-kit/services/audit/internal/pkg/redis"
@@ -29,12 +30,14 @@ import (
 	authsvc "github.com/go-admin-kit/services/audit/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/audit/internal/service/system"
 	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"github.com/go-admin-kit/services/shared/pkg/grpcx"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
 	"github.com/go-admin-kit/services/shared/pkg/outbox"
 	"github.com/go-admin-kit/services/shared/pkg/secretbox"
@@ -230,6 +233,8 @@ func run(ctx context.Context) error {
 	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {
 		return fmt.Errorf("data scope plugin registration failed: %w", err)
 	}
+	authz.SetDefaultDB(database.DB)
+	registerAuthzScopedModels()
 	webhookKey, err := config.WebhookEncryptionKey(config.Cfg)
 	if err != nil {
 		return err
@@ -286,6 +291,7 @@ func run(ctx context.Context) error {
 	if err := redis.InitRedis(); err != nil {
 		return fmt.Errorf("redis initialization failed: %w", err)
 	}
+	authz.SetRemoteCache(authz.NewGoRedisRemoteCache(redis.Client))
 	jwt.SetRedis(redis.Client)
 	defer func() {
 		if err := redis.Close(); err != nil {
@@ -518,4 +524,10 @@ func startOutboxWorker(ctx context.Context, natsURL string, db *gorm.DB) (func()
 		stop()
 		nc.Close()
 	}, nil
+}
+
+func registerAuthzScopedModels() {
+	authz.RegisterScopedModel(reflect.TypeOf(model.File{}), authz.ScopeByOwner)
+	authz.RegisterScopedModel(reflect.TypeOf(localmodel.LoginLog{}), authz.ScopeByOwner)
+	authz.RegisterScopedModel(reflect.TypeOf(localmodel.OperationLog{}), authz.ScopeByOwner)
 }

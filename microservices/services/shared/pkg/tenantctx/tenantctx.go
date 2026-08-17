@@ -2,6 +2,11 @@
 // boundaries. It exists as a leaf package so that both middleware (which writes
 // the value) and lower-level packages such as authz (which read it) can share
 // one context key without an import cycle.
+//
+// 本包为 authz 收敛批次 1 从 monitor/internal/pkg/tenantctx 提升而来：
+// shared/pkg/tenant 的 ContextKey/WithContext/FromContext 内部委托本包，
+// 使全仓（6 服务 middleware + shared/pkg/authz）统一使用同一个 typed key，
+// 消除 monitor 与其余服务的租户上下文分叉。
 package tenantctx
 
 import "context"
@@ -30,6 +35,10 @@ func FromContext(ctx context.Context) uint {
 	case uint64:
 		return uint(v)
 	case int:
+		if v > 0 {
+			return uint(v)
+		}
+	case int64:
 		if v > 0 {
 			return uint(v)
 		}

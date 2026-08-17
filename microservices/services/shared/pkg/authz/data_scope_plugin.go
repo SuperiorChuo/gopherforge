@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sync"
 
 	model "github.com/go-admin-kit/services/shared/pkg/model"
-	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -17,16 +17,47 @@ type dataScopeDirective struct {
 	Scope    UserDataScope
 }
 
-var (
-	userModelType         = reflect.TypeOf(model.User{})
-	fileModelType         = reflect.TypeOf(model.File{})
-	loginLogModelType     = reflect.TypeOf(localmodel.LoginLog{})
-	operationLogModelType = reflect.TypeOf(localmodel.OperationLog{})
+// ScopedModelKind 描述受管模型的数据范围形态（authz 收敛批次 1 注册表化：
+// 原实现硬编码各服务 localmodel 类型，shared 无法引用服务私有 model 包，
+// 改为服务侧启动时注册，天然支持各服务模型集差异）。
+type ScopedModelKind int
+
+const (
+	// ScopeByUserEntity 按用户实体过滤（id、department_id 两列，用户表形态）。
+	ScopeByUserEntity ScopedModelKind = iota
+	// ScopeByOwner 按归属人过滤（user_id 列，文件/日志/操作记录形态）。
+	ScopeByOwner
 )
+
+var (
+	userModelType = reflect.TypeOf(model.User{})
+
+	scopedModelMu    sync.RWMutex
+	scopedModelKinds = map[reflect.Type]ScopedModelKind{}
+)
+
+// RegisterScopedModel 注册受管模型的数据范围形态，供 DataScopePlugin 自动过滤。
+// 服务启动装配时调用（重复注册同一类型以后者为准，幂等）。
+func RegisterScopedModel(modelType reflect.Type, kind ScopedModelKind) {
+	if modelType == nil {
+		return
+	}
+	scopedModelMu.Lock()
+	defer scopedModelMu.Unlock()
+	scopedModelKinds[modelType] = kind
+}
+
+// lookupScopedModelKind 返回已注册模型的范围形态；未注册返回 (0, false)。
+func lookupScopedModelKind(modelType reflect.Type) (ScopedModelKind, bool) {
+	scopedModelMu.RLock()
+	defer scopedModelMu.RUnlock()
+	kind, ok := scopedModelKinds[modelType]
+	return kind, ok
+}
 
 const dataScopeAppliedSetting = "go_admin_kit:data_scope_applied"
 
-// EnableDataScope marks a query context for plugin-managed data-scope filtering.
+// EnableDataScope 标记查询上下文，启用由插件管理的数据范围过滤。
 func EnableDataScope(ctx context.Context, scope UserDataScope) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
@@ -36,7 +67,7 @@ func EnableDataScope(ctx context.Context, scope UserDataScope) context.Context {
 	})
 }
 
-// DisableDataScope explicitly disables plugin-managed data-scope filtering.
+// DisableDataScope 显式禁用由插件管理的数据范围过滤。
 func DisableDataScope(ctx context.Context) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
@@ -46,7 +77,7 @@ func DisableDataScope(ctx context.Context) context.Context {
 	})
 }
 
-// ForceSelfScope forces plugin-managed queries to use self scope for the supplied user ID.
+// ForceSelfScope 强制由插件管理的查询对指定的用户 ID 使用本人范围。
 func ForceSelfScope(ctx context.Context, userID uint) context.Context {
 	return EnableDataScope(ctx, UserDataScope{
 		Scope:  DataScopeSelf,
@@ -54,7 +85,7 @@ func ForceSelfScope(ctx context.Context, userID uint) context.Context {
 	})
 }
 
-// DataScopePlugin applies opt-in data-scope filters for supported models.
+// DataScopePlugin 对支持的模型应用可选的数据范围过滤。
 type DataScopePlugin struct{}
 
 func NewDataScopePlugin() *DataScopePlugin {
@@ -114,10 +145,19 @@ func applyDataScopePlugin(db *gorm.DB) {
 	switch db.Statement.Schema.ModelType {
 	case userModelType:
 		scoped = ApplyUserEntityScope(db, directive.Scope, "id", "department_id")
-	case fileModelType, loginLogModelType, operationLogModelType:
-		scoped = ApplyOwnerScope(db, directive.Scope, "user_id")
 	default:
-		return
+		kind, ok := lookupScopedModelKind(db.Statement.Schema.ModelType)
+		if !ok {
+			return
+		}
+		switch kind {
+		case ScopeByOwner:
+			scoped = ApplyOwnerScope(db, directive.Scope, "user_id")
+		case ScopeByUserEntity:
+			scoped = ApplyUserEntityScope(db, directive.Scope, "id", "department_id")
+		default:
+			return
+		}
 	}
 
 	if scoped != nil && scoped != db {
@@ -134,7 +174,7 @@ func lookupDataScopeDirective(ctx context.Context) (dataScopeDirective, bool) {
 	return directive, ok
 }
 
-// Only plain Model(&T{}) queries are auto-scoped in phase 1; aliased/custom/joined shapes stay manual.
+// 阶段一仅对简单的 Model(&T{}) 查询自动应用数据范围；别名/自定义/联表等形态仍需手动处理。
 func isSimpleDataScopeTarget(stmt *gorm.Statement) bool {
 	if stmt == nil || stmt.Schema == nil {
 		return false

@@ -19,13 +19,19 @@ import (
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/go-admin-kit/services/shared/pkg/tenantctx"
 )
 
 // contextKey 私有类型避免与 context 中其它 string key 冲突（SA1029）。
 type contextKey string
 
 // ContextKey is the request context key for the active tenant id.
-const ContextKey contextKey = "tenant_id"
+//
+// authz 收敛批次 1：统一委托 shared/pkg/tenantctx 的 Key（typed key 与
+// monitor 原 tenantctx 体系合并），各服务 auth middleware 的
+// TenantIDContextKey 别名自动落到同一个 key，消除租户上下文分叉。
+const ContextKey = tenantctx.Key
 
 // PlatformAdminContextKey 平台管理员标记（SA1029 typed key）。auth 中间件写入，
 // 各服务 dao/service 读取；放本 leaf 包避免 middleware↔dao 循环依赖。
@@ -37,33 +43,15 @@ const DefaultID uint = 1
 type disableScopeKey struct{}
 
 // FromContext returns tenant id from context (0 if absent).
+// 委托 tenantctx：全仓统一 key（authz 收敛批次 1）。
 func FromContext(ctx context.Context) uint {
-	if ctx == nil {
-		return 0
-	}
-	switch v := ctx.Value(ContextKey).(type) {
-	case uint:
-		return v
-	case uint64:
-		return uint(v)
-	case int:
-		if v > 0 {
-			return uint(v)
-		}
-	case int64:
-		if v > 0 {
-			return uint(v)
-		}
-	}
-	return 0
+	return tenantctx.FromContext(ctx)
 }
 
 // WithContext stores tenant id on context.
+// 委托 tenantctx：全仓统一 key（authz 收敛批次 1）。
 func WithContext(ctx context.Context, tenantID uint) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return context.WithValue(ctx, ContextKey, tenantID)
+	return tenantctx.WithContext(ctx, tenantID)
 }
 
 // DisableScope disables automatic tenant filtering for platform-wide queries (e.g. tenant admin).

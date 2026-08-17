@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
-	"github.com/go-admin-kit/services/system/internal/pkg/authz"
 	"gorm.io/gorm"
 )
 

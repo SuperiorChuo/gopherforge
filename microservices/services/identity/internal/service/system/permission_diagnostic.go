@@ -8,7 +8,7 @@ import (
 
 	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
-	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
@@ -259,7 +259,7 @@ func (s *PermissionDiagnosticService) fillPackageContext(ctx context.Context, te
 
 func (s *PermissionDiagnosticService) fillDataScopeContext(ctx context.Context, user *localmodel.User, roles []model.Role, result *PermissionDiagnosticResult) error {
 	user.Roles = roles
-	scope, err := s.dataScopeResolver.ResolveUserDataScopeContext(ctx, user)
+	scope, err := s.dataScopeResolver.ResolveUserDataScopeContext(ctx, sharedUserFromLocal(user))
 	if err != nil {
 		return err
 	}
@@ -272,4 +272,17 @@ func (s *PermissionDiagnosticService) fillDataScopeContext(ctx context.Context, 
 
 func matchesPermission(granted, required string) bool {
 	return granted == required || granted == "*" || granted == "*:*:*"
+}
+
+func sharedUserFromLocal(user *localmodel.User) *model.User {
+	if user == nil {
+		return nil
+	}
+	return &model.User{
+		ID:           user.ID,
+		TenantID:     user.TenantID,
+		Username:     user.Username,
+		DepartmentID: user.DepartmentID,
+		Roles:        user.Roles,
+	}
 }

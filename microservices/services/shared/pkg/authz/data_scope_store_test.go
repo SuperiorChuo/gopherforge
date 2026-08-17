@@ -5,8 +5,6 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/go-admin-kit/services/monitor/internal/pkg/database"
-	redisstore "github.com/go-admin-kit/services/monitor/internal/pkg/redis"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
@@ -122,75 +120,4 @@ func TestDataScopeResolverUsesInjectedDepartmentTreeCache(t *testing.T) {
 	if cache.setCalls != 1 {
 		t.Fatalf("cache set calls = %d, want 1", cache.setCalls)
 	}
-}
-
-type stubDataScopeStore struct {
-	departments         []model.Department
-	departmentErr       error
-	roleDepartmentIDs   []uint
-	roleDepartmentErr   error
-	departmentCalls     int
-	roleDepartmentCalls int
-	lastRoleIDs         []uint
-}
-
-func (s *stubDataScopeStore) ListDepartments(ctx context.Context) ([]model.Department, error) {
-	s.departmentCalls++
-	if s.departmentErr != nil {
-		return nil, s.departmentErr
-	}
-	return append([]model.Department(nil), s.departments...), nil
-}
-
-func (s *stubDataScopeStore) ListRoleDataScopeDepartmentIDs(ctx context.Context, roleIDs []uint) ([]uint, error) {
-	s.roleDepartmentCalls++
-	s.lastRoleIDs = append([]uint(nil), roleIDs...)
-	if s.roleDepartmentErr != nil {
-		return nil, s.roleDepartmentErr
-	}
-	return append([]uint(nil), s.roleDepartmentIDs...), nil
-}
-
-type stubDepartmentTreeCache struct {
-	departments []model.Department
-	getCalls    int
-	setCalls    int
-	invalidate  int
-}
-
-func (s *stubDepartmentTreeCache) GetDepartmentTree(ctx context.Context) ([]model.Department, bool) {
-	s.getCalls++
-	if s.departments == nil {
-		return nil, false
-	}
-	return append([]model.Department(nil), s.departments...), true
-}
-
-func (s *stubDepartmentTreeCache) SetDepartmentTree(ctx context.Context, depts []model.Department) error {
-	s.setCalls++
-	s.departments = append([]model.Department(nil), depts...)
-	return nil
-}
-
-func (s *stubDepartmentTreeCache) InvalidateDepartmentTree(ctx context.Context) error {
-	s.invalidate++
-	s.departments = nil
-	return nil
-}
-
-func withoutAuthzGlobals(t *testing.T) {
-	t.Helper()
-
-	resetDefaultDepartmentTreeCache()
-	oldDB := database.DB
-	oldRedis := redisstore.Client
-	database.DB = nil
-	redisstore.Client = nil
-	restorePersistence := SetPersistence(Persistence{})
-	t.Cleanup(func() {
-		restorePersistence()
-		resetDefaultDepartmentTreeCache()
-		database.DB = oldDB
-		redisstore.Client = oldRedis
-	})
 }

@@ -9,20 +9,18 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/identity/internal/api"
-	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/identity/internal/config"
 	authDAO "github.com/go-admin-kit/services/identity/internal/dao/auth"
-	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	systemDAO "github.com/go-admin-kit/services/identity/internal/dao/system"
 	"github.com/go-admin-kit/services/identity/internal/middleware"
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
-	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
 	"github.com/go-admin-kit/services/identity/internal/pkg/database"
 	"github.com/go-admin-kit/services/identity/internal/pkg/observability"
 	"github.com/go-admin-kit/services/identity/internal/pkg/redis"
@@ -30,11 +28,14 @@ import (
 	authsvc "github.com/go-admin-kit/services/identity/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/identity/internal/service/system"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
-	"github.com/go-admin-kit/services/shared/pkg/jwt"
+	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/graceful"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
@@ -121,7 +122,6 @@ func configureGinWriters(env string) {
 	gin.DefaultErrorWriter = logger.NewGinErrorWriter()
 }
 
-
 func stopOperationLogProcessor(cancel context.CancelFunc, done <-chan struct{}, timeout time.Duration) error {
 	if cancel != nil {
 		cancel()
@@ -176,6 +176,8 @@ func run(ctx context.Context) error {
 	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {
 		return fmt.Errorf("data scope plugin registration failed: %w", err)
 	}
+	authz.SetDefaultDB(database.DB)
+	registerAuthzScopedModels()
 	if err := tenantscope.Register(database.DB); err != nil {
 		return fmt.Errorf("tenant scope plugin registration failed: %w", err)
 	}
@@ -195,7 +197,7 @@ func run(ctx context.Context) error {
 		ConsoleSessions: &consoleSessionService,
 	})
 	authz.SetPersistence(authz.Persistence{
-		Users:       authDAO.NewUserDAO(database.DB),
+		Users:       sharedUserStore{inner: authDAO.NewUserDAO(database.DB)},
 		Permissions: authdao.NewPermissionDAO(database.DB),
 		DataScope:   authz.NewDatabaseDataScopeStore(database.DB),
 	})
@@ -210,6 +212,7 @@ func run(ctx context.Context) error {
 	if err := redis.InitRedis(); err != nil {
 		return fmt.Errorf("redis initialization failed: %w", err)
 	}
+	authz.SetRemoteCache(authz.NewGoRedisRemoteCache(redis.Client))
 	jwt.SetRedis(redis.Client)
 	defer func() {
 		if err := redis.Close(); err != nil {
@@ -334,4 +337,34 @@ func run(ctx context.Context) error {
 	default:
 		return nil
 	}
+}
+
+func registerAuthzScopedModels() {
+	authz.RegisterScopedModel(reflect.TypeOf(localmodel.User{}), authz.ScopeByUserEntity)
+	authz.RegisterScopedModel(reflect.TypeOf(localmodel.File{}), authz.ScopeByOwner)
+	authz.RegisterScopedModel(reflect.TypeOf(localmodel.LoginLog{}), authz.ScopeByOwner)
+	authz.RegisterScopedModel(reflect.TypeOf(localmodel.OperationLog{}), authz.ScopeByOwner)
+}
+
+type sharedUserStore struct {
+	inner interface {
+		GetUserWithRolesContext(ctx context.Context, id uint) (*localmodel.User, error)
+	}
+}
+
+func (s sharedUserStore) GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error) {
+	user, err := s.inner.GetUserWithRolesContext(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, nil
+	}
+	return &model.User{
+		ID:           user.ID,
+		TenantID:     user.TenantID,
+		Username:     user.Username,
+		DepartmentID: user.DepartmentID,
+		Roles:        user.Roles,
+	}, nil
 }

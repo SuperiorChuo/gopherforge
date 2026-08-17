@@ -9,17 +9,11 @@ import (
 )
 
 var allowedFallbackGlobalReferences = map[string]int{
-	"middleware/login_limit.go|redisClient|redis.Client":                 1,
-	"middleware/rate_limit.go|redisClient|redis.Client":                  1,
-	"pkg/authz/data_scope.go|GetDepartmentTree|redis.Client":             2,
-	"pkg/authz/data_scope.go|InvalidateDepartmentTree|redis.Client":      1,
-	"pkg/authz/data_scope.go|deleteRemote|redis.Client":                  2,
-	"pkg/authz/data_scope.go|ListDepartments|database.DB":                1,
-	"pkg/authz/data_scope.go|ListRoleDataScopeDepartmentIDs|database.DB": 1,
-	"pkg/authz/data_scope.go|SetDepartmentTree|redis.Client":             2,
-	"pkg/cache/cache.go|redisClient|redis.Client":                        1,
-	"pkg/runtimeconfig/security_policy.go|GetByKeyContext|database.DB":   1,
-	"service/monitor/redis.go|redisClient|redis.Client":                  1,
+	"middleware/login_limit.go|redisClient|redis.Client":               1,
+	"middleware/rate_limit.go|redisClient|redis.Client":                1,
+	"pkg/cache/cache.go|redisClient|redis.Client":                      1,
+	"pkg/runtimeconfig/security_policy.go|GetByKeyContext|database.DB": 1,
+	"service/monitor/redis.go|redisClient|redis.Client":                1,
 }
 
 func TestDAOServicePkgMiddlewareGlobalFallbacksStayAllowlisted(t *testing.T) {

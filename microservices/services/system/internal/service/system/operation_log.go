@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
 	localmodel "github.com/go-admin-kit/services/system/internal/model"
-	"github.com/go-admin-kit/services/system/internal/pkg/authz"
 	"gorm.io/gorm"
 )
 
@@ -16,8 +16,7 @@ type OperationLogService struct {
 	logDAO systemdao.OperationLogDAO
 }
 
-// NewOperationLogServiceWithDB builds an OperationLogService backed by an
-// injected database handle.
+// NewOperationLogServiceWithDB 构建一个基于注入的数据库句柄的 OperationLogService。
 func NewOperationLogServiceWithDB(db *gorm.DB) OperationLogService {
 	return OperationLogService{logDAO: *systemdao.NewOperationLogDAO(db)}
 }

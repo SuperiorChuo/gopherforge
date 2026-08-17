@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"reflect"
 	"strings"
 	"syscall"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/go-admin-kit/services/shared/pkg/auditevents"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/exportproof"
 	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
@@ -36,7 +38,7 @@ import (
 	systemDAO "github.com/go-admin-kit/services/system/internal/dao/system"
 	"github.com/go-admin-kit/services/system/internal/edgecert"
 	"github.com/go-admin-kit/services/system/internal/middleware"
-	"github.com/go-admin-kit/services/system/internal/pkg/authz"
+	localmodel "github.com/go-admin-kit/services/system/internal/model"
 	"github.com/go-admin-kit/services/system/internal/pkg/database"
 	"github.com/go-admin-kit/services/system/internal/pkg/observability"
 	"github.com/go-admin-kit/services/system/internal/pkg/redis"
@@ -224,6 +226,8 @@ func run(ctx context.Context) error {
 	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {
 		return fmt.Errorf("data scope plugin registration failed: %w", err)
 	}
+	authz.SetDefaultDB(database.DB)
+	registerAuthzScopedModels()
 	if err := tenantscope.Register(database.DB); err != nil {
 		return fmt.Errorf("tenant scope plugin registration failed: %w", err)
 	}
@@ -264,6 +268,7 @@ func run(ctx context.Context) error {
 	if err := redis.InitRedis(); err != nil {
 		return fmt.Errorf("redis initialization failed: %w", err)
 	}
+	authz.SetRemoteCache(authz.NewGoRedisRemoteCache(redis.Client))
 	jwt.SetRedis(redis.Client)
 	defer func() {
 		if err := redis.Close(); err != nil {
@@ -460,4 +465,10 @@ func run(ctx context.Context) error {
 		runtimeErr = errors.Join(runtimeErr, err)
 	}
 	return runtimeErr
+}
+
+func registerAuthzScopedModels() {
+	authz.RegisterScopedModel(reflect.TypeOf(model.File{}), authz.ScopeByOwner)
+	authz.RegisterScopedModel(reflect.TypeOf(localmodel.LoginLog{}), authz.ScopeByOwner)
+	authz.RegisterScopedModel(reflect.TypeOf(localmodel.OperationLog{}), authz.ScopeByOwner)
 }

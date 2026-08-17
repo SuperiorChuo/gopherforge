@@ -14,10 +14,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/file/internal/config"
 	localmodel "github.com/go-admin-kit/services/file/internal/model"
-	"github.com/go-admin-kit/services/file/internal/pkg/authz"
 	"github.com/go-admin-kit/services/file/internal/pkg/upload"
 	"github.com/go-admin-kit/services/file/internal/pkg/urlsign"
 	"github.com/go-admin-kit/services/file/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 )
 

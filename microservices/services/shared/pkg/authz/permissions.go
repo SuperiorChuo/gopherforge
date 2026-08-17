@@ -39,7 +39,7 @@ func UserHasPermissionContext(ctx context.Context, userID uint, requiredPermissi
 	return MatchesPermission(permissions, requiredPermission), nil
 }
 
-// UserHasPermissionFromContext reads user_id from Gin context and checks a permission.
+// UserHasPermissionFromContext 从 Gin 上下文读取 user_id 并校验权限。
 func UserHasPermissionFromContext(c *gin.Context, requiredPermission string) (bool, error) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -56,7 +56,7 @@ func UserHasPermissionFromContext(c *gin.Context, requiredPermission string) (bo
 	return UserHasPermissionContext(ctx, uid, requiredPermission)
 }
 
-// MatchesPermission applies the same wildcard rules used by the permission middleware.
+// MatchesPermission 应用与权限中间件相同的通配符规则。
 func MatchesPermission(permissions []string, requiredPermission string) bool {
 	requiredPermission = strings.TrimSpace(requiredPermission)
 	for _, permission := range permissions {

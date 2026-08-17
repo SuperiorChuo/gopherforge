@@ -11,8 +11,8 @@ import (
 
 	systemdao "github.com/go-admin-kit/services/file/internal/dao/system"
 	localmodel "github.com/go-admin-kit/services/file/internal/model"
-	"github.com/go-admin-kit/services/file/internal/pkg/authz"
 	"github.com/go-admin-kit/services/file/internal/pkg/upload"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"

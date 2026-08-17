@@ -5,7 +5,7 @@ import (
 	"time"
 
 	localmodel "github.com/go-admin-kit/services/audit/internal/model"
-	"github.com/go-admin-kit/services/audit/internal/pkg/authz"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"gorm.io/gorm"
 )

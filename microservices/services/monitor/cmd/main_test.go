@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/monitor/internal/config"
 	redisstore "github.com/go-admin-kit/services/monitor/internal/pkg/redis"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	goredis "github.com/redis/go-redis/v9"
 )
@@ -186,8 +187,10 @@ func TestServeHTTPServerGracefullyWaitsForInFlightRequests(t *testing.T) {
 func TestStartDepartmentTreeInvalidationListenerReturnsErrorWithoutRedis(t *testing.T) {
 	oldClient := redisstore.Client
 	redisstore.Client = nil
+	authz.SetRemoteCache(nil)
 	t.Cleanup(func() {
 		redisstore.Client = oldClient
+		authz.SetRemoteCache(nil)
 	})
 
 	listener, err := startDepartmentTreeInvalidationListener(context.Background())
@@ -206,10 +209,13 @@ func TestStartDepartmentTreeInvalidationListenerStartsAndCloses(t *testing.T) {
 	}
 
 	oldClient := redisstore.Client
-	redisstore.Client = goredis.NewClient(&goredis.Options{Addr: store.Addr()})
+	client := goredis.NewClient(&goredis.Options{Addr: store.Addr()})
+	redisstore.Client = client
+	authz.SetRemoteCache(authz.NewGoRedisRemoteCache(client))
 	t.Cleanup(func() {
-		_ = redisstore.Client.Close()
+		_ = client.Close()
 		redisstore.Client = oldClient
+		authz.SetRemoteCache(nil)
 		store.Close()
 	})
 

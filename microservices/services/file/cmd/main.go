@@ -1,27 +1,27 @@
 package main
 
 import (
-	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/file/internal/api"
-	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/file/internal/config"
 	authDAO "github.com/go-admin-kit/services/file/internal/dao/auth"
 	systemDAO "github.com/go-admin-kit/services/file/internal/dao/system"
 	"github.com/go-admin-kit/services/file/internal/middleware"
-	"github.com/go-admin-kit/services/file/internal/pkg/authz"
+	localmodel "github.com/go-admin-kit/services/file/internal/model"
 	"github.com/go-admin-kit/services/file/internal/pkg/database"
 	"github.com/go-admin-kit/services/file/internal/pkg/observability"
 	"github.com/go-admin-kit/services/file/internal/pkg/redis"
@@ -29,10 +29,12 @@ import (
 	authsvc "github.com/go-admin-kit/services/file/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/file/internal/service/system"
 	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
 )
 
@@ -117,7 +119,6 @@ func configureGinWriters(env string) {
 	gin.DefaultErrorWriter = logger.NewGinErrorWriter()
 }
 
-
 func stopOperationLogProcessor(cancel context.CancelFunc, done <-chan struct{}, timeout time.Duration) error {
 	if cancel != nil {
 		cancel()
@@ -172,6 +173,8 @@ func run(ctx context.Context) error {
 	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {
 		return fmt.Errorf("data scope plugin registration failed: %w", err)
 	}
+	authz.SetDefaultDB(database.DB)
+	registerAuthzScopedModels()
 	if err := tenantscope.Register(database.DB); err != nil {
 		return fmt.Errorf("tenant scope plugin registration failed: %w", err)
 	}
@@ -197,6 +200,7 @@ func run(ctx context.Context) error {
 	if err := redis.InitRedis(); err != nil {
 		return fmt.Errorf("redis initialization failed: %w", err)
 	}
+	authz.SetRemoteCache(authz.NewGoRedisRemoteCache(redis.Client))
 	jwt.SetRedis(redis.Client)
 	defer func() {
 		if err := redis.Close(); err != nil {
@@ -301,7 +305,7 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("server listen failed: %w", err)
 	}
 	printStartupBanner(config.Cfg.App.Name, config.Cfg.App.Version, config.Cfg.App.Env, port)
-		sh := graceful.New(graceful.WithTimeout(15 * time.Second))
+	sh := graceful.New(graceful.WithTimeout(15 * time.Second))
 	serverErr := make(chan error, 1)
 	go func() {
 		logger.Info("server listening", logger.String("addr", server.Addr))
@@ -323,3 +327,8 @@ func run(ctx context.Context) error {
 	}
 }
 
+func registerAuthzScopedModels() {
+	authz.RegisterScopedModel(reflect.TypeOf(localmodel.File{}), authz.ScopeByOwner)
+	authz.RegisterScopedModel(reflect.TypeOf(localmodel.LoginLog{}), authz.ScopeByOwner)
+	authz.RegisterScopedModel(reflect.TypeOf(localmodel.OperationLog{}), authz.ScopeByOwner)
+}

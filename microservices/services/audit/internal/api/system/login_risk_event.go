@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	dao "github.com/go-admin-kit/services/audit/internal/dao/system"
-	"github.com/go-admin-kit/services/audit/internal/pkg/authz"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 	"gorm.io/gorm"

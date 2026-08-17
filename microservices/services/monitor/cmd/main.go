@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
@@ -23,7 +24,7 @@ import (
 	monitordao "github.com/go-admin-kit/services/monitor/internal/dao/monitor"
 	systemDAO "github.com/go-admin-kit/services/monitor/internal/dao/system"
 	"github.com/go-admin-kit/services/monitor/internal/middleware"
-	"github.com/go-admin-kit/services/monitor/internal/pkg/authz"
+	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/monitor/internal/pkg/database"
 	"github.com/go-admin-kit/services/monitor/internal/pkg/observability"
 	"github.com/go-admin-kit/services/monitor/internal/pkg/redis"
@@ -32,11 +33,13 @@ import (
 	monitorSvc "github.com/go-admin-kit/services/monitor/internal/service/monitor"
 	systemSvc "github.com/go-admin-kit/services/monitor/internal/service/system"
 	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"github.com/go-admin-kit/services/shared/pkg/grpcx"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
 	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 
 	monitorv1 "github.com/go-admin-kit/services/api/gen/monitor/v1"
@@ -165,7 +168,7 @@ func serveHTTPServer(ctx context.Context, server *http.Server, listener net.List
 	}
 }
 
-func startDepartmentTreeInvalidationListener(ctx context.Context) (*redis.StringSubscriber, error) {
+func startDepartmentTreeInvalidationListener(ctx context.Context) (io.Closer, error) {
 	return authz.StartDepartmentTreeInvalidationListener(ctx)
 }
 
@@ -308,6 +311,8 @@ func run(ctx context.Context) error {
 	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {
 		return fmt.Errorf("data scope plugin registration failed: %w", err)
 	}
+	authz.SetDefaultDB(database.DB)
+	registerAuthzScopedModels()
 	middleware.SetAuthMiddlewareDependencies(middleware.AuthMiddlewareDependencies{
 		Users:           authDAO.NewUserDAO(database.DB),
 		Permissions:     authdao.NewPermissionDAO(database.DB),
@@ -339,6 +344,7 @@ func run(ctx context.Context) error {
 	if err := redis.InitRedis(); err != nil {
 		return fmt.Errorf("redis initialization failed: %w", err)
 	}
+	authz.SetRemoteCache(authz.NewGoRedisRemoteCache(redis.Client))
 	jwt.SetRedis(redis.Client)
 	defer func() {
 		if err := redis.Close(); err != nil {
@@ -466,4 +472,10 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("server start failed: %w", err)
 	}
 	return nil
+}
+
+func registerAuthzScopedModels() {
+	authz.RegisterScopedModel(reflect.TypeOf(model.File{}), authz.ScopeByOwner)
+	authz.RegisterScopedModel(reflect.TypeOf(localmodel.LoginLog{}), authz.ScopeByOwner)
+	authz.RegisterScopedModel(reflect.TypeOf(localmodel.OperationLog{}), authz.ScopeByOwner)
 }

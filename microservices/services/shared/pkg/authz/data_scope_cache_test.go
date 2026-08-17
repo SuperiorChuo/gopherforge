@@ -12,10 +12,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
-	authdao "github.com/go-admin-kit/services/audit/internal/dao/auth"
 	sharedauthdao "github.com/go-admin-kit/services/shared/pkg/authdao"
-	"github.com/go-admin-kit/services/audit/internal/pkg/database"
-	redisstore "github.com/go-admin-kit/services/audit/internal/pkg/redis"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	goredis "github.com/redis/go-redis/v9"
@@ -52,10 +49,10 @@ func TestResolveDepartmentTreeIDsUsesLocalCacheWhenRedisBecomesUnavailable(t *te
 
 	first := resolveDepartmentTreeIDs(10)
 
-	oldClient := redisstore.Client
-	redisstore.Client = nil
+	oldCache := currentRemoteCache()
+	SetRemoteCache(nil)
 	t.Cleanup(func() {
-		redisstore.Client = oldClient
+		SetRemoteCache(oldCache)
 	})
 
 	second := resolveDepartmentTreeIDs(10)
@@ -69,10 +66,10 @@ func TestResolveDepartmentTreeIDsUsesLocalCacheWhenRedisBecomesUnavailable(t *te
 }
 
 func TestInvalidateDepartmentTreeCacheRemovesCachedTree(t *testing.T) {
-	setupAuthzCacheTestRedis(t)
+	_, redisClient := setupAuthzCacheTestRedis(t)
 
 	ctx := context.Background()
-	if err := redisstore.Client.Set(ctx, departmentTreeCacheKey(0), "[]", 0).Err(); err != nil {
+	if err := redisClient.Set(ctx, departmentTreeCacheKey(0), "[]", 0).Err(); err != nil {
 		t.Fatalf("seed department tree cache: %v", err)
 	}
 
@@ -80,15 +77,14 @@ func TestInvalidateDepartmentTreeCacheRemovesCachedTree(t *testing.T) {
 		t.Fatalf("invalidate department tree cache: %v", err)
 	}
 
-	if redisstore.Client.Exists(ctx, departmentTreeCacheKey(0)).Val() != 0 {
+	if redisClient.Exists(ctx, departmentTreeCacheKey(0)).Val() != 0 {
 		t.Fatal("department tree cache should be removed")
 	}
 }
 
-// Guards the multi-tenant isolation of the department tree cache. The cached rows
-// come from a tenant-filtered query, so sharing one key across tenants lets the
-// first tenant to populate it dictate every other tenant's department scope —
-// silently widening or narrowing data permissions.
+// 保护部门树缓存的多租户隔离性。缓存行来自按租户过滤的查询，
+// 因此跨租户共用一个 key 会让先填充缓存的租户决定其他每个租户的部门范围，
+// 从而静默地扩大或缩小数据权限。
 func TestDepartmentTreeCacheIsolatesTenants(t *testing.T) {
 	setupAuthzCacheTestRedis(t)
 
@@ -116,7 +112,7 @@ func TestDepartmentTreeCacheIsolatesTenants(t *testing.T) {
 		t.Fatalf("tenant 1 tree = %#v, want the two rows it stored", got)
 	}
 
-	// Invalidating one tenant must not evict another's entry.
+	// 使一个租户的缓存失效时，不得逐出另一个租户的条目。
 	if err := cache.InvalidateDepartmentTree(ctxA); err != nil {
 		t.Fatalf("InvalidateDepartmentTree(tenant 1): %v", err)
 	}
@@ -147,10 +143,10 @@ func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenContextCanceled
 		t.Fatalf("InvalidateDepartmentTreeCacheContext() error = %v, want context.Canceled", err)
 	}
 
-	oldClient := redisstore.Client
-	redisstore.Client = nil
+	oldCache := currentRemoteCache()
+	SetRemoteCache(nil)
 	t.Cleanup(func() {
-		redisstore.Client = oldClient
+		SetRemoteCache(oldCache)
 	})
 
 	mock.ExpectQuery("SELECT .* FROM \"departments\"").
@@ -164,7 +160,7 @@ func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenContextCanceled
 }
 
 func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenDeleteFails(t *testing.T) {
-	setupAuthzCacheTestRedis(t)
+	_, redisClient := setupAuthzCacheTestRedis(t)
 
 	cache, ok := NewDataScopeResolver(nil).departmentTreeCache().(*layeredDepartmentTreeCache)
 	if !ok {
@@ -173,12 +169,12 @@ func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenDeleteFails(t *
 	cache.setLocalRows(0, []departmentTreeCacheRow{{ID: 10}, {ID: 11, ParentID: 10}})
 
 	ctx := context.Background()
-	if err := redisstore.Client.Set(ctx, departmentTreeCacheKey(0), "[]", time.Hour).Err(); err != nil {
+	if err := redisClient.Set(ctx, departmentTreeCacheKey(0), "[]", time.Hour).Err(); err != nil {
 		t.Fatalf("seed department tree cache: %v", err)
 	}
 
 	injectedErr := errors.New("delete failed")
-	redisstore.Client.AddHook(redisCommandErrorHook{command: "del", err: injectedErr})
+	redisClient.AddHook(redisCommandErrorHook{command: "del", err: injectedErr})
 
 	err := InvalidateDepartmentTreeCacheContext(ctx)
 	if !errors.Is(err, injectedErr) {
@@ -187,13 +183,13 @@ func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenDeleteFails(t *
 	if _, cached := cache.getLocalRows(0); cached {
 		t.Fatal("local department tree cache should be cleared on delete failure")
 	}
-	if redisstore.Client.Exists(ctx, departmentTreeCacheKey(0)).Val() != 1 {
+	if redisClient.Exists(ctx, departmentTreeCacheKey(0)).Val() != 1 {
 		t.Fatal("remote department tree cache should remain when delete fails")
 	}
 }
 
 func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenPublishFails(t *testing.T) {
-	setupAuthzCacheTestRedis(t)
+	_, redisClient := setupAuthzCacheTestRedis(t)
 
 	cache, ok := NewDataScopeResolver(nil).departmentTreeCache().(*layeredDepartmentTreeCache)
 	if !ok {
@@ -202,12 +198,12 @@ func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenPublishFails(t 
 	cache.setLocalRows(0, []departmentTreeCacheRow{{ID: 10}, {ID: 11, ParentID: 10}})
 
 	ctx := context.Background()
-	if err := redisstore.Client.Set(ctx, departmentTreeCacheKey(0), "[]", time.Hour).Err(); err != nil {
+	if err := redisClient.Set(ctx, departmentTreeCacheKey(0), "[]", time.Hour).Err(); err != nil {
 		t.Fatalf("seed department tree cache: %v", err)
 	}
 
 	injectedErr := errors.New("publish failed")
-	redisstore.Client.AddHook(redisCommandErrorHook{command: "publish", err: injectedErr})
+	redisClient.AddHook(redisCommandErrorHook{command: "publish", err: injectedErr})
 
 	err := InvalidateDepartmentTreeCacheContext(ctx)
 	if !errors.Is(err, injectedErr) {
@@ -216,13 +212,13 @@ func TestInvalidateDepartmentTreeCacheContextClearsLocalCacheWhenPublishFails(t 
 	if _, cached := cache.getLocalRows(0); cached {
 		t.Fatal("local department tree cache should be cleared on publish failure")
 	}
-	if redisstore.Client.Exists(ctx, departmentTreeCacheKey(0)).Val() != 0 {
+	if redisClient.Exists(ctx, departmentTreeCacheKey(0)).Val() != 0 {
 		t.Fatal("remote department tree cache should be removed before publish failure")
 	}
 }
 
 func TestDepartmentTreeInvalidationListenerClearsLocalCache(t *testing.T) {
-	setupAuthzCacheTestRedis(t)
+	_, redisClient := setupAuthzCacheTestRedis(t)
 	mock := setupAuthzCacheTestDB(t)
 	mock.ExpectQuery("SELECT .* FROM \"departments\"").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id"}).
@@ -246,7 +242,7 @@ func TestDepartmentTreeInvalidationListenerClearsLocalCache(t *testing.T) {
 		}
 	}()
 
-	if err := redisstore.Client.Publish(context.Background(), departmentTreeInvalidateChannel, departmentTreeInvalidatePayloadClear).Err(); err != nil {
+	if err := redisClient.Publish(context.Background(), departmentTreeInvalidateChannel, departmentTreeInvalidatePayloadClear).Err(); err != nil {
 		t.Fatalf("publish invalidation message: %v", err)
 	}
 
@@ -261,10 +257,10 @@ func TestDepartmentTreeInvalidationListenerClearsLocalCache(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	oldClient := redisstore.Client
-	redisstore.Client = nil
+	oldCache := currentRemoteCache()
+	SetRemoteCache(nil)
 	t.Cleanup(func() {
-		redisstore.Client = oldClient
+		SetRemoteCache(oldCache)
 	})
 
 	mock.ExpectQuery("SELECT .* FROM \"departments\"").
@@ -278,10 +274,10 @@ func TestDepartmentTreeInvalidationListenerClearsLocalCache(t *testing.T) {
 }
 
 func TestResolveDepartmentTreeIDsFallsBackWhenRedisIsUnavailable(t *testing.T) {
-	oldClient := redisstore.Client
-	redisstore.Client = nil
+	oldCache := currentRemoteCache()
+	SetRemoteCache(nil)
 	t.Cleanup(func() {
-		redisstore.Client = oldClient
+		SetRemoteCache(oldCache)
 	})
 
 	mock := setupAuthzCacheTestDB(t)
@@ -297,10 +293,10 @@ func TestResolveDepartmentTreeIDsFallsBackWhenRedisIsUnavailable(t *testing.T) {
 }
 
 func TestResolveUserDataScopeContextPropagatesDepartmentTreeCancellation(t *testing.T) {
-	oldClient := redisstore.Client
-	redisstore.Client = nil
+	oldCache := currentRemoteCache()
+	SetRemoteCache(nil)
 	t.Cleanup(func() {
-		redisstore.Client = oldClient
+		SetRemoteCache(oldCache)
 	})
 	setupAuthzCacheTestDB(t)
 
@@ -322,10 +318,10 @@ func TestResolveUserDataScopeContextPropagatesDepartmentTreeCancellation(t *test
 }
 
 func TestApplyOwnerScopeUsesCurrentQueryDBForDepartmentSubquery(t *testing.T) {
-	oldDB := database.DB
-	database.DB = nil
+	oldDB := currentDefaultDB()
+	SetDefaultDB(nil)
 	t.Cleanup(func() {
-		database.DB = oldDB
+		SetDefaultDB(oldDB)
 	})
 
 	sqlDB, mock, err := sqlmock.New()
@@ -392,7 +388,7 @@ func TestUserHasPermissionFromContextPropagatesRequestCancellation(t *testing.T)
 	}
 }
 
-func setupAuthzCacheTestRedis(t *testing.T) *miniredis.Miniredis {
+func setupAuthzCacheTestRedis(t *testing.T) (*miniredis.Miniredis, *goredis.Client) {
 	t.Helper()
 
 	resetDefaultDepartmentTreeCache()
@@ -402,18 +398,18 @@ func setupAuthzCacheTestRedis(t *testing.T) *miniredis.Miniredis {
 		t.Fatalf("start miniredis: %v", err)
 	}
 
-	oldClient := redisstore.Client
+	oldCache := currentRemoteCache()
 	client := goredis.NewClient(&goredis.Options{Addr: store.Addr()})
-	redisstore.Client = client
+	SetRemoteCache(NewGoRedisRemoteCache(client))
 
 	t.Cleanup(func() {
 		resetDefaultDepartmentTreeCache()
 		_ = client.Close()
-		redisstore.Client = oldClient
+		SetRemoteCache(oldCache)
 		store.Close()
 	})
 
-	return store
+	return store, client
 }
 
 func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
@@ -433,14 +429,17 @@ func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 		t.Fatalf("open gorm sqlmock db: %v", err)
 	}
 
+	oldDB := currentDefaultDB()
+	SetDefaultDB(db)
 	restorePersistence := SetPersistence(Persistence{
-		Users:       authdao.NewUserDAO(db),
+		Users:       stubUserWithRolesStore{db: db},
 		Permissions: sharedauthdao.NewPermissionDAO(db),
 		DataScope:   NewDatabaseDataScopeStore(db),
 	})
 	t.Cleanup(func() {
 		restorePersistence()
 		resetDefaultDepartmentTreeCache()
+		SetDefaultDB(oldDB)
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatalf("unmet database expectations: %v", err)
 		}
@@ -448,12 +447,6 @@ func setupAuthzCacheTestDB(t *testing.T) sqlmock.Sqlmock {
 	})
 
 	return mock
-}
-
-func resetDefaultDepartmentTreeCache() {
-	if cache, ok := NewDataScopeResolver(nil).departmentTreeCache().(*layeredDepartmentTreeCache); ok {
-		cache.clearLocal(0)
-	}
 }
 
 type redisCommandErrorHook struct {
@@ -485,10 +478,10 @@ func (h redisCommandErrorHook) ProcessPipelineHook(next goredis.ProcessPipelineH
 	}
 }
 
-// Pins the admin fast path. resolveRoleDataScope grants DataScopeAll to
-// super_admin/admin on the role code alone, so once PermissionMiddleware has
-// memoized those codes the user+roles round trip is pure waste. sqlmock has no
-// expectations registered, so any query issued here fails the test.
+// 锁定 admin 快速路径。resolveRoleDataScope 仅凭角色编码就向 super_admin/admin
+// 授予 DataScopeAll，因此一旦 PermissionMiddleware 缓存了这些编码，
+// 再进行 user+roles 往返查询就是纯粹的浪费。sqlmock 未注册任何期望，
+// 因此这里发出的任何查询都会使测试失败。
 func TestResolveUserDataScopeFromContextSkipsQueriesForMemoizedAdmins(t *testing.T) {
 	for _, code := range []string{"super_admin", "admin"} {
 		t.Run(code, func(t *testing.T) {
@@ -519,8 +512,8 @@ func TestResolveUserDataScopeFromContextSkipsQueriesForMemoizedAdmins(t *testing
 	}
 }
 
-// Non-admin codes must not take the fast path — they still need the database to
-// resolve department scope, so the request context must reach the store.
+// 非 admin 编码不得走快速路径——它们仍需要数据库来解析部门范围，
+// 因此请求上下文必须能到达存储层。
 func TestResolveUserDataScopeFromContextStillQueriesForNonAdmins(t *testing.T) {
 	setupAuthzCacheTestDB(t)
 

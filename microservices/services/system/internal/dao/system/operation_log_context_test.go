@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
-	"github.com/go-admin-kit/services/system/internal/pkg/authz"
 )
 
 func TestOperationLogDAOGetLogListContextHonorsCanceledContext(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
-	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 )
 
 const exportSelectPrefix = `SELECT users.id,users.username,users.nickname,users.email,users.phone,users.department_id,users.status,users.created_at FROM "users"`

@@ -7,8 +7,8 @@ import (
 
 	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
-	"github.com/go-admin-kit/services/identity/internal/pkg/authz"
 	authsvc "github.com/go-admin-kit/services/identity/internal/service/auth"
+	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"golang.org/x/crypto/bcrypt"
@@ -76,6 +76,8 @@ type CreateUserRequest struct {
 	DepartmentID uint   `json:"department_id"`
 	Status       int8   `json:"status"`
 	PostIDs      []uint `json:"post_ids"`
+	// MustChange 管理员代建账号的临时密码默认强制改密；显式 false 可关闭。
+	MustChange *bool `json:"must_change"`
 }
 
 var (
@@ -189,16 +191,19 @@ func (s *UserService) CreateUserContext(ctx context.Context, req CreateUserReque
 		}
 	}
 	now := time.Now()
+	// 管理员代建默认强制首次改密（临时凭据）；显式 MustChange=false 可关。
+	mustChange := req.MustChange == nil || *req.MustChange
 	user := &localmodel.User{
-		TenantID:          tenantID,
-		Username:          req.Username,
-		Password:          string(hashedPassword),
-		Nickname:          req.Nickname,
-		Email:             req.Email,
-		Phone:             req.Phone,
-		DepartmentID:      req.DepartmentID,
-		Status:            req.Status,
-		PasswordChangedAt: &now,
+		TenantID:           tenantID,
+		Username:           req.Username,
+		Password:           string(hashedPassword),
+		Nickname:           req.Nickname,
+		Email:              req.Email,
+		Phone:              req.Phone,
+		DepartmentID:       req.DepartmentID,
+		Status:             req.Status,
+		MustChangePassword: mustChange,
+		PasswordChangedAt:  &now,
 	}
 
 	if user.Status == 0 {

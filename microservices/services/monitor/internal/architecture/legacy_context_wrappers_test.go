@@ -33,11 +33,7 @@ var legacyContextWrapperForbiddenPrefixes = []string{
 	"middleware/",
 }
 
-var legacyContextWrapperForbiddenKeys = map[string]struct{}{
-	"pkg/authz/data_scope.go||ResolveUserDataScope|ResolveUserDataScopeContext":                   {},
-	"pkg/authz/permissions.go||UserHasPermission|UserHasPermissionContext":                        {},
-	"pkg/authz/data_scope.go||InvalidateDepartmentTreeCache|InvalidateDepartmentTreeCacheContext": {},
-}
+var legacyContextWrapperForbiddenKeys = map[string]struct{}{}
 
 // allowedLegacyContextBridges lists non-Context wrappers that may bridge to
 // their Context successors. It is empty now that the audit-log bridge moved to
