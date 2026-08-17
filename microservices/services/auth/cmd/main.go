@@ -19,11 +19,13 @@ import (
 	systemDAO "github.com/go-admin-kit/services/auth/internal/dao/system"
 	"github.com/go-admin-kit/services/auth/internal/events"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
+	"github.com/go-admin-kit/services/auth/internal/pkg/cache"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	authsvc "github.com/go-admin-kit/services/auth/internal/service/auth"
 	"github.com/go-admin-kit/services/shared/pkg/auditevents"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
+	"github.com/go-admin-kit/services/shared/pkg/captcha"
 	"github.com/go-admin-kit/services/shared/pkg/database"
 	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
@@ -194,6 +196,7 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("redis initialization failed: %w", err)
 	}
 	jwt.SetRedis(redis.Client)
+	captcha.SetStore(cache.NewCacheService())
 	sh.Register("redis", func(ctx context.Context) error {
 		return redis.Close()
 	})

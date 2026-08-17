@@ -5,12 +5,68 @@ import (
 	"encoding/base64"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
-
-	miniredis "github.com/alicebob/miniredis/v2"
-	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
-	goredis "github.com/redis/go-redis/v9"
 )
+
+type memoryStore struct {
+	mu   sync.Mutex
+	data map[string]string
+	err  error
+}
+
+func (s *memoryStore) SetLoginCaptchaContext(ctx context.Context, key string, captcha string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if s.err != nil {
+		return s.err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.data == nil {
+		s.data = map[string]string{}
+	}
+	s.data[key] = captcha
+	return nil
+}
+
+func (s *memoryStore) GetLoginCaptchaContext(ctx context.Context, key string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if s.err != nil {
+		return "", s.err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	value, ok := s.data[key]
+	if !ok {
+		return "", errors.New("captcha not found")
+	}
+	return value, nil
+}
+
+func (s *memoryStore) DelLoginCaptchaContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.data, key)
+	return nil
+}
+
+func setupCaptchaTestStore(t *testing.T) *memoryStore {
+	t.Helper()
+	store := &memoryStore{}
+	previous := currentStore()
+	SetStore(store)
+	t.Cleanup(func() {
+		SetStore(previous)
+	})
+	return store
+}
 
 func TestGenerateTextCaptchaCodeUsesReadableAlphabet(t *testing.T) {
 	code, err := generateTextCaptchaCode()
@@ -47,7 +103,7 @@ func TestRenderTextCaptchaPNGReturnsBase64Image(t *testing.T) {
 }
 
 func TestGetTextCaptchaDoesNotExposeCodeHint(t *testing.T) {
-	setupCaptchaTestRedis(t)
+	setupCaptchaTestStore(t)
 
 	data, err := GetTextCaptchaContext(context.Background(), "unit-test-captcha")
 	if err != nil {
@@ -67,7 +123,7 @@ func TestGetTextCaptchaDoesNotExposeCodeHint(t *testing.T) {
 }
 
 func TestTextCaptchaContextMethodsHonorCanceledContext(t *testing.T) {
-	setupCaptchaTestRedis(t)
+	setupCaptchaTestStore(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -84,21 +140,14 @@ func TestTextCaptchaContextMethodsHonorCanceledContext(t *testing.T) {
 	}
 }
 
-func setupCaptchaTestRedis(t *testing.T) {
-	t.Helper()
-
-	store, err := miniredis.Run()
-	if err != nil {
-		t.Fatalf("start miniredis: %v", err)
-	}
-
-	oldClient := redisstore.Client
-	client := goredis.NewClient(&goredis.Options{Addr: store.Addr()})
-	redisstore.Client = client
-
+func TestGetTextCaptchaFailsWhenStoreMissing(t *testing.T) {
+	previous := currentStore()
+	SetStore(nil)
 	t.Cleanup(func() {
-		_ = client.Close()
-		redisstore.Client = oldClient
-		store.Close()
+		SetStore(previous)
 	})
+
+	if _, err := GetTextCaptchaContext(context.Background(), "missing-store"); err == nil {
+		t.Fatal("expected error when captcha store is missing")
+	}
 }
