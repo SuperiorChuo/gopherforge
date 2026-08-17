@@ -14,14 +14,12 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/auth/internal/api"
-	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	"github.com/go-admin-kit/services/auth/internal/config"
 	authDAO "github.com/go-admin-kit/services/auth/internal/dao/auth"
 	systemDAO "github.com/go-admin-kit/services/auth/internal/dao/system"
 	"github.com/go-admin-kit/services/auth/internal/events"
 	"github.com/go-admin-kit/services/auth/internal/middleware"
 	"github.com/go-admin-kit/services/auth/internal/pkg/database"
-	"github.com/go-admin-kit/services/auth/internal/pkg/observability"
 	"github.com/go-admin-kit/services/auth/internal/pkg/redis"
 	"github.com/go-admin-kit/services/auth/internal/pkg/runtimeconfig"
 	authsvc "github.com/go-admin-kit/services/auth/internal/service/auth"
@@ -34,6 +32,8 @@ import (
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
+	"github.com/go-admin-kit/services/shared/pkg/observability"
+	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 )
 
 func setupCORS(router *gin.Engine) {
@@ -211,7 +211,13 @@ func run(ctx context.Context) error {
 	}
 
 	tracingCfg := config.Cfg.Observability.Tracing
-	shutdownTracing, err := observability.InitTracer(ctx, tracingCfg)
+	shutdownTracing, err := observability.InitTracer(ctx, observability.Config{
+		Enabled:      tracingCfg.Enabled,
+		ServiceName:  tracingCfg.ServiceName,
+		Environment:  tracingCfg.Environment,
+		OTLPEndpoint: tracingCfg.OTLPEndpoint,
+		SampleRatio:  tracingCfg.SampleRatio,
+	})
 	if err != nil {
 		return fmt.Errorf("tracing initialization failed: %w", err)
 	}

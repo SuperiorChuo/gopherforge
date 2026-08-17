@@ -24,7 +24,6 @@ import (
 	"github.com/go-admin-kit/services/audit/internal/middleware"
 	localmodel "github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/audit/internal/pkg/database"
-	"github.com/go-admin-kit/services/audit/internal/pkg/observability"
 	"github.com/go-admin-kit/services/audit/internal/pkg/redis"
 	"github.com/go-admin-kit/services/audit/internal/pkg/runtimeconfig"
 	authsvc "github.com/go-admin-kit/services/audit/internal/service/auth"
@@ -39,6 +38,7 @@ import (
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
+	"github.com/go-admin-kit/services/shared/pkg/observability"
 	"github.com/go-admin-kit/services/shared/pkg/outbox"
 	"github.com/go-admin-kit/services/shared/pkg/secretbox"
 	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
@@ -388,7 +388,13 @@ func run(ctx context.Context) error {
 	}
 
 	tracingCfg := config.Cfg.Observability.Tracing
-	shutdownTracing, err := observability.InitTracer(ctx, tracingCfg)
+	shutdownTracing, err := observability.InitTracer(ctx, observability.Config{
+		Enabled:      tracingCfg.Enabled,
+		ServiceName:  tracingCfg.ServiceName,
+		Environment:  tracingCfg.Environment,
+		OTLPEndpoint: tracingCfg.OTLPEndpoint,
+		SampleRatio:  tracingCfg.SampleRatio,
+	})
 	if err != nil {
 		return fmt.Errorf("tracing initialization failed: %w", err)
 	}

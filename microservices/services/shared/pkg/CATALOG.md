@@ -20,6 +20,7 @@
 - 高消费者基础包（`model`、`tenant`、`jwt`、`logger`、`response`、`pagination`）保留现有一级 package；改路径只会制造全仓 import churn，没有结构收益。
 - 中低消费者包仍通过稳定的 shared package 被多个服务或 shared 适配器引用，暂不物理合并到其他类别。
 - `health` 是七个基础设施服务 `/health*` 的单一真源；monitor 的 `/metrics` 仍留在本服务。
+- `observability` 同时承载基础设施 `InitTracer`（结构化配置）和业务 `InitTracerFromEnv`（环境变量）；Gin 中间件已是单一实现。
 - `errors`、`internalhttp`、`tlsutil` 存在 shared 包之间的传递消费者；不能用“直接 import 数量”判断为孤立包。
 - 主仓特有的 `authz`、`tenantctx` 不同步到公开 micro 线；其消费者迁移由独立 authz 批次处理，本清单不覆盖并行实现。
 
