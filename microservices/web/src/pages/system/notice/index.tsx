@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Alert,
   Button,
@@ -35,6 +35,7 @@ import ListPageShell from '@/components/common/ListPageShell'
 import TableRowActions from '@/components/common/TableRowActions'
 import TableToolbar from '@/components/common/TableToolbar'
 import GlassEmpty from '@/components/common/GlassEmpty'
+import { useTableQuery } from '@/hooks/useTableQuery'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
@@ -75,11 +76,6 @@ function getLifecycle(record: Notice): LifecycleMeta {
 const formatBoundary = (value?: string) => value ? formatDateTime(value) : '不限'
 
 export default function NoticePage() {
-  const [list, setList] = useState<Notice[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [loaded, setLoaded] = useState(false)
-  const [loadFailed, setLoadFailed] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [modalOpen, setModalOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<Notice | null>(null)
@@ -92,29 +88,14 @@ export default function NoticePage() {
   const { hasPerm } = usePermission()
   const screens = Grid.useBreakpoint()
   const compactTable = !screens.md
-  const requestSequenceRef = useRef(0)
 
-  const fetchList = useCallback(async (nextParams: SearchParams) => {
-    const requestSequence = ++requestSequenceRef.current
-    setLoading(true)
-    try {
-      const res = await NoticeAPI.getNoticeList(nextParams)
-      if (requestSequence !== requestSequenceRef.current) return
-      setList(res.list ?? [])
-      setTotal(res.total ?? 0)
-      setLoaded(true)
-      setLoadFailed(false)
-    } catch {
-      if (requestSequence !== requestSequenceRef.current) return
-      setLoadFailed(true)
-    } finally {
-      if (requestSequence === requestSequenceRef.current) setLoading(false)
-    }
-  }, [])
-
+  const fetchList = (nextParams: SearchParams) => NoticeAPI.getNoticeList(nextParams)
+  const { list, total, loading, error, reload, patchList } = useTableQuery({ params, fetcher: fetchList })
+  const [loaded, setLoaded] = useState(false)
+  const loadFailed = error
   useEffect(() => {
-    void fetchList(params)
-  }, [fetchList, params])
+    if (!loading && !error) setLoaded(true)
+  }, [error, loading])
 
   const handleSearch = (values: { keyword?: string; type?: number; status?: number }) => {
     setParams({ ...params, page: 1, ...values })
@@ -152,7 +133,7 @@ export default function NoticePage() {
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
-        await fetchList(params)
+        await reload()
       }
     } catch (error) {
       message.error('删除失败')
@@ -178,7 +159,7 @@ export default function NoticePage() {
     try {
       const status = checked ? 1 : 0
       await NoticeAPI.updateNoticeStatus(record.id, status)
-      setList((current) => current.map((item) => item.id === record.id ? { ...item, status } : item))
+      patchList((current) => current.map((item) => item.id === record.id ? { ...item, status } : item))
       setViewRecord((current) => current?.id === record.id ? { ...current, status } : current)
       message.success(checked ? '已启用' : '已停用')
     } catch {
@@ -208,7 +189,7 @@ export default function NoticePage() {
         message.success('创建成功')
       }
       setModalOpen(false)
-      await fetchList(params)
+      await reload()
     } catch {
       message.error('操作失败')
     } finally {
@@ -413,7 +394,7 @@ export default function NoticePage() {
             total={total}
             extra={(
               <Space wrap>
-                <Button icon={<ReloadOutlined />} onClick={() => void fetchList(params)}>刷新</Button>
+                <Button icon={<ReloadOutlined />} onClick={() => { void reload() }}>刷新</Button>
                 {hasPerm('system:notice:create') && (
                   <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增通知</Button>
                 )}
@@ -429,7 +410,7 @@ export default function NoticePage() {
             showIcon
             message={loaded ? '公告列表刷新失败，当前显示上次成功数据' : '公告列表暂不可用'}
             action={(
-              <Button size="small" icon={<ReloadOutlined />} onClick={() => void fetchList(params)}>
+              <Button size="small" icon={<ReloadOutlined />} onClick={() => { void reload() }}>
                 重试
               </Button>
             )}
