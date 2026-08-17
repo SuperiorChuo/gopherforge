@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Grid, Space, Tag, Form, Input, Select,
@@ -21,6 +21,8 @@ import GlassEmpty from '@/components/common/GlassEmpty'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import { EnableStatusPill } from '@/components/common/StatusPill'
+import { useTableQuery } from '@/hooks/useTableQuery'
+import { useTreeQuery } from '@/hooks/useTreeQuery'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { displayUserName, useUserNameMap } from '@/hooks/useUserNameMap'
 
@@ -58,10 +60,6 @@ function collectExpandableKeys(nodes: Department[]): number[] {
 }
 
 export default function DepartmentPage() {
-  const [list, setList] = useState<Department[]>([])
-  const [tree, setTree] = useState<Department[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [view, setView] = useState<'tree' | 'list'>('tree')
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [modalOpen, setModalOpen] = useState(false)
@@ -81,43 +79,31 @@ export default function DepartmentPage() {
     [userMap],
   )
 
-  const fetchList = async (p: SearchParams) => {
-    setLoading(true)
-    try {
-      const res = await DeptAPI.getDepartmentList(p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error(t('获取部门列表失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
+  const fetchList = useCallback((p: SearchParams) => DeptAPI.getDepartmentList(p), [])
+  const onListError = useCallback(() => message.error(t('获取部门列表失败')), [t])
+  const { list, total, loading: listLoading, reload: reloadList } = useTableQuery({
+    params,
+    fetcher: fetchList,
+    onError: onListError,
+    enabled: view === 'list',
+  })
 
-  const fetchTree = async () => {
-    setLoading(true)
-    try {
-      const res = await DeptAPI.getDepartmentTree()
-      setTree(res ?? [])
-      setExpandedKeys(collectExpandableKeys(res ?? []))
-    } catch {
-      message.error(t('获取部门树失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (view === 'list') fetchList(params)
-  }, [params, view])
-
-  useEffect(() => {
-    fetchTree()
+  const fetchTree = useCallback(async () => {
+    const res = await DeptAPI.getDepartmentTree()
+    const next = res ?? []
+    setExpandedKeys(collectExpandableKeys(next))
+    return next
   }, [])
+  const onTreeError = useCallback(() => message.error(t('获取部门树失败')), [t])
+  const { tree, loading: treeLoading, reload: reloadTree } = useTreeQuery({
+    fetcher: fetchTree,
+    onError: onTreeError,
+  })
+  const loading = view === 'list' ? listLoading : treeLoading
 
   const refresh = () => {
-    fetchTree()
-    if (view === 'list') fetchList(params)
+    void reloadTree()
+    if (view === 'list') void reloadList()
   }
 
   const handleSearch = (values: { keyword?: string; status?: number }) => {

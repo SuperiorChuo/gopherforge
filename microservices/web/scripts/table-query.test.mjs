@@ -75,3 +75,12 @@ test('createInitialTableQueryState 是空列表未加载', () => {
     error: false,
   })
 })
+
+test('树结果用 list 存节点，total 取节点数', () => {
+  const current = createInitialTableQueryState()
+  const tree = [{ id: 1, children: [{ id: 2 }] }]
+  assert.deepEqual(
+    applyTableQueryResult(current, 1, 1, { list: tree, total: tree.length }),
+    { list: tree, total: 1, loading: false, error: false },
+  )
+})
