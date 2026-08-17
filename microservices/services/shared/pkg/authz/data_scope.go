@@ -96,7 +96,7 @@ func currentRemoteCache() RemoteCache {
 }
 
 // SetDefaultDB 安装 databaseDataScopeStore 零值兜底所用的默认数据库连接。
-// 服务启动装配时调用（原实现直接引用各服务 internal/pkg/database.DB 全局）。
+// 服务启动装配时调用（原实现直接引用各服务进程级 database.DB 全局）。
 func SetDefaultDB(db *gorm.DB) {
 	remoteCacheMu.Lock()
 	defer remoteCacheMu.Unlock()

@@ -3,10 +3,10 @@ package runtimeconfig
 import (
 	"context"
 
+	"github.com/go-admin-kit/services/shared/pkg/database"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
-	"github.com/go-admin-kit/services/system/internal/pkg/database"
 )
 
 // TenantSettingStore 读取租户级覆盖行（tenant_settings）。

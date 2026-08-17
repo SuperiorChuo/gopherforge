@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-admin-kit/services/file/internal/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -57,7 +56,7 @@ func TestApplyConnectionPoolConfigSetsMaxOpenConnections(t *testing.T) {
 	}
 	defer sqlDB.Close()
 
-	applyConnectionPoolConfig(sqlDB, config.DatabaseConfig{
+	applyConnectionPoolConfig(sqlDB, Config{
 		MaxIdleConns:           2,
 		MaxOpenConns:           7,
 		ConnMaxLifetimeSeconds: 30,

@@ -3,7 +3,7 @@ package monitor
 import (
 	"testing"
 
-	"github.com/go-admin-kit/services/monitor/internal/pkg/database"
+	"github.com/go-admin-kit/services/shared/pkg/database"
 )
 
 func TestJobDAOReadyIsFalseWithoutInjectedDatabase(t *testing.T) {

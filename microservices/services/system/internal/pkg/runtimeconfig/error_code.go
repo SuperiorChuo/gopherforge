@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-admin-kit/services/shared/pkg/database"
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
 	localmodel "github.com/go-admin-kit/services/system/internal/model"
-	"github.com/go-admin-kit/services/system/internal/pkg/database"
 )
 
 // ErrorCodeStore 提供全量启用错误码的读取能力（由 DAO 实现）。

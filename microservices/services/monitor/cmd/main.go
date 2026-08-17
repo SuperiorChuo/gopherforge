@@ -25,13 +25,13 @@ import (
 	systemDAO "github.com/go-admin-kit/services/monitor/internal/dao/system"
 	"github.com/go-admin-kit/services/monitor/internal/middleware"
 	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
-	"github.com/go-admin-kit/services/monitor/internal/pkg/database"
 	"github.com/go-admin-kit/services/monitor/internal/pkg/runtimeconfig"
 	authsvc "github.com/go-admin-kit/services/monitor/internal/service/auth"
 	monitorSvc "github.com/go-admin-kit/services/monitor/internal/service/monitor"
 	systemSvc "github.com/go-admin-kit/services/monitor/internal/service/system"
 	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	"github.com/go-admin-kit/services/shared/pkg/authz"
+	"github.com/go-admin-kit/services/shared/pkg/database"
 	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"github.com/go-admin-kit/services/shared/pkg/grpcx"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
@@ -305,7 +305,16 @@ func run(ctx context.Context) error {
 	}()
 
 	logger.Info("initializing database")
-	if err := database.InitDatabase(); err != nil {
+	if err := database.InitDatabase(database.Config{
+		DSN:                    config.Cfg.Database.GetDSN(),
+		Host:                   config.Cfg.Database.Host,
+		Port:                   config.Cfg.Database.Port,
+		DBName:                 config.Cfg.Database.DBName,
+		MaxIdleConns:           config.Cfg.Database.MaxIdleConns,
+		MaxOpenConns:           config.Cfg.Database.MaxOpenConns,
+		ConnMaxLifetimeSeconds: config.Cfg.Database.ConnMaxLifetimeSeconds,
+		ConnMaxIdleTimeSeconds: config.Cfg.Database.ConnMaxIdleTimeSeconds,
+	}); err != nil {
 		return fmt.Errorf("database initialization failed: %w", err)
 	}
 	if err := authz.RegisterDataScopePlugin(database.DB); err != nil {

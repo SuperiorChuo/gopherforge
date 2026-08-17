@@ -15,7 +15,7 @@ import (
 const internalDir = ".."
 
 var guardedGlobalPackages = map[string]map[string]string{
-	"github.com/go-admin-kit/services/monitor/internal/pkg/database": {
+	"github.com/go-admin-kit/services/shared/pkg/database": {
 		"DB": "database.DB",
 	},
 	"github.com/go-admin-kit/services/shared/pkg/redis": {

@@ -15,6 +15,7 @@
 - **健康检查收敛（同步自主项目）**：六服务删除本地 `health.go`，统一使用 `shared/pkg/health`；monitor 的 `/metrics` 仍留本服务。
 - **tracing 收敛（同步自主项目）**：六服务删除本地 `observability` 包，统一使用 `shared/pkg/observability.InitTracer`。
 - **Redis 收敛（同步自主项目）**：六服务删除本地 `redis` 包，统一使用 `shared/pkg/redis`。
+- **数据库客户端收敛（同步自主项目）**：六服务删除本地 `database` 包，统一使用 `shared/pkg/database`；DSN / search_path 仍由各服务计算。
 
 ## [0.6.0] - 2026-08-13
 

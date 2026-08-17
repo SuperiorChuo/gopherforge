@@ -12,10 +12,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/shared/pkg/audittrail"
+	"github.com/go-admin-kit/services/shared/pkg/database"
 	"github.com/go-admin-kit/services/shared/pkg/exportproof"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 	"github.com/go-admin-kit/services/system/internal/edgecert"
-	"github.com/go-admin-kit/services/system/internal/pkg/database"
 	"gorm.io/gorm"
 )
 
