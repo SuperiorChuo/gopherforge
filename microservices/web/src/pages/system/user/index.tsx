@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Space, Tag, Modal, Form, Input, Select, Alert,
@@ -24,6 +24,7 @@ import TableRowActions from '@/components/common/TableRowActions'
 import GlassEmpty from '@/components/common/GlassEmpty'
 import ExcelImportModal from '@/components/common/ExcelImportModal'
 import { useUrlParams } from '@/hooks/useUrlParams'
+import { useTableQuery } from '@/hooks/useTableQuery'
 import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import { EnableStatusPill } from '@/components/common/StatusPill'
@@ -85,9 +86,6 @@ function UserTagList({
 
 export default function UserPage() {
   const { t } = useTranslation()
-  const [list, setList] = useState<UserRow[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [modalOpen, setModalOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<UserRow | null>(null)
@@ -116,18 +114,9 @@ export default function UserPage() {
     return m
   }, [depts])
 
-  const fetchList = async (p: SearchParams) => {
-    setLoading(true)
-    try {
-      const res = await UserAPI.getUserList(p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error(t('获取用户列表失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
+  const fetchList = useCallback((p: SearchParams) => UserAPI.getUserList(p), [])
+  const onLoadError = useCallback(() => message.error(t('获取用户列表失败')), [t])
+  const { list, total, loading, reload } = useTableQuery({ params, fetcher: fetchList, onError: onLoadError })
 
   const fetchRoles = async () => {
     try {
@@ -137,10 +126,6 @@ export default function UserPage() {
       // ignore
     }
   }
-
-  useEffect(() => {
-    fetchList(params)
-  }, [params])
 
   useEffect(() => {
     fetchRoles()
@@ -213,7 +198,7 @@ export default function UserPage() {
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
-        fetchList(params)
+        void reload()
       }
     } catch {
       message.error(t('删除失败'))
@@ -244,7 +229,7 @@ export default function UserPage() {
         message.success(t('创建成功'))
       }
       setModalOpen(false)
-      fetchList(params)
+      void reload()
     } catch {
       message.error(t('操作失败'))
     } finally {
@@ -437,7 +422,7 @@ export default function UserPage() {
           total={total}
           extra={(
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>
+              <Button icon={<ReloadOutlined />} onClick={() => { void reload() }}>
                 {t('刷新')}
               </Button>
               <Button
@@ -641,7 +626,7 @@ export default function UserPage() {
         title={t('批量导入用户')}
         hint={t('请使用「下载导入模板」生成的 .xlsx 文件；密码留空用默认初始密码，部门须为已存在的部门名称')}
         onClose={() => setImportOpen(false)}
-        onDone={() => fetchList(params)}
+        onDone={() => { void reload() }}
         downloadTemplate={UserAPI.downloadUserImportTemplate}
         doImport={UserAPI.importUsers}
       />
