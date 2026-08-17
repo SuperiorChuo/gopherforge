@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Grid, Space, Tag, Form, Input, Select,
@@ -22,6 +22,7 @@ import { formatDateTime } from '@/utils/format'
 import { usePermission } from '@/hooks/usePermission'
 import { EnableStatusPill } from '@/components/common/StatusPill'
 import { useUrlParams } from '@/hooks/useUrlParams'
+import { useTableQuery } from '@/hooks/useTableQuery'
 
 interface SearchParams {
   keyword?: string
@@ -31,9 +32,6 @@ interface SearchParams {
 }
 
 export default function PostPage() {
-  const [list, setList] = useState<SystemPost[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [modalOpen, setModalOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<SystemPost | null>(null)
@@ -45,23 +43,9 @@ export default function PostPage() {
   const screens = Grid.useBreakpoint()
   const compactActions = !screens.md
 
-  const fetchList = async (p: SearchParams) => {
-    setLoading(true)
-    try {
-      const res = await PostAPI.getPostList(p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error(t('获取岗位列表失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchList(params)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params])
+  const fetchList = useCallback((p: SearchParams) => PostAPI.getPostList(p), [])
+  const onLoadError = useCallback(() => message.error(t('获取岗位列表失败')), [t])
+  const { list, total, loading, reload } = useTableQuery({ params, fetcher: fetchList, onError: onLoadError })
 
   const handleSearch = (values: { keyword?: string; status?: number }) => {
     setParams({ ...params, page: 1, keyword: values.keyword, status: values.status })
@@ -97,7 +81,7 @@ export default function PostPage() {
       if (list.length === 1 && params.page > 1) {
         setParams({ ...params, page: params.page - 1 })
       } else {
-        fetchList(params)
+        void reload()
       }
     } catch {
       // 删除失败原因（如岗位仍有用户关联）由 request 拦截器统一弹出
@@ -110,7 +94,7 @@ export default function PostPage() {
     try {
       await PostAPI.updatePost(record.id, { status: next })
       message.success(next === 1 ? t('已启用') : t('已停用'))
-      fetchList(params)
+      void reload()
     } catch {
       // 错误提示由 request 拦截器统一弹出
     }
@@ -129,7 +113,7 @@ export default function PostPage() {
         message.success(t('创建成功'))
       }
       setModalOpen(false)
-      fetchList(params)
+      void reload()
     } catch {
       // 错误提示由 request 拦截器统一弹出
     } finally {
@@ -251,7 +235,7 @@ export default function PostPage() {
             total={total}
             extra={(
               <Space wrap>
-                <Button icon={<ReloadOutlined />} onClick={() => fetchList(params)}>{t('刷新')}</Button>
+                <Button icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>
                 {hasPerm('system:post:create') && (
                   <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增岗位')}</Button>
                 )}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Table, Button, Grid, Space, Tag, Form, Input, Select,
@@ -23,6 +23,7 @@ import { usePermission } from '@/hooks/usePermission'
 import { EnableStatusPill } from '@/components/common/StatusPill'
 import { useCrudModal } from '@/hooks/useCrudModal'
 import { usePagination } from '@/hooks/usePagination'
+import { useTableQuery } from '@/hooks/useTableQuery'
 import './styles.css'
 
 interface PageParams {
@@ -34,9 +35,6 @@ interface PageParams {
 }
 
 export default function ErrCodesPage() {
-  const [list, setList] = useState<ErrorCodeItem[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [filters, setFilters] = useState<Omit<PageParams, 'page' | 'page_size'>>({})
   const pagination = usePagination()
   const modal = useCrudModal<ErrorCodeItem>()
@@ -48,24 +46,10 @@ export default function ErrCodesPage() {
   const screens = Grid.useBreakpoint()
   const compactActions = !screens.md
 
-  const fetchList = async (p: PageParams) => {
-    setLoading(true)
-    try {
-      const res = await ErrCodeAPI.getErrCodeList(p)
-      setList(res.list)
-      setTotal(res.total)
-    } catch {
-      message.error(t('获取错误码列表失败'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    void fetchList({ ...filters, page: pagination.page, page_size: pagination.page_size })
-    // fetchList 仅依赖查询参数，避免请求函数引用变化触发额外加载
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, pagination.page, pagination.page_size])
+  const params: PageParams = { ...filters, page: pagination.page, page_size: pagination.page_size }
+  const fetchList = useCallback((p: PageParams) => ErrCodeAPI.getErrCodeList(p), [])
+  const onLoadError = useCallback(() => message.error(t('获取错误码列表失败')), [t])
+  const { list, total, loading, reload } = useTableQuery({ params, fetcher: fetchList, onError: onLoadError })
 
   const handleSearch = (values: { keyword?: string; scope?: string; status?: number }) => {
     setFilters(values)
@@ -101,7 +85,7 @@ export default function ErrCodesPage() {
       if (list.length === 1 && pagination.page > 1) {
         pagination.updatePagination({ page: pagination.page - 1 })
       } else {
-        void fetchList({ ...filters, page: pagination.page, page_size: pagination.page_size })
+        void reload()
       }
     } catch {
       message.error(t('删除失败'))
@@ -114,7 +98,7 @@ export default function ErrCodesPage() {
     try {
       await ErrCodeAPI.updateErrCode(record.id, { status: next })
       message.success(next === 1 ? t('已启用') : t('已停用'))
-      void fetchList({ ...filters, page: pagination.page, page_size: pagination.page_size })
+      void reload()
     } catch {
       message.error(t('操作失败'))
     }
@@ -135,7 +119,7 @@ export default function ErrCodesPage() {
         message.success(t('创建成功，约 30 秒内热生效'))
       }
       modal.close()
-      void fetchList({ ...filters, page: pagination.page, page_size: pagination.page_size })
+      void reload()
     } catch {
       message.error(t('操作失败'))
     } finally {
@@ -277,7 +261,7 @@ export default function ErrCodesPage() {
             total={total}
             extra={(
               <Space wrap>
-                <Button icon={<ReloadOutlined />} onClick={() => void fetchList({ ...filters, page: pagination.page, page_size: pagination.page_size })}>{t('刷新')}</Button>
+                <Button icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>
                 {hasPerm('system:errcode:create') && (
                   <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('新增错误码')}</Button>
                 )}
