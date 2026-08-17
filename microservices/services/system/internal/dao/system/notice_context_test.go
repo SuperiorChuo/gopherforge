@@ -22,6 +22,21 @@ func TestNoticeDAOGetListContextHonorsCanceledContext(t *testing.T) {
 	}
 }
 
+func TestNoticeDAOGetActiveListCapsAtHardLimit(t *testing.T) {
+	db, mock := setupSystemDAOTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "notices" WHERE tenant_id = $1 AND status = 1 AND ((start_time IS NULL OR start_time <= NOW())) AND ((end_time IS NULL OR end_time >= NOW())) ORDER BY created_at DESC LIMIT $2`)).
+		WithArgs(uint(1), maxActiveNotices).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "title"}))
+
+	list, err := NewNoticeDAO(db).GetActiveListContext(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("GetActiveListContext() error = %v", err)
+	}
+	if list == nil {
+		t.Fatal("GetActiveListContext() list = nil")
+	}
+}
+
 func TestNoticeDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedDictNoticeSeedDAOTestDB(t)
 

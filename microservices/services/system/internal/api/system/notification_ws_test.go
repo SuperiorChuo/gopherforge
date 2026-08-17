@@ -14,8 +14,8 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
-	"github.com/go-admin-kit/services/system/internal/config"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
+	"github.com/go-admin-kit/services/system/internal/config"
 	systemsvc "github.com/go-admin-kit/services/system/internal/service/system"
 	"github.com/gorilla/websocket"
 )
@@ -134,7 +134,8 @@ func TestNotificationWebSocketConsumesTicketSendsActiveNoticesAndPublishesTarget
 
 	createdAt := time.Date(2026, 5, 23, 9, 30, 0, 0, time.UTC)
 	db, mock := setupNoticeAPITestDB(t)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "notices" WHERE tenant_id = $1 AND status = 1 AND ((start_time IS NULL OR start_time <= NOW())) AND ((end_time IS NULL OR end_time >= NOW())) ORDER BY created_at DESC`)).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "notices" WHERE tenant_id = $1 AND status = 1 AND ((start_time IS NULL OR start_time <= NOW())) AND ((end_time IS NULL OR end_time >= NOW())) ORDER BY created_at DESC LIMIT $2`)).
+		WithArgs(uint(1), 50).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "title", "content", "type", "status", "created_at", "updated_at"}).
 			AddRow(uint(9), "Maintenance", "Maintenance window tonight", int8(2), int8(1), createdAt, createdAt))
 

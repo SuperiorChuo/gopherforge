@@ -9,6 +9,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// 前台生效公告是横幅/弹窗，正常只有几条。
+const maxActiveNotices = 50
+
 type NoticeDAO struct {
 	db *gorm.DB
 }
@@ -65,7 +68,8 @@ func (d *NoticeDAO) GetActiveListContext(ctx context.Context, noticeType *int8) 
 		query = query.Where("type = ?", *noticeType)
 	}
 
-	result := query.Order("created_at DESC").Find(&notices)
+	// 前台横幅一次只展示少量生效公告；加硬上限防止异常写入把首页一次拉爆。
+	result := query.Order("created_at DESC").Limit(maxActiveNotices).Find(&notices)
 	return notices, result.Error
 }
 
