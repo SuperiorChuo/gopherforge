@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  applyTableQueryError,
+  applyTableQueryResult,
+  beginTableQueryReload,
+  createInitialTableQueryState,
+  nextTableQueryRequestID,
+  patchTableQueryList,
+  type TableQueryState,
+} from './table-query'
 
-export type TableQueryState<T> = {
-  list: T[]
-  total: number
-  loading: boolean
-  error: boolean
-}
+export type { TableQueryState }
 
 export type UseTableQueryOptions<T, P> = {
   params: P
@@ -13,31 +17,34 @@ export type UseTableQueryOptions<T, P> = {
   onError?: () => void
 }
 
-/** 统一列表加载、刷新、旧数据保留和错误态；筛选/分页状态仍由页面持有。 */
+/** 统一列表加载、刷新、旧数据保留、过期响应丢弃和错误态；筛选/分页状态仍由页面持有。 */
 export function useTableQuery<T, P>({ params, fetcher, onError }: UseTableQueryOptions<T, P>) {
-  const [state, setState] = useState<TableQueryState<T>>({
-    list: [],
-    total: 0,
-    loading: false,
-    error: false,
-  })
+  const [state, setState] = useState<TableQueryState<T>>(createInitialTableQueryState)
+  const requestIDRef = useRef(0)
 
   const reload = useCallback(async (options?: { silent?: boolean }) => {
+    const requestID = nextTableQueryRequestID(requestIDRef.current)
+    requestIDRef.current = requestID
     if (!options?.silent) {
-      setState((current) => ({ ...current, loading: true, error: false }))
+      setState((current) => beginTableQueryReload(current, options))
     }
     try {
       const result = await fetcher(params)
-      setState({ list: result.list, total: result.total, loading: false, error: false })
+      setState((current) => applyTableQueryResult(current, requestID, requestIDRef.current, result))
     } catch {
-      setState((current) => ({ ...current, loading: false, error: options?.silent ? current.error : true }))
-      if (!options?.silent) onError?.()
+      const latestID = requestIDRef.current
+      setState((current) => applyTableQueryError(current, requestID, latestID, options))
+      if (requestID === latestID && !options?.silent) onError?.()
     }
   }, [fetcher, onError, params])
+
+  const patchList = useCallback((updater: (list: T[]) => T[]) => {
+    setState((current) => patchTableQueryList(current, updater))
+  }, [])
 
   useEffect(() => {
     void reload()
   }, [reload])
 
-  return { ...state, reload }
+  return { ...state, reload, patchList }
 }
