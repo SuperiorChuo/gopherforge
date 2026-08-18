@@ -22,6 +22,7 @@
 - **运行时配置缓存收敛（同步自主项目）**：抽取 `shared/pkg/runtimeconfig` 泛型 TTL/刷新/过期回退状态机，保留各服务配置结构与解析逻辑。
 - **运行时配置数值解析收敛（同步自主项目）**：统一 security policy 的整数、正数和非负数解析 helpers，保留配置字段语义。
 - **运行时配置读取器收敛（同步自主项目）**：system 天气 reader 复用 shared `CachedSettingReader`，保留租户覆盖、字段解析和 fallback。
+- **邮件运行时配置读取器收敛（同步自主项目）**：system/monitor 复用 shared `CachedSettingReader`，保留租户覆盖、安全策略、模板和收件人语义。
 - **IP 地理位置客户端收敛（同步自主项目）**：audit 与 monitor 统一使用 `shared/pkg/ipinfo`。
 - **system_settings DAO 收敛（同步自主项目）**：六服务统一使用 `shared/pkg/setting`，保留本地 alias 兼容既有 import。
 

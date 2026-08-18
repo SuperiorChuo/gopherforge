@@ -2,7 +2,6 @@ package runtimeconfig
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -11,7 +10,6 @@ import (
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	sharedruntimeconfig "github.com/go-admin-kit/services/shared/pkg/runtimeconfig"
 	"github.com/go-admin-kit/services/system/internal/config"
-	"gorm.io/gorm"
 )
 
 const EmailNotificationSettingKey = "notification.email"
@@ -44,21 +42,20 @@ type EmailNotificationStore interface {
 }
 
 type CachedEmailNotificationReader struct {
-	store       EmailNotificationStore
+	reader      *sharedruntimeconfig.CachedSettingReader[EmailNotification]
 	tenantStore TenantSettingStore
-	ttl         time.Duration
-
-	mu        sync.RWMutex
-	policy    EmailNotification
-	expiresAt time.Time
-	loaded    bool
 }
 
 func NewCachedEmailNotificationReader(store EmailNotificationStore, ttl time.Duration) *CachedEmailNotificationReader {
-	if ttl <= 0 {
-		ttl = 30 * time.Second
+	return &CachedEmailNotificationReader{
+		reader: sharedruntimeconfig.NewCachedSettingReader(
+			store, EmailNotificationSettingKey, ttl, EmailNotificationFromConfig,
+			func(policy EmailNotification, value map[string]any) EmailNotification {
+				return enforceEmailNotificationSafety(applyEmailNotificationSetting(policy, value))
+			},
+		),
+		tenantStore: defaultTenantSettingStore{},
 	}
-	return &CachedEmailNotificationReader{store: store, tenantStore: defaultTenantSettingStore{}, ttl: ttl}
 }
 
 var (
@@ -74,34 +71,10 @@ func DefaultEmailNotificationReader() *CachedEmailNotificationReader {
 }
 
 func (r *CachedEmailNotificationReader) EmailNotification(ctx context.Context) EmailNotification {
-	var policy EmailNotification
 	if r == nil {
-		policy = EmailNotificationFromConfig()
-	} else {
-		now := time.Now()
-		r.mu.RLock()
-		if r.loaded && now.Before(r.expiresAt) {
-			policy = r.policy
-			r.mu.RUnlock()
-			return r.applyTenantOverride(ctx, policy)
-		}
-		r.mu.RUnlock()
-
-		if err := r.Refresh(ctx); err != nil {
-			r.mu.RLock()
-			policy = r.policy
-			loaded := r.loaded
-			r.mu.RUnlock()
-			if !loaded {
-				policy = EmailNotificationFromConfig()
-			}
-		} else {
-			r.mu.RLock()
-			policy = r.policy
-			r.mu.RUnlock()
-		}
+		return EmailNotificationFromConfig()
 	}
-	return r.applyTenantOverride(ctx, policy)
+	return r.applyTenantOverride(ctx, r.reader.Value(ctx))
 }
 
 // applyTenantOverride 显式租户上下文命中 tenant_settings 覆盖时应用之；
@@ -120,36 +93,7 @@ func (r *CachedEmailNotificationReader) Refresh(ctx context.Context) error {
 	if r == nil {
 		return nil
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	policy := EmailNotificationFromConfig()
-	var err error
-	if r.store != nil {
-		var setting *model.SystemSetting
-		setting, err = r.store.GetByKeyContext(ctx, EmailNotificationSettingKey)
-		switch {
-		case err == nil && setting != nil:
-			policy = applyEmailNotificationSetting(policy, setting.ValueJSON)
-		case errors.Is(err, gorm.ErrRecordNotFound):
-			err = nil
-		}
-	}
-
-	if err == nil {
-		// Guard the finished policy, not the individual overrides: every source
-		// that can widen it — the setting row today, anything added later — has
-		// already been folded in by this point, and this is the value the cache
-		// hands to every reader until the TTL expires.
-		policy = enforceEmailNotificationSafety(policy)
-		r.mu.Lock()
-		r.policy = policy
-		r.expiresAt = time.Now().Add(r.ttl)
-		r.loaded = true
-		r.mu.Unlock()
-	}
-	return err
+	return r.reader.Refresh(ctx)
 }
 
 func EmailNotificationFromConfig() EmailNotification {
