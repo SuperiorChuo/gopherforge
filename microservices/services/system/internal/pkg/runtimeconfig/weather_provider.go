@@ -2,15 +2,14 @@ package runtimeconfig
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
 
 	"github.com/go-admin-kit/services/shared/pkg/database"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
+	sharedruntimeconfig "github.com/go-admin-kit/services/shared/pkg/runtimeconfig"
 	systemdao "github.com/go-admin-kit/services/system/internal/dao/system"
 	"github.com/go-admin-kit/services/system/internal/pkg/weather"
-	"gorm.io/gorm"
 )
 
 // WeatherProviderSettingKey is the system_settings row holding the Amap key
@@ -24,21 +23,18 @@ type WeatherStore interface {
 // CachedWeatherReader layers the weather.provider setting row over empty
 // defaults with a short TTL, refreshed instantly via the invalidation channel.
 type CachedWeatherReader struct {
-	store       WeatherStore
+	reader      *sharedruntimeconfig.CachedSettingReader[weather.Settings]
 	tenantStore TenantSettingStore
-	ttl         time.Duration
-
-	mu        sync.RWMutex
-	settings  weather.Settings
-	expiresAt time.Time
-	loaded    bool
 }
 
 func NewCachedWeatherReader(store WeatherStore, ttl time.Duration) *CachedWeatherReader {
-	if ttl <= 0 {
-		ttl = 30 * time.Second
+	return &CachedWeatherReader{
+		reader: sharedruntimeconfig.NewCachedSettingReader(
+			store, WeatherProviderSettingKey, ttl,
+			func() weather.Settings { return weather.Settings{} }, weather.ApplySetting,
+		),
+		tenantStore: defaultTenantSettingStore{},
 	}
-	return &CachedWeatherReader{store: store, tenantStore: defaultTenantSettingStore{}, ttl: ttl}
 }
 
 var (
@@ -65,33 +61,10 @@ func (defaultWeatherStore) GetByKeyContext(ctx context.Context, key string) (*mo
 
 // WeatherSettings implements weather.SettingsReader.
 func (r *CachedWeatherReader) WeatherSettings(ctx context.Context) weather.Settings {
-	var settings weather.Settings
 	if r == nil {
-		return settings
+		return weather.Settings{}
 	}
-	now := time.Now()
-	r.mu.RLock()
-	if r.loaded && now.Before(r.expiresAt) {
-		settings = r.settings
-		r.mu.RUnlock()
-		return r.applyTenantOverride(ctx, settings)
-	}
-	r.mu.RUnlock()
-
-	if err := r.Refresh(ctx); err != nil {
-		r.mu.RLock()
-		settings = r.settings
-		loaded := r.loaded
-		r.mu.RUnlock()
-		if !loaded {
-			return weather.Settings{}
-		}
-	} else {
-		r.mu.RLock()
-		settings = r.settings
-		r.mu.RUnlock()
-	}
-	return r.applyTenantOverride(ctx, settings)
+	return r.applyTenantOverride(ctx, r.reader.Value(ctx))
 }
 
 // applyTenantOverride 显式租户上下文命中 tenant_settings 覆盖时应用之；
@@ -110,29 +83,5 @@ func (r *CachedWeatherReader) Refresh(ctx context.Context) error {
 	if r == nil {
 		return nil
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	var settings weather.Settings
-	var err error
-	if r.store != nil {
-		var setting *model.SystemSetting
-		setting, err = r.store.GetByKeyContext(ctx, WeatherProviderSettingKey)
-		switch {
-		case err == nil && setting != nil:
-			settings = weather.ApplySetting(settings, setting.ValueJSON)
-		case errors.Is(err, gorm.ErrRecordNotFound):
-			err = nil
-		}
-	}
-
-	if err == nil {
-		r.mu.Lock()
-		r.settings = settings
-		r.expiresAt = time.Now().Add(r.ttl)
-		r.loaded = true
-		r.mu.Unlock()
-	}
-	return err
+	return r.reader.Refresh(ctx)
 }
