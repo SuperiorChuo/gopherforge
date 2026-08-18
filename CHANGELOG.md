@@ -19,6 +19,7 @@
 - **验证码收敛（同步自主项目）**：登录验证码收进 `shared/pkg/captcha`，删除无消费者的本地拷贝。
 - **缓存收敛（同步自主项目）**：六服务删除本地 `cache` 包，统一使用 `shared/pkg/cache`。
 - **运行时配置失效管线收敛（同步自主项目）**：六服务复用 `shared/pkg/runtimeconfig` 的 Redis 发布/订阅生命周期，保留各自配置键和刷新逻辑。
+- **运行时配置缓存收敛（同步自主项目）**：抽取 `shared/pkg/runtimeconfig` 泛型 TTL/刷新/过期回退状态机，保留各服务配置结构与解析逻辑。
 - **IP 地理位置客户端收敛（同步自主项目）**：audit 与 monitor 统一使用 `shared/pkg/ipinfo`。
 - **system_settings DAO 收敛（同步自主项目）**：六服务统一使用 `shared/pkg/setting`，保留本地 alias 兼容既有 import。
 

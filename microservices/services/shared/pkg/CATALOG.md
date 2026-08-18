@@ -27,7 +27,7 @@
 - `cache` 是七个基础设施服务会话 / 权限 / 验证码 / 字典 / OAuth2 缓存的单一真源。
 - `ipinfo` 是 audit 登录日志与 monitor IP API 共用的 IP 地理位置客户端；monolith 保留单进程适配。
 - `setting` 是六服务共用的 system_settings CRUD DAO；服务侧 alias 只为兼容既有 `internal/dao/system` import。
-- `runtimeconfig` 只承载 Redis 失效通知的发布/订阅生命周期；设置键白名单和刷新逻辑仍由各服务保留。
+- `runtimeconfig` 承载 Redis 失效通知与泛型运行时配置缓存状态机；设置键、配置结构、白名单和刷新解析逻辑仍由各服务保留。
 - `errors`、`internalhttp`、`tlsutil` 存在 shared 包之间的传递消费者；不能用“直接 import 数量”判断为孤立包。
 - 主仓特有的 `authz`、`tenantctx` 不同步到公开 micro 线；其消费者迁移由独立 authz 批次处理，本清单不覆盖并行实现。
 

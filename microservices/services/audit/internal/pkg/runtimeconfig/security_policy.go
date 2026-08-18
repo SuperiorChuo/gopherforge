@@ -11,7 +11,7 @@ import (
 	systemdao "github.com/go-admin-kit/services/audit/internal/dao/system"
 	"github.com/go-admin-kit/services/shared/pkg/database"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
-	"gorm.io/gorm"
+	sharedruntimeconfig "github.com/go-admin-kit/services/shared/pkg/runtimeconfig"
 )
 
 const SecurityPolicySettingKey = "security.policy"
@@ -45,20 +45,13 @@ type SecurityPolicyStore interface {
 }
 
 type CachedSecurityPolicyReader struct {
-	store SecurityPolicyStore
-	ttl   time.Duration
-
-	mu        sync.RWMutex
-	policy    SecurityPolicy
-	expiresAt time.Time
-	loaded    bool
+	reader *sharedruntimeconfig.CachedSettingReader[SecurityPolicy]
 }
 
 func NewCachedSecurityPolicyReader(store SecurityPolicyStore, ttl time.Duration) *CachedSecurityPolicyReader {
-	if ttl <= 0 {
-		ttl = 30 * time.Second
-	}
-	return &CachedSecurityPolicyReader{store: store, ttl: ttl}
+	return &CachedSecurityPolicyReader{reader: sharedruntimeconfig.NewCachedSettingReader(
+		store, SecurityPolicySettingKey, ttl, SecurityPolicyFromConfig, applySecurityPolicySetting,
+	)}
 }
 
 var (
@@ -110,64 +103,17 @@ func (defaultSecurityPolicyStore) GetByKeyContext(ctx context.Context, key strin
 }
 
 func (r *CachedSecurityPolicyReader) SecurityPolicy(ctx context.Context) SecurityPolicy {
-	if r == nil {
+	if r == nil || r.reader == nil {
 		return SecurityPolicyFromConfig()
 	}
-	now := time.Now()
-	r.mu.RLock()
-	if r.loaded && now.Before(r.expiresAt) {
-		policy := r.policy
-		r.mu.RUnlock()
-		return policy
-	}
-	r.mu.RUnlock()
-
-	if err := r.Refresh(ctx); err != nil {
-		r.mu.RLock()
-		if r.loaded {
-			policy := r.policy
-			r.mu.RUnlock()
-			return policy
-		}
-		r.mu.RUnlock()
-		return SecurityPolicyFromConfig()
-	}
-
-	r.mu.RLock()
-	policy := r.policy
-	r.mu.RUnlock()
-	return policy
+	return r.reader.Value(ctx)
 }
 
 func (r *CachedSecurityPolicyReader) Refresh(ctx context.Context) error {
-	if r == nil {
+	if r == nil || r.reader == nil {
 		return nil
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	policy := SecurityPolicyFromConfig()
-	var err error
-	if r.store != nil {
-		var setting *model.SystemSetting
-		setting, err = r.store.GetByKeyContext(ctx, SecurityPolicySettingKey)
-		switch {
-		case err == nil && setting != nil:
-			policy = applySecurityPolicySetting(policy, setting.ValueJSON)
-		case errors.Is(err, gorm.ErrRecordNotFound):
-			err = nil
-		}
-	}
-
-	if err == nil {
-		r.mu.Lock()
-		r.policy = policy
-		r.expiresAt = time.Now().Add(r.ttl)
-		r.loaded = true
-		r.mu.Unlock()
-	}
-	return err
+	return r.reader.Refresh(ctx)
 }
 
 func SecurityPolicyFromConfig() SecurityPolicy {
