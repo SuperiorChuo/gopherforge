@@ -3,7 +3,6 @@ package runtimeconfig
 import (
 	"context"
 	"errors"
-	"math"
 	"sync"
 	"time"
 
@@ -127,16 +126,16 @@ func SecurityPolicyFromConfig() SecurityPolicy {
 		PasswordMaxAgeDays:         config.Cfg.Security.EffectivePasswordMaxAgeDays(),
 		PasswordHistoryCount:       config.Cfg.Security.EffectivePasswordHistoryCount(),
 		LoginLimitEnabled:          loginLimit.Enabled,
-		LoginLimitMaxFailures:      positiveOrDefault(loginLimit.MaxFailures, 5),
-		LoginLimitWindowMinutes:    positiveOrDefault(loginLimit.WindowMinutes, 15),
-		LoginLimitLockMinutes:      positiveOrDefault(loginLimit.LockMinutes, 30),
+		LoginLimitMaxFailures:      sharedruntimeconfig.PositiveOrDefault(loginLimit.MaxFailures, 5),
+		LoginLimitWindowMinutes:    sharedruntimeconfig.PositiveOrDefault(loginLimit.WindowMinutes, 15),
+		LoginLimitLockMinutes:      sharedruntimeconfig.PositiveOrDefault(loginLimit.LockMinutes, 30),
 		LoginIPShieldMaxFailures:   30,
 		LoginIPShieldWindowMinutes: 10,
 		LoginIPShieldBlockMinutes:  10,
 		LoginAlertEnabled:          true,
 		RateLimitEnabled:           rateLimit.Enabled,
-		RateLimitWindowSeconds:     positiveOrDefault(rateLimit.WindowSeconds, 1),
-		RateLimitMaxRequests:       positiveOrDefault(rateLimit.MaxRequests, 100),
+		RateLimitWindowSeconds:     sharedruntimeconfig.PositiveOrDefault(rateLimit.WindowSeconds, 1),
+		RateLimitMaxRequests:       sharedruntimeconfig.PositiveOrDefault(rateLimit.MaxRequests, 100),
 	}
 }
 
@@ -144,84 +143,20 @@ func applySecurityPolicySetting(policy SecurityPolicy, value map[string]any) Sec
 	if value == nil {
 		return policy
 	}
-	policy.PasswordMaxAgeDays = nonNegativeSetting(value, "password_max_age_days", policy.PasswordMaxAgeDays)
-	policy.PasswordHistoryCount = nonNegativeSetting(value, "password_history_count", policy.PasswordHistoryCount)
-	policy.LoginLimitMaxFailures = positiveSetting(value, "login_limit_max_failures", policy.LoginLimitMaxFailures)
-	policy.LoginLimitWindowMinutes = positiveSetting(value, "login_limit_window_minutes", policy.LoginLimitWindowMinutes)
-	policy.LoginLimitLockMinutes = positiveSetting(value, "login_limit_lock_minutes", policy.LoginLimitLockMinutes)
-	policy.LoginIPShieldMaxFailures = positiveSetting(value, "login_ip_shield_max_failures", policy.LoginIPShieldMaxFailures)
-	policy.LoginIPShieldWindowMinutes = positiveSetting(value, "login_ip_shield_window_minutes", policy.LoginIPShieldWindowMinutes)
-	policy.LoginIPShieldBlockMinutes = positiveSetting(value, "login_ip_shield_block_minutes", policy.LoginIPShieldBlockMinutes)
+	policy.PasswordMaxAgeDays = sharedruntimeconfig.NonNegativeSetting(value, "password_max_age_days", policy.PasswordMaxAgeDays)
+	policy.PasswordHistoryCount = sharedruntimeconfig.NonNegativeSetting(value, "password_history_count", policy.PasswordHistoryCount)
+	policy.LoginLimitMaxFailures = sharedruntimeconfig.PositiveSetting(value, "login_limit_max_failures", policy.LoginLimitMaxFailures)
+	policy.LoginLimitWindowMinutes = sharedruntimeconfig.PositiveSetting(value, "login_limit_window_minutes", policy.LoginLimitWindowMinutes)
+	policy.LoginLimitLockMinutes = sharedruntimeconfig.PositiveSetting(value, "login_limit_lock_minutes", policy.LoginLimitLockMinutes)
+	policy.LoginIPShieldMaxFailures = sharedruntimeconfig.PositiveSetting(value, "login_ip_shield_max_failures", policy.LoginIPShieldMaxFailures)
+	policy.LoginIPShieldWindowMinutes = sharedruntimeconfig.PositiveSetting(value, "login_ip_shield_window_minutes", policy.LoginIPShieldWindowMinutes)
+	policy.LoginIPShieldBlockMinutes = sharedruntimeconfig.PositiveSetting(value, "login_ip_shield_block_minutes", policy.LoginIPShieldBlockMinutes)
 	if enabled, ok := boolSetting(value["login_alert_enabled"]); ok {
 		policy.LoginAlertEnabled = enabled
 	}
-	if rps, ok := positiveInt(value["rate_limit_rps"]); ok {
+	if rps, ok := sharedruntimeconfig.PositiveInt(value["rate_limit_rps"]); ok {
 		policy.RateLimitWindowSeconds = 1
 		policy.RateLimitMaxRequests = rps
 	}
 	return policy
-}
-
-func nonNegativeSetting(value map[string]any, key string, fallback int) int {
-	if got, ok := intSetting(value[key]); ok && got >= 0 {
-		return got
-	}
-	return fallback
-}
-
-func positiveSetting(value map[string]any, key string, fallback int) int {
-	if got, ok := positiveInt(value[key]); ok {
-		return got
-	}
-	return fallback
-}
-
-func positiveOrDefault(value, fallback int) int {
-	if value > 0 {
-		return value
-	}
-	return fallback
-}
-
-func positiveInt(value any) (int, bool) {
-	got, ok := intSetting(value)
-	return got, ok && got > 0
-}
-
-func intSetting(value any) (int, bool) {
-	switch v := value.(type) {
-	case int:
-		return v, true
-	case int8:
-		return int(v), true
-	case int16:
-		return int(v), true
-	case int32:
-		return int(v), true
-	case int64:
-		return int(v), true
-	case uint:
-		if uint64(v) > uint64(math.MaxInt) {
-			return 0, false
-		}
-		return int(v), true
-	case uint8:
-		return int(v), true
-	case uint16:
-		return int(v), true
-	case uint32:
-		return int(v), true
-	case uint64:
-		if v > uint64(math.MaxInt) {
-			return 0, false
-		}
-		return int(v), true
-	case float64:
-		if math.Trunc(v) != v || v > float64(math.MaxInt) || v < float64(math.MinInt) {
-			return 0, false
-		}
-		return int(v), true
-	default:
-		return 0, false
-	}
 }

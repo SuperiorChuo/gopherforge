@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
+	sharedruntimeconfig "github.com/go-admin-kit/services/shared/pkg/runtimeconfig"
 	"github.com/go-admin-kit/services/system/internal/config"
 	"gorm.io/gorm"
 )
@@ -156,7 +157,7 @@ func EmailNotificationFromConfig() EmailNotification {
 	return enforceEmailNotificationSafety(EmailNotification{
 		Enabled:         email.Enabled,
 		SMTPHost:        strings.TrimSpace(email.SMTPHost),
-		SMTPPort:        positiveOrDefault(email.SMTPPort, 25),
+		SMTPPort:        sharedruntimeconfig.PositiveOrDefault(email.SMTPPort, 25),
 		Username:        strings.TrimSpace(email.Username),
 		Password:        email.Password,
 		Sender:          strings.TrimSpace(email.Sender),
