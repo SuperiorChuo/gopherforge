@@ -14,6 +14,37 @@ export function createInitialTableQueryState<T>(): TableQueryState<T> {
   return { list: [], total: 0, loading: false, error: false }
 }
 
+/**
+ * 列表参数浅比较：页面可直接传普通对象字面量，全部自有键的顶层值未变时复用引用。
+ * 嵌套对象仍按引用比较；复杂参数应由页面显式 memo，避免隐藏深比较成本。
+ */
+export function sameTableQueryParams<P>(previous: P, next: P): boolean {
+  if (Object.is(previous, next)) return true
+  if (previous === null || next === null || typeof previous !== 'object' || typeof next !== 'object') {
+    return false
+  }
+
+  const previousPrototype = Object.getPrototypeOf(previous)
+  const nextPrototype = Object.getPrototypeOf(next)
+  const isPlainRecord = (prototype: object | null) => prototype === Object.prototype || prototype === null
+  if (!isPlainRecord(previousPrototype) || !isPlainRecord(nextPrototype)) return false
+
+  const previousKeys = Reflect.ownKeys(previous)
+  const nextKeys = Reflect.ownKeys(next)
+  if (previousKeys.length !== nextKeys.length) return false
+
+  const previousRecord = previous as Record<PropertyKey, unknown>
+  const nextRecord = next as Record<PropertyKey, unknown>
+  return previousKeys.every((key) => (
+    Object.prototype.hasOwnProperty.call(nextRecord, key)
+      && Object.is(previousRecord[key], nextRecord[key])
+  ))
+}
+
+export function stabilizeTableQueryParams<P>(previous: P, next: P): P {
+  return sameTableQueryParams(previous, next) ? previous : next
+}
+
 /** 每次发起列表请求前取号；返回值必须和当时的 current 比较，过期响应直接丢。 */
 export function nextTableQueryRequestID(current: number): number {
   return current + 1

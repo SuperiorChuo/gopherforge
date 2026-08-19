@@ -8,7 +8,32 @@ import {
   isCurrentTableQueryRequest,
   nextTableQueryRequestID,
   patchTableQueryList,
+  sameTableQueryParams,
+  stabilizeTableQueryParams,
 } from '../src/hooks/table-query.ts'
+
+test('参数稳定器复用等值普通对象并识别全部顶层自有键变化', () => {
+  assert.equal(sameTableQueryParams({}, {}), true)
+  assert.equal(sameTableQueryParams({ status: '', page: 1 }, { status: '', page: 1 }), true)
+  assert.equal(sameTableQueryParams({ status: '', page: 1 }, { status: 'active', page: 1 }), false)
+  assert.equal(sameTableQueryParams(null, null), true)
+  assert.equal(sameTableQueryParams(null, {}), false)
+  assert.equal(sameTableQueryParams(new Date(0), new Date(0)), false)
+
+  const symbolKey = Symbol('query')
+  assert.equal(sameTableQueryParams({ [symbolKey]: 1 }, { [symbolKey]: 2 }), false)
+  const hiddenOne = {}
+  Object.defineProperty(hiddenOne, 'cursor', { value: 1 })
+  const hiddenTwo = {}
+  Object.defineProperty(hiddenTwo, 'cursor', { value: 2 })
+  assert.equal(sameTableQueryParams(hiddenOne, hiddenTwo), false)
+
+  const previous = { status: '', page: 1 }
+  assert.equal(stabilizeTableQueryParams(previous, { status: '', page: 1 }), previous)
+  const changed = stabilizeTableQueryParams(previous, { status: 'active', page: 1 })
+  assert.notEqual(changed, previous)
+  assert.deepEqual(changed, { status: 'active', page: 1 })
+})
 
 test('nextTableQueryRequestID 递增，过期号不相等', () => {
   const first = nextTableQueryRequestID(0)
