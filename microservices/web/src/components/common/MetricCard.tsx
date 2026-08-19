@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import './metrics.css'
 
 export type MetricCardProps = {
   label: ReactNode

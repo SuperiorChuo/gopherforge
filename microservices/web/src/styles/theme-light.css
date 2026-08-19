@@ -271,18 +271,15 @@
 /* 见 styles/monitor.css */
 
 /* ---- 日志统计条与详情 ---- */
-[data-theme='light'] .log-stat-label,
-[data-theme='light'] .metric-card-label {
+[data-theme='light'] .log-stat-label {
   color: #94a3b8;
 }
 
-[data-theme='light'] .log-stat-value,
-[data-theme='light'] .metric-card-value {
+[data-theme='light'] .log-stat-value {
   color: #0f172a;
 }
 
-[data-theme='light'] .log-stat-divider,
-[data-theme='light'] .stats-grid-divider {
+[data-theme='light'] .log-stat-divider {
   background: rgba(15, 23, 42, 0.07);
 }
 

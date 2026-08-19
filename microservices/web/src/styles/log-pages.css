@@ -32,47 +32,7 @@
   color: #fca5a5;
 }
 
-/* ---------- 日志页：统计条 ---------- */
-.stats-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 48px;
-  align-items: center;
-}
-
-.metric-card {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 80px;
-}
-
-.metric-card-label {
-  font-size: 12px;
-  color: rgba(148, 163, 184, 0.7);
-  letter-spacing: 1.5px;
-}
-
-.metric-card-value {
-  font-size: 23px;
-  font-weight: 650;
-  letter-spacing: -0.5px;
-  color: rgba(255, 255, 255, 0.92);
-  line-height: 1.2;
-}
-
-.stats-grid-divider {
-  width: 1px;
-  height: 34px;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-/* 统计卡内容允许业务页放入标签组，同时避免窄屏撑破网格。 */
-.metric-card-value {
-  min-width: 0;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-}
+/* StatsGrid / MetricCard 公共样式随组件加载，见 components/common/metrics.css。 */
 
 /* 旧类名保留给尚未迁移的文件/日志业务特殊块，避免一次改动扩大到领域页面。 */
 .log-stats-row {
