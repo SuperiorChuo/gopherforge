@@ -8,6 +8,7 @@ const [
   themeEntry,
   foundation,
   homeStyles,
+  docsStyles,
   responsive,
   heroComponent,
   journeyComponent,
@@ -23,6 +24,7 @@ const [
   read('../.vitepress/theme/index.ts'),
   read('../.vitepress/theme/styles/foundation.css'),
   read('../.vitepress/theme/styles/home.css'),
+  read('../.vitepress/theme/styles/docs.css'),
   read('../.vitepress/theme/styles/responsive.css'),
   read('../.vitepress/theme/components/HeroForge.vue'),
   read('../.vitepress/theme/components/HomeJourney.vue'),
@@ -89,6 +91,29 @@ test('移动菜单、窄屏与减少动效规则保持可用', () => {
   assert.match(foundation, /\.VPNavScreen \{[\s\S]*?backdrop-filter:/)
   assert.match(responsive, /@media \(max-width: 639px\)/)
   assert.match(responsive, /@media \(prefers-reduced-motion: reduce\)/)
+})
+
+test('细节打磨：明暗过渡、滚动条、玻璃卡与发布元信息', () => {
+  // 明暗渐变双伪元素交叉淡化，切换主题不跳变
+  assert.match(foundation, /body::before,\nbody::after/)
+  assert.match(foundation, /\.dark body::after \{ opacity: 1; \}/)
+  assert.match(foundation, /body \{\n  min-width: 320px;\n  overflow-x: hidden;\n  background-color: var\(--vp-c-bg\);/)
+  // 自定义滚动条明暗两套
+  assert.match(foundation, /::-webkit-scrollbar-thumb/)
+  assert.match(foundation, /\.dark \* \{ scrollbar-color:/)
+  // 首页三列玻璃卡（唯一 ul 随 h2 精确命中）与 Hero/终端细节
+  assert.match(homeStyles, /\.VPHome \.vp-doc h2 \+ ul \{/)
+  assert.match(homeStyles, /\.VPHome \.vp-doc h2 \+ ul \{[\s\S]*?grid-template-columns: repeat\(3, 1fr\);/)
+  assert.match(homeStyles, /\.hero-version \{/)
+  assert.match(homeStyles, /\.terminal-cursor \{/)
+  assert.match(responsive, /\.VPHome \.vp-doc h2 \+ ul \{ grid-template-columns: 1fr; \}/)
+  // 正文玻璃卡细节与页脚渐变线
+  assert.match(docsStyles, /\.vp-doc blockquote::before/)
+  assert.match(docsStyles, /\.vp-doc h1::before/)
+  assert.match(docsStyles, /\.VPFooter::before/)
+  // 发布分享元信息
+  assert.match(config, /property: 'og:title'/)
+  assert.match(config, /property: 'og:image'/)
 })
 
 test('同源交互架构页保留 sandbox 且不组合 allow-scripts 与 allow-same-origin', () => {

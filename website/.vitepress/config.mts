@@ -129,6 +129,13 @@ export default defineConfig({
     ['link', { rel: 'icon', href: '/gopherforge/docs/brand/gopherforge-mark.svg', type: 'image/svg+xml' }],
     ['meta', { name: 'theme-color', content: '#f6f8ff', media: '(prefers-color-scheme: light)' }],
     ['meta', { name: 'theme-color', content: '#070812', media: '(prefers-color-scheme: dark)' }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:site_name', content: 'GopherForge 文档' }],
+    ['meta', { property: 'og:title', content: 'GopherForge — 开源 Go 微服务后台管理脚手架' }],
+    ['meta', { property: 'og:description', content: '快速上手、架构设计、RBAC 权限、多租户、审批流、代码生成器与二次开发指南' }],
+    ['meta', { property: 'og:url', content: 'https://superiorchuo.github.io/gopherforge/docs/' }],
+    ['meta', { property: 'og:image', content: 'https://superiorchuo.github.io/gopherforge/docs/screenshots/dashboard.png' }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
   ],
   // 教程里的 localhost 入口地址不是死链
   ignoreDeadLinks: [/^https?:\/\/localhost/],

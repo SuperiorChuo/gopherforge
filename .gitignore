@@ -66,6 +66,7 @@ AGENTS.md
 Makefile.local
 
 # 文档站（VitePress）
+website/.tmp/
 website/node_modules/
 website/.vitepress/dist/
 website/.vitepress/cache/

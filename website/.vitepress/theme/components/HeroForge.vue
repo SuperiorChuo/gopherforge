@@ -12,7 +12,7 @@ const isEnglish = computed(() => lang.value.startsWith('en'))
       <div class="hero-window-rim" />
       <div class="hero-window-top">
         <div class="hero-window-lights"><i /><i /><i /></div>
-        <span>gopherforge / platform</span>
+        <div class="hero-window-path"><span>gopherforge / platform</span><em class="hero-version">v0.6.0</em></div>
         <div class="hero-window-live"><i />LIVE</div>
       </div>
       <div class="hero-window-content">

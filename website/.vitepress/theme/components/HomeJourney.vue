@@ -68,7 +68,7 @@ const copy = computed(() => isEnglish.value ? {
           <small>gopherforge — zsh</small>
         </div>
         <div class="terminal-body">
-          <span class="terminal-badge">{{ copy.terminal }}</span>
+          <span class="terminal-badge">{{ copy.terminal }}</span><span class="terminal-cursor" aria-hidden="true" />
           <div v-for="(command, index) in copy.commands" :key="command" class="terminal-command">
             <span class="terminal-prompt">❯</span>
             <code>{{ command }}</code>

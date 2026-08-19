@@ -184,6 +184,27 @@ html:not(.dark) .hero-forge-window {
   letter-spacing: 0.04em;
 }
 
+.hero-window-path {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.hero-version {
+  border: 1px solid rgba(129, 140, 248, 0.24);
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.12);
+  font-style: normal;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+html:not(.dark) .hero-version { color: #4f46e5; background: rgba(99, 102, 241, 0.1); }
+
 html:not(.dark) .hero-window-top { color: #7c8aa2; }
 
 .hero-window-lights { display: flex; gap: 6px; }
@@ -343,7 +364,7 @@ html:not(.dark) .hero-float-card { border-color: rgba(255, 255, 255, 0.8); backg
 
 .dark .VPFeature::after { background: radial-gradient(ellipse 120% 60% at 50% -25%, rgba(255, 255, 255, 0.055), transparent 58%); }
 .VPFeature .box { position: relative; z-index: 1; padding: 27px !important; }
-.VPFeature .icon { width: 46px !important; height: 46px !important; border: 1px solid rgba(99, 102, 241, 0.18); border-radius: 14px !important; color: var(--vp-c-brand-1); background: linear-gradient(145deg, rgba(99, 102, 241, 0.17), rgba(14, 165, 233, 0.07)) !important; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13), 0 10px 22px rgba(79, 70, 229, 0.1); }
+.VPFeature .icon { width: 46px !important; height: 46px !important; border: 1px solid rgba(99, 102, 241, 0.18); border-radius: 14px !important; color: var(--vp-c-brand-1); background: linear-gradient(145deg, rgba(99, 102, 241, 0.17), rgba(14, 165, 233, 0.07)) !important; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13), 0 10px 22px rgba(79, 70, 229, 0.1); transition: transform 0.25s ease, box-shadow 0.25s ease; }
 .VPFeature .icon svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .VPFeature .title { color: var(--vp-c-text-1); font-size: 16px !important; font-weight: 680 !important; letter-spacing: -0.015em; }
 .VPFeature .details { padding-top: 10px !important; color: var(--vp-c-text-2) !important; font-size: 13px !important; font-weight: 450 !important; line-height: 1.75 !important; }
@@ -386,6 +407,20 @@ html:not(.dark) .journey-terminal { background: rgba(10, 12, 26, 0.91); }
 .terminal-top small { color: rgba(148, 163, 184, 0.6); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px; }
 .terminal-body { padding: 25px; }
 .terminal-badge { display: inline-flex; border: 1px solid rgba(129, 140, 248, 0.17); border-radius: 999px; padding: 6px 9px; color: #a5b4fc; background: rgba(99, 102, 241, 0.09); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px; letter-spacing: 0.06em; }
+
+.terminal-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-left: 10px;
+  border-radius: 2px;
+  background: #818cf8;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.55);
+  vertical-align: -2px;
+  animation: cursor-blink 1.06s steps(1) infinite;
+}
+
+@keyframes cursor-blink { 50% { opacity: 0; } }
 .terminal-command { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 9px; margin-top: 17px; }
 .terminal-prompt { color: #818cf8; font-size: 12px; }
 .terminal-command code { color: rgba(226, 232, 240, 0.86); background: none; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
@@ -398,14 +433,56 @@ html:not(.dark) .journey-terminal { background: rgba(10, 12, 26, 0.91); }
 .terminal-status i { width: 5px; height: 5px; border-radius: 50%; background: #34d399; }
 
 /* Home markdown content */
-.VPHomeContent { padding-bottom: 96px; }
-.VPHomeContent .vp-doc { max-width: 1180px !important; }
-.VPHomeContent .vp-doc > h2 { margin: 64px 0 24px; border: 0; font-size: 30px; letter-spacing: -0.035em; }
-.VPHomeContent .vp-doc > h2::before { content: ''; display: inline-block; width: 8px; height: 8px; margin: 0 12px 4px 0; border-radius: 50%; background: linear-gradient(135deg, #818cf8, #7c3aed); box-shadow: 0 0 14px rgba(99, 102, 241, 0.4); }
-.VPHomeContent .custom-block { border: 1px solid var(--gf-glass-border); border-radius: 18px; padding: 20px 22px; background: var(--gf-glass-bg); box-shadow: inset 0 1px 0 var(--gf-glass-highlight); backdrop-filter: var(--gf-glass-blur); }
-.VPHomeContent table { display: table; width: 100%; border-collapse: separate; border-spacing: 12px 0; }
-.VPHomeContent tr { border: 0; background: transparent !important; }
-.VPHomeContent th,
-.VPHomeContent td { border: 0; background: transparent; }
-.VPHomeContent td img { border: 1px solid var(--gf-glass-border); border-radius: 18px; box-shadow: var(--gf-shadow); }
-.VPHomeContent > .vp-doc > p > img { border: 1px solid var(--gf-glass-border); border-radius: 22px; box-shadow: var(--gf-shadow); }
+.VPHome { padding-bottom: 96px; }
+.VPHome .vp-doc { max-width: 1180px !important; }
+.VPHome .vp-doc h2 { margin: 64px 0 24px; border: 0; font-size: 30px; letter-spacing: -0.035em; }
+.VPHome .vp-doc h2::before { content: ''; display: inline-block; width: 8px; height: 8px; margin: 0 12px 4px 0; border-radius: 50%; background: linear-gradient(135deg, #818cf8, #7c3aed); box-shadow: 0 0 14px rgba(99, 102, 241, 0.4); }
+
+/* “找到你需要的答案”三列玻璃卡（首页唯一 ul，随 h2 精确命中） */
+.VPHome .vp-doc h2 + ul {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 30px 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.VPHome .vp-doc h2 + ul > li {
+  border: 1px solid var(--gf-glass-border);
+  border-radius: 18px;
+  padding: 20px 22px;
+  background: var(--gf-glass-bg);
+  box-shadow: inset 0 1px 0 var(--gf-glass-highlight), 0 14px 34px rgba(37, 99, 235, 0.07);
+  backdrop-filter: var(--gf-glass-blur);
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.VPHome .vp-doc h2 + ul > li strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--vp-c-text-1);
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.VPHome .vp-doc h2 + ul > li a { color: var(--vp-c-brand-1); font-weight: 620; }
+
+.VPHome .custom-block { border: 1px solid var(--gf-glass-border); border-radius: 18px; padding: 20px 22px; background: var(--gf-glass-bg); box-shadow: inset 0 1px 0 var(--gf-glass-highlight); backdrop-filter: var(--gf-glass-blur); }
+.VPHome table { display: table; width: 100%; border-collapse: separate; border-spacing: 12px; }
+.VPHome tr { border: 0; background: transparent !important; }
+.VPHome .vp-doc th,
+.VPHome .vp-doc td {
+  border: 0;
+  border-radius: 18px;
+  padding: 12px;
+  color: var(--vp-c-text-2);
+  font-size: 12px;
+  background: var(--gf-glass-bg);
+  box-shadow: inset 0 1px 0 var(--gf-glass-highlight);
+}
+
+.VPHome td img { border: 1px solid var(--gf-glass-border); border-radius: 18px; box-shadow: var(--gf-shadow); }
+.VPHome .vp-doc p > img { border: 1px solid var(--gf-glass-border); border-radius: 22px; box-shadow: var(--gf-shadow); }
