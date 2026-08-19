@@ -5,12 +5,12 @@
 :root {
   --gf-indigo-soft: #818cf8;
   --gf-success: #34d399;
-  --gf-glass-blur: blur(22px) saturate(1.55) brightness(1.03);
-  --gf-glass-border: rgba(79, 70, 229, 0.13);
-  --gf-glass-highlight: rgba(255, 255, 255, 0.92);
-  --gf-glass-bg: rgba(255, 255, 255, 0.62);
-  --gf-glass-bg-strong: rgba(255, 255, 255, 0.78);
-  --gf-shadow: 0 24px 60px rgba(37, 99, 235, 0.11);
+  --gf-glass-blur: blur(26px) saturate(1.75) brightness(1.05);
+  --gf-glass-border: rgba(79, 70, 229, 0.18);
+  --gf-glass-highlight: rgba(255, 255, 255, 0.95);
+  --gf-glass-bg: rgba(255, 255, 255, 0.68);
+  --gf-glass-bg-strong: rgba(255, 255, 255, 0.82);
+  --gf-shadow: 0 24px 60px rgba(37, 99, 235, 0.13);
   --vp-c-brand-1: #4f46e5;
   --vp-c-brand-2: #6366f1;
   --vp-c-brand-3: #7c3aed;
@@ -22,6 +22,7 @@
   --vp-c-divider: rgba(51, 65, 85, 0.1);
   --vp-c-border: rgba(79, 70, 229, 0.13);
   --vp-c-gutter: rgba(79, 70, 229, 0.09);
+  --vp-code-block-color: rgba(226, 232, 240, 0.88);
   --vp-code-copy-code-border-color: rgba(99, 102, 241, 0.22);
   --vp-code-copy-code-bg: rgba(255, 255, 255, 0.55);
   --vp-code-copy-code-hover-border-color: rgba(99, 102, 241, 0.42);
@@ -46,11 +47,11 @@
 }
 
 .dark {
-  --gf-glass-border: rgba(148, 163, 184, 0.13);
-  --gf-glass-highlight: rgba(255, 255, 255, 0.09);
-  --gf-glass-bg: rgba(15, 17, 32, 0.58);
-  --gf-glass-bg-strong: rgba(13, 15, 29, 0.8);
-  --gf-shadow: 0 28px 70px rgba(0, 0, 0, 0.36);
+  --gf-glass-border: rgba(148, 163, 184, 0.16);
+  --gf-glass-highlight: rgba(255, 255, 255, 0.12);
+  --gf-glass-bg: rgba(15, 17, 32, 0.62);
+  --gf-glass-bg-strong: rgba(13, 15, 29, 0.84);
+  --gf-shadow: 0 28px 70px rgba(0, 0, 0, 0.4);
   --vp-c-brand-1: #a5b4fc;
   --vp-c-brand-2: #818cf8;
   --vp-c-brand-3: #c4b5fd;
@@ -62,6 +63,7 @@
   --vp-c-divider: rgba(148, 163, 184, 0.12);
   --vp-c-border: rgba(148, 163, 184, 0.14);
   --vp-c-gutter: rgba(148, 163, 184, 0.1);
+  --vp-code-block-color: rgba(226, 232, 240, 0.88);
   --vp-code-copy-code-border-color: rgba(148, 163, 184, 0.18);
   --vp-code-copy-code-bg: rgba(255, 255, 255, 0.05);
   --vp-code-copy-code-hover-border-color: rgba(99, 102, 241, 0.4);
@@ -173,40 +175,40 @@ body::after {
 .glass-aurora-one {
   top: -280px;
   left: -220px;
-  width: 720px;
-  height: 720px;
-  background: rgba(79, 70, 229, 0.31);
+  width: 760px;
+  height: 760px;
+  background: rgba(79, 70, 229, 0.42);
   animation: aurora-one 24s ease-in-out infinite alternate;
 }
 
 .glass-aurora-two {
   top: 18%;
   right: -260px;
-  width: 620px;
-  height: 620px;
-  background: rgba(14, 165, 233, 0.18);
+  width: 660px;
+  height: 660px;
+  background: rgba(14, 165, 233, 0.28);
   animation: aurora-two 29s ease-in-out infinite alternate;
 }
 
 .glass-aurora-three {
   bottom: -320px;
   left: 30%;
-  width: 660px;
-  height: 660px;
-  background: rgba(124, 58, 237, 0.16);
+  width: 700px;
+  height: 700px;
+  background: rgba(124, 58, 237, 0.26);
   animation: aurora-three 32s ease-in-out infinite alternate;
 }
 
-html:not(.dark) .glass-aurora { opacity: 0.26; }
+html:not(.dark) .glass-aurora { opacity: 0.34; }
 
 .glass-grid {
   position: absolute;
   inset: 0;
-  opacity: 0.42;
+  opacity: 0.55;
   background-image:
-    linear-gradient(rgba(99, 102, 241, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(99, 102, 241, 0.055) 1px, transparent 1px);
-  background-size: 54px 54px;
+    linear-gradient(rgba(99, 102, 241, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.07) 1px, transparent 1px);
+  background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 95% 72% at 50% 20%, #000 10%, transparent 74%);
 }
 

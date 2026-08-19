@@ -3,7 +3,7 @@
   position: relative;
   border: 1px solid var(--gf-glass-border);
   border-radius: 24px;
-  padding: 38px 42px 28px;
+  padding: 40px 44px 30px;
   background: var(--gf-glass-bg);
   box-shadow: inset 0 1px 0 var(--gf-glass-highlight), 0 22px 56px rgba(37, 99, 235, 0.08);
   backdrop-filter: var(--gf-glass-blur);
@@ -72,21 +72,48 @@
 .vp-doc summary { color: var(--vp-c-text-1); cursor: pointer; font-weight: 650; }
 
 .vp-doc div[class*='language-'] {
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  position: relative;
+  border: 1px solid rgba(129, 140, 248, 0.2);
   border-radius: 16px;
-  background: rgba(9, 11, 23, 0.92);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 16px 36px rgba(2, 6, 23, 0.18);
+  background: rgba(11, 13, 28, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 1px 0 0 rgba(255, 255, 255, 0.035),
+    inset -1px 0 0 rgba(255, 255, 255, 0.035),
+    0 16px 40px rgba(2, 6, 23, 0.22);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
-.vp-doc div[class*='language-']:hover {
-  border-color: rgba(99, 102, 241, 0.3);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 18px 44px rgba(2, 6, 23, 0.24);
+.vp-doc div[class*='language-']::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(165, 180, 252, 0.45), transparent);
 }
 
+.vp-doc div[class*='language-']:hover {
+  border-color: rgba(129, 140, 248, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 1px 0 0 rgba(255, 255, 255, 0.04),
+    inset -1px 0 0 rgba(255, 255, 255, 0.04),
+    0 18px 46px rgba(2, 6, 23, 0.28);
+}
+
+/* 亮色主题下代码块保持深色终端材质，文字统一使用亮色 shiki 配色，避免深字深底看不清 */
+html:not(.dark) .vp-doc div[class*='language-'] .vp-code span { color: var(--shiki-dark, inherit); }
+
+.vp-doc div[class*='language-'] .vp-code { font-size: 13px; line-height: 1.75; }
 .vp-doc div[class*='language-']::before {
-  color: rgba(148, 163, 184, 0.52);
+  color: rgba(148, 163, 184, 0.62);
   letter-spacing: 0.1em;
+  font-weight: 700;
 }
 .vp-doc code:not(div[class*='language-'] code) { border: 1px solid rgba(99, 102, 241, 0.13); border-radius: 6px; color: var(--vp-c-brand-1); background: rgba(99, 102, 241, 0.09); }
 
@@ -111,7 +138,7 @@
 
 .VPSidebar .curtain { background: var(--vp-sidebar-bg-color) !important; backdrop-filter: blur(24px); }
 .VPSidebarItem.level-0 > .item > .text { color: var(--vp-c-text-1); font-size: 12px; font-weight: 720; letter-spacing: 0.02em; }
-.VPSidebarItem .link { border-radius: 9px; padding: 5px 9px; transition: background-color 0.2s, color 0.2s; }
+.VPSidebarItem .link { border-radius: 9px; padding: 6px 10px; transition: background-color 0.2s, color 0.2s; }
 .VPSidebarItem .link:hover { background: rgba(99, 102, 241, 0.07); }
 .VPSidebarItem.is-active > .item .link { color: var(--vp-c-brand-1); background: rgba(99, 102, 241, 0.1); }
 .VPDocAsideOutline .content { border-left-color: var(--gf-glass-border) !important; }
