@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import '@/styles/app-layout.css'
+import '@/list-pages.css'
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import {
   Layout,

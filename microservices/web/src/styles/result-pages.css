@@ -28,7 +28,7 @@
   top: -180px;
   left: -100px;
   background: radial-gradient(circle at 30% 30%, #4f46e5, transparent 65%);
-  animation: login-drift-1 20s ease-in-out infinite alternate;
+  animation: space-result-drift-1 20s ease-in-out infinite alternate;
 }
 
 .space-result-aurora-2 {
@@ -37,7 +37,20 @@
   bottom: -180px;
   right: -80px;
   background: radial-gradient(circle at 40% 40%, #7c3aed, transparent 65%);
-  animation: login-drift-2 24s ease-in-out infinite alternate;
+  animation: space-result-drift-2 24s ease-in-out infinite alternate;
+}
+
+@keyframes space-result-drift-1 {
+  to { transform: translate(90px, 70px) scale(1.12); }
+}
+
+@keyframes space-result-drift-2 {
+  to { transform: translate(-80px, -60px) scale(1.08); }
+}
+
+@keyframes space-result-rise {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .space-result-grid {
@@ -67,7 +80,7 @@
   box-shadow:
     0 40px 100px rgba(0, 0, 0, 0.55),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  animation: login-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: space-result-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .space-result-card::before {

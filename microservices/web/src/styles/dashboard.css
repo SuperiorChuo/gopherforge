@@ -1035,17 +1035,6 @@
   animation-delay: calc(var(--i, 0) * 70ms);
 }
 
-@keyframes glass-rise-in {
-  from {
-    opacity: 0;
-    transform: translateY(16px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
 /* 图标浮雕:上缘受光 + 下缘暗边,变成一枚凸玻璃徽章;hover 轻微上浮偏转 */
 .stat-card-icon {
   box-shadow:
@@ -1111,17 +1100,6 @@
   background: #34d399;
   box-shadow: 0 0 8px rgba(52, 211, 153, 0.75);
   animation: live-pulse 2.4s ease-in-out infinite;
-}
-
-@keyframes live-pulse {
-  0%, 100% {
-    opacity: 1;
-    box-shadow: 0 0 8px rgba(52, 211, 153, 0.75);
-  }
-  50% {
-    opacity: 0.5;
-    box-shadow: 0 0 3px rgba(52, 211, 153, 0.3);
-  }
 }
 
 [data-theme='light'] .live-dot {
