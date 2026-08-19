@@ -1,0 +1,250 @@
+/* GopherForge docs — Obsidian Aurora Glass
+ * 与控制台共享 indigo / violet / cyan 品牌色，保持暗色与亮色双主题。
+ */
+
+:root {
+  --gf-indigo-soft: #818cf8;
+  --gf-success: #34d399;
+  --gf-glass-blur: blur(22px) saturate(1.55) brightness(1.03);
+  --gf-glass-border: rgba(79, 70, 229, 0.13);
+  --gf-glass-highlight: rgba(255, 255, 255, 0.92);
+  --gf-glass-bg: rgba(255, 255, 255, 0.62);
+  --gf-glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --gf-shadow: 0 24px 60px rgba(37, 99, 235, 0.11);
+  --vp-c-brand-1: #4f46e5;
+  --vp-c-brand-2: #6366f1;
+  --vp-c-brand-3: #7c3aed;
+  --vp-c-brand-soft: rgba(99, 102, 241, 0.13);
+  --vp-c-bg: #f6f8ff;
+  --vp-c-bg-alt: rgba(239, 244, 255, 0.78);
+  --vp-c-bg-elv: rgba(255, 255, 255, 0.86);
+  --vp-c-bg-soft: rgba(245, 247, 255, 0.74);
+  --vp-c-divider: rgba(51, 65, 85, 0.1);
+  --vp-c-border: rgba(79, 70, 229, 0.13);
+  --vp-c-gutter: rgba(79, 70, 229, 0.09);
+  --vp-c-text-1: #172033;
+  --vp-c-text-2: #526078;
+  --vp-c-text-3: #7c8aa2;
+  --vp-nav-bg-color: rgba(247, 249, 255, 0.68);
+  --vp-sidebar-bg-color: rgba(246, 248, 255, 0.66);
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(105deg, #4338ca 4%, #6366f1 44%, #7c3aed 92%);
+  --vp-home-hero-image-background-image: linear-gradient(135deg, rgba(99, 102, 241, 0.28), rgba(14, 165, 233, 0.2));
+  --vp-home-hero-image-filter: blur(68px);
+  --vp-layout-max-width: 1480px;
+  --vp-nav-height: 72px;
+  --vp-nav-logo-height: 34px;
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.dark {
+  --gf-glass-border: rgba(148, 163, 184, 0.13);
+  --gf-glass-highlight: rgba(255, 255, 255, 0.09);
+  --gf-glass-bg: rgba(15, 17, 32, 0.58);
+  --gf-glass-bg-strong: rgba(13, 15, 29, 0.8);
+  --gf-shadow: 0 28px 70px rgba(0, 0, 0, 0.36);
+  --vp-c-brand-1: #a5b4fc;
+  --vp-c-brand-2: #818cf8;
+  --vp-c-brand-3: #c4b5fd;
+  --vp-c-brand-soft: rgba(99, 102, 241, 0.17);
+  --vp-c-bg: #070812;
+  --vp-c-bg-alt: rgba(9, 11, 23, 0.8);
+  --vp-c-bg-elv: rgba(18, 20, 38, 0.86);
+  --vp-c-bg-soft: rgba(20, 22, 42, 0.64);
+  --vp-c-divider: rgba(148, 163, 184, 0.12);
+  --vp-c-border: rgba(148, 163, 184, 0.14);
+  --vp-c-gutter: rgba(148, 163, 184, 0.1);
+  --vp-c-text-1: rgba(244, 247, 255, 0.94);
+  --vp-c-text-2: rgba(203, 213, 225, 0.72);
+  --vp-c-text-3: rgba(148, 163, 184, 0.62);
+  --vp-nav-bg-color: rgba(7, 8, 18, 0.67);
+  --vp-sidebar-bg-color: rgba(7, 8, 18, 0.69);
+  --vp-home-hero-name-background: linear-gradient(105deg, #c7d2fe 0%, #818cf8 42%, #c4b5fd 82%, #67e8f9 115%);
+  --vp-home-hero-image-background-image: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(124, 58, 237, 0.22), rgba(14, 165, 233, 0.24));
+  color-scheme: dark;
+}
+
+html {
+  background: var(--vp-c-bg);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 12% 12%, rgba(99, 102, 241, 0.11), transparent 29rem),
+    radial-gradient(circle at 88% 28%, rgba(14, 165, 233, 0.08), transparent 25rem),
+    var(--vp-c-bg);
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at 10% 8%, rgba(79, 70, 229, 0.16), transparent 30rem),
+    radial-gradient(circle at 88% 30%, rgba(124, 58, 237, 0.1), transparent 28rem),
+    #070812;
+}
+
+::selection {
+  color: #fff;
+  background: rgba(99, 102, 241, 0.58);
+}
+
+:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.72);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.Layout {
+  isolation: isolate;
+  background: transparent;
+}
+
+/* Ambient background */
+.glass-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.glass-aurora {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.46;
+  filter: blur(100px);
+  will-change: transform;
+}
+
+.glass-aurora-one {
+  top: -280px;
+  left: -220px;
+  width: 720px;
+  height: 720px;
+  background: rgba(79, 70, 229, 0.31);
+  animation: aurora-one 24s ease-in-out infinite alternate;
+}
+
+.glass-aurora-two {
+  top: 18%;
+  right: -260px;
+  width: 620px;
+  height: 620px;
+  background: rgba(14, 165, 233, 0.18);
+  animation: aurora-two 29s ease-in-out infinite alternate;
+}
+
+.glass-aurora-three {
+  bottom: -320px;
+  left: 30%;
+  width: 660px;
+  height: 660px;
+  background: rgba(124, 58, 237, 0.16);
+  animation: aurora-three 32s ease-in-out infinite alternate;
+}
+
+html:not(.dark) .glass-aurora { opacity: 0.26; }
+
+.glass-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.42;
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.055) 1px, transparent 1px);
+  background-size: 54px 54px;
+  mask-image: radial-gradient(ellipse 95% 72% at 50% 20%, #000 10%, transparent 74%);
+}
+
+.glass-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.022;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.72'/%3E%3C/svg%3E");
+}
+
+@keyframes aurora-one { to { transform: translate(140px, 100px) scale(1.08); } }
+@keyframes aurora-two { to { transform: translate(-130px, 90px) scale(0.94); } }
+@keyframes aurora-three { to { transform: translate(90px, -110px) scale(1.1); } }
+
+/* Navigation */
+.VPNav {
+  border-bottom: 1px solid var(--gf-glass-border);
+  background: var(--vp-nav-bg-color);
+  box-shadow: inset 0 1px 0 var(--gf-glass-highlight), 0 12px 36px rgba(15, 23, 42, 0.04);
+}
+
+/* 滤镜不能挂在 VPNav：它会成为移动端 fixed 菜单的包含块并把菜单高度压成 0。 */
+.VPNavBar {
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+}
+
+.VPNavScreen {
+  background: var(--vp-nav-bg-color) !important;
+  backdrop-filter: blur(28px) saturate(1.55);
+  -webkit-backdrop-filter: blur(28px) saturate(1.55);
+}
+
+.VPNavBar .divider-line,
+.VPNavBar:not(.home) .divider-line { background: transparent !important; }
+
+.gopherforge-nav-mark {
+  flex: 0 0 auto;
+  margin-right: 10px;
+  border-radius: 11px;
+  filter: drop-shadow(0 7px 13px rgba(79, 70, 229, 0.28));
+}
+
+.VPNavBarTitle .title > span:not(.gopherforge-nav-badge) {
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: -0.02em;
+}
+
+.gopherforge-nav-badge {
+  margin-left: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: var(--vp-c-brand-1);
+  background: rgba(99, 102, 241, 0.09);
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: 0.12em;
+}
+
+.VPNavBarMenuLink,
+.VPNavBarMenuGroup .button {
+  color: var(--vp-c-text-2) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  transition: color 0.22s ease, background-color 0.22s ease !important;
+}
+
+.VPNavBarMenuLink:hover,
+.VPNavBarMenuLink.active,
+.VPNavBarMenuGroup:hover .button { color: var(--vp-c-brand-1) !important; }
+
+.DocSearch-Button,
+.VPNavBarSearchButton {
+  border: 1px solid var(--gf-glass-border) !important;
+  border-radius: 13px !important;
+  background: var(--gf-glass-bg) !important;
+  box-shadow: inset 0 1px 0 var(--gf-glass-highlight) !important;
+  backdrop-filter: blur(14px) saturate(1.4);
+}
+
+.VPNavBarAppearance .VPSwitch,
+.VPNavBarTranslations .button,
+.VPNavBarExtra .button {
+  border-color: var(--gf-glass-border) !important;
+  background: var(--gf-glass-bg) !important;
+  box-shadow: inset 0 1px 0 var(--gf-glass-highlight);
+}

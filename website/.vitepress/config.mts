@@ -123,8 +123,13 @@ export default defineConfig({
   description:
     'GopherForge 开源 Go 微服务后台管理系统脚手架文档：快速上手、架构设计、RBAC 权限、多租户、审批流、代码生成器与二次开发指南',
   base: '/gopherforge/docs/',
-  // Algolia DocSearch 域名所有权验证
-  head: [['meta', { name: 'algolia-site-verification', content: 'F83830458D62489E' }]],
+  // Algolia DocSearch 域名所有权验证 + 品牌图标/主题色
+  head: [
+    ['meta', { name: 'algolia-site-verification', content: 'F83830458D62489E' }],
+    ['link', { rel: 'icon', href: '/gopherforge/docs/brand/gopherforge-mark.svg', type: 'image/svg+xml' }],
+    ['meta', { name: 'theme-color', content: '#f6f8ff', media: '(prefers-color-scheme: light)' }],
+    ['meta', { name: 'theme-color', content: '#070812', media: '(prefers-color-scheme: dark)' }],
+  ],
   // 教程里的 localhost 入口地址不是死链
   ignoreDeadLinks: [/^https?:\/\/localhost/],
   lastUpdated: true,
@@ -134,6 +139,7 @@ export default defineConfig({
       label: '简体中文',
       lang: 'zh-CN',
       themeConfig: {
+        siteTitle: 'GopherForge 文档',
         nav: [
           { text: '指南', link: '/guide/getting-started' },
           { text: '前端开发', link: '/frontend/overview' },
@@ -162,6 +168,7 @@ export default defineConfig({
       description:
         'GopherForge — an open-source Go microservices admin scaffold: quick start, architecture, RBAC, multi-tenancy, workflow engine, code generator and extension guide',
       themeConfig: {
+        siteTitle: 'GopherForge Docs',
         nav: [
           { text: 'Guide', link: '/en/guide/getting-started' },
           { text: 'Frontend', link: '/en/frontend/overview' },
@@ -171,6 +178,9 @@ export default defineConfig({
           { text: 'Live Demo', link: 'https://superiorchuo.github.io/gopherforge/' },
         ],
         sidebar: enSidebar,
+        outline: { label: 'On this page', level: [2, 3] },
+        docFooter: { prev: 'Previous', next: 'Next' },
+        lastUpdatedText: 'Last updated',
         editLink: {
           pattern: 'https://github.com/SuperiorChuo/gopherforge/edit/main/website/:path',
           text: 'Edit this page on GitHub',
@@ -183,7 +193,6 @@ export default defineConfig({
     },
   },
   themeConfig: {
-    siteTitle: 'GopherForge 文档',
     socialLinks: [{ icon: 'github', link: 'https://github.com/SuperiorChuo/gopherforge' }],
     search: {
       provider: 'algolia',

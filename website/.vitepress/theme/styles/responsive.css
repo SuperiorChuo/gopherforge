@@ -1,0 +1,83 @@
+@media (hover: hover) {
+  .VPButton:hover { transform: translateY(-2px); }
+  .VPButton.brand:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 14px 34px rgba(79, 70, 229, 0.4); }
+  .VPFeature:hover { border-color: rgba(99, 102, 241, 0.38) !important; transform: translateY(-6px); box-shadow: inset 0 1px 0 var(--gf-glass-highlight), 0 28px 62px rgba(79, 70, 229, 0.15); }
+  .VPDocFooter .pager-link:hover { transform: translateY(-2px); }
+}
+
+@media (max-width: 1100px) {
+  .VPHomeHero .image { min-width: 470px; }
+  .hero-forge { width: 500px; transform: scale(0.9); transform-origin: center; }
+  .hero-forge-window { left: -5px; }
+  .hero-float-security { right: -30px; }
+  .hero-float-telemetry { right: -15px; }
+}
+
+@media (max-width: 959px) {
+  .VPHomeHero { min-height: auto; padding-top: calc(var(--vp-nav-height) + 54px) !important; }
+  .VPHomeHero .main { order: 1 !important; }
+  .VPHomeHero .image { order: 2 !important; min-width: 0; margin: 36px auto -18px !important; }
+  .VPHomeHero .image-container { width: 570px !important; max-width: 100%; transform: none !important; }
+  .VPHomeHero .container { text-align: center; }
+  .hero-eyebrow { margin-right: auto; margin-left: auto; }
+  .VPHero .name,
+  .VPHero .text,
+  .VPHero .tagline { margin-right: auto !important; margin-left: auto !important; }
+  .VPHero .actions,
+  .hero-stack { justify-content: center !important; }
+  .journey-glass { grid-template-columns: 1fr; }
+  .journey-terminal { max-width: 620px; width: 100%; justify-self: center; transform: none; }
+  .VPDoc .content-container { border-radius: 20px; padding: 34px 32px 24px; }
+}
+
+@media (max-width: 639px) {
+  :root { --vp-nav-height: 64px; }
+  .VPNavBar .wrapper { padding: 0 14px; }
+  .gopherforge-nav-mark { width: 31px; height: 31px; margin-right: 8px; }
+  .gopherforge-nav-badge { display: none; }
+  .VPNavBarTitle .title > span:not(.gopherforge-nav-badge) { font-size: 14px; }
+  .VPHomeHero { padding: calc(var(--vp-nav-height) + 42px) 20px 30px !important; }
+  .VPHomeHero::before { top: 50px; width: 120vw; }
+  .hero-eyebrow { margin-bottom: 18px; padding: 7px 10px; font-size: 8px; }
+  .VPHero .name,
+  .VPHero .text { max-width: 350px !important; font-size: clamp(38px, 12vw, 48px) !important; line-height: 1.07 !important; }
+  .VPHero .text { margin-top: 8px !important; }
+  .VPHero .tagline { padding-top: 19px !important; font-size: 14px !important; line-height: 1.72 !important; }
+  .VPHero .actions { justify-content: center; padding-top: 24px !important; }
+  .VPButton { min-height: 43px; padding: 0 16px !important; font-size: 13px !important; }
+  .hero-stack { gap: 10px 14px; margin-top: 21px; font-size: 8px; }
+  .VPHomeHero .image { width: calc(100vw - 24px); }
+  .VPHomeHero .image-container { width: 100% !important; height: 350px !important; }
+  .hero-forge { left: 50%; width: 570px; transform: translateX(-50%) scale(0.64); transform-origin: top center; }
+  .hero-float-security { right: 3px; }
+  .hero-float-telemetry { right: 5px; }
+  .VPFeatures { padding: 2px 16px 72px !important; }
+  .VPFeatures .item { padding: 7px !important; }
+  .VPFeature .box { padding: 23px !important; }
+  .home-journey { padding: 10px 16px 84px; }
+  .home-journey-heading { margin-bottom: 30px; }
+  .home-journey-heading h2 { font-size: 32px; }
+  .home-journey-heading > p { font-size: 13px; }
+  .journey-glass { gap: 26px; border-radius: 22px; padding: 25px 20px; }
+  .journey-copy > h3 { font-size: 23px; }
+  .journey-copy li { gap: 12px; }
+  .terminal-body { padding: 20px 16px; }
+  .terminal-command { gap: 7px; }
+  .terminal-command code { font-size: 9px; }
+  .VPHomeContent { padding-bottom: 72px; }
+  .VPHomeContent .vp-doc { padding: 0 16px !important; }
+  .VPHomeContent .vp-doc > h2 { margin-top: 48px; font-size: 25px; }
+  .VPHomeContent table { display: block; overflow-x: auto; border-spacing: 8px 0; }
+  .VPHomeContent td img { min-width: 270px; }
+  .VPDoc { padding: 24px 14px 72px !important; }
+  .VPDoc .content-container { border-radius: 18px; padding: 27px 20px 20px; }
+  .vp-doc h1 { font-size: 31px; }
+  .vp-doc div[class*='language-'] { border-radius: 13px; }
+  .vp-doc table { display: block; overflow-x: auto; max-width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  .glass-aurora { will-change: auto; }
+}

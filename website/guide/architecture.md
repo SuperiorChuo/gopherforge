@@ -20,7 +20,7 @@ GopherForge 采用**真微服务架构**：后端按域拆分为 7 个 Go 服务
     :src="architectureDemoUrl"
     title="GopherForge 交互式系统架构图"
     loading="eager"
-    sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"
+    sandbox="allow-scripts allow-downloads allow-popups"
     allowfullscreen
   />
   <div class="architecture-demo__actions">

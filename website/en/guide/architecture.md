@@ -20,7 +20,7 @@ GopherForge is a **real microservices architecture**: 7 Go services split by dom
     :src="architectureDemoUrl"
     title="GopherForge interactive system architecture"
     loading="eager"
-    sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"
+    sandbox="allow-scripts allow-downloads allow-popups"
     allowfullscreen
   />
   <div class="architecture-demo__actions">

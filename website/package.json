@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vitepress dev",
     "build": "vitepress build",
+    "test": "vitepress build && node --test scripts/theme-contract.test.mjs",
     "preview": "vitepress preview"
   },
   "devDependencies": {

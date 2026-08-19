@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-labelledby="title desc">
+  <title id="title">GopherForge</title>
+  <desc id="desc">GopherForge 渐变锻造标志</desc>
+  <defs>
+    <linearGradient id="bg" x1="8" y1="5" x2="41" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#818CF8"/>
+      <stop offset="0.5" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="10" y1="7" x2="38" y2="42" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff" stop-opacity=".8"/>
+      <stop offset=".48" stop-color="#fff" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#22D3EE" stop-opacity=".45"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="2" y="2" width="44" height="44" rx="14" fill="#0A0B16"/>
+  <rect x="3" y="3" width="42" height="42" rx="13" fill="url(#bg)" fill-opacity=".96"/>
+  <path d="M13.8 17.7 24 11.8l10.2 5.9v11.8L24 35.4l-10.2-5.9V17.7Z" fill="#090A16" fill-opacity=".86" stroke="url(#edge)" stroke-width="1.25"/>
+  <path d="M29.9 19.4a7.25 7.25 0 1 0 .05 9.15H24.8v-3.2h9.1v8.45h-3.45l-.18-2.02A10.55 10.55 0 1 1 32.5 17.2l-2.6 2.2Z" fill="#fff"/>
+  <path d="m34.7 10.4.8 2.05 2.05.8-2.05.8-.8 2.05-.8-2.05-2.05-.8 2.05-.8.8-2.05Z" fill="#67E8F9" filter="url(#glow)"/>
+  <path d="M7.8 10.6A8 8 0 0 1 14 6.5" fill="none" stroke="#fff" stroke-opacity=".5" stroke-linecap="round"/>
+</svg>
