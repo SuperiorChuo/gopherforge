@@ -5,7 +5,7 @@ pageClass: gopherforge-home
 hero:
   name: GopherForge
   text: Open-source Go Microservices Admin Scaffold
-  tagline: Production-minded service boundaries, unified auth, observability and delivery — forged into one ready-to-run platform foundation.
+  tagline: Auth, RBAC, multi-tenancy, observability and delivery — all wired up in a Go microservices scaffold. Clone, run, extend.
   actions:
     - theme: brand
       text: Get Started in 15 Minutes
@@ -20,7 +20,7 @@ hero:
 features:
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m8.5 9.2 3.5 2 3.5-2M12 11.2V16"/></svg>'
     title: Pure scaffold, zero business coupling
-    details: Auth, RBAC, multi-tenancy, audit, files and monitoring — platform capabilities only. Add your domain as a cleanly bounded service.
+    details: Auth, RBAC, multi-tenancy, audit, files and monitoring — platform only. Add your domain as a separate service.
     link: /en/guide/architecture
     linkText: Explore the boundaries
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-8 11h6l-1 9 9-12h-6V2Z"/></svg>'
@@ -30,7 +30,7 @@ features:
     linkText: Start the stack
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v5H6zM4 16h6v5H4zM14 16h6v5h-6zM12 8v4M7 16v-4h10v4"/></svg>'
     title: Lightweight workflow engine
-    details: A native Go engine for joint, any-one and sequential approval, branches, timeouts and no-code forms — without a heavyweight dependency.
+    details: A native Go engine for joint, any-one and sequential approval, branches, timeouts and no-code forms — no heavyweight dependency.
     link: /en/modules/bpm
     linkText: Explore workflows
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 9l2 2-2 2M12 15h4"/></svg>'
@@ -40,12 +40,12 @@ features:
     linkText: View codegen
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V8l8-5 8 5v13M8 21v-7h8v7M8 10h.01M12 10h.01M16 10h.01"/></svg>'
     title: Secure multi-tenant foundation
-    details: Row-level tenant_id isolation, tenant-code login and package-based permissions work together, enforced automatically by a GORM plugin.
+    details: Row-level tenant_id isolation, tenant-code login and package-based permissions, enforced by a GORM plugin.
     link: /en/modules/tenant
     linkText: Understand isolation
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3M2 19h22"/></svg>'
-    title: Verifiable engineering loop
-    details: CI gates, OpenAPI drift checks, migration rehearsals, Playwright E2E, Prometheus/Grafana and optional OTel tracing are built in.
+    title: Quality gates & observability
+    details: CI gates, OpenAPI drift checks, migration rehearsals, Playwright E2E, Prometheus/Grafana and optional OTel tracing are all wired up.
     link: /en/modules/observability
     linkText: View observability
 ---
@@ -54,15 +54,15 @@ features:
 These docs describe the `v0.6.0` release ([release notes](/en/changelog)). It is still a 0.x release: APIs, database schemas and generated code formats may change. The Live Demo uses front-end-only mock data; start the [full stack](/en/guide/getting-started) for backend verification, or [deploy from the official images](/en/reference/deployment).
 :::
 
-## Find the answer you need
+## Browse by topic
 
-- **Start from zero** — [Getting Started](/en/guide/getting-started), [Architecture](/en/guide/architecture) and [Extending](/en/guide/extend) establish your first working path.
-- **Build the frontend** — [Frontend Architecture](/en/frontend/overview), [Request Layer](/en/frontend/request), [Routing](/en/frontend/routing) and [Page Development](/en/frontend/page-dev) share one engineering model.
-- **Move to production** — [Modules](/en/modules/auth), [API Reference](/en/reference/api), [Deployment](/en/reference/deployment) and [Database Schema](/en/reference/database) help ship safely.
+- **Start from zero** — [Getting Started](/en/guide/getting-started), [Architecture](/en/guide/architecture) and [Extending](/en/guide/extend) get the project running first.
+- **Build the frontend** — [Frontend Architecture](/en/frontend/overview), [Request Layer](/en/frontend/request), [Routing](/en/frontend/routing) and [Page Development](/en/frontend/page-dev) share one set of conventions.
+- **Move to production** — [Modules](/en/modules/auth), [API Reference](/en/reference/api), [Deployment](/en/reference/deployment) and [Database Schema](/en/reference/database) get you ready to ship.
 
-## Real interface, one visual language
+## One UI, two themes
 
-Deep-space dark and cloud-light themes share the same hierarchy, brand palette and liquid-glass material:
+Dark and light themes share the same layout, brand palette and glass material:
 
 | Deep-space dark | Cloud light |
 | --- | --- |

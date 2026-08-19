@@ -2,6 +2,7 @@ import DefaultTheme from 'vitepress/theme'
 import { withBase, type Theme } from 'vitepress'
 import { h } from 'vue'
 import GlassBackdrop from './components/GlassBackdrop.vue'
+import HeroEyebrow from './components/HeroEyebrow.vue'
 import HeroForge from './components/HeroForge.vue'
 import HomeJourney from './components/HomeJourney.vue'
 import './styles/foundation.css'
@@ -23,11 +24,7 @@ export default {
           height: '34',
         }),
       'nav-bar-title-after': () => h('span', { class: 'gopherforge-nav-badge' }, 'DOCS'),
-      'home-hero-info-before': () =>
-        h('div', { class: 'hero-eyebrow' }, [
-          h('span', { class: 'hero-eyebrow-dot' }),
-          h('span', 'OPEN SOURCE · PRODUCTION READY'),
-        ]),
+      'home-hero-info-before': () => h(HeroEyebrow),
       'home-hero-image': () => h(HeroForge),
       'home-hero-actions-after': () =>
         h('div', { class: 'hero-stack' }, [
