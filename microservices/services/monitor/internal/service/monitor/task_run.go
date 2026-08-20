@@ -25,7 +25,7 @@ var (
 
 var validTaskRunStatuses = map[string]struct{}{
 	localmodel.TaskRunStatusRunning: {}, localmodel.TaskRunStatusSucceeded: {},
-	localmodel.TaskRunStatusFailed: {}, localmodel.TaskRunStatusCancelled: {},
+	localmodel.TaskRunStatusFailed: {}, localmodel.TaskRunStatusCanceled: {},
 }
 
 var validTaskRunSources = map[string]struct{}{
@@ -47,7 +47,7 @@ type TaskRunSummary struct {
 	Running       int64      `json:"running"`
 	Succeeded     int64      `json:"succeeded"`
 	Failed        int64      `json:"failed"`
-	Cancelled     int64      `json:"cancelled"`
+	Canceled      int64      `json:"cancelled"`
 	Services      int64      `json:"services"`
 	SuccessRate   float64    `json:"success_rate"`
 	AverageMS     float64    `json:"average_duration_ms"`
@@ -121,14 +121,14 @@ func (s *TaskRunService) SummaryContext(ctx context.Context, windowHours int) (*
 	if err != nil {
 		return nil, err
 	}
-	completed := row.Succeeded + row.Failed + row.Cancelled
+	completed := row.Succeeded + row.Failed + row.Canceled
 	successRate := 0.0
 	if completed > 0 {
 		successRate = float64(row.Succeeded) * 100 / float64(completed)
 	}
 	return &TaskRunSummary{
 		Total: row.Total, Running: row.Running, Succeeded: row.Succeeded, Failed: row.Failed,
-		Cancelled: row.Cancelled, Services: row.Services, SuccessRate: successRate,
+		Canceled: row.Canceled, Services: row.Services, SuccessRate: successRate,
 		AverageMS: row.AverageMS, LatestRunTime: row.LatestRunTime,
 		WindowHours: windowHours, CheckedAt: time.Now(),
 	}, nil

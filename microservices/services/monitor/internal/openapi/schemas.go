@@ -493,9 +493,10 @@ func pagingQueryParams(names ...string) []Parameter {
 	}
 	for _, name := range names {
 		schema := stringSchema()
-		if name == "status" {
+		switch name {
+		case "status":
 			schema = integerEnumSchema(0, 1)
-		} else if name == "subscription_id" {
+		case "subscription_id":
 			schema = minimumIntegerSchema(1)
 		}
 		params = append(params, queryParam(name, schema))

@@ -73,7 +73,7 @@ func TestTaskRunListRejectsReverseTimeRange(t *testing.T) {
 
 func TestTaskRunSummaryCalculatesSuccessRate(t *testing.T) {
 	service := newTaskRunService(&fakeTaskRunReader{summary: monitordao.TaskRunSummaryRow{
-		Total: 7, Running: 1, Succeeded: 4, Failed: 1, Cancelled: 1, Services: 3, AverageMS: 125,
+		Total: 7, Running: 1, Succeeded: 4, Failed: 1, Canceled: 1, Services: 3, AverageMS: 125,
 	}})
 	summary, err := service.SummaryContext(context.Background(), 24)
 	if err != nil {

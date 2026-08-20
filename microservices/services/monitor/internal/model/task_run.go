@@ -6,7 +6,7 @@ const (
 	TaskRunStatusRunning   = "running"
 	TaskRunStatusSucceeded = "succeeded"
 	TaskRunStatusFailed    = "failed"
-	TaskRunStatusCancelled = "cancelled"
+	TaskRunStatusCanceled = "cancelled"
 )
 
 // OpsTaskRun is one explicitly tracked operational task execution. Poll-loop

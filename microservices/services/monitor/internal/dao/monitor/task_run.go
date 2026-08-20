@@ -25,7 +25,7 @@ type TaskRunSummaryRow struct {
 	Running       int64      `gorm:"column:running"`
 	Succeeded     int64      `gorm:"column:succeeded"`
 	Failed        int64      `gorm:"column:failed"`
-	Cancelled     int64      `gorm:"column:cancelled"`
+	Canceled      int64      `gorm:"column:cancelled"`
 	Services      int64      `gorm:"column:services"`
 	AverageMS     float64    `gorm:"column:average_ms"`
 	LatestRunTime *time.Time `gorm:"column:latest_run_time"`
