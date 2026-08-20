@@ -26,6 +26,8 @@
   .VPHero .tagline { margin-right: auto !important; margin-left: auto !important; }
   .VPHero .actions,
   .hero-stack { justify-content: center !important; }
+  .home-release-bar { flex-wrap: wrap; }
+  .release-notes { margin-left: 0; }
   .journey-glass { grid-template-columns: 1fr; }
   .journey-terminal { max-width: 620px; width: 100%; justify-self: center; transform: none; }
   .VPDoc .content-container { border-radius: 20px; padding: 34px 32px 24px; }
@@ -48,30 +50,45 @@
   .VPButton { min-height: 43px; padding: 0 16px !important; font-size: 13px !important; }
   .hero-stack { gap: 10px 14px; margin-top: 21px; font-size: 8px; }
   .VPHomeHero .image { width: calc(100vw - 24px); }
-  .VPHomeHero .image-container { width: 100% !important; height: 350px !important; }
-  .hero-forge { left: 50%; width: 570px; transform: translateX(-50%) scale(0.64); transform-origin: top center; }
-  .hero-float-security { right: 3px; }
-  .hero-float-telemetry { right: 5px; }
+  .VPHomeHero .image-container { width: 100% !important; height: 305px !important; }
+  .hero-forge { left: 50%; width: 570px; transform: translateX(-50%) scale(0.66); transform-origin: top center; }
+  .hero-forge-window { top: 28px; height: 335px; }
+  .hero-window-content { padding: 18px; }
+  .hero-window-path > span,
+  .hero-float-card,
+  .hero-metrics { display: none; }
+  .hero-service-map { height: 178px; }
+  .hero-service { font-size: 9px; }
+  .hero-brand-core strong { font-size: 16px; }
   .VPFeatures { padding: 14px 16px 76px !important; }
   .VPFeatures .item { padding: 7px !important; }
   .VPFeature .box { padding: 23px !important; }
-  .home-journey { padding: 22px 16px 88px; }
+  .home-release-shell { margin-top: 2px; padding: 0 16px; }
+  .home-release-bar { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; padding: 13px 14px; font-size: 11px; }
+  .release-boundary { min-width: 0; }
+  .release-divider { display: none; }
+  .release-demo { grid-column: 1 / 3; }
+  .release-notes { grid-column: 1 / 3; }
+  .home-journey { padding: 22px 16px 72px; }
   .home-journey-heading { margin-bottom: 30px; }
   .home-journey-heading h2 { font-size: 32px; }
   .home-journey-heading > p { font-size: 13px; }
   .journey-glass { gap: 26px; border-radius: 22px; padding: 24px 20px; }
   .journey-copy > h3 { font-size: 23px; }
   .journey-copy li { gap: 12px; }
+  .journey-resources { grid-template-columns: 1fr; }
   .terminal-body { padding: 20px 16px; }
   .terminal-command { gap: 7px; }
   .terminal-command code { font-size: 9px; }
-  .VPHome { padding-bottom: 72px; }
-  .VPHome .vp-doc { padding: 0 16px !important; }
-  .VPHome .vp-doc h2 { margin-top: 48px; font-size: 25px; }
-  .VPHome .vp-doc h2 + ul { grid-template-columns: 1fr; }
-  .VPHome .vp-doc h2 + ul > li { padding: 16px 18px; }
-  .VPHome table { display: block; overflow-x: auto; border-spacing: 8px; }
-  .VPHome td img { min-width: 270px; }
+  .home-showcase { padding: 0 16px 80px; }
+  .home-showcase-heading { margin-bottom: 24px; }
+  .home-showcase-heading h2 { font-size: 29px; }
+  .home-showcase-heading p { font-size: 13px; }
+  .showcase-frame { border-radius: 18px; padding: 7px; }
+  .showcase-frame > a { border-radius: 13px; }
+  .showcase-frame figcaption { align-items: flex-start; flex-direction: column; gap: 5px; padding: 11px 5px 3px; }
+  .showcase-frame figcaption a { margin-left: 0; }
+  .showcase-facts { align-items: flex-start; flex-direction: column; gap: 8px; margin-left: 7px; }
   .VPDoc { padding: 24px 14px 72px !important; }
   .VPDoc .content-container { border-radius: 18px; padding: 27px 20px 20px; }
   .vp-doc h1 { font-size: 31px; }

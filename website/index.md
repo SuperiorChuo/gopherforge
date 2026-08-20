@@ -49,23 +49,3 @@ features:
     link: /modules/observability
     linkText: 查看可观测能力
 ---
-
-::: tip 当前发布线
-当前文档对应 `v0.6.0` 正式版（[Release notes](/changelog)）。项目仍处于 0.x 阶段，API、数据库表结构和生成代码格式可能变化；在线 Demo 使用纯前端假数据，完整能力请按[快速上手](/guide/getting-started)启动本地栈，或直接[拉官方镜像部署](/reference/deployment)。
-:::
-
-## 按需查阅
-
-- **从零启动** — [快速上手](/guide/getting-started)、[架构总览](/guide/architecture)与[二次开发](/guide/extend)，先把项目跑起来。
-- **构建前端** — [前端架构](/frontend/overview)、[请求层](/frontend/request)、[路由权限](/frontend/routing)与[页面规范](/frontend/page-dev)，前后端约定一致。
-- **走向生产** — [功能模块](/modules/auth)、[API 参考](/reference/api)、[生产部署](/reference/deployment)与[数据库结构](/reference/database)，准备上线。
-
-## 亮暗两套主题，同一套界面
-
-亮暗两套主题共用同一份布局、品牌色与玻璃质感：
-
-| 深空暗色 | 白蓝亮色 |
-| --- | --- |
-| ![系统概览 · 深空暗色](/screenshots/dashboard.png) | ![系统概览 · 白蓝亮色](/screenshots/dashboard-light.png) |
-
-![用户管理](/screenshots/users.png)

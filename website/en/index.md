@@ -49,21 +49,3 @@ features:
     link: /en/modules/observability
     linkText: View observability
 ---
-
-::: tip Current release line
-These docs describe the `v0.6.0` release ([release notes](/en/changelog)). It is still a 0.x release: APIs, database schemas and generated code formats may change. The Live Demo uses front-end-only mock data; start the [full stack](/en/guide/getting-started) for backend verification, or [deploy from the official images](/en/reference/deployment).
-:::
-
-## Browse by topic
-
-- **Start from zero** — [Getting Started](/en/guide/getting-started), [Architecture](/en/guide/architecture) and [Extending](/en/guide/extend) get the project running first.
-- **Build the frontend** — [Frontend Architecture](/en/frontend/overview), [Request Layer](/en/frontend/request), [Routing](/en/frontend/routing) and [Page Development](/en/frontend/page-dev) share one set of conventions.
-- **Move to production** — [Modules](/en/modules/auth), [API Reference](/en/reference/api), [Deployment](/en/reference/deployment) and [Database Schema](/en/reference/database) get you ready to ship.
-
-## One UI, two themes
-
-Dark and light themes share the same layout, brand palette and glass material:
-
-| Deep-space dark | Cloud light |
-| --- | --- |
-| ![Dashboard, dark](/screenshots/dashboard.png) | ![Dashboard, light](/screenshots/dashboard-light.png) |

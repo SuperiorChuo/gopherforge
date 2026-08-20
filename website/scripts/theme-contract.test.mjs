@@ -12,6 +12,8 @@ const [
   responsive,
   heroComponent,
   journeyComponent,
+  releaseComponent,
+  showcaseComponent,
   zhHome,
   enHome,
   config,
@@ -43,6 +45,8 @@ const [
   read('../.vitepress/theme/styles/responsive.css'),
   read('../.vitepress/theme/components/HeroForge.vue'),
   read('../.vitepress/theme/components/HomeJourney.vue'),
+  read('../.vitepress/theme/components/HomeReleaseBar.vue'),
+  read('../.vitepress/theme/components/HomeShowcase.vue'),
   read('../index.md'),
   read('../en/index.md'),
   read('../.vitepress/config.mts'),
@@ -123,7 +127,7 @@ test('移动菜单、窄屏与减少动效规则保持可用', () => {
   assert.match(responsive, /@media \(prefers-reduced-motion: reduce\)/)
 })
 
-test('细节打磨：明暗过渡、滚动条、玻璃卡与发布元信息', () => {
+test('细节打磨：首页信息收敛、明暗过渡与正文玻璃细节', () => {
   // 明暗渐变双伪元素交叉淡化，切换主题不跳变
   assert.match(foundation, /body::before,\nbody::after/)
   assert.match(foundation, /\.dark body::after \{ opacity: 1; \}/)
@@ -131,12 +135,18 @@ test('细节打磨：明暗过渡、滚动条、玻璃卡与发布元信息', ()
   // 自定义滚动条明暗两套
   assert.match(foundation, /::-webkit-scrollbar-thumb/)
   assert.match(foundation, /\.dark \* \{ scrollbar-color:/)
-  // 首页三列玻璃卡（唯一 ul 随 h2 精确命中）与 Hero/终端细节
-  assert.match(homeStyles, /\.VPHome \.vp-doc h2 \+ ul \{/)
-  assert.match(homeStyles, /\.VPHome \.vp-doc h2 \+ ul \{[\s\S]*?grid-template-columns: repeat\(3, 1fr\);/)
-  assert.match(homeStyles, /\.hero-version \{/)
-  assert.match(homeStyles, /\.terminal-cursor \{/)
-  assert.match(responsive, /\.VPHome \.vp-doc h2 \+ ul \{ grid-template-columns: 1fr; \}/)
+  // 版本边界前置，上手路径合并资源入口，截图跟随主题
+  assert.match(themeEntry, /home-hero-after/)
+  assert.match(releaseComponent, /SITE_META\.release\.tag/)
+  assert.match(releaseComponent, /Live Demo uses mock data|在线 Demo 使用演示数据/)
+  assert.match(journeyComponent, /journey-resources/)
+  assert.match(showcaseComponent, /isDark\.value/)
+  assert.match(showcaseComponent, /width="1432" height="895"/)
+  assert.match(homeStyles, /\.home-release-bar \{/)
+  assert.match(homeStyles, /\.journey-resources \{[\s\S]*?grid-template-columns: repeat\(3, 1fr\);/)
+  assert.match(responsive, /\.journey-resources \{ grid-template-columns: 1fr; \}/)
+  assert.match(responsive, /\.hero-float-card,\n  \.hero-metrics \{ display: none; \}/)
+  assert.doesNotMatch(`${zhHome}${enHome}`, /^## /m)
   // 正文玻璃卡细节与页脚渐变线
   assert.match(docsStyles, /\.vp-doc blockquote::before/)
   assert.match(docsStyles, /\.vp-doc h1::before/)

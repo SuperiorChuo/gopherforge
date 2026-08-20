@@ -18,6 +18,11 @@ const copy = computed(() => isEnglish.value ? {
     { number: '02', title: 'Understand', text: 'See how services are split, how the gateway authenticates and where data flows.', link: '/en/guide/architecture', linkText: 'View architecture' },
     { number: '03', title: 'Extend', text: 'Add business services without touching the platform core.', link: '/en/guide/extend', linkText: 'Extend the stack' },
   ],
+  resources: [
+    { title: 'Frontend', text: 'Request layer, routing and page conventions', link: '/en/frontend/overview' },
+    { title: 'API reference', text: 'Gateway rules, endpoints and OpenAPI coverage', link: '/en/reference/api' },
+    { title: 'Deployment', text: 'Secrets, TLS, backups and rollback checklist', link: '/en/reference/deployment' },
+  ],
   terminal: 'One Compose layout, local to server',
   commands: SITE_META.homepageCommands,
   ready: 'READY',
@@ -31,6 +36,11 @@ const copy = computed(() => isEnglish.value ? {
     { number: '01', title: '启动', text: '15 分钟拉起技术栈并完成首次登录。', link: '/guide/getting-started', linkText: '快速上手' },
     { number: '02', title: '理解', text: '弄清服务怎么分、网关怎么鉴权、数据怎么流。', link: '/guide/architecture', linkText: '查看架构' },
     { number: '03', title: '扩展', text: '用领域服务加业务，不碰平台底座。', link: '/guide/extend', linkText: '二次开发' },
+  ],
+  resources: [
+    { title: '前端开发', text: '请求层、路由权限与页面规范', link: '/frontend/overview' },
+    { title: 'API 参考', text: '网关约定、接口速查与 OpenAPI 覆盖', link: '/reference/api' },
+    { title: '生产部署', text: '密钥、TLS、备份与回滚检查清单', link: '/reference/deployment' },
   ],
   terminal: '本地与部署共用 Compose 编排',
   commands: SITE_META.homepageCommands,
@@ -86,5 +96,13 @@ const copy = computed(() => isEnglish.value ? {
         </div>
       </div>
     </div>
+
+    <nav class="journey-resources" :aria-label="isEnglish ? 'More documentation' : '更多文档'">
+      <a v-for="resource in copy.resources" :key="resource.link" :href="pageLink(resource.link)">
+        <span>{{ resource.title }}</span>
+        <small>{{ resource.text }}</small>
+        <i aria-hidden="true">→</i>
+      </a>
+    </nav>
   </section>
 </template>

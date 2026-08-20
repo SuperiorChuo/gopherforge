@@ -5,6 +5,8 @@ import GlassBackdrop from './components/GlassBackdrop.vue'
 import HeroEyebrow from './components/HeroEyebrow.vue'
 import HeroForge from './components/HeroForge.vue'
 import HomeJourney from './components/HomeJourney.vue'
+import HomeReleaseBar from './components/HomeReleaseBar.vue'
+import HomeShowcase from './components/HomeShowcase.vue'
 import { SITE_META } from '../site-meta'
 import './styles/foundation.css'
 import './styles/home.css'
@@ -27,6 +29,7 @@ export default {
       'nav-bar-title-after': () => h('span', { class: 'gopherforge-nav-badge' }, 'DOCS'),
       'home-hero-info-before': () => h(HeroEyebrow),
       'home-hero-image': () => h(HeroForge),
+      'home-hero-after': () => h(HomeReleaseBar),
       'home-hero-actions-after': () =>
         h('div', { class: 'hero-stack' }, [
           h('span', `GO ${SITE_META.stack.go}`),
@@ -34,6 +37,7 @@ export default {
           h('span', `ANT DESIGN ${SITE_META.stack.antd}`),
           h('span', `POSTGRESQL ${SITE_META.stack.postgres}`),
         ]),
-      'home-features-after': () => h(HomeJourney),
+      'home-features-after': () =>
+        h('div', { class: 'home-after-features' }, [h(HomeJourney), h(HomeShowcase)]),
     }),
 } satisfies Theme
