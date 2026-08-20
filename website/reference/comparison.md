@@ -1,3 +1,7 @@
+---
+description: GopherForge 与 gin-vue-admin、go-admin、RuoYi-Cloud、Simple Admin 的架构、技术栈和适用场景对比。
+---
+
 # 同类项目对比
 
 > 本页与仓库 [`docs/comparison.md`](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/comparison.md) 同源。

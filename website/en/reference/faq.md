@@ -1,3 +1,7 @@
+---
+description: Common questions about GopherForge startup, ports, Apple Silicon, migrations, production configuration, monitoring and BPM integration.
+---
+
 # FAQ
 
 ### Where is my database container after `make compose-up`?

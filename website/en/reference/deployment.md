@@ -1,4 +1,8 @@
-# Production Deployment
+---
+description: A concise production deployment summary for GopherForge covering official images, secrets, Docker Compose, TLS, backups and rollback.
+---
+
+# Production Deployment (Summary)
 
 The full production guide is maintained in Chinese: [生产部署（中文）](/reference/deployment) · [source on GitHub](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/deployment.md).
 

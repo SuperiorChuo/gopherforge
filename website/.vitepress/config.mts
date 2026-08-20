@@ -1,8 +1,24 @@
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitepress'
+import { SITE_META } from './site-meta'
 
 // GopherForge 文档站：与在线 Demo 同一 GitHub Pages 站点，
 // Demo 在 /gopherforge/，文档在 /gopherforge/docs/（deploy-demo 工作流合并产物）。
 // 双语：根路径中文，/en/ 英文。
+
+const zhDescription = 'GopherForge 开源 Go 微服务后台管理脚手架文档：快速上手、架构设计、RBAC 权限、多租户、审批流、代码生成器与二次开发指南'
+const enDescription = 'GopherForge documentation for an open-source Go microservices admin scaffold: setup, architecture, RBAC, multi-tenancy, workflow, code generation and extension guides'
+
+const publicPagePath = (relativePath: string) => {
+  const htmlPath = relativePath.replace(/\.md$/, '.html')
+  if (htmlPath === 'index.html') return ''
+  return htmlPath.replace(/\/index\.html$/, '/')
+}
+
+const pageUrl = (relativePath: string) => `${SITE_META.urls.docs}/${publicPagePath(relativePath)}`
+const counterpartPath = (relativePath: string, isEnglish: boolean) => isEnglish ? relativePath.slice(3) : `en/${relativePath}`
+const sourcePageExists = (relativePath: string) => existsSync(fileURLToPath(new URL(`../${relativePath}`, import.meta.url)))
 
 const zhSidebar = {
   '/guide/': [
@@ -108,11 +124,11 @@ const enSidebar = {
       text: 'Reference',
       items: [
         { text: 'API Reference', link: '/en/reference/api' },
-        { text: 'Production Deployment', link: '/en/reference/deployment' },
+        { text: 'Production Deployment (Summary)', link: '/en/reference/deployment' },
         { text: 'Upgrading', link: '/en/reference/upgrade' },
         { text: 'FAQ', link: '/en/reference/faq' },
         { text: 'Database Schema', link: '/en/reference/database' },
-        { text: 'Comparison', link: '/en/reference/comparison' },
+        { text: 'Comparison (Summary)', link: '/en/reference/comparison' },
       ],
     },
   ],
@@ -120,8 +136,7 @@ const enSidebar = {
 
 export default defineConfig({
   title: 'GopherForge',
-  description:
-    'GopherForge 开源 Go 微服务后台管理系统脚手架文档：快速上手、架构设计、RBAC 权限、多租户、审批流、代码生成器与二次开发指南',
+  description: zhDescription,
   base: '/gopherforge/docs/',
   // Algolia DocSearch 域名所有权验证 + 品牌图标/主题色
   head: [
@@ -129,18 +144,74 @@ export default defineConfig({
     ['link', { rel: 'icon', href: '/gopherforge/docs/brand/gopherforge-mark.svg', type: 'image/svg+xml' }],
     ['meta', { name: 'theme-color', content: '#f6f8ff', media: '(prefers-color-scheme: light)' }],
     ['meta', { name: 'theme-color', content: '#070812', media: '(prefers-color-scheme: dark)' }],
-    ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:site_name', content: 'GopherForge 文档' }],
-    ['meta', { property: 'og:title', content: 'GopherForge — 开源 Go 微服务后台管理脚手架' }],
-    ['meta', { property: 'og:description', content: '快速上手、架构设计、RBAC 权限、多租户、审批流、代码生成器与二次开发指南' }],
-    ['meta', { property: 'og:url', content: 'https://superiorchuo.github.io/gopherforge/docs/' }],
-    ['meta', { property: 'og:image', content: 'https://superiorchuo.github.io/gopherforge/docs/screenshots/dashboard.png' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
   ],
   // 教程里的 localhost 入口地址不是死链
   ignoreDeadLinks: [/^https?:\/\/localhost/],
   lastUpdated: true,
-  sitemap: { hostname: 'https://superiorchuo.github.io/gopherforge/docs/' },
+  sitemap: { hostname: `${SITE_META.urls.docs}/` },
+  transformHead({ pageData }) {
+    const relativePath = pageData.relativePath
+    const isEnglish = relativePath.startsWith('en/')
+    const language = isEnglish ? 'en-US' : 'zh-CN'
+    const locale = isEnglish ? 'en_US' : 'zh_CN'
+    const siteTitle = isEnglish ? 'GopherForge Docs' : 'GopherForge 文档'
+    const fallbackDescription = isEnglish ? enDescription : zhDescription
+    const description = pageData.description || fallbackDescription
+    const title = pageData.title ? `${pageData.title} | ${siteTitle}` : siteTitle
+    const canonical = pageUrl(relativePath)
+    const alternate = counterpartPath(relativePath, isEnglish)
+    const socialImage = `${SITE_META.urls.docs}/brand/gopherforge-social.png`
+    const isHomepage = relativePath === 'index.md' || relativePath === 'en/index.md'
+    const structuredData = isHomepage ? {
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareSourceCode',
+      name: SITE_META.name,
+      description,
+      codeRepository: SITE_META.urls.repository,
+      url: canonical,
+      license: 'https://opensource.org/license/mit',
+      programmingLanguage: 'Go',
+      runtimePlatform: 'Docker Compose',
+      version: SITE_META.release.version,
+      inLanguage: language,
+    } : {
+      '@context': 'https://schema.org',
+      '@type': 'TechArticle',
+      headline: pageData.title || siteTitle,
+      description,
+      url: canonical,
+      inLanguage: language,
+      isPartOf: { '@type': 'WebSite', name: siteTitle, url: `${SITE_META.urls.docs}/${isEnglish ? 'en/' : ''}` },
+      ...(pageData.lastUpdated ? { dateModified: new Date(pageData.lastUpdated).toISOString() } : {}),
+    }
+    const result = [
+      ['link', { rel: 'canonical', href: canonical }],
+      ['link', { rel: 'alternate', hreflang: language, href: canonical }],
+      ['link', { rel: 'alternate', hreflang: 'x-default', href: pageUrl(isEnglish ? relativePath.slice(3) : relativePath) }],
+      ['meta', { property: 'og:type', content: isHomepage ? 'website' : 'article' }],
+      ['meta', { property: 'og:site_name', content: siteTitle }],
+      ['meta', { property: 'og:locale', content: locale }],
+      ['meta', { property: 'og:title', content: title }],
+      ['meta', { property: 'og:description', content: description }],
+      ['meta', { property: 'og:url', content: canonical }],
+      ['meta', { property: 'og:image', content: socialImage }],
+      ['meta', { property: 'og:image:width', content: '1200' }],
+      ['meta', { property: 'og:image:height', content: '630' }],
+      ['meta', { name: 'twitter:title', content: title }],
+      ['meta', { name: 'twitter:description', content: description }],
+      ['meta', { name: 'twitter:image', content: socialImage }],
+      ['script', { type: 'application/ld+json' }, JSON.stringify(structuredData)],
+    ]
+    if (sourcePageExists(alternate)) {
+      result.splice(2, 0, ['link', {
+        rel: 'alternate',
+        hreflang: isEnglish ? 'zh-CN' : 'en-US',
+        href: pageUrl(alternate),
+      }])
+    }
+    return result
+  },
   locales: {
     root: {
       label: '简体中文',
@@ -172,8 +243,7 @@ export default defineConfig({
     en: {
       label: 'English',
       lang: 'en-US',
-      description:
-        'GopherForge — an open-source Go microservices admin scaffold: quick start, architecture, RBAC, multi-tenancy, workflow engine, code generator and extension guide',
+      description: enDescription,
       themeConfig: {
         siteTitle: 'GopherForge Docs',
         nav: [

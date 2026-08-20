@@ -1,3 +1,7 @@
+---
+description: 用 Docker Compose 拉起 GopherForge 网关、7 个 Go 服务、React 前端及 PostgreSQL、Redis、NATS，并完成首次验证。
+---
+
 # 快速上手（15 分钟）
 
 GopherForge 是开源 Go 微服务后台管理脚手架。本文带你从零把全栈跑起来：网关 + 7 个 Go 服务 + React 前端 + PostgreSQL/Redis/NATS。

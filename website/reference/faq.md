@@ -1,3 +1,7 @@
+---
+description: GopherForge 启动、端口、Apple Silicon、迁移、生产配置、监控与 BPM 接入的常见问题。
+---
+
 # 常见问题 FAQ
 
 ## 启动与运行

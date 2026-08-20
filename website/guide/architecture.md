@@ -1,5 +1,6 @@
 ---
 aside: false
+description: GopherForge 的 7 个 Go 服务、Traefik ForwardAuth、数据层、前端与可观测链路总览。
 ---
 
 <script setup lang="ts">
@@ -19,7 +20,7 @@ GopherForge 采用**真微服务架构**：后端按域拆分为 7 个 Go 服务
     class="architecture-demo__frame"
     :src="architectureDemoUrl"
     title="GopherForge 交互式系统架构图"
-    loading="eager"
+    loading="lazy"
     sandbox="allow-scripts allow-downloads allow-popups"
     allowfullscreen
   />

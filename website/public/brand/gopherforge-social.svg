@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">GopherForge documentation</title>
+  <desc id="desc">Open-source Go microservices admin scaffold</desc>
+  <defs>
+    <linearGradient id="bg" x1="60" y1="30" x2="1140" y2="600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#080916"/>
+      <stop offset=".55" stop-color="#0d1022"/>
+      <stop offset="1" stop-color="#07121d"/>
+    </linearGradient>
+    <radialGradient id="auroraA" cx="0" cy="0" r="1" gradientTransform="translate(250 90) rotate(48) scale(560 430)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366f1" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="auroraB" cx="0" cy="0" r="1" gradientTransform="translate(1040 500) rotate(-145) scale(500 380)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0ea5e9" stop-opacity=".25"/>
+      <stop offset="1" stop-color="#0ea5e9" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mark" x1="94" y1="105" x2="250" y2="275" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#818cf8"/>
+      <stop offset=".5" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="word" x1="310" y1="175" x2="870" y2="245" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#c7d2fe"/>
+      <stop offset=".48" stop-color="#818cf8"/>
+      <stop offset=".82" stop-color="#c4b5fd"/>
+      <stop offset="1" stop-color="#67e8f9"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#818cf8" stroke-opacity=".07"/>
+    </pattern>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <rect width="1200" height="630" rx="36" fill="url(#bg)"/>
+  <rect width="1200" height="630" rx="36" fill="url(#auroraA)"/>
+  <rect width="1200" height="630" rx="36" fill="url(#auroraB)"/>
+  <rect width="1200" height="630" rx="36" fill="url(#grid)"/>
+  <rect x="62" y="58" width="1076" height="514" rx="30" fill="#111426" fill-opacity=".68" stroke="#94a3b8" stroke-opacity=".16"/>
+  <rect x="63" y="59" width="1074" height="512" rx="29" fill="none" stroke="#fff" stroke-opacity=".08"/>
+  <circle cx="176" cy="190" r="105" fill="#6366f1" fill-opacity=".28" filter="url(#shadow)"/>
+  <rect x="92" y="106" width="168" height="168" rx="48" fill="#090a16"/>
+  <rect x="98" y="112" width="156" height="156" rx="43" fill="url(#mark)"/>
+  <path d="M132 158 176 132l44 26v51l-44 26-44-26v-51Z" fill="#090a16" fill-opacity=".82" stroke="#fff" stroke-opacity=".3" stroke-width="4"/>
+  <path d="M201 165a31 31 0 1 0 0 40h-22v-14h39v36h-15l-1-9a45 45 0 1 1 10-63l-11 10Z" fill="#fff"/>
+  <text x="310" y="210" fill="url(#word)" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="82" font-weight="800" letter-spacing="-4">GopherForge</text>
+  <text x="310" y="274" fill="#f1f5f9" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="31" font-weight="650">Open-source Go microservices admin scaffold</text>
+  <text x="310" y="326" fill="#aab6ca" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="22">7 Go services · React 19 · PostgreSQL 18</text>
+  <rect x="310" y="384" width="244" height="52" rx="26" fill="#6366f1" fill-opacity=".14" stroke="#818cf8" stroke-opacity=".34"/>
+  <circle cx="341" cy="410" r="6" fill="#34d399"/>
+  <text x="360" y="418" fill="#c7d2fe" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="700">DOCUMENTATION</text>
+  <text x="1040" y="530" fill="#8b99b1" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" text-anchor="end">v0.6.0 · MIT</text>
+</svg>

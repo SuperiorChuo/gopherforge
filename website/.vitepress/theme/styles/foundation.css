@@ -10,6 +10,7 @@
   --gf-glass-highlight: rgba(255, 255, 255, 0.95);
   --gf-glass-bg: rgba(255, 255, 255, 0.68);
   --gf-glass-bg-strong: rgba(255, 255, 255, 0.82);
+  --gf-article-bg: rgba(255, 255, 255, 0.88);
   --gf-shadow: 0 24px 60px rgba(37, 99, 235, 0.13);
   --vp-c-brand-1: #4f46e5;
   --vp-c-brand-2: #6366f1;
@@ -51,6 +52,7 @@
   --gf-glass-highlight: rgba(255, 255, 255, 0.12);
   --gf-glass-bg: rgba(15, 17, 32, 0.62);
   --gf-glass-bg-strong: rgba(13, 15, 29, 0.84);
+  --gf-article-bg: rgba(10, 12, 24, 0.86);
   --gf-shadow: 0 28px 70px rgba(0, 0, 0, 0.4);
   --vp-c-brand-1: #a5b4fc;
   --vp-c-brand-2: #818cf8;

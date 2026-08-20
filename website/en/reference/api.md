@@ -1,3 +1,7 @@
+---
+description: GopherForge gateway conventions, authentication, pagination, module endpoint references and current OpenAPI 3.1 coverage.
+---
+
 # API Reference
 
 All GopherForge APIs go through the **Traefik gateway** with uniform conventions. This page is the hub: general rules + per-module endpoint tables + the machine-readable contract.

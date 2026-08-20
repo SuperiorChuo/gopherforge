@@ -147,7 +147,14 @@ test('细节打磨：首页信息收敛、明暗过渡与正文玻璃细节', ()
   assert.match(responsive, /\.journey-resources \{ grid-template-columns: 1fr; \}/)
   assert.match(responsive, /\.hero-float-card,\n  \.hero-metrics \{ display: none; \}/)
   assert.doesNotMatch(`${zhHome}${enHome}`, /^## /m)
-  // 正文玻璃卡细节与页脚渐变线
+  // 正文降低整页滤镜负担，宽屏提高有效阅读宽度
+  assert.match(foundation, /--gf-article-bg:/)
+  assert.match(docsStyles, /background: var\(--gf-article-bg\)/)
+  assert.match(docsStyles, /backdrop-filter: blur\(14px\) saturate\(1\.25\)/)
+  assert.match(docsStyles, /\.VPDoc\.has-aside \.content-container \{ max-width: 760px !important; \}/)
+  assert.match(responsive, /\.glass-aurora \{ animation: none;/)
+  assert.match(responsive, /\.glass-aurora-three,\n  \.glass-noise \{ display: none; \}/)
+  assert.match(responsive, /backdrop-filter: none;/)
   assert.match(docsStyles, /\.vp-doc blockquote::before/)
   assert.match(docsStyles, /\.vp-doc h1::before/)
   assert.match(docsStyles, /\.VPFooter::before/)
@@ -200,6 +207,8 @@ test('同源交互架构页保留 sandbox 且不组合 allow-scripts 与 allow-s
   for (const markdown of [zhArchitecture, enArchitecture]) {
     assert.match(markdown, /sandbox="allow-scripts allow-downloads allow-popups"/)
     assert.doesNotMatch(markdown, /allow-same-origin/)
+    assert.match(markdown, /loading="lazy"/)
+    assert.doesNotMatch(markdown, /loading="eager"/)
     assert.match(markdown, /allowfullscreen/)
   }
 })

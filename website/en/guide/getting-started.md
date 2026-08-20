@@ -1,3 +1,7 @@
+---
+description: Start the GopherForge gateway, 7 Go services, React frontend, PostgreSQL, Redis and NATS with Docker Compose, then run the first verification.
+---
+
 # Getting Started (15 minutes)
 
 GopherForge is an open-source Go microservices admin scaffold. This guide takes you from zero to a running full stack: gateway + 7 Go services + React frontend + PostgreSQL/Redis/NATS.

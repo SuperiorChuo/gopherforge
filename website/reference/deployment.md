@@ -1,3 +1,7 @@
+---
+description: 在单台 Linux 服务器上部署 GopherForge：生产密钥、Docker Compose、Nginx TLS、备份、日志与回滚检查清单。
+---
+
 # 生产部署
 
 > 本页与仓库 [`docs/deployment.md`](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/deployment.md) 同源。

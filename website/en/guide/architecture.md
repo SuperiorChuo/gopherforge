@@ -1,5 +1,6 @@
 ---
 aside: false
+description: Overview of GopherForge's 7 Go services, Traefik ForwardAuth, data layer, frontend and observability paths.
 ---
 
 <script setup lang="ts">
@@ -19,7 +20,7 @@ GopherForge is a **real microservices architecture**: 7 Go services split by dom
     class="architecture-demo__frame"
     :src="architectureDemoUrl"
     title="GopherForge interactive system architecture"
-    loading="eager"
+    loading="lazy"
     sandbox="allow-scripts allow-downloads allow-popups"
     allowfullscreen
   />

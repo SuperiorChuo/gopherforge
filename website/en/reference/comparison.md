@@ -1,4 +1,8 @@
-# Comparison
+---
+description: A concise comparison of GopherForge with gin-vue-admin, go-admin, RuoYi-Cloud and Simple Admin.
+---
+
+# Comparison (Summary)
 
 The detailed comparison with gin-vue-admin, go-admin, RuoYi-family scaffolds is maintained in Chinese: [同类项目对比（中文）](/reference/comparison) · [source on GitHub](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/comparison.md).
 

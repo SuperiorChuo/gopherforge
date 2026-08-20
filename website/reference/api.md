@@ -1,3 +1,7 @@
+---
+description: GopherForge 网关调用约定、认证与分页规则、各模块接口入口，以及 OpenAPI 3.1 契约覆盖范围。
+---
+
 # API 参考
 
 GopherForge 的 API 全部走 **Traefik 网关统一入口**，形态一致、约定统一。本页是总入口：调用总则 + 各模块接口速查 + 机器可读契约。
