@@ -10,7 +10,7 @@ GopherForge 前端是**单页应用**（SPA），与后端 7 个微服务经 Tra
 | 构建 | **Vite 8** | `@` 别名指向 `src/`，产物按路由懒加载拆分 |
 | UI | **Ant Design 6** | `ConfigProvider` 统一主题，双主题切换 |
 | 状态 | **Redux Toolkit 2** + react-redux | 仅存全局共享态（认证），局部状态用 `useState` |
-| 路由 | **react-router-dom 6** | 静态路由表 + `lazyLoad()` 按需加载 |
+| 路由 | **react-router-dom 7** | 静态路由表 + `lazyLoad()` 按需加载 |
 | 校验 | **oxlint**（`npm run lint`） | 零配置、快，提交前必须通过 |
 
 ## 目录结构（`microservices/web/src/`）
@@ -34,7 +34,7 @@ GopherForge 前端是**单页应用**（SPA），与后端 7 个微服务经 Tra
 ## 构建与启动
 
 ```bash
-npm run dev        # 本地开发（Vite HMR，端口 13100/13200，见项目端口速查）
+npm run dev        # 本地开发（Vite HMR，默认端口 5174）
 npm run dev:lan    # 局域网访问（--host 0.0.0.0 --port 13200）
 npm run build      # 提交前必须过：tsc -b（类型检查）+ vite build
 npm run lint       # oxlint

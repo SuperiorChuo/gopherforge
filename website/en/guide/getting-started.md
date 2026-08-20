@@ -1,11 +1,11 @@
 # Getting Started (15 minutes)
 
-GopherForge is an open-source, enterprise-grade Go microservices admin scaffold. This guide takes you from zero to a running full stack: gateway + 7 Go services + React frontend + PostgreSQL/Redis/NATS.
+GopherForge is an open-source Go microservices admin scaffold. This guide takes you from zero to a running full stack: gateway + 7 Go services + React frontend + PostgreSQL/Redis/NATS.
 
 ## Requirements
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (the only hard requirement)
-- Optional local development: Go **1.26.3+**, Node.js **20.19+ / 22.12+**
+- Docker Engine **24+** and Docker Compose v2; [Docker Desktop](https://www.docker.com/products/docker-desktop/) is recommended on macOS and Windows
+- Optional local development: Go **1.26.3+** (the repository toolchain is 1.26.5), Node.js **20.19+ / 22.12+** (24 recommended)
 
 ## One-command startup
 

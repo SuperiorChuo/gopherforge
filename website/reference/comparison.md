@@ -5,6 +5,8 @@
 
 > 选型参考。信息基于各项目公开仓库与文档（2026-07 核对），如有出入以各项目官方为准。
 > 我们尽量客观：GopherForge 不是所有场景的最优解，下面同样写清楚它不适合谁。
+>
+> 核对入口：[gin-vue-admin](https://github.com/flipped-aurora/gin-vue-admin) · [go-admin](https://github.com/go-admin-team/go-admin) · [RuoYi-Cloud](https://gitee.com/y_project/RuoYi-Cloud) · [Simple Admin](https://github.com/suyuan32/simple-admin-core)
 
 ## 一句话定位
 
@@ -15,7 +17,7 @@
 | 维度 | GopherForge | gin-vue-admin | go-admin (go-admin-team) | RuoYi-Cloud（若依微服务版） | Simple Admin |
 |------|------------|---------------|--------------------------|------------------------------|--------------|
 | 架构形态 | **微服务**（Traefik + 7 服务） | 单体 | 单体 | 微服务（Java 生态迁移风格，Nacos/Seata） | 微服务（go-zero） |
-| 后端 | Go + Gin + GORM | Go + Gin + GORM | Go + Gin + GORM | Go/Java 混合生态 | Go + go-zero |
+| 后端 | Go + Gin + GORM | Go + Gin + GORM | Go + Gin + GORM | Java + Spring Cloud | Go + go-zero |
 | 前端 | **React 19 + Ant Design 6** | Vue 3 + Element Plus | Vue 3 + Element Plus | Vue 3 + Element Plus | Vue 3 + Element Plus |
 | 数据库 | PostgreSQL 18 | MySQL 为主 | MySQL 为主 | MySQL 为主 | MySQL / PostgreSQL |
 | 网关与鉴权 | Traefik ForwardAuth 统一验签，服务只信网关注入头 | 应用内中间件 | 应用内中间件 | 独立网关组件 | go-zero gateway |
@@ -52,7 +54,7 @@ gin-vue-admin 是单体 + Vue，生态和教程最多，适合快速交付中小
 go-admin 同为 Gin + GORM 单体，成熟稳定、star 多；GopherForge 提供它没有的微服务拆分、多租户、Traefik 统一鉴权与 React 前端。注意别和 GoAdminGroup/go-admin（数据可视化面板框架）混淆——三个是不同的项目。
 
 **Q：和 RuoYi-Cloud / ruoyi-vue-pro 比？**
-若依系功能最全、中文资料最多，但组件重（Nacos/Seata/XXL-Job 等）、携带大量业务模块；GopherForge 走轻路线：Traefik + NATS + goose，依赖少一个量级，底座干净。
+若依系功能完整、中文资料丰富，但默认组件更多（Nacos/Seata/XXL-Job 等），也带有较多业务模块；GopherForge 使用 Traefik、NATS 与 goose，组件更少，适合希望从空白业务域开始的 Go 团队。
 
 **Q：和 Simple Admin 比？**
 同为 Go 微服务脚手架，Simple Admin 基于 go-zero（自带 RPC 生态），前端 Vue；GopherForge 基于 Gin（团队上手门槛更低），前端 React，网关层用通用的 Traefik 而非框架自带网关。

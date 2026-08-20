@@ -20,7 +20,7 @@ monitor 服务 + platform/deploy 配置，提供从健康检查到告警闭环�
 
 ## 指标与看板
 
-Prometheus 抓取各服务 metrics（`shared/pkg/metrics` 零依赖指标包：HTTP 计数/错误/延迟直方图 + Go runtime + DB 连接池），node_exporter 提供主机指标；Grafana 看板配置在 `platform/deploy/grafana/`（预置服务概览：QPS/错误率/P95/goroutine/连接池），`docker compose --profile observability` 可选拉起。
+Prometheus 抓取各服务 metrics（`shared/pkg/metrics` 零依赖指标包：HTTP 计数/错误/延迟直方图 + Go runtime + DB 连接池），node_exporter 提供主机指标；Grafana 看板配置在 `platform/deploy/grafana/`（预置服务概览：QPS/错误率/P95/goroutine/连接池），`docker compose --profile monitoring up -d` 可选拉起。
 
 ## 告警闭环（可选）
 

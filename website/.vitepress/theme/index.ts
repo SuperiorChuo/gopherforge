@@ -5,6 +5,7 @@ import GlassBackdrop from './components/GlassBackdrop.vue'
 import HeroEyebrow from './components/HeroEyebrow.vue'
 import HeroForge from './components/HeroForge.vue'
 import HomeJourney from './components/HomeJourney.vue'
+import { SITE_META } from '../site-meta'
 import './styles/foundation.css'
 import './styles/home.css'
 import './styles/docs.css'
@@ -28,10 +29,10 @@ export default {
       'home-hero-image': () => h(HeroForge),
       'home-hero-actions-after': () =>
         h('div', { class: 'hero-stack' }, [
-          h('span', 'GO 1.26'),
-          h('span', 'REACT 19'),
-          h('span', 'ANT DESIGN 6'),
-          h('span', 'POSTGRESQL 18'),
+          h('span', `GO ${SITE_META.stack.go}`),
+          h('span', `REACT ${SITE_META.stack.react}`),
+          h('span', `ANT DESIGN ${SITE_META.stack.antd}`),
+          h('span', `POSTGRESQL ${SITE_META.stack.postgres}`),
         ]),
       'home-features-after': () => h(HomeJourney),
     }),

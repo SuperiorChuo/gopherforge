@@ -10,7 +10,7 @@ GopherForge's frontend is a **single-page application** that talks to the 7 Go m
 | Build | **Vite 8** | `@` alias → `src/`, route-level code splitting |
 | UI | **Ant Design 6** | `ConfigProvider` theming, light/dark toggle |
 | State | **Redux Toolkit 2** + react-redux | Global shared state only (auth); page-local state uses `useState` |
-| Routing | **react-router-dom 6** | Static route table + `lazyLoad()` |
+| Routing | **react-router-dom 7** | Static route table + `lazyLoad()` |
 | Lint | **oxlint** (`npm run lint`) | Must pass before commit |
 
 ## Directory Layout (`microservices/web/src/`)
@@ -34,7 +34,7 @@ GopherForge's frontend is a **single-page application** that talks to the 7 Go m
 ## Build & Run
 
 ```bash
-npm run dev        # local dev (Vite HMR; see port cheat-sheet)
+npm run dev        # local dev (Vite HMR, port 5174 by default)
 npm run dev:lan    # LAN access (--host 0.0.0.0 --port 13200)
 npm run build      # must pass before commit: tsc -b (type-check) + vite build
 npm run lint       # oxlint

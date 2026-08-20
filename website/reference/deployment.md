@@ -72,7 +72,7 @@ docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
 
 应用栈二选一：
 
-**方式 A · 拉官方镜像（v0.2.0 起，推荐）**。每个正式版由 `release.yml` 把 8 个镜像（7 个 Go 服务 + frontend；migrate 容器复用 monitor 镜像）推到 ghcr.io，`v0.4.0` 起同时提供 `linux/amd64` 与 `linux/arm64`（arm64 云机 / Apple Silicon 可直接拉镜像；`v0.2.0` 及更早仅 amd64）。镜像双 tag：`vX.Y.Z` 与 `sha-<7位>`（精确锁定提交）；`latest` 仅随正式版更新、预发布不动它。
+**方式 A · 拉官方镜像（v0.2.0 起，推荐）**。每个正式版由 `release.yml` 把 8 个镜像（7 个 Go 服务 + frontend；migrate 容器复用 monitor 镜像）推到 ghcr.io，`v0.3.0` 起同时提供 `linux/amd64` 与 `linux/arm64`（arm64 云机 / Apple Silicon 可直接拉镜像；`v0.2.0` 及更早仅 amd64）。镜像双 tag：`vX.Y.Z` 与 `sha-<7位>`（精确锁定提交）；`latest` 仅随正式版更新、预发布不动它。
 
 ```bash
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit

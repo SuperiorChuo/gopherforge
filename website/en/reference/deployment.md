@@ -6,7 +6,7 @@ The full production guide is maintained in Chinese: [生产部署（中文）](/
 
 ## Quick start with official images (v0.2.0+, recommended)
 
-Every release pushes 8 images (7 Go services + frontend; the migrate job reuses the monitor image) to ghcr.io — both `linux/amd64` and `linux/arm64` from `v0.4.0` (v0.2.0 and earlier are amd64-only). Images are dual-tagged `vX.Y.Z` + `sha-<7chars>`; `latest` moves only on stable releases.
+Every release pushes 8 images (7 Go services + frontend; the migrate job reuses the monitor image) to ghcr.io — both `linux/amd64` and `linux/arm64` from `v0.3.0` (v0.2.0 and earlier are amd64-only). Images are dual-tagged `vX.Y.Z` + `sha-<7chars>`; `latest` moves only on stable releases.
 
 ```bash
 git clone https://github.com/SuperiorChuo/gopherforge.git /opt/gopherforge

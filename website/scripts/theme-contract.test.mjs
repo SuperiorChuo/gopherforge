@@ -20,6 +20,21 @@ const [
   appTokens,
   zhDist,
   enDist,
+  siteMeta,
+  webPackage,
+  webViteConfig,
+  rootMakefile,
+  microMakefile,
+  releaseWorkflow,
+  zhGettingStarted,
+  enGettingStarted,
+  zhFrontendOverview,
+  enFrontendOverview,
+  zhObservability,
+  enObservability,
+  zhDeployment,
+  enDeployment,
+  changelog,
 ] = await Promise.all([
   read('../.vitepress/theme/index.ts'),
   read('../.vitepress/theme/styles/foundation.css'),
@@ -36,6 +51,21 @@ const [
   read('../../microservices/web/src/index.css'),
   read('../.vitepress/dist/index.html'),
   read('../.vitepress/dist/en/index.html'),
+  read('../.vitepress/site-meta.ts'),
+  read('../../microservices/web/package.json'),
+  read('../../microservices/web/vite.config.ts'),
+  read('../../Makefile'),
+  read('../../microservices/Makefile'),
+  read('../../.github/workflows/release.yml'),
+  read('../guide/getting-started.md'),
+  read('../en/guide/getting-started.md'),
+  read('../frontend/overview.md'),
+  read('../en/frontend/overview.md'),
+  read('../modules/observability.md'),
+  read('../en/modules/observability.md'),
+  read('../reference/deployment.md'),
+  read('../en/reference/deployment.md'),
+  read('../../CHANGELOG.md'),
 ])
 
 test('文档站沿用控制台品牌色并拆分主题职责', () => {
@@ -114,6 +144,46 @@ test('细节打磨：明暗过渡、滚动条、玻璃卡与发布元信息', ()
   // 发布分享元信息
   assert.match(config, /property: 'og:title'/)
   assert.match(config, /property: 'og:image'/)
+})
+
+test('公开事实与仓库真源一致，首页不展示虚构命令或状态', () => {
+  const pkg = JSON.parse(webPackage)
+  const routerMajor = Number(pkg.dependencies['react-router-dom'].match(/\d+/)?.[0])
+  assert.equal(routerMajor, 7)
+  for (const overview of [zhFrontendOverview, enFrontendOverview]) {
+    assert.match(overview, new RegExp(`react-router-dom ${routerMajor}`))
+    assert.match(overview, /5174/)
+  }
+  assert.match(webViteConfig, /VITE_DEV_PORT \|\| 5174/)
+
+  for (const command of ['compose-up', 'smoke-api', 'test']) {
+    assert.match(`${rootMakefile}\n${microMakefile}`, new RegExp(`(?:^|[\\s:])${command}(?:[\\s:]|$)`, 'm'))
+  }
+  assert.match(journeyComponent, /SITE_META\.homepageCommands/)
+  assert.doesNotMatch(journeyComponent, /['"]make (?:smoke|verify)['"]/)
+
+  assert.match(siteMeta, /goServices: 7/)
+  assert.match(siteMeta, /releaseImages: 8/)
+  assert.match(heroComponent, /SITE_META\.architecture\.goServices/)
+  assert.doesNotMatch(heroComponent, /All systems operational|全系统运行正常|100%|>LIVE</)
+
+  for (const page of [zhObservability, enObservability]) {
+    assert.match(page, /--profile monitoring/)
+    assert.doesNotMatch(page, /--profile observability/)
+  }
+  assert.match(releaseWorkflow, /v0\.3\.0 起双架构/)
+  for (const page of [zhDeployment, enDeployment]) {
+    assert.match(page, /v0\.3\.0/)
+    assert.doesNotMatch(page, /v0\.4\.0/)
+  }
+  for (const page of [zhGettingStarted, enGettingStarted]) {
+    assert.match(page, /Docker Engine \*\*24\+\*\*/)
+    assert.doesNotMatch(page, /唯一硬依赖|only hard requirement/)
+  }
+
+  const latestStable = changelog.match(/^## \[(\d+\.\d+\.\d+)\]/m)?.[1]
+  assert.ok(latestStable)
+  assert.match(siteMeta, new RegExp(`version: '${latestStable}'`))
 })
 
 test('同源交互架构页保留 sandbox 且不组合 allow-scripts 与 allow-same-origin', () => {

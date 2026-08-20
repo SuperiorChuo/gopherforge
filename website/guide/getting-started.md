@@ -1,11 +1,11 @@
 # 快速上手（15 分钟）
 
-GopherForge 是一套开源的企业级 Go 微服务后台管理系统脚手架。本文带你从零把全栈跑起来：网关 + 7 个 Go 服务 + React 前端 + PostgreSQL/Redis/NATS。
+GopherForge 是开源 Go 微服务后台管理脚手架。本文带你从零把全栈跑起来：网关 + 7 个 Go 服务 + React 前端 + PostgreSQL/Redis/NATS。
 
 ## 环境要求
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)（唯一硬依赖）
-- 可选本地开发：Go **1.26.3+**、Node.js **20.19+ / 22.12+**（推荐 24）
+- Docker Engine **24+** 与 Docker Compose v2；macOS / Windows 推荐使用 [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- 可选本地开发：Go **1.26.3+**（仓库 toolchain 为 1.26.5）、Node.js **20.19+ / 22.12+**（推荐 24）
 
 ## 一键启动
 

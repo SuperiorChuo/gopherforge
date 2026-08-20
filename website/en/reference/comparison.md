@@ -4,8 +4,8 @@ The detailed comparison with gin-vue-admin, go-admin, RuoYi-family scaffolds is 
 
 TL;DR — what sets GopherForge apart:
 
-- **Real microservices** (not a monolith) with a gateway, yet only ~3 containers of infra (Traefik + NATS + PostgreSQL) — far lighter than Java-stack equivalents.
-- **Zero business coupling**: a scaffold, not a demo app to gut.
+- **Microservices from the start**: 7 Go services behind Traefik, with PostgreSQL, Redis and NATS as the required stateful dependencies.
+- **No bundled business modules**: it starts as a platform scaffold rather than a demo application to strip down.
 - **React 19 + Ant Design 6** frontend for teams that prefer React over Vue.
 - **Engineering gates** rarely seen in this space: OpenAPI drift detection, migration rehearsal, full-stack E2E in CI.
 - Built-in **workflow engine, code generator (3 modes), multi-tenancy** without heavyweight dependencies.

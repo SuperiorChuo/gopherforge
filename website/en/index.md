@@ -5,7 +5,7 @@ pageClass: gopherforge-home
 hero:
   name: GopherForge
   text: Open-source Go Microservices Admin Scaffold
-  tagline: Auth, RBAC, multi-tenancy, observability and delivery — all wired up in a Go microservices scaffold. Clone, run, extend.
+  tagline: Auth, RBAC, multi-tenancy and observability are wired up, ready to use as the starting point for a Go microservices project.
   actions:
     - theme: brand
       text: Get Started in 15 Minutes
@@ -19,13 +19,13 @@ hero:
 
 features:
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m8.5 9.2 3.5 2 3.5-2M12 11.2V16"/></svg>'
-    title: Pure scaffold, zero business coupling
-    details: Auth, RBAC, multi-tenancy, audit, files and monitoring — platform only. Add your domain as a separate service.
+    title: Platform capabilities only
+    details: Auth, RBAC, multi-tenancy, audit, files and monitoring are included; commerce, CMS and other business modules are not. Add each domain as a service.
     link: /en/guide/architecture
     linkText: Explore the boundaries
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-8 11h6l-1 9 9-12h-6V2Z"/></svg>'
-    title: Full stack in three minutes
-    details: One command starts Traefik, Go services, React, PostgreSQL, Redis and NATS, including migrations and seed data.
+    title: One command to start the stack
+    details: make compose-up starts Traefik, 7 Go services, React, PostgreSQL, Redis and NATS, then runs migrations and seed data.
     link: /en/guide/getting-started
     linkText: Start the stack
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v5H6zM4 16h6v5H4zM14 16h6v5h-6zM12 8v4M7 16v-4h10v4"/></svg>'
