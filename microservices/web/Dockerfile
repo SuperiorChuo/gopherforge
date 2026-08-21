@@ -20,7 +20,7 @@ COPY . .
 
 RUN npm run build
 
-FROM alpine:3.20 AS prebuilt
+FROM alpine:3.24 AS prebuilt
 COPY .bin/html /app/dist
 
 FROM ${MAIN_SRC} AS assets
