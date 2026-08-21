@@ -55,7 +55,7 @@ env:
   REGISTRY: ghcr.io
   # 留空 = 用 <owner>/<repo> 的小写形式（ghcr 要求全小写）
   IMAGE_NAMESPACE_OVERRIDE: ''
-  GO_VERSION: '1.26.5'
+  GO_VERSION: '1.27.0'
   NODE_VERSION: '24'
   # 'true' = 先建草稿，人工过一眼 release notes 再点发布；'false' = 直接发布
   RELEASE_AS_DRAFT: 'true'

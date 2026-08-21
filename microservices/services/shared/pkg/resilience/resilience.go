@@ -146,7 +146,8 @@ func Do(ctx context.Context, opts Options, fn func(ctx context.Context) error) e
 const maxBackoff = 10 * time.Second
 
 // DoResult 与 Do 相同，但返回 fn 的 typed 结果（重试成功后取最后一次成功值）。
-func DoResult[T any](ctx context.Context, opts Options, fn func(ctx context.Context) (T, error)) (T, error) {
+// 方法自 Go 1.27 起可声明自己的类型参数，使结果型调用与其 Options 配置自然绑定。
+func (opts Options) DoResult[T any](ctx context.Context, fn func(ctx context.Context) (T, error)) (T, error) {
 	var zero T
 	var last T
 	err := Do(ctx, opts, func(ctx context.Context) error {
@@ -158,6 +159,11 @@ func DoResult[T any](ctx context.Context, opts Options, fn func(ctx context.Cont
 		return zero, err
 	}
 	return last, nil
+}
+
+// DoResult 保留 package function 兼容入口；新代码优先使用 Options.DoResult。
+func DoResult[T any](ctx context.Context, opts Options, fn func(ctx context.Context) (T, error)) (T, error) {
+	return opts.DoResult(ctx, fn)
 }
 
 // callOnce 执行一次，区分可重试错误（shouldRetry=true）。

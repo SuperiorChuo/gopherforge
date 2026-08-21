@@ -1,8 +1,6 @@
 module github.com/go-admin-kit/tools/dbdoc
 
-go 1.26.3
-
-toolchain go1.26.5
+go 1.27.0
 
 require github.com/jackc/pgx/v5 v5.10.0
 

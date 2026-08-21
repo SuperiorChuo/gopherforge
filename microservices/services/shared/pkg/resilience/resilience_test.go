@@ -112,9 +112,9 @@ func TestDoNoRetrySentinel(t *testing.T) {
 	}
 }
 
-func TestDoResultReturnsValue(t *testing.T) {
+func TestOptionsDoResultReturnsValue(t *testing.T) {
 	var calls int
-	v, err := DoResult(context.Background(), Options{MaxRetries: 2}, func(context.Context) (string, error) {
+	v, err := (Options{MaxRetries: 2}).DoResult(context.Background(), func(context.Context) (string, error) {
 		calls++
 		if calls <= 1 {
 			return "", boom
@@ -126,6 +126,9 @@ func TestDoResultReturnsValue(t *testing.T) {
 	}
 	if v != "ok" {
 		t.Fatalf("want ok, got %q", v)
+	}
+	if calls != 2 {
+		t.Fatalf("want 2 calls, got %d", calls)
 	}
 }
 

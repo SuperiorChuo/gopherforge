@@ -595,11 +595,10 @@ func validateProfileEmail(email string) error {
 	if email == "" {
 		return nil
 	}
-	at := strings.LastIndex(email, "@")
-	if at <= 0 || at == len(email)-1 {
+	local, domain, found := strings.CutLast(email, "@")
+	if !found || local == "" || domain == "" {
 		return ProfileValidationError{Message: "invalid email format"}
 	}
-	domain := email[at+1:]
 	if !strings.Contains(domain, ".") {
 		return ProfileValidationError{Message: "invalid email format"}
 	}

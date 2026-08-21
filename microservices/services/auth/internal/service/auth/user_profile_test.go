@@ -13,7 +13,10 @@ func TestValidateProfileEmail(t *testing.T) {
 	}{
 		{name: "empty", email: "", wantErr: false},
 		{name: "valid", email: "user@example.com", wantErr: false},
+		{name: "multiple at uses last", email: "user@alias@example.com", wantErr: false},
 		{name: "missing at", email: "user.example.com", wantErr: true},
+		{name: "missing local", email: "@example.com", wantErr: true},
+		{name: "missing domain", email: "user@", wantErr: true},
 		{name: "missing domain dot", email: "user@example", wantErr: true},
 		{name: "empty domain label", email: "user@.example.com", wantErr: true},
 		{name: "contains space", email: "user name@example.com", wantErr: true},

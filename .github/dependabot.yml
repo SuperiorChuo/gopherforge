@@ -99,8 +99,8 @@ updates:
 
   # ---------- 容器基础镜像 ----------
   # 这条是给 trivy 镜像扫描配套的：基础镜像 CVE 只能靠升 base image 修。
-  # 目录 = 各服务 Dockerfile 所在处（golang:1.26-alpine → alpine:3.20；
-  # web 是 node:24-alpine → nginx:alpine）。
+  # 目录 = 各服务 Dockerfile 所在处（Go 服务使用 golang:1.27-alpine；
+  # web 使用 node:24-alpine → nginx:alpine）。
   # 刻意忽略 major（golang / node / nginx 跨大版本要人工决策，不该自动开 PR）。
   # 嫌吵就整条删掉，不影响其它生态。
   - package-ecosystem: docker

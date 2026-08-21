@@ -26,11 +26,11 @@ func grpcCall[T any](ctx context.Context, c *Client, fn func(ctx context.Context
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	return resilience.DoResult(ctx, resilience.Options{
+	return (resilience.Options{
 		MaxRetries:     2,
 		BaseDelay:      100 * time.Millisecond,
 		CircuitBreaker: c.breaker,
-	}, func(ctx context.Context) (T, error) {
+	}).DoResult(ctx, func(ctx context.Context) (T, error) {
 		conn, err := c.pool.Get(ctx)
 		if err != nil {
 			return zero, err

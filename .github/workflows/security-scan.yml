@@ -39,7 +39,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: '1.26.5'
+  GO_VERSION: '1.27.0'
   NODE_VERSION: '24'
   # 固定版本，别用 latest；0.69.4 ~ 0.69.6 是被投毒的版本，永远不要用
   TRIVY_IMAGE: 'aquasec/trivy:0.72.0'
@@ -222,7 +222,7 @@ jobs:
 
   trivy-image:
     # 镜像扫描要先构建，比较慢，只在定时 / 手动跑；PR 上靠 trivy-fs + govulncheck 兜。
-    # 只扫两个代表：7 个 Go 服务用的是同一套 golang:1.26-alpine → alpine:3.20 范式，
+    # 只扫两个代表：7 个 Go 服务使用同一套 golang:1.27-alpine 构建范式，
     # 基础镜像 CVE 一扫就全知道；frontend 是唯一的 node:24-alpine → nginx:alpine 运行时。
     if: github.event_name != 'pull_request'
     name: Trivy · 镜像 ${{ matrix.service }}

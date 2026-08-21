@@ -1,8 +1,8 @@
-# Build backend with Go 1.26.
+# Build backend with Go 1.27.
 # fast-deploy 快路径：--build-arg MAIN_SRC=prebuilt 时产物直接取本机交叉编译的 .bin/main，
 # BuildKit 只构建被引用的阶段，容器内编译（builder）整段跳过；缺省仍在容器内编译。
 ARG MAIN_SRC=builder
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 WORKDIR /app
 ENV GOPROXY=https://goproxy.cn,direct
