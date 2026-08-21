@@ -13,6 +13,19 @@ docker compose pull && docker compose up -d --no-build
 
 Rollback = switch `IMAGE_TAG` back (only safe while new migrations are backward-compatible). Source builds: `git pull` to the tag, then `make compose-up`.
 
+## Current source (Unreleased): Go 1.27.0
+
+Source builds now require **Go 1.27.0**. The workspace/module `go` directives, GitHub Actions and builder images share the same baseline. Older toolchains cannot compile the current source because the shared resilience layer now uses Go 1.27 **generic methods** in production code.
+
+What is actually adopted:
+
+- `resilience.Options.DoResult[T]` binds typed-result calls to their retry/circuit-breaker options; the package-level function remains as a compatibility entry point.
+- Auth email boundary parsing uses the standard-library `strings.CutLast` while preserving existing validation behavior.
+- Existing `encoding/json` APIs automatically use the new implementation shipped with Go 1.27, but the project has not explicitly migrated to `encoding/json/v2`, so API tolerance contracts are not intentionally changed.
+- The Go 1.27 runtime provides faster small allocations and the production `goroutineleak` profile; GopherForge does not expose `/debug/pprof` endpoints by default.
+
+Official-image deployments do not require Go on the host; only source builders must update their local toolchain.
+
 ## 0.2.0 → 0.3.0 notes
 
 No breaking changes; in order of impact:

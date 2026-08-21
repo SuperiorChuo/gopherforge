@@ -6,7 +6,7 @@
 
 ## 开发环境
 
-- Go 1.26.3+
+- Go 1.27.0+
 - Node.js 20.19+ 或 22.12+，推荐 Node.js 24
 - npm
 - Docker Desktop

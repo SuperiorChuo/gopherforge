@@ -9,7 +9,7 @@ GopherForge 是开源 Go 微服务后台管理脚手架。本文带你从零把�
 ## 环境要求
 
 - Docker Engine **24+** 与 Docker Compose v2；macOS / Windows 推荐使用 [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- 可选本地开发：Go **1.26.3+**（仓库 toolchain 为 1.26.5）、Node.js **20.19+ / 22.12+**（推荐 24）
+- 可选本地开发：Go **1.27.0+**（仓库语言与构建基线均为 1.27.0）、Node.js **20.19+ / 22.12+**（推荐 24）
 
 ## 一键启动
 

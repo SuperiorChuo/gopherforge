@@ -72,7 +72,7 @@ docker compose up -d --build
 
 | Layer | Tech |
 |---|---|
-| Backend | Go 1.26 · Gin · GORM · PostgreSQL 18 · Redis 8 · goose |
+| Backend | Go 1.27 · Gin · GORM · PostgreSQL 18 · Redis 8 · goose |
 | Gateway / Bus | Traefik (ForwardAuth) · NATS JetStream |
 | Frontend | React 19 · TypeScript · Vite · Ant Design 6 · Redux Toolkit |
 | Observability | Prometheus + node_exporter · Grafana · Alertmanager alert loop · OpenTelemetry + Jaeger (optional) |

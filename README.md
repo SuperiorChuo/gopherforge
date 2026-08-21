@@ -34,7 +34,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/🐹_Go-1.26.3-00ADD8?logo=go&logoColor=white" alt="Go" />
+  <img src="https://img.shields.io/badge/🐹_Go-1.27.0-00ADD8?logo=go&logoColor=white" alt="Go" />
   <img src="https://img.shields.io/badge/Gin-1.12-08A4E0?logo=go&logoColor=white" alt="Gin" />
   <img src="https://img.shields.io/badge/GORM-1.31-00ADD8?logo=go&logoColor=white" alt="GORM" />
   <img src="https://img.shields.io/badge/🔐_JWT-v5-000000?logo=jsonwebtokens&logoColor=white" alt="JWT" />
@@ -98,7 +98,7 @@
 
 | 层级 | 技术 | 说明 |
 |------|------|------|
-| 语言 | **Go 1.26** | 高性能、强类型 |
+| 语言 | **Go 1.27** | 高性能、强类型；采用 generic methods 与新版标准库 |
 | HTTP | **Gin** | 路由与中间件 |
 | ORM | **GORM** + **pgx** | PostgreSQL 访问 |
 | 迁移 | **goose** | 版本化 SQL 迁移 |
@@ -238,7 +238,7 @@ gopherforge/
 ### 📋 环境要求
 
 - 🐳 [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- 可选本地开发：🐹 Go **1.26.3+**、📦 Node.js **20.19+ / 22.12+**（推荐 24）、npm
+- 可选本地开发：🐹 Go **1.27.0+**、📦 Node.js **20.19+ / 22.12+**（推荐 24）、npm
 
 ### 🧩 启动
 

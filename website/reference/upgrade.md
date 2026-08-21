@@ -23,6 +23,19 @@ docker compose ps                   # migrate 自动跑新迁移后退出，等�
 
 **源码构建**：`git pull` 到目标 tag → `make compose-up`。
 
+## 当前源码（Unreleased）：Go 1.27.0
+
+源码构建的最低版本已提升至 **Go 1.27.0**；`go.work`、模块 `go` 指令、GitHub Actions 与 builder 镜像保持同一基线。旧工具链无法编译当前源码，因为 shared 弹性调用已真实采用 Go 1.27 的 **generic methods**。
+
+本次实际采用范围：
+
+- `resilience.Options.DoResult[T]` 把 typed 结果调用与重试/熔断配置绑定；旧 package function 继续保留兼容。
+- auth 邮箱边界解析改用标准库 `strings.CutLast`，既有校验语义不变。
+- 既有 `encoding/json` API 会随 Go 1.27 自动使用新版实现，但项目没有显式迁移到 `encoding/json/v2`，因此不主动改变 API 容错契约。
+- Go 1.27 runtime 提供更快的小对象分配和正式版 `goroutineleak` profile；项目默认不公开 `/debug/pprof` 端点。
+
+使用官方镜像部署不要求宿主机安装 Go；只有源码构建者需要升级本地工具链。
+
 ## 0.2.0 → 0.3.0 注意事项
 
 无破坏性变更，平滑升级；按影响排序：

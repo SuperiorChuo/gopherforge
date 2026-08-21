@@ -299,7 +299,7 @@ const serverInfo = {
   cpu: { model_name: 'Demo vCPU (4) @ 2.50GHz', cores: 4, used_percent: 23.6 },
   memory: { total: 8 * 1024 ** 3, used: 3.1 * 1024 ** 3, free: 4.9 * 1024 ** 3, used_percent: 38.7 },
   disk: { total: 120 * 1024 ** 3, used: 42 * 1024 ** 3, free: 78 * 1024 ** 3, used_percent: 35.0 },
-  os: { go_os: 'linux', arch: 'amd64', compiler: 'gc', go_version: 'go1.26', num_goroutine: 86, hostname: 'demo-node-1', platform: 'debian', boot_time: '2026-07-01 08:00:00' },
+  os: { go_os: 'linux', arch: 'amd64', compiler: 'gc', go_version: 'go1.27.0', num_goroutine: 86, hostname: 'demo-node-1', platform: 'debian', boot_time: '2026-07-01 08:00:00' },
 }
 
 const mysqlInfo = {
