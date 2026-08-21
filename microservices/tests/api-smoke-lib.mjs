@@ -78,6 +78,28 @@ export function getJsonPath(data, path) {
   return typeof cursor === 'object' ? JSON.stringify(cursor) : String(cursor);
 }
 
+export function resolvePublicAPIURL(apiBaseUrl, publicPath) {
+  let base;
+  try {
+    base = new URL(apiBaseUrl);
+  } catch {
+    throw new Error('invalid API base URL');
+  }
+  if ((base.protocol !== 'http:' && base.protocol !== 'https:') || base.username || base.password) {
+    throw new Error('invalid API base URL');
+  }
+  if (typeof publicPath !== 'string' || !publicPath.startsWith('/') || publicPath.startsWith('//')
+    || /[\\\u0000-\u001f\u007f?#]/.test(publicPath)
+    || publicPath.split('/').some((segment) => segment === '.' || segment === '..' || /^%2e(?:%2e)?$/i.test(segment))) {
+    throw new Error('invalid public API path');
+  }
+  const resolved = new URL(publicPath, `${base.origin}/`);
+  if (resolved.origin !== base.origin) {
+    throw new Error('invalid public API path');
+  }
+  return resolved.toString();
+}
+
 export function buildConfig(env = process.env) {
   const apiBaseUrl = (env.API_BASE_URL || 'http://127.0.0.1:8081/api/v1').replace(/\/+$/, '');
   const timeoutSeconds = Number(env.SMOKE_TIMEOUT || 10);

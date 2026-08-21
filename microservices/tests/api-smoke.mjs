@@ -2,7 +2,7 @@
 
 import { createHash, randomBytes, createPublicKey, verify as cryptoVerify } from 'node:crypto';
 
-import { buildConfig, decodeTextCaptchaCode, getJsonPath, jsonObject, statusMatches } from './api-smoke-lib.mjs';
+import { buildConfig, decodeTextCaptchaCode, getJsonPath, jsonObject, resolvePublicAPIURL, statusMatches } from './api-smoke-lib.mjs';
 
 class SmokeError extends Error {
   constructor(message, context = {}) {
@@ -395,11 +395,18 @@ async function main() {
   step('avatar profile update and public read');
   response = await request('PUT', '/user/profile', 200, jsonObject({ avatar: avatarURL }), state.accessToken);
   assertResponse(response.data?.data?.avatar === avatarURL, 'profile avatar did not update');
-  const avatarResponse = await fetch(`${config.apiBaseUrl}${avatarURL}`);
+  const avatarResponse = await fetch(resolvePublicAPIURL(config.apiBaseUrl, avatarURL), {
+    signal: AbortSignal.timeout(config.timeoutSeconds * 1000),
+  });
+  const avatarBytes = Buffer.from(await avatarResponse.arrayBuffer());
+  const avatarContentType = avatarResponse.headers.get('content-type') || '';
+  state.lastResponse = {
+    status: avatarResponse.status,
+    text: `<${avatarBytes.length} bytes; content-type=${avatarContentType || 'unknown'}; sha256=${createHash('sha256').update(avatarBytes).digest('hex')}>`,
+  };
   assertResponse(
-    avatarResponse.status === 200 && avatarResponse.headers.get('content-type') === 'image/png' &&
-      Buffer.from(await avatarResponse.arrayBuffer()).equals(smokeAvatarPng),
-    'public avatar URL did not return uploaded bytes',
+    avatarResponse.status === 200 && avatarContentType === 'image/png' && avatarBytes.equals(smokeAvatarPng),
+    `public avatar URL mismatch: status=${avatarResponse.status}, content-type=${avatarContentType || 'unknown'}, bytes=${avatarBytes.length}`,
   );
 
   step('profile and avatar restore');

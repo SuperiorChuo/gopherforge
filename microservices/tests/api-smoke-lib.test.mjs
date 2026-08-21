@@ -8,6 +8,7 @@ import {
   getJsonPath,
   jsonObject,
   normalizeRunId,
+  resolvePublicAPIURL,
   statusMatches,
 } from './api-smoke-lib.mjs';
 
@@ -30,6 +31,17 @@ test('getJsonPath reads nested values and rejects missing paths', () => {
 
   assert.equal(getJsonPath(data, 'data.user.username'), 'admin');
   assert.throws(() => getJsonPath(data, 'data.user.email'), /missing JSON path/);
+});
+
+test('resolvePublicAPIURL resolves managed absolute paths from the gateway origin', () => {
+  assert.equal(
+    resolvePublicAPIURL('http://127.0.0.1:8000/api/v1', '/api/v1/files/avatars/token'),
+    'http://127.0.0.1:8000/api/v1/files/avatars/token',
+  );
+  assert.throws(() => resolvePublicAPIURL('http://127.0.0.1:8000/api/v1', '//example.test/avatar'), /public API path/);
+  assert.throws(() => resolvePublicAPIURL('http://127.0.0.1:8000/api/v1', '/api/v1/../secret'), /public API path/);
+  assert.throws(() => resolvePublicAPIURL('http://127.0.0.1:8000/api/v1', '/api/v1/%2e%2e/secret'), /public API path/);
+  assert.throws(() => resolvePublicAPIURL('not-a-url', '/api/v1/files/avatars/token'), /API base URL/);
 });
 
 test('buildConfig reads environment overrides', () => {
