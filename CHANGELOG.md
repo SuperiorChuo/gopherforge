@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-24
+
 ### 文档
 
 - **Go 1.27 升级指南与公开事实同步**：中英文上手文档、技术栈事实源、README 与升级说明统一至 Go 1.27.0；明确 generic methods、`strings.CutLast`、新版 `encoding/json` 后端及 `goroutineleak` profile 的实际采用边界。
@@ -15,7 +17,7 @@
 
 ### 变更
 
-- **Go 1.27.0 工具链与新特性**：模块语言基线、GitHub Actions 和 Go builder 镜像统一升级；shared 弹性调用采用 `Options.DoResult[T]` generic method 并保留兼容入口，auth 邮箱解析改用 `strings.CutLast`。
+- **Go 1.27.0 工具链与新特性**：模块语言基线、GitHub Actions 和 Go builder 镜像统一升级；shared 弹性调用采用 `Options.DoResult[T]` generic method 并保留兼容入口，auth 邮箱解析改用 `strings.CutLast`；golangci-lint 升至 2.13.1 以支持 Go 1.27 AST 与 generic methods。
 - **公共指标卡样式组件化（同步自主项目）**：`StatsGrid` / `MetricCard` 自带按需 CSS 与 390px 两列响应式，不再依赖日志路由样式的加载历史。
 - **列表工具栏预设拆分（同步自主项目）**：标题图标、渐变和说明预设移至独立模块，组件只保留渲染与覆盖逻辑。
 - **短信管理页面拆分（同步自主项目）**：渠道、模板与发送日志三个 Tab 独立成组件，页面入口仅负责组装导航。

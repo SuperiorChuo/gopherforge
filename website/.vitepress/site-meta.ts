@@ -1,9 +1,9 @@
 export const SITE_META = {
   name: 'GopherForge',
   release: {
-    version: '0.6.0',
-    tag: 'v0.6.0',
-    url: 'https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.6.0',
+    version: '0.7.0',
+    tag: 'v0.7.0',
+    url: 'https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.7.0',
   },
   urls: {
     repository: 'https://github.com/SuperiorChuo/gopherforge',

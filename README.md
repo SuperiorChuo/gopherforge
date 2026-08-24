@@ -254,7 +254,7 @@ cd .. && make compose-up      # 自动：共享网络 → infra 数据栈 → �
 ```bash
 cd microservices
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.6.0          # 用最新正式版号（见 Release 徽章）
+export IMAGE_TAG=v0.7.0          # 用最新正式版号（见 Release 徽章）
 docker compose pull && docker compose up -d --no-build
 ```
 

@@ -8,7 +8,7 @@ description: 在单台 Linux 服务器上部署 GopherForge：生产密钥、Doc
 
 面向把 **GopherForge 微服务版** 部署到一台 Linux 服务器的运维/自部署用户。本地开发联调请看 [`LOCAL_SETUP.md`](https://github.com/SuperiorChuo/gopherforge/blob/main/LOCAL_SETUP.md)，本文只讲**生产上线**。要上 Kubernetes（k3s / 云托管集群）的看 [`deploy-k8s.md`](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/deploy-k8s.md)。
 
-> 当前正式版：`v0.6.0`（[Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.6.0)）。0.x 期间 API 和数据库表结构可能变化；上线前请完成备份、迁移兼容性检查和回滚演练，升级注意事项见[版本升级](/reference/upgrade)。
+> 当前正式版：`v0.7.0`（[Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.7.0)）。0.x 期间 API 和数据库表结构可能变化；上线前请完成备份、迁移兼容性检查和回滚演练，升级注意事项见[版本升级](/reference/upgrade)。
 
 ---
 
@@ -80,7 +80,7 @@ docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
 
 ```bash
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.6.0
+export IMAGE_TAG=v0.7.0
 docker compose pull                # 拉全部 8 个镜像
 docker compose up -d --no-build    # 直接用拉取的镜像，不本地构建
 ```
