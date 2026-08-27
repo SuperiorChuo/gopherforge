@@ -7,24 +7,34 @@ SemVer applies; during **0.x** APIs and schemas may change — breaking changes 
 ```bash
 cd /opt/gopherforge/microservices
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.3.0            # target version
+export IMAGE_TAG=v0.7.0            # target version
 docker compose pull && docker compose up -d --no-build
 ```
 
 Rollback = switch `IMAGE_TAG` back (only safe while new migrations are backward-compatible). Source builds: `git pull` to the tag, then `make compose-up`.
 
-## Current source (Unreleased): Go 1.27.0
+## 0.6.0 → 0.7.0 notes
 
-Source builds now require **Go 1.27.0**. The workspace/module `go` directives, GitHub Actions and builder images share the same baseline. Older toolchains cannot compile the current source because the shared resilience layer now uses Go 1.27 **generic methods** in production code.
+1. **Source builders: Go toolchain baseline raised to Go 1.27.0**. Workspace and module directives are unified; shared resilience calls adopt Go 1.27 `Options.DoResult[T]` generic methods. Official image deployments are unaffected.
+2. **Frontend CSS route splitting and component decoupling**. Auth, dashboard, monitor and log styles load on-demand with routes; BPM designer and SMS management components are decoupled while preserving API compatibility.
+3. **Shared foundation convergence**. Database, cache, Redis, captcha, health check, tracing and runtime config packages are unified under `shared/pkg`.
 
-What is actually adopted:
+## 0.5.0 → 0.6.0 notes
 
-- `resilience.Options.DoResult[T]` binds typed-result calls to their retry/circuit-breaker options; the package-level function remains as a compatibility entry point.
-- Auth email boundary parsing uses the standard-library `strings.CutLast` while preserving existing validation behavior.
-- Existing `encoding/json` APIs automatically use the new implementation shipped with Go 1.27, but the project has not explicitly migrated to `encoding/json/v2`, so API tolerance contracts are not intentionally changed.
-- The Go 1.27 runtime provides faster small allocations and the production `goroutineleak` profile; GopherForge does not expose `/debug/pprof` endpoints by default.
+1. **Edge Certificate V2 & private key encryption**. ACME credentials and certificate keys use AES-256-GCM envelope encryption. Issued certificates are dynamically hot-reloaded by Traefik without restart.
+2. **Runtime & storage baselines**. PostgreSQL 18, Redis 8, NATS 2.12, Traefik 3.7, Prometheus 3.13 and Grafana 13. Back up via `pg_dump` before upgrading.
+3. **gRPC contracts & Consul service discovery**. Inter-service communication adopts Consul discovery and connection-pooled gRPC clients.
 
-Official-image deployments do not require Go on the host; only source builders must update their local toolchain.
+## 0.4.0 → 0.5.0 notes
+
+1. **Password reset email flow**. Added `POST /password/forgot` and `POST /password/reset` endpoints (migration `000060`).
+2. **Tenant storage quota**. Added `tenant_packages.storage_quota_mb` field (migration `000061`).
+3. **Audit log CSV export**. Streamed UTF-8 BOM CSV export supported.
+
+## 0.3.0 → 0.4.0 notes
+
+1. **Unified Task Center**. Ledger and heartbeat monitoring for discrete cross-service executions.
+2. **Notification templates**. Centralized template management for in-app inbox, email and SMS.
 
 ## 0.2.0 → 0.3.0 notes
 

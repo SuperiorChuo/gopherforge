@@ -14,7 +14,7 @@
 # 0) 备份（至少 pg_dump，见部署文档第 6 节）
 cd /opt/gopherforge/microservices
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.3.0            # 目标版本
+export IMAGE_TAG=v0.7.0            # 目标版本
 docker compose pull && docker compose up -d --no-build
 docker compose ps                   # migrate 自动跑新迁移后退出，等全部 healthy
 ```
@@ -23,18 +23,35 @@ docker compose ps                   # migrate 自动跑新迁移后退出，等�
 
 **源码构建**：`git pull` 到目标 tag → `make compose-up`。
 
-## 当前源码（Unreleased）：Go 1.27.0
+## 0.6.0 → 0.7.0 注意事项
 
-源码构建的最低版本已提升至 **Go 1.27.0**；`go.work`、模块 `go` 指令、GitHub Actions 与 builder 镜像保持同一基线。旧工具链无法编译当前源码，因为 shared 弹性调用已真实采用 Go 1.27 的 **generic methods**。
+**1. 源码构建者：Go 工具链基线提升至 Go 1.27.0。** `go.work` 与各模块基线统一；shared 弹性调用真实采用了 Go 1.27 的 `Options.DoResult[T]` generic method，旧版本 Go 无法编译当前源码。使用官方镜像部署的用户不受影响。
 
-本次实际采用范围：
+**2. 前端路由 CSS 按需分包与组件拆分。** 认证、仪表盘、监控与日志样式随路由异步加载，首屏 CSS 大幅缩减；BPM 设计器与短信管理完成职责拆分，对外 API 与数据格式完全向后兼容。
 
-- `resilience.Options.DoResult[T]` 把 typed 结果调用与重试/熔断配置绑定；旧 package function 继续保留兼容。
-- auth 邮箱边界解析改用标准库 `strings.CutLast`，既有校验语义不变。
-- 既有 `encoding/json` API 会随 Go 1.27 自动使用新版实现，但项目没有显式迁移到 `encoding/json/v2`，因此不主动改变 API 容错契约。
-- Go 1.27 runtime 提供更快的小对象分配和正式版 `goroutineleak` profile；项目默认不公开 `/debug/pprof` 端点。
+**3. 公共 shared 底座收敛。** 数据库、缓存、Redis、验证码、健康检查、链路追踪与运行时配置订阅统一下沉到 `shared/pkg`，删除了各服务内的冗余副本。
 
-使用官方镜像部署不要求宿主机安装 Go；只有源码构建者需要升级本地工具链。
+## 0.5.0 → 0.6.0 注意事项
+
+**1. 边缘证书生命周期 V2 与私钥加密。** ACME 账户私钥与证书私钥在数据库中启用 AES-256-GCM 封装加密；证书签发后由 `system-service` 写入 Traefik 动态配置目录，网关自动热重载，无需重启容器。
+
+**2. 核心运行时与存储基线升级。** PostgreSQL 18、Redis 8、NATS 2.12、Traefik 3.7、Prometheus 3.13 与 Grafana 13。升级前请完成 `pg_dump` 备份。
+
+**3. gRPC 契约与服务发现。** 服务间调用引入 Consul 服务发现与带连接池的 gRPC 客户端；BPM 审批发起支持幂等键。
+
+## 0.4.0 → 0.5.0 注意事项
+
+**1. 密码重置邮件链路。** 新增 `POST /password/forgot` 与 `POST /password/reset` 接口（迁移 `000060`）；启用该功能需在后台配置 SMTP 邮件服务。
+
+**2. 租户存储配额。** 新增 `tenant_packages.storage_quota_mb` 字段（迁移 `000061`），默认 0 代表不限额度。
+
+**3. 审计日志 CSV 导出。** 支持按筛选条件流式导出 UTF-8 BOM CSV 文件。
+
+## 0.3.0 → 0.4.0 注意事项
+
+**1. 统一任务中心。** 统一任务账本与服务心跳监控（迁移 `000050` 系列），离散任务逐次留痕。
+
+**2. 通知模板体系。** 支持站内信、邮件与短信模板的集中管理与渠道路由。
 
 ## 0.2.0 → 0.3.0 注意事项
 

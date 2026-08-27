@@ -31,7 +31,7 @@ Upgrade / rollback later = change `IMAGE_TAG` and re-run `pull` + `up -d --no-bu
 ## Checklist summary
 
 1. **Rotate secrets**: `JWT_SECRET` (≥32 chars), PostgreSQL/Redis/MinIO/Grafana credentials, default admin password, `CORS_ALLOW_ORIGINS`. With `APP_ENV=production`, weak or placeholder values are **rejected at startup**.
-2. **Single-server layout**: Docker Compose behind the Traefik gateway; keep service ports on loopback (`SERVICES_BIND_IP=127.0.0.1`) and terminate TLS in front (Nginx).
+2. **Single-server layout**: Docker Compose behind the Traefik gateway; keep service ports on loopback (`SERVICES_BIND_IP=127.0.0.1`) and terminate TLS either via built-in Traefik `websecure` + Edge Certificates (`/var/lib/go-admin-kit/edgecert`) or via an external reverse proxy (Nginx / Caddy).
 3. **Migrations** run automatically via the migrate container (goose, single source of truth under `services/monitor/migrations/`). Forward-only — back up before destructive upgrades.
 4. **Backups & log rotation** are not bundled: configure a daily `pg_dump` cron and Docker json-file log limits on day one.
 5. **Observability**: enable the Prometheus/Grafana compose profile; `/api/v1/health/ready` for liveness probes.

@@ -14,21 +14,31 @@ description: 在单台 Linux 服务器上部署 GopherForge：生产密钥、Doc
 
 ## 1. 架构与你要准备的东西
 
-一条请求的路径：
+系统支持两种生产 TLS 接入模式：
 
+**模式 A · 内置 Traefik `websecure` + 边缘证书管理（推荐单机一体化）**：
 ```
-公网 ──HTTPS──► Nginx（TLS 终止 / 反代）──HTTP──► Traefik 网关(:8000) ──► 各微服务
-                                                          │
-                        PostgreSQL · Redis · NATS · MinIO(可选)
+公网 ──HTTPS(:443)──► Traefik 网关(:443 websecure) ──► 各微服务
+                              ▲ (动态热加载)               │
+                        system-service 边缘证书      PostgreSQL · Redis · NATS · MinIO(可选)
 ```
 
-> **关键事实**：内置的 Traefik 网关只监听 HTTP（`--entrypoints.web.address=:80`），**不做 TLS**。生产必须在它前面放一个反向代理（推荐 Nginx）来终止 HTTPS。这是有意的设计——证书与 HTTPS 归属运维层，不塞进应用栈。
+**模式 B · 外部反向代理（Nginx / Caddy / Cloudflare Ingress）**：
+```
+公网 ──HTTPS──► 外部 Nginx/Caddy（TLS 终止）──HTTP──► Traefik 网关(:8000) ──► 各微服务
+                                                               │
+                                             PostgreSQL · Redis · NATS · MinIO(可选)
+```
+
+> **架构设计**：
+> - **内置 TLS 路径**：Traefik 开启 `websecure:443` entrypoint，证书由 `system-service` 集中管理（支持 ACME 自动签发/续期及手动导入），并通过 Traefik `file provider` 目录监听机制实现秒级热生效，无停机重载。
+> - **外部反代路径**：若企业已有现有统一网关或 SLB 基础设施，可通过外部 Nginx/Caddy 终止 TLS，Traefik 网关内置 `trustedIPs` 白名单（支持 loopback 与 docker 子网）透传真实的 `X-Forwarded-For` 与客户端协议。
 
 **服务器要求**：
 - Linux（Ubuntu 22.04 / Debian 12 / 任意 systemd 发行版）
 - Docker Engine 24+ 与 Docker Compose v2（`docker compose`，非旧版 `docker-compose`）
 - 建议 4C8G 起（7 个 Go 服务 + PG + Redis + NATS；监控 profile 另计资源）
-- 一个域名 + 该域名的 TLS 证书（Let's Encrypt 即可）
+- 一个公网解析的域名 + TLS 证书（或交由内置边缘证书自动申请）
 
 ---
 
@@ -120,10 +130,31 @@ docker compose restart system-service audit-service
 
 ---
 
-## 4. Nginx 反向代理 + HTTPS
+## 4. HTTPS 与生产反向代理
 
-用 Nginx 终止 TLS，反代到网关的 `${GATEWAY_PORT:-8000}`。示例 `/etc/nginx/conf.d/go-admin-kit.conf`：
+根据业务场景在以下两种方案中选择其一：
 
+### 方案 A · 内置 Traefik + 边缘证书（推荐单机开箱即用）
+
+微服务栈的 Traefik 网关已原生配置 `websecure:443` entrypoint，证书由 `system-service` 统一签发/续期，写入 `./certs` 目录后由 Traefik 热重载：
+
+1. **配置 `.env` 端口与域名**：
+   ```bash
+   GATEWAY_PORT=80
+   GATEWAY_TLS_PORT=443
+   CORS_ALLOW_ORIGINS=https://admin.example.com
+   ```
+2. **启动后进入系统**：
+   - 访问 `http://admin.example.com`（首次未配证书时走 HTTP）。
+   - 登录超级管理员，进入 **「系统管理 → 边缘证书」**。
+   - 点击 **「申请证书」**，填入你的域名 `admin.example.com` 与 ACME 邮箱，选择 Let's Encrypt / ZeroSSL 证书源提交。
+   - 系统将自动完成 HTTP-01 验证、持久化证书并热部署到网关，随后即可直接使用 HTTPS。
+
+### 方案 B · 外部独立反向代理（Nginx / Caddy）
+
+若你的服务器已有外部网关或需要与其他站点共存，使用外部 Nginx/Caddy 终止 TLS，反代到网关的 `${GATEWAY_PORT:-8000}`：
+
+**Nginx 配置示例 (`/etc/nginx/conf.d/go-admin-kit.conf`)**：
 ```nginx
 server {
     listen 80;
@@ -156,6 +187,13 @@ server {
 }
 ```
 
+**Caddyfile 示例**：
+```caddy
+admin.example.com {
+    reverse_proxy 127.0.0.1:8000
+}
+```
+
 证书用 certbot 签发：`certbot --nginx -d admin.example.com`。
 
 **改完记得同步 `.env` 的 `CORS_ALLOW_ORIGINS=https://admin.example.com` 并重启相关服务**，否则浏览器 POST/预检会 403。
@@ -170,7 +208,7 @@ server {
 ```bash
 cd /opt/gopherforge/microservices
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.2.1                 # 升级：指向新版本；回滚：切回上一个版本
+export IMAGE_TAG=v0.7.0                 # 升级：指向新版本；回滚：切回上一个版本
 docker compose pull && docker compose up -d --no-build
 ```
 需要精确到某次提交时用 `sha-<7位>` tag。各版本行为变化与升级注意事项见[版本升级](/reference/upgrade)。
