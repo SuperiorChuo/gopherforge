@@ -13,7 +13,7 @@ import FeedbackBridge from '@/utils/feedback'
 import GlassEmpty from '@/components/common/GlassEmpty'
 import { ThemeContext, THEME_STORAGE_KEY, type ThemeMode } from '@/theme/ThemeContext'
 import { LocaleContext, LOCALE_STORAGE_KEY, type Locale } from '@/i18n/LocaleContext'
-import i18n from '@/i18n/init'
+import i18n, { loadEnDictionary } from '@/i18n/init'
 import 'dayjs/locale/zh-cn'
 
 function AppRoutes() {
@@ -260,10 +260,34 @@ export default function App() {
   )
 
   useEffect(() => {
+    let cancelled = false
     localStorage.setItem(LOCALE_STORAGE_KEY, locale)
-    i18n.changeLanguage(locale)
-    dayjs.locale(locale === 'en' ? 'en' : 'zh-cn')
     document.documentElement.lang = locale === 'en' ? 'en' : 'zh-CN'
+    if (locale === 'en') {
+      // en 词典按需加载（i18n/init 惰性化）：必须在 addResourceBundle 落地后才
+      // changeLanguage('en')，否则 i18next 无 languageChanged 事件、已渲染组件
+      // 停留在 key 即中文的回落态。首个渲染帧短暂显示中文回落属预期；
+      // 加载失败仍切 en，缺失 key 走中文回落，页面不瘫。cancelled 防
+      // 快速切换时旧的迟到 promise 把语言又拉回 en。
+      loadEnDictionary()
+        .then((bundle) => {
+          if (cancelled) return
+          i18n.addResourceBundle('en', 'translation', bundle, true, true)
+          void i18n.changeLanguage('en')
+          dayjs.locale('en')
+        })
+        .catch(() => {
+          if (cancelled) return
+          void i18n.changeLanguage('en')
+          dayjs.locale('en')
+        })
+    } else {
+      i18n.changeLanguage(locale)
+      dayjs.locale('zh-cn')
+    }
+    return () => {
+      cancelled = true
+    }
   }, [locale])
 
   useGlassPointerLight()
