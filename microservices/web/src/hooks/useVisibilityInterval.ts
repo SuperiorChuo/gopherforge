@@ -6,7 +6,11 @@ import { useEffect, useRef } from 'react'
 // immediate=false 用于「挂载时另有非静默首拉、轮询只做静默刷新」的页面。
 export function useVisibilityInterval(callback: () => void, delayMs: number, immediate = true) {
   const cbRef = useRef(callback)
-  cbRef.current = callback
+  // latest-ref 写入放 effect：render 期间写 ref 在 StrictMode 弃用渲染时会留下错值；
+  // 本 effect 声明在计时器 effect 之前，按序先于 immediate 首拉执行。
+  useEffect(() => {
+    cbRef.current = callback
+  })
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | null = null

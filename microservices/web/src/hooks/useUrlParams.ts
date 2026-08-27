@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 /**
@@ -12,14 +12,18 @@ export function useUrlParams<T extends object>(
   numericKeys: string[] = ['page', 'page_size', 'status', 'type'],
 ): [T, (next: T) => void] {
   const [searchParams, setSearchParams] = useSearchParams()
-  const defaultsRef = useRef(defaults)
-  const numericRef = useRef(numericKeys)
+  // 初始 defaults / numericKeys 用 useState 固化：调用方常直接传对象字面量，
+  // 二者不能进依赖（params 身份须只随 URL 变化，下游靠浅比较防无限重载）；
+  // useState 初始化只在首渲染取值，身份恒定，可安全进依赖。不用
+  // useRef 初值在 useMemo 里读——那是 lint 明令禁止的 render 读 ref。
+  const [initialDefaults] = useState(defaults)
+  const [initialNumericKeys] = useState(numericKeys)
 
   const params = useMemo(() => {
-    const result: Record<string, unknown> = { ...(defaultsRef.current as Record<string, unknown>) }
+    const result: Record<string, unknown> = { ...(initialDefaults as Record<string, unknown>) }
     searchParams.forEach((value, key) => {
       if (value === '') return
-      if (numericRef.current.includes(key)) {
+      if (initialNumericKeys.includes(key)) {
         const n = Number(value)
         result[key] = Number.isNaN(n) ? value : n
       } else {
@@ -27,7 +31,7 @@ export function useUrlParams<T extends object>(
       }
     })
     return result as T
-  }, [searchParams])
+  }, [searchParams, initialDefaults, initialNumericKeys])
 
   const setParams = useCallback(
     (next: T) => {

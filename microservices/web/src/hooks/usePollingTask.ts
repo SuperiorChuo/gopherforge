@@ -23,7 +23,11 @@ export function usePollingTask<T>({ taskId, fetcher, isDone, intervalMs = 2000, 
   const [data, setData] = useState<T | null>(null)
   const [polling, setPolling] = useState(false)
   const cbRef = useRef({ fetcher, isDone, onTick, onFinish, onError })
-  cbRef.current = { fetcher, isDone, onTick, onFinish, onError }
+  // latest-ref 写入放 effect（声明在主 effect 前，先于首轮 tick 执行）；
+  // render 期写 ref 在 StrictMode 弃用渲染下会残留错值。
+  useEffect(() => {
+    cbRef.current = { fetcher, isDone, onTick, onFinish, onError }
+  })
 
   useEffect(() => {
     if (taskId == null) {
