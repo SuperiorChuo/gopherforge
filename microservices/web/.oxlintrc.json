@@ -3,6 +3,22 @@
   "plugins": ["react", "typescript", "oxc"],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "react/globals": "error",
+    "react/refs": "error",
+    "react-hooks/exhaustive-deps": "error"
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/layouts/MainLayout.tsx",
+        "src/pages/bpm/designer/index.tsx",
+        "src/pages/system/codegen/PlanPreview.tsx",
+        "src/pages/system/oauth2/index.tsx"
+      ],
+      "rules": {
+        "react-hooks/exhaustive-deps": "off"
+      }
+    }
+  ]
 }

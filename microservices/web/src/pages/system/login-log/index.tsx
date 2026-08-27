@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Table, Button, Space, Tag, Card, Input, Select, Form, DatePicker, InputNumber, Tooltip, Segmented, Skeleton,
 } from 'antd'
@@ -48,8 +48,9 @@ export default function LoginLogPage() {
   const [geoDays, setGeoDays] = useState(7)
   const [geoData, setGeoData] = useState<LoginGeoItem[] | null>(null)
   const [geoLoading, setGeoLoading] = useState(true)
-  // 刷新失败保留上一窗口数据，避免整卡连切换器一起消失、用户失去重试入口
-  const geoFailedRef = useRef(false)
+  // 刷新失败保留上一窗口数据，避免整卡连切换器一起消失、用户失去重试入口；
+  // 失败态用 state 而非 ref（render 期读 ref 不符合 React 并发语义）
+  const [geoFailed, setGeoFailed] = useState(false)
   const [searchForm] = Form.useForm()
   const [clearForm] = Form.useForm()
   const { hasPerm } = usePermission()
@@ -65,12 +66,12 @@ export default function LoginLogPage() {
       .then((data) => {
         if (cancelled) return
         setGeoData(data)
-        geoFailedRef.current = false
+        setGeoFailed(false)
       })
       .catch(() => {
         if (cancelled) return
         // 保留旧数据；从未拿到过数据时记失败态供空态文案区分
-        geoFailedRef.current = true
+        setGeoFailed(true)
       })
       .finally(() => {
         if (!cancelled) setGeoLoading(false)
@@ -332,7 +333,7 @@ export default function LoginLogPage() {
           ) : geoLoading ? (
             <Skeleton active paragraph={{ rows: 6 }} title={false} style={{ padding: '24px 0' }} />
           ) : (
-            <GlassEmpty compact text={geoFailedRef.current ? '分布数据加载失败，可切换天数重试' : '该时间段暂无登录记录'} />
+            <GlassEmpty compact text={geoFailed ? '分布数据加载失败，可切换天数重试' : '该时间段暂无登录记录'} />
           )}
         </Card>
       )}

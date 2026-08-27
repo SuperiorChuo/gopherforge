@@ -72,11 +72,14 @@ export default function BpmInstanceTimeline({
   const [unavailable, setUnavailable] = useState(false)
   const userMap = useUserNameMap()
 
-  // 回调经 ref 透传，避免父组件内联函数触发重复加载
+  // 回调经 ref 透传，避免父组件内联函数触发重复加载；赋值放 effect，
+  // 避免 render 期写 ref（StrictMode 下可能残留弃用值）
   const onLoadedRef = useRef(onLoaded)
   const onUnavailableRef = useRef(onUnavailable)
-  onLoadedRef.current = onLoaded
-  onUnavailableRef.current = onUnavailable
+  useEffect(() => {
+    onLoadedRef.current = onLoaded
+    onUnavailableRef.current = onUnavailable
+  })
 
   useEffect(() => {
     let alive = true
