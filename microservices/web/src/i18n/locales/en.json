@@ -1628,5 +1628,13 @@
   "主机 Cron": "Host Cron",
   "历史回填": "Historical Backfill",
   "升级快照": "Upgrade Snapshot",
-  "跨服务离散任务的逐次执行账本": "Per-execution ledger for discrete tasks across services"
+  "跨服务离散任务的逐次执行账本": "Per-execution ledger for discrete tasks across services",
+  "当前网络连接已断开，部分功能可能受限": "Network connection is lost. Some features may be unavailable.",
+  "模块渲染异常": "Module rendering error",
+  "该区域加载发生错误": "An error occurred while loading this section.",
+  "全局命令与快速搜索": "",
+  "全局快捷键指南": "",
+  "关闭弹窗 / 下拉浮层": "",
+  "切换全屏模式": "",
+  "打开快捷键指南": ""
 }

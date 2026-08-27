@@ -259,7 +259,25 @@
     inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
     inset 0 -1px 0 rgba(0, 0, 0, 0.15),
     0 8px 20px rgba(5, 150, 105, 0.35),
-    0 0 32px rgba(52, 211, 153, 0.2);
+    0 0 32px rgba(52, 211, 153, 0.25);
+  animation: totp-shield-glow 3s ease-in-out infinite;
+}
+
+@keyframes totp-shield-glow {
+  0%, 100% {
+    box-shadow:
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+      0 8px 20px rgba(5, 150, 105, 0.35),
+      0 0 24px rgba(52, 211, 153, 0.2);
+  }
+  50% {
+    box-shadow:
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.45),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+      0 10px 26px rgba(5, 150, 105, 0.45),
+      0 0 36px rgba(52, 211, 153, 0.4);
+  }
 }
 
 .totp-panel-info {

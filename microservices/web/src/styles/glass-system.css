@@ -873,35 +873,128 @@
     0 12px 40px rgba(37, 99, 235, 0.12) !important;
 }
 
-/* ---- 主题切换:圆形液面扩散(App.tsx 里用 WAAPI 驱动 clip-path) ----
-   关掉默认交叉淡化,旧主题静止铺底,新主题从按钮处圆形漫开 */
-::view-transition-old(root),
-::view-transition-new(root) {
+/* 主题切换只保留旧画面；底层新主题从按钮位置圆形显露。 */
+@property --theme-reveal-radius {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+::view-transition-group(theme-old),
+::view-transition-image-pair(theme-old) {
   animation: none;
+}
+
+::view-transition-old(theme-old) {
+  --theme-reveal-radius: 0px;
+  animation: theme-old-reveal 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
   mix-blend-mode: normal;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(
+    circle at var(--theme-reveal-x) var(--theme-reveal-y),
+    transparent 0,
+    transparent var(--theme-reveal-radius),
+    #000 calc(var(--theme-reveal-radius) + 1px),
+    #000 100%
+  );
+  mask-image: radial-gradient(
+    circle at var(--theme-reveal-x) var(--theme-reveal-y),
+    transparent 0,
+    transparent var(--theme-reveal-radius),
+    #000 calc(var(--theme-reveal-radius) + 1px),
+    #000 100%
+  );
 }
 
-::view-transition-old(root) {
-  z-index: 1;
-}
-
-::view-transition-new(root) {
-  z-index: 2;
+@keyframes theme-old-reveal {
+  to {
+    --theme-reveal-radius: var(--theme-reveal-max-radius);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation: none !important;
+  ::view-transition-old(theme-old) {
+    animation: none;
   }
 }
 
 /* ============================================================
-/* 见 styles/dashboard.css */
+   UI 深度打磨 · 物理触感与浮层玻璃高光
+   ============================================================ */
 
-/* 页面打磨 · 个人中心 */
-/* 见 styles/profile.css */
+/* 物理触觉微交互：按压轻微压缩与弹簧反馈 */
+.ant-btn:not(:disabled):active,
+.app-trigger:active,
+.app-search-hint:active,
+.table-toolbar-btn:active,
+.back-top-btn:active {
+  transform: scale(0.972) !important;
+  transition: transform 0.08s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
 
-/* 页面打磨 · 监控页 */
-/* 见 styles/monitor.css */
+/* 弹窗与抽屉顶部曲面高光 */
+.ant-modal-content,
+.ant-drawer-content {
+  position: relative;
+  overflow: hidden;
+}
+
+.ant-modal-content::after,
+.ant-drawer-content::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(ellipse 130% 60% at 50% -25%, rgba(255, 255, 255, 0.08), transparent 50%);
+}
+
+[data-theme='light'] .ant-modal-content::after,
+[data-theme='light'] .ant-drawer-content::after {
+  background: radial-gradient(ellipse 130% 60% at 50% -25%, rgba(255, 255, 255, 0.5), transparent 50%);
+}
+
+/* 下拉菜单、选择器浮层与 Popover 玻璃质感 */
+.ant-dropdown-menu,
+.ant-select-dropdown,
+.ant-picker-dropdown .ant-picker-panel-container,
+.ant-popover-inner {
+  backdrop-filter: blur(20px) saturate(1.8) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.8) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 16px 40px rgba(0, 0, 0, 0.45) !important;
+  border: 1px solid rgba(148, 163, 184, 0.15) !important;
+}
+
+[data-theme='light'] .ant-dropdown-menu,
+[data-theme='light'] .ant-select-dropdown,
+[data-theme='light'] .ant-picker-dropdown .ant-picker-panel-container,
+[data-theme='light'] .ant-popover-inner {
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
+    0 12px 32px rgba(37, 99, 235, 0.12) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+
+/* 输入框聚焦液态外发光 */
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused,
+.ant-select-focused .ant-select-selector {
+  box-shadow:
+    0 0 0 2px rgba(99, 102, 241, 0.22),
+    0 2px 10px rgba(99, 102, 241, 0.14) !important;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+[data-theme='light'] .ant-input:focus,
+[data-theme='light'] .ant-input-focused,
+[data-theme='light'] .ant-input-affix-wrapper:focus,
+[data-theme='light'] .ant-input-affix-wrapper-focused,
+[data-theme='light'] .ant-select-focused .ant-select-selector {
+  box-shadow:
+    0 0 0 2px rgba(37, 99, 235, 0.18),
+    0 2px 10px rgba(37, 99, 235, 0.1) !important;
+}

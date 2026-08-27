@@ -8,6 +8,7 @@ import enUS from 'antd/locale/en_US'
 import dayjs from 'dayjs'
 import { store } from '@/store'
 import routes from '@/router'
+import ErrorBoundary from '@/components/common/ErrorBoundary'
 import FeedbackBridge from '@/utils/feedback'
 import GlassEmpty from '@/components/common/GlassEmpty'
 import { ThemeContext, THEME_STORAGE_KEY, type ThemeMode } from '@/theme/ThemeContext'
@@ -17,6 +18,53 @@ import 'dayjs/locale/zh-cn'
 
 function AppRoutes() {
   return useRoutes(routes)
+}
+
+function OfflineBanner() {
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true))
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  if (isOnline) return null
+
+  return (
+    <div
+      role="alert"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '6px 16px',
+        fontSize: 13,
+        fontWeight: 500,
+        color: '#f87171',
+        background: 'rgba(239, 68, 68, 0.18)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderBottom: '1px solid rgba(239, 68, 68, 0.3)',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+        transition: 'all 0.3s ease',
+      }}
+    >
+      <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#ef4444', marginRight: 8 }} />
+      {i18n.t('当前网络连接已断开，部分功能可能受限')}
+    </div>
+  )
 }
 
 // 深空暗色（默认）
@@ -264,9 +312,12 @@ export default function App() {
             renderEmpty={() => <GlassEmpty />}
           >
           <AntApp>
+            <OfflineBanner />
             <FeedbackBridge />
             <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-              <AppRoutes />
+              <ErrorBoundary>
+                <AppRoutes />
+              </ErrorBoundary>
             </BrowserRouter>
             {import.meta.env.VITE_DEMO === '1' && (
               <div

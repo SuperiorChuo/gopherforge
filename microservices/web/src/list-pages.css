@@ -1,9 +1,46 @@
-.list-primary-cell { display: block; min-width: 0; overflow: hidden; color: rgba(248,250,252,.94); font-weight: 600; letter-spacing: 0; text-overflow: ellipsis; white-space: nowrap; }
-.list-code-tag { max-width: 100%; margin-inline-end: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
-.list-type-tag { min-width: 46px; margin-inline-end: 0; text-align: center; }
-.compact-table-actions { flex-wrap: nowrap; }
-.compact-table-actions .ant-btn { width: 32px; min-width: 32px; height: 32px; padding-inline: 0; border: 1px solid transparent; }
-.compact-table-actions .ant-btn:hover { border-color: rgba(129,140,248,.2); background: rgba(99,102,241,.1); }
+.list-primary-cell {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(248, 250, 252, 0.94);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-code-tag {
+  max-width: 100%;
+  margin-inline-end: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.list-type-tag {
+  min-width: 46px;
+  margin-inline-end: 0;
+  text-align: center;
+}
+
+.compact-table-actions {
+  flex-wrap: nowrap;
+}
+
+.compact-table-actions .ant-btn {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding-inline: 0;
+  border: 1px solid transparent;
+}
+
+.compact-table-actions .ant-btn:hover {
+  border-color: rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.1);
+}
+
 /* Ant Design 6 uses logical fixed-column classes instead of fix-left/fix-right. */
 .ant-table-thead > tr > th.ant-table-cell-fix {
   background: rgb(18, 20, 34) !important;
@@ -33,28 +70,115 @@
 [data-theme='light'] .ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fix {
   background: color-mix(in srgb, #2563eb 10%, white) !important;
 }
-.list-table .list-row-disabled > td { background: rgba(100,116,139,.045) !important; }
-.list-table .list-row-disabled .list-primary-cell, .list-table .list-row-disabled .list-code-tag { color: rgba(148,163,184,.72); }
-.list-table .list-row-disabled .list-code-tag { opacity: .62; }
-.list-table .list-row-disabled:hover > td { background: rgba(100,116,139,.08) !important; }
-.dict-type-picker { display: flex; align-items: center; min-width: 0; margin-inline-end: 12px; gap: 12px; }
-.dict-type-picker-label { flex: 0 0 auto; color: rgba(203,213,225,.88); font-size: 13px; font-weight: 550; }
-.dict-type-picker .ant-select { width: min(320px,100%); min-width: 0; }
-.setting-card-title { display: inline-flex; align-items: center; max-width: 100%; min-width: 0; flex-wrap: wrap; gap: 8px; }
-.setting-card-key { max-width: 100%; margin-inline: 0; overflow-wrap: anywhere; white-space: normal; }
-.setting-config-card .ant-card-extra { min-width: 0; }
-.setting-config-card .card-extra-note { white-space: normal; }
-[data-theme='light'] .list-primary-cell { color: #1e293b; }
-[data-theme='light'] .list-table .list-row-disabled > td { background: rgba(148,163,184,.08) !important; }
-[data-theme='light'] .list-table .list-row-disabled .list-primary-cell, [data-theme='light'] .list-table .list-row-disabled .list-code-tag { color: #64748b; }
-[data-theme='light'] .list-table .list-row-disabled:hover > td { background: rgba(148,163,184,.13) !important; }
-[data-theme='light'] .dict-type-picker-label { color: #475569; }
+
+.list-table .list-row-disabled > td {
+  background: rgba(100, 116, 139, 0.045) !important;
+}
+
+.list-table .list-row-disabled .list-primary-cell,
+.list-table .list-row-disabled .list-code-tag {
+  color: rgba(148, 163, 184, 0.72);
+}
+
+.list-table .list-row-disabled .list-code-tag {
+  opacity: 0.62;
+}
+
+.list-table .list-row-disabled:hover > td {
+  background: rgba(100, 116, 139, 0.08) !important;
+}
+
+.dict-type-picker {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-inline-end: 12px;
+  gap: 12px;
+}
+
+.dict-type-picker-label {
+  flex: 0 0 auto;
+  color: rgba(203, 213, 225, 0.88);
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.dict-type-picker .ant-select {
+  width: min(320px, 100%);
+  min-width: 0;
+}
+
+.setting-card-title {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.setting-card-key {
+  max-width: 100%;
+  margin-inline: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.setting-config-card .ant-card-extra {
+  min-width: 0;
+}
+
+.setting-config-card .card-extra-note {
+  white-space: normal;
+}
+
+[data-theme='light'] .list-primary-cell {
+  color: #1e293b;
+}
+
+[data-theme='light'] .list-table .list-row-disabled > td {
+  background: rgba(148, 163, 184, 0.08) !important;
+}
+
+[data-theme='light'] .list-table .list-row-disabled .list-primary-cell,
+[data-theme='light'] .list-table .list-row-disabled .list-code-tag {
+  color: #64748b;
+}
+
+[data-theme='light'] .list-table .list-row-disabled:hover > td {
+  background: rgba(148, 163, 184, 0.13) !important;
+}
+
+[data-theme='light'] .dict-type-picker-label {
+  color: #475569;
+}
+
 @media (max-width: 575px) {
-  .dict-type-picker { align-items: stretch; flex-direction: column; width: 100%; margin-inline-end: 0; gap: 8px; }
-  .dict-type-picker .ant-select { width: 100%; }
-  .setting-config-card .ant-card-head-wrapper { align-items: flex-start; flex-direction: column; gap: 6px; }
-  .setting-config-card .ant-card-extra { margin-inline-start: 0; }
-  .setting-save-item .ant-btn { width: 100%; }
+  .dict-type-picker {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+    margin-inline-end: 0;
+    gap: 8px;
+  }
+
+  .dict-type-picker .ant-select {
+    width: 100%;
+  }
+
+  .setting-config-card .ant-card-head-wrapper {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .setting-config-card .ant-card-extra {
+    margin-inline-start: 0;
+  }
+
+  .setting-save-item .ant-btn {
+    width: 100%;
+  }
 }
 
 /* ===== List page tables ===== */
@@ -348,7 +472,19 @@
 }
 
 .status-pill-dot-pulse {
-  animation: live-pulse 2.4s ease-in-out infinite;
+  animation: live-pulse 2.4s ease-in-out infinite, status-pill-halo 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes status-pill-halo {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 4.5px rgba(52, 211, 153, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
 }
 
 .status-pill-success {
@@ -420,4 +556,63 @@
   display: inline-flex;
   align-items: center;
   font-weight: 500;
+}
+
+/* ============================================================
+   BPM 流程审批 · 实例流转时间线与节点光晕
+   ============================================================ */
+.bpm-instance-timeline {
+  position: relative;
+  padding: 8px 4px;
+}
+
+.bpm-timeline-doing {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.2);
+  animation: bpm-node-breathe 2.8s ease-in-out infinite;
+}
+
+[data-theme='light'] .bpm-timeline-doing {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.25);
+  box-shadow: 0 0 16px rgba(37, 99, 235, 0.15);
+}
+
+@keyframes bpm-node-breathe {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
+    border-color: rgba(129, 140, 248, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(99, 102, 241, 0.4);
+    border-color: rgba(129, 140, 248, 0.6);
+  }
+}
+
+.bpm-instance-timeline .ant-timeline-item-tail {
+  border-inline-start-color: rgba(148, 163, 184, 0.2) !important;
+}
+
+.bpm-instance-timeline .ant-timeline-item-head-blue {
+  color: #818cf8 !important;
+  border-color: #818cf8 !important;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
+}
+
+.bpm-instance-timeline .ant-timeline-item-head-green {
+  color: #34d399 !important;
+  border-color: #34d399 !important;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
+}
+
+.bpm-instance-timeline .ant-timeline-item-head-red {
+  color: #f87171 !important;
+  border-color: #f87171 !important;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.5);
 }

@@ -58,7 +58,13 @@ export function useTreeQuery<T, P = void>({
 
   useEffect(() => {
     if (!enabled) return
-    void reload()
+    let active = true
+    queueMicrotask(() => {
+      if (active) void reload()
+    })
+    return () => {
+      active = false
+    }
   }, [enabled, reload])
 
   return {

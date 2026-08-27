@@ -119,9 +119,26 @@ export default function MainLayout() {
     document.documentElement.dataset.density = density
     localStorage.setItem('app_density', density)
   }, [density])
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [forcePwdSubmitting, setForcePwdSubmitting] = useState(false)
   const [forcePwdForm] = Form.useForm()
   const pathname = location.pathname
+
+  // 全局快捷键指南：按 ? 或 Shift + / 唤起
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return
+      }
+      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault()
+        setShortcutsOpen((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   useEffect(() => {
     const onFsChange = () => setFullscreen(!!document.fullscreenElement)
@@ -551,6 +568,35 @@ export default function MainLayout() {
       </Modal>
 
       <CommandPalette items={paletteItems} />
+
+      {/* 全局快捷键指南弹窗 */}
+      <Modal
+        title={t('全局快捷键指南')}
+        open={shortcutsOpen}
+        onCancel={() => setShortcutsOpen(false)}
+        footer={null}
+        width={420}
+        destroyOnHidden
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 13.5 }}>{t('全局命令与快速搜索')}</span>
+            <kbd className="app-kbd">{isMac ? '⌘ K' : 'Ctrl + K'}</kbd>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 13.5 }}>{t('打开快捷键指南')}</span>
+            <kbd className="app-kbd">?</kbd>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 13.5 }}>{t('关闭弹窗 / 下拉浮层')}</span>
+            <kbd className="app-kbd">Esc</kbd>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 13.5 }}>{t('切换全屏模式')}</span>
+            <kbd className="app-kbd">F11</kbd>
+          </div>
+        </div>
+      </Modal>
 
       {showBackTop && (
         <button
