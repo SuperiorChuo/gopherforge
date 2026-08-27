@@ -7,6 +7,7 @@ import axios, {
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { message } from './feedback'
+import { loginPathForCurrentLocation } from './mobile-path'
 import { getDeviceID } from './device'
 import {
   canAcquireRefreshLease,
@@ -609,7 +610,9 @@ function redirectToLogin() {
   if (loginRedirectStarted) return
   loginRedirectStarted = true
   clearTokens()
-  window.location.href = '/login'
+  // 按当前壳回跳：移动壳内 401 回 /m/login，桌面回 /login，
+  // 避免把管理台会话送进 /m（或把手机会话送进桌面登录）。
+  window.location.href = loginPathForCurrentLocation()
 }
 
 const instance: AxiosInstance = axios.create({

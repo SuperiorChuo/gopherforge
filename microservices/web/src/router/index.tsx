@@ -67,6 +67,11 @@ const routes: RouteObject[] = [
     element: lazyLoad(() => import('@/pages/login'), [routeStyles.auth]),
   },
   {
+    // 管理员移动端登录：复用桌面登录页（账密 / 验证码 / TOTP），默认回跳 /m
+    path: '/m/login',
+    element: lazyLoad(() => import('@/pages/login'), [routeStyles.auth]),
+  },
+  {
     // 邀请注册页：独立于 MainLayout（未登录），邀请链接 /register?invite=<token>
     path: '/register',
     element: lazyLoad(() => import('@/pages/register'), [routeStyles.auth]),
@@ -144,6 +149,39 @@ const routes: RouteObject[] = [
       { path: '404', element: lazyLoad(() => import('@/pages/result/404')) },
       { path: '500', element: lazyLoad(() => import('@/pages/result/500')) },
       { path: '*', element: <Navigate to="/404" replace /> },
+    ],
+  },
+  {
+    // 管理员移动端壳：小屏只读态势 + 急事处理，复用桌面登录与鉴权；
+    // 能力面随脚手架底座裁剪（站内信/通知模板/租户不在下游形态内）。
+    path: '/m',
+    element: lazyLoad(() => import('@/pages/mobile/MobileLayout')),
+    children: [
+      { index: true, element: lazyLoad(() => import('@/pages/mobile/home')) },
+      { path: 'workbench', element: lazyLoad(() => import('@/pages/mobile/workbench')) },
+      { path: 'me', element: lazyLoad(() => import('@/pages/mobile/me')) },
+      { path: 'tasks', element: lazyLoad(() => import('@/pages/mobile/tasks')) },
+      { path: 'tasks/:id', element: lazyLoad(() => import('@/pages/mobile/tasks')) },
+      { path: 'ops/health', element: lazyLoad(() => import('@/pages/mobile/ops/health')) },
+      { path: 'ops/alerts', element: lazyLoad(() => import('@/pages/mobile/ops/alerts')) },
+      { path: 'ops/jobs', element: lazyLoad(() => import('@/pages/mobile/ops/jobs')) },
+      { path: 'ops/online', element: lazyLoad(() => import('@/pages/mobile/ops/online')) },
+      { path: 'security/login', element: lazyLoad(() => import('@/pages/mobile/security/login-log')) },
+      { path: 'security/events', element: lazyLoad(() => import('@/pages/mobile/security/security-events')) },
+      { path: 'security/operation', element: lazyLoad(() => import('@/pages/mobile/security/operation-log')) },
+      { path: 'security/audit', element: lazyLoad(() => import('@/pages/mobile/security/audit-log')) },
+      { path: 'directory/users', element: lazyLoad(() => import('@/pages/mobile/directory/users')) },
+      { path: 'directory/roles', element: lazyLoad(() => import('@/pages/mobile/directory/roles')) },
+      { path: 'directory/depts', element: lazyLoad(() => import('@/pages/mobile/directory/depts')) },
+      { path: 'directory/tenants', element: lazyLoad(() => import('@/pages/mobile/directory/tenants')) },
+      { path: 'catalog/files', element: lazyLoad(() => import('@/pages/mobile/catalog/files')) },
+      { path: 'catalog/dicts', element: lazyLoad(() => import('@/pages/mobile/catalog/dicts')) },
+      { path: 'notices', element: lazyLoad(() => import('@/pages/mobile/notices')) },
+      { path: 'me/password', element: lazyLoad(() => import('@/pages/mobile/me/password')) },
+      { path: 'me/totp', element: lazyLoad(() => import('@/pages/mobile/me/totp')) },
+      { path: 'me/logins', element: lazyLoad(() => import('@/pages/mobile/me/logins')) },
+      { path: 'soon/:key', element: lazyLoad(() => import('@/pages/mobile/soon')) },
+      { path: '*', element: <Navigate to="/m" replace /> },
     ],
   },
 ]

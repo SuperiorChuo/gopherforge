@@ -20,6 +20,7 @@ import { fetchCurrentUser, login } from '@/store/slices/authSlice'
 import { getCaptcha } from '@/api/auth'
 import { setTokens } from '@/utils/request'
 import { prefetchMainLayout } from '@/router'
+import { MOBILE_BASE, isMobileAppPath } from '@/utils/mobile-path'
 import AuthShell from '@/components/auth/AuthShell'
 
 /**
@@ -31,7 +32,7 @@ function safeRedirectTarget(): string {
   if (raw && /^\/(?!\/)/.test(raw)) {
     return raw
   }
-  return '/dashboard'
+  return isMobileAppPath() ? MOBILE_BASE : '/dashboard'
 }
 
 export default function LoginPage() {
@@ -39,8 +40,12 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
 
-  // 登录成功后立刻要用管理台骨架，趁用户填账密的空档预取
-  useEffect(() => prefetchMainLayout(), [])
+  // 登录成功后立刻要用管理台骨架，趁用户填账密的空档预取；
+  // 移动端登录不要把 MainLayout 拉进首屏。
+  useEffect(() => {
+    if (isMobileAppPath()) return
+    return prefetchMainLayout()
+  }, [])
   const loading = useAppSelector((s) => s.auth.loading)
   const [form] = Form.useForm()
   const [totpForm] = Form.useForm()
