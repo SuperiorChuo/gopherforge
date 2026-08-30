@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+### 修复
+
+- **monitor**：补 `edge_acme_challenges.certificate_id` 外键索引（同步自主项目）——证书级联删除时挑战表由顺序扫描回到索引查找（迁移 000081）。
+
 ## [0.7.0] - 2026-08-24
 
 ### 文档
