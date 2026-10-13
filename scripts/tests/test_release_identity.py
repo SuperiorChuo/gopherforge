@@ -176,6 +176,59 @@ class ReleaseIdentityTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("org.opencontainers.image.revision=${{ needs.meta.outputs.source_sha }}", jobs["build-push"])
 
+    def test_public_object_and_history_checks_fail_closed_before_matrix(self):
+        text = WORKFLOW.read_text()
+        name = "验证公开候选与待发布历史"
+        self.assertIn("name: " + name, text)
+        self.assertLess(text.index("name: " + name), text.index("name: 生成服务镜像矩阵与 Go 模块矩阵"))
+        meta = text.split("  meta:\n", 1)[1].split("\n  gate-go:", 1)[0]
+        self.assertIn("SOURCE_SHA: ${{ steps.tag.outputs.source_sha }}", meta)
+        self.assertNotIn("continue-on-error", meta)
+        build = text.split("\n  build-push:\n", 1)[1].split("\n  release:\n", 1)[0]
+        needs = build.split("    needs:\n", 1)[1].split("    runs-on:", 1)[0]
+        self.assertEqual(re.findall(r"^      - ([\w-]+)$", needs, re.M),
+                         ["meta", "gate-go", "gate-web", "gate-contract"])
+        scripts = self.repo / "scripts"
+        scripts.mkdir()
+        (scripts / "verify-product.sh").write_text(
+            'printf "%s\\n" "$1" >> "$CALLS"\n'
+            'test "$1" != "$FAIL_TARGET"\n')
+        (scripts / "release-hygiene.py").write_text(
+            'import os, pathlib, sys\n'
+            'assert sys.argv[1:] == ["--pre-push"]\n'
+            'fields = sys.stdin.read().split()\n'
+            'assert len(fields) == 4 and fields[1] == os.environ["SOURCE_SHA"]\n'
+            'assert fields[3] == "0" * 40\n'
+            'with pathlib.Path(os.environ["CALLS"]).open("a") as f: f.write("history\\n")\n'
+            'sys.exit(1 if os.environ["FAIL_TARGET"] == "history" else 0)\n')
+        self.git("checkout", "-q", self.source)
+        calls = self.root / "calls"
+        expected = ["public-migrations", "public-hygiene", "history"]
+        for failure in ["none", *expected]:
+            with self.subTest(failure=failure):
+                calls.write_text("")
+                result = self.shell(run_block(name), {
+                    "SOURCE_SHA": self.source, "CALLS": str(calls), "FAIL_TARGET": failure,
+                })
+                self.assertEqual(result.returncode == 0, failure == "none", result.stderr)
+                count = 3 if failure == "none" else expected.index(failure) + 1
+                self.assertEqual(calls.read_text().splitlines(), expected[:count])
+        calls.write_text("")
+        result = self.shell(run_block(name), {
+            "SOURCE_SHA": self.event, "CALLS": str(calls), "FAIL_TARGET": "none",
+        })
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(calls.read_text(), "")
+
+    def test_monitor_security_scan_uses_the_services_module_context(self):
+        text = (ROOT / ".github/workflows/security-scan.yml").read_text()
+        entry = text.split("- service: monitor-service\n", 1)[1].split("- service: frontend", 1)[0]
+        self.assertIn("context: microservices/services\n", entry)
+        self.assertIn("dockerfile: microservices/services/monitor/Dockerfile\n", entry)
+        context = ROOT / "microservices/services"
+        for path in ["go.mod", "go.sum", "monitor/cmd/main.go", "monitor/configs", "monitor/migrations"]:
+            self.assertTrue((context / path).exists(), path)
+
     def prepare_remote(self):
         # origin 是同一个临时目录里的 bare 仓，fetch 也不访问外部网络。
         remote = self.root / "origin.git"

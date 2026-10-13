@@ -194,6 +194,18 @@ jobs:
       - name: 验证发布工具
         run: bash scripts/verify-product.sh release-tools
 
+      - name: 验证公开候选与待发布历史
+        env:
+          SOURCE_SHA: ${{ steps.tag.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git --no-replace-objects rev-parse --verify 'HEAD^{commit}')" = "$SOURCE_SHA"
+          bash scripts/verify-product.sh public-migrations
+          bash scripts/verify-product.sh public-hygiene
+          # 全历史 checkout；扫描固定公开基线之后每个提交，不能只清理 tip。
+          printf 'refs/heads/release-audit %s refs/heads/release-audit %040d\n' "$SOURCE_SHA" 0 |
+            python3 -B scripts/release-hygiene.py --pre-push
+
       - name: 生成服务镜像矩阵与 Go 模块矩阵
         id: matrix
         run: |
