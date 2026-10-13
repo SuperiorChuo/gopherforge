@@ -1,0 +1,197 @@
+{
+  "baseline": "26118eae783e12a3d9f5f24bcae9908a5eaaedcc",
+  "migrations": [
+    {
+      "source": "000011_add_ai_tables.sql",
+      "target": "000082_add_ai_tables.sql",
+      "source_sha256": "e43a0e3c189c10ea35b2296bf4d04e0a0fcbc70ad5ca5951f08a80478ff4d0cd",
+      "sha256": "59bde03cd4df8c58f27d546add3886fb21f2634b039147c97c4e138ba7ad6a1f"
+    },
+    {
+      "source": "000013_add_tenant_id_domain_tables.sql",
+      "target": "000083_add_tenant_id_domain_tables.sql",
+      "source_sha256": "90158b716e4c8099fd40f96b8315f79d0ab7e8a605a3dd5683057f7198472d36",
+      "sha256": "b289794ef0634ceb0955930f4516a24e3d23899587dab2a72a67eefe310be5f0"
+    },
+    {
+      "source": "000015_optimize_indexes_for_scale.sql",
+      "target": "000084_optimize_indexes_for_scale.sql",
+      "source_sha256": "6d1aab022c717fd0da83f5f96de22311648a708980794338aeeaf9f1e7f21f5f",
+      "sha256": "ec30d49708cf9c8043508b90594930a6c168d881b3c48608de75e949b186032d"
+    },
+    {
+      "source": "000028_add_ai_platform.sql",
+      "target": "000085_add_ai_platform.sql",
+      "source_sha256": "16b5d14bce6b7a8a196e8b1e060ac4602fe55f718ae1acb65d07bc0cfcfff867",
+      "sha256": "6df2f581d20fbf235a787d52323186a9b0c883c0e82024eefa09c4e96570f403"
+    },
+    {
+      "source": "000033_add_hermes_control_plane.sql",
+      "target": "000086_add_hermes_control_plane.sql",
+      "source_sha256": "f07f0f2d08138e155f4d0d14eb1c09d453f98af326b313fdc15d4681a1f006b8",
+      "sha256": "dda43f81dbff02f2bcd52846fed72dc13262fc87a5bb2f28bb88748a46966aad"
+    },
+    {
+      "source": "000034_hermes_module_and_office.sql",
+      "target": "000087_hermes_module_and_office.sql",
+      "source_sha256": "eecfccef5975dcc9dac98db58a4142770fcea39f2587b9b6b9dc4fc51bf93e3d",
+      "sha256": "d4fdfe7c6521a71be4d88506f1ed43b77d64bb71d84b212cd103a1edde538554"
+    },
+    {
+      "source": "000035_hermes_artifacts_actions_proxy.sql",
+      "target": "000088_hermes_artifacts_actions_proxy.sql",
+      "source_sha256": "9853f56b61c1820d3eeb979bd4f2c041bd136c1e48eec1c3dece0a07a78a5774",
+      "sha256": "e03a2e77c05a04e6282a006870d8eba6176f881fac9f4057e906b3d3f8024aed"
+    },
+    {
+      "source": "000036_reorganize_system_menus.sql",
+      "target": "000089_reorganize_system_menus.sql",
+      "source_sha256": "f7bc6cbd012694d4481dc86c62a8bbf1c185677802c11e67a7f5187d3eaaab21",
+      "sha256": "9582c9d2b5c71f186fc692be45a81a92786efa088b1a9fe85d1b6e57197f912d"
+    },
+    {
+      "source": "000037_fix_visibility_overview_path.sql",
+      "target": "000090_fix_visibility_overview_path.sql",
+      "source_sha256": "c9cae5de660959285d36d48ef29ff030016ec539ee4171ea5e96eccdd7f16f3a",
+      "sha256": "de45d0c661f8f7d19869dae108c7af773d1c5351a6087a44809a2724d3ec7716"
+    },
+    {
+      "source": "000038_reorganize_hermes_cluster.sql",
+      "target": "000091_reorganize_hermes_cluster.sql",
+      "source_sha256": "32c5858dafb2a1ca658cc42c9b6949e562c938a963d02f1fb961e6b6df5e987f",
+      "sha256": "b7160957ad60b907936f91b0a3d8d5edb6ea044cd273f4676fc918a29e140459"
+    },
+    {
+      "source": "000039_rename_hermes_pages_to_actual_capability.sql",
+      "target": "000092_rename_hermes_pages_to_actual_capability.sql",
+      "source_sha256": "383161c4176825958102be3c07b48cfb8367f149295f132d738976d1c7b8b18b",
+      "sha256": "c39bf99929b3ab6cb39cb9bff6f98d0c31505d9757b5c70f10676eeba2c5cf6c"
+    },
+    {
+      "source": "000040_hermes_instances.sql",
+      "target": "000093_hermes_instances.sql",
+      "source_sha256": "5ad1380096f433835567bc846a61191b1e350ed46d9430c84051817af0d594fc",
+      "sha256": "b9a5b28bc6cc8f0194b2699e923a2db22a97726f7f9a0afe8770a5f5ace5b277"
+    },
+    {
+      "source": "000041_secure_ai_admin_permissions.sql",
+      "target": "000094_secure_ai_admin_permissions.sql",
+      "source_sha256": "028dcda38b8a2fd41d17accbffd69062300a6d52feae88319b24d8ad157cc4e4",
+      "sha256": "507ecef65d56aecede58457a5a2714433d170afb6117737dead96f25d1b98836"
+    },
+    {
+      "source": "000042_add_business_action_permissions.sql",
+      "target": "000095_add_business_action_permissions.sql",
+      "source_sha256": "81349fcfb933056dcb75eab8849b638c03240553145243e8dee34ca0569e883f",
+      "sha256": "f47c8f62bc3c6cbf9bdafbdbfa730786729dc2da33c649e766103b8659c6bc71"
+    },
+    {
+      "source": "000044_hermes_multi_agent_tasks.sql",
+      "target": "000096_hermes_multi_agent_tasks.sql",
+      "source_sha256": "378ad2c4a1808635a64931452b2c71d44e29e9d6ab6ba400d1a05d9b82ebec77",
+      "sha256": "d6cee6aea51dbe03a923f3ba05ce86c16e9311e1474a3713f1da0f6f2ea17b7b"
+    },
+    {
+      "source": "000045_hermes_api_server.sql",
+      "target": "000097_hermes_api_server.sql",
+      "source_sha256": "6054a137fe4424819b4842ac91704593f141beca5c3737ea1bb2e2e81d5d828f",
+      "sha256": "9b467a9873f0106b89ec3d78f36dd904823d5b5767bd2d1f88a5f3ba50f81227"
+    },
+    {
+      "source": "000046_hermes_kanban.sql",
+      "target": "000098_hermes_kanban.sql",
+      "source_sha256": "3d7668392a15eb03cfdcee5dd67d5085695ffc46fbc1ac4ae876b8ccbd42be12",
+      "sha256": "bf049f55842ec7a11b56118d2c3878887e59bb44d9ee60a73998916682064e98"
+    },
+    {
+      "source": "000047_hermes_skills.sql",
+      "target": "000099_hermes_skills.sql",
+      "source_sha256": "aead275e087108e8e8bab56cfe8eaaf30ad506c73f01b09136c0679d1f57c826",
+      "sha256": "d9f31ed203b959f5584fc6e32fce44b95abc1346c9456881544c53c077ce5718"
+    },
+    {
+      "source": "000048_hermes_mcp_servers.sql",
+      "target": "000100_hermes_mcp_servers.sql",
+      "source_sha256": "e6eb09f4b54c9ca8a365b6e978e224b9fd0a5042a6973710a449c22f349c7db8",
+      "sha256": "a487beefb8f72151e19606215ab3bd68fd33f21bd69c21eeb347d905404de8dc"
+    },
+    {
+      "source": "000049_hermes_policy_knowledge_rag.sql",
+      "target": "000101_hermes_policy_knowledge_rag.sql",
+      "source_sha256": "c017b98bc8dbf789ec31906bed568f8c9b474c4ee49f2e418d7bb2ab2256ee16",
+      "sha256": "e7a9afb7bddab83d711d3f3980553ed42a11b0dff8a9f746a0ad4c62cc10f06f"
+    },
+    {
+      "source": "000057_hermes_cron_jobs.sql",
+      "target": "000102_hermes_cron_jobs.sql",
+      "source_sha256": "9a0f3318b65f50403e34672ec9d2f3c92d84f506dec44e86ef86f84e3442ded3",
+      "sha256": "74cbeff26e69ef16c75e7f58dbd0152442b1f841eca858d75f71e89bd37cbb09"
+    },
+    {
+      "source": "000058_hermes_user_skills.sql",
+      "target": "000103_hermes_user_skills.sql",
+      "source_sha256": "af5d5006b0cdd0b350c8c2d4d425ee6717c2c5c3b95d75c70a113afd30ae6296",
+      "sha256": "1cdeb7445ed7203f86fad42f6a022d863ea185e7c462a18f93563674a72630ad"
+    },
+    {
+      "source": "000059_hermes_skill_source.sql",
+      "target": "000104_hermes_skill_source.sql",
+      "source_sha256": "bcf7c92940e9d586b971c22063cd2e766b5faf5ef4cf42845372564a5b40b791",
+      "sha256": "6b2b0815e18e38ea160704c67c7edff0ac8647c8929da1f80da69c52f782cb12"
+    },
+    {
+      "source": "000065_hermes_skill_signature.sql",
+      "target": "000105_hermes_skill_signature.sql",
+      "source_sha256": "52d0a58675748cffe7bfd49b77d398abc3c91154dd0d4b1957c175d088e06a4a",
+      "sha256": "4d5fcb178c76fcc29153671c2db375fbde111d8e642f6f05fa723a1373033d0a"
+    },
+    {
+      "source": "000068_ai_kb_write_permission.sql",
+      "target": "000106_ai_kb_write_permission.sql",
+      "source_sha256": "2ea2d580e739c89d6f930bacdb757080d604edefa31c3884b0c5dd634acd79d7",
+      "sha256": "ac9efc6a08355e2d756dbbe7aa3c81ee9aecca445885300a7b6ae98dddaba030"
+    },
+    {
+      "source": "000070_business_schema_split.sql",
+      "target": "000107_business_schema_split.sql",
+      "source_sha256": "37e264ee799dc8ccefb7399b00f60945c522c40c2ee65b502b85b778987d12fc",
+      "sha256": "0408136ee905f5e1833ea4c318998faa94484899292108804450da8b78a41b1f"
+    },
+    {
+      "source": "000071_crm_tags.sql",
+      "target": "000108_crm_tags.sql",
+      "source_sha256": "386f4580322c306b1da543a1a8e792c88338795fe588f49f73d9b5704b764944",
+      "sha256": "a28fd071523c559469466cb62886a1afc935a5d2caea90561e2a7f5fa8513eb4"
+    },
+    {
+      "source": "000072_outbox_events.sql",
+      "target": "000109_outbox_events.sql",
+      "source_sha256": "ad0fae49738ce6882b6d2f9433bba34662165b5e98f154ace5296d0d39885ae4",
+      "sha256": "ab9f2305b12649801144b02f82066ea2a018573cfb246df0d99c5e782cdf6803"
+    },
+    {
+      "source": "000076_repair_service_id_sequences.sql",
+      "target": "000110_repair_service_id_sequences.sql",
+      "source_sha256": "dd6bc2fc6b9c7440bc5dda5b283908b832b8d56a7579ac12e980b01ec8189e3b",
+      "sha256": "5f6cdcdefb9c8a30567ec86926f2468103c48c2046ea4040c0615d9e6cd765cc"
+    },
+    {
+      "source": "000080_unified_task_runs.sql",
+      "target": "000111_unified_task_runs.sql",
+      "source_sha256": "64b778f8a748d75f68386bc692acb1f58dd3496169bf0d9a833c50b975721e33",
+      "sha256": "68af9aceea48f141abefa735caf4b6b4436133ee2eb66dd1da89e9e33ab74ed3"
+    },
+    {
+      "source": "000082_agent_kernel_v0.sql",
+      "target": "000112_agent_kernel_v0.sql",
+      "source_sha256": "655459134d28ddf14aa244fd046ec08c3f423e7660619b54e99d909431bf3928",
+      "sha256": "5d6a9eae705ab628a6f8c1dec975f7024f64074a032cc480de64850b5e7109c5"
+    },
+    {
+      "source": "000083_agent_kernel_integrity.sql",
+      "target": "000113_agent_kernel_integrity.sql",
+      "source_sha256": "9b8cbf8ae5b87c9f92db1f2dabe5dca399743550b83a39edd8a65c190b911864",
+      "sha256": "db9307d36847f7ba0423c3fc76bceb88443fe1b5be17cc4d7c3213b83d1f9971"
+    }
+  ]
+}

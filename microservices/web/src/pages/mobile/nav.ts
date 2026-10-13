@@ -21,6 +21,7 @@ export const WORKBENCH_GROUPS: MobileWorkbenchGroup[] = [
     title: '处理',
     tiles: [
       { key: 'tasks', label: '我的审批', hint: '通过 / 驳回', to: '/m/tasks', status: 'ready' },
+      { key: 'inbox', label: '站内信', hint: '读信、标已读', to: '/m/inbox', status: 'ready' },
       { key: 'notices', label: '公告', hint: '只读查看', to: '/m/notices', status: 'ready', perm: 'system:notice:list' },
     ],
   },
@@ -60,11 +61,13 @@ export const WORKBENCH_GROUPS: MobileWorkbenchGroup[] = [
     tiles: [
       { key: 'files', label: '文件', hint: '查看附件', to: '/m/catalog/files', status: 'ready', perm: 'system:file:list' },
       { key: 'dicts', label: '字典', hint: '查看字典', to: '/m/catalog/dicts', status: 'ready', perm: 'system:dict:list' },
+      { key: 'templates', label: '通知模板', hint: '查看模板', to: '/m/catalog/templates', status: 'ready', perm: 'notify:template:read' },
     ],
   },
 ]
 
 export function mobileTitleKey(path: string): string {
+  if (path.startsWith('/m/inbox')) return '消息'
   if (path.startsWith('/m/tasks/')) return '审批详情'
   if (path.startsWith('/m/tasks')) return '待办审批'
   if (path.startsWith('/m/workbench')) return '工作台'

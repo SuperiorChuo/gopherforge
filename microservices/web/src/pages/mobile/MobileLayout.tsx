@@ -6,6 +6,7 @@ import {
   AppstoreOutlined,
   HomeOutlined,
   LogoutOutlined,
+  MailOutlined,
   MoonOutlined,
   SunOutlined,
   UserOutlined,
@@ -163,6 +164,7 @@ export default function MobileLayout() {
   const tabs = [
     { key: 'home', to: '/m', label: t('态势'), icon: <HomeOutlined />, active: path === '/m' },
     { key: 'workbench', to: '/m/workbench', label: t('工作台'), icon: <AppstoreOutlined />, active: path.startsWith('/m/workbench') || path.startsWith('/m/soon') || path.startsWith('/m/tasks') || path.startsWith('/m/ops') || path.startsWith('/m/security') || path.startsWith('/m/directory') || path.startsWith('/m/catalog') || path.startsWith('/m/notices') },
+    { key: 'inbox', to: '/m/inbox', label: t('消息'), icon: <MailOutlined />, active: path.startsWith('/m/inbox') },
     { key: 'me', to: '/m/me', label: t('我的'), icon: <UserOutlined />, active: path.startsWith('/m/me') },
   ] as const
 

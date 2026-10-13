@@ -48,7 +48,7 @@
     background: rgba(100, 116, 139, 0.06);
   }
 
-  [data-theme='light'] .login-log-page .metric-card {
+  [data-theme='light'] .login-log-page .log-stat {
     border-color: rgba(100, 116, 139, 0.12);
     background: rgba(148, 163, 184, 0.08);
   }

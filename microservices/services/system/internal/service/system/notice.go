@@ -15,7 +15,7 @@ type NoticeService struct {
 	noticeDAO systemdao.NoticeDAO
 }
 
-// NewNoticeServiceWithDB builds a NoticeService backed by an injected database handle.
+// NewNoticeServiceWithDB 构建一个基于注入的数据库句柄的 NoticeService。
 func NewNoticeServiceWithDB(db *gorm.DB) NoticeService {
 	return NoticeService{noticeDAO: *systemdao.NewNoticeDAO(db)}
 }

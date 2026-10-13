@@ -2,6 +2,7 @@ import request from '@/utils/request'
 import type { PageRequest, PageResponse } from '@/types'
 import type { BpmDefinition, BpmFormSchema, FlowSchema } from './types'
 
+// ---------------------------------------------------------------------
 // API 封装 —— §4.1 管理端（流程定义，权限：bpm:definition:*）
 // ---------------------------------------------------------------------
 
@@ -53,5 +54,3 @@ export const suspendDefinition = (id: number) =>
 /** 按 key 取当前 active 版本（发起端/业务端用） */
 export const getActiveDefinitionByKey = (key: string) =>
   request.get<unknown, BpmDefinition>(`/api/v1/bpm/definitions/keys/${encodeURIComponent(key)}/active`)
-
-// ---------------------------------------------------------------------

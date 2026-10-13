@@ -21,16 +21,16 @@ import (
 func setVerifyJWTConfig(t *testing.T) {
 	t.Helper()
 
-	oldConfig := config.Cfg.JWT
-	config.Cfg.JWT = config.JWTConfig{
+	oldConfig := jwtpkg.JWTConfig{Secret: config.Cfg.JWT.Secret, Issuer: config.Cfg.JWT.Issuer, AccessTokenExpire: config.Cfg.JWT.AccessTokenExpire, RefreshTokenExpire: config.Cfg.JWT.RefreshTokenExpire, RefreshTokenRotation: config.Cfg.JWT.RefreshTokenRotation}
+	jwtpkg.SetConfig(jwtpkg.JWTConfig{
 		Secret:               "unit-test-secret-at-least-32-characters",
 		AccessTokenExpire:    3600,
 		RefreshTokenExpire:   7200,
 		RefreshTokenRotation: true,
 		Issuer:               "unit-test",
-	}
+	})
 	t.Cleanup(func() {
-		config.Cfg.JWT = oldConfig
+		jwtpkg.SetConfig(oldConfig)
 	})
 }
 
@@ -41,13 +41,13 @@ func setupVerifyTestRedis(t *testing.T) {
 	if err != nil {
 		t.Fatalf("start miniredis: %v", err)
 	}
+	oldClient := redisstore.Client
 	client := goredis.NewClient(&goredis.Options{Addr: store.Addr()})
 	redisstore.Client = client
 	jwtpkg.SetRedis(client)
 	t.Cleanup(func() {
 		_ = client.Close()
-		redisstore.Client = nil
-		jwtpkg.SetRedis(nil)
+		redisstore.Client = oldClient
 		store.Close()
 	})
 }
@@ -282,7 +282,7 @@ func TestVerifyCompressesSuperAdminPermissions(t *testing.T) {
 	}
 }
 
-// 归一化权限头缓存命中时不得触碰用户/权限存储（ForwardAuth 热路径收敛为单次 GET）。
+// A cached normalized permissions header must not touch the user/permission stores (ForwardAuth hot path collapses to a single GET).
 func TestVerifyPermissionsHeaderCacheHitSkipsStores(t *testing.T) {
 	setVerifyJWTConfig(t)
 	setupVerifyTestRedis(t)
@@ -312,7 +312,7 @@ func TestVerifyPermissionsHeaderCacheHitSkipsStores(t *testing.T) {
 	}
 }
 
-// 零角色/零权限用户的空头也要进缓存：曾因 SET 结构存不了空集，这类用户每请求穿透 DB。
+// Users with zero roles/permissions must also hit the cache for an empty header: SET could not represent an empty set, so these users used to hit the DB per request.
 func TestVerifyCachesEmptyPermissionsHeader(t *testing.T) {
 	setVerifyJWTConfig(t)
 	setupVerifyTestRedis(t)
@@ -339,7 +339,7 @@ func TestVerifyCachesEmptyPermissionsHeader(t *testing.T) {
 		}
 	}
 
-	// 第二个请求必须命中空头缓存：存储只在首个请求被读一次
+	// The second request must hit the empty-header cache: the store is read only on the first request
 	if users.calls != 1 || permissions.calls != 1 {
 		t.Fatalf("stores hit = users %d / permissions %d, want 1/1 (second request must hit empty-header cache)", users.calls, permissions.calls)
 	}

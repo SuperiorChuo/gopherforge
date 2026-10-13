@@ -34,6 +34,14 @@ func defaultHealthTargets() []healthTarget {
 		{"system", "go-admin-kit-system:8084"},
 		{"audit", "go-admin-kit-audit:8085"},
 		{"file", "go-admin-kit-file:8086"},
+		{"ai", "go-admin-kit-ai:8087"},
+		{"im", "go-admin-kit-im:8088"},
+		{"cc", "go-admin-kit-cc:8089"},
+		{"crm", "go-admin-kit-crm:8091"},
+		{"mp", "go-admin-kit-mp:8092"},
+		{"visibility", "go-admin-kit-visibility:8093"},
+		{"ticket", "go-admin-kit-ticket:8094"},
+		{"notify", "go-admin-kit-notify:8095"},
 		{"bpm", "go-admin-kit-bpm:8096"},
 	}
 	out := make([]healthTarget, 0, len(base))

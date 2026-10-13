@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserDAO keeps auth-specific user queries while reusing shared user persistence methods.
+// UserDAO 在复用共享用户持久化方法的同时，维护鉴权相关的用户查询。
 type UserDAO struct {
 	sharedDAO.UserDAO
 	db *gorm.DB

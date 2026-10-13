@@ -50,7 +50,7 @@ func (a *CodegenAPI) Capabilities(c *gin.Context) {
 	})
 }
 
-// GetTables handles GET /api/v1/codegen/tables.
+// GetTables 处理 GET /api/v1/codegen/tables 请求。
 func (a *CodegenAPI) GetTables(c *gin.Context) {
 	tables, err := a.svc.ListTables()
 	if err != nil {
@@ -60,7 +60,7 @@ func (a *CodegenAPI) GetTables(c *gin.Context) {
 	response.Success(c, gin.H{"list": tables, "total": len(tables)})
 }
 
-// GetColumns preserves the original columns endpoint during frontend migration.
+// GetColumns 在前端迁移期间保留原有的列（columns）端点。
 func (a *CodegenAPI) GetColumns(c *gin.Context) {
 	columns, err := a.svc.TableColumns(c.Param("name"))
 	if err != nil {

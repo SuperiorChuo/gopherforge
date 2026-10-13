@@ -7,9 +7,10 @@ import type {
   BpmTimelineItem,
 } from './types'
 
+// ---------------------------------------------------------------------
 // API 封装 —— §4.2 发起端 + §4.4 实例端
-// 注：POST /api/v1/bpm/instances 仅接受流程表单定义（表单构建器 M1）；
-// 业务表单走业务后端 internal 变体（表单快照由业务后端权威生成）。
+// 注：POST /api/v1/bpm/instances 的 CRM 发起走业务后端 internal 变体
+//（表单快照由业务后端权威生成），前端不封装裸发起接口。
 // ---------------------------------------------------------------------
 
 export type BpmInstanceListParams = PageRequest & { status?: string }
@@ -106,5 +107,34 @@ export const getInstanceTimeline = (id: number, silent = false) =>
 export const getInstanceDiagram = (id: number, silent = false) =>
   request.get<unknown, BpmDiagram>(`/api/v1/bpm/instances/${id}/diagram`, { silent })
 
+// 注：bpm 的 by-biz 反查仅有 internal 变体（/api/v1/bpm/internal/instances/by-biz，
+// X-Internal-Token，前端不可用）。业务侧反查走各业务后端的代理端点，
+// 例如 CRM 合同：GET /api/v1/crm/contracts/:id/approval（见 findContractApprovalInstance）。
 
-// ---------------------------------------------------------------------
+/**
+ * CRM 合同审批实例反查：走 CRM 后端代理（其经 internal by-biz 向 bpm 查询）。
+ * 始终 silent；返回形态宽松归一（单实例 / {instance} / {running,history} / {list} / 数组，
+ * 在途优先，其次最近一条历史）。失败或无实例返回 null，调用方据此优雅降级隐藏。
+ */
+export async function findContractApprovalInstance(
+  contractId: string | number,
+): Promise<BpmInstance | null> {
+  const data = await request.get<unknown, unknown>(
+    `/api/v1/crm/contracts/${contractId}/approval`,
+    { silent: true },
+  )
+  if (!data || typeof data !== 'object') return null
+  const obj = data as {
+    id?: unknown
+    instance?: BpmInstance | null
+    running?: BpmInstance | null
+    history?: BpmInstance[]
+    list?: BpmInstance[]
+  }
+  if (typeof obj.id === 'number') return data as BpmInstance
+  if (obj.instance && typeof obj.instance === 'object') return obj.instance
+  if (obj.running && typeof obj.running === 'object') return obj.running
+  const arr = Array.isArray(data) ? (data as BpmInstance[]) : (obj.history ?? obj.list ?? [])
+  if (!Array.isArray(arr) || !arr.length) return null
+  return arr.find((it) => it.status === 'running') ?? arr[0]
+}

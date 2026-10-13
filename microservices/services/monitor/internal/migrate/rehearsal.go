@@ -3,6 +3,7 @@ package migrate
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -10,16 +11,18 @@ import (
 	"time"
 
 	"github.com/go-admin-kit/services/monitor/internal/config"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const DefaultRehearsalDatabase = "go_admin_kit_migration_rehearsal"
 
 type RehearsalOptions struct {
-	ConfigPath string
-	Dir        string
-	Database   string
-	Keep       bool
-	LogWriter  io.Writer
+	ConfigPath  string
+	Dir         string
+	Database    string
+	Keep        bool
+	ForwardOnly bool
+	LogWriter   io.Writer
 }
 
 func RunRehearsal(ctx context.Context, opts RehearsalOptions) error {
@@ -64,9 +67,18 @@ func RunRehearsal(ctx context.Context, opts RehearsalOptions) error {
 	}
 
 	dbCfg.DBName = opts.Database
-	for _, step := range rehearsalMigrationSteps(opts.Dir) {
+	for _, step := range rehearsalMigrationSteps(opts.Dir, opts.ForwardOnly) {
 		logRehearsal(opts, "running %s", commandString(step))
 		stepCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+		if opts.ForwardOnly && step.Command == "down" {
+			err := rehearseForwardOnlyDowngrade(stepCtx, dbCfg, step)
+			cancel()
+			if err != nil {
+				return err
+			}
+			logRehearsal(opts, "downgrade refused as expected; migration ledger unchanged")
+			continue
+		}
 		err := RunWithConfig(stepCtx, dbCfg, step)
 		cancel()
 		if err != nil {
@@ -77,10 +89,52 @@ func RunRehearsal(ctx context.Context, opts RehearsalOptions) error {
 	return nil
 }
 
-func rehearsalMigrationSteps(dir string) []Options {
-	// The first up validates the complete fresh-install history. Roll back only
-	// the release tip: older history may contain explicitly irreversible data
-	// migrations, while every newly released migration must still prove Down/Up.
+const forwardOnlyDowngradeMessage = "Full product upgrade is forward-only; restore the pre-upgrade backup"
+
+func validateForwardOnlyDowngrade(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "P0001" && pgErr.Message == forwardOnlyDowngradeMessage {
+		return nil
+	}
+	if err == nil {
+		return fmt.Errorf("forward-only rehearsal: downgrade unexpectedly succeeded")
+	}
+	return fmt.Errorf("forward-only rehearsal: unexpected downgrade failure: %w", err)
+}
+
+func rehearseForwardOnlyDowngrade(ctx context.Context, cfg config.DatabaseConfig, step Options) error {
+	db, err := sql.Open(SQLDriverName(cfg.Driver), MigrationDSN(cfg))
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	const query = `SELECT COALESCE(string_agg(format('%s:%s:%s', id, version_id, is_applied), ',' ORDER BY id), '') FROM goose_db_version`
+	var before, after string
+	if err := db.QueryRowContext(ctx, query).Scan(&before); err != nil {
+		return fmt.Errorf("read pre-downgrade migration ledger: %w", err)
+	}
+	if err := validateForwardOnlyDowngrade(RunWithConfig(ctx, cfg, step)); err != nil {
+		return err
+	}
+	if err := db.QueryRowContext(ctx, query).Scan(&after); err != nil {
+		return fmt.Errorf("read post-downgrade migration ledger: %w", err)
+	}
+	if before != after {
+		return fmt.Errorf("forward-only rehearsal: rejected downgrade changed migration ledger")
+	}
+	return nil
+}
+
+func rehearsalMigrationSteps(dir string, forwardOnly bool) []Options {
+	if forwardOnly {
+		return []Options{
+			{Dir: dir, Command: "up"},
+			{Dir: dir, Command: "up"},
+			{Dir: dir, Command: "down"},
+			{Dir: dir, Command: "up"},
+		}
+	}
+	// Development migrations retain the existing tip-only rollback requirement.
 	return []Options{
 		{Dir: dir, Command: "up"},
 		{Dir: dir, Command: "down"},

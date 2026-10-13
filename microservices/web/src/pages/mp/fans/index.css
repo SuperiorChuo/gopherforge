@@ -1,0 +1,125 @@
+.mp-fans-sync-alert {
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
+
+.mp-fans-sync-alert .ant-alert-content,
+.mp-fans-sync-alert .ant-alert-description {
+  min-width: 0;
+  width: 100%;
+}
+
+.mp-fans-sync-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mp-fans-sync-title > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mp-fans-sync-description {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.mp-fans-sync-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mp-fans-sync-summary > div {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.mp-fans-sync-summary span {
+  color: var(--ant-color-text-secondary);
+  font-size: 12px;
+}
+
+.mp-fans-sync-summary strong {
+  color: var(--ant-color-text);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mp-fans-sync-progress {
+  width: 100%;
+  margin: 0;
+}
+
+.mp-fans-sync-meta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 12px;
+}
+
+.mp-fans-sync-error {
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mp-fans-page .ant-table-content {
+  overscroll-behavior-x: contain;
+}
+
+@media (max-width: 600px) {
+  .mp-fans-sync-alert {
+    padding: 12px;
+  }
+
+  .mp-fans-sync-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .mp-fans-sync-title > span:first-child {
+    max-width: 100%;
+  }
+
+  .mp-fans-sync-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+  }
+
+  .mp-fans-sync-summary > div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .mp-fans-sync-meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .mp-fans-toolbar-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .mp-fans-toolbar-actions > .ant-space-item,
+  .mp-fans-toolbar-actions > .ant-space-item > span,
+  .mp-fans-toolbar-actions .ant-btn {
+    width: 100%;
+  }
+
+  .mp-fans-toolbar-actions > .ant-space-item:only-child {
+    grid-column: 1 / -1;
+  }
+}

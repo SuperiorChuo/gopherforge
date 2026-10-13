@@ -11,17 +11,26 @@
 **镜像部署（v0.2.0 起）**：
 
 ```bash
-# 0) 备份（至少 pg_dump，见部署文档第 6 节）
+# 0) 先备份并在隔离副本演练，参见部署指南
 cd /opt/gopherforge/microservices
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.7.0            # 目标版本
-docker compose pull && docker compose up -d --no-build
-docker compose ps                   # migrate 自动跑新迁移后退出，等全部 healthy
+export IMAGE_TAG=v0.8.0            # 仅在目标正式版镜像已发布后使用
+docker compose --profile compose-fallback pull
+docker compose --profile compose-fallback up -d --no-build
+docker compose --profile compose-fallback ps
 ```
 
-回滚 = 把 `IMAGE_TAG` 切回上一版本重来一遍（迁移不回退，所以只适用于新迁移向后兼容的情形——0.x 的迁移我们尽量保持加列不删列，但以各版本注意事项为准）。
+应用回退不等于数据库回退。先验证 schema 兼容性；不兼容时按演练方案恢复匹配的数据库备份与应用，不能仅切旧镜像。
 
 **源码构建**：`git pull` 到目标 tag → `make compose-up`。
+
+## 0.7.0 → 0.8.0 候选注意事项
+
+- 发行范围扩展为完整业务产品，主应用 16 个 API 服务＋AI worker；资源、路由、权限与外部供应商配置需重新核对。
+- 保留全部公开历史 SQL 原路径和字节，追加 32 份 forward-only 迁移；不要用源码迁移目录覆盖既有历史。
+- 必须先备份，在隔离副本验证带数据升级、菜单/权限、序列、API、worker、UI 与监控；禁止生产 `goose down/reset`。
+- 媒体与客户端独立启动；源码可用不表示支付、短信、AI 或电话外部链路已开通。
+- 候选尚不等于正式发行，镜像、Release 和 Pages 状态分别核对。
 
 ## 0.6.0 → 0.7.0 注意事项
 

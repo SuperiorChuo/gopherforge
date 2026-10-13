@@ -1,10 +1,10 @@
 ---
-description: Start the GopherForge gateway, 7 Go services, React frontend, PostgreSQL, Redis and NATS with Docker Compose, then run the first verification.
+description: Start the GopherForge gateway, 16 API services, AI worker, React, PostgreSQL, Redis and NATS with Docker Compose.
 ---
 
-# Getting Started (15 minutes)
+# Getting Started
 
-GopherForge is an open-source Go microservices admin scaffold. This guide takes you from zero to a running full stack: gateway + 7 Go services + React frontend + PostgreSQL/Redis/NATS.
+GopherForge is an open-source Go microservices and business platform. The main stack includes a gateway, 16 API services, an AI worker, React and PostgreSQL/Redis/NATS. Start media and client products separately; external providers require configuration.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ cp microservices/.env.example microservices/.env
 make compose-up
 ```
 
-First build takes ~3 minutes. Then:
+Initial build time depends on machine resources and network access. Then:
 
 | Entry | URL |
 |------|------|
@@ -41,12 +41,10 @@ Rotate the default password, `JWT_SECRET` and all datastore credentials in `.env
 ## Verify the stack
 
 ```bash
+npm ci --prefix microservices/web
+bash scripts/verify-product.sh all
 cd microservices
-(cd services/monitor && go test ./... && go vet ./...)
-(cd web && npm run lint && npm run build)
-npm run test:smoke:unit && npm run test:contract
-npm run api:contract
-docker compose config --quiet
+docker compose --profile compose-fallback config --quiet
 docker compose -p go-admin-kit-infra -f docker-compose.infra.yml config --quiet
 API_BASE_URL=http://127.0.0.1:8000/api/v1 npm run smoke:api
 ```

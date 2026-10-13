@@ -13,8 +13,8 @@ import (
 func TestMenuSeedDAOInsertDefaultMenusWhenTableIsEmpty(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectQuery("SELECT \"id\" FROM \"menus\"").
-		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	expectMenuSeedInventory(mock, sqlmock.NewRows([]string{"id", "name", "path"}))
+	expectMenuSequenceAdvance(mock)
 	mock.ExpectQuery("INSERT INTO \"menus\"").
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectQuery("INSERT INTO \"menus\"").
@@ -51,8 +51,7 @@ func TestMenuSeedDAOBootstrapDefaultMenusContextHonorsCanceledContext(t *testing
 func TestMenuSeedDAOSkipsWhenMenusExist(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectQuery("SELECT \"id\" FROM \"menus\"").
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	expectMenuSeedInventory(mock, sqlmock.NewRows([]string{"id", "name", "path"}).AddRow(1, "dashboard", "/dashboard"))
 	mock.ExpectCommit()
 
 	count, err := NewMenuSeedDAO(db).BootstrapDefaultMenusContext(context.Background(), []model.Menu{
@@ -69,8 +68,8 @@ func TestMenuSeedDAOSkipsWhenMenusExist(t *testing.T) {
 func TestMenuSeedDAOBackfillsMissingMenus(t *testing.T) {
 	db, mock := setupSystemDAOTestDB(t)
 	mock.ExpectBegin()
-	mock.ExpectQuery("SELECT \"id\" FROM \"menus\"").
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	expectMenuSeedInventory(mock, sqlmock.NewRows([]string{"id", "name", "path"}).AddRow(1, "dashboard", "/dashboard"))
+	expectMenuSequenceAdvance(mock)
 	mock.ExpectQuery("INSERT INTO \"menus\"").
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(2))
 	mock.ExpectCommit()
@@ -91,8 +90,8 @@ func TestMenuSeedDAOUsesInjectedDB(t *testing.T) {
 	db, mock := newInjectedDictNoticeSeedDAOTestDB(t)
 
 	mock.ExpectBegin()
-	mock.ExpectQuery("SELECT \"id\" FROM \"menus\"").
-		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	expectMenuSeedInventory(mock, sqlmock.NewRows([]string{"id", "name", "path"}))
+	expectMenuSequenceAdvance(mock)
 	mock.ExpectQuery("INSERT INTO \"menus\"").
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectCommit()

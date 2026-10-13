@@ -108,9 +108,9 @@ func (d *DictDAO) GetItemsByTypeCodeContext(ctx context.Context, code string, st
 	return d.GetItemsByTypeIDContext(ctx, dictType.ID, status)
 }
 
-// GetItemsByTypeIDsContext loads active items for many dict types in one
-// query, grouped by type id. Replaces the per-type loop that made /dicts/all
-// and /dicts?codes=… cost one query per code.
+// GetItemsByTypeIDsContext 用一次查询加载多个字典类型的启用条目，并按类型 ID
+// 分组。取代了原先按类型循环、导致 /dicts/all 与 /dicts?codes=… 每个 code 都要
+// 一次查询的做法。
 func (d *DictDAO) GetItemsByTypeIDsContext(ctx context.Context, typeIDs []uint, status *int8) (map[uint][]localmodel.DictItem, error) {
 	grouped := make(map[uint][]localmodel.DictItem, len(typeIDs))
 	if len(typeIDs) == 0 {
@@ -122,8 +122,7 @@ func (d *DictDAO) GetItemsByTypeIDsContext(ctx context.Context, typeIDs []uint, 
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
-	// Ordered by type first so each group comes out in the same
-	// (sort, created_at) order the single-type query produces.
+	// 先按类型排序，使每个分组保持与单类型查询一致的 (sort, created_at) 顺序。
 	if err := query.Order("dict_type_id ASC, sort ASC, created_at ASC").Find(&items).Error; err != nil {
 		return nil, err
 	}
@@ -134,7 +133,7 @@ func (d *DictDAO) GetItemsByTypeIDsContext(ctx context.Context, typeIDs []uint, 
 	return grouped, nil
 }
 
-// GetTypesByCodesContext loads dict types for many codes in one query.
+// GetTypesByCodesContext 用一次查询加载多个 code 对应的字典类型。
 func (d *DictDAO) GetTypesByCodesContext(ctx context.Context, codes []string, status *int8) ([]localmodel.DictType, error) {
 	if len(codes) == 0 {
 		return nil, nil
@@ -148,10 +147,9 @@ func (d *DictDAO) GetTypesByCodesContext(ctx context.Context, codes []string, st
 	return types, err
 }
 
-// GetTypesWithItemsByCodesContext resolves code→active items for many codes in
-// exactly two queries (types by code, then all their items), regardless of how
-// many codes are asked for. Codes with no matching type are absent from the
-// result; the caller distinguishes "unknown code" from "known code, no items".
+// GetTypesWithItemsByCodesContext 用恰好两次查询（先按 code 查类型，再查其全部
+// 条目）解析多个 code 对应的启用条目，与请求的 code 数量无关。没有匹配类型的 code
+// 不会出现在结果中；调用方借此区分"未知 code"与"已知 code 但无条目"。
 func (d *DictDAO) GetTypesWithItemsByCodesContext(ctx context.Context, codes []string) (map[string][]localmodel.DictItem, error) {
 	status := int8(1)
 	types, err := d.GetTypesByCodesContext(ctx, codes, &status)
@@ -234,9 +232,8 @@ func (d *DictDAO) GetTypeWithItemsContext(ctx context.Context, code string) (*lo
 	return dictType, nil
 }
 
-// GetAllTypesWithItemsContext returns every active type with its active items
-// in two queries (all types, then all their items) instead of the 1+N loop it
-// replaces.
+// GetAllTypesWithItemsContext 用两次查询（先查全部类型，再查其全部条目）返回
+// 所有启用类型及其启用条目，取代原先的 1+N 循环。
 func (d *DictDAO) GetAllTypesWithItemsContext(ctx context.Context) ([]localmodel.DictType, error) {
 	status := int8(1)
 	types, err := d.GetAllTypesContext(ctx, &status)

@@ -1,0 +1,8 @@
+<include>
+  <extension name="cc_valet_lot">
+    <condition field="destination_number" expression="^(61[0-9]{2})$">
+      <action application="answer"/>
+      <action application="valet_park" data="cclot $1"/>
+    </condition>
+  </extension>
+</include>

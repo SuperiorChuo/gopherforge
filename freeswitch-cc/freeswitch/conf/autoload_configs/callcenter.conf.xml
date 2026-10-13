@@ -1,0 +1,9 @@
+<configuration name="callcenter.conf" description="CallCenter">
+  <settings>
+    <!-- 队列/坐席/tier 状态持久化到本地 sqlite（容器内 /var/lib/freeswitch）；
+         配置本体由 control-api 物化到 cc_queues 卷，这里 include 进来 -->
+  </settings>
+  <!-- control-api 物化的队列配置（fscc_ccqueues 卷）。
+       include 路径相对本文件所在目录（autoload_configs/）解析，必须 ../ -->
+  <X-PRE-PROCESS cmd="include" data="../cc_queues/*.xml"/>
+</configuration>

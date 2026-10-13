@@ -40,8 +40,8 @@ export const deleteFile = (id: number) =>
 export interface FileStats {
   total: number
   total_size: number
-  storage_quota_mb?: number | null
   by_type?: Record<string, { count: number; size: number }>
+  storage_quota_mb?: number
 }
 
 export const getFileStats = () =>

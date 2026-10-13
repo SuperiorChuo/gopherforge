@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
-import { flushSync } from 'react-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Provider } from 'react-redux'
 import { BrowserRouter, useRoutes } from 'react-router-dom'
 import { ConfigProvider, App as AntApp, theme as antdTheme, type ThemeConfig } from 'antd'
@@ -195,9 +194,14 @@ const lightTheme: ThemeConfig = {
   },
 }
 
-// View Transitions API(Chromium 111+ / Safari 18+),不支持时直接切换
-type ViewTransitionDocument = Document & {
-  startViewTransition?: (update: () => void) => { ready: Promise<void> }
+type ThemeViewTransition = {
+  ready: Promise<void>
+  finished: Promise<void>
+  skipTransition: () => void
+}
+
+type ThemeViewTransitionDocument = Document & {
+  startViewTransition?: (update: () => void) => ThemeViewTransition
 }
 
 // 指针高光:把鼠标在卡片内的坐标写进 --lgx/--lgy,
@@ -292,38 +296,74 @@ export default function App() {
 
   useGlassPointerLight()
 
+  const activeThemeTransition = useRef<ThemeViewTransition | null>(null)
+  const targetThemeMode = useRef(mode)
+
   const toggle = useCallback((point?: { x: number; y: number }) => {
-    const next: ThemeMode =
-      document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'
+    const next: ThemeMode = targetThemeMode.current === 'light' ? 'dark' : 'light'
+    targetThemeMode.current = next
+
+    const root = document.documentElement
     const apply = () => {
       setMode(next)
-      // 快照在 useEffect 之前捕获,这里同步写属性让 CSS 主题立刻生效(effect 幂等重放)
-      document.documentElement.dataset.theme = next
+      root.dataset.theme = next
     }
-    const doc = document as ViewTransitionDocument
+    const cleanup = () => {
+      root.style.removeProperty('--theme-reveal-x')
+      root.style.removeProperty('--theme-reveal-y')
+      root.style.removeProperty('--theme-reveal-max-radius')
+      root.style.removeProperty('view-transition-name')
+    }
+    const doc = document as ThemeViewTransitionDocument
+    const active = activeThemeTransition.current
+
+    if (active) {
+      activeThemeTransition.current = null
+      active.skipTransition()
+      cleanup()
+      apply()
+      return
+    }
+
     if (!doc.startViewTransition || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       apply()
       return
     }
-    // 新主题从切换按钮处以圆形"液面"漫开
+
     const x = point?.x ?? window.innerWidth / 2
     const y = point?.y ?? 60
-    const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y))
-    doc
-      .startViewTransition(() => flushSync(apply))
-      .ready.then(() => {
-        document.documentElement.animate(
-          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
-          {
-            duration: 620,
-            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-            pseudoElement: '::view-transition-new(root)',
-          },
-        )
+    const radius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y),
+    )
+    root.style.setProperty('--theme-reveal-x', `${x}px`)
+    root.style.setProperty('--theme-reveal-y', `${y}px`)
+    root.style.setProperty('--theme-reveal-max-radius', `${radius}px`)
+    root.style.viewTransitionName = 'theme-old'
+
+    let transition: ThemeViewTransition
+    try {
+      transition = doc.startViewTransition(() => {
+        root.style.viewTransitionName = 'none'
+        apply()
       })
-      .catch(() => {
-        // 快速连点导致过渡被跳过时静默,主题本身已切换
-      })
+    } catch {
+      cleanup()
+      apply()
+      return
+    }
+
+    activeThemeTransition.current = transition
+    void transition.finished.then(
+      () => {
+        if (activeThemeTransition.current === transition) activeThemeTransition.current = null
+        cleanup()
+      },
+      () => {
+        if (activeThemeTransition.current === transition) activeThemeTransition.current = null
+        cleanup()
+      },
+    )
   }, [])
 
   return (
@@ -335,26 +375,26 @@ export default function App() {
             theme={mode === 'dark' ? darkTheme : lightTheme}
             renderEmpty={() => <GlassEmpty />}
           >
-          <AntApp>
-            <OfflineBanner />
-            <FeedbackBridge />
-            <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-              <ErrorBoundary>
-                <AppRoutes />
-              </ErrorBoundary>
-            </BrowserRouter>
-            {import.meta.env.VITE_DEMO === '1' && (
-              <div
-                style={{
-                  position: 'fixed', bottom: 16, left: 16, zIndex: 9999, pointerEvents: 'none',
-                  padding: '6px 14px', borderRadius: 999, fontSize: 12, color: '#fff',
-                  background: 'rgba(37,99,235,.88)', boxShadow: '0 4px 16px rgba(37,99,235,.35)',
-                }}
-              >
-                演示模式 · 纯前端假数据 · 任意账号可登录
-              </div>
-            )}
-          </AntApp>
+            <AntApp>
+              <OfflineBanner />
+              <FeedbackBridge />
+              <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+                <ErrorBoundary>
+                  <AppRoutes />
+                </ErrorBoundary>
+              </BrowserRouter>
+              {import.meta.env.VITE_DEMO === '1' && (
+                <div
+                  style={{
+                    position: 'fixed', bottom: 16, left: 16, zIndex: 9999, pointerEvents: 'none',
+                    padding: '6px 14px', borderRadius: 999, fontSize: 12, color: '#fff',
+                    background: 'rgba(37,99,235,.88)', boxShadow: '0 4px 16px rgba(37,99,235,.35)',
+                  }}
+                >
+                  演示模式 · 纯前端假数据 · 任意账号可登录
+                </div>
+              )}
+            </AntApp>
           </ConfigProvider>
         </LocaleContext.Provider>
       </ThemeContext.Provider>

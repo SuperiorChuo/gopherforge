@@ -11,10 +11,10 @@
   "overrides": [
     {
       "files": [
-        "src/layouts/MainLayout.tsx",
-        "src/pages/bpm/designer/index.tsx",
-        "src/pages/system/codegen/PlanPreview.tsx",
-        "src/pages/system/oauth2/index.tsx"
+        "src/pages/system/ai-quotas/index.tsx",
+        "src/pages/system/ai-usage/index.tsx",
+        "src/pages/ticket/index.tsx",
+        "src/pages/cc/calls/index.tsx"
       ],
       "rules": {
         "react-hooks/exhaustive-deps": "off"

@@ -1,0 +1,200 @@
+.mp-menu-account-filter {
+  width: 100%;
+  min-height: 32px;
+  align-items: center;
+}
+
+.mp-menu-account-filter .ant-select {
+  width: min(320px, 100%);
+}
+
+.mp-menu-loading {
+  display: grid;
+  min-height: 320px;
+  place-items: center;
+}
+
+.mp-menu-no-account {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding-bottom: 24px;
+}
+
+.mp-menu-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+.mp-menu-editor {
+  min-width: 0;
+}
+
+.mp-menu-group {
+  padding: 16px;
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: 8px;
+  background: var(--ant-color-bg-container);
+}
+
+.mp-menu-group + .mp-menu-group {
+  margin-top: 12px;
+}
+
+.mp-menu-group-header,
+.mp-menu-child-header,
+.mp-menu-preview-head {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mp-menu-group .ant-form-item {
+  margin-bottom: 12px;
+}
+
+.mp-menu-action-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.mp-menu-action-fields > .ant-select {
+  width: 100%;
+}
+
+.mp-menu-action-fields .ant-form-item {
+  margin-bottom: 0;
+}
+
+.mp-menu-miniprogram-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mp-menu-field-wide {
+  grid-column: 1 / -1;
+}
+
+.mp-menu-children {
+  display: grid;
+  gap: 10px;
+}
+
+.mp-menu-child {
+  padding: 12px;
+  border-left: 3px solid var(--ant-color-primary-border);
+  background: var(--ant-color-fill-quaternary);
+}
+
+.mp-menu-add-child {
+  margin-top: 12px;
+}
+
+.mp-menu-add-root {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+}
+
+.mp-menu-preview {
+  position: sticky;
+  top: 12px;
+  display: grid;
+  min-height: 500px;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: 8px;
+  background: var(--ant-color-bg-layout);
+}
+
+.mp-menu-preview-head {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-bg-container);
+}
+
+.mp-menu-preview-body {
+  display: grid;
+  color: var(--ant-color-text-quaternary);
+  font-size: 44px;
+  place-items: center;
+}
+
+.mp-menu-preview-nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-height: 52px;
+  border-top: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-bg-container);
+}
+
+.mp-menu-preview-nav > .ant-typography {
+  grid-column: 1 / -1;
+  margin: auto;
+}
+
+.mp-menu-preview-item {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  padding: 0 6px;
+  border-right: 1px solid var(--ant-color-border-secondary);
+  text-align: center;
+  place-items: center;
+}
+
+.mp-menu-preview-item:last-child {
+  border-right: 0;
+}
+
+.mp-menu-preview-item span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mp-menu-preview-item small {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--ant-color-success-bg);
+  color: var(--ant-color-success-text);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+@media (max-width: 900px) {
+  .mp-menu-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mp-menu-preview {
+    position: static;
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 600px) {
+  .mp-menu-group {
+    padding: 12px;
+  }
+
+  .mp-menu-miniprogram-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mp-menu-field-wide {
+    grid-column: auto;
+  }
+
+}

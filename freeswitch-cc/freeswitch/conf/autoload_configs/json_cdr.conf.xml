@@ -1,0 +1,17 @@
+<configuration name="json_cdr.conf" description="JSON CDR delivery">
+  <!-- 挂机后把完整话单 JSON POST 到 cc-service（/api/v1/cc/cdr，Basic 认证）。
+       URL/凭据来自容器环境变量（exec-set 经 shell 读 env）。 -->
+  <X-PRE-PROCESS cmd="exec-set" data="cc_cdr_url=echo -n $CC_CDR_URL"/>
+  <X-PRE-PROCESS cmd="exec-set" data="cc_cdr_cred=echo -n $CC_CDR_CRED"/>
+  <settings>
+    <param name="url" value="$${cc_cdr_url}"/>
+    <param name="cred" value="$${cc_cdr_cred}"/>
+    <param name="encode" value="false"/>
+    <param name="retries" value="3"/>
+    <param name="delay" value="10"/>
+    <param name="log-b-leg" value="false"/>
+    <!-- 失败不落盘：mod_cdr_csv 已在磁盘兜底写话单（cdr-csv 卷），避免双写 -->
+    <param name="log-http-and-disk" value="false"/>
+    <param name="err-log-dir" value="/var/lib/freeswitch/json_cdr_err"/>
+  </settings>
+</configuration>

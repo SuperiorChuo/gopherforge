@@ -13,7 +13,10 @@
 
 ```bash
 # 在 microservices/ 下
-docker compose up -d go-admin-kit-postgres go-admin-kit-redis
+# 共享网络（一次性）
+docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
+  docker network create --subnet 172.28.0.0/16 go-admin-kit-net
+docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d go-admin-kit-postgres go-admin-kit-redis
 cd services/monitor && go run ./cmd/main.go
 ```
 

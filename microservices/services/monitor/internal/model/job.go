@@ -41,7 +41,7 @@ func (ScheduledJobLog) TableName() string {
 // loops across services and host shell crons report one row per run (via
 // shared/pkg/jobbeat or psql upsert), covering the silent-failure blind spot
 // that scheduled_jobs (monitor's in-process cron) cannot see.
-// The table is created by migration 000026; monitor only reads and aggregates.
+// The table is created by migration 000027; monitor only reads and aggregates.
 type OpsJobHeartbeat struct {
 	ID             uint64    `gorm:"primaryKey" json:"id"`
 	JobKey         string    `gorm:"size:100;uniqueIndex" json:"job_key"`

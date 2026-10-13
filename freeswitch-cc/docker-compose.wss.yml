@@ -1,0 +1,14 @@
+services:
+  freeswitch:
+    volumes:
+      - type: bind
+        source: ${FS_WSS_PEM:?set FS_WSS_PEM to a trusted combined PEM outside the repository}
+        target: /etc/freeswitch/tls/wss.pem
+        read_only: true
+
+  freeswitch-host:
+    volumes:
+      - type: bind
+        source: ${FS_WSS_PEM:?set FS_WSS_PEM to a trusted combined PEM outside the repository}
+        target: /etc/freeswitch/tls/wss.pem
+        read_only: true

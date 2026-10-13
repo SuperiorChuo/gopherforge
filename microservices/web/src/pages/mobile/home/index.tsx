@@ -5,8 +5,7 @@ import { ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { listTodoTasks } from '@/api/bpm'
 import { getAlertSummary, getServicesHealth, getTaskRunSummary } from '@/api/monitor'
-// 下游无 notify 服务面：未读站内信卡与 inbox 入口不在脚手架形态内。
-
+import { getNotifyUnreadCount } from '@/api/notify'
 import { getLastLogin } from '@/api/system/log'
 import { getOnlineUserCount } from '@/api/system/online-user'
 import { useAppSelector } from '@/hooks/store'
@@ -24,6 +23,7 @@ type MetricState =
 type HomeState = {
   health: MetricState
   online: MetricState
+  inbox: MetricState
   todos: MetricState
   alerts: MetricState
   tasks: MetricState
@@ -87,6 +87,7 @@ export default function MobileHomePage() {
   const [state, setState] = useState<HomeState>({
     health: hidden,
     online: hidden,
+    inbox: loading,
     todos: loading,
     alerts: hidden,
     tasks: hidden,
@@ -101,6 +102,7 @@ export default function MobileHomePage() {
     setState({
       health: canHealth ? loading : hidden,
       online: canOnline ? loading : hidden,
+      inbox: loading,
       todos: loading,
       alerts: canAlerts ? loading : hidden,
       tasks: canTasks ? loading : hidden,
@@ -135,6 +137,21 @@ export default function MobileHomePage() {
         )
         .catch(() => setState((s) => ({ ...s, online: { kind: 'error' } })))
     }
+
+    getNotifyUnreadCount()
+      .then((res) => {
+        const count = Number(res?.count ?? 0)
+        setState((s) => ({
+          ...s,
+          inbox: {
+            kind: 'ready',
+            value: String(count),
+            hint: count ? '有未读站内信' : '没有未读',
+            tone: count ? 'warn' : undefined,
+          },
+        }))
+      })
+      .catch(() => setState((s) => ({ ...s, inbox: { kind: 'error' } })))
 
     listTodoTasks({ page: 1, page_size: 1 }, true)
       .then((res) => {
@@ -217,6 +234,7 @@ export default function MobileHomePage() {
       <section className="m-grid" aria-live="polite">
         <MetricCard label="服务健康" state={state.health} onClick={() => navigate('/m/ops/health')} />
         <MetricCard label="在线用户" state={state.online} onClick={() => navigate('/m/ops/online')} />
+        <MetricCard label="未读站内信" state={state.inbox} onClick={() => navigate('/m/inbox')} />
         <MetricCard label="待办审批" state={state.todos} onClick={() => navigate('/m/tasks')} />
         <MetricCard label="告警" state={state.alerts} onClick={() => navigate('/m/ops/alerts')} />
         <MetricCard label="失败任务" state={state.tasks} onClick={() => navigate('/m/ops/jobs')} />

@@ -1,0 +1,15 @@
+# 边缘证书密钥轮换的可选 Swarm overlay。
+# 仅在 EDGE_CERT_PREVIOUS_KEY_ID 非空时由 scripts/swarm-redeploy.sh 合并；
+# 上一把密钥必须是外部 Docker secret，不能写入 .env 或本文件。
+services:
+  system-service:
+    environment:
+      EDGE_CERT_PREVIOUS_KEY_ID: ${EDGE_CERT_PREVIOUS_KEY_ID:?EDGE_CERT_PREVIOUS_KEY_ID is required}
+    secrets:
+      - source: edge_cert_previous_encryption_key
+        target: edge_cert_previous_encryption_key
+
+secrets:
+  edge_cert_previous_encryption_key:
+    external: true
+    name: ${EDGE_CERT_PREVIOUS_ENCRYPTION_SECRET_NAME:?EDGE_CERT_PREVIOUS_ENCRYPTION_SECRET_NAME is required}

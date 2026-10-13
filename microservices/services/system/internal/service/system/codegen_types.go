@@ -1,6 +1,6 @@
 package system
 
-// TableInfo is one candidate table shown by the generator.
+// TableInfo 是生成器展示的一个候选表。
 type TableInfo struct {
 	Name          string `json:"name"`
 	Comment       string `json:"comment"`
@@ -9,7 +9,7 @@ type TableInfo struct {
 	RelationCount int    `json:"relation_count"`
 }
 
-// ColumnInfo describes one column with mapped Go / TS types.
+// ColumnInfo 描述带映射后的 Go / TS 类型的一列。
 type ColumnInfo struct {
 	Name         string `json:"name"`
 	DBType       string `json:"db_type"`
@@ -35,7 +35,7 @@ const (
 	ComponentSelect   FormComponent = "select"
 )
 
-// FieldConfig is the per-field generation choice from the UI.
+// FieldConfig 是来自 UI 的逐字段生成选项。
 type FieldConfig struct {
 	Name      string        `json:"name"`
 	Label     string        `json:"label"`

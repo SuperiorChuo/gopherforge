@@ -65,8 +65,8 @@ func TestUserDAOUsesInjectedDB(t *testing.T) {
 	}
 }
 
-// newDAOTestDB returns a sqlmock-backed *gorm.DB for constructor injection.
-// It never touches the global database.DB.
+// newDAOTestDB 返回基于 sqlmock 的 *gorm.DB，用于构造函数注入。
+// 它从不触碰全局 database.DB。
 func newDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	t.Helper()
 

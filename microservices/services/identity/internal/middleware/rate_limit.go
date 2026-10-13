@@ -8,10 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/identity/internal/pkg/runtimeconfig"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
+	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
 	"github.com/go-admin-kit/services/shared/pkg/response"
-
-	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	goredis "github.com/redis/go-redis/v9"
 )
 

@@ -1,0 +1,21 @@
+<!-- *98 语音信箱管理（mod_voicemail）
+     动态 include 在 context 顶部先到先得；35_vm 前缀排在 01/25_valet/30_ccq/40_conf
+     之间，不与既有前缀冲突。
+     *98        → 通用信箱登录：进去后按语音提示输分机号 + 信箱密码听留言/改问候语
+     *98<分机>  → 直入指定分机信箱做 check（仍需信箱密码），省一步输号 -->
+<include>
+  <extension name="vm_main">
+    <condition field="destination_number" expression="^\*98$">
+      <action application="answer"/>
+      <action application="sleep" data="500"/>
+      <action application="voicemail" data="check default $${domain}"/>
+    </condition>
+  </extension>
+  <extension name="vm_main_ext">
+    <condition field="destination_number" expression="^\*98(\d{2,6})$">
+      <action application="answer"/>
+      <action application="sleep" data="500"/>
+      <action application="voicemail" data="check default $${domain} $1"/>
+    </condition>
+  </extension>
+</include>

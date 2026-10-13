@@ -2,7 +2,7 @@ package localmodel
 
 import "time"
 
-// Notice stores announcements and notifications (tenant-scoped).
+// Notice 存储公告与通知（租户级）。
 type Notice struct {
 	ID        uint       `gorm:"primaryKey" json:"id"`
 	TenantID  uint       `gorm:"not null;default:1;index" json:"tenant_id"`

@@ -1,6 +1,6 @@
 ---
 aside: false
-description: Overview of GopherForge's 7 Go services, Traefik ForwardAuth, data layer, frontend and observability paths.
+description: Overview of GopherForge's 16 API services, AI worker, gateway and complete business product.
 ---
 
 <script setup lang="ts">
@@ -11,9 +11,11 @@ const architectureDemoUrl = withBase('/architecture/gopherforge-system-architect
 
 # Architecture
 
-GopherForge is a **real microservices architecture**: 7 Go services split by domain plus a shared library, an SPA frontend, a Traefik gateway as the single entry with unified auth, all orchestrated by Docker Compose.
+GopherForge has 16 domain API services, an AI worker, shared packages, a React SPA and a Traefik gateway. The Hermes client and FreeSWITCH media stack run separately; external providers require user configuration.
 
-## Interactive system architecture
+## Interactive platform subset
+
+This retained diagram shows the seven foundation services, not the added business domains. The table below defines the complete service scope.
 
 <div class="architecture-demo">
   <iframe
@@ -40,7 +42,16 @@ GopherForge is a **real microservices architecture**: 7 Go services split by dom
 | **file** | Upload/download with local / MinIO / any S3-compatible storage |
 | **monitor** | Server/PostgreSQL/Redis monitoring, cron jobs, health checks, Prometheus metrics; owns shared goose migrations and the gateway fallback route |
 | **bpm** | Lightweight approval workflow engine — see [Workflow](/en/modules/bpm) |
-| **shared** | Cross-service Go module: logging, response envelope, masking, error codes, Excel, IP geolocation |
+| **ai** | AI chat, knowledge, agents, seats and a separate worker |
+| **crm** | Customers, leads, assignment and follow-up |
+| **im** | Messaging, conversations, visitors and dictionaries |
+| **pay** | Payment configuration, orders and callbacks |
+| **mp** | Official-account content and messages |
+| **notify** | Channels, templates and delivery |
+| **ticket** | Tickets, events and participants |
+| **cc** | Agents, calls, billing, reporting and speech configuration |
+| **visibility** | Business visualization and dashboards |
+| **shared** | Shared packages within the same Go module, not a service |
 
 ## Request path
 

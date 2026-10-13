@@ -1,16 +1,14 @@
 package system
 
-// Drift guard between the menu seed and the frontend route guard.
+// 菜单种子与前端路由守卫之间的漂移守卫。
 //
-// The console guard cannot derive "who to block" from /user/menus: that endpoint
-// returns an already permission-filtered tree, so an absent menu is
-// indistinguishable from an unauthorized one. The frontend therefore keeps a
-// hand-written ROUTE_PERMISSIONS table, and this test keeps it honest — every
-// seeded leaf that carries a permission code must be guarded or explicitly
-// exempted with a reason.
+// 控制台守卫无法从 /user/menus 推导"应阻止谁"：该端点返回的已是按权限
+// 过滤后的树，因此某个菜单缺失与未授权是无法区分的。前端因此维护了一份
+// 手写的 ROUTE_PERMISSIONS 表，本测试确保它与种子保持一致——每个带有
+// 权限码的种子叶子都必须被守卫，或带理由显式豁免。
 //
-// Skips when the web sources are absent (per-service Docker build contexts do
-// not include them), so it only runs in the monorepo workspace.
+// 当 web 源码缺失时跳过（按服务构建的 Docker 上下文不包含它们），
+// 因此只在 monorepo 工作区中运行。
 
 import (
 	"os"
@@ -22,7 +20,7 @@ import (
 
 const webRoutePermissionsPath = "../../../../../web/src/router/route-permissions.ts"
 
-// parseTSStringMap pulls 'key': 'value' pairs out of one exported TS const.
+// parseTSStringMap 从某个导出的 TS const 中提取 'key': 'value' 对。
 func parseTSStringMap(t *testing.T, source, constName string) map[string]string {
 	t.Helper()
 
@@ -60,7 +58,7 @@ func TestRoutePermissionsCoverSeededMenuPermissions(t *testing.T) {
 	}
 
 	for _, menu := range defaultMenuSeed {
-		// Containers (Component == "Layout") are not routable pages.
+		// 容器（Component == "Layout"）不是可路由的页面。
 		if menu.Permission == "" || menu.Component == "" || menu.Component == "Layout" {
 			continue
 		}

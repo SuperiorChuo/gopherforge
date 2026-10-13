@@ -1,13 +1,11 @@
-import { getToken } from '@/utils/request'
+import { getActTenantId, getToken } from '@/utils/request'
 
-/**
- * SSE POST 工具：axios 拦截器不支持流式响应，这里用 fetch + ReadableStream
- * 手写 text/event-stream 解析。Authorization 与 axios 实例同源
- * （@/utils/request 的 getToken，localStorage 'access_token'）。
- *
- * 事件按 SSE 规范以空行分隔，聚合多行 data: 后逐条回调 onEvent。
- * 传入 AbortSignal 可随时停止生成（fetch abort 会让后端感知断开）。
- */
+export interface SseFrame<E> {
+  id?: string
+  event: string
+  data: E
+}
+
 export interface SsePostOptions<E> {
   url: string
   body: unknown
@@ -15,55 +13,61 @@ export interface SsePostOptions<E> {
   onEvent: (event: E) => void
 }
 
-export async function ssePost<E>({ url, body, signal, onEvent }: SsePostOptions<E>): Promise<void> {
-  const token = getToken()
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'text/event-stream',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-    signal,
-  })
+export interface SseGetOptions<E> {
+  url: string
+  signal?: AbortSignal
+  lastEventId?: string | number
+  onEvent: (frame: SseFrame<E>) => void
+}
 
-  if (!response.ok) {
-    // 非流式失败（401/500 等）通常是标准 JSON envelope，尽力取出 message
-    let msg = `请求失败 (${response.status})`
-    try {
-      const data = await response.json()
-      if (data && typeof data.message === 'string' && data.message) msg = data.message
-    } catch {
-      // 忽略非 JSON 响应体
-    }
-    throw new Error(msg)
+function authHeaders(): Record<string, string> {
+  if (import.meta.env.VITE_DEMO === '1') {
+    throw new Error('Streaming is unavailable in the static Demo; deploy the backend to use this feature.')
   }
-  if (!response.body) {
-    throw new Error('当前环境不支持流式响应')
+  const token = getToken()
+  const actTenant = getActTenantId()
+  return {
+    Accept: 'text/event-stream',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(actTenant ? { 'X-Act-Tenant-ID': actTenant } : {}),
   }
+}
+
+async function responseError(response: Response): Promise<Error> {
+  let text = `请求失败 (${response.status})`
+  try {
+    const data = await response.json() as { message?: unknown }
+    if (typeof data.message === 'string' && data.message) text = data.message
+  } catch {
+    // 非 JSON 错误体保留稳定状态码，不把 HTML 等正文带到界面。
+  }
+  return new Error(text)
+}
+
+async function consumeSSE<E>(response: Response, onEvent: (frame: SseFrame<E>) => void): Promise<void> {
+  if (!response.ok) throw await responseError(response)
+  if (!response.body) throw new Error('当前环境不支持流式响应')
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
 
-  // 一个 SSE 事件块（以空行结尾）→ 聚合其中的 data: 行并解析 JSON
   const dispatch = (rawBlock: string) => {
     const dataLines: string[] = []
+    let id: string | undefined
+    let event = 'message'
     for (const line of rawBlock.split('\n')) {
-      if (line.startsWith('data:')) {
-        // 规范允许 "data: xxx" 或 "data:xxx"，去掉一个前导空格
-        dataLines.push(line.slice(5).replace(/^ /, ''))
-      }
-      // 忽略 event:/id:/retry:/注释行——契约只用 data 承载 JSON
+      if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''))
+      else if (line.startsWith('id:')) id = line.slice(3).replace(/^ /, '')
+      else if (line.startsWith('event:')) event = line.slice(6).replace(/^ /, '') || 'message'
     }
     if (dataLines.length === 0) return
     const payload = dataLines.join('\n')
     if (!payload || payload === '[DONE]') return
     try {
-      onEvent(JSON.parse(payload) as E)
+      onEvent({ id, event, data: JSON.parse(payload) as E })
     } catch {
-      // 单条脏数据不中断整个流
+      // 单条脏数据不应截断后续已持久化事件；调用方仍可用游标重连。
     }
   }
 
@@ -72,18 +76,40 @@ export async function ssePost<E>({ url, body, signal, onEvent }: SsePostOptions<
       const { done, value } = await reader.read()
       if (done) break
       buffer += decoder.decode(value, { stream: true })
-      // 事件之间以空行分隔（兼容 \r\n）
-      let sep: number
-      while ((sep = buffer.search(/\r?\n\r?\n/)) !== -1) {
-        const block = buffer.slice(0, sep)
-        buffer = buffer.slice(sep).replace(/^\r?\n\r?\n/, '')
+      let separator: number
+      while ((separator = buffer.search(/\r?\n\r?\n/)) !== -1) {
+        const block = buffer.slice(0, separator)
+        buffer = buffer.slice(separator).replace(/^\r?\n\r?\n/, '')
         dispatch(block.replace(/\r/g, ''))
       }
     }
-    // 流结束时冲掉残余（无结尾空行的最后一个事件）
     buffer += decoder.decode()
     if (buffer.trim()) dispatch(buffer.replace(/\r/g, ''))
   } finally {
     reader.releaseLock()
   }
+}
+
+/** POST SSE（用于模型流式生成）。 */
+export async function ssePost<E>({ url, body, signal, onEvent }: SsePostOptions<E>): Promise<void> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  })
+  return consumeSSE(response, (frame: SseFrame<E>) => onEvent(frame.data))
+}
+
+/** GET SSE（用于 Agent Run 等可按 Last-Event-ID 续传的事件账本）。 */
+export async function sseGet<E>({ url, signal, lastEventId, onEvent }: SseGetOptions<E>): Promise<void> {
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...authHeaders(),
+      ...(lastEventId !== undefined ? { 'Last-Event-ID': String(lastEventId) } : {}),
+    },
+    signal,
+  })
+  return consumeSSE(response, onEvent)
 }

@@ -1,6 +1,6 @@
 # Frontend Overview
 
-GopherForge's frontend is a **single-page application** that talks to the 7 Go microservices through the Traefik gateway. This group of docs covers the frontend only: stack, directory layout, request layer, routing & permissions, page conventions, state & theme, and demo mode. Backend modules live under [Modules](/en/modules/auth).
+GopherForge's frontend is a **single-page application** that talks to the 16 Go API services through the Traefik gateway. This group of docs covers the frontend only: stack, directory layout, request layer, routing & permissions, page conventions, state & theme, and demo mode. Backend modules live under [Modules](/en/modules/auth).
 
 ## Tech Stack
 

@@ -26,7 +26,7 @@ export const getCurrentUser = () =>
   request.get<unknown, UserInfo>('/api/v1/user/me')
 
 export const getUserMenus = () =>
-  request.get<unknown, MenuItem[]>('/api/v1/user/menus')
+  request.get<unknown, MenuItem[]>('/api/v1/user/menus', { silent: true })
 
 export const changePassword = (data: ChangePasswordRequest) =>
   request.put('/api/v1/user/password', data)

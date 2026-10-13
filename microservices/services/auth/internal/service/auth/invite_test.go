@@ -16,4 +16,4 @@ func TestConsumeInviteRejectsEmptyToken(t *testing.T) {
 
 // consumeInvite 对无效 token 也返回 ErrInviteInvalid（记录不存在路径）。
 // nil db 下 GetByTokenHash 会 panic，此处仅验证空 token 短路逻辑；
-// 完整消费链路（有效/已用/过期/撤销）由 109 E2E 覆盖。
+// 完整消费链路（有效/已用/过期/撤销）还需要隔离环境中的 E2E 验证。

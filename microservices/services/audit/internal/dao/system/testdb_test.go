@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	localmodel "github.com/go-admin-kit/services/audit/internal/model"
+	"github.com/go-admin-kit/services/audit/internal/model"
 	"github.com/go-admin-kit/services/shared/pkg/authz"
 	sharedmodel "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/driver/postgres"
@@ -29,8 +29,8 @@ func setupSystemDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 		t.Fatalf("register data scope plugin: %v", err)
 	}
 	authz.RegisterScopedModel(reflect.TypeOf(sharedmodel.File{}), authz.ScopeByOwner)
-	authz.RegisterScopedModel(reflect.TypeOf(localmodel.LoginLog{}), authz.ScopeByOwner)
-	authz.RegisterScopedModel(reflect.TypeOf(localmodel.OperationLog{}), authz.ScopeByOwner)
+	authz.RegisterScopedModel(reflect.TypeOf(model.LoginLog{}), authz.ScopeByOwner)
+	authz.RegisterScopedModel(reflect.TypeOf(model.OperationLog{}), authz.ScopeByOwner)
 
 	t.Cleanup(func() {
 		if err := mock.ExpectationsWereMet(); err != nil {

@@ -328,11 +328,11 @@ func setAuthMiddlewareJWTConfig(t *testing.T) {
 
 	oldConfig := jwtpkg.JWTConfig{Secret: config.Cfg.JWT.Secret, Issuer: config.Cfg.JWT.Issuer, AccessTokenExpire: config.Cfg.JWT.AccessTokenExpire, RefreshTokenExpire: config.Cfg.JWT.RefreshTokenExpire, RefreshTokenRotation: config.Cfg.JWT.RefreshTokenRotation}
 	jwtpkg.SetConfig(jwtpkg.JWTConfig{
-		Secret:                "unit-test-secret-at-least-32-characters",
-		AccessTokenExpire:     3600,
-		RefreshTokenExpire:    7200,
-		RefreshTokenRotation:  true,
-		Issuer:                "unit-test",
+		Secret:               "unit-test-secret-at-least-32-characters",
+		AccessTokenExpire:    3600,
+		RefreshTokenExpire:   7200,
+		RefreshTokenRotation: true,
+		Issuer:               "unit-test",
 	})
 	t.Cleanup(func() {
 		jwtpkg.SetConfig(oldConfig)

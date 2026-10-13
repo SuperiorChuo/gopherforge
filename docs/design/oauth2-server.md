@@ -5,7 +5,7 @@
 > 原则：授权端点在任何跳转前先校验 `client_id` + `redirect_uri`；令牌只存哈希；`redirect_uri` 精确匹配
 > 对标：yudao 开放平台（应用-授权-令牌）
 
-相关：[`../EXPANSION_PLAN.md`](../EXPANSION_PLAN.md) Phase 5（开放平台）· [`multi-tenant.md`](multi-tenant.md)
+相关：[产品范围](../PRODUCT_LINES.md) · [多租户设计](multi-tenant.md)
 
 ---
 

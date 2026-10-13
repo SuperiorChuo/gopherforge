@@ -127,7 +127,7 @@ function ClientsTab() {
     } finally {
       setLoading(false)
     }
-  }, [params])
+  }, [params, t])
 
   useEffect(() => { fetchList() }, [fetchList])
   useEffect(() => {
@@ -439,7 +439,7 @@ function TokensTab() {
     } finally {
       setLoading(false)
     }
-  }, [params])
+  }, [params, t])
 
   useEffect(() => { fetchList() }, [fetchList])
 

@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package crm.v1;
+
+option go_package = "github.com/go-admin-kit/services/api/gen/crm/v1;crmv1";
+
+// CrmService 客户域内部 gRPC 契约（Phase 3：号码识客/跟进从 HTTP 迁 gRPC）。
+// 供 cc 等经 Consul 发现 + gRPC 调 crm。
+service CrmService {
+  // LookupByPhone 号码识客：来电按号码查 CRM 客户/线索归属。
+  rpc LookupByPhone(LookupByPhoneRequest) returns (LookupByPhoneResponse);
+  // CreateFollowUp 挂机写跟进：cc 给命中的 CRM 客户写通话跟进。
+  rpc CreateFollowUp(CreateFollowUpRequest) returns (CreateFollowUpResponse);
+}
+
+message CreateFollowUpRequest {
+  uint64 tenant_id = 1;
+  string target_type = 2;
+  uint64 target_id = 3;
+  string content = 4;
+  uint64 by_user_id = 5;
+  // idempotency_key：逻辑操作级键，gRPC 超时后 HTTP 回退复用同一键，避免双写跟进。
+  string idempotency_key = 6;
+}
+
+message CreateFollowUpResponse {
+  bool ok = 1;
+  uint64 follow_up_id = 2;
+}
+
+message LookupByPhoneRequest {
+  uint64 tenant_id = 1;
+  string phone = 2;
+}
+
+message LookupByPhoneResponse {
+  // matched: customer | lead | none
+  string matched = 1;
+  CrmCustomer customer = 2;
+  CrmLead lead = 3;
+}
+
+message CrmCustomer {
+  uint64 id = 1;
+  string name = 2;
+  string phone = 3;
+  uint64 owner_user_id = 4;
+}
+
+message CrmLead {
+  uint64 id = 1;
+  string name = 2;
+  string phone = 3;
+  uint64 owner_user_id = 4;
+}

@@ -1,4 +1,6 @@
-/* 管理台外壳布局（从 index.css 拆出） */
+/* 管理台外壳布局（侧栏/顶栏/内容区）
+ * 从 index.css 拆出，降低全路由 CSS 体积。
+ */
 
 /* ===== App layout ===== */
 /* 外壳：侧栏固定视口高度，主区独立滚动；避免「菜单 + 内容一起滑」 */
@@ -131,6 +133,24 @@
 .app-trigger:hover {
   background: rgba(99, 102, 241, 0.15);
   color: #a5b4fc;
+}
+
+/* 语言切换按钮：图标 + 文字（EN/中文），需比纯图标触发宽，否则文字溢出 34px 方块 */
+.app-lang-trigger {
+  width: auto;
+  padding: 0 10px;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #c7d2fe;
+}
+
+/* 桌面隐藏「更多」；窄屏 CSS 再打开，承接被收起的密度/语言/全屏 */
+.app-display-more {
+  display: none;
+}
+[data-theme='light'] .app-lang-trigger {
+  color: #4f46e5;
 }
 
 .app-user {

@@ -1,51 +1,44 @@
-# 微服务脚手架说明
+# 完整产品范围与运行边界
 
-本仓库是 **GopherForge（曾用名 `go-admin-kit`）微服务脚手架**：只含平台无关的基础设施服务，不带任何业务功能。用它作为起点，业务能力按需自行增补服务。
+v0.8.0 候选在基础管理平台之上公开完整业务产品。正式发行状态以 [Releases](https://github.com/SuperiorChuo/gopherforge/releases) 为准。本仓不包含单体产品。
 
-> 当前版本见 [Releases](https://github.com/SuperiorChuo/gopherforge/releases)。项目仍处于 0.x 阶段，API、数据库表结构和生成代码格式可能变化。
+## API 服务
 
-| 产品线 | 目录 | 启动 |
-|--------|------|------|
-| 微服务脚手架 | `microservices/` | `make compose-up`（自动先起 infra 数据栈） |
+以下 16 个服务位于 `microservices/services/`，共享 Go module，按域独立运行。
 
-## 内置能力
+| 服务 | 主要职责 |
+|---|---|
+| auth | 登录注册、JWT、OAuth、TOTP、网关验签 |
+| identity | 用户、角色、权限、部门、租户与套餐 |
+| system | 菜单、字典、设置、通知、代码生成 |
+| audit | 日志查询与 NATS 登录事件消费 |
+| file | 上传与存储 |
+| monitor | 健康、数据库/Redis/任务监控；共享 goose 迁移 |
+| bpm | 审批定义、实例、任务与回调 |
+| ai | AI 对话、知识库、Agent、任务及工位；独立 worker |
+| crm | 客户、线索、分配与跟进 |
+| im | 会话、消息、访客接入与词库 |
+| pay | 支付配置、订单与回调 |
+| mp | 公众号配置、内容与消息 |
+| notify | 通知渠道、模板与投递 |
+| ticket | 工单、事件与参与者 |
+| cc | 坐席、话单、计费、报表与语音配置 |
+| visibility | 业务可视化与看板 |
 
-| 能力 | 微服务 |
-|------|:------:|
-| 登录 / JWT / 刷新 / 吊销 | ✅ auth-service |
-| RBAC 用户角色权限部门 | ✅ identity-service |
-| 菜单字典公告设置在线用户 | ✅ system-service |
-| 登录/操作/审计日志 | ✅ audit-service |
-| 文件上传 | ✅ file-service |
-| 服务器 / DB / Redis / 任务监控 | ✅ monitor-service |
-| 审批流引擎（流程定义 / 待办 / 会签或签） | ✅ bpm-service |
-| 健康检查 / metrics | ✅ monitor-service（兜底路由） |
-| Traefik 网关 + ForwardAuth | ✅ |
-| NATS 登录事件 | ✅ |
-| 前端技术栈 | React + Ant Design |
-| 默认前端端口 | 3000 / 网关 8000 |
-| 默认 API 端口 | 经 8000 |
-| 默认 DB/Redis 宿主机端口 | 5432 / 6379 |
+`shared`、`internal` 和 `api` 是代码/契约目录，不是额外服务。
 
-## 微服务进程一览
+## 其他交付物
 
-| 服务 | 目录 | 主要职责 |
-|------|------|----------|
-| auth-service | `services/auth` | 登录注册、令牌、验证码、OAuth、TOTP、网关验签 |
-| identity-service | `services/identity` | 用户角色权限部门 |
-| system-service | `services/system` | 菜单字典公告设置在线用户通知 |
-| audit-service | `services/audit` | 日志查询与登录事件消费 |
-| file-service | `services/file` | 文件与 uploads |
-| monitor-service | `services/monitor` | 监控、健康、metrics、**共享 goose 迁移**、网关 `/api` 兜底 |
-| bpm-service | `services/bpm` | 轻量审批流引擎（定义版本化 / 实例推进 / 会签或签 / 终态回调），设计见 `docs/design/bpm-approval-flow.md` |
+- React 管理台：`microservices/web/`。
+- [Hermes 管理客户端](../clients/hermes-manager/README.md)：单独安装/启动。
+- [FreeSWITCH 媒体子系统](../freeswitch-cc/README.md)：独立 Compose 与数据库，不与主应用媒体端口混用。
+- 可观测：`platform/deploy/`，按 Compose profile 启用。
 
-> `services/shared` 为跨服务共享库（配置、中间件、遥测等），非独立进程。
+## 必须明确的边界
 
-## 硬规则
-
-1. 共享仅限：`platform/` 监控模板、仓库级规范（`CONTRIBUTING.md`）。
-2. 新增业务服务时，网关路由规则需同步补齐，否则经网关会 404。
-
-## 迁移真源
-
-- `microservices/services/monitor/migrations/`（monitor 容器启动时执行）
+- 主应用 `make compose-up` 启动数据栈、应用服务、worker、网关与前端；媒体与客户端另行启动。
+- AI、支付、公众号、短信和电话中继依赖用户配置的供应商、账户或硬件。源码交付不等于这些链路已开通。
+- Demo 仅为前端假数据，不调用真实业务 API；不能用于验证鉴权、数据库、worker 或外部投递。
+- RBAC 菜单按权限下发；新增服务必须同时配置网关、权限、菜单及前端路由。
+- 迁移真源为 `microservices/services/monitor/migrations/`；保留公开历史 SQL，追加 forward-only 升级，详见 [迁移约定](development/MIGRATIONS.md)。
+- 产品构建、静态检查与真实运行验收分别记录，见 [发行验证](release-validation.md)。

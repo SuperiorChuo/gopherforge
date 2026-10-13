@@ -12,7 +12,7 @@ import (
 
 var errConsoleSessionRevokedForTest = errors.New("console session has been revoked")
 
-// countingSessionValidator counts the DB-backed session validations.
+// countingSessionValidator 统计基于 DB 的会话校验次数。
 type countingSessionValidator struct {
 	calls int
 	err   error
@@ -81,8 +81,8 @@ func TestConsoleSessionAuthorizedServesRepeatCallsFromCache(t *testing.T) {
 	}
 }
 
-// The first validation warms the role cache from the user it already loaded, so
-// the role/permission middlewares later in the same chain query nothing.
+// 首次校验会用已加载的用户回填角色缓存，因此同一链路中
+// 后面的角色/权限中间件不再发起任何查询。
 func TestConsoleSessionAuthorizedWarmsRoleCache(t *testing.T) {
 	setupRateLimitTestRedis(t)
 
@@ -100,9 +100,8 @@ func TestConsoleSessionAuthorizedWarmsRoleCache(t *testing.T) {
 	}
 }
 
-// Logout and administrative revoke both funnel through
-// ConsoleSessionService.RevokeBySessionIDContext, which drops this key. A stale
-// entry surviving that call would leave a logged-out cookie usable.
+// 登出与管理端吊销都会经过 ConsoleSessionService.RevokeBySessionIDContext，
+// 该方法会删除该键。若过期的缓存条目存活下来，已登出的 cookie 就仍可使用。
 func TestConsoleSessionAuthorizedRejectsAfterLogout(t *testing.T) {
 	setupRateLimitTestRedis(t)
 
@@ -114,7 +113,7 @@ func TestConsoleSessionAuthorizedRejectsAfterLogout(t *testing.T) {
 		t.Fatal("expected the session to be authorized before logout")
 	}
 
-	// Logout: the session row is revoked and the cache entry dropped.
+	// 登出：会话行被吊销，缓存条目被删除。
 	sessions.err = errConsoleSessionRevokedForTest
 	if err := cache.NewCacheService().DelConsoleSessionContext(ctx, claims.ID); err != nil {
 		t.Fatalf("invalidate console session cache: %v", err)
@@ -125,9 +124,9 @@ func TestConsoleSessionAuthorizedRejectsAfterLogout(t *testing.T) {
 	}
 }
 
-// Force-logout and account disable route through the permission-cache channel
-// (InvalidatePermissionCacheForUsersContext), which drops every cached session
-// of the affected user.
+// 强制登出与账号禁用走权限缓存通道
+// （InvalidatePermissionCacheForUsersContext），它会删除受影响用户的
+// 所有缓存会话。
 func TestConsoleSessionAuthorizedRejectsAfterUserInvalidation(t *testing.T) {
 	setupRateLimitTestRedis(t)
 
@@ -139,7 +138,7 @@ func TestConsoleSessionAuthorizedRejectsAfterUserInvalidation(t *testing.T) {
 		t.Fatal("expected the session to be authorized before the kick")
 	}
 
-	// The account is disabled: the session row is still live, but status flips.
+	// 账号被禁用：会话行仍然有效，但状态已翻转。
 	users.status = 0
 	if err := cache.NewCacheService().DelConsoleSessionsForUsersContext(ctx, []uint{21}); err != nil {
 		t.Fatalf("invalidate console sessions for user: %v", err)
@@ -153,8 +152,8 @@ func TestConsoleSessionAuthorizedRejectsAfterUserInvalidation(t *testing.T) {
 	}
 }
 
-// A cached entry is bound to the token that produced it: a mismatched user id
-// must fall through to a full re-validation rather than be accepted.
+// 缓存条目与生成它的令牌绑定：不匹配的用户 ID 必须回退到
+// 完整重新校验，而不能被直接接受。
 func TestConsoleSessionAuthorizedRejectsMismatchedIdentity(t *testing.T) {
 	setupRateLimitTestRedis(t)
 

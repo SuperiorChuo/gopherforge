@@ -1,0 +1,21 @@
+<configuration name="cdr_csv.conf" description="CDR CSV Format">
+  <settings>
+    <!-- 话单磁盘兜底：mod_json_cdr 走 HTTP 投递给 cc-service；本模块把
+         每通挂机话单再写一份本地 CSV，投递失败/中台离线时可从磁盘补账。 -->
+    <!-- 落盘目录（docker volume fscc_cdr_csv 挂载点）；每个 UUID 一个 .csv，
+         另有汇总文件 Master.csv。 -->
+    <param name="log-base" value="/var/lib/freeswitch/cdr-csv"/>
+    <!-- 只记 a-leg（主叫腿），避免 bridge 双写重复话单。 -->
+    <param name="legs" value="a"/>
+    <!-- 默认模板：内置 Example（含 caller/callee/时间戳/时长/挂机原因等常用列）。 -->
+    <param name="default-template" value="example"/>
+    <!-- 收到 SIGHUP（reloadxml / 日志轮转）时切新文件，便于外部按天归档。 -->
+    <param name="rotate-on-hup" value="true"/>
+  </settings>
+
+  <templates>
+    <!-- 内置示例模板：主叫号/名、被叫号、目的号、上下文、各时间戳、
+         计费/通话时长、挂机原因、账号编码、UUID 等。 -->
+    <template name="example">"${caller_id_name}","${caller_id_number}","${destination_number}","${context}","${start_stamp}","${answer_stamp}","${end_stamp}","${duration}","${billsec}","${hangup_cause}","${uuid}","${bleg_uuid}","${accountcode}","${read_codec}","${write_codec}"</template>
+  </templates>
+</configuration>

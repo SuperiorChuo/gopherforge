@@ -1,19 +1,17 @@
 # 发正式版：打 tag（vX.Y.Z）→ 校验 → 测试门禁 → 构建并推版本化镜像 → 建 GitHub Release。
 #
-# 本仓（gopherforge）是公开脚手架发行线，也是唯一真正跑 Actions 的仓库——
-# 这个 workflow 在这里会实际执行。文件本体由上游主项目同步而来：要改流程请回上游改，
-# 再同步下来，避免下次同步被覆盖。
+# 服务矩阵从 microservices/docker-compose.yml 读取，覆盖完整产品应用栈。
+# Go 模块矩阵由 Go 解析 go.work，统一模块和块式 workspace 共用同一入口。
+# shared 是库、tools/dbdoc 是工具，不是 compose 服务，不单独构建服务镜像。
 #
-# 本仓是 **compose 形态**（microservices/docker-compose.yml + docker-compose.infra.yml），
-# 没有 Swarm / docker-stack.yml，发布产物就是"一组带版本 tag 的镜像 + 一份 compose 部署说明"。
-#
-# 【可改的假设 · registry】默认推 ghcr.io，理由是它与本仓同源，用内置 GITHUB_TOKEN
-#    就能推，不需要额外 secret。要换成阿里云 ACR / Docker Hub / 自建 Harbor，只改三处：
+# 【可改的假设 · registry】默认推 ghcr.io，理由是它与公开仓 SuperiorChuo/gopherforge
+#    同源，用内置 GITHUB_TOKEN 就能推，不需要额外 secret。要换成阿里云 ACR /
+#    Docker Hub / 自建 Harbor，只改三处：
 #      1) env.REGISTRY（如 registry.cn-hangzhou.aliyuncs.com）
 #      2) env.IMAGE_NAMESPACE_OVERRIDE（如 your-namespace；留空则用 owner/repo 小写）
 #      3) build-push 任务里的 docker/login-action 凭据（换成 secrets.ACR_USERNAME /
 #         secrets.ACR_PASSWORD 之类，并把 job 的 packages: write 权限去掉）
-#    另外部分 registry（含旧版 Harbor / 部分 ACR）不支持 OCI attestation，
+#    另外部分 registry（含旧版 Harbor / ACR）不支持 OCI attestation，
 #    那就把 build-push-action 的 provenance/sbom 关掉（见下方注释）。
 #
 # 【镜像 tag 方案】每个服务推三个 tag：
@@ -21,9 +19,9 @@
 #    - sha-<短sha>     可追溯到具体提交（重打 tag 也能分辨镜像内容）
 #    - latest          仅当非预发布（tag 里没有 -rc / -beta 之类后缀）时才更新
 #
-# 【部署侧怎么用】microservices/docker-compose.yml 的镜像名已变量化：
+# 【部署侧怎么用】docker-compose.yml / docker-stack.yml 的镜像名已变量化：
 #    IMAGE_PREFIX=ghcr.io/<owner>/<repo>/go-admin-kit IMAGE_TAG=v0.2.0
-#    两个变量都不设时仍是 go-admin-kit-<服务名>:latest（与改造前完全一致）。
+#    两个变量都不设时仍是 go-admin-kit-<svc>:latest（与改造前完全一致）。
 
 name: Release
 
@@ -35,6 +33,10 @@ on:
     inputs:
       tag:
         description: '版本号 vX.Y.Z（演练时也必须填，用于取 CHANGELOG 段落）'
+        required: true
+        type: string
+      expected_sha:
+        description: '已验收候选的完整40位commit SHA；不能填写分支、tag或短SHA'
         required: true
         type: string
       dry_run:
@@ -70,35 +72,69 @@ jobs:
       prerelease: ${{ steps.tag.outputs.prerelease }}
       dry_run: ${{ steps.tag.outputs.dry_run }}
       short_sha: ${{ steps.tag.outputs.short_sha }}
+      source_sha: ${{ steps.tag.outputs.source_sha }}
       namespace: ${{ steps.tag.outputs.namespace }}
       services: ${{ steps.matrix.outputs.services }}
       modules: ${{ steps.matrix.outputs.modules }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.expected_sha || github.sha }}
+          fetch-depth: 0
 
       - name: 解析并校验 tag
         id: tag
         env:
-          # 经环境变量传入，不把 dispatch 的自由文本直接插进 shell
+          # 经环境变量传入，不把 dispatch 的自由文本直接插进 shell。
           INPUT_TAG: ${{ inputs.tag }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_EXPECTED_SHA: ${{ inputs.expected_sha }}
           EVENT_NAME: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+          EVENT_REF: ${{ github.ref }}
           REF_NAME: ${{ github.ref_name }}
           REPOSITORY: ${{ github.repository }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = 'workflow_dispatch' ]; then
-            TAG="$INPUT_TAG"
-            DRY_RUN="${INPUT_DRY_RUN:-true}"
-          else
-            TAG="$REF_NAME"
-            DRY_RUN='false'
-          fi
+          case "$EVENT_NAME" in
+            workflow_dispatch)
+              TAG="$INPUT_TAG"
+              DRY_RUN="${INPUT_DRY_RUN:-true}"
+              SOURCE_SHA="$INPUT_EXPECTED_SHA"
+              ;;
+            push)
+              TAG="$REF_NAME"
+              DRY_RUN='false'
+              SOURCE_SHA="$EVENT_SHA"
+              test "$EVENT_REF" = "refs/tags/$TAG"
+              ;;
+            *) echo '::error::不支持的发布事件'; exit 1 ;;
+          esac
+          # dispatch 缺输入不能退化为默认分支；先核验身份，再运行候选里的任何工具。
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo '::error::必须提供完整commit SHA'; exit 1; }
+          [[ "$DRY_RUN" = 'true' || "$DRY_RUN" = 'false' ]] || exit 1
+          test "$(git --no-replace-objects rev-parse --verify 'HEAD^{commit}')" = "$SOURCE_SHA"
 
-          # SemVer + v 前缀；刻意不收 +build 元数据——'+' 不是合法的 Docker tag 字符
+          # 先拒绝换行/控制字符，不能让按行匹配的 grep 放行多行 tag 并污染 outputs。
+          git check-ref-format "refs/tags/$TAG"
+          # SemVer + v 前缀；刻意不收 +build 元数据——'+' 不是合法的 Docker tag 字符。
           if ! printf '%s' "$TAG" \
             | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$'; then
             echo "::error::tag 格式不合法：'$TAG'。要求 vX.Y.Z 或 vX.Y.Z-rc.1（不支持 +build 元数据，'+' 不能进 Docker tag）"
+            exit 1
+          fi
+
+          # 演练可在打 tag 前做；已有 tag（含 annotated tag）必须指向同一提交。
+          # 区分不存在与 Git 出错，不能把坏对象或读取失败当成“尚未打 tag”。
+          TAG_STATUS=0
+          git show-ref --verify --quiet "refs/tags/$TAG" || TAG_STATUS=$?
+          if [ "$TAG_STATUS" -eq 0 ]; then
+            test "$(git --no-replace-objects rev-parse --verify "refs/tags/$TAG^{commit}")" = "$SOURCE_SHA"
+          elif [ "$TAG_STATUS" -ne 1 ] || [ "$DRY_RUN" != 'true' ]; then
+            echo '::error::正式发布要求已有且可核验的tag'
             exit 1
           fi
 
@@ -115,6 +151,7 @@ jobs:
             echo "version=$VERSION"
             echo "prerelease=$PRERELEASE"
             echo "dry_run=$DRY_RUN"
+            echo "source_sha=$SOURCE_SHA"
             echo "short_sha=$(git rev-parse --short=7 HEAD)"
             echo "namespace=$NAMESPACE"
           } >> "$GITHUB_OUTPUT"
@@ -122,6 +159,11 @@ jobs:
           {
             echo "### Release $TAG"
             echo ""
+            echo "- 工作流源码：$WORKFLOW_SHA"
+            echo "- 事件提交：$EVENT_SHA"
+            echo "- 实际构建提交：$SOURCE_SHA"
+            echo "- tree：$(git --no-replace-objects rev-parse 'HEAD^{tree}')"
+            echo "- run/attempt：$RUN_ID/$RUN_ATTEMPT"
             echo "- 预发布：$PRERELEASE"
             echo "- 演练模式：$DRY_RUN"
             echo "- 镜像前缀：\`$REGISTRY/$NAMESPACE/go-admin-kit-<服务名>\`"
@@ -144,23 +186,27 @@ jobs:
           echo "::error::CHANGELOG.md 缺少 '## [$VERSION]' 段落。打 tag 前先把 '## [Unreleased]' 改名成 '## [$VERSION] - YYYY-MM-DD' 并补一段新的 Unreleased"
           exit 1
 
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: 验证发布工具
+        run: bash scripts/verify-product.sh release-tools
+
       - name: 生成服务镜像矩阵与 Go 模块矩阵
         id: matrix
         run: |
           set -euo pipefail
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json, os, re, subprocess, sys
+          import json, os, subprocess, sys
 
           # 服务清单不硬编码：docker-compose.yml 是构建上下文的唯一真源。
-          # 本仓的 compose 不对应用服务做 profile 门控（唯二的 profile 是 monitoring /
-          # tracing，门控的全是 prometheus/grafana 这类第三方镜像，没有 build 段，
-          # 天然不会进镜像矩阵），所以这里不需要 --env-file 去喂 COMPOSE_PROFILES。
-          # 刻意剥掉 IMAGE_PREFIX / IMAGE_TAG：矩阵只要"仓库名"部分，
-          # 万一 runner 环境里带了这两个变量，算出来的镜像名不能被污染。
-          env = {k: v for k, v in os.environ.items() if k not in ("IMAGE_PREFIX", "IMAGE_TAG")}
+          # --env-file .env.example 关键——里面有 COMPOSE_PROFILES=compose-fallback，
+          # 不带它的话 profile 门控的业务服务会整批从 config 输出里消失。
           raw = subprocess.run(
-              ["docker", "compose", "-f", "docker-compose.yml", "config", "--format", "json"],
-              cwd="microservices", check=True, capture_output=True, text=True, env=env,
+              ["docker", "compose", "--env-file", ".env.example", "config", "--format", "json"],
+              cwd="microservices", check=True, capture_output=True, text=True,
           ).stdout
           conf = json.loads(raw)
           root = os.getcwd()
@@ -195,11 +241,11 @@ jobs:
           if not include:
               sys.exit("未从 docker-compose.yml 解析出任何可构建服务")
 
-          # go.work 是 Go 模块的唯一真源（含 services/shared 与 tools/dbdoc）
-          work = open("microservices/go.work", encoding="utf-8").read()
-          modules = re.findall(r"^\s*\./(\S+)\s*$", work, re.M)
-          if not modules:
-              sys.exit("未从 go.work 解析出任何模块")
+          # 不按目录猜模块：当前所有服务与 shared 已归入 services 统一模块。
+          modules = json.loads(subprocess.run(
+              [sys.executable, "scripts/release-workspace.py"],
+              check=True, capture_output=True, text=True,
+          ).stdout)
 
           print("services=" + json.dumps({"include": include}, ensure_ascii=False))
           print("modules=" + json.dumps(sorted(modules)))
@@ -235,6 +281,14 @@ jobs:
         working-directory: microservices/${{ matrix.module }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.meta.outputs.source_sha }}
+      - name: 核对发布代码
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_SHA: ${{ needs.meta.outputs.source_sha }}
+        run: |
+          test "$(git --no-replace-objects rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_SHA"
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -252,6 +306,14 @@ jobs:
         working-directory: microservices/web
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.meta.outputs.source_sha }}
+      - name: 核对发布代码
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_SHA: ${{ needs.meta.outputs.source_sha }}
+        run: |
+          test "$(git --no-replace-objects rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_SHA"
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -268,13 +330,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.meta.outputs.source_sha }}
+      - name: 核对发布代码
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_SHA: ${{ needs.meta.outputs.source_sha }}
+        run: |
+          test "$(git --no-replace-objects rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_SHA"
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: microservices/services/monitor/go.sum
+          cache-dependency-path: microservices/services/go.sum
       - name: Workspace scripts
         working-directory: microservices
         run: |
@@ -282,21 +352,8 @@ jobs:
           npm run test:contract
           npm run test:compose:config
           npm run test:smoke:unit
-      - name: 生成的 OpenAPI 与前端类型必须已提交
-        run: |
-          git diff --exit-code -- \
-            microservices/services/monitor/docs/openapi.json \
-            microservices/web/src/api/generated/schema.d.ts
-      - name: compose 文件可解析（含镜像变量替换）
-        working-directory: microservices
-        run: |
-          set -euo pipefail
-          # 纯客户端解析，不需要 daemon。两个栈都过一遍语法。
-          docker compose -f docker-compose.yml config -q
-          docker compose -f docker-compose.infra.yml config -q
-          # 版本化后镜像名必须真的跟着 IMAGE_TAG 走，否则构建与部署会错位
-          IMAGE_TAG=ci-probe docker compose -f docker-compose.yml config --images \
-            | grep -q ':ci-probe$'
+      - name: 生成的 OpenAPI 必须已提交
+        run: git diff --exit-code -- microservices/services/monitor/docs/openapi.json
 
   build-push:
     name: 镜像 · ${{ matrix.service }}
@@ -312,16 +369,35 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
-      # 8 个服务并行会顶满并发额度，留点余量给别的流水线
-      max-parallel: 4
+      # 17 个服务并行会顶满并发额度，留点余量给别的流水线
+      max-parallel: 6
       matrix: ${{ fromJson(needs.meta.outputs.services) }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.meta.outputs.source_sha }}
+      - name: 核对发布代码
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_SHA: ${{ needs.meta.outputs.source_sha }}
+        run: |
+          test "$(git --no-replace-objects rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_SHA"
 
       # arm64 交叉构建依赖 QEMU（Go 服务与前端均可静态交叉，无本机依赖）
       - uses: docker/setup-qemu-action@v4
 
       - uses: docker/setup-buildx-action@v4
+
+      - name: 推镜像前复核远端 tag
+        if: needs.meta.outputs.dry_run == 'false'
+        env:
+          TAG: ${{ needs.meta.outputs.tag }}
+          SOURCE_SHA: ${{ needs.meta.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          # 镜像先于 Release 草稿产生外部写入，不能把版本漂移留到最后才拒绝。
+          git fetch --no-tags origin "refs/tags/$TAG"
+          test "$(git --no-replace-objects rev-parse --verify 'FETCH_HEAD^{commit}')" = "$SOURCE_SHA"
 
       - name: 登录 registry
         if: needs.meta.outputs.dry_run == 'false'
@@ -344,6 +420,7 @@ jobs:
           labels: |
             org.opencontainers.image.title=${{ matrix.image }}
             org.opencontainers.image.version=${{ needs.meta.outputs.tag }}
+            org.opencontainers.image.revision=${{ needs.meta.outputs.source_sha }}
 
       - name: 构建并推送
         uses: docker/build-push-action@v7
@@ -361,6 +438,8 @@ jobs:
           # 溯源与 SBOM 证明（需要 registry 支持 OCI attestation；ghcr 支持，
           # 旧版 Harbor / 部分 ACR 不支持——那就把这两行都改成 false）。
           # 演练不推镜像时没有 exporter，attestation 一并关掉避免 buildx 报错。
+          # build-args 从 compose build.args 现算（微仓 bc08754 同源修复）；
+          # 漏传会让统一 Dockerfile 的 ${SERVICE} 为空 → 构建期 stat 失败。
           build-args: ${{ matrix.build_args }}
           provenance: ${{ needs.meta.outputs.dry_run == 'false' && 'mode=max' || 'false' }}
           sbom: ${{ needs.meta.outputs.dry_run == 'false' }}
@@ -379,13 +458,21 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ needs.meta.outputs.source_sha }}
           fetch-depth: 0
+      - name: 核对发布代码
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_SHA: ${{ needs.meta.outputs.source_sha }}
+        run: |
+          test "$(git --no-replace-objects rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_SHA"
 
       - name: 生成 release notes
         env:
           VERSION: ${{ needs.meta.outputs.version }}
           TAG: ${{ needs.meta.outputs.tag }}
           SHORT_SHA: ${{ needs.meta.outputs.short_sha }}
+          SOURCE_SHA: ${{ needs.meta.outputs.source_sha }}
           SERVICES: ${{ needs.meta.outputs.services }}
           IMAGE_BASE: ${{ env.REGISTRY }}/${{ needs.meta.outputs.namespace }}
         run: |
@@ -395,6 +482,7 @@ jobs:
 
           version = os.environ["VERSION"]
           tag = os.environ["TAG"]
+          source_sha = os.environ["SOURCE_SHA"]
           base = os.environ["IMAGE_BASE"]
           services = json.loads(os.environ["SERVICES"])["include"]
 
@@ -412,12 +500,12 @@ jobs:
           section = "\n".join(body).strip("\n")
 
           if not section:
-              # 预发布时允许没有 CHANGELOG 段落，退化成上一个 tag 以来的提交摘要
+              # 预发布缺版本段时回退提交摘要；范围仍固定到源码 SHA，不追随可移动 tag。
               prev = subprocess.run(
-                  ["git", "describe", "--tags", "--abbrev=0", f"{tag}^"],
+                  ["git", "describe", "--tags", "--abbrev=0", f"{source_sha}^"],
                   capture_output=True, text=True,
               ).stdout.strip()
-              rng = f"{prev}..{tag}" if prev else tag
+              rng = f"{prev}..{source_sha}" if prev else source_sha
               log = subprocess.run(
                   ["git", "log", "--no-merges", "--pretty=- %s", rng],
                   capture_output=True, text=True,
@@ -435,21 +523,16 @@ jobs:
           lines += [f"- `{base}/{s['image']}:{tag}`" for s in services]
           lines += [
               "",
-              "## 部署（compose）",
+              "## 部署",
               "",
               fence + "bash",
-              "cd microservices",
               "# 写进 microservices/.env，或直接前置到命令上",
               f"export IMAGE_PREFIX={base}/go-admin-kit",
               f"export IMAGE_TAG={tag}",
-              "# 有状态服务在独立 infra 栈，先起它（数据不随应用栈重建）",
-              "docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d",
-              "# 应用栈：拉版本化镜像后直接起，不本地构建",
-              "docker compose -f docker-compose.yml pull",
-              "docker compose -f docker-compose.yml up -d --no-build",
+              "docker stack deploy -c <(docker compose -f docker-stack.yml config) gak",
               fence,
               "",
-              "不设 `IMAGE_PREFIX` / `IMAGE_TAG` 时，compose 仍解析为本地构建的",
+              "不设 `IMAGE_PREFIX` / `IMAGE_TAG` 时，compose 与 stack 仍解析为本地构建的",
               "`go-admin-kit-<服务名>:latest`，行为与发版前一致。",
           ]
           notes = "\n".join(lines) + "\n"
@@ -463,14 +546,19 @@ jobs:
           TAG: ${{ needs.meta.outputs.tag }}
           PRERELEASE: ${{ needs.meta.outputs.prerelease }}
           DRAFT: ${{ env.RELEASE_AS_DRAFT }}
+          SOURCE_SHA: ${{ needs.meta.outputs.source_sha }}
         run: |
           set -euo pipefail
+          # 构建可能很久：在任何 Release API 调用前重读远端 tag，拒绝被移动或删除的版本。
+          git fetch --no-tags origin "refs/tags/$TAG"
+          test "$(git --no-replace-objects rev-parse --verify 'FETCH_HEAD^{commit}')" = "$SOURCE_SHA"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG 已存在，改为更新 notes（重跑幂等）"
             gh release edit "$TAG" --notes-file release-notes.md
             exit 0
           fi
-          args=(--title "$TAG" --notes-file release-notes.md --target "$GITHUB_SHA")
+          # 不允许 gh 在 tag 缺失时从默认分支隐式创建；dispatch 的事件 SHA 不是候选 SHA。
+          args=(--title "$TAG" --notes-file release-notes.md --target "$SOURCE_SHA" --verify-tag)
           if [ "$PRERELEASE" = 'true' ]; then
             args+=(--prerelease)
           fi

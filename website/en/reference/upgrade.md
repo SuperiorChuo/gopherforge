@@ -7,11 +7,20 @@ SemVer applies; during **0.x** APIs and schemas may change — breaking changes 
 ```bash
 cd /opt/gopherforge/microservices
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.7.0            # target version
-docker compose pull && docker compose up -d --no-build
+export IMAGE_TAG=v0.8.0            # only after target images are published
+docker compose --profile compose-fallback pull
+docker compose --profile compose-fallback up -d --no-build
 ```
 
-Rollback = switch `IMAGE_TAG` back (only safe while new migrations are backward-compatible). Source builds: `git pull` to the tag, then `make compose-up`.
+Application rollback is not database rollback. Verify schema compatibility first; otherwise restore matching database and application backups using the rehearsed recovery plan. Source builds: select the target tag, then `make compose-up`.
+
+## 0.7.0 → 0.8.0 candidate notes
+
+- Complete business scope: 16 API services and an AI worker. Recheck capacity, routing, permissions and external-provider configuration.
+- Preserve every published SQL path and byte; append 32 forward-only migrations. Never overwrite historical migrations with a different source tree.
+- Back up and rehearse populated upgrades, menus/permissions, sequences, APIs, worker, UI and monitoring on an isolated copy. Never run production `goose down/reset`.
+- Media and client products start separately. Included code does not activate payment, SMS, AI or telephony providers.
+- A candidate is not a release; verify image, Release and Pages status separately.
 
 ## 0.6.0 → 0.7.0 notes
 

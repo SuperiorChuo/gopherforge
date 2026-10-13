@@ -16,6 +16,7 @@ func main() {
 	flag.StringVar(&opts.Dir, "dir", migrate.DefaultDir, "path to goose migrations directory")
 	flag.StringVar(&opts.Database, "database", migrate.DefaultRehearsalDatabase, "temporary database used for migration rehearsal")
 	flag.BoolVar(&opts.Keep, "keep", false, "keep the temporary rehearsal database after the run")
+	flag.BoolVar(&opts.ForwardOnly, "forward-only", false, "verify repeated up and explicit downgrade rejection instead of reversible tip")
 	flag.Parse()
 	opts.LogWriter = os.Stdout
 

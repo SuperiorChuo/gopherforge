@@ -12,16 +12,16 @@ import (
 	"github.com/go-admin-kit/services/system/internal/pkg/weather"
 )
 
-// WeatherProviderSettingKey is the system_settings row holding the Amap key
-// and defaults for the dashboard weather chip.
+// WeatherProviderSettingKey 是存放高德 key 与看板天气组件默认值的
+// system_settings 配置行。
 const WeatherProviderSettingKey = weather.SettingKey
 
 type WeatherStore interface {
 	GetByKeyContext(ctx context.Context, key string) (*model.SystemSetting, error)
 }
 
-// CachedWeatherReader layers the weather.provider setting row over empty
-// defaults with a short TTL, refreshed instantly via the invalidation channel.
+// CachedWeatherReader 把 weather.provider 配置行叠加在空默认值之上，
+// 使用短 TTL，并通过失效通道即时刷新。
 type CachedWeatherReader struct {
 	reader      *sharedruntimeconfig.CachedSettingReader[weather.Settings]
 	tenantStore TenantSettingStore
@@ -59,7 +59,7 @@ func (defaultWeatherStore) GetByKeyContext(ctx context.Context, key string) (*mo
 	return systemdao.NewSettingDAO(database.DB).GetByKeyContext(ctx, key)
 }
 
-// WeatherSettings implements weather.SettingsReader.
+// WeatherSettings 实现 weather.SettingsReader。
 func (r *CachedWeatherReader) WeatherSettings(ctx context.Context) weather.Settings {
 	if r == nil {
 		return weather.Settings{}

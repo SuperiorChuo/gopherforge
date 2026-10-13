@@ -2,12 +2,14 @@ package system
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
 
 	"github.com/go-admin-kit/services/shared/pkg/audittrail"
+	"github.com/go-admin-kit/services/shared/pkg/fullread"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 )
@@ -60,17 +62,47 @@ func (d *MenuDAO) GetMenuListContext(ctx context.Context, req pagination.PageReq
 }
 
 func (d *MenuDAO) GetMenuTreeContext(ctx context.Context, status *int8) ([]model.Menu, error) {
-	query := d.dbWithContext(ctx).Model(&model.Menu{})
-	if status != nil {
-		query = query.Where("status = ?", *status)
-	}
-
 	var menus []model.Menu
-	result := query.Order("parent_id ASC, sort ASC, created_at ASC").Find(&menus)
-	if result.Error != nil {
-		return nil, result.Error
+	err := d.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		query := tx.Model(&model.Menu{})
+		if status != nil {
+			query = query.Where("status = ?", *status)
+		}
+		var err error
+		menus, err = fullread.All[model.Menu](query.Order("parent_id ASC, sort ASC, created_at ASC"))
+		if err != nil {
+			return err
+		}
+		// Reload only bounded primary-key sets for GORM's association loader.
+		// Both phases share the same snapshot. Copy associations back by ID so
+		// the original tree order is independent of the reload query's order.
+		// The number of associated permissions per menu is NOT capped.
+		for start := 0; start < len(menus); start += fullread.BatchSize {
+			end := min(start+fullread.BatchSize, len(menus))
+			ids := make([]uint, 0, end-start)
+			for _, menu := range menus[start:end] {
+				ids = append(ids, menu.ID)
+			}
+			var page []model.Menu
+			if err := tx.Where("id IN ?", ids).Limit(len(ids)).Preload("Permissions").Find(&page).Error; err != nil {
+				return err
+			}
+			if len(page) != len(ids) {
+				return errors.New("menu tree changed within read snapshot")
+			}
+			permissions := make(map[uint][]model.Permission, len(page))
+			for _, menu := range page {
+				permissions[menu.ID] = menu.Permissions
+			}
+			for i := start; i < end; i++ {
+				menus[i].Permissions = permissions[menus[i].ID]
+			}
+		}
+		return nil
+	}, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	if err != nil {
+		return nil, err
 	}
-
 	return buildMenuTree(menus, 0), nil
 }
 

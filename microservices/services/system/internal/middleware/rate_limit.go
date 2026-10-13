@@ -7,32 +7,31 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
-	"github.com/go-admin-kit/services/shared/pkg/response"
-
 	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	redisstore "github.com/go-admin-kit/services/shared/pkg/redis"
+	"github.com/go-admin-kit/services/shared/pkg/response"
 	"github.com/go-admin-kit/services/system/internal/pkg/runtimeconfig"
 	goredis "github.com/redis/go-redis/v9"
 )
 
-// RateLimitRedisClient is the Redis command subset used by RateLimiter.
+// RateLimitRedisClient 是 RateLimiter 使用的 Redis 命令子集。
 type RateLimitRedisClient interface {
 	Incr(ctx context.Context, key string) *goredis.IntCmd
 	Expire(ctx context.Context, key string, expiration time.Duration) *goredis.BoolCmd
 	ExpireNX(ctx context.Context, key string, expiration time.Duration) *goredis.BoolCmd
 }
 
-// RateLimiter enforces request rate limits.
+// RateLimiter 强制实施请求速率限制。
 type RateLimiter struct {
 	client RateLimitRedisClient
 }
 
-// NewRateLimiter creates a limiter backed by the package Redis client.
+// NewRateLimiter 创建基于包级 Redis 客户端的限流器。
 func NewRateLimiter() *RateLimiter {
 	return &RateLimiter{}
 }
 
-// NewRateLimiterWithClient creates a limiter backed by the provided Redis client.
+// NewRateLimiterWithClient 创建基于指定 Redis 客户端的限流器。
 func NewRateLimiterWithClient(client RateLimitRedisClient) *RateLimiter {
 	return &RateLimiter{client: client}
 }
@@ -67,7 +66,7 @@ func RateLimitConfigFromPolicy(policy runtimeconfig.SecurityPolicy) RateLimitCon
 	}
 }
 
-// Middleware returns a Gin middleware using the limiter's Redis client.
+// Middleware 返回使用限流器 Redis 客户端的 Gin 中间件。
 func (l *RateLimiter) Middleware(config RateLimitConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if sharedmw.IsHealthProbePath(c.Request.URL.Path) {
@@ -112,9 +111,9 @@ func (l *RateLimiter) apply(c *gin.Context, config RateLimitConfig) {
 		c.Next()
 		return
 	}
-	// ExpireNX instead of count==1+Expire: if the first request's Expire is
-	// lost (crash between INCR and EXPIRE, or a failed call), the key would
-	// otherwise live forever and permanently rate-limit the client.
+	// 使用 ExpireNX 而非 count==1+Expire：如果首个请求的 Expire 丢失
+	// （在 INCR 与 EXPIRE 之间崩溃，或调用失败），键会永久存在，
+	// 从而永久限流该客户端。
 	if err := client.ExpireNX(ctx, key, config.Window).Err(); err != nil {
 		logger.Error("rate limit expire failed", logger.Err(err))
 	}

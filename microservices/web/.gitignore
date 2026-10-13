@@ -28,3 +28,16 @@ playwright-report
 test-results
 e2e/.auth
 
+# Capacitor 本机构建产物；ios/android 工程源码进 git
+ios/App/Pods
+ios/App/build
+ios/capacitor-cordova-ios-plugins
+android/.gradle
+android/app/build
+android/build
+android/capacitor-cordova-android-plugins
+android/local.properties
+*.apk
+*.aab
+*.ipa
+

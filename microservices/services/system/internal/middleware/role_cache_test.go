@@ -8,7 +8,7 @@ import (
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
-// countingUserStore records how many times the DB-backed lookup was hit.
+// countingUserStore 记录基于 DB 的查找被命中的次数。
 type countingUserStore struct {
 	calls int
 	roles []string
@@ -55,7 +55,7 @@ func TestUserRoleCodesRefetchAfterInvalidation(t *testing.T) {
 		t.Fatal("expected super_admin before revocation")
 	}
 
-	// Revoke the role and drop the cache the same way the service layer does.
+	// 撤销角色并像服务层那样删除缓存。
 	store.roles = []string{"viewer"}
 	if err := cache.NewCacheService().DelUserRolesContext(ctx, 7); err != nil {
 		t.Fatalf("invalidate role cache: %v", err)

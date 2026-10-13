@@ -66,7 +66,7 @@ func Start(db *gorm.DB, run Run) *Execution {
 		return execution
 	}
 	if err := db.Exec(`
-INSERT INTO ops_task_runs
+INSERT INTO monitor_svc.ops_task_runs
   (run_id, task_key, service, description, source, trigger_type, status, attempt,
    correlation_id, started_at, duration_ms, created_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
@@ -96,7 +96,7 @@ func (e *Execution) Finish(err error, message string) {
 		}
 		if e.db != nil && e.run.Key != "" {
 			result := e.db.Exec(`
-UPDATE ops_task_runs
+UPDATE monitor_svc.ops_task_runs
 SET status = ?, finished_at = ?, duration_ms = ?, message = ?, error_message = ?
 WHERE run_id = ? AND status = ?`,
 				status, finishedAt, durationMS, truncate(message, 2048), errorMessage,
@@ -137,7 +137,7 @@ func Report(db *gorm.DB, run Run) {
 		durationMS = 0
 	}
 	err := db.Exec(`
-INSERT INTO ops_job_heartbeats
+INSERT INTO monitor_svc.ops_job_heartbeats
   (job_key, service, description, interval_sec, last_run_at, last_status, last_error, last_duration_ms, runs, fails, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
 ON CONFLICT (job_key) DO UPDATE SET
@@ -148,8 +148,8 @@ ON CONFLICT (job_key) DO UPDATE SET
   last_status = EXCLUDED.last_status,
   last_error = EXCLUDED.last_error,
   last_duration_ms = EXCLUDED.last_duration_ms,
-  runs = ops_job_heartbeats.runs + 1,
-  fails = ops_job_heartbeats.fails + ?,
+  runs = monitor_svc.ops_job_heartbeats.runs + 1,
+  fails = monitor_svc.ops_job_heartbeats.fails + ?,
   updated_at = EXCLUDED.updated_at`,
 		run.Key, run.Service, run.Description, run.IntervalSec, finishedAt, status, lastErr,
 		durationMS, failInc, finishedAt, failInc).Error

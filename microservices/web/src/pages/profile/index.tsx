@@ -6,7 +6,6 @@ import {
 } from 'antd'
 import type { UploadProps } from 'antd'
 import { message } from '@/utils/feedback'
-import { copyToClipboard } from '@/utils/clipboard'
 import {
   UserOutlined, MailOutlined, PhoneOutlined, HistoryOutlined, SafetyCertificateOutlined,
   CameraOutlined,
@@ -15,6 +14,7 @@ import StatusPill from '@/components/common/StatusPill'
 import GlassEmpty from '@/components/common/GlassEmpty'
 import type { ColumnsType } from 'antd/es/table'
 import { useAppSelector } from '@/hooks/store'
+import { usePermission } from '@/hooks/usePermission'
 import {
   updateProfile, changePassword,
   generateTotpSetup, enableTotp, disableTotp, regenerateTotpRecoveryCodes,
@@ -24,34 +24,38 @@ import { fetchCurrentUser } from '@/store/slices/authSlice'
 import { getMyLoginLogs } from '@/api/system/log'
 import type { LoginLog } from '@/types'
 import { formatDateTime } from '@/utils/format'
+import { copyToClipboard } from '@/utils/clipboard'
 import { cleanupOldAvatars, uploadAvatar } from '@/api/system/file'
 
 export default function ProfilePage() {
   const dispatch = useAppDispatch()
   const userInfo = useAppSelector((s) => s.auth.userInfo)
+  const { isSuperAdmin } = usePermission()
   const { t } = useTranslation()
 
   const loginLogColumns: ColumnsType<LoginLog> = [
-    { title: t('时间'), dataIndex: 'created_at', width: 140, className: 'cell-time', render: formatDateTime },
+    { title: t('时间'), dataIndex: 'created_at', width: 160, className: 'cell-time', render: formatDateTime },
     {
       title: 'IP',
       dataIndex: 'ip',
-      width: 110,
-      render: (v: string) => (v ? <span className="cell-mono">{v}</span> : <span className="cell-muted">—</span>),
+      width: 140,
+      render: (v: string, record) => (
+        <span className="cell-mono">{v || <span className="cell-muted">—</span>}{record.location ? <span className="cell-muted" style={{ marginLeft: 6 }}>{record.location}</span> : null}</span>
+      ),
     },
     {
       title: t('状态'),
       dataIndex: 'status',
-      width: 80,
+      width: 90,
       render: (v: number) =>
         v === 1 ? (
-          <StatusPill tone="success" label="成功" pulse={false} />
+          <StatusPill tone="success" label={t('成功')} pulse={false} />
         ) : (
-          <StatusPill tone="danger" label="失败" />
+          <StatusPill tone="danger" label={t('失败')} />
         ),
     },
-    { title: t('浏览器'), dataIndex: 'browser', ellipsis: true, responsive: ['md'] },
-    { title: t('系统'), dataIndex: 'os', width: 140, responsive: ['lg'] },
+    { title: t('浏览器'), dataIndex: 'browser', width: 160, ellipsis: true },
+    { title: t('系统'), dataIndex: 'os', width: 160, ellipsis: true },
   ]
 
   const [profileForm] = Form.useForm()
@@ -235,8 +239,18 @@ export default function ProfilePage() {
   return (
     <div className="page-list profile-page">
       <div className="profile-hero">
-        <Upload accept="image/jpeg,image/png" beforeUpload={handleAvatarUpload} showUploadList={false} disabled={avatarLoading}>
-          <button type="button" className="profile-avatar-upload" aria-label={t('更换头像')} disabled={avatarLoading}>
+        <Upload
+          accept="image/jpeg,image/png"
+          beforeUpload={handleAvatarUpload}
+          showUploadList={false}
+          disabled={avatarLoading}
+        >
+          <button
+            type="button"
+            className="profile-avatar-upload"
+            aria-label={t('更换头像')}
+            disabled={avatarLoading}
+          >
             <div className="profile-hero-avatar-ring">
               <Avatar size={72} src={userInfo?.avatar || undefined} icon={<UserOutlined />} className="profile-hero-avatar" />
             </div>
@@ -248,7 +262,7 @@ export default function ProfilePage() {
         </Upload>
         <div className="profile-hero-info">
           <div className="profile-hero-name">
-            {userInfo?.nickname || userInfo?.username}
+            {isSuperAdmin ? t('管理员') : userInfo?.nickname || userInfo?.username}
             {userInfo?.totp_enabled && <span className="profile-hero-2fa">{t('2FA 已开启')}</span>}
           </div>
           <Space size={20} wrap className="profile-hero-meta">

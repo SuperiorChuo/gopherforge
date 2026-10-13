@@ -30,14 +30,21 @@ export const login = createAsyncThunk('auth/login', async (data: LoginRequest) =
 })
 
 export const fetchCurrentUser = createAsyncThunk('auth/fetchCurrentUser', async () => {
-  const [user, menus] = await Promise.all([getCurrentUser(), getUserMenus()])
+  const user = await getCurrentUser()
+  // 菜单失败不阻断身份：移动壳不依赖菜单树，桌面会回落到静态 MENU_DEFS。
+  // 网关/system 瞬时 404 时 Promise.all 会把已成功的 /user/me 一起打挂。
+  let menus: MenuItem[] = []
+  try {
+    menus = await getUserMenus()
+  } catch {
+    menus = []
+  }
   return { user, menus }
 })
 
 export const logout = createAsyncThunk('auth/logout', async (_, { getState }) => {
-  // 自动刷新会更新统一存储，但 Redux 中的初始快照不会随之变化。
-  // 注销必须撤销当前轮换后的 refresh token。
   const state = getState() as { auth: AuthState }
+  // Refresh rotates the shared token pair without necessarily updating Redux.
   const refreshToken = getRefreshToken() || state.auth.refreshToken
   try {
     if (refreshToken) await logoutAPI({ refresh_token: refreshToken })

@@ -1,0 +1,20 @@
+<!-- 411 按姓名拨号（mod_directory）：拨 411 → 应答 → 进 default 目录，
+     按分机 first_name/last_name 拼音首字母查找同事，报读分机号后可直接转接。
+     分机进目录靠 directory <user> 的 directory-visible=true + first_name/last_name
+     变量（control-api 物化分机文件 / mod_xml_curl 动态目录两处都会写，见
+     extdir.DirectoryVars）。目录 profile 用 vanilla directory.conf.xml 自带的
+     default（读 last_name/first_name，TTS 引擎 flite/say 兜底），未额外覆盖。
+     TTS：报读用英文 TTS（mod_flite 由 Q 批次启用）；flite 未加载时 mod_directory
+     自动回落 say/拼读——E2E 校准报读效果。
+     域参数用 ${domain_name}（跟随本次呼叫的域，与 01_local_extensions.xml 一致）;
+     若目录查不到用户，可改回 $${domain}（全局默认域）——E2E 校准点。 -->
+<include>
+  <extension name="cc_directory_411">
+    <condition field="destination_number" expression="^411$">
+      <action application="answer"/>
+      <action application="sleep" data="500"/>
+      <action application="directory" data="default ${domain_name}"/>
+      <action application="hangup"/>
+    </condition>
+  </extension>
+</include>

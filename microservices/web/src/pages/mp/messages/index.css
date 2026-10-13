@@ -1,0 +1,53 @@
+.mp-message-reply-context {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  gap: 12px 20px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid var(--ant-color-border, rgba(148, 163, 184, 0.24));
+  border-radius: 8px;
+  background: var(--ant-color-fill-quaternary, rgba(148, 163, 184, 0.08));
+}
+
+.mp-message-reply-context > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mp-message-reply-context .cell-mono {
+  overflow-wrap: anywhere;
+}
+
+.mp-message-reply-source {
+  grid-column: 1 / -1;
+}
+
+.mp-message-reply-source .ant-typography:last-child {
+  max-height: 96px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mp-message-window-alert {
+  margin-bottom: 16px;
+}
+
+.mp-messages-page .ant-upload-wrapper {
+  display: block;
+  margin-top: -8px;
+}
+
+@media (max-width: 560px) {
+  .mp-message-reply-context {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mp-message-reply-source {
+    grid-column: auto;
+  }
+}

@@ -10,12 +10,18 @@
     "lint": "oxlint",
     "lint:i18n": "node scripts/i18n/check.mjs",
     "test": "node --test --experimental-strip-types scripts/*.test.mjs",
+    "cap:sync": "npx cap sync",
     "preview": "vite preview",
     "test:e2e": "playwright test",
+    "test:demo": "playwright test --config playwright.demo.config.ts",
+    "test:components": "playwright test --config playwright.components.config.ts",
     "test:e2e:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/status-bar": "^8.0.3",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "@react-three/postprocessing": "^3.0.5",
@@ -35,6 +41,9 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
     "@playwright/test": "^1.62.1",
     "@types/node": "^24.13.3",
     "@types/nprogress": "^0.2.3",

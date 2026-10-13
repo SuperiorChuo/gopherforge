@@ -9,7 +9,6 @@ export const BPM_FORM_FIELD_TYPE_META: Record<string, string> = {
   switch: '开关',
 }
 
-// 展示元数据（中文文案集中处）
 // ---------------------------------------------------------------------
 
 export const BPM_DEFINITION_STATUS_META: Record<
@@ -106,20 +105,25 @@ export const BPM_ON_REJECT_META: Record<string, string> = {
   back_to_start: '退回发起人',
 }
 
-/** 表单快照的已知字段中文名（demo 业务类型字段；时间线与重提编辑器共用） */
+/** 表单快照的已知字段中文名（M1/M2 业务类型字段并集；时间线与重提编辑器共用） */
 export const BPM_FORM_FIELD_LABELS: Record<string, string> = {
   amount_cents: '金额',
-  reason: '事由',
-  applicant: '申请人',
+  customer_id: '客户 ID',
+  owner_user_id: '负责人',
+  no: '编号',
   title: '标题',
+  contract_id: '合同 ID',
+  method: '方式',
 }
 
-/** biz_type 预置（发起节点 formFields 由业务类型预置，只读展示；脚手架内置示例） */
+/** biz_type 预置（M1 发起节点 formFields 由业务类型预置，只读展示；见 §3.6/§5.1） */
 export const BPM_BIZ_TYPE_PRESETS: Record<string, { label: string; formFields: string[] }> = {
-  demo_expense: {
-    label: '示例：报销审批',
-    formFields: ['amount_cents', 'reason', 'applicant'],
+  crm_contract: {
+    label: 'CRM 合同审批',
+    formFields: ['amount_cents', 'customer_id', 'owner_user_id', 'no', 'title'],
+  },
+  crm_payment: {
+    label: 'CRM 回款审批',
+    formFields: ['amount_cents', 'contract_id', 'method'],
   },
 }
-
-// ---------------------------------------------------------------------

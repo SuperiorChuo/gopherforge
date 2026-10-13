@@ -1,0 +1,22 @@
+<!--
+  演示队列：拨 5000
+  M1 不强制 mod_callcenter，用 bridge 轮询坐席模拟技能组。
+  生产请换 mod_callcenter 或更完整 ACD。
+-->
+<include>
+  <extension name="demo_queue_5000">
+    <condition field="destination_number" expression="^5000$">
+      <action application="answer"/>
+      <action application="sleep" data="500"/>
+      <action application="playback" data="ivr/ivr-hold_connect_call.wav"/>
+      <action application="set" data="hangup_after_bridge=true"/>
+      <action application="set" data="continue_on_fail=true"/>
+      <action application="set" data="call_timeout=25"/>
+      <action application="export" data="execute_on_answer=record_session $${recordings_dir}/queue-${uuid}.wav"/>
+      <!-- 依次尝试 1000-1003 -->
+      <action application="bridge" data="user/1000@${domain_name},user/1001@${domain_name},user/1002@${domain_name},user/1003@${domain_name}"/>
+      <action application="playback" data="ivr/ivr-no_one_is_available_to_take_your_call.wav"/>
+      <action application="hangup"/>
+    </condition>
+  </extension>
+</include>

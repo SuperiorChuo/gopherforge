@@ -1,235 +1,109 @@
-# 生产部署指南（Linux + Docker Compose + Nginx/HTTPS）
+# 生产部署（Linux + Docker Compose + HTTPS）
 
-面向把 **GopherForge 微服务版** 部署到一台 Linux 服务器的运维/自部署用户。本地开发联调请看 [`LOCAL_SETUP.md`](../LOCAL_SETUP.md)，本文只讲**生产上线**。要上 Kubernetes（k3s / 云托管集群）的看 [`deploy-k8s.md`](deploy-k8s.md)。
+完整产品包含 16 个 API 服务、AI worker 和前端，媒体与客户端另行部署。建议至少 8C16G 起步，具体容量需按业务、模型和监控负载压测；本指南不是容量保证。需要 Docker Engine 24+、Compose v2、域名及 TLS 证书。Kubernetes 见[迁移指南](deploy-k8s.md)，本地开发见[联调说明](../LOCAL_SETUP.md)。
 
-> 当前正式版：`v0.7.0`（[Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.7.0)）。0.x 期间 API 和数据库表结构可能变化；上线前请完成备份、迁移兼容性检查和回滚演练。
+> 当前候选内容面向 v0.8.0，镜像可用性以 [Releases](https://github.com/SuperiorChuo/gopherforge/releases) 为准。未发布候选只能本地构建，不能假定对应镜像已经存在。
 
----
-
-## 1. 架构与你要准备的东西
-
-一条请求的路径：
-
-```
-公网 ──HTTPS──► Nginx（TLS 终止 / 反代）──HTTP──► Traefik 网关(:8000) ──► 各微服务
-                                                          │
-                        PostgreSQL · Redis · NATS · MinIO(可选)
-```
-
-> **关键事实**：内置的 Traefik 网关只监听 HTTP（`--entrypoints.web.address=:80`），**不做 TLS**。生产必须在它前面放一个反向代理（推荐 Nginx）来终止 HTTPS。这是有意的设计——证书与 HTTPS 归属运维层，不塞进应用栈。
-
-**服务器要求**：
-- Linux（Ubuntu 22.04 / Debian 12 / 任意 systemd 发行版）
-- Docker Engine 24+ 与 Docker Compose v2（`docker compose`，非旧版 `docker-compose`）
-- 建议 4C8G 起（7 个 Go 服务 + PG + Redis + NATS；监控 profile 另计资源）
-- 一个域名 + 该域名的 TLS 证书（Let's Encrypt 即可）
-
----
-
-## 2. 拉取代码与准备 .env
+## 配置与安全
 
 ```bash
 git clone https://github.com/SuperiorChuo/gopherforge.git /opt/gopherforge
 cd /opt/gopherforge/microservices
 cp .env.example .env
-chmod 600 .env          # .env 含密钥，收紧权限
+chmod 600 .env
 ```
 
-**必须改的项**（`APP_ENV=production` 会强校验这些，弱值直接拒绝启动）：
+上线前至少设置：
 
-| 变量 | 要求 | 说明 |
-|------|------|------|
-| `APP_ENV` | `production` | 开启严格校验（见下） |
-| `JWT_SECRET` | **≥32 位、非占位** | 生成：`openssl rand -base64 48` |
-| `POSTGRES_PASSWORD` | 强密码、非默认 | 不能是 `123456`/占位符 |
-| `REDIS_PASSWORD` | 强密码、非空 | 生产 Redis 必须设密码 |
-| `POSTGRES_USER` | 自定义 | 别用默认 `postgres` |
+- `APP_ENV=production`。
+- `JWT_SECRET`：至少 32 位、非占位随机密钥，例如 `openssl rand -base64 48`。
+- PostgreSQL、Redis、内部服务令牌、MinIO/Grafana（启用时）使用独立强密码，禁止示例值。
+- 保持 `SERVICES_BIND_IP=127.0.0.1`，业务端口不得直接暴露给公网。
+- `CORS_ALLOW_ORIGINS=https://admin.example.com` 替换为实际来源；带凭据时禁止 `*`。
+- 持久化上传和数据库；需要 S3/MinIO 时配置存储端点、桶和凭据。
+- AI、支付、公众号、短信、语音供应商按需配置；未配置链路不视为可用。
 
-**强烈建议改的项**：
-- `SERVICES_BIND_IP=127.0.0.1`（默认值，保持）——业务服务端口只绑 loopback，杜绝内网伪造 `X-Auth-*` 头绕过鉴权。**不要**改成 `0.0.0.0`。
-- `CORS_ALLOW_ORIGINS`——改成你的真实域名（如 `https://admin.example.com`），删掉 localhost 项。`CORS_ALLOW_CREDENTIALS=true` 时**不允许**用 `*`。
-- `GRAFANA_ADMIN_PASSWORD` / `MINIO_ROOT_PASSWORD`——若启用对应可选栈，改掉默认。
-- 对象存储：默认 `UPLOAD_STORAGE_TYPE=local`（文件存容器卷）。生产多副本或要持久化建议 `minio` 或外部 `s3`，并填强 access/secret key（production 校验会拒弱值）。
+生产校验会拒绝部分弱配置，但不能替代密钥管理、网络隔离、备份和权限审计。
 
-> **`APP_ENV=production` 严格校验**（`monitor` 启动时执行，任一不过则**整个迁移/启动失败**）：JWT secret ≥32 位非占位、DB 密码非弱、Redis 密码非弱；storage 选 s3/minio 时其 endpoint/bucket/key 必须合法非弱。这是防止"带着 dev 默认值上线"的护栏——报错信息会明确指出哪项不合格。
-
----
-
-## 3. 启动核心栈
-
-栈分两层（应用重建永不触碰数据）：**infra 栈** `docker-compose.infra.yml`（postgres、redis、nats、minio 可选）+ **应用栈** `docker-compose.yml`（migrate 一次性迁移、7 个基础服务、gateway、frontend），经外部网络 `go-admin-kit-net` 互通。
+## 数据栈与应用栈
 
 ```bash
 cd /opt/gopherforge/microservices
-# 共享网络（一次性；子网与 TRUSTED_PROXIES 白名单对齐）
 docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
   docker network create --subnet 172.28.0.0/16 go-admin-kit-net
-# 数据栈先行（必须显式 -p；要 MinIO 加 --profile storage）
 docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
+docker compose --profile compose-fallback up -d --build
+docker compose --profile compose-fallback ps
 ```
 
-应用栈二选一：
+一次性 `migrate` job 成功后启动应用。默认名称适用于单套环境；同机验收须另设全部容器名、网络、卷和端口，不能复用开发/生产数据。
 
-**方式 A · 拉官方镜像（v0.2.0 起，推荐）**。每个正式版由 `release.yml` 把 8 个镜像（7 个 Go 服务 + frontend；migrate 容器复用 monitor 镜像）推到 ghcr.io，`v0.4.0` 起同时提供 `linux/amd64` 与 `linux/arm64`（arm64 云机 / Apple Silicon 可直接拉镜像；`v0.2.0` 及更早仅 amd64）。镜像双 tag：`vX.Y.Z` 与 `sha-<7位>`（精确锁定提交）；`latest` 仅随正式版更新、预发布不动它。当前推荐版本为 `v0.7.0`。
+正式版镜像已发布后可改用：
 
 ```bash
 export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.7.0
-docker compose pull                # 拉全部 8 个镜像
-docker compose up -d --no-build    # 直接用拉取的镜像，不本地构建
+export IMAGE_TAG=v0.8.0  # 仅在该版本正式发布并核对候选 SHA 后使用
+docker compose --profile compose-fallback pull
+docker compose --profile compose-fallback up -d --no-build
 ```
 
-> `IMAGE_PREFIX`/`IMAGE_TAG` 都不设时回落为本地构建镜像名 `go-admin-kit-<服务名>:latest`，与旧行为完全一致。
+发布矩阵从 Compose 动态生成：完整主应用有 17 个唯一镜像（16 API + frontend）；worker 复用 AI 镜像，migrate 复用 monitor 镜像。媒体与客户端不在此矩阵。历史版本自 v0.3.0 起支持双架构；每次发行仍须核对实际 `linux/amd64`、`linux/arm64` 镜像与发布 SHA，不能仅凭文档判断。
 
-**方式 B · 本地构建**（源码可改、arm64 可用）：
+## HTTPS 入口
 
-```bash
-docker compose up -d --build
-```
-
-之后两种方式相同：
-
-```bash
-# 等全部 healthy（migrate 会先跑 goose 迁移再退出，业务服务 depends_on 它完成）
-docker compose ps
-```
-
-健康检查（网关内部）：
-```bash
-curl -s http://127.0.0.1:8000/api/v1/health/ready   # 期望 {"code":200,...,"status":"ready"}
-```
-
-**首次登录默认账号**：`admin` / `admin123`——**登录后立即在「系统管理→用户」改密码**。
-
-### 可选栈（按需）
-- **对象存储 MinIO**：`docker compose --profile storage up -d`
-- **可观测（Prometheus/Grafana/OTel/Jaeger）**：`docker compose --profile monitoring up -d`（默认不启，见 [ops-gaps]）
-
-### 可选：IP 归属地离线库（登录日志 / 在线用户）
-```bash
-/opt/gopherforge/scripts/download-ip2region.sh   # 下载 ip2region.xdb（约 11MB，不进 git）到 microservices/data/
-docker compose restart system-service audit-service
-```
-文件缺失时服务优雅降级：登录日志回退在线查询、在线用户归属地留空，不影响启动。
-
----
-
-## 4. Nginx 反向代理 + HTTPS
-
-用 Nginx 终止 TLS，反代到网关的 `${GATEWAY_PORT:-8000}`。示例 `/etc/nginx/conf.d/go-admin-kit.conf`：
+Traefik 默认 HTTP 入口在 `8000`，应置于 TLS 反代之后；防火墙只开放实际使用的入口，不开放数据库、服务直连或管理面板。
 
 ```nginx
 server {
     listen 80;
     server_name admin.example.com;
-    return 301 https://$host$request_uri;   # 强制 HTTPS
+    return 301 https://$host$request_uri;
 }
-
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
     server_name admin.example.com;
-
-    ssl_certificate     /etc/letsencrypt/live/admin.example.com/fullchain.pem;
+    ssl_certificate /etc/letsencrypt/live/admin.example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/admin.example.com/privkey.pem;
-
-    client_max_body_size 50m;   # 文件/素材上传
-
+    client_max_body_size 50m;
     location / {
-        proxy_pass http://127.0.0.1:8000;   # → Traefik 网关（前端 SPA + /api 都在网关后）
-        proxy_set_header Host              $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-
-        # WebSocket（实时通知等场景使用）
         proxy_http_version 1.1;
-        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_read_timeout 3600s;
     }
 }
 ```
 
-证书用 certbot 签发：`certbot --nginx -d admin.example.com`。
+证书路径和域名需替换为实际配置。访问 `https://admin.example.com`；首次账号 `admin` / `admin123`，立即改密。Traefik dashboard、Prometheus 和 Grafana 只允许可信网络访问。
 
-**改完记得同步 `.env` 的 `CORS_ALLOW_ORIGINS=https://admin.example.com` 并重启相关服务**，否则浏览器 POST/预检会 403。
-
-> 网关的 Traefik dashboard 绑在 `127.0.0.1:8090`（仅本机）。不需要就删掉 compose 里 gateway 的 `--api.insecure=true` 和 `127.0.0.1:8090:8080` 端口映射。
-
----
-
-## 5. 升级 / 回滚
-
-**升级 / 回滚（方式 A · 镜像部署）**——改 `IMAGE_TAG` 即完成版本切换：
-```bash
-cd /opt/gopherforge/microservices
-export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.2.1                 # 升级：指向新版本；回滚：切回上一个版本
-docker compose pull && docker compose up -d --no-build
-```
-需要精确到某次提交时用 `sha-<7位>` tag。各版本行为变化与升级注意事项见文档站「版本升级」页。
-
-**升级（方式 B · 源码构建）**：
-```bash
-cd /opt/gopherforge
-git pull
-make compose-up                         # 迁移由 migrate job 自动跑；只重建有变化的镜像
-```
-
-**回滚（方式 B，无版本化镜像，靠 tag 手动留一版）**：
-```bash
-# 升级前先给要动的服务打 prev tag，坏了可回
-docker tag go-admin-kit-system-service:latest go-admin-kit-system-service:prev
-# 回滚：改 compose image 指向 :prev 或 docker tag 回去后 up -d
-```
-> 数据库迁移用 goose，**只前进不自动回退**。回滚代码前先确认新迁移是否兼容旧代码；破坏性迁移要先备份再上。
-
----
-
-## 6. 备份（务必配，当前栈不自带）
-
-数据全在 `go_admin_kit_postgres_data` 卷。**上线第一天就配每日备份**：
+## 可选组件
 
 ```bash
-# /etc/cron.daily/go-admin-kit-pgdump（chmod +x）
-#!/bin/bash
-set -e
-OUT=/var/backups/gak/pg-$(date +%F-%H%M).sql.gz
-mkdir -p /var/backups/gak
-docker exec go-admin-kit-postgres pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$OUT"
-ls -t /var/backups/gak/pg-*.sql.gz | tail -n +8 | xargs -r rm   # 留最近 7 份
+# MinIO 属于 infra 栈
+docker compose -p go-admin-kit-infra -f docker-compose.infra.yml --profile storage up -d
+# 监控与追踪属于应用栈
+docker compose --profile compose-fallback --profile monitoring up -d
+docker compose --profile compose-fallback --profile tracing up -d
 ```
-上传文件（local 存储时）在 `go_admin_kit_uploads`/`im_uploads` 卷，一并纳入备份；用 MinIO/S3 时走对象存储自身的备份策略。
 
----
+[媒体栈](../freeswitch-cc/README.md)和 [Hermes 客户端](../clients/hermes-manager/README.md)分别部署。网络可达、供应商配置和 SIP/RTP/WebRTC 验收不能由 HTTP 健康检查替代。
 
-## 7. 日志与磁盘
+## 升级、恢复与验收
 
-Docker 默认 json-file 日志不轮转，长期会撑满磁盘。配 `/etc/docker/daemon.json`：
-```json
-{
-  "log-driver": "json-file",
-  "log-opts": { "max-size": "50m", "max-file": "5" }
-}
+1. 固定目标版本及完整公开 commit SHA，核对镜像和构建来源。
+2. 备份数据库、上传、配置和密钥；在隔离副本演练升级与恢复。
+3. 保留全部公开历史 SQL 原路径、原字节，只追加新迁移。v0.8.0 升级为 forward-only；禁止 `down/reset`。
+4. 应用回退不等于数据库回退。不得仅切旧镜像继续使用不兼容新 schema；按演练方案恢复匹配的数据库和应用。
+5. 检查全部服务、API、worker、UI、监控抓取及所需外部集成；健康接口通过只是其中一项。
+
+```bash
+curl --fail http://127.0.0.1:8000/api/v1/health/ready
+BASE_URL=http://127.0.0.1:8000 bash ../scripts/slo-probe.sh
 ```
-改后 `systemctl restart docker`（会重启容器，择时操作）。
 
----
-
-## 8. 上线检查清单
-
-- [ ] `.env`：`APP_ENV=production`、JWT/DB/Redis 强密钥、`chmod 600`
-- [ ] `SERVICES_BIND_IP` 保持 loopback（未设或 127.0.0.1）
-- [ ] `CORS_ALLOW_ORIGINS` 改成真实 HTTPS 域名，无 `*`
-- [ ] Nginx HTTPS 反代到 `:8000`，WebSocket upgrade 头齐全
-- [ ] `docker compose ps` 全 healthy；`/api/v1/health/ready` 返回 200
-- [ ] admin 默认密码已改
-- [ ] PG 每日备份 cron 已配并验证能跑出文件
-- [ ] Docker 日志轮转已配
-- [ ] （可选）monitoring/storage profile 按需启用并改默认密码
-
----
-
-## 相关文档
-- 数据库迁移：[`development/MIGRATIONS.md`](./development/MIGRATIONS.md)
-- 安全说明：[`SECURITY.md`](./SECURITY.md)
+详细验证与证据绑定见[发行验证](release-validation.md)和[迁移约定](development/MIGRATIONS.md)。停止应用不要删除 infra 数据卷。

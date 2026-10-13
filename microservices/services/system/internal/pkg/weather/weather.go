@@ -1,7 +1,7 @@
-// Package weather proxies the Amap (高德) IP-location and live-weather APIs
-// for the dashboard hero chip. The API key lives in the weather.provider
-// system_settings row (console-managed, hot-reloaded); responses are cached
-// in-process because weather freshness is measured in tens of minutes.
+// Package weather 代理高德（Amap）的 IP 定位与实时天气 API，
+// 供看板顶部组件使用。API key 存于 weather.provider 的 system_settings
+// 配置行（控制台管理、热重载）；响应在进程内缓存，
+// 因为天气的新鲜度以数十分钟为计量单位。
 package weather
 
 import (
@@ -17,28 +17,27 @@ import (
 	"time"
 )
 
-// SettingKey is the system_settings row consumed by this package.
+// SettingKey 是本包消费的 system_settings 配置行。
 const SettingKey = "weather.provider"
 
-// ErrNotConfigured is returned when no API key is configured; the frontend
-// hides the chip silently on this error.
+// ErrNotConfigured 在未配置任何 API key 时返回；前端遇到该错误会静默隐藏组件。
 var ErrNotConfigured = errors.New("weather provider is not configured")
 
-// Settings mirrors the weather.provider setting row.
+// Settings 对应 weather.provider 配置行的结构。
 type Settings struct {
-	// AmapKey is the 高德开放平台 Web 服务 key（IP 定位与天气共用）.
+	// AmapKey 是高德开放平台 Web 服务 key（IP 定位与天气共用）。
 	AmapKey string
-	// DefaultCity is an adcode or city name used when IP location fails
-	// (e.g. intranet deployments whose egress IP cannot be located).
+	// DefaultCity 是 IP 定位失败时使用的 adcode 或城市名
+	// （例如出口 IP 无法定位的内网部署）。
 	DefaultCity string
-	// CacheMinutes controls the per-city weather cache TTL; 0 means 30.
+	// CacheMinutes 控制按城市划分的天气缓存 TTL；0 表示 30。
 	CacheMinutes int
 }
 
 func (s Settings) Configured() bool { return strings.TrimSpace(s.AmapKey) != "" }
 
-// ApplySetting layers non-empty DB fields over defaults, mirroring the
-// runtimeconfig convention used by ai.provider.
+// ApplySetting 把非空的数据库字段叠加到默认值之上，与 ai.provider
+// 使用的 runtimeconfig 约定保持一致。
 func ApplySetting(settings Settings, value map[string]any) Settings {
 	if value == nil {
 		return settings
@@ -59,7 +58,7 @@ func ApplySetting(settings Settings, value map[string]any) Settings {
 	return settings
 }
 
-// Live is the payload returned to the dashboard.
+// Live 是返回给看板的数据载荷。
 type Live struct {
 	City        string `json:"city"`
 	Adcode      string `json:"adcode"`
@@ -69,18 +68,18 @@ type Live struct {
 	WindDir     string `json:"wind_dir"`
 	WindPower   string `json:"wind_power"`
 	ReportTime  string `json:"report_time"`
-	// TempHigh / TempLow come from 高德预报当天的 daytemp / nighttemp；
+	// TempHigh / TempLow 来自高德预报当天的 daytemp / nighttemp；
 	// 取 max/min 作为展示用高低，拉取失败时留空，前端降级隐藏。
 	TempHigh string `json:"temp_high,omitempty"`
 	TempLow  string `json:"temp_low,omitempty"`
 }
 
-// SettingsReader yields the current provider settings (DB over env).
+// SettingsReader 提供当前 provider 设置（数据库优先于环境变量）。
 type SettingsReader interface {
 	WeatherSettings(ctx context.Context) Settings
 }
 
-// Service resolves a client IP to a city and returns cached live weather.
+// Service 将客户端 IP 解析为城市，并返回缓存的实时天气。
 type Service struct {
 	reader     SettingsReader
 	httpClient *http.Client
@@ -88,7 +87,7 @@ type Service struct {
 
 	mu    sync.Mutex
 	cache map[string]cacheEntry
-	// ipCache remembers ip→adcode separately: IP 归属基本不变，
+	// ipCache 单独记录 ip→adcode：IP 归属基本不变，
 	// 定位接口没必要跟着天气一起过期。
 	ipCache map[string]ipCacheEntry
 }
@@ -120,7 +119,7 @@ func NewService(reader SettingsReader) *Service {
 	}
 }
 
-// NewServiceForTest wires a custom HTTP client and base URL.
+// NewServiceForTest 注入自定义 HTTP client 与 base URL。
 func NewServiceForTest(reader SettingsReader, client *http.Client, baseURL string) *Service {
 	s := NewService(reader)
 	if client != nil {
@@ -132,8 +131,8 @@ func NewServiceForTest(reader SettingsReader, client *http.Client, baseURL strin
 	return s
 }
 
-// LiveByIP resolves clientIP to a city (falling back to DefaultCity) and
-// returns the cached or freshly fetched live weather.
+// LiveByIP 将 clientIP 解析为城市（失败时回退到 DefaultCity），
+// 并返回已缓存或新拉取的实时天气。
 func (s *Service) LiveByIP(ctx context.Context, clientIP string) (*Live, error) {
 	settings := s.reader.WeatherSettings(ctx)
 	if !settings.Configured() {
@@ -172,9 +171,9 @@ func (s *Service) LiveByIP(ctx context.Context, clientIP string) (*Live, error) 
 	return live, nil
 }
 
-// locate maps the client IP to an adcode via 高德 IP 定位. Private and
-// loopback addresses skip the API call: the egress IP the API would see is
-// the server's, not the browser's, so DefaultCity is the honest answer.
+// locate 通过高德 IP 定位把客户端 IP 映射为 adcode。私有与
+// 回环地址会跳过 API 调用：API 看到的出口 IP 是服务器的，
+// 而非浏览器的，因此 DefaultCity 才是诚实的答案。
 func (s *Service) locate(ctx context.Context, settings Settings, clientIP string) string {
 	ip := net.ParseIP(strings.TrimSpace(clientIP))
 	if ip == nil || ip.IsLoopback() || ip.IsPrivate() {
@@ -258,7 +257,7 @@ func (s *Service) fetchLive(ctx context.Context, key, city string) (*Live, error
 	return live, nil
 }
 
-// fetchTodayRange pulls 高德预报（extensions=all）当天 daytemp/nighttemp。
+// fetchTodayRange 拉取高德预报（extensions=all）当天的 daytemp/nighttemp。
 func (s *Service) fetchTodayRange(ctx context.Context, key, city string) (high, low string, ok bool) {
 	q := url.Values{"key": {key}, "city": {city}, "extensions": {"all"}, "output": {"JSON"}}
 	var resp struct {
@@ -314,7 +313,7 @@ func (s *Service) getJSON(ctx context.Context, path string, out any) error {
 	return json.NewDecoder(resp.Body).Decode(out)
 }
 
-// flexString tolerates 高德 returning either "440300" or [] for the same field.
+// flexString 兼容高德对同一字段返回 "440300" 或 [] 的情况。
 func flexString(raw json.RawMessage) string {
 	if len(raw) == 0 {
 		return ""

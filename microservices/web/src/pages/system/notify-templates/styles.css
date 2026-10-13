@@ -1,0 +1,95 @@
+.notify-templates-page .notify-template-event {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.notify-templates-page .notify-template-name.ant-typography,
+.notify-templates-page .notify-template-title {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notify-templates-page .notify-template-code.ant-typography {
+  display: block;
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notify-templates-page .notify-template-channels {
+  max-width: 100%;
+}
+
+.notify-templates-page .notify-template-channels .ant-tag {
+  margin-inline-end: 0;
+}
+
+.notify-templates-page .notify-delivery-recipient {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.notify-templates-page .notify-delivery-recipient > span {
+  overflow: hidden;
+  margin: 0;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notify-templates-page .notify-delivery-recipient > span:first-child {
+  font-size: inherit;
+}
+
+.notify-templates-page .notify-template-edit-button.ant-btn {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding-inline: 0;
+}
+
+.notify-templates-page .notify-template-row-disabled > td {
+  background: rgba(100, 116, 139, 0.045) !important;
+}
+
+.notify-templates-page .notify-template-row-disabled .notify-template-event,
+.notify-templates-page .notify-template-row-disabled .notify-template-title,
+.notify-templates-page .notify-template-row-disabled .notify-template-channels {
+  opacity: 0.62;
+}
+
+.notify-templates-page .notify-template-row-disabled:hover > td {
+  background: rgba(100, 116, 139, 0.08) !important;
+}
+
+[data-theme='light'] .notify-templates-page .notify-template-row-disabled > td {
+  background: rgba(148, 163, 184, 0.08) !important;
+}
+
+[data-theme='light'] .notify-templates-page .notify-template-row-disabled:hover > td {
+  background: rgba(148, 163, 184, 0.13) !important;
+}
+
+@media (max-width: 575px) {
+  .notify-templates-page .notify-template-table .ant-table-cell,
+  .notify-templates-page .notify-delivery-table .ant-table-cell {
+    padding-inline: 12px;
+  }
+
+  .notify-templates-page .notify-delivery-filters {
+    width: 100%;
+  }
+}

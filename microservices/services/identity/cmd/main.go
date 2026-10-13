@@ -4,17 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
+	identityv1 "github.com/go-admin-kit/services/api/gen/identity/v1"
 	"github.com/go-admin-kit/services/identity/internal/api"
 	"github.com/go-admin-kit/services/identity/internal/config"
 	authDAO "github.com/go-admin-kit/services/identity/internal/dao/auth"
@@ -24,21 +29,21 @@ import (
 	"github.com/go-admin-kit/services/identity/internal/pkg/runtimeconfig"
 	authsvc "github.com/go-admin-kit/services/identity/internal/service/auth"
 	systemsvc "github.com/go-admin-kit/services/identity/internal/service/system"
+	"github.com/go-admin-kit/services/shared/pkg/auditevents"
 	sharedaudit "github.com/go-admin-kit/services/shared/pkg/audittrail"
 	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
 	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/database"
-	"github.com/go-admin-kit/services/shared/pkg/graceful"
+	"github.com/go-admin-kit/services/shared/pkg/grpcx"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	sharedmetrics "github.com/go-admin-kit/services/shared/pkg/metrics"
+	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"github.com/go-admin-kit/services/shared/pkg/observability"
 	"github.com/go-admin-kit/services/shared/pkg/redis"
 	sharedapi "github.com/go-admin-kit/services/shared/pkg/sharedapi"
 	tenantscope "github.com/go-admin-kit/services/shared/pkg/tenant"
-
-	sharedmw "github.com/go-admin-kit/services/shared/pkg/middleware"
 )
 
 func setupCORS(router *gin.Engine) {
@@ -144,6 +149,51 @@ func stopOperationLogProcessor(cancel context.CancelFunc, done <-chan struct{}, 
 	}
 }
 
+// envInt 读环境变量整数，空/非法用默认值。
+func envInt(key string, def int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	return def
+}
+
+// startGRPCServer 启动 owner API gRPC 服务并注册 Consul（Phase 3）。
+func startGRPCServer(ctx context.Context, grpcPort int, db *gorm.DB) (cleanup func(), err error) {
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
+	if err != nil {
+		return nil, fmt.Errorf("grpc listen: %w", err)
+	}
+	srv := grpcx.NewServer()
+	identityv1.RegisterIdentityServiceServer(srv, api.NewIdentityGRPC(db))
+	go func() { _ = srv.Serve(lis) }()
+	logger.Info("grpc server started", logger.Int("port", grpcPort))
+
+	consulAddr := os.Getenv("CONSUL_ADDR")
+	if consulAddr == "disabled" {
+		return func() { srv.GracefulStop() }, nil
+	}
+	host := grpcx.LocalIP()
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	deregister, regErr := grpcx.Register(consulAddr, grpcx.Instance{
+		ServiceName: "identity-service",
+		Host:        host,
+		Port:        grpcPort,
+	})
+	if regErr != nil {
+		logger.Warn("consul register failed（跳过，HTTP 不受影响）", logger.Err(regErr))
+	}
+	return func() {
+		if deregister != nil {
+			deregister()
+		}
+		srv.GracefulStop()
+	}, nil
+}
+
 func main() {
 	if err := run(context.Background()); err != nil {
 		if logger.Logger != nil {
@@ -198,6 +248,11 @@ func run(ctx context.Context) error {
 		},
 	}); err != nil {
 		return fmt.Errorf("audit trail plugin registration failed: %w", err)
+	}
+
+	// Phase 2D：审计事件化——init 发布器（NATS 配置后走事件，否则回退直写）。
+	if err := auditevents.Init(config.Cfg.NATS.URL); err != nil {
+		logger.Warn("audit events publisher init failed（回退直写）", logger.Err(err))
 	}
 	consoleSessionService := authsvc.NewConsoleSessionServiceWithDB(database.DB)
 	middleware.SetAuthMiddlewareDependencies(middleware.AuthMiddlewareDependencies{
@@ -331,17 +386,33 @@ func run(ctx context.Context) error {
 	setupCORS(router)
 	api.SetupRoutesWithDeps(router, sharedapi.Dependencies{DB: database.DB, Redis: redis.Client})
 
+	// Phase 3：owner API gRPC server（经 Consul 发现，供 notify/visibility/crm/bpm 调）。
+	grpcPort := envInt("GRPC_PORT", 9083)
+	grpcCleanup, err := startGRPCServer(ctx, grpcPort, database.DB)
+	if err != nil {
+		return fmt.Errorf("grpc server start failed: %w", err)
+	}
+
 	port := config.Cfg.App.Port
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: router}
 	listener, err := net.Listen("tcp", server.Addr)
 	if err != nil {
 		return fmt.Errorf("server listen failed: %w", err)
 	}
-
 	printStartupBanner(config.Cfg.App.Name, config.Cfg.App.Version, config.Cfg.App.Env, port)
+	if config.Cfg.App.InternalToken == "" {
+		logger.Warn("INTERNAL_TOKEN 未配置——owner 内部 API（/internal/*）将全部 fail-closed 503")
+	}
 	sh := graceful.New(graceful.WithTimeout(15 * time.Second))
+	if grpcCleanup != nil {
+		sh.Register("grpc", func(ctx context.Context) error {
+			grpcCleanup()
+			return nil
+		})
+	}
 	serverErr := make(chan error, 1)
 	go func() {
+		logger.Info("server listening", logger.String("addr", server.Addr))
 		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErr <- err
 		}

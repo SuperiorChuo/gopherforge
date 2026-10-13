@@ -8,8 +8,23 @@ datasources:
     isDefault: true
     editable: true
 
+  - name: Jaeger
+    uid: jaeger
+    type: jaeger
+    access: proxy
+    url: http://go-admin-kit-jaeger:16686
+    editable: true
+
   - name: Loki
     type: loki
     access: proxy
     url: http://go-admin-kit-loki:3100
     editable: true
+    # 日志↔追踪联动：日志行内的 trace_id 自动变为跳转 Jaeger 的链接
+    # （服务日志由 RequestLogger 打 "trace_id":"<32hex>" 字段）。
+    jsonData:
+      derivedFields:
+        - name: TraceID
+          matcherRegex: '"trace_id":\s*"([0-9a-f]{32})"'
+          url: '$${__value.raw}'
+          datasourceUid: jaeger

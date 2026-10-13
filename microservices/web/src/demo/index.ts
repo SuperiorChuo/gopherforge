@@ -434,10 +434,10 @@ const routes: Array<[string, RegExp, Handler]> = [
   // 认证
   ['get', /^\/api\/v1\/captcha$/, () => ({ key: `demo-${Date.now()}`, type: 'image', image: captchaSVG(), width: 120, height: 40 })],
   ['post', /^\/api\/v1\/login$/, (_m, body) => ({
-    access_token: 'demo-access-token', refresh_token: 'demo-refresh-token',
+    access_token: 'test-demo-access-token', refresh_token: 'test-demo-refresh-token',
     user: { ...demoUser(), username: String(body.username || 'admin') || 'admin' },
   })],
-  ['post', /^\/api\/v1\/refresh$/, () => ({ access_token: 'demo-access-token', refresh_token: 'demo-refresh-token' })],
+  ['post', /^\/api\/v1\/refresh$/, () => ({ access_token: 'test-demo-access-token', refresh_token: 'test-demo-refresh-token' })],
   ['post', /^\/api\/v1\/logout$/, () => ({})],
   ['get', /^\/api\/v1\/user\/me$/, () => demoUser()],
   ['get', /^\/api\/v1\/user\/menus$/, () => menuTree()],

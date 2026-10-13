@@ -1,0 +1,1162 @@
+/* Hermes 3D 办公室样式（从 index.css 拆出，业务域仅主仓） */
+
+/* ── Hermes 3D 办公室地图 ─────────────────────────────────────────────
+   场景中的 Html 名牌关闭 pointer-events，避免挡住工位点选与拖拽。 */
+.hermes-seat-pill {
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  color: rgba(226, 232, 240, 0.95);
+  background: rgba(8, 14, 28, 0.85);
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45), 0 0 12px rgba(34, 211, 238, 0.08);
+}
+.hermes-seat-pill.is-selected {
+  border-color: rgba(129, 140, 248, 0.9);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3), 0 0 16px rgba(129, 140, 248, 0.35);
+}
+.hermes-seat-pill-sub {
+  color: rgba(148, 163, 184, 0.75);
+  font-size: 11px;
+}
+
+.hermes-seat-pill-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* 部门岛前缘的固定名牌：不参与命中，避免挡住工位点选。 */
+.hermes-department-label {
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 24px;
+  padding: 3px 10px;
+  border: 1px solid rgba(103, 232, 249, 0.2);
+  border-radius: 6px;
+  background: rgba(8, 14, 28, 0.88);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 14px rgba(34, 211, 238, 0.07);
+  font-size: 12px;
+  font-weight: 650;
+}
+.hermes-department-label-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: 0 0 6px 1px currentColor;
+}
+.hermes-department-label-count {
+  min-width: 16px;
+  padding-left: 7px;
+  border-left: 1px solid rgba(103, 232, 249, 0.18);
+  color: rgba(148, 163, 184, 0.8);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* 场景容器与四角 HUD */
+.hermes-office-shell {
+  min-width: 0;
+}
+/* 舞台永远是深色大屏：两种站内主题下都保持暗色边框与青色微光 */
+.hermes-office-stage {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(103, 232, 249, 0.14);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.4), 0 0 32px rgba(34, 211, 238, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.hermes-hud {
+  position: absolute;
+  z-index: 5;
+}
+.hermes-hud-tl { top: 16px; left: 16px; }
+.hermes-hud-tr { top: 16px; right: 16px; }
+.hermes-hud-rr {
+  top: 64px;
+  right: 16px;
+  width: 220px;
+  max-height: calc(100% - 96px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hermes-hud-card {
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(8, 14, 28, 0.78);
+  border: 1px solid rgba(103, 232, 249, 0.18);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4), 0 0 18px rgba(34, 211, 238, 0.06);
+  backdrop-filter: blur(10px) saturate(1.3);
+  -webkit-backdrop-filter: blur(10px) saturate(1.3);
+  color: rgba(226, 232, 240, 0.95);
+}
+
+/* HUD 折叠态：默认收起不挡 3D 场景，留一个小 chip 作为展开入口 */
+.hermes-hud-chip {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(103, 232, 249, 0.2);
+  background: rgba(8, 14, 28, 0.7);
+  color: #e2e8f0;
+  font-size: 12px;
+  cursor: pointer;
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+}
+.hermes-hud-chip:hover {
+  background: rgba(20, 30, 50, 0.82);
+  border-color: rgba(103, 232, 249, 0.35);
+}
+.hermes-hud-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22b96f;
+  box-shadow: 0 0 8px rgba(34, 185, 111, 0.7);
+}
+.hermes-hud-chip-name {
+  font-weight: 600;
+}
+.hermes-hud-chip-risk {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(239, 83, 80, 0.2);
+  border: 1px solid rgba(239, 83, 80, 0.4);
+  color: #fca5a5;
+  font-size: 11px;
+  font-weight: 600;
+}
+.hermes-hud-collapse {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 12px;
+  cursor: pointer;
+}
+.hermes-hud-collapse:hover {
+  background: rgba(103, 232, 249, 0.12);
+  color: #e2e8f0;
+}
+
+.hermes-hud-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  font-weight: 600;
+  color: rgba(103, 232, 249, 0.85);
+}
+.hermes-hud-title {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #f1f5f9;
+}
+.hermes-hud-sub {
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.9);
+}
+.hermes-hud-rail-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  color: rgba(103, 232, 249, 0.8);
+  letter-spacing: 0.06em;
+}
+
+/* 风险工位芯片：可点，点了在地图上选中并打开详情 */
+.hermes-risk-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 77, 94, 0.28);
+  background: rgba(8, 14, 28, 0.82);
+  color: rgba(226, 232, 240, 0.95);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.hermes-risk-chip:hover {
+  transform: translateX(-2px);
+  border-color: rgba(255, 77, 94, 0.7);
+  box-shadow: 0 0 14px rgba(255, 77, 94, 0.2);
+}
+.hermes-risk-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hermes-risk-meta {
+  margin-left: auto;
+  flex: none;
+  font-size: 11px;
+  color: rgba(148, 163, 184, 0.85);
+}
+.hermes-risk-more {
+  font-size: 11px;
+  text-align: right;
+  color: rgba(148, 163, 184, 0.75);
+}
+
+/* 异常状态色点的呼吸脉冲（风险栏 / 统计条里复用） */
+@keyframes hermes-dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 77, 94, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(255, 77, 94, 0); }
+}
+.hermes-risk-chip .hermes-seat-pill-dot {
+  animation: hermes-dot-pulse 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hermes-risk-chip .hermes-seat-pill-dot {
+    animation: none;
+  }
+}
+
+/* 底部三栏统计：实时概览 / 部门分布 / 优先关注 */
+.hermes-office-metrics {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+@media (max-width: 992px) {
+  .hermes-office-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+.hermes-metric-panel {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+[data-theme='light'] .hermes-metric-panel {
+  border-color: rgba(15, 23, 42, 0.07);
+  background: rgba(248, 250, 252, 0.75);
+}
+.hermes-metric-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.hermes-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+}
+.hermes-stat-tile {
+  min-width: 56px;
+}
+.hermes-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.hermes-stat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-muted, rgba(148, 163, 184, 0.9));
+}
+.hermes-dept-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.hermes-dept-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+.hermes-dept-row-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.hermes-dept-row-btn:hover .hermes-dept-name {
+  text-decoration: underline;
+}
+.hermes-dept-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hermes-dept-count {
+  margin-left: auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .hermes-office-shell {
+    margin-inline: -4px;
+  }
+
+  .hermes-office-stage {
+    border-radius: 12px;
+  }
+
+  .hermes-hud-tl {
+    top: 12px;
+    left: 12px;
+  }
+
+  .hermes-hud-tr {
+    top: 12px;
+    right: 12px;
+  }
+
+  .hermes-hud-card {
+    padding: 9px 11px;
+    border-radius: 10px;
+  }
+
+  .hermes-hud-eyebrow {
+    font-size: 9px;
+  }
+
+  .hermes-hud-title {
+    font-size: 14px;
+  }
+
+  .hermes-hud-sub {
+    font-size: 11px;
+  }
+
+  .hermes-hud-rr {
+    inset: auto 12px 12px;
+    width: auto;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-direction: row;
+    align-items: center;
+    padding-bottom: 2px;
+  }
+
+  .hermes-hud-rail-title,
+  .hermes-risk-chip {
+    flex: none;
+  }
+
+  .hermes-hud-rail-title {
+    text-align: left;
+  }
+
+  .hermes-risk-chip {
+    max-width: 230px;
+  }
+}
+
+/* Hive Office 浅色运营总览。场景独立保持浅色，避免站点暗色主题改变办公室语义。 */
+.hermes-office-page {
+  min-width: 0;
+}
+
+.hermes-office-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 252px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #d5dee8;
+  border-radius: 8px;
+  background: #edf2f7;
+  box-shadow: 0 16px 40px rgba(71, 85, 105, 0.14);
+}
+
+.hermes-office-canvas {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.hermes-hud-tl {
+  top: 16px;
+  left: 16px;
+  max-width: calc(100% - 32px);
+}
+
+.hermes-hud-card {
+  width: 236px;
+  max-width: 100%;
+  padding: 13px 14px;
+  border: 1px solid rgba(100, 116, 139, 0.16);
+  border-radius: 8px;
+  color: #1f2937;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 24px rgba(71, 85, 105, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.hermes-hud-eyebrow {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.hermes-hud-title {
+  margin-top: 1px;
+  color: #172033;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.hermes-hud-sub {
+  margin-top: 2px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.hermes-health-row {
+  display: grid;
+  grid-template-columns: auto minmax(48px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+  color: #7b8798;
+  font-size: 11px;
+}
+
+.hermes-health-row strong {
+  color: #2d3a4e;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hermes-health-track {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #e8edf2;
+}
+
+.hermes-health-track > span {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+  background: #22b96f;
+  transition: width 0.35s ease;
+}
+
+.hermes-floor-controls,
+.hermes-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.hermes-floor-controls .ant-select {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.hermes-edit-actions {
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid #e5eaf0;
+}
+
+.hermes-office-stage .ant-btn-default,
+.hermes-office-stage .ant-select-selector,
+.hermes-office-stage .ant-segmented {
+  color: #334155;
+  border-color: #d9e1ea;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.hermes-office-stage .ant-segmented-item {
+  color: #64748b;
+}
+
+.hermes-office-stage .ant-segmented-item-selected {
+  color: #1e293b;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(71, 85, 105, 0.16);
+}
+
+.hermes-seat-pill {
+  color: #263244;
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(100, 116, 139, 0.16);
+  box-shadow: 0 3px 10px rgba(71, 85, 105, 0.14);
+}
+
+.hermes-seat-pill-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
+.hermes-seat-pill-row {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+
+.hermes-seat-pill-copy strong {
+  max-width: 104px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+}
+
+/* hover/select 时展示的设备上下文（版本 · 健康 · 最近心跳） */
+.hermes-seat-pill-meta {
+  color: #8290a3;
+  font-size: 10px;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+.hermes-seat-pill-meta.is-bad {
+  color: #b5544f;
+}
+
+.hermes-seat-pill.is-error,
+.hermes-seat-pill.is-unprovisioned {
+  border-color: rgba(234, 162, 41, 0.42);
+  background: rgba(255, 253, 248, 0.97);
+}
+
+.hermes-seat-pill.is-error {
+  border-color: rgba(239, 83, 80, 0.46);
+}
+
+.hermes-seat-pill.is-hovered {
+  box-shadow: 0 5px 14px rgba(71, 85, 105, 0.18);
+}
+
+.hermes-seat-pill.is-selected {
+  border-color: rgba(79, 103, 216, 0.72);
+  box-shadow: 0 0 0 2px rgba(79, 103, 216, 0.18), 0 3px 10px rgba(71, 85, 105, 0.14);
+}
+
+.hermes-seat-pill-sub {
+  color: #8290a3;
+}
+
+.hermes-department-label {
+  color: #1f2937;
+  border-color: rgba(100, 116, 139, 0.14);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 14px rgba(71, 85, 105, 0.14);
+}
+
+.hermes-department-label-dot {
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.13);
+}
+
+.hermes-department-label-count {
+  color: #7b8798;
+  border-left-color: #dce3eb;
+}
+
+.hermes-department-label-risk {
+  color: #b55f32;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hermes-department-label.has-risk {
+  border-color: rgba(234, 162, 41, 0.38);
+}
+
+.hermes-department-label.is-selected {
+  border-color: rgba(79, 103, 216, 0.58);
+  box-shadow: 0 0 0 2px rgba(79, 103, 216, 0.12), 0 4px 14px rgba(71, 85, 105, 0.14);
+}
+
+.hermes-office-rail {
+  position: relative;
+  z-index: 6;
+  min-width: 0;
+  padding: 16px 14px;
+  overflow: auto;
+  color: #273449;
+  border-left: 1px solid #dbe3ec;
+  background: rgba(245, 248, 251, 0.94);
+}
+
+.hermes-view-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hermes-rail-overview {
+  min-width: 0;
+}
+
+.hermes-live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #627186;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.hermes-live-status > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22b96f;
+  box-shadow: 0 0 0 3px rgba(34, 185, 111, 0.12);
+}
+
+.hermes-rail-health {
+  margin-top: 13px;
+  padding: 11px 0 12px;
+  border-top: 1px solid #dfe6ed;
+  border-bottom: 1px solid #dfe6ed;
+}
+
+.hermes-rail-health-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: #6b7a8f;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.hermes-rail-health-head strong {
+  color: #26364d;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hermes-status-stack {
+  display: flex;
+  gap: 2px;
+  width: 100%;
+  height: 7px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #e4e9ef;
+}
+
+.hermes-status-stack > span {
+  display: block;
+  min-width: 3px;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.hermes-rail-health-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 8px;
+  color: #7b8798;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hermes-rail-health-meta > span {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.hermes-rail-health-meta i {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.hermes-rail-section,
+.hermes-edit-mode-panel {
+  margin-top: 18px;
+}
+
+.hermes-hud-rail-title {
+  margin-bottom: 8px;
+  color: #6b7a8f;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: left;
+  letter-spacing: 0;
+}
+
+.hermes-region-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hermes-region-option {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 30px;
+  gap: 6px;
+  padding: 5px 10px;
+  overflow: hidden;
+  color: #536174;
+  border: 1px solid #dce3eb;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.84);
+  cursor: pointer;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease;
+}
+
+.hermes-region-option:hover,
+.hermes-region-option.is-active {
+  color: #23324a;
+  border-color: #9aa8ba;
+  box-shadow: 0 2px 8px rgba(71, 85, 105, 0.12);
+}
+
+.hermes-region-option.is-active {
+  font-weight: 650;
+  background: #ffffff;
+}
+
+.hermes-region-option:focus-visible,
+.hermes-risk-area:focus-visible,
+.hermes-risk-chip:focus-visible,
+.hermes-dept-row-btn:focus-visible {
+  outline: 2px solid rgba(79, 103, 216, 0.62);
+  outline-offset: 2px;
+}
+
+.hermes-region-count {
+  margin-left: auto;
+  color: #8995a5;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hermes-risk-area-list,
+.hermes-priority-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.hermes-risk-area {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 9px 10px;
+  color: #273449;
+  border: 1px solid #eadcc6;
+  border-radius: 7px;
+  background: rgba(255, 253, 249, 0.94);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.hermes-risk-area:hover {
+  border-color: #d9b77d;
+  box-shadow: 0 3px 10px rgba(161, 98, 7, 0.08);
+}
+
+.hermes-risk-area.is-active {
+  border-color: #d4a65f;
+  background: #fffdfa;
+  box-shadow: 0 0 0 2px rgba(212, 166, 95, 0.12);
+}
+
+.hermes-risk-count {
+  color: #b7791f;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.hermes-risk-area-sub {
+  grid-column: 2 / -1;
+  color: #8290a3;
+  font-size: 11px;
+}
+
+.hermes-risk-chip {
+  width: 100%;
+  padding: 7px 9px;
+  color: #334155;
+  border: 1px solid #dce3eb;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: none;
+}
+
+.hermes-risk-chip:hover {
+  transform: none;
+  border-color: #a8b4c3;
+  box-shadow: 0 2px 8px rgba(71, 85, 105, 0.1);
+}
+
+.hermes-risk-meta,
+.hermes-risk-more,
+.hermes-risk-empty {
+  color: #8491a2;
+}
+
+.hermes-risk-clear,
+.hermes-edit-mode-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px;
+  color: #567064;
+  border: 1px solid #d9e7df;
+  border-radius: 7px;
+  background: rgba(247, 252, 249, 0.92);
+  font-size: 12px;
+}
+
+.hermes-risk-clear .hermes-seat-pill-dot {
+  background: #22b96f;
+}
+
+.hermes-office-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  border: 1px solid #d5dee8;
+  border-radius: 8px;
+  background: #edf2f7;
+}
+
+.hermes-office-metrics {
+  grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr) minmax(220px, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.hermes-metric-panel {
+  min-width: 0;
+  padding: 13px 14px;
+  color: #273449;
+  border: 1px solid #dfe6ed;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(71, 85, 105, 0.07);
+}
+
+.hermes-metric-title {
+  margin-bottom: 9px;
+  color: #718096;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hermes-stat-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(58px, 1fr));
+  gap: 7px;
+}
+
+.hermes-stat-tile {
+  position: relative;
+  min-width: 0;
+  padding: 8px 9px;
+  overflow: hidden;
+  border: 1px solid #edf0f4;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.hermes-stat-tile::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  content: '';
+  background: #cbd5e1;
+}
+
+.hermes-stat-tile.is-online::before { background: #22b96f; }
+.hermes-stat-tile.is-error::before { background: #ef5350; }
+.hermes-stat-tile.is-unprovisioned::before { background: #eaa229; }
+.hermes-stat-tile.is-offline::before { background: #94a3b8; }
+
+.hermes-stat-label {
+  min-height: 18px;
+  color: #8090a4;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.hermes-stat-value {
+  margin-top: 2px;
+  color: #172033;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hermes-dept-list {
+  gap: 6px;
+}
+
+.hermes-dept-row {
+  min-height: 27px;
+  padding: 4px 7px;
+  color: #334155;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.hermes-dept-row-btn {
+  width: 100%;
+}
+
+.hermes-dept-filter {
+  transition: background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.hermes-dept-filter:hover {
+  background: #f1f5f9;
+  box-shadow: inset 0 0 0 1px #e5eaf0;
+}
+
+.hermes-dept-filter.is-active {
+  background: #eef2ff;
+  box-shadow: inset 3px 0 0 #4f67d8, inset 0 0 0 1px #dfe3f8;
+}
+
+.hermes-dept-copy,
+.hermes-priority-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.hermes-dept-copy {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hermes-dept-track {
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #e7ecf2;
+}
+
+.hermes-dept-track > span {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  border-radius: inherit;
+}
+
+.hermes-priority-copy {
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.25;
+}
+
+.hermes-priority-dept {
+  max-width: 100%;
+  overflow: hidden;
+  color: #8a96a6;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hermes-metric-panel .cell-muted {
+  color: #8491a2;
+}
+
+@media (max-width: 1100px) {
+  .hermes-office-stage {
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+
+  .hermes-stat-row {
+    grid-template-columns: repeat(3, minmax(58px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .hermes-office-stage {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(480px, 68vh) auto;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .hermes-office-rail {
+    display: grid;
+    grid-template-columns: auto minmax(180px, 1fr) minmax(180px, 1fr);
+    align-items: start;
+    gap: 12px;
+    padding: 12px;
+    overflow: visible;
+    border-top: 1px solid #dbe3ec;
+    border-left: 0;
+  }
+
+  .hermes-rail-section,
+  .hermes-edit-mode-panel {
+    margin-top: 0;
+  }
+
+  .hermes-priority-section {
+    display: none;
+  }
+
+  .hermes-office-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .hermes-office-shell {
+    margin-inline: 0;
+  }
+
+  .hermes-office-stage {
+    grid-template-rows: 500px auto;
+    border-radius: 8px;
+  }
+
+  .hermes-hud-tl {
+    top: 10px;
+    left: 10px;
+    max-width: calc(100% - 20px);
+  }
+
+  .hermes-hud-card {
+    width: min(224px, calc(100vw - 72px));
+    padding: 10px;
+    border-radius: 7px;
+  }
+
+  .hermes-floor-controls {
+    flex-wrap: wrap;
+  }
+
+  .hermes-floor-controls .ant-select {
+    flex-basis: 100%;
+  }
+
+  .hermes-seat-pill:not(.is-selected) {
+    display: none;
+  }
+
+  .hermes-department-label {
+    font-size: 10px;
+    transform: scale(0.86);
+  }
+
+  .hermes-office-rail {
+    display: block;
+    padding: 11px;
+  }
+
+  .hermes-rail-health {
+    padding-bottom: 10px;
+  }
+
+  .hermes-rail-section,
+  .hermes-edit-mode-panel {
+    margin-top: 13px;
+  }
+
+  .hermes-region-list,
+  .hermes-risk-area-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 3px;
+  }
+
+  .hermes-region-option,
+  .hermes-risk-area {
+    flex: 0 0 auto;
+  }
+
+  .hermes-risk-area {
+    width: 210px;
+  }
+
+  .hermes-priority-section {
+    display: block;
+  }
+
+  .hermes-priority-list {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .hermes-risk-chip {
+    flex: 0 0 210px;
+  }
+
+  .hermes-stat-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

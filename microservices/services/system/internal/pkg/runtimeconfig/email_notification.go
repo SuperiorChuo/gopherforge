@@ -114,19 +114,16 @@ func EmailNotificationFromConfig() EmailNotification {
 	})
 }
 
-// enforceEmailNotificationSafety keeps the email channel closed on the one shape
-// startup validation cannot see. config.Validate judged the environment derived
-// settings, where EMAIL_NOTIFICATION_ENABLED is usually false, so a
-// system_settings row that flips enabled on (and may supply its own smtp_host)
-// can put a weak EMAIL_SMTP_PASSWORD on the wire at runtime in a process that
-// was legitimately allowed to boot. Fail closed there: Enabled=false is what
-// every sender checks before dialing SMTP, so an operator loses alert mail
-// rather than leaking the password to whoever answers on port 25.
+// enforceEmailNotificationSafety 在启动校验无法覆盖的那一种形态上保持邮件通道关闭。
+// config.Validate 判断的是环境派生配置，其中 EMAIL_NOTIFICATION_ENABLED 通常为 false，
+// 因此一条把 enabled 打开（并且可能自带 smtp_host）的 system_settings 行，
+// 可能在一个本可合法启动的进程里于运行时把弱 EMAIL_SMTP_PASSWORD 送上线路。
+// 此处采取失败即关闭：Enabled=false 是所有发送方拨号 SMTP 前都会检查的条件，
+// 让运维丢失告警邮件，也好过把密码泄露给应答在 25 端口上的任何人。
 //
-// The judgement is config.IsSMTPAuthUnsafe — literally the predicate the startup
-// gate calls — so the two cannot drift. An anonymous relay (no username, no
-// password) is not authentication and stays enabled; non-production is never
-// touched.
+// 判定依据是 config.IsSMTPAuthUnsafe——即启动闸门调用的同一个谓词——
+// 两者不可能出现偏差。匿名中继（无用户名、无密码）不属于认证，保持启用；
+// 非生产环境永不触碰。
 func enforceEmailNotificationSafety(policy EmailNotification) EmailNotification {
 	if !policy.Enabled {
 		return policy
@@ -144,9 +141,8 @@ func enforceEmailNotificationSafety(policy EmailNotification) EmailNotification 
 	return policy
 }
 
-// warnEmailNotificationKeptDisabled is a variable so tests can observe the
-// warning without standing up the global logger. It must never log the
-// credential itself.
+// warnEmailNotificationKeptDisabled 做成变量是为了让测试无需拉起全局 logger
+// 也能观测到该警告。它绝不能记录凭据本身。
 var warnEmailNotificationKeptDisabled = func(policy EmailNotification) {
 	if logger.Logger == nil {
 		return

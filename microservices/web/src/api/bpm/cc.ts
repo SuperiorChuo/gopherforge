@@ -2,6 +2,7 @@ import request from '@/utils/request'
 import type { PageRequest, PageResponse } from '@/types'
 import type { BpmCcRecord } from './types'
 
+// ---------------------------------------------------------------------
 // API 封装 —— §4.3 抄送（M2）
 // ---------------------------------------------------------------------
 

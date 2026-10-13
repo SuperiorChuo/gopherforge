@@ -72,6 +72,11 @@ func TestGeneratedCodegenGoPackagesCompile(t *testing.T) {
 	// 模块收敛（17→1 go.mod）后，生成代码的临时目录需要 go.mod 和 go.sum
 	// 才能编译（此前各服务有独立 go.mod，system/ 目录自带）。
 	moduleRoot := filepath.Clean(filepath.Join(sourceRoot, ".."))
+	// The copied DAO tests share the isolated database fixture. Keep their
+	// local dependency in the generated module instead of resolving it online.
+	if err := os.CopyFS(filepath.Join(targetServices, "internal", "testdb"), os.DirFS(filepath.Join(moduleRoot, "internal", "testdb"))); err != nil {
+		t.Fatalf("copy database test fixture: %v", err)
+	}
 	for _, fn := range []string{"go.mod", "go.sum"} {
 		src, err := os.ReadFile(filepath.Join(moduleRoot, fn))
 		if err != nil {
@@ -94,8 +99,12 @@ func TestGeneratedCodegenGoPackagesCompile(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// 模拟产品验证入口显式绑定 workspace；生成样例仍必须作为独立模块编译。
+	t.Setenv("GOWORK", filepath.Join(moduleRoot, "..", "go.work"))
 	command := exec.Command("go", "test", "-mod=mod", "-run", "^$", "./internal/model", "./internal/dao/system", "./internal/service/system", "./internal/api/system")
 	command.Dir = targetRoot
+	// 只关闭生成样例子进程的 workspace，防止错误编译仓内旧包而非临时生成物。
+	command.Env = append(os.Environ(), "GOWORK=off")
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("generated packages do not compile: %v\n%s", err, output)

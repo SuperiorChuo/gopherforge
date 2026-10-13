@@ -17,7 +17,6 @@ import {
 
 const FORM_KEY_RE = /^[a-z][a-z0-9_]{0,63}$/
 
-/** 表单 Schema 前端预校验（后端发布时二次权威校验），返回错误清单 */
 export function validateFormSchema(schema?: BpmFormSchema | null): string[] {
   const errors: string[] = []
   const fields = schema?.fields ?? []
@@ -46,6 +45,7 @@ export function formFieldLabels(schema?: BpmFormSchema | null): Record<string, s
   return map
 }
 
+// ---------------------------------------------------------------------
 // 节点树工具（设计器与只读渲染共用；放在纯 ts 文件避免组件文件混合导出）
 // ---------------------------------------------------------------------
 
@@ -369,5 +369,3 @@ export function collectNodeNames(schema?: FlowSchema | null): Record<string, str
   walk(schema?.start)
   return map
 }
-
-// ---------------------------------------------------------------------

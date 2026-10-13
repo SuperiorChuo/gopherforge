@@ -18,6 +18,8 @@ shared/pkg 下的共享包分为两类，新增包时先归位：
 | `grpcx` | gRPC server/client + Consul 发现 + TLS |
 | `observability` | OTel 追踪 / Gin 追踪 |
 | `resilience` | 重试 + 熔断 + 超时 |
+| `idempotency` | 写路径幂等键（同 key 去重 + 24h TTL 清理） |
+| `outbox` | 事务性 Outbox（业务同事务落库 + worker 投 NATS） |
 | `audittrail` | 数据变更审计 GORM 插件 |
 | `auditevents` | 审计事件发布（NATS） |
 | `graceful` | 优雅关闭 |
@@ -31,10 +33,8 @@ shared/pkg 下的共享包分为两类，新增包时先归位：
 | `mask` | 敏感字段脱敏 |
 | `metrics` | Prometheus 指标 |
 | `pagination` | 分页工具 |
-| `envsecret` | Swarm secrets / env sensitive config |
-| `idempotency` | 写路径幂等键 |
-| `outbox` | 事务性 Outbox |
 | `secretstrength` | 密钥强度校验 |
+| `envsecret` | Swarm secrets / 环境变量敏感配置读取 |
 | `tlsutil` | mTLS 证书工具 |
 | `excel` | Excel 处理 |
 

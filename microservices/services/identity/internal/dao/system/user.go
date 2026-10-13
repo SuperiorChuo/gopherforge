@@ -12,8 +12,8 @@ import (
 
 	sharedDAO "github.com/go-admin-kit/services/identity/internal/dao"
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
-	"github.com/go-admin-kit/services/shared/pkg/audittrail"
 	"github.com/go-admin-kit/services/shared/pkg/authz"
+	"github.com/go-admin-kit/services/shared/pkg/audittrail"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 
 	"github.com/go-admin-kit/services/shared/pkg/pagination"

@@ -16,7 +16,7 @@ import (
 
 const NotificationRedisChannel = "go_admin_kit:notifications"
 
-// NotificationMessage is the realtime payload sent to web console clients.
+// NotificationMessage 是发送给 Web 控制台客户端的实时负载。
 type NotificationMessage struct {
 	ID        string    `json:"id"`
 	Type      string    `json:"type"`

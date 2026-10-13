@@ -7,22 +7,22 @@ import (
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
-// AuthUserStore loads users with roles for auth decisions.
+// AuthUserStore 为鉴权决策加载带角色的用户。
 type AuthUserStore interface {
 	GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error)
 }
 
-// AuthPermissionStore loads permission codes for a user.
+// AuthPermissionStore 加载用户的权限码。
 type AuthPermissionStore interface {
 	GetUserPermissionsContext(ctx context.Context, userID uint) ([]string, error)
 }
 
-// ConsoleSessionValidator validates active console cookie sessions.
+// ConsoleSessionValidator 校验有效的控制台 cookie 会话。
 type ConsoleSessionValidator interface {
 	ValidateActiveSessionContext(ctx context.Context, sessionID, username string) (*model.ConsoleSession, error)
 }
 
-// AuthMiddlewareDependencies groups the persistence used by auth middlewares.
+// AuthMiddlewareDependencies 汇总鉴权中间件使用的持久化组件。
 type AuthMiddlewareDependencies struct {
 	Users           AuthUserStore
 	Permissions     AuthPermissionStore
@@ -34,10 +34,9 @@ var (
 	authDeps   AuthMiddlewareDependencies
 )
 
-// SetAuthMiddlewareDependencies installs the persistence behind the auth
-// middlewares and returns a restore function. Middlewares read the current
-// dependencies per request, so wiring only needs to happen before the first
-// request is served.
+// SetAuthMiddlewareDependencies 安装鉴权中间件背后的持久化组件，并返回一个
+// 恢复函数。中间件在每次请求时读取当前依赖，因此装配只需在首个请求被处理前
+// 完成即可。
 func SetAuthMiddlewareDependencies(deps AuthMiddlewareDependencies) func() {
 	authDepsMu.Lock()
 	previous := authDeps

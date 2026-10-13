@@ -7,8 +7,8 @@ import { SITE_META } from './site-meta'
 // Demo 在 /gopherforge/，文档在 /gopherforge/docs/（deploy-demo 工作流合并产物）。
 // 双语：根路径中文，/en/ 英文。
 
-const zhDescription = 'GopherForge 开源 Go 微服务后台管理脚手架文档：快速上手、架构设计、RBAC 权限、多租户、审批流、代码生成器与二次开发指南'
-const enDescription = 'GopherForge documentation for an open-source Go microservices admin scaffold: setup, architecture, RBAC, multi-tenancy, workflow, code generation and extension guides'
+const zhDescription = 'GopherForge 开源 Go 微服务管理与业务平台：完整产品部署、AI、CRM、通信、RBAC、多租户、审批流与二次开发指南'
+const enDescription = 'GopherForge Go microservices and business platform: complete-product deployment, AI, CRM, messaging, RBAC, tenancy, workflows and extension guides'
 
 const publicPagePath = (relativePath: string) => {
   const htmlPath = relativePath.replace(/\.md$/, '.html')
@@ -235,7 +235,7 @@ export default defineConfig({
           text: '在 GitHub 上编辑此页',
         },
         footer: {
-          message: 'MIT Licensed · 开源 Go 微服务后台管理脚手架',
+          message: 'MIT Licensed · 开源 Go 微服务管理与业务平台',
           copyright: 'Copyright © 2026 GopherForge',
         },
       },
@@ -263,7 +263,7 @@ export default defineConfig({
           text: 'Edit this page on GitHub',
         },
         footer: {
-          message: 'MIT Licensed · Open-source Go microservices admin scaffold',
+          message: 'MIT Licensed · Go microservices & business platform',
           copyright: 'Copyright © 2026 GopherForge',
         },
       },

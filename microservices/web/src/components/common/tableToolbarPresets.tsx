@@ -411,6 +411,18 @@ export const TABLE_TOOLBAR_PRESETS: Record<string, ToolbarPreset> = {
     glow: 'rgba(185, 28, 28, 0.4)',
     description: '拦截号码与生效范围',
   },
+  外呼名单: {
+    icon: <StopOutlined />,
+    gradient: 'linear-gradient(135deg, #f87171, #b91c1c)',
+    glow: 'rgba(185, 28, 28, 0.4)',
+    description: '外呼黑白名单，精确或前缀匹配',
+  },
+  语音通知: {
+    icon: <AudioOutlined />,
+    gradient: 'linear-gradient(135deg, #34d399, #047857)',
+    glow: 'rgba(4, 120, 87, 0.4)',
+    description: 'TTS 直呼被叫播放话术',
+  },
   '排队 / 保持音乐': {
     icon: <CustomerServiceOutlined />,
     gradient: 'linear-gradient(135deg, #c084fc, #7e22ce)',

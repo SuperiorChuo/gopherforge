@@ -37,6 +37,7 @@ const [
   zhDeployment,
   enDeployment,
   changelog,
+  compose,
 ] = await Promise.all([
   read('../.vitepress/theme/index.ts'),
   read('../.vitepress/theme/styles/foundation.css'),
@@ -70,6 +71,7 @@ const [
   read('../reference/deployment.md'),
   read('../en/reference/deployment.md'),
   read('../../CHANGELOG.md'),
+  read('../../microservices/docker-compose.yml'),
 ])
 
 test('文档站沿用控制台品牌色并拆分主题职责', () => {
@@ -179,8 +181,12 @@ test('公开事实与仓库真源一致，首页不展示虚构命令或状态',
   assert.match(journeyComponent, /SITE_META\.homepageCommands/)
   assert.doesNotMatch(journeyComponent, /['"]make (?:smoke|verify)['"]/)
 
-  assert.match(siteMeta, /goServices: 7/)
-  assert.match(siteMeta, /releaseImages: 8/)
+  const images = new Set([...compose.matchAll(/^\s+image: \$\{IMAGE_PREFIX[^\n]+/gm)].map(([line]) => line.trim()))
+  const apiServices = [...images].filter((image) => image.includes('-service:')).length
+  assert.equal(apiServices, 16)
+  assert.equal(images.size, 17) // AI worker and migrate reuse API images.
+  assert.match(siteMeta, new RegExp(`goServices: ${apiServices}`))
+  assert.match(siteMeta, new RegExp(`releaseImages: ${images.size}`))
   assert.match(heroComponent, /SITE_META\.architecture\.goServices/)
   assert.doesNotMatch(heroComponent, /All systems operational|全系统运行正常|100%|>LIVE</)
 

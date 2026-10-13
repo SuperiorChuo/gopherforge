@@ -4,8 +4,8 @@ pageClass: gopherforge-home
 
 hero:
   name: GopherForge
-  text: Open-source Go Microservices Admin Scaffold
-  tagline: Auth, RBAC, multi-tenancy and observability are wired up, ready to use as the starting point for a Go microservices project.
+  text: Open-source Go Microservices & Business Platform
+  tagline: Auth, RBAC, tenancy and observability, together with AI, CRM, messaging, payments and call-center source code.
   actions:
     - theme: brand
       text: Get Started in 15 Minutes
@@ -19,13 +19,13 @@ hero:
 
 features:
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m8.5 9.2 3.5 2 3.5-2M12 11.2V16"/></svg>'
-    title: Platform capabilities only
-    details: Auth, RBAC, multi-tenancy, audit, files and monitoring are included; commerce, CMS and other business modules are not. Add each domain as a service.
+    title: Complete business product
+    details: Administration, AI, CRM, IM, payments, official accounts, notifications, tickets, call center and visualization. External providers and media need separate configuration.
     link: /en/guide/architecture
     linkText: Explore the boundaries
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-8 11h6l-1 9 9-12h-6V2Z"/></svg>'
     title: One command to start the stack
-    details: make compose-up starts Traefik, 7 Go services, React, PostgreSQL, Redis and NATS, then runs migrations and seed data.
+    details: make compose-up starts Traefik, 16 API services, the AI worker, React, PostgreSQL, Redis and NATS. Start the client and media stack separately.
     link: /en/guide/getting-started
     linkText: Start the stack
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v5H6zM4 16h6v5H4zM14 16h6v5h-6zM12 8v4M7 16v-4h10v4"/></svg>'

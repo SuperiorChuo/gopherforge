@@ -11,8 +11,8 @@ export const SITE_META = {
     docs: 'https://superiorchuo.github.io/gopherforge/docs',
   },
   architecture: {
-    goServices: 7,
-    releaseImages: 8,
+    goServices: 16,
+    releaseImages: 17,
   },
   stack: {
     go: '1.27.0',

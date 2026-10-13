@@ -30,7 +30,6 @@ import {
   type StartNode,
 } from '@/api/bpm'
 import StatusPill from '@/components/common/StatusPill'
-import { useLocale } from '@/i18n/LocaleContext'
 import BranchConfigPanel from './BranchConfigPanel'
 import ChainView, { type Selection } from './ChainView'
 import FormSchemaEditor from './FormSchemaEditor'
@@ -47,7 +46,6 @@ interface FlowDesignerProps {
 
 export default function FlowDesigner({ definitionId, readOnly = false, onBack }: FlowDesignerProps) {
   const { t } = useTranslation()
-  const { locale } = useLocale()
   const [def, setDef] = useState<BpmDefinition | null>(null)
   const [chain, setChain] = useState<AnyNode[]>([])
   // 表单构建器（M1）：流程表单 Schema，随定义保存；发布时前后端双重校验
@@ -99,13 +97,13 @@ export default function FlowDesigner({ definitionId, readOnly = false, onBack }:
     const map = new Map<number, string>()
     users.forEach((u) => map.set(u.id, u.nickname || u.username))
     return (id: number) => map.get(id) || t('用户 #{{n}}', { n: id })
-  }, [users, locale])
+  }, [users, t])
 
   const roleNameOf = useMemo(() => {
     const map = new Map<number, string>()
     roles.forEach((r) => map.set(r.id, r.name))
     return (id: number) => map.get(id) || t('角色 #{{n}}', { n: id })
-  }, [roles, locale])
+  }, [roles, t])
 
   // ---- 选中对象解析（节点在整树上按 id 定位） ----
 

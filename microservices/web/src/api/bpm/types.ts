@@ -153,7 +153,7 @@ export type BpmDefinitionStatus = 'draft' | 'active' | 'suspended' | 'archived'
 export interface BpmDefinition {
   id: number
   tenant_id?: number
-  /** 逻辑标识，如 expense_approval */
+  /** 逻辑标识，如 crm_contract_approval */
   key: string
   name: string
   version: number
@@ -162,7 +162,7 @@ export interface BpmDefinition {
   node_tree?: FlowSchema
   /** 表单 Schema（流程表单模式；空=业务表单，业务后端 internal 发起） */
   form_schema?: BpmFormSchema | null
-  /** 业务类型，如 demo_expense（业务方自定义） */
+  /** 业务类型，如 crm_contract / crm_payment */
   biz_type?: string
   remark?: string
   created_by?: number
@@ -322,5 +322,3 @@ export interface BpmDiagram {
   /** node_id → 运行时标注 */
   nodes: Record<string, BpmNodeRuntime>
 }
-
-// ---------------------------------------------------------------------

@@ -203,7 +203,7 @@ const pathBreadcrumbMap = {
 }
 `,
 		"microservices/services/system/internal/service/system/menu_seed.go": `var defaultMenuSeed = []model.Menu{
-	{ID: 112, Name: "codegen", Title: "代码生成", Icon: "code", Path: "/system/codegen", Component: "system/codegen/index", ParentID: 10, Sort: 15, Status: 1, Hidden: 0, Permission: "system:codegen:list"},
+	{ID: 112, Name: "codegen", Title: "代码生成", Icon: "code", Path: "/system/codegen", Component: "system/codegen/index", ParentID: 136, Sort: 1, Status: 1, Hidden: 0, Permission: "system:codegen:list"},
 }
 `,
 		"microservices/services/monitor/migrations/000028_existing.sql": "-- existing\n",

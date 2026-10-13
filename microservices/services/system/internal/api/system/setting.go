@@ -78,7 +78,7 @@ func (a *SettingAPI) DeleteSetting(c *gin.Context) {
 	response.SuccessWithMessage(c, "system setting deleted successfully", nil)
 }
 
-// ---------- 租户级配置覆盖（tenant_settings） ----------
+// ---------- Tenant-level config overrides (tenant_settings) ----------
 
 func (a *SettingAPI) GetTenantSettings(c *gin.Context) {
 	settings, err := a.settingService.ListTenantSettingsContext(c.Request.Context())

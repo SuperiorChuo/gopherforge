@@ -1,0 +1,184 @@
+// Package config provides environment-only configuration for crm-service,
+// following the im/cc convention (lightweight experimental services do not
+// carry the full config framework of the core services).
+package config
+
+import (
+	"github.com/go-admin-kit/services/shared/pkg/envsecret"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+
+	secretstrength "github.com/go-admin-kit/services/shared/pkg/secretstrength"
+)
+
+type Config struct {
+	AppPort    string
+	AppEnv     string
+	DBHost     string
+	DBPort     string
+	DBUser     string
+	DBPassword string
+	DBName     string
+	DBSSLMode  string
+	JWTSecret  string
+	// InternalToken 校验内网服务调用（cc → crm 号码识客/挂机写跟进）；空=禁用。
+	InternalToken string
+	// Phase 2C：identity owner API（用户显示名/部门信息，替代直查共享 users/departments）。
+	IdentityAPIBase       string
+	IdentityInternalToken string
+	// NotifyAPIBase + NotifyInternalToken：回访到期 / 公海回收站内信；空 token=关闭。
+	NotifyAPIBase       string
+	NotifyInternalToken string
+	// Phase 2D：NATS 审计事件发布（audit.log.*）。
+	NATSURL string
+	// BPMEnable 合同审批流开关：false 时 CRM 行为与接入前完全一致（灰度可回退）。
+	BPMEnable bool
+	// BpmAPIBase + BpmInternalToken：调 bpm-service internal API 发起审批；
+	// ContractFlowKey：合同审批使用的流程定义 key；
+	// PaymentFlowKey：回款审批使用的流程定义 key（M2）。
+	BpmAPIBase       string
+	BpmInternalToken string
+	ContractFlowKey  string
+	PaymentFlowKey   string
+}
+
+func Load() Config {
+	c := build()
+	if err := validate(c); err != nil {
+		log.Fatalf("config: %v", err)
+	}
+	for _, w := range sanitize(&c) {
+		log.Printf("WARNING: %s", w)
+	}
+	return c
+}
+
+func build() Config {
+	return Config{
+		AppPort:               getenv("APP_PORT", "8091"),
+		AppEnv:                getenv("APP_ENV", "development"),
+		DBHost:                getenv("DB_HOST", "127.0.0.1"),
+		DBPort:                getenv("DB_PORT", "5432"),
+		DBUser:                getenv("DB_USER", "postgres"),
+		DBPassword:            getSecret("DB_PASSWORD", "123456"),
+		DBName:                getenv("DB_NAME", "go_admin_kit"),
+		DBSSLMode:             getenv("DB_SSLMODE", "disable"),
+		JWTSecret:             getSecret("JWT_SECRET", "local-dev-secret-change-me-32-chars"),
+		InternalToken:         getSecret("CRM_INTERNAL_TOKEN", ""),
+		IdentityAPIBase:       getenv("IDENTITY_API_BASE", "http://go-admin-kit-identity:8083"),
+		IdentityInternalToken: getSecret("INTERNAL_TOKEN", ""),
+		NotifyAPIBase:         getenv("NOTIFY_API_BASE", "http://go-admin-kit-notify:8095"),
+		NotifyInternalToken:   getSecret("NOTIFY_INTERNAL_TOKEN", ""),
+		NATSURL:               getenv("NATS_URL", ""),
+		BPMEnable:             getenvBool("BPM_ENABLE"),
+		BpmAPIBase:            getenv("BPM_API_BASE", "http://go-admin-kit-bpm:8096"),
+		BpmInternalToken:      getSecret("BPM_INTERNAL_TOKEN", ""),
+		ContractFlowKey:       getenv("BPM_CONTRACT_FLOW_KEY", "crm_contract_approval"),
+		PaymentFlowKey:        getenv("BPM_PAYMENT_FLOW_KEY", "crm_payment_approval"),
+	}
+}
+
+// validate 只硬拦"没有降级语义"的配置：JWT_SECRET 与 DB_PASSWORD。密钥不对
+// 就没有能安全退化的行为，只能拒绝启动。口径与 auth、monitor 等核心服务一致
+// （占位符黑名单 + 弱值黑名单 + 32 位门槛）。轻量服务不引 shared 依赖
+// （Docker 构建上下文只含本服务目录），故为本地副本。
+//
+// 其余鉴权密钥一律不阻断启动，改为在使用点 fail closed 或降级告警（见
+// sanitize）：阻断启动会把"少配一个可选 token"放大成整个服务起不来。
+func validate(c Config) error {
+	if !isProductionEnv(c.AppEnv) {
+		return nil
+	}
+	issues := make([]string, 0)
+
+	if !isStrongSecret(c.JWTSecret, 32) {
+		issues = append(issues, "JWT_SECRET must be at least 32 characters and must not use a default or placeholder value")
+	}
+	if isWeakCredential(c.DBPassword) {
+		issues = append(issues, "DB_PASSWORD must not be empty, default, weak, or placeholder")
+	}
+
+	if len(issues) > 0 {
+		return fmt.Errorf("production safety checks failed: %s", strings.Join(issues, "; "))
+	}
+	return nil
+}
+
+// sanitize 生产环境下处理"配了等于没配"的密钥（空/占位符/弱值），返回需要打
+// WARNING 的说明；一律不阻断启动。
+//
+// 两类区别对待：
+//   - 入站鉴权闸门（别人拿凭据来调我）：显式归零，让使用点既有的"空=拒绝"
+//     分支 fail closed，绝不拿开发占位符当真凭据校验。
+//   - 出站凭据（我拿凭据去调别人）：只告警不归零。抹掉只会悄悄断掉功能，
+//     安全与否取决于接收方是否校验，不该由调用方单方面降级。
+func sanitize(c *Config) []string {
+	if !isProductionEnv(c.AppEnv) {
+		return nil
+	}
+	warnings := make([]string, 0)
+	describe := func(name, value, consequence string) string {
+		if strings.TrimSpace(value) != "" {
+			return name + " is a placeholder or weak value; " + consequence
+		}
+		return name + " is not set; " + consequence
+	}
+	gate := func(name string, field *string, consequence string) {
+		if isWeakCredential(*field) {
+			warnings = append(warnings, describe(name, *field, consequence))
+			*field = ""
+		}
+	}
+	notice := func(name, value, consequence string) {
+		if isWeakCredential(value) {
+			warnings = append(warnings, describe(name, value, consequence))
+		}
+	}
+	gate("CRM_INTERNAL_TOKEN", &c.InternalToken, "internal endpoints reject all callers (503)")
+	notice("NOTIFY_INTERNAL_TOKEN", c.NotifyInternalToken, "inbox push may be rejected by notify-service")
+	notice("BPM_INTERNAL_TOKEN", c.BpmInternalToken, "approval submission may be rejected by bpm-service")
+	return warnings
+}
+
+// ProductionMode 供使用点判断是否要 fail closed。
+func (c Config) ProductionMode() bool { return isProductionEnv(c.AppEnv) } // 凭证校验函数已迁移至 shared/pkg/secretstrength，此处保留薄包装以兼容调用方。
+var (
+	isProductionEnv       = secretstrength.IsProductionEnv
+	isStrongSecret        = secretstrength.IsStrongSecret
+	isWeakCredential      = secretstrength.IsWeakCredential
+	isPlaceholderValue    = secretstrength.IsPlaceholderValue
+	oauthConfigValueReady = secretstrength.OAuthConfigValueReady
+)
+
+func (c Config) DSN() string {
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=Asia/Shanghai",
+		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName, c.DBSSLMode)
+	// Phase 2B：schema-per-service——search_path 读 DB_SEARCH_PATH env（空则不追加）
+	if sp := os.Getenv("DB_SEARCH_PATH"); sp != "" {
+		dsn += " search_path=" + sp
+	}
+	return dsn
+}
+
+func getSecret(key, fallback string) string {
+	return envsecret.Get(key, fallback)
+}
+
+func getenv(key, fallback string) string {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// getenvBool 布尔环境开关：true/1/yes/on（不区分大小写）视为开启。
+func getenvBool(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}

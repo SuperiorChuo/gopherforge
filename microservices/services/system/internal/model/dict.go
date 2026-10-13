@@ -2,7 +2,7 @@ package localmodel
 
 import "time"
 
-// DictType stores dictionary categories.
+// DictType 存储字典分类。
 type DictType struct {
 	ID          uint       `gorm:"primaryKey" json:"id"`
 	Name        string     `gorm:"size:100;not null" json:"name"`
@@ -14,7 +14,7 @@ type DictType struct {
 	Items       []DictItem `gorm:"-" json:"items,omitempty"`
 }
 
-// DictItem stores dictionary values.
+// DictItem 存储字典值。
 type DictItem struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
 	DictTypeID uint      `gorm:"not null;index" json:"dict_type_id"`

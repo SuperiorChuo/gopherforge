@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Badge, Button, Card, Drawer, Space, Table, Tabs, Tag, Typography } from 'antd'
+import { Badge, Button, Drawer, Space, Table, Tabs, Tag, Typography } from 'antd'
 import { AuditOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -15,6 +15,7 @@ import {
 } from '@/api/bpm'
 import BpmInstanceTimeline from '@/components/bpm/BpmInstanceTimeline'
 import BpmTaskActions from '@/components/bpm/BpmTaskActions'
+import ListPageShell from '@/components/common/ListPageShell'
 import TableToolbar from '@/components/common/TableToolbar'
 import TableRowActions from '@/components/common/TableRowActions'
 import GlassEmpty from '@/components/common/GlassEmpty'
@@ -252,8 +253,9 @@ export default function BpmTasksPage() {
   }
 
   return (
-    <div className="page-list bpm-tasks-page">
-      <Card className="list-main-card" bordered={false}>
+    <ListPageShell
+      className="bpm-tasks-page"
+      toolbar={
         <TableToolbar
           title="待办中心"
           total={total}
@@ -266,7 +268,8 @@ export default function BpmTasksPage() {
               {t('刷新')}
             </Button>
           }
-        />
+        />}
+      >
         <Tabs
           activeKey={tab}
           onChange={(key) => setParams({ ...params, tab: key, page: 1 })}
@@ -326,7 +329,6 @@ export default function BpmTasksPage() {
             pagination={pagination}
           />
         )}
-      </Card>
 
       <Drawer
         title={ccDetail ? ccDetail.instance_title || t('实例 #{{n}}', { n: ccDetail.instance_id }) : t('审批详情')}
@@ -337,6 +339,6 @@ export default function BpmTasksPage() {
       >
         {ccDetail && <BpmInstanceTimeline instanceId={ccDetail.instance_id} showHeader showForm />}
       </Drawer>
-    </div>
+    </ListPageShell>
   )
 }

@@ -14,6 +14,16 @@ groups:
           summary: "监控目标掉线：{{ $labels.job }}/{{ $labels.service }}{{ $labels.instance }}"
           description: "Prometheus 连续 3 分钟抓不到该目标，服务可能已宕或网络不通。"
 
+      # FreeSWITCH ESL 采集断链：呼叫中心事件/话单链路的根依赖。
+      - alert: FsccEslDown
+        expr: fscc_esl_up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "FreeSWITCH ESL 连接断开"
+          description: "control-api 连续 5 分钟无法从 FS 采集，呼叫事件与话单可能丢失。"
+
   - name: host
     rules:
       # 磁盘可用低于 15%：录音/备份最容易吃满盘。
@@ -49,3 +59,48 @@ groups:
         annotations:
           summary: "服务错误陡增：{{ $labels.service }} 5 分钟内 {{ $value | printf \"%.0f\" }} 个 5xx"
           description: "查该服务容器日志与 Grafana 服务概览（错误率/P95）。"
+
+      # PostgreSQL 连接数接近上限（max_connections=300，>80% 持续 3m 告警）
+      - alert: PostgresHighConnections
+        expr: (sum(pg_stat_database_numbackends) by (instance) / 300) > 0.8
+        for: 3m
+        labels: { severity: warning }
+        annotations:
+          summary: "PG 连接数 {{ $value | humanizePercentage }}"
+          description: "{{ $labels.instance }} 当前 {{- range query \"sum(pg_stat_database_numbackends)\" }}{{ . | value }}{{ end }} 个活跃连接，接近上限 300"
+
+      # PostgreSQL 不可达
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "PostgreSQL 不可达"
+          description: "pg_up=0，持续 1 分钟"
+
+      # 死锁（最近 5 分钟内）
+      - alert: PostgresDeadlocks
+        expr: rate(pg_stat_database_deadlocks[5m]) > 0
+        for: 1m
+        labels: { severity: warning }
+        annotations:
+          summary: "PG 检测到死锁"
+          description: "最近 5 分钟发生死锁，速率 {{ $value }}"
+
+      # 慢查询（单条 >5s，5 分钟内 >10 条）
+      - alert: PostgresSlowQueries
+        expr: rate(pg_stat_statements_mean_exec_time_seconds[5m]) > 5
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "PG 慢查询均值 >5s"
+          description: "pg_stat_statements 平均执行时间 {{ $value }}s"
+
+      # 证书过期（<30 天）
+      - alert: CertificateExpiring
+        expr: probe_ssl_earliest_cert_expiry - time() < 30 * 86400
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "证书将在 {{ $value | humanizeDuration }} 后过期"
+          description: "域名 {{ $labels.instance }} 的 SSL 证书即将过期，需续签"

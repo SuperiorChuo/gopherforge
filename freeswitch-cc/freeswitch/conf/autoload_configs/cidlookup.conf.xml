@@ -1,0 +1,24 @@
+<!-- 来显归属（mod_cidlookup）：入方向对主叫号做客户名反查。查到的名字会被
+     模块直接写进 caller profile 的 caller_id_name，坐席话机/网页弹屏即显示客户名。
+
+     url 组成：$${cc_cid_url} 是"基址"（由 exec-set 从容器环境 CC_CID_URL 注入，
+     指向 cc-service 的开放端点 /api/v1/cc/cid），后面的 ?number=${caller_id_number}
+     是模块运行期占位——${caller_id_number} 由 mod_cidlookup 用 switch_event_expand_headers
+     在查询时展开成实际主叫号（模块源码固定用这个 header 名，不是 ${phone_number}）。
+
+     ★ 关键坑：占位符不能放进环境变量。exec-set 走 shell `echo -n $CC_CID_URL`，
+        若 env 里带 ${caller_id_number}，shell 会先把它当自己的变量展开成空串。
+        所以 CC_CID_URL 只放基址（不带 query），?number=${caller_id_number} 在 XML
+        里写死为字面量，交给模块展开。compose 默认值已按此约定给基址。
+
+     端点契约：cc-service 命中返回 HTTP 200 + 纯文本客户名（非 JSON，mod_cidlookup
+     不解 JSON）；未命中返回 404，模块不改名。cache=false：客户名可随时改备注，
+     不缓存以免脏读（量不大，每呼一次 HTTP 可接受）；curl 超时兜底 2s 防拖慢接通。 -->
+<configuration name="cidlookup.conf" description="cidlookup Configuration">
+  <X-PRE-PROCESS cmd="exec-set" data="cc_cid_url=echo -n $CC_CID_URL"/>
+  <settings>
+    <param name="url" value="$${cc_cid_url}?number=${caller_id_number}"/>
+    <param name="cache" value="false"/>
+    <param name="curl-timeout" value="2000"/>
+  </settings>
+</configuration>

@@ -4,10 +4,10 @@
 #
 # 用法：
 #   bash scripts/slo-probe.sh
-#   BASE_URL=http://192.168.220.109:18100 SAMPLES=30 bash scripts/slo-probe.sh
+#   BASE_URL=http://127.0.0.1:8000 SAMPLES=30 bash scripts/slo-probe.sh
 #
 # 环境变量：
-#   BASE_URL   默认 http://192.168.220.109:18100
+#   BASE_URL   默认 http://127.0.0.1:8000
 #   SAMPLES    采样次数，默认 20
 #   PATHS      空格分隔路径，默认 "/api/v1/health/live /api/v1/health/ready"
 #   P95_MS     p95 上限毫秒，默认 500
@@ -16,7 +16,7 @@
 # 退出码：0 达标；1 未达标；2 用法/依赖错误
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-http://192.168.220.109:18100}"
+BASE_URL="${BASE_URL:-http://127.0.0.1:8000}"
 SAMPLES="${SAMPLES:-20}"
 PATHS="${PATHS:-/api/v1/health/live /api/v1/health/ready}"
 P95_MS="${P95_MS:-500}"

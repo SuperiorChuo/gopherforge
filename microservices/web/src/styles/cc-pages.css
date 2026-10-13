@@ -1,0 +1,200 @@
+/* CC 客服闭环样式（从 index.css 拆出） */
+
+/* 呼叫报表：24 小时时段分布横向柱条（纯 div，深空玻璃风） */
+/* 呼叫中心计费页：窄屏 tab 换行（390 实测 4 个 tab 432px 溢出视口；
+   tabBarStyle 加在 nav 容器无效，flex-wrap 须落在 nav-list 上） */
+.cc-billing-page .ant-tabs-nav-list {
+  flex-wrap: wrap;
+}
+
+.cc-hour-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cc-hour-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cc-hour-label {
+  flex: 0 0 46px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.55));
+  text-align: right;
+}
+
+.cc-hour-track {
+  flex: 1 1 auto;
+  height: 14px;
+  border-radius: 7px;
+  background: rgba(148, 163, 184, 0.12);
+  overflow: hidden;
+}
+
+.cc-hour-bar {
+  height: 100%;
+  border-radius: 7px;
+  min-width: 2px;
+  /* 呼入柱条：极光渐变 */
+  background: linear-gradient(90deg, rgba(96, 165, 250, 0.55), rgba(99, 102, 241, 0.75));
+  transition: width 0.4s ease;
+  position: relative;
+}
+
+.cc-hour-bar-ans {
+  height: 100%;
+  border-radius: 7px 0 0 7px;
+  /* 接通量叠加：更亮的青绿，直观看出接通占比 */
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.85), rgba(16, 185, 129, 0.95));
+  transition: width 0.4s ease;
+}
+
+.cc-hour-num {
+  flex: 0 0 34px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.55));
+}
+
+
+
+/* 仪表盘 · 客服闭环总览 */
+.cs-loop-panel .cs-loop-desc {
+  margin: -4px 0 14px;
+  font-size: 13px;
+  color: var(--text-secondary, rgba(148, 163, 184, 0.85));
+}
+.cs-loop-metric {
+  height: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  /* --tint 由组件按指标色写入：彩色透光从卡片左上角渗出 */
+  background:
+    radial-gradient(120% 90% at 0% 0%, var(--tint, transparent), transparent 60%),
+    linear-gradient(145deg, rgba(255,255,255,0.04), transparent);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.cs-loop-metric:hover {
+  transform: translateY(-2px);
+  border-color: rgba(96, 165, 250, 0.35);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+}
+.cs-loop-metric.is-alert {
+  border-color: rgba(248, 113, 113, 0.45);
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.12);
+}
+.cs-loop-metric-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.cs-loop-metric-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  flex: 0 0 auto;
+}
+.cs-loop-metric-title {
+  font-size: 13px;
+  color: var(--text-secondary, rgba(203, 213, 225, 0.9));
+  line-height: 1.2;
+}
+.cs-loop-metric-value {
+  font-size: 26px;
+  font-weight: 650;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  min-height: 30px;
+}
+.cs-loop-metric.is-alert .cs-loop-metric-value {
+  color: #f87171;
+}
+.cs-loop-metric-foot {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary, rgba(148, 163, 184, 0.75));
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+[data-theme='light'] .cs-loop-metric {
+  background: linear-gradient(145deg, rgba(255,255,255,0.9), rgba(248,250,252,0.85));
+  border-color: rgba(15, 23, 42, 0.08);
+}
+[data-theme='light'] .cs-loop-metric.is-alert {
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+/* ============================================================
+   CC 呼叫中心 · 软电话 (WebPhone) 状态波纹与拨号按键
+   ============================================================ */
+
+/* 软电话卡片容器 */
+.webphone-card {
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* 通话中状态徽章：声波律动光圈 */
+.webphone-tag-incall {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.45) !important;
+  animation: webphone-incall-pulse 2s ease-in-out infinite !important;
+}
+
+@keyframes webphone-incall-pulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(52, 211, 153, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(52, 211, 153, 0.75);
+  }
+}
+
+/* 振铃中状态徽章：警示跳动 */
+.webphone-tag-ringing {
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.45) !important;
+  animation: webphone-ring-flash 1.2s ease-in-out infinite !important;
+}
+
+@keyframes webphone-ring-flash {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 22px rgba(251, 191, 36, 0.75);
+  }
+}
+
+/* DTMF 数字按键 */
+.webphone-dtmf-btn {
+  height: 52px !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  border-radius: 12px !important;
+  transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.webphone-dtmf-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgba(129, 140, 248, 0.5) !important;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.25) !important;
+}
+
+.webphone-dtmf-btn:active {
+  transform: scale(0.92) !important;
+}

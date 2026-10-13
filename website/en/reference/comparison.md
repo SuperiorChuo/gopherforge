@@ -1,15 +1,18 @@
----
-description: A concise comparison of GopherForge with gin-vue-admin, go-admin, RuoYi-Cloud and Simple Admin.
----
+# Choosing a platform
 
-# Comparison (Summary)
+The GopherForge v0.8.0 candidate delivers complete business source code, not an empty infrastructure scaffold: 16 Go API services, an AI worker, the React application, and separately deployed media and client products.
 
-The detailed comparison with gin-vue-admin, go-admin, RuoYi-family scaffolds is maintained in Chinese: [同类项目对比（中文）](/reference/comparison) · [source on GitHub](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/comparison.md).
+It suits Go + React teams seeking RBAC, tenancy, audit and monitoring alongside AI, CRM, messaging, payment and ticket implementations. You remain responsible for multi-service operations, provider configuration, upgrade rehearsals and production capacity.
 
-TL;DR — what sets GopherForge apart:
+Reconsider the fit if you need a small monolith, require Vue/MySQL, or expect real payments, SMS and telephone calls without provider accounts.
 
-- **Microservices from the start**: 7 Go services behind Traefik, with PostgreSQL, Redis and NATS as the required stateful dependencies.
-- **No bundled business modules**: it starts as a platform scaffold rather than a demo application to strip down.
-- **React 19 + Ant Design 6** frontend for teams that prefer React over Vue.
-- **Engineering gates** rarely seen in this space: OpenAPI drift detection, migration rehearsal, full-stack E2E in CI.
-- Built-in **workflow engine, code generator (3 modes), multi-tenancy** without heavyweight dependencies.
+## Comparison sources
+
+Check current architecture, licenses, maintenance, migrations and required business functionality directly:
+
+- [gin-vue-admin](https://github.com/flipped-aurora/gin-vue-admin)
+- [go-admin](https://github.com/go-admin-team/go-admin)
+- [RuoYi-Cloud](https://gitee.com/y_project/RuoYi-Cloud)
+- [Simple Admin](https://github.com/suyuan32/simple-admin-core)
+
+See [Architecture](/en/guide/architecture) and [Deployment](/en/reference/deployment). The [online demo](https://superiorchuo.github.io/gopherforge/) uses mock data and is not a production acceptance environment.

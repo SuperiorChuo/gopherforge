@@ -1,5 +1,6 @@
 // dbdoc：连接 PostgreSQL 读取 pg_catalog/information_schema，按域分组生成数据库结构 Markdown 文档。
-// 连活库（而非解析迁移 SQL）以保证拿到的是全量真实 schema（含 AutoMigrate 维护的列与索引）。
+// 对标 yudao 的数据库文档能力；连活库（而非解析迁移 SQL）是因为 im/bpm 等表由 GORM AutoMigrate 建列，
+// 静态解析拿不到全量真实 schema。
 //
 // 用法：
 //	DB_HOST=... DB_PORT=... DB_USER=... DB_PASSWORD=... DB_NAME=... go run . --out ../../../docs/database-schema.md
@@ -45,9 +46,9 @@ type domain struct {
 	Prefixes []string // 前缀或全名匹配，按声明顺序优先
 }
 
-// 域清单覆盖脚手架全部基础表（auth/identity/system/audit/file + tenant/bpm）。
-// 二次开发新增的业务表落入 unclassified，且**默认不进 --public 输出**（default-deny，防业务表泄漏）；
-// 按需在此追加自己的业务域分组。
+// 域清单区分基础设施与业务模块，供文档生成时选择展示范围：
+// 基础设施 = auth/identity/system/audit/file/monitor(+tenant/bpm)；业务 = ai/cc/crm/im/mp/visibility 等。
+// 未匹配任何前缀的表落入 unclassified，且**默认不进公开版**（default-deny，防业务表泄漏）。
 var domains = []domain{
 	{Key: "identity", ZH: "身份与权限", EN: "Identity & RBAC", Public: true, Prefixes: []string{
 		"users", "roles", "permissions", "menus", "menu_permissions", "role_permissions",
@@ -75,6 +76,15 @@ var domains = []domain{
 	{Key: "meta", ZH: "迁移框架", EN: "Migration Meta", Public: true, Prefixes: []string{
 		"schema_migrations", "goose_db_version",
 	}},
+	// —— 以下为业务域，永不进公开版 ——
+	{Key: "ai", ZH: "AI（业务）", EN: "AI (business)", Public: false, Prefixes: []string{"ai_"}},
+	{Key: "im", ZH: "IM（业务）", EN: "IM (business)", Public: false, Prefixes: []string{"im_"}},
+	{Key: "crm", ZH: "CRM（业务）", EN: "CRM (business)", Public: false, Prefixes: []string{"crm_"}},
+	{Key: "cc", ZH: "呼叫中心（业务）", EN: "Call Center (business)", Public: false, Prefixes: []string{"cc_"}},
+	{Key: "mp", ZH: "公众号（业务）", EN: "WeChat MP (business)", Public: false, Prefixes: []string{"mp_", "posts", "post_publications", "channel_accounts"}},
+	{Key: "visibility", ZH: "Visibility（业务）", EN: "Visibility (business)", Public: false, Prefixes: []string{"vis_"}},
+	{Key: "ticket", ZH: "工单（业务）", EN: "Ticket (business)", Public: false, Prefixes: []string{"ticket_"}},
+	{Key: "notify", ZH: "通知（业务）", EN: "Notify (business)", Public: false, Prefixes: []string{"notify_"}},
 }
 
 var unclassified = domain{Key: "unclassified", ZH: "未分类（请补充 dbdoc 域清单）", EN: "Unclassified (extend dbdoc domain list)", Public: false}

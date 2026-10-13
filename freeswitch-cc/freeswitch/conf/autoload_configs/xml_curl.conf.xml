@@ -1,0 +1,14 @@
+<configuration name="xml_curl.conf" description="XML Curl">
+  <!-- 动态目录（mod_xml_curl）：directory 段查询实时 HTTP POST 问 control-api，
+       命中答分机 XML（SIP 密码不落盘、改动即时生效），未命中 FS 回退磁盘物化文件。
+       URL（含 BasicAuth 凭据）来自容器环境变量 CC_XML_CURL_URL，exec-set 经
+       shell 读 env（写法同 json_cdr.conf.xml）。 -->
+  <X-PRE-PROCESS cmd="exec-set" data="cc_xml_curl_url=echo -n $CC_XML_CURL_URL"/>
+  <bindings>
+    <binding name="cc-directory">
+      <param name="gateway-url" value="$${cc_xml_curl_url}" bindings="directory"/>
+      <param name="disable-100-continue" value="true"/>
+      <param name="timeout" value="3"/>
+    </binding>
+  </bindings>
+</configuration>

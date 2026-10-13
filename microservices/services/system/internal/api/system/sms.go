@@ -23,12 +23,12 @@ type SmsAPI struct {
 	sendService     systemsvc.SmsSendService
 }
 
-// NewSmsAPI creates a SmsAPI instance with zero-value services (legacy fallback).
+// NewSmsAPI 创建 SmsAPI 实例，使用零值服务（遗留回退）。
 func NewSmsAPI() *SmsAPI {
 	return &SmsAPI{}
 }
 
-// NewSmsAPIWithDB creates a SmsAPI instance from an injected database handle.
+// NewSmsAPIWithDB 从注入的数据库句柄创建 SmsAPI 实例。
 func NewSmsAPIWithDB(db *gorm.DB) *SmsAPI {
 	return &SmsAPI{
 		channelService:  systemsvc.NewSmsChannelServiceWithDB(db),
@@ -379,7 +379,7 @@ func (a *SmsAPI) SendSms(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// InternalSendSms exposes the same audited send pipeline to trusted services.
+// InternalSendSms 向受信任的服务暴露同一条带审计的发送流水线。
 func (a *SmsAPI) InternalSendSms(token string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		expected := strings.TrimSpace(token)

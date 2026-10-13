@@ -1,8 +1,6 @@
 # 供应链 / 代码安全扫描：PR 上跑快的，每周定时跑全的。
 #
-# 本仓（gopherforge）是公开脚手架发行线，Actions 在这里真正执行——这个 workflow 会实跑。
-# 文件本体由上游主项目同步而来：要调阈值请回上游改再同步，避免下次同步被覆盖。
-# 刻意与 ci.yml 完全分离：ci.yml 管功能门禁，安全扫描独立文件，互不打架。
+# 模块发现与 Release 共用产品脚本，避免 workspace 布局变更后漏扫服务。
 #
 # 【失败阈值的取舍】目标是"能长期开着而不会天天红"，所以分三档：
 #   1. govulncheck（Go 官方，零配置）——只报"你的代码真的调到了漏洞函数"的可达发现。
@@ -52,19 +50,16 @@ jobs:
       modules: ${{ steps.modules.outputs.modules }}
     steps:
       - uses: actions/checkout@v6
-      - name: 从 go.work 取模块（含 shared 与 tools/dbdoc）
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+      - name: 从 go.work 取实际模块
         id: modules
         run: |
           set -euo pipefail
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json, re, sys
-
-          work = open("microservices/go.work", encoding="utf-8").read()
-          modules = sorted(re.findall(r"^\s*\./(\S+)\s*$", work, re.M))
-          if not modules:
-              sys.exit("未从 go.work 解析出任何模块")
-          print("modules=" + json.dumps(modules))
-          PY
+          modules="$(python3 -B scripts/release-workspace.py)"
+          printf 'modules=%s\n' "$modules" >> "$GITHUB_OUTPUT"
 
   govulncheck:
     name: govulncheck · ${{ matrix.module }}
@@ -107,8 +102,7 @@ jobs:
           raw = pathlib.Path("govulncheck.json").read_text(encoding="utf-8")
 
           # govulncheck -format json 吐的是"一串缩进 JSON 对象拼接"，不是 JSONL，
-          # 必须 raw_decode 顺流解。实测（tools/dbdoc，415KB 输出）：raw_decode 取到
-          # 186 个对象含 13 条 finding，按行 json.loads 取到 0 条 finding —— 后者会假绿，很危险
+          # 必须 raw_decode 顺流解；按行 json.loads 一条都解不出来（假绿，很危险）
           decoder = json.JSONDecoder()
           findings, pos = [], 0
           while pos < len(raw):
@@ -222,8 +216,8 @@ jobs:
 
   trivy-image:
     # 镜像扫描要先构建，比较慢，只在定时 / 手动跑；PR 上靠 trivy-fs + govulncheck 兜。
-    # 只扫两个代表：7 个 Go 服务使用同一套 golang:1.27-alpine 构建范式，
-    # 基础镜像 CVE 一扫就全知道；frontend 是唯一的 node:24-alpine → nginx:alpine 运行时。
+    # 只扫两个代表：所有 Go 服务使用同一套 golang:1.27-alpine 构建范式，
+    # 基础镜像 CVE 一扫就全知道；frontend 是唯一的 nginx:alpine 运行时。
     if: github.event_name != 'pull_request'
     name: Trivy · 镜像 ${{ matrix.service }}
     runs-on: ubuntu-latest
@@ -233,7 +227,7 @@ jobs:
       matrix:
         include:
           - service: monitor-service
-            context: microservices/services
+            context: microservices/services/monitor
             dockerfile: microservices/services/monitor/Dockerfile
           - service: frontend
             context: microservices/web

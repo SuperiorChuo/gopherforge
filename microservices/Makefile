@@ -4,10 +4,8 @@ MICRO_ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 .PHONY: help
 help:
 	@echo "微服务项目 (microservices/) 可用目标:"
-	@echo "  compose-up        启动完整微服务栈（自动先起 infra 数据栈）"
-	@echo "  compose-down      停止应用栈（不碰数据栈）"
-	@echo "  infra-up          单独启动数据栈（PG/Redis/NATS）"
-	@echo "  infra-down        停止数据栈"
+	@echo "  compose-up        启动完整微服务栈"
+	@echo "  compose-down      停止应用栈（保留 infra 数据服务）"
 	@echo "  compose-monitoring 启动含监控 profile 的栈"
 	@echo "  dev-backend       本地启动 services/monitor（监控兜底）"
 	@echo "  dev-auth          本地启动 auth-service"
@@ -17,29 +15,23 @@ help:
 	@echo "  migrate-up        应用数据库迁移"
 	@echo "  api-contract      生成 OpenAPI 与类型"
 
-# 有状态服务独立栈（PG/Redis/NATS/MinIO 见 docker-compose.infra.yml），
-# 应用栈重建不触碰数据；两栈经外部网络互通，操作 infra 栈必须显式 -p
-.PHONY: infra-up
-infra-up:
+.PHONY: compose-infra
+compose-infra:
 	docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
 		docker network create --subnet 172.28.0.0/16 go-admin-kit-net
 	docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
 
-.PHONY: infra-down
-infra-down:
-	docker compose -p go-admin-kit-infra -f docker-compose.infra.yml down
-
 .PHONY: compose-up
-compose-up: infra-up
-	docker compose up -d --build
+compose-up: compose-infra
+	docker compose --profile compose-fallback up -d --build
 
 .PHONY: compose-down
 compose-down:
-	docker compose down
+	docker compose --profile compose-fallback --profile monitoring --profile tracing down
 
 .PHONY: compose-monitoring
-compose-monitoring: infra-up
-	docker compose --profile monitoring up -d --build
+compose-monitoring: compose-infra
+	docker compose --profile compose-fallback --profile monitoring up -d --build
 
 .PHONY: dev-backend
 dev-backend:
@@ -59,10 +51,13 @@ dev-frontend:
 
 .PHONY: test
 test:
+	npm run test:compose:config
 	npm run test:smoke:unit
 	cd services/monitor && go test ./...
 	cd services/auth && go test ./...
+	cd services/system && go test ./...
 	cd web && npm run build
+	npm run test:codegen:contract
 
 .PHONY: lint
 lint:

@@ -41,7 +41,8 @@ services:
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
-      # PG18 镜像默认数据目录改 /var/lib/postgresql/18/docker，新 volume 隔离旧数据
+      # PG18 镜像默认数据布局从 /var/lib/postgresql/data 改为 /var/lib/postgresql/18/docker。
+      # 迁移用新 volume 隔离旧数据（旧 volume 保留作回滚点），pg_restore 灌入。
       - go_admin_kit_postgres18_data:/var/lib/postgresql/18/docker
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -50,6 +51,37 @@ services:
       retries: 6
       start_period: 30s
       start_interval: 5s
+    networks:
+      - go-admin-kit-net
+
+  go-admin-kit-postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.17.0
+    container_name: go-admin-kit-postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-123456}@go-admin-kit-postgres:5432/${POSTGRES_DB:-go_admin_kit}?sslmode=${DB_SSLMODE:-disable}"
+      PG_EXPORTER_AUTO_DISCOVER_DATABASES: "true"
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "127.0.0.1:9187:9187"
+    networks:
+      - go-admin-kit-net
+
+  go-admin-kit-consul:
+    image: hashicorp/consul:1.22.7
+    container_name: go-admin-kit-consul
+    restart: unless-stopped
+    # 单节点 server：bootstrap-expect=1 自举；服务发现用（8500 API / 8600 DNS）
+    # bind/advertise 用 go-sockaddr 模板绑定 go-admin-kit-net(172.28/16)，多网卡容器不靠自动检测
+    command: agent -server -bootstrap-expect=1 -ui -data-dir=/consul/data -client=0.0.0.0 -bind="{{ GetPrivateInterfaces | include \"network\" \"172.28.0.0/16\" | attr \"address\" }}"
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "127.0.0.1:8500:8500"
+      - "127.0.0.1:8600:8600/tcp"
+      - "127.0.0.1:8600:8600/udp"
+    volumes:
+      - go_admin_kit_consul_data:/consul/data
     networks:
       - go-admin-kit-net
 
@@ -83,6 +115,19 @@ services:
       retries: 6
       start_period: 30s
       start_interval: 5s
+    networks:
+      - go-admin-kit-net
+
+  go-admin-kit-redis-exporter:
+    image: oliver006/redis_exporter:v1.71.0
+    container_name: go-admin-kit-redis-exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: "go-admin-kit-redis:6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "127.0.0.1:9121:9121"
     networks:
       - go-admin-kit-net
 
@@ -146,6 +191,8 @@ volumes:
   # 全新环境 compose 会按同名自动创建，不需要任何预处理。
   go_admin_kit_postgres18_data:
     name: go-admin-kit_go_admin_kit_postgres18_data
+  go_admin_kit_consul_data:
+    name: go-admin-kit_go_admin_kit_consul_data
   go_admin_kit_postgres_data:
     name: go-admin-kit_go_admin_kit_postgres_data
   go_admin_kit_redis_data:

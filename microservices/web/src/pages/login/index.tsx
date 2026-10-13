@@ -20,12 +20,13 @@ import { fetchCurrentUser, login } from '@/store/slices/authSlice'
 import { getCaptcha } from '@/api/auth'
 import { setTokens } from '@/utils/request'
 import { prefetchMainLayout } from '@/router'
-import { MOBILE_BASE, isMobileAppPath } from '@/utils/mobile-path'
 import AuthShell from '@/components/auth/AuthShell'
+import { MOBILE_BASE, isMobileAppPath } from '@/utils/mobile-path'
 
 /**
  * 读取 ?redirect= 并做开放重定向防护：只接受站内绝对路径（单个前导斜杠，
  * 拒绝 //host、http(s):// 等外站跳转）。用于登录后回到来源页（如 OAuth2 授权页）。
+ * 从 /m/login 进来时默认回移动控制台，避免管理员落到桌面骨架。
  */
 function safeRedirectTarget(): string {
   const raw = new URLSearchParams(window.location.search).get('redirect')
@@ -40,8 +41,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
 
-  // 登录成功后立刻要用管理台骨架，趁用户填账密的空档预取；
-  // 移动端登录不要把 MainLayout 拉进首屏。
+  // 桌面登录才预取管理台骨架；移动端登录不要把 MainLayout 拉进首屏。
   useEffect(() => {
     if (isMobileAppPath()) return
     return prefetchMainLayout()

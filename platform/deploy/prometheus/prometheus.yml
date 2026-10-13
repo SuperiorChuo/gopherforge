@@ -1,9 +1,9 @@
+# Default for Compose. For Swarm replicas select prometheus.swarm.yml using
+# PROMETHEUS_CONFIG_FILE in microservices/.env (see README.md in this directory).
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
-# 告警闭环：规则 → Alertmanager → notify webhook 站内信（rules/alerts.yml）。
-# 脚手架未含 notify-service 时 Alertmanager 投递失败仅记日志，规则评估不受影响。
 rule_files:
   - /etc/prometheus/rules/*.yml
 
@@ -13,27 +13,26 @@ alerting:
         - targets: ["go-admin-kit-alertmanager:9093"]
 
 scrape_configs:
-  # 主机指标（磁盘/内存/CPU，node_exporter 挂 / 只读）
+  - job_name: postgres
+    scrape_interval: 60s
+    static_configs:
+      - targets: ["go-admin-kit-postgres-exporter:9187"]
+  - job_name: redis
+    static_configs:
+      - targets: ["go-admin-kit-redis-exporter:9121"]
   - job_name: node
     static_configs:
-      - targets:
-          - go-admin-kit-node-exporter:9100
-
-  # Traefik 网关指标（entrypoint/router 级请求量与延迟直方图）。/metrics 随
-  # api.insecure 在容器网络 :8080 暴露，不经网关路由。
+      - targets: ["go-admin-kit-node-exporter:9100"]
   - job_name: traefik
     static_configs:
-      - targets:
-          - go-admin-kit-gateway:8080
-
+      - targets: ["go-admin-kit-gateway:8080"]
   - job_name: go-admin-kit-backend
     metrics_path: /api/v1/metrics
     static_configs:
-      - targets:
-          - go-admin-kit-monitor:8081  # monitor 服务承载 /api/v1/metrics（原 backend 命名已不存在）
+      - targets: ["go-admin-kit-monitor:8081"]
 
-  # 全部业务服务的 HTTP/runtime/DB 池指标（shared/pkg/metrics 统一中间件，
-  # 端点 /metrics 只在容器网络内可达，网关不路由）。service 标签用于看板聚合。
+  # Compose service/container names, not Swarm task DNS. Keep service labels
+  # stable for the existing public dashboards and alert rules.
   - job_name: go-admin-kit-services
     metrics_path: /metrics
     static_configs:
@@ -47,5 +46,26 @@ scrape_configs:
         labels: { service: audit }
       - targets: ["go-admin-kit-file:8086"]
         labels: { service: file }
+      - targets: ["go-admin-kit-ai:8087"]
+        labels: { service: ai }
+      - targets: ["go-admin-kit-im:8088"]
+        labels: { service: im }
+      - targets: ["go-admin-kit-cc:8089"]
+        labels: { service: cc }
+      - targets: ["go-admin-kit-crm:8091"]
+        labels: { service: crm }
+      - targets: ["go-admin-kit-mp:8092"]
+        labels: { service: mp }
+      - targets: ["go-admin-kit-visibility:8093"]
+        labels: { service: visibility }
+      - targets: ["go-admin-kit-ticket:8094"]
+        labels: { service: ticket }
+      - targets: ["go-admin-kit-notify:8095"]
+        labels: { service: notify }
       - targets: ["go-admin-kit-bpm:8096"]
         labels: { service: bpm }
+      - targets: ["go-admin-kit-pay:8097"]
+        labels: { service: pay }
+
+  # Optional FreeSWITCH control-api lives in a separate deployment. Add an
+  # fscc-control-api job with your reachable endpoint only when it is deployed.

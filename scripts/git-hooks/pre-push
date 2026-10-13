@@ -1,27 +1,11 @@
 #!/usr/bin/env bash
-# pre-push 卫生门禁：推送前扫内部引用/路径形态/密钥形态/残留（与 CI hygiene job 同一套禁词）。
-# CI 是事后报警（内容已短暂上过远端），本钩子把拦截提前到 push 动作本身。
-# 经 core.hooksPath=scripts/git-hooks 生效；确属误报时 git push --no-verify 跳过（先想清楚）。
+# CI、发版预检和 push 共用产品卫生检查器；不复制禁词、不提供跳过分支。
 set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
-
-ALLOW='iploc.*_test\.go|mask_test\.go|setting_context_test\.go|^\.gitignore|docs/design/bpm-approval-flow\.md|\.github/workflows/ci\.yml|scripts/git-hooks/pre-push'
-hit=0
-for p in \
-  'AGENTS\.md|CLAUDE\.md|CODEX_|SYNC_LOG' \
-  '/www/|root@' \
-  'sk-[a-zA-Z0-9]{20}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{20}|gho_[a-zA-Z0-9]{20}|xox[bp]-' \
-  'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----$' \
-  'freeswitch-cc|cc-service|crm-service|im-service|mp-service|pay-service|ticket-service|visibility-service' \
-; do
-  out=$(git grep -nE "$p" -- . | grep -vE "$ALLOW" || true)
-  if [ -n "$out" ]; then hit=1; echo "[pre-push] 命中禁词：$p"; echo "$out" | head -8; fi
-done
-envs=$(git ls-files | grep -E '(^|/)\.env(\.|$)' | grep -v '\.env\.example$' || true)
-[ -n "$envs" ] && { hit=1; echo "[pre-push] 跟踪了 .env："; echo "$envs"; }
-
-if [ "$hit" != 0 ]; then
-  echo "[pre-push] 拒绝推送：逐条处理后重试（误报请补白名单而不是 --no-verify）"
-  exit 1
+# 锚定 hook 所属仓库，避免继承的 Git 环境把预检重定向到别处。
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+if [ "$#" -eq 0 ]; then
+  # 兼容发版预检直接调用：检查当前提交，不从终端等待 Git 协议输入。
+  exec python3 -B "$ROOT/scripts/release-hygiene.py"
 fi
-exit 0
+# Git 实际调用会传 remote 参数和四列 stdin；检查待传对象及全部新增历史，不误扫 HEAD。
+exec python3 -B "$ROOT/scripts/release-hygiene.py" --pre-push

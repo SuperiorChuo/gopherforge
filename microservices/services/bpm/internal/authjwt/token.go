@@ -1,5 +1,5 @@
 // Package authjwt 校验 auth-service 签发的访问令牌（网关 X-Auth-* 头优先，
-// JWT 兜底裸连场景）。
+// JWT 兜底裸连场景），与 ticket/crm 同约定。
 package authjwt
 
 import (

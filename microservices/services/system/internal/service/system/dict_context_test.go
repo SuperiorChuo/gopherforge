@@ -45,7 +45,7 @@ func TestDictServiceCreateTypeContextReturnsCodeLookupError(t *testing.T) {
 func TestDictServiceGetMultipleDictDataContextReturnsLookupError(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
 	lookupErr := errors.New("database lookup failed")
-	// Codes are now resolved in one batched query instead of two per code.
+	// Codes 现在通过一次批量查询解析，而非每个 code 两次查询。
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "dict_types" WHERE code IN ($1) AND status = $2`)).
 		WithArgs("gender", int8(1)).
 		WillReturnError(lookupErr)
@@ -59,8 +59,8 @@ func TestDictServiceGetMultipleDictDataContextReturnsLookupError(t *testing.T) {
 
 func TestDictServiceGetMultipleDictDataContextUsesTwoQueriesForManyCodes(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
-	// Three codes used to cost six queries (two per code). Now: one for the
-	// types, one for all of their items — regardless of code count.
+	// 三个 code 过去要六次查询（每个两次）。现在：类型一次、其全部条目一次——
+	// 与 code 数量无关。
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "dict_types" WHERE code IN ($1,$2,$3) AND status = $4`)).
 		WithArgs("gender", "status", "missing", int8(1)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "status"}).
@@ -91,7 +91,7 @@ func TestDictServiceGetMultipleDictDataContextUsesTwoQueriesForManyCodes(t *test
 
 func TestDictServiceGetAllDictDataContextUsesTwoQueries(t *testing.T) {
 	db, mock := setupSystemUserServiceContextTestDB(t)
-	// /dicts/all was 1+N; it is now types + one grouped item query.
+	// /dicts/all 原来是 1+N；现在是类型查询 + 一次分组条目查询。
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "dict_types" WHERE status = $1 ORDER BY created_at DESC`)).
 		WithArgs(int8(1)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "status"}).

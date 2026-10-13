@@ -21,8 +21,8 @@ type SettingService struct {
 	emailInvalidator   runtimeconfig.EmailNotificationInvalidator
 }
 
-// NewSettingServiceWithDB builds a SettingService backed by an injected
-// database handle. Invalidators keep their default implementations.
+// NewSettingServiceWithDB 构建一个基于注入的数据库句柄的 SettingService。
+// 失效器保持默认实现。
 func NewSettingServiceWithDB(db *gorm.DB) SettingService {
 	return SettingService{
 		settingDAO:       *systemdao.NewSettingDAO(db),
@@ -44,19 +44,17 @@ type BatchUpsertSettingsRequest struct {
 var (
 	ErrSystemSettingNotFound   = errors.New("system setting not found")
 	ErrInvalidSystemSettingKey = errors.New("invalid system setting key")
-	// ErrProtectedSystemSettingKey guards machine-managed secret settings (e.g.
-	// the OIDC signing private key) from being read back, overwritten, or
-	// deleted through the generic settings API.
+	// ErrProtectedSystemSettingKey 保护机器托管的机密配置（如
+	// OIDC 签名私钥）不被通过通用设置 API 读回、覆盖或删除。
 	ErrProtectedSystemSettingKey = errors.New("system setting is protected and cannot be accessed via this API")
 )
 
 var systemSettingKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_.-]{0,127}$`)
 
-// protectedSettingKeys are auto-generated secrets that must never be exposed or
-// mutated through the generic settings CRUD API. The OIDC signing key is an RSA
-// private key managed by auth-service; leaking it lets an attacker forge
-// id_tokens for any user, and deleting/overwriting it breaks id_token
-// verification across replicas. Keep this list in sync with the owning service.
+// protectedSettingKeys 是自动生成的机密，绝不能通过通用设置 CRUD API
+// 暴露或变更。OIDC 签名密钥是由 auth-service 管理的 RSA 私钥；泄露它
+// 会让攻击者为任意用户伪造 id_token，而删除/覆盖它则会破坏各副本间的
+// id_token 校验。请与持有该密钥的服务保持此列表同步。
 var protectedSettingKeys = map[string]bool{
 	"oidc.signing_key": true,
 }
@@ -65,8 +63,8 @@ func isProtectedSettingKey(key string) bool {
 	return protectedSettingKeys[key]
 }
 
-// maskedSettingValue is returned in place of a protected setting's real value on
-// list reads, so its existence is visible but its secret contents are not.
+// maskedSettingValue 在列表读取时替代受保护设置的真实值返回，
+// 使存在性可见，但机密内容不可见。
 var maskedSettingValue = map[string]any{"protected": true}
 
 func (s *SettingService) ListSettingsContext(ctx context.Context, group string) ([]model.SystemSetting, error) {

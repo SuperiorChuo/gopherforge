@@ -29,16 +29,16 @@ func openMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	return db, mock
 }
 
-func TestReportUsesPublicTaskTablesWithoutAppendingHistory(t *testing.T) {
+func TestReportTargetsMonitorServiceSchemaWithoutAppendingHistory(t *testing.T) {
 	db, mock := openMockDB(t)
-	mock.ExpectExec(`INSERT INTO ops_job_heartbeats`).
+	mock.ExpectExec(`INSERT INTO monitor_svc\.ops_job_heartbeats`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	Report(db, Run{Key: "system.cleanup", Service: "system-service", StartedAt: time.Now()})
 }
 
 func TestExecutionRecordsLifecycleAndHeartbeatOnce(t *testing.T) {
 	db, mock := openMockDB(t)
-	mock.ExpectExec(`INSERT INTO ops_task_runs`).
+	mock.ExpectExec(`INSERT INTO monitor_svc\.ops_task_runs`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	execution := Start(db, Run{
 		RunID:       "run-1",
@@ -49,9 +49,9 @@ func TestExecutionRecordsLifecycleAndHeartbeatOnce(t *testing.T) {
 		Trigger:     "manual",
 		StartedAt:   time.Now().Add(-time.Second),
 	})
-	mock.ExpectExec(`UPDATE ops_task_runs`).
+	mock.ExpectExec(`UPDATE monitor_svc\.ops_task_runs`).
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec(`INSERT INTO ops_job_heartbeats`).
+	mock.ExpectExec(`INSERT INTO monitor_svc\.ops_job_heartbeats`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	execution.Finish(nil, "healthy")
 	execution.Finish(errors.New("must be ignored"), "duplicate")
@@ -59,12 +59,12 @@ func TestExecutionRecordsLifecycleAndHeartbeatOnce(t *testing.T) {
 
 func TestExecutionStoresFailureAndKeepsTaskSoft(t *testing.T) {
 	db, mock := openMockDB(t)
-	mock.ExpectExec(`INSERT INTO ops_task_runs`).
+	mock.ExpectExec(`INSERT INTO monitor_svc\.ops_task_runs`).
 		WillReturnError(errors.New("task run table unavailable"))
 	execution := Start(db, Run{RunID: "run-2", Key: "audit.cleanup", Service: "audit-service"})
-	mock.ExpectExec(`UPDATE ops_task_runs`).
+	mock.ExpectExec(`UPDATE monitor_svc\.ops_task_runs`).
 		WillReturnError(errors.New("task run table unavailable"))
-	mock.ExpectExec(`INSERT INTO ops_job_heartbeats`).
+	mock.ExpectExec(`INSERT INTO monitor_svc\.ops_job_heartbeats`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	execution.Finish(errors.New("cleanup failed"), "")
 }

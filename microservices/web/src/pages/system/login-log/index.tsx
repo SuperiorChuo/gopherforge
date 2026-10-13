@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-  Table, Button, Space, Tag, Card, Input, Select, Form, DatePicker, InputNumber, Tooltip, Segmented, Skeleton,
+  Table, Button, Space, Tag, Card, Input, Select, Form, DatePicker, Modal, InputNumber, Tooltip, Segmented, Skeleton,
 } from 'antd'
 import { message } from '@/utils/feedback'
-import { SearchOutlined, ReloadOutlined, ClearOutlined, DownloadOutlined } from '@ant-design/icons'
+import { SearchOutlined, ReloadOutlined, ClearOutlined, RobotOutlined, DownloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { LoginLog } from '@/types'
 import { getLoginLogList, clearLoginLogs, getLoginStats, getLoginGeoDistribution, exportLoginLogs, type LoginLogStats, type LoginGeoItem } from '@/api/system/log'
+import { getLogsInsight } from '@/api/ai'
 import GeoMap, { type GeoMapPoint } from '@/components/common/GeoMap'
 import { resolveGeoPoint, resolveProvinceShort } from '@/utils/chinaGeo'
 import EntityFormModal from '@/components/common/EntityFormModal'
@@ -16,6 +18,7 @@ import CountUpValue from '@/components/common/CountUpValue'
 import MetricCard from '@/components/common/MetricCard'
 import StatsGrid, { StatsGridDivider } from '@/components/common/StatsGrid'
 import StatusPill from '@/components/common/StatusPill'
+import AiMarkdown from '@/components/common/AiMarkdown'
 import GlassEmpty from '@/components/common/GlassEmpty'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
@@ -40,6 +43,7 @@ const loginTypeLabels: Record<number, string> = { 1: '密码登录', 2: 'GitHub'
 const loginTypeColors: Record<number, string> = { 1: 'geekblue', 2: 'purple', 3: 'green', 4: 'cyan' }
 
 export default function LoginLogPage() {
+  const { t } = useTranslation()
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [clearOpen, setClearOpen] = useState(false)
   const [clearing, setClearing] = useState(false)
@@ -48,9 +52,13 @@ export default function LoginLogPage() {
   const [geoDays, setGeoDays] = useState(7)
   const [geoData, setGeoData] = useState<LoginGeoItem[] | null>(null)
   const [geoLoading, setGeoLoading] = useState(true)
-  // 刷新失败保留上一窗口数据，避免整卡连切换器一起消失、用户失去重试入口；
-  // 失败态用 state 而非 ref（render 期读 ref 不符合 React 并发语义）
+  // 刷新失败保留上一窗口数据，避免整卡连切换器一起消失、用户失去重试入口
   const [geoFailed, setGeoFailed] = useState(false)
+  // AI 洞察：报告缓存到弹窗关闭，切换天数重新生成
+  const [insightOpen, setInsightOpen] = useState(false)
+  const [insightDays, setInsightDays] = useState(7)
+  const [insightLoading, setInsightLoading] = useState(false)
+  const [insightReport, setInsightReport] = useState('')
   const [searchForm] = Form.useForm()
   const [clearForm] = Form.useForm()
   const { hasPerm } = usePermission()
@@ -129,7 +137,7 @@ export default function LoginLogPage() {
     const res = await getLoginLogList(p)
     return { list: res.list, total: res.total }
   }, [])
-  const onLoadError = useCallback(() => message.error('获取登录日志失败'), [])
+  const onLoadError = useCallback(() => message.error(t('获取登录日志失败')), [t])
   const { list, total, loading, reload } = useTableQuery({
     params,
     fetcher: fetchList,
@@ -163,9 +171,9 @@ export default function LoginLogPage() {
     try {
       const { page: _page, page_size: _pageSize, ...filters } = params
       await exportLoginLogs(filters)
-      message.success('导出已开始，请查看浏览器下载')
+      message.success(t('导出已开始，请查看浏览器下载'))
     } catch {
-      message.error('导出失败')
+      message.error(t('导出失败'))
     } finally {
       setExporting(false)
     }
@@ -177,20 +185,38 @@ export default function LoginLogPage() {
     setClearing(true)
     try {
       const res = await clearLoginLogs(values.days)
-      message.success(`清理成功，共删除 ${res.deleted_count} 条日志`)
+      message.success(t('清理成功，共删除 {{n}} 条日志', { n: res.deleted_count }))
       setClearOpen(false)
       setParams({ ...params, page: 1 })
     } catch {
-      message.error('清理失败')
+      message.error(t('清理失败'))
     } finally {
       setClearing(false)
     }
   }
 
+  const runInsight = async (days: number) => {
+    setInsightLoading(true)
+    setInsightReport('')
+    try {
+      const res = await getLogsInsight({ days })
+      setInsightReport(res.report)
+    } catch {
+      // 拦截器已提示，弹窗保留以便重试
+    } finally {
+      setInsightLoading(false)
+    }
+  }
+
+  const openInsight = () => {
+    setInsightOpen(true)
+    runInsight(insightDays)
+  }
+
   const columns: ColumnsType<LoginLog> = [
     { title: 'ID', dataIndex: 'id', width: 64, responsive: ['lg'] },
     {
-      title: '用户名',
+      title: t('用户名'),
       dataIndex: 'username',
       width: 132,
       render: (v: string) => v ? (
@@ -200,7 +226,7 @@ export default function LoginLogPage() {
       ) : <span className="cell-muted">—</span>,
     },
     {
-      title: 'IP / 位置',
+      title: t('IP / 位置'),
       dataIndex: 'ip',
       width: 220,
       responsive: ['sm'],
@@ -214,7 +240,7 @@ export default function LoginLogPage() {
       },
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       width: 84,
       render: (v: number, record) =>
@@ -229,7 +255,7 @@ export default function LoginLogPage() {
         ),
     },
     {
-      title: '失败原因',
+      title: t('失败原因'),
       dataIndex: 'message',
       width: 220,
       ellipsis: true,
@@ -241,18 +267,18 @@ export default function LoginLogPage() {
       ) : <span className="cell-muted">—</span>,
     },
     {
-      title: '登录类型',
+      title: t('登录类型'),
       dataIndex: 'login_type',
       width: 112,
       responsive: ['md'],
       render: (v: number) => (
-        <Tag color={loginTypeColors[v]} variant="filled">{loginTypeLabels[v] ?? v}</Tag>
+        <Tag color={loginTypeColors[v]} variant="filled">{t(loginTypeLabels[v] ?? '')}</Tag>
       ),
     },
     { title: '浏览器', dataIndex: 'browser', width: 160, ellipsis: true, responsive: ['lg'] },
     { title: 'OS', dataIndex: 'os', width: 140, ellipsis: true, responsive: ['lg'] },
     {
-      title: '设备指纹',
+      title: t('设备指纹'),
       dataIndex: 'device_id',
       width: 130,
       responsive: ['xl'],
@@ -263,7 +289,7 @@ export default function LoginLogPage() {
       ) : <span className="cell-muted">—</span>,
     },
     {
-      title: '时间',
+      title: t('时间'),
       dataIndex: 'created_at',
       width: 164,
       className: 'cell-time',
@@ -276,16 +302,24 @@ export default function LoginLogPage() {
       {stats && (
         <Card className="list-filter-card login-log-stats-card" bordered={false} styles={{ body: { padding: '14px 24px' } }}>
           <StatsGrid className="login-log-stats-grid">
-            <MetricCard label="近 7 天登录" value={<CountUpValue value={stats.total} />} />
+            <MetricCard label={t('近 7 天登录')} value={<CountUpValue value={stats.total} />} />
             <StatsGridDivider />
-            <MetricCard label="成功" value={<CountUpValue value={stats.success} />} valueClassName="log-stat-success" />
             <MetricCard
-              label="失败"
+              label={t('成功')}
+              value={<CountUpValue value={stats.success} />}
+              valueClassName="log-stat-success"
+            />
+            <MetricCard
+              label={t('失败')}
               value={<CountUpValue value={stats.failed} />}
               valueClassName={stats.failed > 0 ? 'log-stat-danger' : undefined}
             />
             <StatsGridDivider />
-            <MetricCard label="今日活跃用户" value={<CountUpValue value={stats.today_users} />} valueClassName="log-stat-accent" />
+            <MetricCard
+              label={t('今日活跃用户')}
+              value={<CountUpValue value={stats.today_users} />}
+              valueClassName="log-stat-accent"
+            />
           </StatsGrid>
         </Card>
       )}
@@ -293,13 +327,13 @@ export default function LoginLogPage() {
       {hasPerm('system:log:login') && (geoData !== null || geoLoading) && (
         <Card className="list-filter-card" bordered={false}>
           <div className="geo-dist-header">
-            <span className="geo-dist-title">登录地域分布</span>
+            <span className="geo-dist-title">{t('登录地域分布')}</span>
             <Segmented
               size="small"
               options={[
-                { label: '近 7 天', value: 7 },
-                { label: '近 14 天', value: 14 },
-                { label: '近 30 天', value: 30 },
+                { label: t('近 7 天'), value: 7 },
+                { label: t('近 14 天'), value: 14 },
+                { label: t('近 30 天'), value: 30 },
               ]}
               value={geoDays}
               onChange={(v) => setGeoDays(v as number)}
@@ -317,7 +351,7 @@ export default function LoginLogPage() {
                       <span className={`geo-rank-name${r.located ? '' : ' geo-rank-name-muted'}`}>{r.name}</span>
                       <span className="geo-rank-count">
                         {r.total}
-                        {r.failed > 0 && <em>失败 {r.failed}</em>}
+                        {r.failed > 0 && <em>{t('失败')} {r.failed}</em>}
                       </span>
                     </div>
                     <div className="geo-rank-bar">
@@ -353,15 +387,15 @@ export default function LoginLogPage() {
           }}
         >
           <Form.Item name="username">
-            <Input placeholder="搜索用户名" prefix={<SearchOutlined />} allowClear style={{ width: 200 }} />
+            <Input placeholder={t('搜索用户名')} prefix={<SearchOutlined />} allowClear style={{ width: 200 }} />
           </Form.Item>
           <Form.Item name="ip">
             <Input placeholder="IP" allowClear style={{ width: 140 }} />
           </Form.Item>
           <Form.Item name="status">
-            <Select placeholder="状态" style={{ width: 100 }} allowClear>
-              <Select.Option value={1}>成功</Select.Option>
-              <Select.Option value={0}>失败</Select.Option>
+            <Select placeholder={t('状态')} style={{ width: 100 }} allowClear>
+              <Select.Option value={1}>{t('成功')}</Select.Option>
+              <Select.Option value={0}>{t('失败')}</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item name="dateRange">
@@ -369,8 +403,8 @@ export default function LoginLogPage() {
           </Form.Item>
           <Form.Item className="list-filter-actions">
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>{t('查询')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
             </Space>
           </Form.Item>
         </ListFilterForm>
@@ -382,27 +416,32 @@ export default function LoginLogPage() {
           total={total}
           extra={
             <Space wrap className="login-log-toolbar-actions">
+              <Tooltip title={t('AI 分析')}>
+                <Button aria-label={t('AI 分析登录日志')} icon={<RobotOutlined />} onClick={openInsight}>
+                  {t('AI 分析')}
+                </Button>
+              </Tooltip>
               {hasPerm('system:log:login') && (
-                <Tooltip title="导出 CSV">
-                  <Button aria-label="导出登录日志 CSV" icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
-                    导出 CSV
+                <Tooltip title={t('导出 CSV')}>
+                  <Button aria-label={t('导出登录日志 CSV')} icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
+                    {t('导出 CSV')}
                   </Button>
                 </Tooltip>
               )}
               {hasPerm('system:log:login') && (
-                <Tooltip title="清理日志">
+                <Tooltip title={t('清理日志')}>
                   <Button
                     danger
-                    aria-label="清理登录日志"
+                    aria-label={t('清理登录日志')}
                     icon={<ClearOutlined />}
                     onClick={() => { clearForm.resetFields(); setClearOpen(true) }}
                   >
-                    清理日志
+                    {t('清理日志')}
                   </Button>
                 </Tooltip>
               )}
-              <Tooltip title="刷新">
-                <Button aria-label="刷新登录日志" icon={<ReloadOutlined />} onClick={() => void reload()}>刷新</Button>
+              <Tooltip title={t('刷新')}>
+                <Button aria-label={t('刷新登录日志')} icon={<ReloadOutlined />} onClick={() => void reload()}>{t('刷新')}</Button>
               </Tooltip>
             </Space>
           }
@@ -421,32 +460,70 @@ export default function LoginLogPage() {
             pageSize: params.page_size,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (n) => t('共 {{n}} 条', { n }),
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
         />
       </Card>
 
       <EntityFormModal
-        title="清理登录日志"
+        title={t('清理登录日志')}
         open={clearOpen}
         form={clearForm}
         onSubmit={handleClear}
         onClose={() => setClearOpen(false)}
         submitting={clearing}
         okButtonProps={{ danger: true }}
-        okText="确认清理"
+        okText={t('确认清理')}
         formProps={{ style: { marginTop: 16 } }}
       >
           <Form.Item
             name="days"
-            label="保留最近天数（早于该范围的日志将被删除，不可恢复）"
-            rules={[{ required: true, message: '请输入保留天数' }]}
+            label={t('保留最近天数（早于该范围的日志将被删除，不可恢复）')}
+            rules={[{ required: true, message: t('请输入保留天数') }]}
             initialValue={30}
           >
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
       </EntityFormModal>
+
+      <Modal
+        title={<span><RobotOutlined style={{ marginRight: 8 }} />{t('登录日志 AI 洞察')}</span>}
+        open={insightOpen}
+        onCancel={() => setInsightOpen(false)}
+        footer={null}
+        width={720}
+        destroyOnHidden
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0 16px' }}>
+          <span style={{ fontSize: 13, opacity: 0.75 }}>{t('分析范围')}</span>
+          <Segmented
+            options={[
+              { label: t('近 7 天'), value: 7 },
+              { label: t('近 14 天'), value: 14 },
+              { label: t('近 30 天'), value: 30 },
+            ]}
+            value={insightDays}
+            disabled={insightLoading}
+            onChange={(v) => {
+              const days = v as number
+              setInsightDays(days)
+              runInsight(days)
+            }}
+          />
+        </div>
+        {insightLoading ? (
+          <Skeleton active paragraph={{ rows: 8 }} title={false} />
+        ) : insightReport ? (
+          <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+            <AiMarkdown content={insightReport} />
+          </div>
+        ) : (
+          <div style={{ padding: '24px 0', textAlign: 'center', opacity: 0.6 }}>
+            {t('生成失败，可切换天数重试')}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

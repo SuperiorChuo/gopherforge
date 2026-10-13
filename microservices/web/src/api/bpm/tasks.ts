@@ -2,12 +2,13 @@ import request from '@/utils/request'
 import type { PageRequest, PageResponse } from '@/types'
 import type { BpmInstanceStatus, BpmTask, BpmTaskDetail } from './types'
 
+// ---------------------------------------------------------------------
 // API 封装 —— §4.3 任务端（审批人视角；M1 动作：同意/拒绝）
 // ---------------------------------------------------------------------
 
 export type BpmTaskListParams = PageRequest & { keyword?: string }
 
-/** 我的待办（silent 供业务页探测 BPM 可用性复用） */
+/** 我的待办（silent 供 CRM 页探测 BPM 可用性复用） */
 export const listTodoTasks = (params: BpmTaskListParams, silent = false) =>
   request.get<unknown, PageResponse<BpmTask>>('/api/v1/bpm/tasks/todo', { params, silent })
 
@@ -67,5 +68,3 @@ export const resolveDelegateTask = (id: number, comment: string) =>
 /** 退回（M2）：to=start 退回发起人 / to=prev 退回上一节点（须动作列表含 return_prev）；意见必填 */
 export const returnTask = (id: number, to: 'start' | 'prev', comment: string) =>
   request.post<unknown, BpmTaskActionResult>(`/api/v1/bpm/tasks/${id}/return`, { to, comment })
-
-// ---------------------------------------------------------------------

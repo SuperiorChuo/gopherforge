@@ -64,7 +64,7 @@ export interface TenantPackageInfo {
   id: number
   name: string
   permission_codes: string[]
-  storage_quota_mb?: number
+  storage_quota_mb: number
   status: number
   remark?: string
   created_at?: string
@@ -153,8 +153,8 @@ export interface Permission {
   path?: string
   method?: string
   parent_id?: number
-  children?: Permission[]
   created_at?: string
+  children?: Permission[]
 }
 
 export interface Menu {
@@ -300,4 +300,51 @@ export interface OnlineUser {
   login_time?: string
   token_id: string
   access_token_expires_at?: string
+}
+
+// ===== AI 服务（ai-service，base /api/v1/ai）=====
+
+export interface AiStatus {
+  configured: boolean
+  provider: string
+  chat_model: string
+  embed_model: string
+  kb_documents: number
+}
+
+export interface AiConversation {
+  id: number
+  title: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface AiChatMessage {
+  id: number
+  role: 'user' | 'assistant'
+  content: string
+  created_at?: string
+}
+
+export interface AiKbDocument {
+  id: number
+  title: string
+  content?: string
+  chunk_count: number
+  created_at?: string
+}
+
+export interface AiKbDocumentChunk {
+  id: number
+  document_id: number
+  chunk_index: number
+  content: string
+}
+
+export interface AiKbSearchResult {
+  document_id: number
+  title: string
+  chunk_index: number
+  content: string
+  score: number
 }

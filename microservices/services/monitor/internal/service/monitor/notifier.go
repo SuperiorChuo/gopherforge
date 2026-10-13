@@ -5,13 +5,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
 
+	notifyv1 "github.com/go-admin-kit/services/api/gen/notify/v1"
 	"github.com/go-admin-kit/services/monitor/internal/config"
 	localmodel "github.com/go-admin-kit/services/monitor/internal/model"
 	"github.com/go-admin-kit/services/monitor/internal/pkg/runtimeconfig"
+	"github.com/go-admin-kit/services/shared/pkg/grpcx"
+	"github.com/go-admin-kit/services/shared/pkg/resilience"
 )
 
 // MultiChannelNotifier fans a firing/resolved event out to every channel the
@@ -70,25 +74,55 @@ func (m *MultiChannelNotifier) NotifyContext(ctx context.Context, rule *localmod
 
 // StationNotifier delivers to the 站内信 inbox via notify-service's internal
 // alert endpoint (the same one Alertmanager webhooks to).
+// Phase 3 续：gRPC 优先（Consul 发现 notify-service），失败回退 HTTP。
 type StationNotifier struct {
-	baseURL string
-	token   string
-	client  *http.Client
-	now     func() time.Time
+	baseURL  string
+	token    string
+	client   *http.Client
+	resolver *grpcx.Resolver
+	pool     *grpcx.ConnPool // Phase 4 收尾：gRPC 连接复用
+	breaker  *resilience.Breaker
+	now      func() time.Time
 }
 
 func NewStationNotifier() *StationNotifier {
+	var resolver *grpcx.Resolver
+	if r, err := grpcx.NewResolver(""); err == nil {
+		resolver = r
+	} else {
+		log.Printf("monitor station: consul resolver 初始化失败（告警 gRPC 禁用，仅 HTTP）: %v", err)
+	}
 	return &StationNotifier{
-		baseURL: strings.TrimRight(config.Cfg.Notification.Alert.StationBaseURL, "/"),
-		token:   config.Cfg.Notification.Alert.StationToken,
-		client:  &http.Client{Timeout: 10 * time.Second},
-		now:     time.Now,
+		baseURL:  strings.TrimRight(config.Cfg.Notification.Alert.StationBaseURL, "/"),
+		token:    config.Cfg.Notification.Alert.StationToken,
+		client:   &http.Client{Timeout: 10 * time.Second},
+		resolver: resolver,
+		pool:     grpcx.NewConnPool(resolver, "notify-service"),
+		breaker:  resilience.NewBreaker(5, 10*time.Second),
+		now:      time.Now,
 	}
 }
 
 func (n *StationNotifier) NotifyContext(ctx context.Context, _ *localmodel.MonitorAlertRule, event *localmodel.MonitorAlertEvent) AlertNotification {
 	result := AlertNotification{Status: AlertNotifySkipped, NotifiedAt: n.now().UTC()}
-	if event == nil || n.baseURL == "" || n.token == "" {
+	if event == nil {
+		return result
+	}
+	// 完全未配置（无 resolver 也无 HTTP base/token）→ 跳过，不算失败。
+	if n.resolver == nil && (n.baseURL == "" || n.token == "") {
+		return result
+	}
+	// Phase 3 续：gRPC 优先（Consul 发现 notify-service）；失败回退 HTTP。
+	if n.resolver != nil {
+		if err := n.notifyGRPC(ctx, event); err == nil {
+			result.Status = AlertNotifySent
+			return result
+		}
+	}
+	if n.baseURL == "" || n.token == "" {
+		// 已尝试 gRPC 但失败、HTTP 未配置——如实报失败，不伪装跳过。
+		result.Status = AlertNotifyFailed
+		result.Error = "station gRPC 失败且 HTTP 未配置（缺 baseURL/token）"
 		return result
 	}
 	payload := stationWebhookPayload{
@@ -136,6 +170,51 @@ func (n *StationNotifier) NotifyContext(ctx context.Context, _ *localmodel.Monit
 	}
 	result.Status = AlertNotifySent
 	return result
+}
+
+// notifyGRPC 经 Consul 发现 + gRPC 调 notify InternalAlert。
+// 告警发送有服务端 ref 幂等（fingerprint-status-startsAt），重试安全。
+func (n *StationNotifier) notifyGRPC(ctx context.Context, event *localmodel.MonitorAlertEvent) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	return resilience.Do(ctx, resilience.Options{
+		MaxRetries:     2,
+		BaseDelay:      100 * time.Millisecond,
+		CircuitBreaker: n.breaker,
+	}, func(ctx context.Context) error {
+		conn, err := n.pool.Get(ctx)
+		if err != nil {
+			return err
+		}
+		_, err = notifyv1.NewNotifyServiceClient(conn).InternalAlert(ctx, &notifyv1.InternalAlertRequest{
+			Status: event.Status,
+			Alerts: []*notifyv1.InternalAlertItem{{
+				Status: event.Status,
+				Labels: map[string]string{
+					"alertname": event.RuleName,
+					"severity":  event.Severity,
+					"metric":    event.Metric,
+				},
+				Annotations: map[string]string{
+					"summary":     event.Message,
+					"description": event.Message,
+				},
+				StartsAt:    event.CreatedAt.UTC().Format(time.RFC3339),
+				Fingerprint: stationFingerprint(event),
+			}},
+		})
+		if err == nil {
+			return nil
+		}
+		if grpcx.Retryable(err) {
+			n.pool.Invalidate()
+			return err
+		}
+		if grpcx.IsTransient(err) {
+			return fmt.Errorf("%w: %w", resilience.ErrTransient, err)
+		}
+		return fmt.Errorf("%w: %w", resilience.ErrNoRetry, err)
+	})
 }
 
 func stationFingerprint(event *localmodel.MonitorAlertEvent) string {

@@ -7,8 +7,8 @@ import (
 
 	systemdao "github.com/go-admin-kit/services/identity/internal/dao/system"
 	localmodel "github.com/go-admin-kit/services/identity/internal/model"
-	authsvc "github.com/go-admin-kit/services/identity/internal/service/auth"
 	"github.com/go-admin-kit/services/shared/pkg/authz"
+	authsvc "github.com/go-admin-kit/services/identity/internal/service/auth"
 	"github.com/go-admin-kit/services/shared/pkg/pagination"
 	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"golang.org/x/crypto/bcrypt"

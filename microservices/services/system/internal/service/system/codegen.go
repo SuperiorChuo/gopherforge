@@ -1,9 +1,8 @@
 package system
 
-// Code generator: introspects PostgreSQL tables via the gorm migrator and
-// renders a CRUD starter kit (Go experimental-line service files, a React
-// list page, an axios api module and a menu seed SQL) from text templates.
-// Generated output is a download artifact, not compiled into this repo.
+// 代码生成器：通过 gorm migrator 内省 PostgreSQL 表，并基于文本模板
+// 渲染一套 CRUD 起步代码（Go 实验线服务文件、React 列表页、axios API 模块
+// 与菜单种子 SQL）。生成的产物是下载工件，不会被编译进本仓库。
 
 import (
 	"fmt"
@@ -15,7 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// CodegenService generates CRUD scaffolding from database tables.
+// CodegenService 根据数据库表生成 CRUD 脚手架。
 type CodegenService struct {
 	DB *gorm.DB
 }
@@ -24,12 +23,12 @@ func NewCodegenServiceWithDB(db *gorm.DB) CodegenService {
 	return CodegenService{DB: db}
 }
 
-// internal tables never offered for generation
+// 内部表不提供给代码生成
 var codegenExcluded = map[string]bool{
 	"goose_db_version": true,
 }
 
-// ListTables returns table names ordered alphabetically.
+// ListTables 返回按字母序排列的表名。
 func (s CodegenService) ListTables() ([]TableInfo, error) {
 	schemas, err := NewSchemaInspector(s.DB).InspectTables()
 	if err != nil {
@@ -51,7 +50,7 @@ func (s CodegenService) ListTables() ([]TableInfo, error) {
 	return out, nil
 }
 
-// TableColumns introspects one table.
+// TableColumns 内省单张表。
 func (s CodegenService) TableColumns(table string) ([]ColumnInfo, error) {
 	schema, err := NewSchemaInspector(s.DB).InspectTable(table)
 	if err != nil {
@@ -88,8 +87,8 @@ func tsTypeOf(dbType string) string {
 	}
 }
 
-// exportedName converts snake_case to ExportedCamelCase, keeping common
-// initialisms readable (id -> ID, url -> URL, ip -> IP).
+// exportedName 将 snake_case 转换为导出驼峰命名，并保持常见缩写的可读性
+// （id -> ID，url -> URL，ip -> IP）。
 func exportedName(snake string) string {
 	parts := strings.Split(snake, "_")
 	for i, p := range parts {
@@ -111,7 +110,7 @@ func exportedName(snake string) string {
 	return strings.Join(parts, "")
 }
 
-// camelName is exportedName with a lowered first rune (for TS identifiers).
+// camelName 是 exportedName 将首字母小写后的结果（用于 TS 标识符）。
 func camelName(snake string) string {
 	e := exportedName(snake)
 	if e == "" {
@@ -120,7 +119,7 @@ func camelName(snake string) string {
 	return strings.ToLower(e[:1]) + e[1:]
 }
 
-// tplField is the enriched field passed to templates.
+// tplField 是传给模板的富化字段。
 type tplField struct {
 	FieldConfig
 	Column ColumnInfo
@@ -134,15 +133,15 @@ type tplM2M struct {
 
 type tplData struct {
 	Table          string
-	Module         string // url segment, e.g. asset
-	Title          string // human title
-	Entity         string // Go type name, e.g. Asset
-	EntityLower    string // e.g. asset
+	Module         string // URL 段，如 asset
+	Title          string // 人类可读标题
+	Entity         string // Go 类型名，如 Asset
+	EntityLower    string // 如 asset
 	ModuleType     string
-	Fields         []tplField // configured, non-audit fields
+	Fields         []tplField // 已配置、非审计字段
 	ModelFields    []tplField
 	ListFields     []tplField
-	SearchStr      []tplField // string search fields
+	SearchStr      []tplField // 字符串搜索字段
 	FormFields     []tplField
 	HasTime        bool
 	ModelHasTime   bool
@@ -179,8 +178,8 @@ type tplData struct {
 	SubHasDeleted  bool
 }
 
-// Generate renders all artifacts. Column metadata is re-introspected so the
-// client cannot inject arbitrary type text into templates.
+// Generate 渲染全部产物。列元数据会重新内省，因此客户端无法向模板注入
+// 任意的类型文本。
 func (s CodegenService) Generate(req GenerateRequest) ([]GeneratedFile, error) {
 	validated, err := s.ValidateRequest(req)
 	if err != nil {
@@ -252,7 +251,7 @@ func (s CodegenService) generateValidated(validated ValidatedRequest) ([]Generat
 	for _, f := range req.Fields {
 		col := byName[f.Name]
 		if col.PrimaryKey || isServerManagedColumn(f.Name) {
-			continue // id / created_at / updated_at handled by templates
+			continue // id / created_at / updated_at 由模板处理
 		}
 		if skip[f.Name] {
 			continue
@@ -363,7 +362,7 @@ type tplEntry struct {
 	tpl  *template.Template
 }
 
-// templateSet selects layered system-service and admin-web artifacts.
+// templateSet 选择分层 system 服务与管理端 Web 的产物模板。
 func templateSet(tplType, module string) []tplEntry {
 	page := tplPage
 	webAPI := tplAPI
@@ -423,8 +422,8 @@ func (s CodegenService) fillTreeData(data *tplData, cfg *TreeConfig, byName map[
 	return nil
 }
 
-// fillSubData uses the validated child-table snapshot and field configuration.
-// Saving child rows still follows full replacement semantics.
+// fillSubData 使用校验过的子表快照与字段配置。
+// 保存子行仍遵循整体替换语义。
 func (s CodegenService) fillSubData(data *tplData, cfg *SubConfig, mainTable string, schema *TableSchema) error {
 	if cfg == nil || cfg.Table == "" || cfg.FKField == "" {
 		return fmt.Errorf("sub mode requires sub table and fk_field")
@@ -505,7 +504,7 @@ func isServerManagedColumn(name string) bool {
 	return name == "tenant_id" || isAuditColumn(name)
 }
 
-// singular chops a trailing "s" for a nicer entity name (assets -> asset).
+// singular 去掉末尾的 "s" 以获得更美观的实体名（assets -> asset）。
 func singular(s string) string {
 	if strings.HasSuffix(s, "es") && len(s) > 3 {
 		return strings.TrimSuffix(s, "es")

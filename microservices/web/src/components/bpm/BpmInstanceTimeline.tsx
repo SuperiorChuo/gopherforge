@@ -8,6 +8,7 @@ import {
   formFieldLabels,
   BPM_INSTANCE_STATUS_META,
   collectNodeNames,
+  findContractApprovalInstance,
   getInstance,
   getInstanceDiagram,
   getInstanceTimeline,
@@ -42,13 +43,21 @@ function formatFormValue(t: (k: string) => string, key: string, value: unknown, 
 interface BpmInstanceTimelineProps {
   /** 已知实例 id 时直接传（bpm 自有页面） */
   instanceId?: number
+  /**
+   * 业务侧嵌入时按业务对象反查实例（在途优先）。
+   * bpm 的 by-biz 仅有 internal 端点，反查须经业务后端代理；
+   * M1 支持 bizType='crm_contract'（走 GET /api/v1/crm/contracts/:id/approval），
+   * 其余 bizType 暂无代理端点，直接走 onUnavailable 降级。
+   */
+  bizType?: string
+  bizId?: string | number
   /** 显示实例标题/状态/发起人头部（独立使用时开） */
   showHeader?: boolean
   /** 显示发起表单快照（实例详情页用；业务侧已有自己的表单展示则不开） */
   showForm?: boolean
   /** 实例解析成功回调（业务侧可据此联动展示） */
   onLoaded?: (instance: BpmInstance) => void
-  /** BPM 服务不可用 / 查无实例时回调 —— 业务侧据此隐藏审批区块，不破坏现有页面 */
+  /** BPM 服务不可用 / 查无实例时回调 —— 业务侧（CRM）据此隐藏审批区块，不破坏现有页面 */
   onUnavailable?: () => void
 }
 
@@ -59,6 +68,8 @@ interface BpmInstanceTimelineProps {
  */
 export default function BpmInstanceTimeline({
   instanceId,
+  bizType,
+  bizId,
   showHeader,
   showForm,
   onLoaded,
@@ -72,8 +83,7 @@ export default function BpmInstanceTimeline({
   const [unavailable, setUnavailable] = useState(false)
   const userMap = useUserNameMap()
 
-  // 回调经 ref 透传，避免父组件内联函数触发重复加载；赋值放 effect，
-  // 避免 render 期写 ref（StrictMode 下可能残留弃用值）
+  // 回调经 ref 透传，避免父组件内联函数触发重复加载
   const onLoadedRef = useRef(onLoaded)
   const onUnavailableRef = useRef(onUnavailable)
   useEffect(() => {
@@ -90,6 +100,9 @@ export default function BpmInstanceTimeline({
         let inst: BpmInstance | null = null
         if (instanceId) {
           inst = await getInstance(instanceId, true)
+        } else if (bizType === 'crm_contract' && bizId !== undefined && bizId !== null && bizId !== '') {
+          // 经 CRM 后端代理反查（bpm by-biz 为 internal-only），拿到实例后再直查 timeline/diagram
+          inst = await findContractApprovalInstance(bizId)
         }
         if (!alive) return
         if (!inst) {
@@ -119,7 +132,7 @@ export default function BpmInstanceTimeline({
     return () => {
       alive = false
     }
-  }, [instanceId])
+  }, [instanceId, bizType, bizId])
 
   if (unavailable) return null
   if (loading) return <Skeleton active paragraph={{ rows: 3 }} title={false} />
@@ -240,6 +253,7 @@ export default function BpmInstanceTimeline({
           bordered
           style={{ marginBottom: 16 }}
           items={(() => {
+            // 流程表单（带 schema）用字段声明取中文名与金额类型；业务表单走静态映射
             const labels = instance.form_schema
               ? formFieldLabels(instance.form_schema)
               : BPM_FORM_FIELD_LABELS

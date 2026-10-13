@@ -1,0 +1,177 @@
+name: go-freeswitch-cc
+
+# 默认：bridge 网络（macOS / Windows Docker Desktop 友好）
+# Linux 若需 host 网络 SIP/RTP：docker compose --profile hostnet up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fscc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fscc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fscc123}
+      POSTGRES_DB: ${POSTGRES_DB:-fs_cc}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - fscc_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - fscc-net
+
+  freeswitch:
+    build:
+      context: ./freeswitch
+    container_name: fscc-freeswitch
+    restart: unless-stopped
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "5066:5066/tcp"
+      - "7443:7443/tcp"
+      # ESL 仅本机调试用，不暴露到局域网
+      - "127.0.0.1:8021:8021"
+      - "16384-16484:16384-16484/udp"
+    volumes:
+      # named volume：./recordings 绑定会被 dev-sync --delete 清空
+      - fscc_recordings:/var/lib/freeswitch/recordings
+      # 早媒体短样本独立卷：不与通话录音混放，control-api 识别后立即删除。
+      - fscc_early_media:/var/lib/freeswitch/early-media
+      # 动态配置卷（与 control-api 共享）；入口脚本每次重建会把模板
+      # 重播进来，动态 xml 持久留存
+      - fscc_dynamic_ext:/etc/freeswitch/directory/default
+      - fscc_gateways:/etc/freeswitch/sip_profiles/external
+      - fscc_ivr:/etc/freeswitch/ivr_menus
+      - fscc_dialplan:/etc/freeswitch/dialplan/default
+      - fscc_ccqueues:/etc/freeswitch/cc_queues
+      - fscc_moh:/etc/freeswitch/moh
+      - fscc_prompts:/etc/freeswitch/prompts
+      - fscc_blacklist:/etc/freeswitch/blacklist
+      # 语音信箱留言存储（mod_voicemail 默认落此路径，control-api 只读列出）
+      - fscc_voicemail:/var/lib/freeswitch/storage/voicemail
+      # 话单磁盘兜底（mod_cdr_csv 落盘目录）
+      - fscc_cdr_csv:/var/lib/freeswitch/cdr-csv
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      CC_CDR_URL: ${CC_CDR_URL:-}
+      CC_CDR_CRED: ${CC_CDR_CRED:-}
+      # mod_xml_curl 动态目录：directory 查询问 control-api（compose 网络走服务名）。
+      # BasicAuth user 固定 fs、口令与 CC_API_TOKEN 同源；空值风险见 README。
+      CC_XML_CURL_URL: ${CC_XML_CURL_URL:-http://fs:${CC_API_TOKEN:-dev-cc-token-change-me}@control-api:8090/v1/fs-xml}
+      # 全局呼入并发上限（mod_hash 后端 limit）：0/空=不限，正整数=最多 N 路并发呼入。
+      CC_MAX_INBOUND: ${CC_MAX_INBOUND:-0}
+      # 来显归属（mod_cidlookup）反查端点"基址"——只放基址，不要带 query 占位！
+      # cidlookup.conf.xml 会自动追加 ?number=${caller_id_number}（占位由模块运行期展开）。
+      CC_CID_URL: ${CC_CID_URL:-}
+    networks:
+      - fscc-net
+
+  freeswitch-host:
+    profiles: ["hostnet"]
+    build:
+      context: ./freeswitch
+    container_name: fscc-freeswitch-host
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - fscc_recordings:/var/lib/freeswitch/recordings
+      - fscc_early_media:/var/lib/freeswitch/early-media
+      - fscc_dynamic_ext:/etc/freeswitch/directory/default
+      - fscc_gateways:/etc/freeswitch/sip_profiles/external
+      - fscc_ivr:/etc/freeswitch/ivr_menus
+      - fscc_dialplan:/etc/freeswitch/dialplan/default
+      - fscc_ccqueues:/etc/freeswitch/cc_queues
+      - fscc_moh:/etc/freeswitch/moh
+      - fscc_prompts:/etc/freeswitch/prompts
+      - fscc_blacklist:/etc/freeswitch/blacklist
+      # 语音信箱留言存储（mod_voicemail 默认落此路径，control-api 只读列出）
+      - fscc_voicemail:/var/lib/freeswitch/storage/voicemail
+      # 话单磁盘兜底（mod_cdr_csv 落盘目录）
+      - fscc_cdr_csv:/var/lib/freeswitch/cdr-csv
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      # mod_json_cdr 话单投递（挂机即 POST，Basic 认证）
+      CC_CDR_URL: ${CC_CDR_URL:-}
+      CC_CDR_CRED: ${CC_CDR_CRED:-}
+      # mod_xml_curl 动态目录：host 网络下 control-api 在宿主机 CC_API_HOST_PORT。
+      # BasicAuth user 固定 fs、口令与 CC_API_TOKEN 同源；空值风险见 README。
+      CC_XML_CURL_URL: ${CC_XML_CURL_URL:-http://fs:${CC_API_TOKEN:-dev-cc-token-change-me}@127.0.0.1:${CC_API_HOST_PORT:-8090}/v1/fs-xml}
+      # 全局呼入并发上限（mod_hash 后端 limit）：0/空=不限，正整数=最多 N 路并发呼入。
+      CC_MAX_INBOUND: ${CC_MAX_INBOUND:-0}
+      # 来显归属（mod_cidlookup）反查端点"基址"——只放基址，不要带 query 占位！
+      # cidlookup.conf.xml 会自动追加 ?number=${caller_id_number}（占位由模块运行期展开）。
+      CC_CID_URL: ${CC_CID_URL:-}
+
+  control-api:
+    build:
+      context: ./control-api
+    container_name: fscc-control-api
+    restart: unless-stopped
+    environment:
+      CC_API_PORT: 8090
+      CC_API_TOKEN: ${CC_API_TOKEN:-dev-cc-token-change-me}
+      # hostnet profile（Linux）下设 CC_ESL_HOST=host.docker.internal
+      CC_ESL_HOST: ${CC_ESL_HOST:-freeswitch}
+      CC_ESL_PORT: ${CC_ESL_PORT:-8021}
+      CC_ESL_PASSWORD: ${CC_ESL_PASSWORD:-ClueCon}
+      CC_DB_DSN: postgres://${POSTGRES_USER:-fscc}:${POSTGRES_PASSWORD:-fscc123}@postgres:5432/${POSTGRES_DB:-fs_cc}?sslmode=disable
+      CC_WEBHOOK_URL: ${CC_WEBHOOK_URL:-}
+      CC_WEBHOOK_SECRET: ${CC_WEBHOOK_SECRET:-dev-webhook-secret-change-me}
+      CC_RISK_URL: ${CC_RISK_URL:-}
+      CC_EARLY_MEDIA_URL: ${CC_EARLY_MEDIA_URL:-}
+      CC_EARLY_MEDIA_SECONDS: ${CC_EARLY_MEDIA_SECONDS:-4}
+      CC_EARLY_MEDIA_DIR: /data/early-media
+      CC_EXT_DIR: /data/extensions
+      CC_RECORDINGS_DIR: /data/recordings
+      CC_VM_DIR: /data/voicemail
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      # 宿主机端口独立可调，避免与其他服务的监听端口冲突。
+      - "${CC_API_HOST_PORT:-8090}:8090"
+    volumes:
+      - fscc_dynamic_ext:/data/extensions
+      - fscc_recordings:/data/recordings:ro
+      - fscc_early_media:/data/early-media
+      - fscc_gateways:/data/gateways
+      - fscc_ivr:/data/ivr_menus
+      - fscc_dialplan:/data/dialplan
+      - fscc_ccqueues:/data/cc_queues
+      - fscc_moh:/data/moh
+      - fscc_prompts:/data/prompts
+      - fscc_blacklist:/data/blacklist
+      # 语音信箱留言（列出/试听/删除；删除要写权限故不挂 :ro）
+      - fscc_voicemail:/data/voicemail
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # 不依赖 freeswitch 容器：hostnet profile 下 FS 在 host 网络，
+    # listener 自带重连，FS 后起也能接上。
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fscc-net
+
+volumes:
+  fscc_pg_data:
+  fscc_recordings:
+  fscc_early_media:
+  fscc_dynamic_ext:
+  fscc_gateways:
+  fscc_ivr:
+  fscc_dialplan:
+  fscc_ccqueues:
+  fscc_moh:
+  fscc_prompts:
+  fscc_blacklist:
+  fscc_voicemail:
+  fscc_cdr_csv:
+
+networks:
+  fscc-net:
+    name: fscc-net

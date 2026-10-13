@@ -36,7 +36,7 @@ func SetGRPCLogWriter(w io.Writer) {
 }
 
 // tlsRequired 为 true 时：服务端/客户端缺证书不得明文启动。
-// 开关：GRPC_TLS_REQUIRED=1|true（显式强制，不默认绑 production，避免 109 无证书整栈起不来）。
+// 开关：GRPC_TLS_REQUIRED=1|true（显式强制，不随 production 自动启用；启用前须配置证书）。
 func tlsRequired() bool {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv("GRPC_TLS_REQUIRED")))
 	return v == "1" || v == "true" || v == "yes"

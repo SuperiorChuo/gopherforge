@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package notify.v1;
+
+option go_package = "github.com/go-admin-kit/services/api/gen/notify/v1;notifyv1";
+
+// NotifyService 通知服务内部 gRPC 契约（Phase 3：发信从 HTTP 迁 gRPC）。
+// 供 bpm/ticket/crm/im/cc/pay 等经 Consul 发现 + gRPC 调 notify。
+service NotifyService {
+  // InternalSend 发一条站内信（对应 /api/v1/notify/internal/send）。
+  rpc InternalSend(InternalSendRequest) returns (InternalSendResponse);
+  // InternalAlert 接收告警（monitor StationNotifier 等，Alertmanager 形状；
+  // 对应 /api/v1/notify/internal/alerts，HTTP 端点保留供 Alertmanager 直连）。
+  rpc InternalAlert(InternalAlertRequest) returns (InternalAlertResponse);
+}
+
+message InternalSendRequest {
+  uint64 tenant_id = 1;
+  uint64 user_id = 2;
+  repeated uint64 user_ids = 3;
+  string title = 4;
+  string content = 5;
+  string link = 6;
+  string type = 7;
+  string ref_type = 8;
+  string ref_id = 9;
+  string template_code = 10;
+  map<string, string> vars = 11;
+}
+
+message InternalSendResponse {
+  // created: 0/1；rejected/skipped/dropped 计数。
+  int64 created = 1;
+  int64 rejected = 2;
+  int64 skipped = 3;
+  int64 dropped = 4;
+}
+
+message InternalAlertRequest {
+  string status = 1; // firing | resolved
+  repeated InternalAlertItem alerts = 2;
+}
+
+message InternalAlertItem {
+  string status = 1;
+  map<string, string> labels = 2;
+  map<string, string> annotations = 3;
+  string starts_at = 4;
+  string fingerprint = 5;
+}
+
+message InternalAlertResponse {
+  int64 created = 1;
+  int64 skipped = 2;
+}

@@ -76,8 +76,8 @@ func TestUserDAOMarkTOTPRecoveryCodeUsedContext(t *testing.T) {
 	}
 }
 
-// newAuthDAOTestDB returns a sqlmock-backed *gorm.DB for constructor
-// injection into auth DAOs. It never touches the global database.DB.
+// newAuthDAOTestDB 返回基于 sqlmock 的 *gorm.DB，用于向鉴权 DAO
+// 构造函数注入。它从不触碰全局 database.DB。
 func newAuthDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	t.Helper()
 

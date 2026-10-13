@@ -14,7 +14,7 @@ type MenuService struct {
 	menuDAO systemdao.MenuDAO
 }
 
-// NewMenuServiceWithDB builds a MenuService backed by an injected database handle.
+// NewMenuServiceWithDB 构建一个基于注入的数据库句柄的 MenuService。
 func NewMenuServiceWithDB(db *gorm.DB) MenuService {
 	return MenuService{menuDAO: *systemdao.NewMenuDAO(db)}
 }

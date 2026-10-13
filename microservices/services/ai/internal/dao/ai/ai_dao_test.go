@@ -1,0 +1,258 @@
+package ai
+
+import (
+	"context"
+	"errors"
+	"regexp"
+	"testing"
+	"time"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+
+	localmodel "github.com/go-admin-kit/services/ai/internal/model"
+	"github.com/go-admin-kit/services/shared/pkg/pagination"
+)
+
+func setupAIDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
+	t.Helper()
+
+	sqlDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("open sqlmock db: %v", err)
+	}
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
+	}), &gorm.Config{
+		SkipDefaultTransaction: true,
+	})
+	if err != nil {
+		t.Fatalf("open gorm sqlmock db: %v", err)
+	}
+
+	t.Cleanup(func() {
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatalf("unmet database expectations: %v", err)
+		}
+		_ = sqlDB.Close()
+	})
+
+	return db, mock
+}
+
+func TestConversationDAOGetForUserContextScopesByUser(t *testing.T) {
+	db, mock := setupAIDAOTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "ai_conversations" WHERE id = $1 AND user_id = $2 AND tenant_id = $3 ORDER BY "ai_conversations"."id" LIMIT $4`)).
+		WithArgs(uint(7), uint(3), uint(1), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "tenant_id", "user_id", "title"}).AddRow(uint(7), uint(1), uint(3), "hello"))
+
+	conversation, err := NewConversationDAO(db).GetForUserContext(context.Background(), 7, 3)
+	if err != nil {
+		t.Fatalf("GetForUserContext() error = %v", err)
+	}
+	if conversation.ID != 7 || conversation.UserID != 3 {
+		t.Fatalf("GetForUserContext() = %+v, want id=7 user_id=3", conversation)
+	}
+}
+
+func TestConversationDAODeleteForUserContextReturnsNotFound(t *testing.T) {
+	db, mock := setupAIDAOTestDB(t)
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "ai_conversations" WHERE id = $1 AND user_id = $2 AND tenant_id = $3`)).
+		WithArgs(uint(7), uint(3), uint(1)).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+
+	err := NewConversationDAO(db).DeleteForUserContext(context.Background(), 7, 3)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("DeleteForUserContext() error = %v, want gorm.ErrRecordNotFound", err)
+	}
+}
+
+func TestConversationDAOListForUserContextHonorsCanceledContext(t *testing.T) {
+	db, _ := setupAIDAOTestDB(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, _, err := NewConversationDAO(db).ListForUserContext(ctx, 3, pagination.PageRequest{Page: 1, PageSize: 10})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ListForUserContext() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestMessageDAOListRecentByConversationContextReversesToChronological(t *testing.T) {
+	db, mock := setupAIDAOTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "ai_messages" WHERE conversation_id = $1 ORDER BY id DESC LIMIT $2`)).
+		WithArgs(uint(9), 20).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "conversation_id", "role", "content"}).
+			AddRow(uint(3), uint(9), "assistant", "second reply").
+			AddRow(uint(2), uint(9), "user", "second question").
+			AddRow(uint(1), uint(9), "user", "first question"))
+
+	messages, err := NewMessageDAO(db).ListRecentByConversationContext(context.Background(), 9, 20)
+	if err != nil {
+		t.Fatalf("ListRecentByConversationContext() error = %v", err)
+	}
+	if len(messages) != 3 {
+		t.Fatalf("ListRecentByConversationContext() len = %d, want 3", len(messages))
+	}
+	if messages[0].ID != 1 || messages[2].ID != 3 {
+		t.Fatalf("ListRecentByConversationContext() order = [%d %d %d], want chronological", messages[0].ID, messages[1].ID, messages[2].ID)
+	}
+}
+
+func TestMessageDAOListByConversationContextBoundsFirstPage(t *testing.T) {
+	db, mock := setupAIDAOTestDB(t)
+	// limit+1 probe: 3 rows come back for a limit of 2, so has_more is true
+	// and the extra row is trimmed.
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "ai_messages" WHERE conversation_id = $1 ORDER BY id DESC LIMIT $2`)).
+		WithArgs(uint(9), 3).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "conversation_id", "role", "content"}).
+			AddRow(uint(30), uint(9), "assistant", "newest").
+			AddRow(uint(20), uint(9), "user", "middle").
+			AddRow(uint(10), uint(9), "user", "older"))
+
+	messages, hasMore, err := NewMessageDAO(db).ListByConversationContext(context.Background(), 9, 0, 2)
+	if err != nil {
+		t.Fatalf("ListByConversationContext() error = %v", err)
+	}
+	if !hasMore {
+		t.Fatalf("ListByConversationContext() hasMore = false, want true")
+	}
+	if len(messages) != 2 {
+		t.Fatalf("ListByConversationContext() len = %d, want 2 (limit+1 probe trimmed)", len(messages))
+	}
+	if messages[0].ID != 20 || messages[1].ID != 30 {
+		t.Fatalf("ListByConversationContext() order = [%d %d], want chronological [20 30]", messages[0].ID, messages[1].ID)
+	}
+}
+
+func TestMessageDAOListByConversationContextAppliesKeysetCursor(t *testing.T) {
+	db, mock := setupAIDAOTestDB(t)
+	// Cursor page: id < before_id, no OFFSET at any depth.
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "ai_messages" WHERE conversation_id = $1 AND id < $2 ORDER BY id DESC LIMIT $3`)).
+		WithArgs(uint(9), uint(20), 3).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "conversation_id", "role", "content"}).
+			AddRow(uint(10), uint(9), "user", "older"))
+
+	messages, hasMore, err := NewMessageDAO(db).ListByConversationContext(context.Background(), 9, 20, 2)
+	if err != nil {
+		t.Fatalf("ListByConversationContext() error = %v", err)
+	}
+	if hasMore {
+		t.Fatalf("ListByConversationContext() hasMore = true, want false on the last page")
+	}
+	if len(messages) != 1 || messages[0].ID != 10 {
+		t.Fatalf("ListByConversationContext() = %+v, want single id=10", messages)
+	}
+}
+
+func TestNormalizeMessageLimitClampsRange(t *testing.T) {
+	cases := []struct {
+		in   int
+		want int
+	}{
+		{0, DefaultMessagePageSize},
+		{-5, DefaultMessagePageSize},
+		{1, 1},
+		{MaxMessagePageSize, MaxMessagePageSize},
+		{MaxMessagePageSize + 1, MaxMessagePageSize},
+		{100000, MaxMessagePageSize},
+	}
+	for _, tc := range cases {
+		if got := NormalizeMessageLimit(tc.in); got != tc.want {
+			t.Fatalf("NormalizeMessageLimit(%d) = %d, want %d", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestDocumentDAOListContextExcludesContentColumn(t *testing.T) {
+	db, mock := setupAIDAOTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "ai_documents" WHERE tenant_id = $1`)).
+		WithArgs(uint(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	// Explicit column list: "content" (type:text, whole uploaded document)
+	// must not appear in the list query.
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT "id","tenant_id","title","uploader_id","chunk_count","created_at","updated_at" FROM "ai_documents" WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2`)).
+		WithArgs(uint(1), 10).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "tenant_id", "title"}).AddRow(uint(3), uint(1), "doc"))
+
+	documents, total, err := NewDocumentDAO(db).ListContext(context.Background(), pagination.PageRequest{Page: 1, PageSize: 10})
+	if err != nil {
+		t.Fatalf("ListContext() error = %v", err)
+	}
+	if total != 1 || len(documents) != 1 || documents[0].Content != "" {
+		t.Fatalf("ListContext() total=%d docs=%+v, want one metadata-only row", total, documents)
+	}
+}
+
+func TestDocumentDAOInsertChunkContextEncodesVectorLiteral(t *testing.T) {
+	db, mock := setupAIDAOTestDB(t)
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO ai_document_chunks (document_id, chunk_index, content, embedding) VALUES ($1, $2, $3, $4::vector)`)).
+		WithArgs(uint(5), 0, "chunk text", "[0.5,-1,2]").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	err := NewDocumentDAO(db).InsertChunkContext(context.Background(), &localmodel.AIDocumentChunk{
+		DocumentID: 5,
+		ChunkIndex: 0,
+		Content:    "chunk text",
+	}, []float32{0.5, -1, 2})
+	if err != nil {
+		t.Fatalf("InsertChunkContext() error = %v", err)
+	}
+}
+
+func TestDocumentDAOSearchChunksContextOrdersByCosineDistance(t *testing.T) {
+	db, mock := setupAIDAOTestDB(t)
+	mock.ExpectQuery(regexp.QuoteMeta(`ORDER BY c.embedding <=> $1::vector`)).
+		WithArgs("[1,0]", uint(1), 5).
+		WillReturnRows(sqlmock.NewRows([]string{"document_id", "title", "chunk_index", "content", "score"}).
+			AddRow(uint(2), "doc", 0, "match", 0.92))
+
+	matches, err := NewDocumentDAO(db).SearchChunksContext(context.Background(), []float32{1, 0}, 5)
+	if err != nil {
+		t.Fatalf("SearchChunksContext() error = %v", err)
+	}
+	if len(matches) != 1 || matches[0].DocumentID != 2 || matches[0].Score != 0.92 {
+		t.Fatalf("SearchChunksContext() matches = %+v", matches)
+	}
+}
+
+func TestDocumentDAODeleteContextReturnsNotFound(t *testing.T) {
+	db, mock := setupAIDAOTestDB(t)
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "ai_documents" WHERE id = $1 AND tenant_id = $2`)).
+		WithArgs(uint(4), uint(1)).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+
+	err := NewDocumentDAO(db).DeleteContext(context.Background(), 4)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("DeleteContext() error = %v, want gorm.ErrRecordNotFound", err)
+	}
+}
+
+func TestEncodeVector(t *testing.T) {
+	got := EncodeVector([]float32{1, -0.25, 3.5})
+	want := "[1,-0.25,3.5]"
+	if got != want {
+		t.Fatalf("EncodeVector() = %q, want %q", got, want)
+	}
+	if EncodeVector(nil) != "[]" {
+		t.Fatalf("EncodeVector(nil) = %q, want []", EncodeVector(nil))
+	}
+}
+
+func TestInsightDAOLoginStatsSinceContextHonorsCanceledContext(t *testing.T) {
+	db, _ := setupAIDAOTestDB(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := NewInsightDAO(db).LoginStatsSinceContext(ctx, timeNowForInsightTest())
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("LoginStatsSinceContext() error = %v, want context.Canceled", err)
+	}
+}
+
+func timeNowForInsightTest() time.Time {
+	return time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+}

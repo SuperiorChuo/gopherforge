@@ -14,7 +14,7 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 )
 
-// LoginLimitRedisClient is the Redis command subset used by LoginLimiter.
+// LoginLimitRedisClient 是 LoginLimiter 使用的 Redis 命令子集。
 type LoginLimitRedisClient interface {
 	Get(ctx context.Context, key string) *goredis.StringCmd
 	TTL(ctx context.Context, key string) *goredis.DurationCmd
@@ -24,22 +24,22 @@ type LoginLimitRedisClient interface {
 	Del(ctx context.Context, keys ...string) *goredis.IntCmd
 }
 
-// LoginLimiter tracks login failures and lockouts.
+// LoginLimiter 跟踪登录失败与账号锁定。
 type LoginLimiter struct {
 	client LoginLimitRedisClient
 }
 
-// NewLoginLimiter creates a limiter backed by the package Redis client.
+// NewLoginLimiter 创建基于包级 Redis 客户端的限流器。
 func NewLoginLimiter() *LoginLimiter {
 	return &LoginLimiter{}
 }
 
-// NewLoginLimiterWithClient creates a limiter backed by the provided Redis client.
+// NewLoginLimiterWithClient 创建基于指定 Redis 客户端的限流器。
 func NewLoginLimiterWithClient(client LoginLimitRedisClient) *LoginLimiter {
 	return &LoginLimiter{client: client}
 }
 
-// LoginLimitConfig controls login failure throttling.
+// LoginLimitConfig 控制登录失败的节流策略。
 type LoginLimitConfig struct {
 	Window       time.Duration
 	MaxFailures  int
@@ -78,7 +78,7 @@ func IsLoginLockedContext(ctx context.Context, identifier string, config LoginLi
 	return NewLoginLimiter().IsLockedContext(ctx, identifier, config)
 }
 
-// IsLockedContext reports whether the identifier is currently locked.
+// IsLockedContext 报告该标识是否当前处于锁定状态。
 func (l *LoginLimiter) IsLockedContext(ctx context.Context, identifier string, config LoginLimitConfig) (bool, time.Duration) {
 	client := l.redisClient()
 	if client == nil {
@@ -94,7 +94,7 @@ func (l *LoginLimiter) IsLockedContext(ctx context.Context, identifier string, c
 	return false, 0
 }
 
-// DefaultLoginLimitConfig returns fallback login throttling settings.
+// DefaultLoginLimitConfig 返回登录节流的默认配置。
 func DefaultLoginLimitConfig() LoginLimitConfig {
 	return LoginLimitConfig{
 		Window:       time.Minute * 15,
@@ -104,12 +104,12 @@ func DefaultLoginLimitConfig() LoginLimitConfig {
 	}
 }
 
-// CheckLoginLimit blocks login requests while an identifier is locked.
+// CheckLoginLimit 在标识被锁定时拦截登录请求。
 func CheckLoginLimit(config LoginLimitConfig) gin.HandlerFunc {
 	return NewLoginLimiter().Check(config)
 }
 
-// Check blocks login requests while an identifier is locked.
+// Check 在标识被锁定时拦截登录请求。
 func (l *LoginLimiter) Check(config LoginLimitConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		identifier := c.ClientIP()
@@ -141,7 +141,7 @@ func RecordLoginFailureContext(ctx context.Context, identifier string, config Lo
 	NewLoginLimiter().RecordFailureContext(ctx, identifier, config)
 }
 
-// RecordFailureContext records a failed login attempt.
+// RecordFailureContext 记录一次失败的登录尝试。
 func (l *LoginLimiter) RecordFailureContext(ctx context.Context, identifier string, config LoginLimitConfig) {
 	client := l.redisClient()
 	if client == nil {
@@ -169,7 +169,7 @@ func ClearLoginLimitContext(ctx context.Context, identifier string, config Login
 	NewLoginLimiter().ClearContext(ctx, identifier, config)
 }
 
-// ClearContext clears login throttling after a successful login.
+// ClearContext 在登录成功后清除登录节流状态。
 func (l *LoginLimiter) ClearContext(ctx context.Context, identifier string, config LoginLimitConfig) {
 	client := l.redisClient()
 	if client == nil {

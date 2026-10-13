@@ -1,0 +1,16 @@
+<!-- 并发限制变量注入：把容器环境 CC_MAX_INBOUND 物化成全局预处理变量
+     $${cc_max_inbound}，供 dialplan/public/10_cc_inbound.xml 的全局呼入并发
+     限制使用。写法对齐 json_cdr.conf.xml（exec-set 经 shell 读 env）。
+
+     为什么放这里而不是 vars.xml：镜像 vanilla 的 vars.xml 在模板里、且 entrypoint
+     每次重建会重播模板，追加行易被覆盖；autoload_configs/*.xml 会被 freeswitch.xml
+     的 autoload_configs include 纳入主 XML 文档，X-PRE-PROCESS 在预处理期即执行，
+     设置的全局变量随后可在任意 dialplan 以 $${cc_max_inbound} 展开——已验证可行，
+     无需改 vars.xml。
+
+     值语义：CC_MAX_INBOUND 未设/为空 → $${cc_max_inbound} 为空 → dialplan 正则
+     ^[1-9]\d*$ 不匹配 → 不加 limit（不限）。设为正整数 N → 全局最多 N 路并发呼入。 -->
+<configuration name="cc_limits.conf" description="CC concurrency limit vars">
+  <X-PRE-PROCESS cmd="exec-set" data="cc_max_inbound=echo -n $CC_MAX_INBOUND"/>
+  <settings/>
+</configuration>

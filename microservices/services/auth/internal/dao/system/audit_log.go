@@ -5,8 +5,9 @@ import (
 	"strings"
 
 	localmodel "github.com/go-admin-kit/services/auth/internal/model"
-	"github.com/go-admin-kit/services/shared/pkg/tenant"
 	"gorm.io/gorm"
+
+	"github.com/go-admin-kit/services/shared/pkg/tenant"
 )
 
 // AuditLogDAO is the data access layer for independent business audit logs.

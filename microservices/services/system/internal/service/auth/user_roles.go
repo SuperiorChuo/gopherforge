@@ -8,20 +8,18 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserService is the slim slice of the auth-domain user service this service
-// needs: the online-user API loads the current user's roles to decide whether
-// token IDs may be shown unmasked.
+// UserService 是本服务所需的鉴权域用户服务的一个精简切片：
+// 在线用户 API 加载当前用户的角色，以决定令牌 ID 是否可以脱敏展示。
 type UserService struct {
 	userDAO dao.UserDAO
 }
 
-// NewUserServiceWithDB builds a UserService backed by an injected database
-// handle.
+// NewUserServiceWithDB 构建一个基于注入的数据库句柄的 UserService。
 func NewUserServiceWithDB(db *gorm.DB) UserService {
 	return UserService{userDAO: *dao.NewUserDAO(db)}
 }
 
-// GetUserWithRolesContext loads a user with roles preloaded.
+// GetUserWithRolesContext 加载一个预加载了角色的用户。
 func (s *UserService) GetUserWithRolesContext(ctx context.Context, id uint) (*model.User, error) {
 	return s.userDAO.GetUserWithRolesContext(ctx, id)
 }

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">GAK 控制台</string>
+    <string name="title_activity_main">GAK 控制台</string>
+    <string name="package_name">kit.goadmin.console</string>
+    <string name="custom_url_scheme">kit.goadmin.console</string>
+</resources>

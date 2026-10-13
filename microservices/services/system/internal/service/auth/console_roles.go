@@ -7,9 +7,8 @@ import (
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 )
 
-// ConsoleRoleCodes extracts the sorted, de-duplicated role codes carried on a
-// console session. Mirrors services/auth; only the session validation path
-// needs it here.
+// ConsoleRoleCodes 提取控制台会话携带的、去重并排序后的角色码。
+// 与 services/auth 保持一致；此处仅会话校验路径需要使用。
 func ConsoleRoleCodes(roles []model.Role) []string {
 	set := map[string]bool{}
 	for _, role := range roles {

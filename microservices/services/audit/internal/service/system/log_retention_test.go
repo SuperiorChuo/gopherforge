@@ -60,15 +60,15 @@ func TestRunLogRetentionOnceDeletesAcrossTenants(t *testing.T) {
 	opSvc := NewOperationLogServiceWithDB(db)
 	loginSvc := NewLoginLogServiceWithDB(db)
 
-	mock.ExpectExec(`INSERT INTO ops_task_runs`).
+	mock.ExpectExec(`INSERT INTO monitor_svc\.ops_task_runs`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec(`^DELETE FROM "operation_logs" WHERE created_at < \$1$`).
 		WillReturnResult(sqlmock.NewResult(0, 3))
 	mock.ExpectExec(`^DELETE FROM "login_logs" WHERE created_at < \$1$`).
 		WillReturnResult(sqlmock.NewResult(0, 2))
-	mock.ExpectExec(`UPDATE ops_task_runs`).
+	mock.ExpectExec(`UPDATE monitor_svc\.ops_task_runs`).
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec(`INSERT INTO ops_job_heartbeats`).
+	mock.ExpectExec(`INSERT INTO monitor_svc\.ops_job_heartbeats`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	runLogRetentionOnce(context.Background(), db, &opSvc, &loginSvc, LogRetentionOptions{
@@ -83,15 +83,15 @@ func TestRunLogRetentionOnceReportsHeartbeatOnError(t *testing.T) {
 	opSvc := NewOperationLogServiceWithDB(db)
 	loginSvc := NewLoginLogServiceWithDB(db)
 
-	mock.ExpectExec(`INSERT INTO ops_task_runs`).
+	mock.ExpectExec(`INSERT INTO monitor_svc\.ops_task_runs`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec(`^DELETE FROM "operation_logs" WHERE created_at < \$1$`).
 		WillReturnError(context.DeadlineExceeded)
 	mock.ExpectExec(`^DELETE FROM "login_logs" WHERE created_at < \$1$`).
 		WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec(`UPDATE ops_task_runs`).
+	mock.ExpectExec(`UPDATE monitor_svc\.ops_task_runs`).
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec(`INSERT INTO ops_job_heartbeats`).
+	mock.ExpectExec(`INSERT INTO monitor_svc\.ops_job_heartbeats`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	runLogRetentionOnce(context.Background(), db, &opSvc, &loginSvc, LogRetentionOptions{

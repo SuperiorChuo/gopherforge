@@ -2,7 +2,7 @@ package localmodel
 
 import "time"
 
-// OperationLog stores request-level operation audit data.
+// OperationLog 存储请求级别的操作审计数据。
 type OperationLog struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	UserID       uint      `gorm:"index" json:"user_id"`
@@ -25,7 +25,7 @@ type OperationLog struct {
 	CreatedAt    time.Time `gorm:"index" json:"created_at"`
 }
 
-// AuditLog stores business audit events.
+// AuditLog 存储业务审计事件。
 type AuditLog struct {
 	ID         uint           `gorm:"primaryKey" json:"id"`
 	TenantID   uint           `gorm:"not null;default:1;index" json:"tenant_id"`
@@ -44,14 +44,14 @@ func (AuditLog) TableName() string {
 	return "audit_logs"
 }
 
-// LoginLog stores authentication attempt records.
+// LoginLog 存储认证尝试记录。
 type LoginLog struct {
 	ID        uint   `gorm:"primaryKey" json:"id"`
 	UserID    uint   `gorm:"index" json:"user_id"`
 	Username  string `gorm:"size:50" json:"username"`
 	LoginType int8   `gorm:"default:1" json:"login_type"`
-	// Status 0 = failed is real data, so no gorm default tag: with one, GORM
-	// drops the zero value from the INSERT and the column default (1) wins.
+	// Status 0 = failed 是真实数据，因此不加 gorm default 标签：若加了，GORM
+	// 会在 INSERT 时丢弃零值，列默认值（1）会生效，导致失败记录被存成成功。
 	Status    int8      `json:"status"`
 	IP        string    `gorm:"size:45" json:"ip"`
 	Location  string    `gorm:"size:100" json:"location"`

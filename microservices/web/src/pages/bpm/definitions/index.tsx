@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Card, Drawer, Form, Input, Modal, Select, Space, Table, Tag, Typography, Grid } from 'antd'
+import { Button, Drawer, Form, Input, Modal, Select, Space, Table, Tag, Typography, Grid } from 'antd'
 import {
   ApartmentOutlined,
   CopyOutlined,
@@ -31,10 +31,13 @@ import {
 const FlowDesigner = lazy(() => import('@/pages/bpm/designer'))
 import BpmStatsPanel from '@/components/bpm/BpmStatsPanel'
 import { useAppSelector } from '@/hooks/store'
+import ListFilterForm from '@/components/common/ListFilterForm'
+import ListPageShell from '@/components/common/ListPageShell'
 import TableToolbar from '@/components/common/TableToolbar'
 import TableRowActions from '@/components/common/TableRowActions'
 import GlassEmpty from '@/components/common/GlassEmpty'
 import StatusPill from '@/components/common/StatusPill'
+import { useTableQuery } from '@/hooks/useTableQuery'
 import { usePermission } from '@/hooks/usePermission'
 import { useUrlParams } from '@/hooks/useUrlParams'
 import { formatDateTime } from '@/utils/format'
@@ -57,9 +60,6 @@ export default function BpmDefinitionsPage() {
   )
   const isPlatform = !!useAppSelector((s) => s.auth.userInfo)?.is_platform_admin
   const [statsOpen, setStatsOpen] = useState(false)
-  const [list, setList] = useState<BpmDefinition[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [params, setParams] = useUrlParams<SearchParams>({ page: 1, page_size: 10 })
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -71,23 +71,22 @@ export default function BpmDefinitionsPage() {
   const screens = Grid.useBreakpoint()
   const compactActions = !screens.md
 
-  const fetchList = async (p: SearchParams) => {
-    setLoading(true)
-    try {
+  const fetcher = useCallback(
+    async (p: SearchParams) => {
+      // 设计器互斥视图打开时不拉列表（与原 useEffect 的 design 门控语义一致）
+      if (design) return { list: [], total: 0 }
       const res = await listDefinitions(p)
-      setList(res.list ?? [])
-      setTotal(res.total ?? 0)
-    } catch {
+      return { list: res.list ?? [], total: res.total ?? 0 }
+    },
+    [design],
+  )
+  const { list, total, loading, reload } = useTableQuery({
+    params,
+    fetcher,
+    onError: useCallback(() => {
       // 错误提示由 request 拦截器统一弹出
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (!design) void fetchList(params)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params, design])
+    }, []),
+  })
 
   const onCreate = async () => {
     const values = await createForm.validateFields().catch(() => null)
@@ -107,7 +106,7 @@ export default function BpmDefinitionsPage() {
       if (res?.id) {
         setDesign({ id: res.id, readOnly: false })
       } else {
-        void fetchList(params)
+        void reload()
       }
     } catch {
       // 错误提示由 request 拦截器统一弹出
@@ -120,7 +119,7 @@ export default function BpmDefinitionsPage() {
     try {
       await publishDefinition(row.id)
       message.success(t('「{{name}}」v{{version}} 已发布', { name: row.name, version: row.version }))
-      void fetchList(params)
+      void reload()
     } catch {
       // 后端 Schema 校验失败等，拦截器已提示；建议进设计器修正后再发布
     }
@@ -133,7 +132,7 @@ export default function BpmDefinitionsPage() {
       if (res?.id) {
         setDesign({ id: res.id, readOnly: false })
       } else {
-        void fetchList(params)
+        void reload()
       }
     } catch {
       // 错误提示由 request 拦截器统一弹出
@@ -144,7 +143,7 @@ export default function BpmDefinitionsPage() {
     try {
       await suspendDefinition(row.id)
       message.success(t('已停用，不再允许新发起（在途实例不受影响）'))
-      void fetchList(params)
+      void reload()
     } catch {
       // 错误提示由 request 拦截器统一弹出
     }
@@ -285,12 +284,11 @@ export default function BpmDefinitionsPage() {
   }
 
   return (
-    <div className="page-list bpm-definitions-page">
-      <Card className="list-filter-card" bordered={false}>
-        <Form
+    <ListPageShell
+      className="bpm-definitions-page"
+      filter={
+        <ListFilterForm
           form={searchForm}
-          layout="inline"
-          className="list-filter-form"
           initialValues={params}
           onFinish={(v) => setParams({ ...params, page: 1, keyword: v.keyword, biz_type: v.biz_type })}
         >
@@ -316,11 +314,10 @@ export default function BpmDefinitionsPage() {
               </Button>
             </Space>
           </Form.Item>
-        </Form>
-      </Card>
-
-      <Card className="list-main-card" bordered={false}>
-        <TableToolbar
+        </ListFilterForm>
+      }
+      toolbar={
+          <TableToolbar
           title="流程定义"
           total={total}
           icon={<ApartmentOutlined />}
@@ -334,7 +331,7 @@ export default function BpmDefinitionsPage() {
                   {t('审批统计')}
                 </Button>
               )}
-              <Button icon={<ReloadOutlined />} onClick={() => void fetchList(params)}>
+              <Button icon={<ReloadOutlined />} onClick={() => void reload()}>
                 {t('刷新')}
               </Button>
               {hasPerm('bpm:definition:create') && (
@@ -344,7 +341,8 @@ export default function BpmDefinitionsPage() {
               )}
             </Space>
           }
-        />
+        />}
+      >
         <Table
           rowKey="id"
           className="list-table"
@@ -361,7 +359,6 @@ export default function BpmDefinitionsPage() {
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
          scroll={{ x: 960 }} />
-      </Card>
 
       <Modal
         title={t('新建审批流程')}
@@ -412,6 +409,6 @@ export default function BpmDefinitionsPage() {
       >
         <BpmStatsPanel />
       </Drawer>
-    </div>
+    </ListPageShell>
   )
 }

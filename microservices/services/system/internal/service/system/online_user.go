@@ -15,11 +15,10 @@ import (
 )
 
 type OnlineUser struct {
-	// TenantID scopes the session. Sessions written before this field existed
-	// decode as 0 and, per this codebase's 0-means-default convention, are
-	// attributed to the default tenant rather than hidden outright. On a
-	// multi-tenant deployment that briefly shows pre-upgrade sessions to the
-	// default tenant's operators; the window closes as those tokens expire.
+	// TenantID 界定会话所属租户。本字段出现之前写入的会话会解码为 0，
+	// 依据本代码库"0 表示默认"的约定，归入默认租户而不是直接隐藏。在
+	// 多租户部署上，这会短暂地把升级前的会话展示给默认租户的运维人员；
+	// 随着那些令牌过期，这个窗口会关闭。
 	TenantID             uint      `json:"tenant_id"`
 	UserID               uint      `json:"user_id"`
 	Username             string    `json:"username"`
@@ -33,7 +32,7 @@ type OnlineUser struct {
 	AccessTokenExpiresAt time.Time `json:"access_token_expires_at,omitempty"`
 }
 
-// OnlineUserRedisClient is the Redis command subset used by OnlineUserService.
+// OnlineUserRedisClient 是 OnlineUserService 使用的 Redis 命令子集。
 type OnlineUserRedisClient interface {
 	Get(ctx context.Context, key string) *goredis.StringCmd
 	ZRange(ctx context.Context, key string, start, stop int64) *goredis.StringSliceCmd
@@ -49,12 +48,12 @@ type OnlineUserService struct {
 	client OnlineUserRedisClient
 }
 
-// NewOnlineUserService creates a service backed by the package Redis client.
+// NewOnlineUserService 创建基于包级 Redis 客户端的服务。
 func NewOnlineUserService() *OnlineUserService {
 	return &OnlineUserService{}
 }
 
-// NewOnlineUserServiceWithClient creates a service backed by the provided Redis client.
+// NewOnlineUserServiceWithClient 创建基于指定 Redis 客户端的服务。
 func NewOnlineUserServiceWithClient(client OnlineUserRedisClient) *OnlineUserService {
 	return &OnlineUserService{client: client}
 }
@@ -63,9 +62,8 @@ const (
 	onlineUserPrefix          = "online_user:"
 	onlineUserIndexKey        = "online_users"
 	onlineUserUserIndexPrefix = "online_users:user:"
-	// Per-tenant index. The console lists and counts from this one so that a
-	// tenant operator never observes another tenant's sessions, and so counting
-	// stays a single ZCARD instead of decoding every payload.
+	// 按租户的索引。控制台从此索引做列表与计数，从而租户运维人员
+	// 永远不会看到其他租户的会话，计数也只需一次 ZCARD 而无需解码每个负载。
 	onlineUserTenantIndexPrefix = "online_users:tenant:"
 )
 
@@ -86,15 +84,13 @@ func (s *OnlineUserService) SetOnlineUserContext(ctx context.Context, user Onlin
 		Score:  score,
 		Member: user.TokenID,
 	})
-	// The index keys carry no TTL of their own, and members are only pruned by
-	// score on paths that may never run for a given user — a session that simply
-	// expires leaves its member behind forever. Redis runs volatile-lru here, and
-	// that policy never evicts a key without a TTL, so the leak is unbounded.
+	// 索引键本身没有 TTL，成员只在某些可能对某用户永不执行的路径上按分数清理——
+	// 单纯过期的会话会永久留下它的成员。这里 Redis 运行 volatile-lru 策略，
+	// 而该策略从不淘汰没有 TTL 的键，因此泄漏是无界的。
 	//
-	// NX then GT, not GT alone: Redis treats a key with no TTL as having infinite
-	// TTL when evaluating GT, so GT can never place the first expiry. NX sets it,
-	// GT afterwards only ever extends, so an index outliving a longer-lived member
-	// is never cut short.
+	// 使用 NX 再 GT，而非仅 GT：评估 GT 时 Redis 将没有 TTL 的键视为无限 TTL，
+	// 因此 GT 无法安置首次过期。NX 负责设置，之后的 GT 只会延长，
+	// 这样索引不会因为成员更长寿而被过早截断。
 	pipe.ExpireNX(ctx, onlineUserUserIndexKey(user.UserID), expiration)
 	pipe.ExpireGT(ctx, onlineUserUserIndexKey(user.UserID), expiration)
 	pipe.ZAdd(ctx, onlineUserTenantIndexKey(tenant.Normalize(user.TenantID)), goredis.Z{
@@ -133,15 +129,15 @@ func (s *OnlineUserService) RemoveOnlineUserContext(ctx context.Context, tokenID
 	return err
 }
 
-// ErrOnlineUserForbidden is returned when a session belongs to another tenant.
+// ErrOnlineUserForbidden 在会话属于其他租户时返回。
 var ErrOnlineUserForbidden = errors.New("online user: session belongs to another tenant")
 
-// GetOnlineUsersContext lists the sessions of the caller's tenant only. The global
-// index is platform-wide, so reading it directly would show every tenant's
-// usernames, IPs and token ids to any operator holding the list permission.
+// GetOnlineUsersContext 只列出调用方租户的会话。全局索引是平台级的，
+// 直接读取它会把所有租户的用户名、IP 与令牌 ID 展示给任何持有列表权限的
+// 运维人员。
 //
-// Sessions created before the tenant index existed are absent from it and stay
-// hidden until their token expires; they are not lost, just not listed.
+// 在租户索引出现之前创建的会话不在索引中，会一直隐藏到其令牌过期；
+// 它们并未丢失，只是不展示。
 func (s *OnlineUserService) GetOnlineUsersContext(ctx context.Context) ([]OnlineUser, error) {
 	return s.getIndexedOnlineUsers(ctx, onlineUserTenantIndexKey(tenant.FromContextOrDefault(ctx)))
 }
@@ -154,7 +150,7 @@ func (s *OnlineUserService) GetOnlineUserCountContext(ctx context.Context) (int6
 	return s.redisClient().ZCard(ctx, tenantIndexKey).Result()
 }
 
-// ForceLogoutContext kicks a session, refusing when it belongs to another tenant.
+// ForceLogoutContext 强制下线一个会话，若它属于其他租户则拒绝。
 func (s *OnlineUserService) ForceLogoutContext(ctx context.Context, tokenID string) error {
 	data, err := s.redisClient().Get(ctx, onlineUserKey(tokenID)).Result()
 	var targetUserID uint

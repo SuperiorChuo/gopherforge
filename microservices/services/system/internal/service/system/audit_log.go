@@ -18,13 +18,12 @@ const (
 	maxAuditPageSize      = 500
 )
 
-// AuditLogService handles independent business audit log behavior.
+// AuditLogService 处理独立的业务审计日志行为。
 type AuditLogService struct {
 	logDAO dao.AuditLogDAO
 }
 
-// NewAuditLogServiceWithDB builds an AuditLogService backed by an injected
-// database handle.
+// NewAuditLogServiceWithDB 构建一个基于注入的数据库句柄的 AuditLogService。
 func NewAuditLogServiceWithDB(db *gorm.DB) AuditLogService {
 	return AuditLogService{logDAO: *dao.NewAuditLogDAO(db)}
 }

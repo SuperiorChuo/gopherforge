@@ -1,0 +1,19 @@
+<configuration name="local_stream.conf" description="stream files from local dir">
+  <!-- moh 流：扫描上传卷循环播放（后台「排队音乐」页上传）；
+       目录为空时静音，不影响通话建立 -->
+  <directory name="moh" path="/etc/freeswitch/moh">
+    <param name="rate" value="8000"/>
+    <param name="shuffle" value="true"/>
+    <param name="channels" value="1"/>
+    <param name="interval" value="20"/>
+    <param name="timer-name" value="soft"/>
+  </directory>
+  <!-- vanilla 兼容别名（default 指同一目录） -->
+  <directory name="default" path="/etc/freeswitch/moh">
+    <param name="rate" value="8000"/>
+    <param name="shuffle" value="true"/>
+    <param name="channels" value="1"/>
+    <param name="interval" value="20"/>
+    <param name="timer-name" value="soft"/>
+  </directory>
+</configuration>

@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Button,
-  Card,
   Drawer,
   Grid,
   Input,
@@ -37,9 +36,11 @@ import {
 } from '@/api/bpm'
 import BpmInstanceTimeline from '@/components/bpm/BpmInstanceTimeline'
 import BpmResubmitModal from '@/components/bpm/BpmResubmitModal'
+import ListPageShell from '@/components/common/ListPageShell'
 import TableToolbar from '@/components/common/TableToolbar'
 import TableRowActions from '@/components/common/TableRowActions'
 import GlassEmpty from '@/components/common/GlassEmpty'
+import { useTableQuery } from '@/hooks/useTableQuery'
 import { useAppSelector } from '@/hooks/store'
 import { displayUserName, useUserNameMap } from '@/hooks/useUserNameMap'
 import { useUrlParams } from '@/hooks/useUrlParams'
@@ -57,9 +58,6 @@ export default function BpmInstancesPage() {
   const screens = Grid.useBreakpoint()
   const compactActions = !screens.md
   const userMap = useUserNameMap()
-  const [list, setList] = useState<BpmInstance[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
   // M3 管理视图：平台管理员可切「全部实例」，配合终止动作处置挂起/异常实例
   const [scope, setScope] = useState<'my' | 'all'>('my')
   const [params, setParams] = useUrlParams<SearchParams>(
@@ -105,25 +103,25 @@ export default function BpmInstancesPage() {
     }
   }
 
-  const fetchList = async (p: SearchParams, sc: 'my' | 'all' = scope) => {
-    setLoading(true)
-    try {
-      const res = sc === 'all' ? await listAllInstances(p) : await listMyInstances(p)
-      setList(res.list ?? [])
-      setTotal(res.total ?? 0)
-      if (sc === 'my') void detectResubmitable(res.list ?? [])
+  const queryParams = useMemo(() => ({ ...params, scope }), [params, scope])
+  const fetcher = useCallback(
+    async (p: SearchParams & { scope: 'my' | 'all' }) => {
+      const res = p.scope === 'all' ? await listAllInstances(p) : await listMyInstances(p)
+      if (p.scope === 'my') void detectResubmitable(res.list ?? [])
       else setResubmitable({})
-    } catch {
-      // 错误提示由 request 拦截器统一弹出
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    void fetchList(params, scope)
+      return { list: res.list ?? [], total: res.total ?? 0 }
+    },
+    // detectResubmitable 引用稳定（仅 setState），可安全省略依赖
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params, scope])
+    [],
+  )
+  const { list, total, loading, reload } = useTableQuery({
+    params: queryParams,
+    fetcher,
+    onError: useCallback(() => {
+      // 错误提示由 request 拦截器统一弹出
+    }, []),
+  })
 
   const onTerminate = async () => {
     if (!terminateFor) return
@@ -138,7 +136,7 @@ export default function BpmInstancesPage() {
       setTerminateFor(null)
       setTerminateReason('')
       setDetail(null)
-      void fetchList(params)
+      void reload()
     } catch {
       // 拦截器统一提示
     } finally {
@@ -151,7 +149,7 @@ export default function BpmInstancesPage() {
       await cancelInstance(row.id)
       message.success(t('已撤销'))
       setDetail(null)
-      void fetchList(params)
+      void reload()
     } catch {
       // 已有人审批时后端会拒绝撤销，拦截器统一提示原因
     }
@@ -264,8 +262,9 @@ export default function BpmInstancesPage() {
   ]
 
   return (
-    <div className="page-list bpm-instances-page">
-      <Card className="list-main-card" bordered={false}>
+    <ListPageShell
+      className="bpm-instances-page"
+      toolbar={
         <TableToolbar
           title={scope === 'all' ? '全部审批实例' : '我发起的审批'}
           total={total}
@@ -300,12 +299,13 @@ export default function BpmInstancesPage() {
                 value={params.status}
                 onChange={(v) => setParams({ ...params, page: 1, status: v })}
               />
-              <Button icon={<ReloadOutlined />} onClick={() => void fetchList(params)}>
+              <Button icon={<ReloadOutlined />} onClick={() => void reload()}>
                 {t('刷新')}
               </Button>
             </Space>
           }
-        />
+        />}
+      >
         <Table
           rowKey="id"
           className="list-table"
@@ -322,7 +322,6 @@ export default function BpmInstancesPage() {
             onChange: (page, page_size) => setParams({ ...params, page, page_size }),
           }}
          scroll={{ x: 960 }} />
-      </Card>
 
       <Drawer
         title={detail ? detail.title : t('审批详情')}
@@ -380,7 +379,7 @@ export default function BpmInstancesPage() {
         onClose={() => setResubmitFor(null)}
         onDone={() => {
           setDetail(null)
-          void fetchList(params)
+          void reload()
         }}
       />
 
@@ -409,6 +408,6 @@ export default function BpmInstancesPage() {
           />
         </Space>
       </Modal>
-    </div>
+    </ListPageShell>
   )
 }

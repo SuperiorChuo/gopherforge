@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, lazy, Suspense } from 'react'
 import '@/styles/app-layout.css'
 import '@/list-pages.css'
+import '@/styles/navigation-badges.css'
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import {
   Layout,
@@ -31,6 +32,7 @@ import {
   HomeOutlined,
   VerticalAlignTopOutlined,
   ColumnHeightOutlined,
+  RobotOutlined,
   GlobalOutlined,
 } from '@ant-design/icons'
 import { useAppDispatch, useAppSelector } from '@/hooks/store'
@@ -41,12 +43,13 @@ import { ROUTE_PERMISSIONS } from '@/router/route-permissions'
 import { changePassword } from '@/api/auth'
 import { message } from '@/utils/feedback'
 import NotificationBell from '@/components/common/NotificationBell'
+import TicketMineBadge, { subscribeTicketMineCounts, type TicketMineCounts } from '@/components/ticket/TicketMineBadge'
+const CcCallNotifier = lazy(() => import('@/components/cc/CcCallNotifier'))
 import ErrorBoundary from '@/components/common/ErrorBoundary'
 import CommandPalette from '@/components/common/CommandPalette'
 import { useThemeMode } from '@/theme/ThemeContext'
 import { useLocale } from '@/i18n/LocaleContext'
 import { useTranslation } from 'react-i18next'
-import i18n from '@/i18n/init'
 import { MENU_DEFS, GROUP_META, pathBreadcrumbMap, type MenuDef } from './menu-defs'
 import { apiMenusToDefs, buildMenuItems, buildPaletteItems } from './menu-build'
 
@@ -88,8 +91,22 @@ export default function MainLayout() {
     walk(menuDefs, [])
     return map
   }, [menuDefs])
-  const menuItems = useMemo(() => buildMenuItems(menuDefs, hasPerm), [menuDefs, hasPerm, locale, i18n.language])
-  const paletteItems = useMemo(() => buildPaletteItems(menuDefs, hasPerm), [menuDefs, hasPerm, locale, i18n.language])
+  const [ticketCounts, setTicketCounts] = useState<TicketMineCounts>({ mineOpen: 0, mineOverdue: 0 })
+  useEffect(() => subscribeTicketMineCounts(setTicketCounts), [])
+  // 依赖里同时有 locale（state）与 i18n.language（异步切换后的实际语言）：locale 触发即改，
+  // i18n.language 保证 changeLanguage 异步完成后重跑——否则切换瞬间菜单用旧语言构建后不再刷新
+  const menuItems = useMemo(
+    () => buildMenuItems(menuDefs, hasPerm, ticketCounts),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [menuDefs, hasPerm, ticketCounts, t],
+  )
+  const paletteItems = useMemo(
+    () => buildPaletteItems(menuDefs, hasPerm),
+    // buildPaletteItems 内部读全局 i18n.t（lint 静态看不到引用）；依赖 t 是刻意的：
+    // 语言切换后命令面板标签需要重建。与上方 menuItems 同一模式。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [menuDefs, hasPerm, t],
+  )
   const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
 
   const [collapsed, setCollapsed] = useState(false)
@@ -242,6 +259,7 @@ export default function MainLayout() {
     )
   }
 
+  // 窄屏收起的显示项：密度 / 语言 / 全屏 / 命令面板（桌面仍用独立触发器）
   const displayMenuItems: MenuProps['items'] = [
     {
       key: 'search',
@@ -293,6 +311,12 @@ export default function MainLayout() {
       onClick: () => navigate('/profile'),
     },
     {
+      key: 'my-hermes',
+      icon: <RobotOutlined />,
+      label: t('Hermes 工作台'),
+      onClick: () => navigate('/hermes/workbench'),
+    },
+    {
       key: 'password',
       icon: <LockOutlined />,
       label: t('修改密码'),
@@ -315,7 +339,7 @@ export default function MainLayout() {
     return <Navigate to="/403" replace />
   }
   const breadcrumbTitle = pathBreadcrumbMap[currentPath] || ''
-  // 面包屑分组取最近一层分组，与侧栏展开同源（菜单树驱动）
+  // 面包屑分组取最近一层分组（嵌套时如 社媒中心>公众号运营 取后者），与旧行为一致
   const groupTrail = trailOf(currentPath)
   const groupMeta = groupTrail.length ? groupTrail[groupTrail.length - 1] : null
 
@@ -381,7 +405,7 @@ export default function MainLayout() {
           <div className="app-logo-mark">
             <SafetyOutlined />
           </div>
-          {!collapsed && <span className="app-logo-text">GopherForge</span>}
+          {!collapsed && <span className="app-logo-text">Go Admin Kit</span>}
         </div>
         <div className="app-menu-scroll">
           <Menu
@@ -431,11 +455,7 @@ export default function MainLayout() {
           <Space size={8} className="app-header-actions">
             <span
               className="app-search-hint"
-              onClick={() =>
-                window.dispatchEvent(
-                  new KeyboardEvent('keydown', { key: 'k', metaKey: isMac, ctrlKey: !isMac }),
-                )
-              }
+              onClick={openCommandPalette}
             >
               <SearchOutlined />
               {t('搜索')}
@@ -443,8 +463,12 @@ export default function MainLayout() {
             </span>
             <span
               className="app-trigger"
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect()
+              onClick={(event) => {
+                if (event.clientX || event.clientY) {
+                  toggleTheme({ x: event.clientX, y: event.clientY })
+                  return
+                }
+                const rect = event.currentTarget.getBoundingClientRect()
                 toggleTheme({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
               }}
               title={mode === 'dark' ? t('切换为白蓝亮色') : t('切换为深空暗色')}
@@ -480,6 +504,7 @@ export default function MainLayout() {
                 <MoreOutlined />
               </span>
             </Dropdown>
+            <TicketMineBadge />
             <NotificationBell />
             <Dropdown
               placement="bottomRight"
@@ -501,6 +526,7 @@ export default function MainLayout() {
         </Header>
 
         <div className="app-content-glow" />
+        <Suspense fallback={null}><CcCallNotifier /></Suspense>
         <Content className="app-content" style={{ position: 'relative', zIndex: 1 }}>
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 100 }}>

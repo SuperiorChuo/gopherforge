@@ -7,8 +7,8 @@ import (
 	"github.com/go-admin-kit/services/system/internal/pkg/weather"
 )
 
-// WeatherAPI serves the dashboard weather chip. The chip is decorative, so
-// every failure degrades to an empty payload instead of an error status.
+// WeatherAPI 为仪表盘天气组件提供服务。该组件仅作装饰，因此
+// 任何失败都降级返回空数据而非错误状态。
 type WeatherAPI struct {
 	service *weather.Service
 }
@@ -17,12 +17,12 @@ func NewWeatherAPI() *WeatherAPI {
 	return &WeatherAPI{service: weather.NewService(runtimeconfig.DefaultWeatherReader())}
 }
 
-// NewWeatherAPIWithService creates a WeatherAPI from an injected service.
+// NewWeatherAPIWithService 从注入的服务创建 WeatherAPI。
 func NewWeatherAPIWithService(service *weather.Service) *WeatherAPI {
 	return &WeatherAPI{service: service}
 }
 
-// GetLiveWeather handles GET /api/v1/system/weather.
+// GetLiveWeather 处理 GET /api/v1/system/weather 请求。
 // 未配置/上游失败一律 200 + data:null：错误处理中间件会给 404 追加兜底 body
 // 造成双 JSON，且天气是装饰性信息，前端对 null 静默隐藏即可。
 func (a *WeatherAPI) GetLiveWeather(c *gin.Context) {

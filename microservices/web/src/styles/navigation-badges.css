@@ -1,0 +1,25 @@
+/* 管理台侧栏业务角标随 MainLayout 加载，不让匿名认证页承担业务样式。 */
+.menu-label-with-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.menu-dot-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+  background: #6366f1;
+}
+
+.menu-dot-badge.is-danger {
+  background: #ff4d4f;
+}

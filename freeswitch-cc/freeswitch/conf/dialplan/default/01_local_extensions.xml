@@ -1,0 +1,43 @@
+<!-- 内线互拨 + 录音 + 无人接转留言
+     user_exists 守卫：任意 4-6 位号码先查目录，存在才走本扩展——
+     动态创建的分机（control-api 写目录卷 + reloadxml）即拨即通；
+     不存在的号码（如 5000 队列、9196 回声）继续落到后面的拨号计划。
+     无人接/占线：call_timeout=25s，bridge 失败（continue_on_fail=true）后
+     answer + voicemail 留言。语音信箱开启的分机（目录里带 vm-password param）
+     进正常留言流程；未开启的分机 voicemail app 找不到信箱直接挂断，等价旧行为，
+     不破坏原有通话。bridge 成功时 hangup_after_bridge=true，通话结束即挂断，
+     不会走到后面的留言动作。 -->
+<include>
+  <extension name="local_extension">
+    <condition field="destination_number" expression="^(\d{4,6})$"/>
+    <condition field="${user_exists(id ${destination_number} ${domain_name})}" expression="^true$">
+      <action application="export" data="dialed_extension=${destination_number}"/>
+      <action application="bind_meta_app" data="1 b s execute_extension::dx XML features"/>
+      <action application="bind_meta_app" data="2 b s record_session::$${recordings_dir}/${caller_id_number}.${strftime(%Y-%m-%d-%H-%M-%S)}.wav"/>
+      <action application="bind_meta_app" data="3 b s execute_extension::cf XML features"/>
+      <action application="set" data="ringback=${us-ring}"/>
+      <action application="set" data="transfer_ringback=$${hold_music}"/>
+      <action application="set" data="call_timeout=25"/>
+      <action application="set" data="hangup_after_bridge=true"/>
+      <action application="set" data="continue_on_fail=true"/>
+      <!-- 录音（双方接通后自动录） -->
+      <action application="set" data="RECORD_STEREO=true"/>
+      <action application="set" data="media_bug_answer_req=true"/>
+      <action application="export" data="execute_on_answer=record_session $${recordings_dir}/${uuid}.wav"/>
+      <!-- 被叫未注册（离线）：立即中文提示挂断，不干等 25 秒振铃 + 英文
+           语音信箱流程。sofia_contact 未注册返回 error/...，注册返回 sofia/... -->
+      <condition field="${sofia_contact(*/${dialed_extension}@${domain_name})}" expression="^error/" break="on-false">
+        <action application="answer"/>
+        <action application="sleep" data="300"/>
+        <action application="playback" data="/etc/freeswitch/prompts/callee_offline.wav"/>
+        <action application="hangup"/>
+      </condition>
+      <action application="bridge" data="user/${dialed_extension}@${domain_name}"/>
+      <!-- 到这里说明没接通（无人接/占线/离线）：转语音信箱留言 -->
+      <action application="answer"/>
+      <action application="sleep" data="500"/>
+      <action application="voicemail" data="default ${domain_name} ${dialed_extension}"/>
+    </condition>
+  </extension>
+</include>
+

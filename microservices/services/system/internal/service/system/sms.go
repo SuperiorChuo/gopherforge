@@ -93,7 +93,7 @@ type SmsChannelService struct {
 	templateDAO systemdao.SmsTemplateDAO
 }
 
-// NewSmsChannelServiceWithDB builds a SmsChannelService backed by an injected database handle.
+// NewSmsChannelServiceWithDB 构建一个基于注入的数据库句柄的 SmsChannelService。
 func NewSmsChannelServiceWithDB(db *gorm.DB) SmsChannelService {
 	return SmsChannelService{
 		channelDAO:  *systemdao.NewSmsChannelDAO(db),
@@ -238,7 +238,7 @@ type SmsTemplateService struct {
 	channelDAO  systemdao.SmsChannelDAO
 }
 
-// NewSmsTemplateServiceWithDB builds a SmsTemplateService backed by an injected database handle.
+// NewSmsTemplateServiceWithDB 构建一个基于注入的数据库句柄的 SmsTemplateService。
 func NewSmsTemplateServiceWithDB(db *gorm.DB) SmsTemplateService {
 	return SmsTemplateService{
 		templateDAO: *systemdao.NewSmsTemplateDAO(db),
@@ -389,7 +389,7 @@ type SmsLogService struct {
 	logDAO systemdao.SmsLogDAO
 }
 
-// NewSmsLogServiceWithDB builds a SmsLogService backed by an injected database handle.
+// NewSmsLogServiceWithDB 构建一个基于注入的数据库句柄的 SmsLogService。
 func NewSmsLogServiceWithDB(db *gorm.DB) SmsLogService {
 	return SmsLogService{logDAO: *systemdao.NewSmsLogDAO(db)}
 }
@@ -416,7 +416,7 @@ type SmsSendService struct {
 	newSender func(provider string, config map[string]any) (sms.Sender, error)
 }
 
-// NewSmsSendServiceWithDB builds a SmsSendService backed by an injected database handle.
+// NewSmsSendServiceWithDB 构建一个基于注入的数据库句柄的 SmsSendService。
 func NewSmsSendServiceWithDB(db *gorm.DB) SmsSendService {
 	return SmsSendService{
 		channelDAO:  *systemdao.NewSmsChannelDAO(db),

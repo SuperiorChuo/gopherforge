@@ -1,6 +1,6 @@
 ---
 aside: false
-description: GopherForge 的 7 个 Go 服务、Traefik ForwardAuth、数据层、前端与可观测链路总览。
+description: GopherForge 的 16 个 API 服务、AI worker、Traefik ForwardAuth、数据层与完整业务产品总览。
 ---
 
 <script setup lang="ts">
@@ -11,9 +11,11 @@ const architectureDemoUrl = withBase('/architecture/gopherforge-system-architect
 
 # 架构总览
 
-GopherForge 采用**真微服务架构**：后端按域拆分为 7 个 Go 服务，另有 `shared` 公共库；前端单页应用，Traefik 网关统一入口与鉴权，全部经 Docker Compose 编排。
+GopherForge 后端按域拆分为 16 个 API 服务，另有 AI worker 和 `shared` 公共库；前端单页应用、Traefik 网关统一入口与鉴权。Hermes 客户端和 FreeSWITCH 媒体栈独立启动，外部供应商需用户配置。
 
-## 交互式系统架构
+## 交互式基础平台子图
+
+下图保留基础平台的 7 服务示意，不包含新增业务域；完整服务范围以本页表格为准。
 
 <div class="architecture-demo">
   <iframe
@@ -40,7 +42,16 @@ GopherForge 采用**真微服务架构**：后端按域拆分为 7 个 Go 服务
 | **file** | 文件上传下载（本地 / MinIO / S3 兼容云） |
 | **monitor** | 服务器/PostgreSQL/Redis 监控、定时任务、健康检查、Prometheus metrics；持有共享 goose 迁移与网关兜底路由 |
 | **bpm** | 轻量审批流引擎（详见[审批流](/modules/bpm)） |
-| **shared** | 跨服务共享 Go module：日志、响应封装、脱敏、错误码、Excel、IP 归属地 |
+| **ai** | AI 对话、知识库、Agent、工位与独立 worker |
+| **crm** | 客户、线索、分配与跟进 |
+| **im** | 即时消息、会话、访客与词库 |
+| **pay** | 支付配置、订单与回调 |
+| **mp** | 公众号内容与消息 |
+| **notify** | 通知渠道、模板与投递 |
+| **ticket** | 工单、事件与参与者 |
+| **cc** | 坐席、话单、计费、报表与语音配置 |
+| **visibility** | 业务可视化与看板 |
+| **shared** | 同一 Go module 内的共享包，不是独立服务 |
 
 ## 请求链路
 

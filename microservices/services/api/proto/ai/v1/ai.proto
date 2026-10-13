@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package ai.v1;
+
+option go_package = "github.com/go-admin-kit/services/api/gen/ai/v1;aiv1";
+
+// AiService 知识库检索内部 gRPC 契约（Phase 3：im 机器人 RAG 向量检索迁 gRPC）。
+service AiService {
+  // InternalKBSearch 向量检索知识库（对应 /api/v1/ai/internal/kb/search）。
+  rpc InternalKBSearch(InternalKBSearchRequest) returns (InternalKBSearchResponse);
+}
+
+message InternalKBSearchRequest {
+  string query = 1;
+  int32 top_k = 2;
+  uint64 tenant_id = 3;
+}
+
+message InternalKBSearchResponse {
+  repeated KBSearchMatch list = 1;
+}
+
+message KBSearchMatch {
+  uint64 document_id = 1;
+  string title = 2;
+  int32 chunk_index = 3;
+  string content = 4;
+  // 余弦相似度（1 - distance），越高越相似。
+  double score = 5;
+}

@@ -18,7 +18,7 @@ func TestConsoleSessionTouchIntervalHonorsEnvironmentOverride(t *testing.T) {
 		t.Fatalf("ConsoleSessionTouchInterval() = %v, want 15s", got)
 	}
 
-	// 0 restores a write per request.
+	// 0 恢复为每次请求都写入。
 	t.Setenv(envConsoleSessionTouchInterval, "0")
 	if got := ConsoleSessionTouchInterval(); got != 0 {
 		t.Fatalf("ConsoleSessionTouchInterval() = %v, want 0", got)

@@ -1,10 +1,10 @@
 ---
-description: 用 Docker Compose 拉起 GopherForge 网关、7 个 Go 服务、React 前端及 PostgreSQL、Redis、NATS，并完成首次验证。
+description: 用 Docker Compose 拉起 GopherForge 网关、16 个 API 服务、AI worker、React 前端及 PostgreSQL、Redis、NATS。
 ---
 
-# 快速上手（15 分钟）
+# 快速上手
 
-GopherForge 是开源 Go 微服务后台管理脚手架。本文带你从零把全栈跑起来：网关 + 7 个 Go 服务 + React 前端 + PostgreSQL/Redis/NATS。
+GopherForge 是开源 Go 微服务管理与业务平台。主应用包括网关、16 个 API 服务、AI worker、React 前端和 PostgreSQL/Redis/NATS；媒体和客户端另行启动。外部供应商需用户配置。
 
 ## 环境要求
 
@@ -21,7 +21,7 @@ make compose-up
 # 或在仓库根目录：make compose-up
 ```
 
-首次构建约 3 分钟。完成后：
+首次构建耗时取决于机器资源和网络。完成后：
 
 | 入口 | 地址 |
 |------|------|
@@ -42,12 +42,10 @@ make compose-up
 ## 跑一遍验证
 
 ```bash
+npm ci --prefix microservices/web
+bash scripts/verify-product.sh all
 cd microservices
-(cd services/monitor && go test ./... && go vet ./...)
-(cd web && npm run lint && npm run build)
-npm run test:smoke:unit && npm run test:contract
-npm run api:contract
-docker compose config --quiet
+docker compose --profile compose-fallback config --quiet
 docker compose -p go-admin-kit-infra -f docker-compose.infra.yml config --quiet
 API_BASE_URL=http://127.0.0.1:8000/api/v1 npm run smoke:api
 ```

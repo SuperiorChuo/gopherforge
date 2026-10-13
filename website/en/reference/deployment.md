@@ -1,37 +1,57 @@
----
-description: A concise production deployment summary for GopherForge covering official images, secrets, Docker Compose, TLS, backups and rollback.
----
+# Deploy the complete product
 
-# Production Deployment (Summary)
+The v0.8.0 candidate includes 16 API services, an AI worker and the React application. Start the media stack and Hermes client separately. [Releases](https://github.com/SuperiorChuo/gopherforge/releases) defines published versions and image availability; a candidate branch is not a release.
 
-The full production guide is maintained in Chinese: [生产部署（中文）](/reference/deployment) · [source on GitHub](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/deployment.md).
+## Prerequisites
 
-> Current release: `v0.7.0` ([Release](https://github.com/SuperiorChuo/gopherforge/releases/tag/v0.7.0)). It is a 0.x release: APIs and database schemas may change. Complete backups, migration compatibility checks and a rollback rehearsal before production use. See the [upgrade notes](/en/reference/upgrade).
+- Linux, Docker Engine **24+**, Compose v2. Start capacity planning around 8 CPU / 16 GB, then load-test your actual workload.
+- A TLS domain, strong random secrets and tested database/upload backup and recovery.
+- Configure `APP_ENV=production`, JWT, PostgreSQL, Redis and internal tokens from `.env.example`. Do not use example passwords.
+- Bind service ports to loopback; route public requests through HTTPS to Traefik.
+- Configure your own AI, payment, official-account, SMS and telephony providers. Included source code does not activate these integrations.
 
-## Quick start with official images (v0.2.0+, recommended)
-
-Every release pushes 8 images (7 Go services + frontend; the migrate job reuses the monitor image) to ghcr.io — both `linux/amd64` and `linux/arm64` from `v0.3.0` (v0.2.0 and earlier are amd64-only). Images are dual-tagged `vX.Y.Z` + `sha-<7chars>`; `latest` moves only on stable releases.
+## Build from source
 
 ```bash
-git clone https://github.com/SuperiorChuo/gopherforge.git /opt/gopherforge
-cd /opt/gopherforge/microservices
-cp .env.example .env && chmod 600 .env      # set strong JWT_SECRET / DB / Redis passwords first
-
-docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
-  docker network create --subnet 172.28.0.0/16 go-admin-kit-net
-docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d   # data stack
-
-export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
-export IMAGE_TAG=v0.7.0
-docker compose pull && docker compose up -d --no-build                   # app stack
+git clone https://github.com/SuperiorChuo/gopherforge.git
+cd gopherforge
+cp microservices/.env.example microservices/.env
+# Edit security and integration settings first.
+make compose-up
 ```
 
-Upgrade / rollback later = change `IMAGE_TAG` and re-run `pull` + `up -d --no-build`.
+This creates the shared network, starts the separate infrastructure stack, and uses the `compose-fallback` profile for the application. The gateway defaults to `http://localhost:8000`; add TLS for production. Initial credentials are `admin` / `admin123`; change the password immediately.
 
-## Checklist summary
+## Published images
 
-1. **Rotate secrets**: `JWT_SECRET` (≥32 chars), PostgreSQL/Redis/MinIO/Grafana credentials, default admin password, `CORS_ALLOW_ORIGINS`. With `APP_ENV=production`, weak or placeholder values are **rejected at startup**.
-2. **Single-server layout**: Docker Compose behind the Traefik gateway; keep service ports on loopback (`SERVICES_BIND_IP=127.0.0.1`) and terminate TLS either via built-in Traefik `websecure` + Edge Certificates (`/var/lib/go-admin-kit/edgecert`) or via an external reverse proxy (Nginx / Caddy).
-3. **Migrations** run automatically via the migrate container (goose, single source of truth under `services/monitor/migrations/`). Forward-only — back up before destructive upgrades.
-4. **Backups & log rotation** are not bundled: configure a daily `pg_dump` cron and Docker json-file log limits on day one.
-5. **Observability**: enable the Prometheus/Grafana compose profile; `/api/v1/health/ready` for liveness probes.
+The release workflow derives its matrix from Compose: 17 unique main-application images (16 APIs and frontend). The worker and migrate job reuse API images. Media and client delivery are separate. Dual-architecture releases started with **v0.3.0**, but always verify the actual manifests and public commit SHA for each release.
+
+Use this only after v0.8.0 images are published:
+
+```bash
+cd microservices
+export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
+export IMAGE_TAG=v0.8.0
+docker compose --profile compose-fallback pull
+docker compose --profile compose-fallback up -d --no-build
+```
+
+## Optional components
+
+```bash
+docker compose --profile compose-fallback --profile monitoring up -d
+docker compose --profile compose-fallback --profile tracing up -d
+docker compose -p go-admin-kit-infra -f docker-compose.infra.yml --profile storage up -d
+```
+
+The [complete deployment guide](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/deployment.md) includes Nginx/HTTPS and independent media/client instructions. Do not expose administrative dashboards publicly.
+
+## Upgrade and recover
+
+- Pin the version and full public commit SHA; back up and rehearse on an isolated copy.
+- Preserve published SQL paths and bytes. Complete-product upgrades append forward-only migrations; never run production `down/reset`.
+- Application rollback is not schema rollback. Restore the tested, matching database and application versions rather than simply selecting an old image.
+- Health checks do not replace API, worker, UI, live-monitoring and required external-provider acceptance.
+- Same-host isolation requires independent networks, volumes, container names, ports and credentials. Never reuse production data.
+
+See [Upgrades](/en/reference/upgrade), [Observability](/en/modules/observability) and [Release validation](https://github.com/SuperiorChuo/gopherforge/blob/main/docs/release-validation.md).

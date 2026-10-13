@@ -9,7 +9,8 @@ import {
   startFormInstance,
   type BpmDefinition,
 } from '@/api/bpm'
-import BpmDynamicForm, { formValuesToSnapshot } from '@/components/bpm/BpmDynamicForm'
+import BpmDynamicForm from '@/components/bpm/BpmDynamicForm'
+import { formValuesToSnapshot } from '@/components/bpm/bpmFormUtils'
 import TableToolbar from '@/components/common/TableToolbar'
 import GlassEmpty from '@/components/common/GlassEmpty'
 

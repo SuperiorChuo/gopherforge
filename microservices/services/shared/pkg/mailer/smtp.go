@@ -1,4 +1,4 @@
-// Package mailer provides SMTP email sending.
+// Package mailer 提供 SMTP 邮件发送能力。
 
 package mailer
 

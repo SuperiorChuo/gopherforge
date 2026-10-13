@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card, Row, Col, Skeleton, Tag, Tooltip, Button, Space } from 'antd'
 import {
   UserOutlined,
@@ -12,11 +13,14 @@ import {
   CalendarOutlined,
   HistoryOutlined,
   EnvironmentOutlined,
+  RobotOutlined,
+  CustomerServiceOutlined,
   SettingOutlined,
   IdcardOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector } from '@/hooks/store'
+import { useLocale } from '@/i18n/LocaleContext'
 import { getUserList } from '@/api/system/user'
 import { getRoleList } from '@/api/system/role'
 import { getPermissionList } from '@/api/system/permission'
@@ -30,6 +34,7 @@ import type { Notice } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
 import GlassEmpty from '@/components/common/GlassEmpty'
 import CountUpValue from '@/components/common/CountUpValue'
+import CsLoopPanel from '@/components/dashboard/CsLoopPanel'
 import dayjs from 'dayjs'
 
 interface StatCard {
@@ -225,9 +230,11 @@ async function loadWeather(): Promise<LiveWeather | null> {
 }
 
 export default function DashboardPage() {
+  const { t } = useTranslation()
+  const { locale } = useLocale()
   const navigate = useNavigate()
   const userInfo = useAppSelector((s) => s.auth.userInfo)
-  const { hasPerm } = usePermission()
+  const { hasPerm, isSuperAdmin } = usePermission()
   const [stats, setStats] = useState({ users: 0, roles: 0, permissions: 0, menus: 0 })
   const [loading, setLoading] = useState(true)
   const [trend, setTrend] = useState<LoginTrendItem[] | null>(null)
@@ -285,7 +292,7 @@ export default function DashboardPage() {
   const wKind = weather?.weather ? weatherKind(weather.weather, hour) : null
   const windLabel =
     weather?.wind_dir || weather?.wind_power
-      ? [weather.wind_dir, weather.wind_power ? `${weather.wind_power}级` : '']
+      ? [weather.wind_dir, weather.wind_power ? t('{{n}}级', { n: weather.wind_power }) : '']
           .filter(Boolean)
           .join(' ')
       : ''
@@ -353,12 +360,16 @@ export default function DashboardPage() {
   ]
 
   const trendData = trend ?? []
-  const maxCount = Math.max(...trendData.map((t) => t.count), 1)
-  const hasTrendData = trendData.some((t) => t.count > 0)
+  const maxCount = Math.max(...trendData.map((d) => d.count), 1)
+  const hasTrendData = trendData.some((d) => d.count > 0)
 
   // 快捷操作：避开下方统计卡已覆盖的入口，按权限过滤
   const heroActions = [
     { label: '发布公告', icon: <SoundOutlined />, path: '/system/notice', visible: hasPerm('system:notice:create') },
+    { label: 'AI 助手', icon: <RobotOutlined />, path: '/ai/assistant', visible: true },
+    { label: '客服工作台', icon: <CustomerServiceOutlined />, path: '/im/desk', visible: true },
+    { label: '工单中心', icon: <CustomerServiceOutlined />, path: '/ticket', visible: true },
+    { label: '站内信', icon: <SoundOutlined />, path: '/system/inbox', visible: true },
     { label: '系统设置', icon: <SettingOutlined />, path: '/system/setting', visible: hasPerm('system:setting:update') },
     { label: '个人中心', icon: <IdcardOutlined />, path: '/profile', visible: true },
   ].filter((a) => a.visible)
@@ -373,18 +384,18 @@ export default function DashboardPage() {
         <div className="dash-hero-main">
           <div className="dash-hero-content">
             <div className="dash-hero-greeting">
-              {greeting}，<em>{userInfo?.nickname || userInfo?.username}</em>
+              {t(greeting)}, <em>{isSuperAdmin ? t('管理员') : userInfo?.nickname || userInfo?.username}</em>
             </div>
-            <div className="dash-hero-sub">欢迎回到 GopherForge · 以工程之美，驱动今日工作</div>
+            <div className="dash-hero-sub">{t('欢迎回到 Go Admin Kit · 以工程之美，驱动今日工作')}</div>
             <div className="dash-hero-chips">
               <span className="hero-chip">
                 <CalendarOutlined />
-                {dayjs().format('YYYY年M月D日')} · {['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dayjs().day()]}
+                {locale === 'en' ? dayjs().format('MMMM D, YYYY') : dayjs().format('YYYY年M月D日')} · {t(['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dayjs().day()])}
               </span>
               {lastLogin?.created_at && (
                 <span className="hero-chip">
                   <HistoryOutlined />
-                  上次登录 {dayjs(lastLogin.created_at).format('MM-DD HH:mm')}
+                  {t('上次登录 {{time}}', { time: dayjs(lastLogin.created_at).format('MM-DD HH:mm') })}
                   {lastLogin.ip ? ` · ${lastLogin.ip}` : ''}
                 </span>
               )}
@@ -393,7 +404,7 @@ export default function DashboardPage() {
               {heroActions.map((a) => (
                 <button key={a.path} type="button" className="hero-action" onClick={() => navigate(a.path)}>
                   {a.icon}
-                  <span>{a.label}</span>
+                  <span>{t(a.label)}</span>
                 </button>
               ))}
             </div>
@@ -404,7 +415,7 @@ export default function DashboardPage() {
               className={`dash-weather is-${wKind}`}
               title={
                 weather.report_time
-                  ? `观测时间 ${dayjs(weather.report_time).format('MM-DD HH:mm')}`
+                  ? t('观测时间 {{time}}', { time: dayjs(weather.report_time).format('MM-DD HH:mm') })
                   : undefined
               }
             >
@@ -419,7 +430,7 @@ export default function DashboardPage() {
                 <div className="dash-weather-head-text">
                   <div className="dash-weather-city">
                     <EnvironmentOutlined />
-                    {weather.city || '本地'}
+                    {weather.city || t('本地')}
                   </div>
                   <div className="dash-weather-cond">{weather.weather}</div>
                 </div>
@@ -434,7 +445,7 @@ export default function DashboardPage() {
                 </span>
                 <div className="dash-weather-side">
                   {feels != null && (
-                    <span className="dash-weather-feel">体感 {feels}°</span>
+                    <span className="dash-weather-feel">{t('体感 {{n}}°', { n: feels })}</span>
                   )}
                   {tempRange && rangePct == null && (
                     <span className="dash-weather-range">{tempRange}</span>
@@ -455,25 +466,25 @@ export default function DashboardPage() {
               <div className="dash-weather-stats">
                 {weather.humidity != null && weather.humidity !== '' && (
                   <div className="wx-stat">
-                    <em>湿度</em>
+                    <em>{t('湿度')}</em>
                     <b>{weather.humidity}%</b>
                   </div>
                 )}
                 {windLabel && (
                   <div className="wx-stat">
-                    <em>风力</em>
+                    <em>{t('风力')}</em>
                     <b>{windLabel}</b>
                   </div>
                 )}
                 {weather.report_time && (
                   <div className="wx-stat">
-                    <em>更新</em>
+                    <em>{t('更新')}</em>
                     <b>{dayjs(weather.report_time).format('HH:mm')}</b>
                   </div>
                 )}
               </div>
 
-              <div className="dash-weather-tip">{WX_TIPS[wKind]}</div>
+              <div className="dash-weather-tip">{t(WX_TIPS[wKind])}</div>
             </div>
           )}
         </div>
@@ -486,7 +497,9 @@ export default function DashboardPage() {
         <div className="dash-hero-glow" />
       </div>
 
-      <Row gutter={[20, 20]}>
+      <CsLoopPanel />
+
+      <Row gutter={[20, 20]} style={{ marginTop: 20 }}>
         {allCards.filter((c) => c.visible).map((c, i) => (
           <Col xs={24} sm={12} lg={6} key={c.key}>
             <Card
@@ -502,7 +515,7 @@ export default function DashboardPage() {
               </div>
               <div className="stat-card-row">
                 <div>
-                  <div className="stat-card-title">{c.title}</div>
+                  <div className="stat-card-title">{t(c.title)}</div>
                   {loading ? (
                     <Skeleton.Button active size="large" style={{ width: 72, height: 36, marginTop: 6 }} />
                   ) : (
@@ -517,7 +530,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="stat-card-foot">
-                查看详情 <ArrowRightOutlined />
+                {t('查看详情')} <ArrowRightOutlined />
               </div>
             </Card>
           </Col>
@@ -532,12 +545,12 @@ export default function DashboardPage() {
             title={
               <span>
                 <LineChartOutlined className="card-title-icon" />
-                近 {trendDays} 天登录趋势
+                {t('近 {{n}} 天登录趋势', { n: trendDays })}
               </span>
             }
             extra={
               <Space size={12} wrap className="trend-card-extra">
-                <div className="trend-days" role="group" aria-label="登录趋势天数">
+                <div className="trend-days" role="group" aria-label={t('登录趋势天数')}>
                   {([7, 15, 30] as const).map((d) => (
                     <button
                       key={d}
@@ -546,18 +559,18 @@ export default function DashboardPage() {
                       aria-pressed={trendDays === d}
                       onClick={() => setTrendDays(d)}
                     >
-                      {d} 天
+                      {t('{{n}} 天', { n: d })}
                     </button>
                   ))}
                 </div>
                 <div className="trend-legend">
                   <span>
                     <span className="trend-legend-dot trend-legend-dot-success" />
-                    成功
+                    {t('成功')}
                   </span>
                   <span>
                     <span className="trend-legend-dot trend-legend-dot-failed" />
-                    失败
+                    {t('失败')}
                   </span>
                 </div>
               </Space>
@@ -579,38 +592,38 @@ export default function DashboardPage() {
                 className={`trend-chart ${trendFetching ? 'trend-chart-switching' : ''}`}
                 style={{ gap: trendData.length > 15 ? 4 : trendData.length > 7 ? 8 : 12 }}
               >
-                {trendData.map((t, i) => {
+                {trendData.map((d, i) => {
                   // 柱子多时日期隔行展示，避免标签互相压住
                   const labelEvery = trendData.length > 15 ? 4 : trendData.length > 7 ? 2 : 1
                   return (
-                    <div className="trend-col" key={t.date}>
+                    <div className="trend-col" key={d.date}>
                       <div className="trend-count">
-                        {trendData.length <= 7 && t.count > 0 ? t.count : ''}
+                        {trendData.length <= 7 && d.count > 0 ? d.count : ''}
                       </div>
                       <Tooltip
                         title={
                           <>
-                            {t.date}
+                            {d.date}
                             <br />
-                            成功 {t.success} 次 · 失败 {t.failed} 次
+                            {t('成功 {{a}} 次 · 失败 {{b}} 次', { a: d.success, b: d.failed })}
                           </>
                         }
                       >
                         <div className="trend-bar-area" style={{ animationDelay: `${i * 16}ms` }}>
-                          {t.failed > 0 && (
+                          {d.failed > 0 && (
                             <div
                               className="trend-bar-failed"
-                              style={{ height: `${(t.failed / maxCount) * 100}%` }}
+                              style={{ height: `${(d.failed / maxCount) * 100}%` }}
                             />
                           )}
                           <div
                             className="trend-bar-success"
-                            style={{ height: `${(t.success / maxCount) * 100}%` }}
+                            style={{ height: `${(d.success / maxCount) * 100}%` }}
                           />
                         </div>
                       </Tooltip>
                       <div className="trend-date">
-                        {i % labelEvery === 0 ? dayjs(t.date).format('MM-DD') : ''}
+                        {i % labelEvery === 0 ? dayjs(d.date).format('MM-DD') : ''}
                       </div>
                     </div>
                   )
@@ -639,7 +652,7 @@ export default function DashboardPage() {
                 <div>
                   <div className="stat-card-title">
                     <span className="live-dot" />
-                    当前在线用户
+                    {t('当前在线用户')}
                   </div>
                   <div className="dash-online-num" style={{ marginTop: 8 }}>
                     {onlineCount === null ? '-' : <CountUpValue value={onlineCount} />}
@@ -660,12 +673,12 @@ export default function DashboardPage() {
               title={
                 <span>
                   <SoundOutlined className="card-title-icon-warn" />
-                  系统公告
+                  {t('系统公告')}
                 </span>
               }
               extra={
                 <Button type="link" size="small" onClick={() => navigate('/system/notice')}>
-                  更多
+                  {t('更多')}
                 </Button>
               }
               style={{ flex: 1 }}
@@ -687,7 +700,7 @@ export default function DashboardPage() {
                       variant="filled"
                       style={{ marginInlineEnd: 0, flexShrink: 0 }}
                     >
-                      {noticeTypeLabels[n.type] ?? '通知'}
+                      {t(noticeTypeLabels[n.type] ?? '通知')}
                     </Tag>
                     <Tooltip title={n.title}>
                       <span className="dash-notice-title">{n.title}</span>

@@ -71,7 +71,7 @@ func integrationPatchSpecs(req GenerateRequest) []integrationPatchSpec {
 	moduleVar := camelName(req.Module)
 	title := strconv.Quote(req.Title)
 	codegenDownloadRoute := "\t\t\tprotected.POST(\"/codegen/download\", middleware.PermissionMiddleware(\"system:codegen:generate\"), codegenAPI.Download)"
-	codegenMenuLine := "\t{ID: 112, Name: \"codegen\", Title: \"代码生成\", Icon: \"code\", Path: \"/system/codegen\", Component: \"system/codegen/index\", ParentID: 10, Sort: 15, Status: 1, Hidden: 0, Permission: \"system:codegen:list\"},"
+	codegenMenuLine := "\t{ID: 112, Name: \"codegen\", Title: \"代码生成\", Icon: \"code\", Path: \"/system/codegen\", Component: \"system/codegen/index\", ParentID: 136, Sort: 1, Status: 1, Hidden: 0, Permission: \"system:codegen:list\"},"
 
 	specs := []integrationPatchSpec{
 		{

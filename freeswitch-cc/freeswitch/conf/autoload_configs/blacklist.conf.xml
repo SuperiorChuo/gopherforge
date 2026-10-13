@@ -1,0 +1,8 @@
+<configuration name="mod_blacklist.conf" description="Blacklist module">
+  <lists>
+    <!-- cc 名单文件由 control-api 物化（fscc_blacklist 卷），一行一个号码。
+         注意：配置名必须是 mod_blacklist.conf（模块源码写死）；文件名必须是
+         blacklist.conf.xml 以覆盖镜像 vanilla 自带的空模板（同配置名抢先） -->
+    <list name="cc" filename="/etc/freeswitch/blacklist/cc_blacklist.txt"/>
+  </lists>
+</configuration>

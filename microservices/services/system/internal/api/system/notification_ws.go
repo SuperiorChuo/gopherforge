@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/logger"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 	"github.com/go-admin-kit/services/system/internal/config"
 	"github.com/go-admin-kit/services/system/internal/middleware"
-	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	systemsvc "github.com/go-admin-kit/services/system/internal/service/system"
 	"github.com/gorilla/websocket"
 )
@@ -47,8 +47,8 @@ func NewNotificationAPI() *NotificationAPI {
 	}
 }
 
-// NewNotificationAPIWithService creates a NotificationAPI instance from an
-// injected notice service. The broadcaster keeps its default implementation.
+// NewNotificationAPIWithService 从注入的公告服务创建 NotificationAPI 实例。
+// 广播器（Broadcaster）保留默认实现。
 func NewNotificationAPIWithService(noticeService systemsvc.NoticeService) *NotificationAPI {
 	return &NotificationAPI{
 		noticeService: noticeService,

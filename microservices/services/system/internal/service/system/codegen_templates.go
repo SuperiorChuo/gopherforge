@@ -1,10 +1,9 @@
 package system
 
-// Templates for the code generator. Rendered artifacts follow the repo's
-// experimental-line conventions (gin + gorm + {code,message,data} envelope)
-// for the backend, and the admin web idiom (filter card + table + modal
-// form) for the frontend. Template literals contain Chinese UI copy by
-// design; it ships in generated files, not in this service's responses.
+// 代码生成器的模板。渲染出的产物遵循仓库实验线约定：后端使用
+// gin + gorm + {code,message,data} 响应结构，前端采用管理端 Web 惯用写法
+// （筛选卡片 + 表格 + 弹窗表单）。模板字面量有意包含中文界面文案；
+// 它们随生成文件发布，而不出现在本服务的响应中。
 
 import (
 	"regexp"
@@ -27,7 +26,7 @@ func mustTpl(name, body string) *template.Template {
 	return template.Must(template.New(name).Funcs(tplFuncs).Parse(body))
 }
 
-// mustTplJSX uses [[ ]] delimiters so JSX double braces stay literal.
+// mustTplJSX 使用 [[ ]] 分隔符，使 JSX 双花括号保持字面量。
 func mustTplJSX(name, body string) *template.Template {
 	return template.Must(template.New(name).Funcs(tplFuncs).Delims("[[", "]]").Parse(body))
 }

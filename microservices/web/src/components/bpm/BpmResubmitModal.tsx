@@ -10,7 +10,8 @@ import {
   resubmitInstance,
   type BpmInstance,
 } from '@/api/bpm'
-import BpmDynamicForm, { formValuesToSnapshot, snapshotToFormValues } from '@/components/bpm/BpmDynamicForm'
+import BpmDynamicForm from '@/components/bpm/BpmDynamicForm'
+import { formValuesToSnapshot, snapshotToFormValues } from '@/components/bpm/bpmFormUtils'
 
 const { Text } = Typography
 

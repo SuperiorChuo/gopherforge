@@ -4,8 +4,8 @@ pageClass: gopherforge-home
 
 hero:
   name: GopherForge
-  text: 开源 Go 微服务后台管理脚手架
-  tagline: 认证、RBAC、多租户与可观测已经接好，可直接作为 Go 微服务业务项目的起点。
+  text: 开源 Go 微服务管理与业务平台
+  tagline: 认证、RBAC、多租户与可观测底座，连同 AI、CRM、通信、支付和呼叫中心业务源码一并交付。
   actions:
     - theme: brand
       text: 15 分钟快速上手
@@ -19,13 +19,13 @@ hero:
 
 features:
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m8.5 9.2 3.5 2 3.5-2M12 11.2V16"/></svg>'
-    title: 只保留平台能力
-    details: 仓库提供认证、RBAC、多租户、日志、文件与监控，不预置商城、CMS 等业务模块；新业务按领域服务接入。
+    title: 完整业务产品
+    details: 基础管理、AI、CRM、IM、支付、公众号、通知、工单、呼叫中心与可视化；外部供应商和媒体需单独配置。
     link: /guide/architecture
     linkText: 查看架构边界
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-8 11h6l-1 9 9-12h-6V2Z"/></svg>'
     title: 一条命令拉起技术栈
-    details: make compose-up 启动 Traefik、7 个 Go 服务、React 前端、PostgreSQL、Redis 与 NATS，并执行迁移和种子数据。
+    details: make compose-up 启动 Traefik、16 个 API 服务、AI worker、React 前端、PostgreSQL、Redis 与 NATS；客户端和媒体另行启动。
     link: /guide/getting-started
     linkText: 开始运行
   - icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v5H6zM4 16h6v5H4zM14 16h6v5h-6zM12 8v4M7 16v-4h10v4"/></svg>'

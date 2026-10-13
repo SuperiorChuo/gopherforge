@@ -57,9 +57,8 @@ func TestSettingServiceDeleteSettingContextMapsNotFound(t *testing.T) {
 }
 
 func TestSettingServiceProtectsOIDCSigningKey(t *testing.T) {
-	// The OIDC signing private key must never be readable, writable or deletable
-	// through the generic settings API — these checks short-circuit before any DB
-	// access, so no sqlmock expectations are set (a stray query would fail).
+	// OIDC 签名私钥绝不能通过通用设置 API 读取、写入或删除——这些检查
+	// 在任何 DB 访问之前短路返回，因此无需设置 sqlmock 预期（多出一次查询反而会失败）。
 	db, _ := setupSystemUserServiceContextTestDB(t)
 	svc := NewSettingServiceWithDB(db)
 	ctx := context.Background()

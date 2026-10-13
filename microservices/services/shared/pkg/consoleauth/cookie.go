@@ -1,4 +1,4 @@
-// Package consoleauth parses the console session cookie/token injected by gateway ForwardAuth.
+// Package consoleauth 解析网关 ForwardAuth 注入的会话 cookie/令牌。
 
 package consoleauth
 

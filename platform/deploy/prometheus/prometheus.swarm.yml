@@ -1,0 +1,78 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Swarm stack name: gak. Adjust tasks.<stack>_* below for a different stack.
+# 告警闭环：规则 → Alertmanager → notify webhook 站内信（rules/alerts.yml）
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["go-admin-kit-alertmanager:9093"]
+
+scrape_configs:
+  # PostgreSQL 指标（连接数/慢查询/缓存命中率/死锁等，postgres_exporter 采集）。
+  # 目录查询采用 60s 周期以限制数据库开销；按部署的告警时效要求调整。
+  - job_name: postgres
+    scrape_interval: 60s
+    static_configs:
+      - targets:
+          - go-admin-kit-postgres-exporter:9187
+
+  # Redis 指标（内存/命中率/连接数/慢查询等，redis_exporter 采集）
+  - job_name: redis
+    static_configs:
+      - targets:
+          - go-admin-kit-redis-exporter:9121
+
+  # 主机指标（磁盘/内存/CPU，node_exporter 挂 / 只读；磁盘满是最现实的风险）
+  - job_name: node
+    static_configs:
+      - targets:
+          - go-admin-kit-node-exporter:9100
+
+  # Traefik 网关指标（entrypoint/router/service 级请求量与延迟直方图）。
+  # /metrics 随 api.insecure 暴露在 :8080——宿主只绑 127.0.0.1:8090，
+  # 此处走容器网络内抓取，不经网关路由。
+  - job_name: traefik
+    static_configs:
+      - targets:
+          - go-admin-kit-gateway:8080
+
+  - job_name: go-admin-kit-backend
+    metrics_path: /api/v1/metrics
+    static_configs:
+      - targets:
+          - go-admin-kit-monitor:8081  # monitor 服务承载 /api/v1/metrics（原 backend 命名已不存在）
+
+  # 全部业务服务的 HTTP/runtime/DB 池指标（shared/pkg/metrics 统一中间件，
+  # 端点 /metrics 只在容器网络内可达，网关不路由）。服务已全量 swarm 化
+  # （docker-stack.yml），按副本抓取：tasks.<stack>_<svc> DNS 返回全部 task IP
+  # （走 VIP 会把多副本计数器混在一个 target 里）；service 标签供看板聚合。
+  - job_name: go-admin-kit-services
+    metrics_path: /metrics
+    dns_sd_configs:
+      - { names: ["tasks.gak_auth-service"], type: A, port: 8082 }
+      - { names: ["tasks.gak_identity-service"], type: A, port: 8083 }
+      - { names: ["tasks.gak_system-service"], type: A, port: 8084 }
+      - { names: ["tasks.gak_audit-service"], type: A, port: 8085 }
+      - { names: ["tasks.gak_file-service"], type: A, port: 8086 }
+      - { names: ["tasks.gak_ai-service"], type: A, port: 8087 }
+      - { names: ["tasks.gak_im-service"], type: A, port: 8088 }
+      - { names: ["tasks.gak_cc-service"], type: A, port: 8089 }
+      - { names: ["tasks.gak_crm-service"], type: A, port: 8091 }
+      - { names: ["tasks.gak_mp-service"], type: A, port: 8092 }
+      - { names: ["tasks.gak_visibility-service"], type: A, port: 8093 }
+      - { names: ["tasks.gak_ticket-service"], type: A, port: 8094 }
+      - { names: ["tasks.gak_notify-service"], type: A, port: 8095 }
+      - { names: ["tasks.gak_bpm-service"], type: A, port: 8096 }
+      - { names: ["tasks.gak_pay-service"], type: A, port: 8097 }
+    relabel_configs:
+      - source_labels: [__meta_dns_name]
+        regex: tasks\.gak_(.+)-service
+        target_label: service
+
+  # Optional FreeSWITCH control-api lives in a separate deployment. Add an
+  # fscc-control-api job with your reachable endpoint only when it is deployed.

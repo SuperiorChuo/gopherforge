@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// AuditLogDAO is the data access layer for independent business audit logs.
+// AuditLogDAO 是独立业务审计日志的数据访问层。
 type AuditLogDAO struct {
 	db *gorm.DB
 }

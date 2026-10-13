@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocale } from '@/i18n/LocaleContext'
 import { Alert, Button, Input, Modal, Select, Space, Tabs, Tag, Tooltip, Typography } from 'antd'
 import {
   CheckCircleOutlined,
@@ -64,7 +63,6 @@ function ArtifactViewer({ artifacts }: { artifacts: CodegenArtifact[] }) {
 
 export default function PlanPreview({ plan, capabilities, loading, onDownload, onWrite }: Props) {
   const { t } = useTranslation()
-  const { locale } = useLocale()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmation, setConfirmation] = useState('')
   const groups = useMemo<ArtifactGroup[]>(() => {
@@ -76,7 +74,7 @@ export default function PlanPreview({ plan, capabilities, loading, onDownload, o
       { key: 'patch', label: t('接入修改 {{n}}', { n: patchCount }), artifacts: plan.artifacts.filter((artifact) => artifact.operation === 'patch' && artifact.status === 'ready') },
       { key: 'conflict', label: t('冲突 {{n}}', { n: conflicts.length }), artifacts: conflicts },
     ].filter((group) => group.artifacts.length > 0)
-  }, [plan.artifacts, t, locale])
+  }, [plan.artifacts, t])
 
   const blocked = plan.diagnostics.some((diagnostic) => diagnostic.severity === 'error') ||
     plan.artifacts.some((artifact) => artifact.status !== 'ready')

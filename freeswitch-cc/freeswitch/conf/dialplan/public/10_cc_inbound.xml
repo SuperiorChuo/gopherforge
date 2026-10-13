@@ -1,0 +1,39 @@
+<!-- 外线入方向：线路来电（落点为 gateway 的 extension 参数）从 public
+     context 转入 default context——落点填分机/队列/IVR 接入号均可直达。
+     生产收紧时按 DID 精确匹配替换本通配。 -->
+<include>
+  <!-- 黑名单拦截：主叫命中 cc 名单直接拒接（605 Rejected） -->
+  <extension name="cc_blacklist_check" continue="true">
+    <condition field="${blacklist(check cc ${caller_id_number})}" expression="^true$">
+      <action application="log" data="NOTICE blacklisted caller ${caller_id_number} rejected"/>
+      <action application="respond" data="605 Rejected"/>
+      <action application="hangup" data="CALL_REJECTED"/>
+    </condition>
+  </extension>
+  <!-- 全局呼入并发限制（mod_hash 后端）：超过 CC_MAX_INBOUND 路并发直接
+       USER_BUSY 拒接。$${cc_max_inbound} 由 cc_limits.conf.xml 的 exec-set 从
+       容器环境 CC_MAX_INBOUND 注入，XML 预处理期展开成字面量（0/空/未设=不限）。
+       两个 condition 是 AND 门：第一个用默认 break（on-false）——仅当注入值是
+       正整数 ^[1-9]\d*$ 才继续到第二个，否则跳过本 extension 不加 limit（这样
+       0/空绝不会误触发 `limit ... 0` 把全部呼入锁死）；第二个匹配落点号码后才
+       真正 apply limit。continue="true" 保证不限/未命中时照常落到路由 extension。
+       注意：不要用 break="never"——那会让 0/空也走到 limit 动作，与"0=不限"相悖。 -->
+  <extension name="cc_inbound_limit" continue="true">
+    <condition field="$${cc_max_inbound}" expression="^[1-9]\d*$"/>
+    <condition field="destination_number" expression="^\d{4,6}$">
+      <action application="limit" data="hash cc inbound $${cc_max_inbound} !USER_BUSY"/>
+    </condition>
+  </extension>
+  <extension name="cc_inbound_to_default">
+    <condition field="destination_number" expression="^(\d{4,6})$">
+      <!-- 来显归属：查 cc-service 联系人库，命中即改写 caller_id_name（弹屏/话机
+           显示客户名）。cidlookup url 里的 ${caller_id_number} 占位由 mod_cidlookup
+           在查询时展开（模块源码固定该 header 名，非 ${phone_number}）。查不到不
+           改名、不阻塞路由。 -->
+      <action application="cidlookup" data="${caller_id_number}"/>
+      <action application="set" data="RECORD_STEREO=true"/>
+      <action application="export" data="execute_on_answer=record_session $${recordings_dir}/${uuid}.wav"/>
+      <action application="transfer" data="$1 XML default"/>
+    </condition>
+  </extension>
+</include>

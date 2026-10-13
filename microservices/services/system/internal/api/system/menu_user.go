@@ -6,24 +6,24 @@ import (
 	system "github.com/go-admin-kit/services/system/internal/service/system"
 )
 
-// MenuAPI handles user menu endpoints.
+// MenuAPI 处理用户菜单相关端点。
 type MenuAPI struct {
 	menuUserService system.MenuUserService
 }
 
-// NewMenuAPI creates a MenuAPI instance.
+// NewMenuAPI 创建 MenuAPI 实例。
 func NewMenuAPI() *MenuAPI {
 	return &MenuAPI{
 		menuUserService: system.MenuUserService{},
 	}
 }
 
-// NewMenuAPIWithService creates a MenuAPI instance from an injected service.
+// NewMenuAPIWithService 从注入的服务创建 MenuAPI 实例。
 func NewMenuAPIWithService(menuUserService system.MenuUserService) *MenuAPI {
 	return &MenuAPI{menuUserService: menuUserService}
 }
 
-// GetUserMenus returns the authenticated user's menu tree.
+// GetUserMenus 返回当前登录用户的菜单树。
 func (a *MenuAPI) GetUserMenus(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {

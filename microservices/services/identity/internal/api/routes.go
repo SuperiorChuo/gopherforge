@@ -120,4 +120,19 @@ func SetupRoutesWithDeps(router *gin.Engine, deps sharedapi.Dependencies) {
 		protected.PUT("/posts/:id", middleware.PermissionMiddleware("system:post:update"), postAPI.UpdatePost)
 		protected.DELETE("/posts/:id", middleware.PermissionMiddleware("system:post:delete"), postAPI.DeletePost)
 	}
+
+	// Phase 2C：owner 内部只读 API（X-Internal-Token 鉴权，供 notify/visibility 等消费）。
+	if deps.DB != nil {
+		internal := NewInternalAPI(deps.DB)
+		ig := api.Group("/internal")
+		ig.POST("/users/contacts", internal.BatchUserContacts)
+		ig.POST("/users/display-names", internal.BatchUserDisplayNames)
+		ig.GET("/users/admin-ids", internal.AdminUserIDs)
+		ig.GET("/users/department", internal.UserDepartment)
+		ig.POST("/users/by-roles", internal.UsersByRoles)
+		ig.GET("/users/data-scope", internal.UserDataScope)
+		ig.GET("/departments/members", internal.DepartmentMembers)
+		ig.GET("/departments/info", internal.DepartmentInfo)
+		ig.GET("/org", internal.Org)
+	}
 }

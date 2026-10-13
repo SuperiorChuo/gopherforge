@@ -1,0 +1,169 @@
+package config
+
+import (
+	"strings"
+	"testing"
+)
+
+// testDevToken is a published development placeholder, never a credential.
+const testDevToken = "dev-notify-internal-token"
+
+// prodConfig 生产环境下的合规基线，各用例只改一项来断言该项的行为。
+func prodConfig() Config {
+	return Config{
+		AppEnv:              "production",
+		JWTSecret:           "test-jwt-secret-for-unit-tests-0123456789",
+		DBPassword:          "test-db-password-for-unit-tests",
+		InternalToken:       "test-crm-internal-token",
+		NotifyInternalToken: "test-notify-internal-token",
+		BpmInternalToken:    "test-bpm-internal-token",
+	}
+}
+
+func TestValidateAllowsDevelopmentDefaults(t *testing.T) {
+	t.Setenv("APP_ENV", "development")
+	if err := validate(build()); err != nil {
+		t.Fatalf("validate() error = %v, want nil for development defaults", err)
+	}
+}
+
+// JWT_SECRET / DB_PASSWORD 没有安全降级语义，占位符必须拒绝启动。
+func TestValidateRejectsPlaceholderJWTSecret(t *testing.T) {
+	c := prodConfig()
+	c.JWTSecret = "local-dev-secret-change-me-32-chars"
+	err := validate(c)
+	if err == nil || !strings.Contains(err.Error(), "JWT_SECRET") {
+		t.Fatalf("validate() error = %v, want JWT_SECRET placeholder error", err)
+	}
+}
+
+func TestValidateRejectsShortJWTSecret(t *testing.T) {
+	c := prodConfig()
+	c.JWTSecret = "8c3f7a1e5b2d9046"
+	err := validate(c)
+	if err == nil || !strings.Contains(err.Error(), "JWT_SECRET") {
+		t.Fatalf("validate() error = %v, want JWT_SECRET length error", err)
+	}
+}
+
+func TestValidateRejectsDefaultDBPassword(t *testing.T) {
+	c := prodConfig()
+	c.DBPassword = "123456"
+	err := validate(c)
+	if err == nil || !strings.Contains(err.Error(), "DB_PASSWORD") {
+		t.Fatalf("validate() error = %v, want DB_PASSWORD weak error", err)
+	}
+}
+
+func TestValidateAcceptsConfiguredProduction(t *testing.T) {
+	if err := validate(prodConfig()); err != nil {
+		t.Fatalf("validate() error = %v, want nil for a configured production config", err)
+	}
+}
+
+// 关键回归：示例 Compose 可能注入 dev-notify-internal-token 这类占位符，
+// 它们绝不能阻断启动——只降级 + 告警。
+func TestValidateAllowsPlaceholderTokens(t *testing.T) {
+	c := prodConfig()
+	c.InternalToken = testDevToken
+	c.NotifyInternalToken = testDevToken
+	c.BpmInternalToken = testDevToken
+	if err := validate(c); err != nil {
+		t.Fatalf("validate() error = %v, want nil — placeholder tokens must not block startup", err)
+	}
+}
+
+// 缺 token 同样不阻断启动。
+func TestValidateAllowsEmptyTokens(t *testing.T) {
+	c := prodConfig()
+	c.InternalToken = ""
+	c.NotifyInternalToken = ""
+	c.BpmInternalToken = ""
+	if err := validate(c); err != nil {
+		t.Fatalf("validate() error = %v, want nil — missing tokens must not block startup", err)
+	}
+}
+
+func TestSanitizeWarnsForPlaceholderTokens(t *testing.T) {
+	c := prodConfig()
+	c.InternalToken = testDevToken
+	c.NotifyInternalToken = testDevToken
+	c.BpmInternalToken = testDevToken
+	warnings := sanitize(&c)
+	joined := strings.Join(warnings, " | ")
+	for _, want := range []string{"CRM_INTERNAL_TOKEN", "NOTIFY_INTERNAL_TOKEN", "BPM_INTERNAL_TOKEN"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("warnings = %q, want it to mention %s", joined, want)
+		}
+	}
+}
+
+func TestSanitizeIsQuietWhenFullyConfigured(t *testing.T) {
+	c := prodConfig()
+	if warnings := sanitize(&c); len(warnings) != 0 {
+		t.Fatalf("warnings = %v, want none for a configured production config", warnings)
+	}
+}
+
+// 开发环境不做任何降级/告警。
+func TestSanitizeIsNoopOutsideProduction(t *testing.T) {
+	c := prodConfig()
+	c.AppEnv = "development"
+	c.InternalToken = testDevToken
+	c.NotifyInternalToken = testDevToken
+	c.BpmInternalToken = testDevToken
+	if warnings := sanitize(&c); warnings != nil {
+		t.Fatalf("warnings = %v, want nil outside production", warnings)
+	}
+}
+
+// 入站闸门：占位符被归零，使用点既有的"空=503"分支据此 fail closed，
+// 绝不拿众所周知的开发 token 当真凭据校验。
+func TestSanitizeBlanksInboundGateToken(t *testing.T) {
+	c := prodConfig()
+	c.InternalToken = testDevToken
+
+	sanitize(&c)
+
+	if c.InternalToken != "" {
+		t.Fatalf("InternalToken = %q, want blanked so internal endpoints fail closed", c.InternalToken)
+	}
+}
+
+// 出站凭据只告警不归零：抹掉只会悄悄断掉功能，安全与否取决于接收方。
+func TestSanitizeKeepsOutboundCredentials(t *testing.T) {
+	c := prodConfig()
+	c.NotifyInternalToken = testDevToken
+	c.BpmInternalToken = testDevToken
+
+	sanitize(&c)
+
+	if c.NotifyInternalToken == "" {
+		t.Fatal("NotifyInternalToken must not be blanked — it is an outbound credential")
+	}
+	if c.BpmInternalToken == "" {
+		t.Fatal("BpmInternalToken must not be blanked — it is an outbound credential")
+	}
+}
+
+// compose 注入的开发占位符必须在黑名单里。
+func TestPlaceholderBlacklistCoversDeployedDevTokens(t *testing.T) {
+	for _, v := range []string{"dev-notify-internal-token", "dev-im-ai-internal-token"} {
+		if !isPlaceholderValue(v) {
+			t.Fatalf("isPlaceholderValue(%q) = false, want true", v)
+		}
+	}
+}
+
+func TestIsProductionEnvIsCaseInsensitive(t *testing.T) {
+	for _, env := range []string{"production", "Production", " PRODUCTION "} {
+		if !isProductionEnv(env) {
+			t.Fatalf("isProductionEnv(%q) = false, want true", env)
+		}
+	}
+	for _, env := range []string{"development", "staging", ""} {
+		if isProductionEnv(env) {
+			t.Fatalf("isProductionEnv(%q) = true, want false", env)
+		}
+	}
+}

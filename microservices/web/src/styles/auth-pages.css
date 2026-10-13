@@ -240,7 +240,7 @@
   font-size: 12px;
 }
 
-/* —— 从 index.css 并入的登录精修 / OAuth —— */
+/* —— 后续从 index.css 并入：OAuth 确认页 + 登录精修 —— */
 
 /* —— OAuth2 授权确认页（沿用登录页深空/极光/玻璃拟态） —— */
 .oauth-consent-card {
@@ -1208,39 +1208,67 @@
   background-repeat: no-repeat;
 }
 
-/* 可读性收口：环境光留在容器外，表单内容保持稳定对比度。 */
-html:not([data-theme='light']) .login-aurora-3 { opacity: 0.14; }
-html:not([data-theme='light']) .login-shell.login-liquid { background: rgba(10, 11, 24, 0.82); }
+/* —— 可读性收口：环境光留在容器外，表单内容保持稳定对比度 —— */
+html:not([data-theme='light']) .login-aurora-3 {
+  opacity: 0.14;
+}
+
+html:not([data-theme='light']) .login-shell.login-liquid {
+  background: rgba(10, 11, 24, 0.82);
+}
+
 html:not([data-theme='light']) .login-shell.login-liquid > .login-form-panel {
   background: linear-gradient(180deg, rgba(8, 10, 24, 0.48), rgba(12, 14, 32, 0.68));
   box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.025);
 }
+
 .login-headline,
 .login-form-title,
 .login-logo-name,
 .login-page .ant-btn-primary,
-.login-footer { letter-spacing: 0; }
-html:not([data-theme='light']) .login-form-sub { color: rgba(203, 213, 225, 0.72); }
-html:not([data-theme='light']) .login-tenant-toggle { color: rgba(199, 210, 254, 0.82); }
-html:not([data-theme='light']) .login-footer { color: rgba(148, 163, 184, 0.64); }
+.login-footer {
+  letter-spacing: 0;
+}
+
+html:not([data-theme='light']) .login-form-sub {
+  color: rgba(203, 213, 225, 0.72);
+}
+
+html:not([data-theme='light']) .login-tenant-toggle {
+  color: rgba(199, 210, 254, 0.82);
+}
+
+html:not([data-theme='light']) .login-footer {
+  color: rgba(148, 163, 184, 0.64);
+}
+
 html:not([data-theme='light']) .login-page .ant-input-affix-wrapper,
 html:not([data-theme='light']) .login-page .ant-input-outlined,
 html:not([data-theme='light']) .login-page .ant-input {
   background: rgba(255, 255, 255, 0.075) !important;
   border-color: rgba(148, 163, 184, 0.3) !important;
 }
+
 html:not([data-theme='light']) .login-page .ant-input-affix-wrapper > .ant-input {
   background: transparent !important;
   border-color: transparent !important;
 }
+
 html:not([data-theme='light']) .login-page .ant-input-affix-wrapper:hover,
 html:not([data-theme='light']) .login-page .ant-input-outlined:hover {
   background: rgba(255, 255, 255, 0.095) !important;
   border-color: rgba(165, 180, 252, 0.48) !important;
 }
-html:not([data-theme='light']) .login-page .ant-input::placeholder { color: rgba(148, 163, 184, 0.7); }
+
+html:not([data-theme='light']) .login-page .ant-input::placeholder {
+  color: rgba(148, 163, 184, 0.7);
+}
+
 html:not([data-theme='light']) .login-page .ant-input-prefix,
-html:not([data-theme='light']) .login-page .ant-input-password-icon { color: rgba(165, 180, 252, 0.82); }
+html:not([data-theme='light']) .login-page .ant-input-password-icon {
+  color: rgba(165, 180, 252, 0.82);
+}
+
 [data-theme='light'] .login-shell.login-liquid > .login-form-panel {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(239, 246, 255, 0.42));
   box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.55);
@@ -1562,10 +1590,12 @@ html:not([data-theme='light']) .login-page .ant-input-password-icon { color: rgb
 }
 
 [data-theme='light'] .login-headline em {
-  background: linear-gradient(100deg, #1d4ed8 0%, #2563eb 40%, #0ea5e9 95%);
+  background: linear-gradient(100deg, #2563eb 0%, #0ea5e9 45%, #2563eb 90%);
   -webkit-background-clip: text;
   background-clip: text;
-  filter: drop-shadow(0 0 18px rgba(37, 99, 235, 0.22));
+  font-weight: 800;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 4px rgba(37, 99, 235, 0.24));
 }
 
 [data-theme='light'] .login-subline {
@@ -1661,381 +1691,6 @@ html:not([data-theme='light']) .login-page .ant-input-password-icon { color: rgb
 @media (prefers-reduced-motion: reduce) {
   .login-shell.login-liquid > .login-pointer-glow {
     transition: none;
-  }
-}
-
-/* ============================================================
-   仪表盘 · 液态玻璃波浪（liquid-glass-player）
-   配色：项目 indigo/violet；hero 全套；统计卡柔光不浮动
-   ============================================================ */
-
-/* —— Hero：慢浮 + 径向柔光 + 水平涟漪 —— */
-.dash-hero.liquid-dash {
-  isolation: isolate;
-  will-change: transform;
-  backdrop-filter: blur(28px) saturate(1.55);
-  -webkit-backdrop-filter: blur(28px) saturate(1.55);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.12),
-    inset 1px 0 0 rgba(255, 255, 255, 0.05),
-    inset -1px 0 0 rgba(255, 255, 255, 0.05),
-    0 24px 60px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(99, 102, 241, 0.08),
-    0 0 64px rgba(99, 102, 241, 0.12);
-}
-
-/* 顶缘高光改用 inset，腾出 ::before/::after 给波浪 */
-.dash-hero.liquid-dash::before,
-.dash-hero.liquid-dash::after {
-  content: '';
-  position: absolute;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0;
-  transition: opacity 0.8s ease;
-}
-
-.dash-hero.liquid-dash::before {
-  inset: -50% -30%;
-  background:
-    radial-gradient(ellipse 55% 70% at 15% 40%, rgba(129, 140, 248, 0.2), transparent 58%),
-    radial-gradient(ellipse 50% 65% at 85% 55%, rgba(167, 139, 250, 0.16), transparent 55%),
-    radial-gradient(ellipse 45% 50% at 50% 15%, rgba(255, 255, 255, 0.1), transparent 60%);
-  filter: blur(14px);
-}
-
-.dash-hero.liquid-dash::after {
-  left: -25%;
-  right: -25%;
-  top: 15%;
-  bottom: -45%;
-  background:
-    radial-gradient(ellipse 80% 50% at 30% 80%, rgba(99, 102, 241, 0.14), transparent 62%),
-    radial-gradient(ellipse 70% 45% at 75% 90%, rgba(168, 85, 247, 0.12), transparent 60%);
-  filter: blur(18px);
-}
-
-.dash-hero.liquid-dash > .liquid-sheen {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0;
-  border-radius: inherit;
-  overflow: hidden;
-  transition: opacity 0.8s ease;
-}
-
-.dash-hero.liquid-dash > .liquid-sheen i {
-  position: absolute;
-  left: -10%;
-  right: -10%;
-  height: 42%;
-  border-radius: 50%;
-  filter: blur(10px);
-  display: block;
-  opacity: 0.7;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.03) 35%,
-    rgba(165, 180, 252, 0.16) 50%,
-    rgba(255, 255, 255, 0.05) 65%,
-    transparent 100%
-  );
-}
-
-.dash-hero.liquid-dash > .liquid-sheen i:nth-child(1) {
-  top: 6%;
-}
-
-.dash-hero.liquid-dash > .liquid-sheen i:nth-child(2) {
-  top: 48%;
-  height: 36%;
-  opacity: 0.55;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(129, 140, 248, 0.08) 40%,
-    rgba(255, 255, 255, 0.1) 52%,
-    rgba(167, 139, 250, 0.08) 65%,
-    transparent 100%
-  );
-}
-
-.dash-hero.liquid-dash > .dash-hero-content,
-.dash-hero.liquid-dash > .dash-hero-main {
-  position: relative;
-  z-index: 1;
-}
-
-.dash-hero.liquid-dash > .dash-hero-orbit,
-.dash-hero.liquid-dash > .dash-hero-glow {
-  z-index: 1;
-}
-
-.dash-hero.liquid-dash.is-alive {
-  animation: dash-hero-float 9s ease-in-out infinite;
-}
-
-.dash-hero.liquid-dash.is-alive::before {
-  opacity: 1;
-  animation: dash-wave-a 14s ease-in-out infinite;
-}
-
-.dash-hero.liquid-dash.is-alive::after {
-  opacity: 1;
-  animation: dash-wave-b 18s ease-in-out infinite;
-}
-
-.dash-hero.liquid-dash.is-alive > .liquid-sheen {
-  opacity: 1;
-}
-
-.dash-hero.liquid-dash.is-alive > .liquid-sheen i:nth-child(1) {
-  animation: dash-ripple-1 11s ease-in-out infinite;
-}
-
-.dash-hero.liquid-dash.is-alive > .liquid-sheen i:nth-child(2) {
-  animation: dash-ripple-2 15s ease-in-out infinite;
-}
-
-@keyframes dash-hero-float {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    transform: translateY(-2px) scale(1.004);
-  }
-}
-
-@keyframes dash-wave-a {
-  0%,
-  100% {
-    transform: translate(-3%, 2%) scale(1);
-    opacity: 0.5;
-  }
-  50% {
-    transform: translate(4%, -3%) scale(1.05);
-    opacity: 0.85;
-  }
-}
-
-@keyframes dash-wave-b {
-  0%,
-  100% {
-    transform: translate(3%, 0) scale(1.02);
-    opacity: 0.45;
-  }
-  50% {
-    transform: translate(-4%, -2%) scale(1.07);
-    opacity: 0.78;
-  }
-}
-
-@keyframes dash-ripple-1 {
-  0%,
-  100% {
-    transform: translateY(0) scaleX(1.02);
-    opacity: 0.4;
-  }
-  50% {
-    transform: translateY(16%) scaleX(1.08);
-    opacity: 0.72;
-  }
-}
-
-@keyframes dash-ripple-2 {
-  0%,
-  100% {
-    transform: translateY(0) scaleX(1.06);
-    opacity: 0.32;
-  }
-  50% {
-    transform: translateY(-12%) scaleX(1.02);
-    opacity: 0.62;
-  }
-}
-
-/* —— 统计卡 / 面板：柔光涟漪（不整卡浮动，避免眼晕） ——
-   不占用 .ant-card::after（指针高光保留），波浪做在 .liquid-sheen 内 */
-.ant-card.liquid-dash-stat,
-.ant-card.liquid-dash-panel {
-  overflow: hidden;
-}
-
-.ant-card.liquid-dash-stat .ant-card-body,
-.ant-card.liquid-dash-panel .ant-card-body {
-  position: relative;
-  z-index: 1;
-}
-
-.ant-card.liquid-dash-stat .ant-card-head,
-.ant-card.liquid-dash-panel .ant-card-head {
-  position: relative;
-  z-index: 1;
-}
-
-.ant-card.liquid-dash-stat .liquid-sheen,
-.ant-card.liquid-dash-panel .liquid-sheen {
-  position: absolute;
-  /* 铺满整卡：从 body 顶向上盖住 head */
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  overflow: hidden;
-  opacity: 0;
-  transition: opacity 0.7s ease;
-}
-
-/* sheen 在 body 内时，用负 top 扩到卡片顶 */
-.ant-card.liquid-dash-panel .ant-card-body > .liquid-sheen {
-  top: -56px;
-  bottom: 0;
-  left: 0;
-  right: 0;
-}
-
-.ant-card.liquid-dash-stat .liquid-sheen i,
-.ant-card.liquid-dash-panel .liquid-sheen i {
-  position: absolute;
-  left: -12%;
-  right: -12%;
-  height: 48%;
-  border-radius: 50%;
-  filter: blur(12px);
-  display: block;
-  opacity: 0.65;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.03) 35%,
-    rgba(165, 180, 252, 0.12) 50%,
-    rgba(255, 255, 255, 0.04) 65%,
-    transparent 100%
-  );
-}
-
-.ant-card.liquid-dash-stat .liquid-sheen i:nth-child(1),
-.ant-card.liquid-dash-panel .liquid-sheen i:nth-child(1) {
-  top: 4%;
-}
-
-.ant-card.liquid-dash-stat .liquid-sheen i:nth-child(2),
-.ant-card.liquid-dash-panel .liquid-sheen i:nth-child(2) {
-  top: 46%;
-  height: 40%;
-  opacity: 0.5;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(99, 102, 241, 0.07) 40%,
-    rgba(255, 255, 255, 0.09) 52%,
-    rgba(168, 85, 247, 0.07) 65%,
-    transparent 100%
-  );
-}
-
-/* 统计卡/面板：默认安静，仅 hover 亮涟漪（hero 仍常驻动效） */
-.ant-card.liquid-dash-stat:hover .liquid-sheen,
-.ant-card.liquid-dash-panel:hover .liquid-sheen {
-  opacity: 1;
-}
-
-.ant-card.liquid-dash-stat:hover .liquid-sheen i:nth-child(1),
-.ant-card.liquid-dash-panel:hover .liquid-sheen i:nth-child(1) {
-  animation: dash-ripple-1 13s ease-in-out infinite;
-  opacity: 0.85;
-}
-
-.ant-card.liquid-dash-stat:hover .liquid-sheen i:nth-child(2),
-.ant-card.liquid-dash-panel:hover .liquid-sheen i:nth-child(2) {
-  animation: dash-ripple-2 17s ease-in-out infinite;
-}
-
-/* 统计卡内容压在涟漪上 */
-.ant-card.liquid-dash-stat .stat-card-row,
-.ant-card.liquid-dash-stat .stat-card-foot,
-.ant-card.liquid-dash-stat .dash-online-num,
-.ant-card.liquid-dash-panel .dash-notice-item,
-.ant-card.liquid-dash-panel .trend-chart,
-.ant-card.liquid-dash-panel .glass-empty {
-  position: relative;
-  z-index: 1;
-}
-
-@media (hover: none) {
-  /* 触屏：轻微常驻，避免永远看不到涟漪 */
-  .ant-card.liquid-dash-stat .liquid-sheen,
-  .ant-card.liquid-dash-panel .liquid-sheen {
-    opacity: 0.28;
-  }
-}
-
-/* 亮色主题 */
-[data-theme='light'] .dash-hero.liquid-dash {
-  background:
-    radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.35), transparent 52%),
-    radial-gradient(circle at 100% 120%, rgba(99, 102, 241, 0.28), transparent 55%),
-    linear-gradient(125deg, #2563eb 0%, #4f46e5 48%, #6366f1 100%);
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
-    0 24px 56px rgba(37, 99, 235, 0.22),
-    0 0 48px rgba(59, 130, 246, 0.12);
-}
-
-[data-theme='light'] .dash-hero.liquid-dash::before {
-  background:
-    radial-gradient(ellipse 55% 70% at 15% 40%, rgba(255, 255, 255, 0.22), transparent 58%),
-    radial-gradient(ellipse 50% 65% at 85% 55%, rgba(191, 219, 254, 0.2), transparent 55%),
-    radial-gradient(ellipse 45% 50% at 50% 15%, rgba(255, 255, 255, 0.18), transparent 60%);
-}
-
-[data-theme='light'] .dash-hero.liquid-dash::after {
-  background:
-    radial-gradient(ellipse 80% 50% at 30% 80%, rgba(255, 255, 255, 0.12), transparent 62%),
-    radial-gradient(ellipse 70% 45% at 75% 90%, rgba(147, 197, 253, 0.16), transparent 60%);
-}
-
-[data-theme='light'] .ant-card.liquid-dash-stat .liquid-sheen i:nth-child(1),
-[data-theme='light'] .ant-card.liquid-dash-panel .liquid-sheen i:nth-child(1) {
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.2) 35%,
-    rgba(99, 102, 241, 0.1) 50%,
-    rgba(255, 255, 255, 0.18) 65%,
-    transparent 100%
-  );
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dash-hero.liquid-dash.is-alive,
-  .dash-hero.liquid-dash.is-alive::before,
-  .dash-hero.liquid-dash.is-alive::after,
-  .dash-hero.liquid-dash.is-alive > .liquid-sheen i,
-  .ant-card.liquid-dash-stat:hover .liquid-sheen i,
-  .ant-card.liquid-dash-panel:hover .liquid-sheen i {
-    animation: none !important;
-  }
-
-  .dash-hero.liquid-dash.is-alive {
-    transform: none;
-  }
-
-  .dash-hero.liquid-dash.is-alive::before,
-  .dash-hero.liquid-dash.is-alive::after,
-  .dash-hero.liquid-dash.is-alive > .liquid-sheen {
-    opacity: 0.35;
-  }
-
-  .ant-card.liquid-dash-stat:hover .liquid-sheen,
-  .ant-card.liquid-dash-panel:hover .liquid-sheen {
-    opacity: 0.35;
   }
 }
 

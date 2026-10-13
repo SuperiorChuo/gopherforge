@@ -13,9 +13,8 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 )
 
-// setupDictCacheTestService wires a DictService onto a sqlmock database and a
-// dedicated miniredis, so cache behaviour is observable without touching the
-// package-global Redis handle.
+// setupDictCacheTestService 将 DictService 挂接到 sqlmock 数据库与独立的
+// miniredis 上，使缓存行为可观察，而无需触碰包级全局 Redis 句柄。
 func setupDictCacheTestService(t *testing.T) (DictService, sqlmock.Sqlmock, *miniredis.Miniredis) {
 	t.Helper()
 
@@ -46,8 +45,8 @@ func expectDictCodeQueries(mock sqlmock.Sqlmock) {
 
 func TestDictServiceGetMultipleDictDataContextServesSecondCallFromCache(t *testing.T) {
 	svc, mock, _ := setupDictCacheTestService(t)
-	// Exactly one pair of queries is expected; sqlmock's ExpectationsWereMet
-	// plus ordered matching means a second database round trip would fail.
+	// 期望恰好一次查询对；sqlmock 的 ExpectationsWereMet 加有序匹配
+	// 意味着第二次数据库往返会失败。
 	expectDictCodeQueries(mock)
 
 	ctx := context.Background()
@@ -92,7 +91,7 @@ func TestDictServiceGetAllDictDataContextServesSecondCallFromCache(t *testing.T)
 
 func TestDictServiceCachesUnknownCodeAsNotFound(t *testing.T) {
 	svc, mock, _ := setupDictCacheTestService(t)
-	// One query pair only: a bogus code must not re-hit the database.
+	// 仅一次查询对：伪造的 code 不得再次命中数据库。
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "dict_types" WHERE code IN ($1) AND status = $2`)).
 		WithArgs("nope", int8(1)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "status"}))
@@ -111,7 +110,7 @@ func TestDictServiceCachesUnknownCodeAsNotFound(t *testing.T) {
 
 func TestDictServiceIsolatesTenantsInCache(t *testing.T) {
 	svc, mock, _ := setupDictCacheTestService(t)
-	// Tenant 1 warms its own key; tenant 2 must still query.
+	// 租户 1 预热自己的键；租户 2 仍必须查询。
 	expectDictCodeQueries(mock)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "dict_types" WHERE code IN ($1) AND status = $2`)).
 		WithArgs("gender", int8(1)).
@@ -141,9 +140,8 @@ func TestDictServiceIsolatesTenantsInCache(t *testing.T) {
 	}
 }
 
-// The write paths below each assert that the cached read is dropped, so a
-// dictionary edit is visible on the next request. One case per write endpoint:
-// missing any of them is exactly the "changed it but nothing happened" bug.
+// 下面的各写入路径都断言缓存读取已被删除，从而使字典编辑在下一个请求
+// 可见。每个写入端点一个用例：遗漏任何一个，正是"改了却没生效"的 bug。
 func TestDictServiceWritePathsInvalidateCache(t *testing.T) {
 	cases := []struct {
 		name        string
@@ -260,9 +258,8 @@ func TestDictServiceWritePathsInvalidateCache(t *testing.T) {
 			svc, mock, store := setupDictCacheTestService(t)
 			ctx := context.Background()
 
-			// Warm the cache, then perform the write, then read again: the
-			// second read must re-query, which is why a second query pair is
-			// expected below.
+			// 预热缓存，然后执行写入，再读一次：第二次读取必须重新查询，
+			// 因此下面预期出现第二对查询。
 			expectDictCodeQueries(mock)
 			if _, err := (&svc).GetMultipleDictDataContext(ctx, []string{"gender"}); err != nil {
 				t.Fatalf("warm read: %v", err)

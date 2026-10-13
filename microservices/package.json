@@ -5,11 +5,17 @@
     "openapi": "cd services/monitor && go run ./cmd/openapi -output ./docs/openapi.json",
     "api:types": "node scripts/generate-openapi-types.mjs",
     "api:contract": "npm run openapi && npm run api:types",
+    "test:compose:config": "node --test tests/compose-config.test.mjs",
     "test:smoke:unit": "node --test tests/api-smoke-lib.test.mjs",
     "test:contract": "node --test tests/openapi-contract.test.mjs",
-    "test:compose:config": "node --test tests/compose-config.test.mjs",
+    "test:codegen:contract": "node --test tests/codegen-contract.test.mjs",
+    "test:cc-wss": "node --test ../freeswitch-cc/scripts/check-wss.test.mjs",
+    "test:frontend-runtime-config": "node --test tests/frontend-runtime-config.test.mjs",
     "smoke:api": "node tests/api-smoke.mjs",
     "e2e:api": "node tests/api-smoke.mjs",
-    "e2e:frontend": "cd web && npm run build"
+    "e2e:frontend": "cd web && npm run build",
+    "smoke:cc": "node tests/cc-smoke.mjs",
+    "smoke:cc-wss": "node ../freeswitch-cc/scripts/check-wss.mjs",
+    "smoke:pay": "node tests/pay-smoke.mjs"
   }
 }

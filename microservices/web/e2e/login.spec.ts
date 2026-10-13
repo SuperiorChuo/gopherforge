@@ -18,4 +18,102 @@ test.describe('登录页', () => {
     await page.goto('/system/user')
     await expect(page).toHaveURL(/\/login/)
   })
+
+  test('主题切换只捕获旧画面并从按钮位置揭幕', async ({ page }) => {
+    await page.addInitScript(() => {
+      const probe = {
+        calls: 0,
+        oldName: '',
+        newName: '',
+        x: 0,
+        y: 0,
+      }
+      Object.assign(window, { __viewTransitionProbe: probe })
+      Object.defineProperty(document, 'startViewTransition', {
+        configurable: true,
+        value: (update: () => void) => {
+          const root = document.documentElement
+          probe.calls += 1
+          probe.oldName = root.style.viewTransitionName
+          probe.x = Number.parseFloat(root.style.getPropertyValue('--theme-reveal-x'))
+          probe.y = Number.parseFloat(root.style.getPropertyValue('--theme-reveal-y'))
+          update()
+          probe.newName = root.style.viewTransitionName
+          return {
+            ready: Promise.resolve(),
+            finished: new Promise<void>(() => {}),
+            skipTransition: () => {},
+          }
+        },
+      })
+    })
+    await page.goto('/login')
+    const root = page.locator('html')
+    await expect(root).toHaveAttribute('data-theme', 'dark')
+
+    await page.locator('.login-theme-toggle').click()
+
+    await expect(root).toHaveAttribute('data-theme', 'light')
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as Window & {
+              __viewTransitionProbe: {
+                calls: number
+                oldName: string
+                newName: string
+                x: number
+                y: number
+              }
+            }).__viewTransitionProbe,
+        ),
+      )
+      .toMatchObject({ calls: 1, oldName: 'theme-old', newName: 'none' })
+    const probe = await page.evaluate(
+      () =>
+        (window as Window & {
+          __viewTransitionProbe: { x: number; y: number }
+        }).__viewTransitionProbe,
+    )
+    expect(probe.x).toBeGreaterThan(0)
+    expect(probe.y).toBeGreaterThan(0)
+  })
+
+  test('主题动画未开始时快速连点以最后一次切换为准', async ({ page }) => {
+    await page.addInitScript(() => {
+      const pending = new Promise<void>(() => {})
+      Object.assign(window, { __skippedThemeTransitions: 0 })
+      Object.defineProperty(document, 'startViewTransition', {
+        configurable: true,
+        value: () => ({
+          ready: pending,
+          finished: pending,
+          skipTransition: () => {
+            ;(
+              window as Window & { __skippedThemeTransitions: number }
+            ).__skippedThemeTransitions += 1
+          },
+        }),
+      })
+    })
+    await page.goto('/login')
+    const root = page.locator('html')
+    const toggle = page.locator('.login-theme-toggle')
+    await expect(root).toHaveAttribute('data-theme', 'dark')
+
+    await toggle.click()
+    await toggle.click()
+
+    await expect(root).toHaveAttribute('data-theme', 'dark')
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as Window & { __skippedThemeTransitions: number })
+              .__skippedThemeTransitions,
+        ),
+      )
+      .toBe(1)
+  })
 })

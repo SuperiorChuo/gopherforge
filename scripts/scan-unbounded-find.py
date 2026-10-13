@@ -7,10 +7,16 @@ import argparse
 import re
 import subprocess
 import sys
+from collections import Counter
+from functools import lru_cache
 from pathlib import Path
+from typing import Callable
 
-FIND_RE = re.compile(r"\.Find\s*\(")
-GUARD_RE = re.compile(r"\.(Limit|First|Take|Count)\s*\(")
+FIND_RE = re.compile(r"\.\s*Find\s*\(")
+GUARD_RE = re.compile(r"\.\s*(Limit|First|Take|Count)\s*\(")
+GOQUERY_IMPORT_RE = re.compile(r'^\s*(?:\w+\s+)?"github\.com/PuerkitoBio/goquery"', re.MULTILINE)
+DOM_FIND_RE = re.compile(r'\.\s*Find\s*\(\s*(?:"(?:\\.|[^"\\])*"|`[^`]*`)\s*\)')
+FUNCTION_RE = re.compile(r"^func\s+")
 NOLINT_RE = re.compile(r"nolint:unbounded-find")
 SKIP_DIR_PARTS = {
     "api/gen",
@@ -30,8 +36,17 @@ def should_skip(path: Path) -> bool:
 def scan_text(rel: str, text: str) -> list[str]:
     lines = text.splitlines()
     hits: list[str] = []
+    has_goquery = GOQUERY_IMPORT_RE.search(text) is not None
     for i, line in enumerate(lines):
-        if not FIND_RE.search(line):
+        candidate = line
+        if i and lines[i - 1].rstrip().endswith("."):
+            candidate = "." + line.lstrip()
+        calls = list(FIND_RE.finditer(candidate))
+        if not calls:
+            continue
+        # A single literal CSS argument is not a writable GORM destination.
+        # Do not exempt directories, files, variables, or mixed DOM/DB lines.
+        if has_goquery and all(DOM_FIND_RE.match(candidate, call.start()) for call in calls):
             continue
         start = max(0, i - 8)
         window = "\n".join(lines[start : i + 1])
@@ -41,6 +56,42 @@ def scan_text(rel: str, text: str) -> list[str]:
             continue
         hits.append(f"{rel}:{i + 1}")
     return hits
+
+
+def added_findings(
+    current: list[str], baseline: list[str],
+    current_text: Callable[[str], str | None], baseline_text: Callable[[str], str | None],
+) -> list[str]:
+    """Compare callsites, not line numbers; retain multiplicity and old warnings.
+
+    This is still a textual candidate scanner, not a Go type checker. Identity is
+    path + enclosing function declaration + call line. A moved/renamed function,
+    changed call or additional identical call must not inherit a blanket waiver.
+    """
+    def keys(hits: list[str], loader: Callable[[str], str | None]):
+        read = lru_cache(maxsize=None)(loader)
+        for hit in hits:
+            rel, number = hit.rsplit(":", 1)
+            text = read(rel)
+            if text is None:
+                raise ValueError(f"cannot read finding: {hit}")
+            lines = text.splitlines()
+            index = int(number) - 1
+            function = "<file>"
+            for line in reversed(lines[:index + 1]):
+                if FUNCTION_RE.match(line):
+                    function = line.strip()
+                    break
+            yield hit, (rel, function, lines[index].strip())
+
+    remaining = Counter(key for _, key in keys(baseline, baseline_text))
+    added: list[str] = []
+    for hit, key in keys(current, current_text):
+        if remaining[key]:
+            remaining[key] -= 1
+        else:
+            added.append(hit)
+    return sorted(added)
 
 
 def tracked_go_files(root: Path) -> list[str]:
@@ -143,7 +194,9 @@ def main() -> int:
     if args.staged:
         current = scan_staged(root)
         baseline = scan_ref(root, args.against or "HEAD")
-        added = sorted(set(current) - set(baseline))
+        added = added_findings(current, baseline,
+                               lambda rel: staged_text(root, rel),
+                               lambda rel: git_show(root, args.against or "HEAD", rel))
         if added:
             print(f"新增无界 Find {len(added)} 处（相对 {args.against or 'HEAD'}）：")
             print("\n".join(added))
@@ -155,7 +208,9 @@ def main() -> int:
     if args.against:
         current = scan_tree(root)
         baseline = scan_ref(root, args.against)
-        added = sorted(set(current) - set(baseline))
+        added = added_findings(current, baseline,
+                               lambda rel: (root / rel).read_text(encoding="utf-8"),
+                               lambda rel: git_show(root, args.against, rel))
         if added:
             print(f"新增无界 Find {len(added)} 处（相对 {args.against}）：")
             print("\n".join(added))

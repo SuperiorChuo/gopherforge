@@ -1,0 +1,25 @@
+<configuration name="acl.conf" description="Network Lists">
+  <network-lists>
+    <!-- esl-trusted：ESL 入站白名单 = 容器内 fs_cli（127.0.0.1）+ docker 网桥/内网。
+         内置 rfc1918.auto 不含回环、loopback.auto 不含网桥，只能自定义合集；
+         mod_event_socket 1.10.7+ 不配 apply-inbound-acl 会默认套 loopback.auto，
+         不存在"仅密码"模式。生产按需收窄网段并改 ESL 密码。 -->
+    <list name="esl-trusted" default="deny">
+      <node type="allow" cidr="127.0.0.0/8"/>
+      <node type="allow" cidr="10.0.0.0/8"/>
+      <node type="allow" cidr="172.16.0.0/12"/>
+      <node type="allow" cidr="192.168.0.0/16"/>
+    </list>
+
+    <!-- 以下保留 vanilla 原始定义（sofia profile 等处引用） -->
+    <list name="lan" default="allow">
+      <node type="deny" cidr="192.168.42.0/24"/>
+      <node type="allow" cidr="192.168.42.42/32"/>
+    </list>
+
+    <list name="domains" default="deny">
+      <!-- domain= is special it scans the domain from the directory to build the ACL -->
+      <node type="allow" domain="$${domain}"/>
+    </list>
+  </network-lists>
+</configuration>

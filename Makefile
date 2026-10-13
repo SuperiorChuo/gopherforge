@@ -1,12 +1,12 @@
 SHELL := /bin/sh
 
-# 根 Makefile：微服务脚手架
+# 根 Makefile：完整微服务产品
 MICRO := microservices
 
 .PHONY: help
 help:
-	@echo "Go Admin Kit 微服务脚手架（一人维护）："
-	@echo "  microservices/   微服务中台脚手架"
+	@echo "GopherForge 完整微服务产品："
+	@echo "  microservices/   管理平台与业务服务"
 	@echo ""
 	@echo "微服务：make compose-up | compose-down | test | smoke-api | ..."
 	@echo "初始化：make setup（一键配置开发环境）"

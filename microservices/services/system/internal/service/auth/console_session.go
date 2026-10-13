@@ -29,13 +29,12 @@ const (
 	envConsoleSessionTouchInterval     = "CONSOLE_SESSION_TOUCH_INTERVAL_SECONDS"
 )
 
-// ConsoleSessionService persists and validates web-console cookie sessions.
+// ConsoleSessionService 持久化并校验 Web 控制台 cookie 会话。
 type ConsoleSessionService struct {
 	dao *authdao.ConsoleSessionDAO
 }
 
-// NewConsoleSessionServiceWithDB builds a ConsoleSessionService backed by an
-// injected database handle.
+// NewConsoleSessionServiceWithDB 构建一个基于注入的数据库句柄的 ConsoleSessionService。
 func NewConsoleSessionServiceWithDB(db *gorm.DB) ConsoleSessionService {
 	dao := authdao.NewConsoleSessionDAO(db)
 	return ConsoleSessionService{dao: &dao}
@@ -135,9 +134,9 @@ func (s ConsoleSessionService) ValidateActiveSessionContext(ctx context.Context,
 	return record, nil
 }
 
-// ConsoleSessionTouchInterval is the minimum age of last_seen_at before a
-// validation refreshes it. Configurable via CONSOLE_SESSION_TOUCH_INTERVAL_SECONDS;
-// 0 restores a write on every request.
+// ConsoleSessionTouchInterval 是 last_seen_at 的最小年龄，超过它后校验才会
+// 刷新该字段。可通过 CONSOLE_SESSION_TOUCH_INTERVAL_SECONDS 配置；
+// 设为 0 则恢复为每次请求都写入。
 func ConsoleSessionTouchInterval() time.Duration {
 	raw := strings.TrimSpace(os.Getenv(envConsoleSessionTouchInterval))
 	if raw == "" {
@@ -179,9 +178,9 @@ func (s ConsoleSessionService) RevokeBySessionIDContext(ctx context.Context, ses
 		}
 		record.RevokedAt = &now
 	}
-	// Every logout and administrative revoke funnels through here, so this is the
-	// one place the validation cache has to be dropped. Without it a logged-out
-	// cookie would keep passing AuthMiddleware until the entry expired.
+	// 所有登出与管理端吊销都会汇聚到这里，因此这里正是校验缓存必须删除的
+	// 唯一位置。若不做删除，已登出的 cookie 会一直通过 AuthMiddleware，
+	// 直到缓存条目过期。
 	_ = cache.NewCacheService().DelConsoleSessionContext(ctx, sessionID)
 	return record, nil
 }

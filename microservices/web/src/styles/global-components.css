@@ -906,7 +906,7 @@ html[data-density='compact'] .ant-table-wrapper .ant-pagination {
     border-radius: 10px;
   }
 
-  /* 窄屏收起低频操作 → app-display-more */
+  /* 窄屏收起低频操作:搜索提示/密度/语言/全屏 → 改走 app-display-more 菜单 */
   .app-search-hint,
   .app-density-trigger,
   .app-lang-trigger,

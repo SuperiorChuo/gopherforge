@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button, Input, Space, Table, Tag, Tooltip } from 'antd'
 import { ReloadOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -13,6 +14,7 @@ type Props = {
 }
 
 export default function TablePicker({ tables, loading, onRefresh, onConfigure }: Props) {
+  const { t } = useTranslation()
   const [keyword, setKeyword] = useState('')
   const filtered = useMemo(() => {
     const value = keyword.trim().toLowerCase()
@@ -22,7 +24,7 @@ export default function TablePicker({ tables, loading, onRefresh, onConfigure }:
 
   const columns: ColumnsType<CodegenTable> = [
     {
-      title: '数据表',
+      title: t('数据表'),
       dataIndex: 'name',
       render: (name: string, row) => (
         <Space size={8} wrap>
@@ -31,16 +33,16 @@ export default function TablePicker({ tables, loading, onRefresh, onConfigure }:
         </Space>
       ),
     },
-    { title: '主键', dataIndex: 'primary_key', width: 130, responsive: ['sm'], render: (value: string) => <Tag>{value}</Tag> },
-    { title: '字段', dataIndex: 'column_count', width: 90, align: 'right', responsive: ['md'] },
-    { title: '关系', dataIndex: 'relation_count', width: 90, align: 'right', responsive: ['lg'] },
+    { title: t('主键'), dataIndex: 'primary_key', width: 130, responsive: ['sm'], render: (value: string) => <Tag>{value}</Tag> },
+    { title: t('字段'), dataIndex: 'column_count', width: 90, align: 'right', responsive: ['md'] },
+    { title: t('关系'), dataIndex: 'relation_count', width: 90, align: 'right', responsive: ['lg'] },
     {
-      title: '操作',
+      title: t('操作'),
       width: 96,
       align: 'right',
       render: (_, row) => (
         <Button icon={<SettingOutlined />} size="small" onClick={() => onConfigure(row)}>
-          配置
+          {t('配置')}
         </Button>
       ),
     },
@@ -52,13 +54,13 @@ export default function TablePicker({ tables, loading, onRefresh, onConfigure }:
         <Input
           allowClear
           prefix={<SearchOutlined />}
-          placeholder="搜索表名或注释"
+          placeholder={t('搜索表名或注释')}
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
           style={{ width: 320, maxWidth: '100%' }}
         />
-        <Tooltip title="刷新表列表">
-          <Button aria-label="刷新表列表" icon={<ReloadOutlined />} onClick={onRefresh} loading={loading} />
+        <Tooltip title={t('刷新表列表')}>
+          <Button aria-label={t('刷新表列表')} icon={<ReloadOutlined />} onClick={onRefresh} loading={loading} />
         </Tooltip>
       </Space>
       <Table
