@@ -153,7 +153,7 @@ func (s *AIModelService) CreateModel(ctx context.Context, m *localmodel.AIModel)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
-	if existing != nil {
+	if err == nil && existing != nil {
 		return fmt.Errorf("模型名称 %s 已存在", m.Name)
 	}
 
@@ -183,7 +183,7 @@ func (s *AIModelService) UpdateModel(ctx context.Context, id uint64, updates *lo
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
-		if dup != nil {
+		if err == nil && dup != nil {
 			return fmt.Errorf("模型名称 %s 已存在", updates.Name)
 		}
 		existing.Name = updates.Name

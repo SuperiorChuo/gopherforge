@@ -55,11 +55,19 @@ class ComposeRuntimeContracts(unittest.TestCase):
                     if name != "identity":
                         self.assertEqual(env.get("IDENTITY_API_BASE"), "http://go-admin-kit-identity:8083")
 
-    def test_audit_notifications_reach_the_internal_notify_service(self):
+    def test_audit_delivery_has_event_bus_and_authenticated_notify(self):
+        # The migrated outbox requires the Audit worker's NATS connection;
+        # Notify's client is disabled unless both endpoint and token are set.
+        expected = {
+            ("audit", "NOTIFY_API_BASE"): "${NOTIFY_API_BASE:-http://go-admin-kit-notify:8095}",
+            ("audit", "NOTIFY_INTERNAL_TOKEN"): "${NOTIFY_INTERNAL_TOKEN:-}",
+            ("notify", "NOTIFY_INTERNAL_TOKEN"): "${NOTIFY_INTERNAL_TOKEN:-}",
+            ("audit", "NATS_URL"): "nats://go-admin-kit-nats:4222",
+        }
         for mode, source in (("compose", self.compose), ("stack", self.stack)):
-            with self.subTest(mode=mode):
-                self.assertEqual(environment(source, "audit").get("NOTIFY_API_BASE"),
-                                 "${NOTIFY_API_BASE:-http://go-admin-kit-notify:8095}")
+            for (service, key), value in expected.items():
+                with self.subTest(mode=mode, service=service, key=key):
+                    self.assertEqual(environment(source, service).get(key), value)
 
 
 if __name__ == "__main__":

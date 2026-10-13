@@ -17,6 +17,7 @@ import (
 	"github.com/go-admin-kit/services/bpm/internal/form"
 	"github.com/go-admin-kit/services/bpm/internal/model"
 	connpool "github.com/go-admin-kit/services/shared/pkg/connpool"
+	"github.com/go-admin-kit/services/shared/pkg/fullread"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -333,10 +334,19 @@ func (s *Store) Publish(ctx context.Context, id, tenantID uint64) (*model.Proces
 		d.NodeTree = model.JSONB(raw)
 	}
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tenantQ(tx.Model(&model.ProcessDefinition{}), tenantID).
-			Where("key = ? AND status = ? AND id <> ?", d.Key, model.DefActive, d.ID).
-			Update("status", model.DefArchived).Error; err != nil {
+		// Keep the complete matching set, but mutate one primary key at a time:
+		// the production audit target deliberately enforces MaxRows=1.
+		prior, err := fullread.All[model.ProcessDefinition](tenantQ(tx.Model(&model.ProcessDefinition{}), tenantID).
+			Select("id").Where("key = ? AND status = ? AND id <> ?", d.Key, model.DefActive, d.ID).Order("id"))
+		if err != nil {
 			return err
+		}
+		for _, previous := range prior {
+			if err := tenantQ(tx.Model(&model.ProcessDefinition{}), tenantID).
+				Where("id = ? AND key = ? AND status = ?", previous.ID, d.Key, model.DefActive).
+				Update("status", model.DefArchived).Error; err != nil {
+				return err
+			}
 		}
 		d.Status = model.DefActive
 		return tx.Save(d).Error

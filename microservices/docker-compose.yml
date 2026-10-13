@@ -361,7 +361,9 @@ services:
       IP2REGION_XDB: /app/data/ip2region.xdb
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8085
+      NATS_URL: nats://go-admin-kit-nats:4222
       NOTIFY_API_BASE: ${NOTIFY_API_BASE:-http://go-admin-kit-notify:8095}
+      NOTIFY_INTERNAL_TOKEN: ${NOTIFY_INTERNAL_TOKEN:-}
       WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY:-}
       WEBHOOK_KEY_ID: ${WEBHOOK_KEY_ID:-current}
       WEBHOOK_ALLOW_HTTP: ${WEBHOOK_ALLOW_HTTP:-false}
