@@ -6,6 +6,6 @@ prev: false
 next: false
 ---
 
-> Release notes are maintained in Chinese — the project's working language for commits and changelogs. Each versioned section below is also published verbatim as the corresponding [GitHub Release](https://github.com/SuperiorChuo/gopherforge/releases).
+> Release notes are maintained in Chinese — the project's working language for commits and changelogs. Versioned sections describe source changes, not publication status. Check [GitHub Releases](https://github.com/SuperiorChuo/gopherforge/releases) for published assets; a locally prepared section is not a release.
 
 <!--@include: ../../CHANGELOG.md-->

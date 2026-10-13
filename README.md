@@ -14,7 +14,7 @@
 
 | 目录 | 内容 |
 |---|---|
-| `microservices/services/` | 16 个 API 服务：auth、identity、system、audit、file、monitor、bpm、ai、crm、im、pay、mp、notify、ticket、cc、visibility；另含 AI worker 与共享库 |
+| `microservices/services/` | 16 个 API 服务：auth、identity、system、audit、file、monitor、bpm、ai、crm、im、pay、mp、notify、ticket、cc、visibility；AI worker 内嵌于 ai-service 进程，另含共享库 |
 | `microservices/web/` | 完整 React 管理台；RBAC 菜单、暗/亮主题及纯前端 Demo |
 | `clients/hermes-manager/` | Hermes 管理客户端，见[客户端说明](clients/hermes-manager/README.md) |
 | `freeswitch-cc/` | 独立部署的 FreeSWITCH 媒体与 control-api，见[媒体说明](freeswitch-cc/README.md) |

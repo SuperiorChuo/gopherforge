@@ -12,7 +12,7 @@ GopherForge (formerly `go-admin-kit`) combines Go + Gin services with a React 19
 
 ## Included products
 
-- `microservices/services/`: 16 API services — auth, identity, system, audit, file, monitor, bpm, ai, crm, im, pay, mp, notify, ticket, cc and visibility — plus the AI worker and shared libraries.
+- `microservices/services/`: 16 API services — auth, identity, system, audit, file, monitor, bpm, ai, crm, im, pay, mp, notify, ticket, cc and visibility — with the AI worker embedded in the ai-service process, plus shared libraries.
 - `microservices/web/`: complete React admin application, RBAC menus, dark/light themes and a mock-data demo.
 - [`clients/hermes-manager/`](clients/hermes-manager/README.md): Hermes management client.
 - [`freeswitch-cc/`](freeswitch-cc/README.md): separately deployed FreeSWITCH media stack and control API.

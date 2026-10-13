@@ -11,7 +11,7 @@ const architectureDemoUrl = withBase('/architecture/gopherforge-system-architect
 
 # 架构总览
 
-GopherForge 后端按域拆分为 16 个 API 服务，另有 AI worker 和 `shared` 公共库；前端单页应用、Traefik 网关统一入口与鉴权。Hermes 客户端和 FreeSWITCH 媒体栈独立启动，外部供应商需用户配置。
+GopherForge 后端按域拆分为 16 个 API 服务，AI worker 内嵌在 ai-service 进程中，另有 `shared` 公共库；前端单页应用、Traefik 网关统一入口与鉴权。Hermes 客户端和 FreeSWITCH 媒体栈独立启动，外部供应商需用户配置。
 
 ## 交互式基础平台子图
 

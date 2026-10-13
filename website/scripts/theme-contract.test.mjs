@@ -184,7 +184,7 @@ test('公开事实与仓库真源一致，首页不展示虚构命令或状态',
   const images = new Set([...compose.matchAll(/^\s+image: \$\{IMAGE_PREFIX[^\n]+/gm)].map(([line]) => line.trim()))
   const apiServices = [...images].filter((image) => image.includes('-service:')).length
   assert.equal(apiServices, 16)
-  assert.equal(images.size, 17) // AI worker and migrate reuse API images.
+  assert.equal(images.size, 17) // AI worker runs inside ai-service; migrate reuses monitor's image.
   assert.match(siteMeta, new RegExp(`goServices: ${apiServices}`))
   assert.match(siteMeta, new RegExp(`releaseImages: ${images.size}`))
   assert.match(heroComponent, /SITE_META\.architecture\.goServices/)

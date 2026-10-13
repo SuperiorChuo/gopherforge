@@ -11,7 +11,7 @@ const architectureDemoUrl = withBase('/architecture/gopherforge-system-architect
 
 # Architecture
 
-GopherForge has 16 domain API services, an AI worker, shared packages, a React SPA and a Traefik gateway. The Hermes client and FreeSWITCH media stack run separately; external providers require user configuration.
+GopherForge has 16 domain API services, an AI worker embedded in ai-service, shared packages, a React SPA and a Traefik gateway. The Hermes client and FreeSWITCH media stack run separately; external providers require user configuration.
 
 ## Interactive platform subset
 
