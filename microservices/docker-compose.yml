@@ -53,6 +53,7 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8081
+      DB_SEARCH_PATH: monitor_svc,public
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -217,6 +218,7 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8083
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-}
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -359,6 +361,7 @@ services:
       IP2REGION_XDB: /app/data/ip2region.xdb
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8085
+      NOTIFY_API_BASE: ${NOTIFY_API_BASE:-http://go-admin-kit-notify:8095}
       WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY:-}
       WEBHOOK_KEY_ID: ${WEBHOOK_KEY_ID:-current}
       WEBHOOK_ALLOW_HTTP: ${WEBHOOK_ALLOW_HTTP:-false}
@@ -492,6 +495,9 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8087
+      DB_SEARCH_PATH: ai_svc,public
+      IDENTITY_API_BASE: http://go-admin-kit-identity:8083
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-}
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -568,6 +574,7 @@ services:
       IP2REGION_XDB: /app/data/ip2region.xdb
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8088
+      DB_SEARCH_PATH: im_svc,public
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -637,6 +644,7 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8089
+      DB_SEARCH_PATH: cc_svc,public
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -720,6 +728,9 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8091
+      DB_SEARCH_PATH: crm_svc,public
+      IDENTITY_API_BASE: http://go-admin-kit-identity:8083
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-}
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -782,6 +793,9 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8093
+      DB_SEARCH_PATH: vis_svc,public
+      IDENTITY_API_BASE: http://go-admin-kit-identity:8083
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-}
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -843,6 +857,7 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8094
+      DB_SEARCH_PATH: ticket_svc,public
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -899,6 +914,7 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8097
+      DB_SEARCH_PATH: pay_svc,public
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -953,6 +969,9 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8096
+      DB_SEARCH_PATH: bpm_svc,public
+      IDENTITY_API_BASE: http://go-admin-kit-identity:8083
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-}
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -1016,6 +1035,8 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8095
+      IDENTITY_API_BASE: http://go-admin-kit-identity:8083
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-}
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -1078,6 +1099,7 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: 8092
+      DB_SEARCH_PATH: mp_svc,public
       DB_HOST: go-admin-kit-postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
