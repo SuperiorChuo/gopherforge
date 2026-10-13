@@ -610,8 +610,8 @@ services:
       - "${SERVICES_BIND_IP:-127.0.0.1}:${IM_SERVICE_PORT:-8088}:8088"
     labels:
       traefik.enable: "true"
-      # IM REST + visitor H5 + websocket
-      traefik.http.routers.im.rule: "PathPrefix(`/api/v1/im`) || PathPrefix(`/im/`)"
+      # Only IM backend paths; /im/sites, /im/desk, etc. belong to the frontend.
+      traefik.http.routers.im.rule: "PathPrefix(`/api/v1/im`) || Path(`/im/ws`) || Path(`/im/visitor`) || Path(`/im/visitor/static`) || PathPrefix(`/im/visitor/static/`) || Path(`/im/widget`) || PathPrefix(`/im/widget/`) || Path(`/im/uploads`) || PathPrefix(`/im/uploads/`)"
       traefik.http.routers.im.entrypoints: web,websecure
       traefik.http.routers.im.priority: "100"
       traefik.http.routers.im.middlewares: auth-chain

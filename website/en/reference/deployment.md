@@ -8,7 +8,8 @@ The v0.8.0 candidate includes 16 API services, an AI worker and the React applic
 - A TLS domain, strong random secrets and tested database/upload backup and recovery.
 - Configure `APP_ENV=production`, JWT, PostgreSQL, Redis and internal tokens from `.env.example`. Do not use example passwords.
 - Bind service ports to loopback; route public requests through HTTPS to Traefik.
-- Configure your own AI, payment, official-account, SMS and telephony providers. Included source code does not activate these integrations.
+- Configure your own AI, official-account, SMS and telephony providers. Included source code does not activate these integrations.
+- Pay currently provides only a mock channel for isolated tests/demos. WeChat Pay and Alipay adapters are not implemented; merchant credentials alone cannot enable real payments. Keep `PAY_DEMO_MODE` disabled in production.
 
 ## Build from source
 

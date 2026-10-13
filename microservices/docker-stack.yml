@@ -567,7 +567,8 @@ services:
         traefik.enable: 'true'
         # /api/v1/im 默认走 auth-chain（agent/admin 有 JWT）；访客/Widget/public 端
         # 点走 guest token（Bearer 前缀但 key 不是 JWT），放行不验证。
-        traefik.http.routers.im.rule: PathPrefix(`/api/v1/im`) || PathPrefix(`/im/`)
+        # Keep management routes such as /im/sites on the frontend, including reloads.
+        traefik.http.routers.im.rule: PathPrefix(`/api/v1/im`) || Path(`/im/ws`) || Path(`/im/visitor`) || Path(`/im/visitor/static`) || PathPrefix(`/im/visitor/static/`) || Path(`/im/widget`) || PathPrefix(`/im/widget/`) || Path(`/im/uploads`) || PathPrefix(`/im/uploads/`)
         # im-service 的静态资源（客服嵌入浮窗 /im/widget/*、访客端 /im/visitor/static/*）
         # 由 im-service 直接服务（r.Static），不落 auth-chain（静态资源无 JWT）。
         traefik.http.routers.im.entrypoints: web,websecure

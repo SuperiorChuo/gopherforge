@@ -18,7 +18,7 @@ GopherForge (formerly `go-admin-kit`) combines Go + Gin services with a React 19
 - [`freeswitch-cc/`](freeswitch-cc/README.md): separately deployed FreeSWITCH media stack and control API.
 - `platform/`: Prometheus/Grafana and observability configuration.
 
-AI providers, payment gateways, official accounts, SMS and telephone trunks require your own configuration. The main application Compose stack does not automatically start the media stack or desktop client. See [product boundaries](docs/PRODUCT_LINES.md).
+AI providers, official accounts, SMS and telephone trunks require your own configuration. Pay currently supplies only a mock channel for isolated tests/demos; WeChat Pay and Alipay adapters are not implemented, so configuring merchant credentials does not enable real payments. The main application Compose stack does not automatically start the media stack or desktop client. See [product boundaries](docs/PRODUCT_LINES.md).
 
 ## Start locally
 

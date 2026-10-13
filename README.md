@@ -20,7 +20,7 @@
 | `freeswitch-cc/` | 独立部署的 FreeSWITCH 媒体与 control-api，见[媒体说明](freeswitch-cc/README.md) |
 | `platform/` | Prometheus、Grafana 等可观测配置 |
 
-各业务的运行依赖与边界见[产品说明](docs/PRODUCT_LINES.md)。AI 供应商、支付、公众号、短信及电话中继需自行配置，未配置不代表这些外部链路可用。媒体栈和客户端不由主应用 Compose 自动启动。
+各业务的运行依赖与边界见[产品说明](docs/PRODUCT_LINES.md)。AI 供应商、公众号、短信及电话中继需自行配置。Pay 当前仅提供用于隔离测试/演示的 mock 渠道，微信/支付宝适配器尚未实现，不能仅配置商户凭据用于真实收款。媒体栈和客户端不由主应用 Compose 自动启动。
 
 ## 快速启动
 

@@ -69,6 +69,39 @@ class ComposeRuntimeContracts(unittest.TestCase):
                 with self.subTest(mode=mode, service=service, key=key):
                     self.assertEqual(environment(source, service).get(key), value)
 
+    def test_im_backend_router_leaves_management_routes_to_frontend(self):
+        permissions = (ROOT / "microservices/web/src/router/route-permissions.ts").read_text()
+        admin_paths = re.findall(r"^\s*'(/im/[^']+)':", permissions, re.M)
+        self.assertIn("/im/sites", admin_paths)
+        backend_paths = (
+            "/api/v1/im/health/live", "/api/v1/im/admin/sites", "/api/v1/im/visitor/session",
+            "/im/ws", "/im/visitor", "/im/visitor/static", "/im/visitor/static/main.js",
+            "/im/widget", "/im/widget/widget.js", "/im/uploads", "/im/uploads/file.jpg",
+        )
+        for mode, source in (("compose", self.compose), ("stack", self.stack)):
+            blocks = re.findall(r"^  im-service:\n(.*?)(?=^  \S|\Z)", source, re.M | re.S)
+            self.assertEqual(len(blocks), 1)
+            rules = re.findall(r"^ +traefik\.http\.routers\.im\.rule: ([^\n]+)$", blocks[0], re.M)
+            self.assertEqual(len(rules), 1)
+            terms = []
+            # Validate the actual, intentionally simple OR-only Traefik rule;
+            # unsupported matcher syntax must fail, not silently be ignored.
+            for term in rules[0].strip("\"'").split(" || "):
+                match = re.fullmatch(r"(Path|PathPrefix)\(`([^`]+)`\)", term)
+                self.assertIsNotNone(match, term)
+                terms.append(match.groups())
+
+            def matches(path):
+                return any(path == value if kind == "Path" else path.startswith(value)
+                           for kind, value in terms)
+
+            for path in backend_paths:
+                with self.subTest(mode=mode, backend=path):
+                    self.assertTrue(matches(path))
+            for path in (*admin_paths, "/im/widget-settings", "/im/visitor-admin", "/im/ws-debug", "/im/uploads-manager"):
+                with self.subTest(mode=mode, frontend=path):
+                    self.assertFalse(matches(path))
+
 
 if __name__ == "__main__":
     unittest.main()
