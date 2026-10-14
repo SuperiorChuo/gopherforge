@@ -77,7 +77,7 @@ jobs:
       services: ${{ steps.matrix.outputs.services }}
       modules: ${{ steps.matrix.outputs.modules }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.expected_sha || github.sha }}
           fetch-depth: 0
@@ -186,7 +186,7 @@ jobs:
           echo "::error::CHANGELOG.md 缺少 '## [$VERSION]' 段落。打 tag 前先把 '## [Unreleased]' 改名成 '## [$VERSION] - YYYY-MM-DD' 并补一段新的 Unreleased"
           exit 1
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -292,7 +292,7 @@ jobs:
       run:
         working-directory: microservices/${{ matrix.module }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.meta.outputs.source_sha }}
       - name: 核对发布代码
@@ -301,7 +301,7 @@ jobs:
           EXPECTED_SHA: ${{ needs.meta.outputs.source_sha }}
         run: |
           test "$(git --no-replace-objects rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_SHA"
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: microservices/${{ matrix.module }}/go.sum
@@ -317,7 +317,7 @@ jobs:
       run:
         working-directory: microservices/web
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.meta.outputs.source_sha }}
       - name: 核对发布代码
@@ -326,7 +326,7 @@ jobs:
           EXPECTED_SHA: ${{ needs.meta.outputs.source_sha }}
         run: |
           test "$(git --no-replace-objects rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_SHA"
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -341,7 +341,7 @@ jobs:
     needs: meta
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.meta.outputs.source_sha }}
       - name: 核对发布代码
@@ -350,10 +350,10 @@ jobs:
           EXPECTED_SHA: ${{ needs.meta.outputs.source_sha }}
         run: |
           test "$(git --no-replace-objects rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_SHA"
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: microservices/services/go.sum
@@ -385,7 +385,7 @@ jobs:
       max-parallel: 6
       matrix: ${{ fromJson(needs.meta.outputs.services) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.meta.outputs.source_sha }}
       - name: 核对发布代码
@@ -468,7 +468,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.meta.outputs.source_sha }}
           fetch-depth: 0
