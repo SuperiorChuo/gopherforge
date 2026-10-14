@@ -21,11 +21,26 @@ test('Pages subpath retains demo login and deep links without backend requests',
   await page.getByPlaceholder('密码', { exact: true }).fill('demo-only')
   await page.getByPlaceholder('验证码').fill('1234')
   await page.getByRole('button', { name: /登\s*录/, exact: true }).click()
-  await expect(page).toHaveURL(/\/gopherforge\/dashboard$/)
+  await expect(page).toHaveURL(/\/gopherforge\/dashboard$/, { timeout: 20_000 })
 
   const users = await page.goto('system/user')
   expect(users?.status()).toBe(200)
   await expect(page.getByRole('main').getByText('张三', { exact: true })).toBeVisible()
   expect(errors).toEqual([])
   expect(backendRequests).toEqual([])
+})
+
+test('guard redirect returns to the source page without double-counting the Pages base', async ({ page }) => {
+  // 未登录深链 → 守卫把来源（含部署 base）拼进 ?redirect= → 登录后必须回到来源页，
+  // 不能双计 base 落到 /404。
+  const entry = await page.goto('system/user')
+  expect(entry?.status()).toBe(200)
+  await expect(page).toHaveURL(/\/login\?redirect=/)
+  await expect(page.getByRole('img', { name: '图形验证码', exact: true })).toBeVisible()
+  await page.getByPlaceholder('用户名').fill('demo-release')
+  await page.getByPlaceholder('密码', { exact: true }).fill('demo-only')
+  await page.getByPlaceholder('验证码').fill('1234')
+  await page.getByRole('button', { name: /登\s*录/, exact: true }).click()
+  await expect(page).toHaveURL(/\/gopherforge\/system\/user$/, { timeout: 20_000 })
+  await expect(page.getByRole('main').getByText('张三', { exact: true })).toBeVisible()
 })

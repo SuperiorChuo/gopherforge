@@ -31,6 +31,13 @@ import { MOBILE_BASE, isMobileAppPath } from '@/utils/mobile-path'
 function safeRedirectTarget(): string {
   const raw = new URLSearchParams(window.location.search).get('redirect')
   if (raw && /^\/(?!\/)/.test(raw)) {
+    // 守卫用 window.location.pathname 拼来源，会带部署 base（如
+    // /gopherforge/system/user）；而 navigate() 会自动补 base，直接使用会双计
+    // base 落到 404。先剥掉前缀（仅精确 base 或 base + "/" 边界）。
+    const base = import.meta.env.BASE_URL.replace(/\/+$/, '')
+    if (base && (raw === base || raw.startsWith(base + '/'))) {
+      return raw.slice(base.length) || '/'
+    }
     return raw
   }
   return isMobileAppPath() ? MOBILE_BASE : '/dashboard'
