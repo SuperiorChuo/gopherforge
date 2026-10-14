@@ -1,61 +1,96 @@
-# GopherForge · Go Microservices & Business Platform
+# 🚀 GopherForge · Go Microservices Admin Scaffold
 
-[中文](README.md) · [Documentation](https://superiorchuo.github.io/gopherforge/docs/en/) · [Demo](https://superiorchuo.github.io/gopherforge/) · [Changelog](CHANGELOG.md)
+**GopherForge** (formerly `go-admin-kit`) is an **open-source, production-grade Go microservices admin scaffold**: Go + Gin backend split into 7 infrastructure services, React 19 + Ant Design 6 frontend, Traefik gateway with unified auth, built-in RBAC, multi-tenancy, audit logs, monitoring and a code generator — the whole stack boots with one `make compose-up` (data stack and app stack are separate, so rebuilding the app never touches your data).
 
-[![Release](https://img.shields.io/github/v/release/SuperiorChuo/gopherforge?label=Release)](https://github.com/SuperiorChuo/gopherforge/releases/latest)
-[![CI](https://github.com/SuperiorChuo/gopherforge/actions/workflows/ci.yml/badge.svg)](https://github.com/SuperiorChuo/gopherforge/actions/workflows/ci.yml)
-[![MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+> 0.x project: APIs, database schemas and generated code formats may still change. Latest stable: see [Releases](https://github.com/SuperiorChuo/gopherforge/releases/latest) / [CHANGELOG](CHANGELOG.md); upgrade notes in the [docs](https://superiorchuo.github.io/gopherforge/docs/en/reference/upgrade). Before production use, follow the deployment guide for secret rotation, migration backups and rollback rehearsal.
 
-GopherForge (formerly `go-admin-kit`) combines Go + Gin services with a React 19 + Ant Design 6 admin application. It includes authentication, RBAC, multi-tenancy, audit, monitoring and approvals, together with AI, CRM, messaging, payments, official-account integration, notifications, tickets and call-center modules.
+- **Who it's for**: Go teams building internal admin platforms or SaaS back-offices; teams that prefer **React over Vue** (most Go admin scaffolds ship Vue); projects that want real microservices as a starting point without business-module baggage.
+- **How it differs**: infrastructure only, zero business coupling — see the [comparison with gin-vue-admin, go-admin & RuoYi](docs/comparison.md).
+- **Time to running**: clone, `make compose-up`, ~3 minutes for gateway + 7 services + frontend + PostgreSQL/Redis/NATS. Or try the [Live Demo](https://superiorchuo.github.io/gopherforge/) first (front-end-only mock data, any credentials work).
 
-**The v0.8.0 scope is the complete product, not an infrastructure-only scaffold.** This branch contains candidate content; Releases is the authority for published versions. Included code does not imply configured third-party integrations or completed production acceptance. This is a 0.x project: back up and rehearse before upgrading.
+<p align="center">
+  <strong>Production-grade Go microservices admin scaffold — infrastructure only, batteries included.</strong><br/>
+  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React 19 + Ant Design 6 &nbsp;·&nbsp; 🧩 Traefik gateway + 7 services
+</p>
 
-## Included products
+<p align="center">
+  <a href="https://superiorchuo.github.io/gopherforge/"><strong>🖥️ Live Demo →</strong></a> · <a href="https://superiorchuo.github.io/gopherforge/docs/"><strong>📖 Documentation</strong></a><br/>
+  <sub>Front-end-only demo mode (mock data, any credentials work). Full stack: clone &amp; <code>make compose-up</code>, or pull the official multi-arch images from ghcr. See <a href="CHANGELOG.md">CHANGELOG</a> for release notes.</sub>
+</p>
 
-- `microservices/services/`: 16 API services — auth, identity, system, audit, file, monitor, bpm, ai, crm, im, pay, mp, notify, ticket, cc and visibility — with the AI worker embedded in the ai-service process, plus shared libraries.
-- `microservices/web/`: complete React admin application, RBAC menus, dark/light themes and a mock-data demo.
-- [`clients/hermes-manager/`](clients/hermes-manager/README.md): Hermes management client.
-- [`freeswitch-cc/`](freeswitch-cc/README.md): separately deployed FreeSWITCH media stack and control API.
-- `platform/`: Prometheus/Grafana and observability configuration.
+<p align="center">
+  <a href="README.md">中文文档</a> · <a href="LICENSE">MIT License</a>
+</p>
 
-AI providers, official accounts, SMS and telephone trunks require your own configuration. Pay currently supplies only a mock channel for isolated tests/demos; WeChat Pay and Alipay adapters are not implemented, so configuring merchant credentials does not enable real payments. The main application Compose stack does not automatically start the media stack or desktop client. See [product boundaries](docs/PRODUCT_LINES.md).
+---
 
-## Start locally
+## Why GopherForge
 
-Use Linux Docker Engine and Compose v2. Source builds require Go 1.27+ and Node.js 22.12+ (24 recommended).
+Most admin scaffolds are monoliths. GopherForge (formerly go-admin-kit) gives you a **real microservices architecture** you can grow into, without business-domain baggage:
+
+- **Traefik gateway + ForwardAuth**: one place verifies JWT; downstream services only trust gateway-injected `X-Auth-*` headers.
+- **7 infrastructure services**, split by domain: `auth` (login / JWT rotation &amp; revocation / OAuth / TOTP / **OAuth2 + OIDC provider** — authorization_code + PKCE, client_credentials, RS256 `id_token` with JWKS &amp; discovery endpoints, console-managed clients and tokens), `identity` (users / roles / permissions / departments), `system` (menus / dicts / notices / hot settings / code generator), `audit` (logs, NATS login events, optional retention-days auto-cleanup), `file` (MinIO / local), `monitor` (health / metrics / server &amp; DB &amp; Redis dashboards / cron jobs / one-glance service-health probe / distributed-job heartbeats), `bpm` (lightweight approval-flow engine: DingTalk-style designer, no-code flow forms, AND/OR/sequential approval, conditional branches, timeout auto-actions, add-sign &amp; delegation, analytics), plus a `shared` library.
+- **Alerting loop built in (optional)**: node_exporter host metrics + Prometheus alert rules (service down / low disk / high memory / 5xx surge) + Alertmanager grouping &amp; dedup, delivered as in-console notifications via the notify webhook.
+- **React 19 + Ant Design 6** front end with dark-space / light dual themes and a glassmorphism look.
+- **Code generator**: pick a table, tick the fields, get a CRUD starter kit (Go model / store / handlers / routes + React list page + menu SQL) as preview or zip.
+- **Engineering done for you**: goose versioned migrations, OpenAPI 3.1 contracts with CI drift checks, Prometheus metrics, optional OTel + Jaeger tracing, Playwright E2E through the gateway, secret-scanning pre-commit hook.
+- **RBAC with data scopes** (all / department &amp; below / self) and optional multi-tenant (`tenant_id`) support.
+
+Adding business capability = add one microservice + one gateway label. The base stays clean.
+
+## Quick start
 
 ```bash
 git clone https://github.com/SuperiorChuo/gopherforge.git
-cd gopherforge
-cp microservices/.env.example microservices/.env
-# Review passwords, secrets, ports and required business integrations first.
-make compose-up
+cd gopherforge/microservices && cp .env.example .env && cd ..
+make compose-up      # shared network → infra (data) stack → app stack
+# open http://localhost:8000  (admin / admin123)
 ```
 
-Open `http://localhost:8000`. Initial credentials: `admin` / `admin123`; change the password immediately. Stateful infrastructure is separate from the application stack. Do not remove data volumes when stopping the application.
-
-[Local development](LOCAL_SETUP.md) · [Deployment](docs/deployment.md) · [Upgrade guide](https://superiorchuo.github.io/gopherforge/docs/en/reference/upgrade) · [Security](docs/SECURITY.md)
-
-The online demo uses mock data, not live business APIs, and is not a backend acceptance environment. The deployed Pages version may differ from this candidate branch.
-
-## Upgrade safely
-
-Published SQL migrations retain their original paths and bytes. Complete-product upgrades append forward-only migrations. Never overwrite historical migrations or run production `goose down/reset`. Back up and rehearse on an isolated copy; recover using a verified backup rather than an irreversible Down operation.
-
-[Migration policy](docs/development/MIGRATIONS.md) · [Release validation](docs/release-validation.md)
-
-## Validate
+Prefer not to build locally? Pull the **official multi-arch images** (amd64 / arm64, pushed to ghcr on every stable release):
 
 ```bash
-npm ci --prefix microservices/web
-bash scripts/verify-product.sh all
-bash scripts/verify-product.sh public-migrations
-npm ci --prefix website
-npm test --prefix website
+cd microservices
+export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
+export IMAGE_TAG=v0.8.0          # use the latest stable tag
+docker compose pull && docker compose up -d --no-build
 ```
 
-Local gates do not replace live service/API/worker/UI/monitoring or external-provider acceptance. See the release validation guide for isolated database, browser and release-identity requirements.
+Production hardening (Nginx/HTTPS, secrets, backups, upgrades) → [deployment guide](https://superiorchuo.github.io/gopherforge/docs/en/reference/deployment).
 
-[Contributing](CONTRIBUTING.md) · [API contracts](docs/development/API_CONTRACT.md) · [Agent kernel](docs/agent-kernel.md) · [MIT License](LICENSE)
+Without make — the equivalent three commands (data stack is separate from the app stack, so app rebuilds never touch data):
 
-![Dashboard](docs/screenshots/dashboard.png)
+```bash
+cd microservices
+docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
+  docker network create --subnet 172.28.0.0/16 go-admin-kit-net
+docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
+docker compose --profile compose-fallback up -d --build
+```
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| Backend | Go 1.27 · Gin · GORM · PostgreSQL 18 · Redis 8 · goose |
+| Gateway / Bus | Traefik (ForwardAuth) · NATS JetStream |
+| Frontend | React 19 · TypeScript · Vite · Ant Design 6 · Redux Toolkit |
+| Observability | Prometheus + node_exporter · Grafana · Alertmanager alert loop · OpenTelemetry + Jaeger (optional) |
+| Storage | MinIO (S3-compatible) or local |
+| CI | GitHub Actions: per-service test+vet, lint+build, OpenAPI drift, migration rehearsal, compose smoke + Playwright E2E |
+
+## Scope
+
+This repository is the **scaffold distribution line**: platform-neutral infrastructure only, synced from an internally maintained full-featured upstream. Business domains (IM, call center, CRM, …) never land here — see [docs/sync-policy.md](docs/sync-policy.md).
+
+Issues and PRs are welcome for anything scaffold-related: base bugs, engineering, docs.
+
+## Contributing
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — dev setup, verification commands and the commit convention (**commit subject and body must both be written in Chinese**).
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — Contributor Covenant v2.1 (Chinese text).
+- [SECURITY.md](SECURITY.md) — how to report a vulnerability, production hardening requirements, and known gaps — notably **there is no CSRF protection**: the front end is a SPA carrying pure `Authorization: Bearer` tokens, so if you switch to cookie-borne tokens you must add CSRF defenses yourself.
+
+## License
+
+[MIT](LICENSE)

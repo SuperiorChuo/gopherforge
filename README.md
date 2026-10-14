@@ -1,47 +1,244 @@
-# GopherForge · Go 微服务管理与业务平台
+<p align="center">
+  <img src="docs/screenshots/wechat-group.png" alt="GopherForge 微信交流群二维码" width="400" /><br/>
+  <strong>📱 欢迎加群 · 加我拉群，一起交流使用与开发</strong>
+</p>
 
-[English](README.en.md) · [文档站](https://superiorchuo.github.io/gopherforge/docs/) · [在线 Demo](https://superiorchuo.github.io/gopherforge/) · [版本记录](CHANGELOG.md)
+# 🚀 GopherForge · Go 微服务后台管理脚手架
 
-[![Release](https://img.shields.io/github/v/release/SuperiorChuo/gopherforge?label=Release)](https://github.com/SuperiorChuo/gopherforge/releases/latest)
-[![CI](https://github.com/SuperiorChuo/gopherforge/actions/workflows/ci.yml/badge.svg)](https://github.com/SuperiorChuo/gopherforge/actions/workflows/ci.yml)
-[![MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+**GopherForge**（曾用名 `go-admin-kit`）是一套**开源的企业级 Go 微服务后台管理系统脚手架**：后端 Go + Gin 按域拆分 7 个基础服务，前端 React 19 + Ant Design 6，Traefik 网关统一鉴权，自带 RBAC 权限、多租户、审计日志、系统监控与代码生成器，`make compose-up` 一条命令拉起全栈（数据栈与应用栈分离，重建应用不触碰数据）。
 
-**GopherForge**（曾用名 `go-admin-kit`）以 Go + Gin 微服务和 React 19 + Ant Design 6 管理台为基础，提供认证、RBAC、多租户、审计、监控、审批，以及 AI、CRM、即时通信、支付、公众号、通知、工单和呼叫中心业务模块。
+> 0.x 阶段项目：API、数据库表结构和生成代码格式仍可能调整。最新正式版见下方 **Release 徽章** 与 [CHANGELOG](CHANGELOG.md)，升级注意事项见[文档站 · 版本升级](https://superiorchuo.github.io/gopherforge/docs/reference/upgrade)；上线前请按部署文档完成密钥替换、迁移备份和回滚演练。
 
-**v0.8.0 的发行范围是完整产品，不再仅限基础脚手架。** 本分支是候选内容，正式发布状态以 Releases 为准；代码存在不代表第三方服务已开通或生产验收已完成。项目仍处于 0.x 阶段，升级前须备份并演练迁移。
+- **适合谁**：需要快速搭建企业内部管理平台 / SaaS 管理后台的 Go 团队；前端更熟 React 而不想用 Vue 的团队；想要真微服务架构（而非单体）作为起点、又不想背业务包袱的项目。
+- **和同类有何不同**：只含基础设施、零业务耦合——对比 gin-vue-admin、go-admin、RuoYi 系见 [同类项目对比](docs/comparison.md)。
+- **多快能跑起来**：克隆后 `make compose-up`，约 3 分钟拉起网关 + 7 服务 + 前端 + PostgreSQL/Redis/NATS；或先玩 [在线 Demo](https://superiorchuo.github.io/gopherforge/)（纯前端假数据，任意账号可登录）。
 
-## 产品范围
+<p align="center">
+  <strong>✨ 企业级微服务后台脚手架 · 只含基础设施 · 开箱即用 ✨</strong><br/>
+  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React + Ant Design &nbsp;·&nbsp; 🧩 Traefik 网关 + 7 服务
+</p>
 
-| 目录 | 内容 |
-|---|---|
-| `microservices/services/` | 16 个 API 服务：auth、identity、system、audit、file、monitor、bpm、ai、crm、im、pay、mp、notify、ticket、cc、visibility；AI worker 内嵌于 ai-service 进程，另含共享库 |
-| `microservices/web/` | 完整 React 管理台；RBAC 菜单、暗/亮主题及纯前端 Demo |
-| `clients/hermes-manager/` | Hermes 管理客户端，见[客户端说明](clients/hermes-manager/README.md) |
-| `freeswitch-cc/` | 独立部署的 FreeSWITCH 媒体与 control-api，见[媒体说明](freeswitch-cc/README.md) |
-| `platform/` | Prometheus、Grafana 等可观测配置 |
+<p align="center">
+  <a href="https://superiorchuo.github.io/gopherforge/"><strong>🖥️ 在线体验 Demo →</strong></a> · <a href="https://superiorchuo.github.io/gopherforge/docs/"><strong>📖 文档站</strong></a> · <a href="README.en.md">English</a><br/>
+  <sub>纯前端演示模式（假数据，任意账号可登录）；完整功能克隆后 <code>make compose-up</code> 一键启动，或直接拉 ghcr 官方多架构镜像；版本说明见 <a href="CHANGELOG.md">CHANGELOG</a></sub>
+</p>
 
-各业务的运行依赖与边界见[产品说明](docs/PRODUCT_LINES.md)。AI 供应商、公众号、短信及电话中继需自行配置。Pay 当前仅提供用于隔离测试/演示的 mock 渠道，微信/支付宝适配器尚未实现，不能仅配置商户凭据用于真实收款。媒体栈和客户端不由主应用 Compose 自动启动。
+<p align="center">
+  <a href="https://github.com/SuperiorChuo/gopherforge/releases/latest"><img src="https://img.shields.io/github/v/release/SuperiorChuo/gopherforge?logo=github&label=Release&color=2ea44f" alt="Latest Release" /></a>
+  <a href="https://github.com/SuperiorChuo/gopherforge/actions/workflows/ci.yml"><img src="https://github.com/SuperiorChuo/gopherforge/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?logo=open-source-initiative&logoColor=white" alt="License" /></a>
+  <a href="https://github.com/SuperiorChuo/gopherforge"><img src="https://img.shields.io/github/stars/SuperiorChuo/gopherforge?style=flat&logo=github" alt="Stars" /></a>
+  <a href="https://github.com/SuperiorChuo/gopherforge/network/members"><img src="https://img.shields.io/github/forks/SuperiorChuo/gopherforge?style=flat&logo=github" alt="Forks" /></a>
+  <a href="https://github.com/SuperiorChuo/gopherforge/issues"><img src="https://img.shields.io/github/issues/SuperiorChuo/gopherforge?logo=github" alt="Issues" /></a>
+  <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen.svg?logo=git&logoColor=white" alt="PRs Welcome" />
+</p>
 
-## 快速启动
+<p align="center">
+  <img src="https://img.shields.io/badge/🐹_Go-1.27.0-00ADD8?logo=go&logoColor=white" alt="Go" />
+  <img src="https://img.shields.io/badge/Gin-1.12-08A4E0?logo=go&logoColor=white" alt="Gin" />
+  <img src="https://img.shields.io/badge/GORM-1.31-00ADD8?logo=go&logoColor=white" alt="GORM" />
+  <img src="https://img.shields.io/badge/🔐_JWT-v5-000000?logo=jsonwebtokens&logoColor=white" alt="JWT" />
+  <img src="https://img.shields.io/badge/🐘_PostgreSQL-18-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/🔴_Redis-8-DC382D?logo=redis&logoColor=white" alt="Redis" />
+  <img src="https://img.shields.io/badge/goose-migrations-2E8B57?logo=databricks&logoColor=white" alt="goose" />
+</p>
 
-需要 Linux Docker Engine/Compose v2；本地编译需要 Go 1.27+、Node.js 22.12+（推荐 24）。
+<p align="center">
+  <img src="https://img.shields.io/badge/⚛️_React-19-61DAFB?logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/📘_TypeScript-5%2B-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/⚡_Vite-8-646CFF?logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/🎨_Ant%20Design-6-0170FE?logo=antdesign&logoColor=white" alt="Ant Design" />
+  <img src="https://img.shields.io/badge/Redux%20Toolkit-2-764ABC?logo=redux&logoColor=white" alt="Redux Toolkit" />
+  <img src="https://img.shields.io/badge/React%20Router-7-CA4245?logo=reactrouter&logoColor=white" alt="React Router" />
+  <img src="https://img.shields.io/badge/Axios-HTTP-5A29E4?logo=axios&logoColor=white" alt="Axios" />
+</p>
 
-```bash
-git clone https://github.com/SuperiorChuo/gopherforge.git
-cd gopherforge
-cp microservices/.env.example microservices/.env
-# 先检查并修改密码、密钥、端口及所需业务配置
-make compose-up
+<p align="center">
+  <img src="https://img.shields.io/badge/🚪_Traefik-Gateway-24A1C1?logo=traefikproxy&logoColor=white" alt="Traefik" />
+  <img src="https://img.shields.io/badge/📡_NATS-JetStream-27AAE1?logo=natsdotio&logoColor=white" alt="NATS" />
+  <img src="https://img.shields.io/badge/🐳_Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/📜_OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white" alt="OpenAPI" />
+  <img src="https://img.shields.io/badge/📈_Prometheus-E6522C?logo=prometheus&logoColor=white" alt="Prometheus" />
+  <img src="https://img.shields.io/badge/📊_Grafana-F46800?logo=grafana&logoColor=white" alt="Grafana" />
+  <img src="https://img.shields.io/badge/⚙️_GitHub%20Actions-2088FF?logo=githubactions&logoColor=white" alt="GitHub Actions" />
+</p>
+
+---
+
+## ✨ 为什么选 GopherForge
+
+| 亮点 | 说明 |
+|:-----|:-----|
+| 🧩 **纯脚手架** | 只含平台无关的基础设施服务（认证/RBAC/系统/日志/文件/监控），不带业务耦合，是干净的起点。 |
+| ⚛️ **前端统一** | React + Ant Design 深空/亮色双主题，一套视觉语言（渐变卡片墙 + 抽屉）。 |
+| 🐳 **开箱即用** | Docker Compose 一键拉起依赖、网关/服务与前端；内置 RBAC、日志、监控、迁移。 |
+| 🏗️ **工程完备** | CI、OpenAPI、健康检查、Prometheus、可选链路追踪与对象存储。 |
+| 🛠️ **易扩展** | 加业务能力 = 加一个微服务 + 网关标签，不污染底座。 |
+
+---
+
+## 🖼️ 项目截图
+
+| 页面 | 🌌 深空暗色 | ☁️ 白蓝亮色 |
+| --- | --- | --- |
+| 🔐 登录页 | ![深空暗色登录页](docs/screenshots/login.png) | ![白蓝亮色登录页](docs/screenshots/login-light.png) |
+| 📊 系统概览 | ![深空暗色系统概览](docs/screenshots/dashboard.png) | ![白蓝亮色系统概览](docs/screenshots/dashboard-light.png) |
+| 👥 用户管理 | ![深空暗色用户管理](docs/screenshots/users.png) | ![白蓝亮色用户管理](docs/screenshots/users-light.png) |
+| 🛡️ 角色管理 | ![深空暗色角色管理](docs/screenshots/roles.png) | ![白蓝亮色角色管理](docs/screenshots/roles-light.png) |
+| 🐘 数据库监控 | ![深空暗色数据库监控](docs/screenshots/mysql.png) | ![白蓝亮色数据库监控](docs/screenshots/mysql-light.png) |
+| 🔴 Redis 监控 | ![深空暗色 Redis 监控](docs/screenshots/redis.png) | ![白蓝亮色 Redis 监控](docs/screenshots/redis-light.png) |
+
+> 截图来自真实运行界面，统一使用桌面视口。
+
+---
+
+## 🧰 技术栈全景
+
+### 🐹 后端
+
+| 层级 | 技术 | 说明 |
+|------|------|------|
+| 语言 | **Go 1.27** | 高性能、强类型；采用 generic methods 与新版标准库 |
+| HTTP | **Gin** | 路由与中间件 |
+| ORM | **GORM** + **pgx** | PostgreSQL 访问 |
+| 迁移 | **goose** | 版本化 SQL 迁移 |
+| 认证 | **JWT v5** | Access / Refresh、吊销与轮转 |
+| 缓存 | **Redis 8** | 限流、在线用户、黑名单等 |
+| 数据库 | **PostgreSQL 18** | 主存储（pgvector 镜像便于扩展） |
+
+### ⚛️ 前端
+
+| 层级 | 技术 | 说明 |
+|------|------|------|
+| 框架 | **React 19** | 现代并发渲染 |
+| 语言 | **TypeScript** | 类型安全 |
+| 构建 | **Vite 8** | 极速开发与构建 |
+| UI | **Ant Design 6** | 企业级组件库 |
+| 状态 | **Redux Toolkit** | 可预测状态 |
+| 路由 | **React Router 7** | 客户端路由 |
+| 请求 | **Axios** | 拦截器 / Token 刷新 |
+
+### 🧩 微服务架构（`microservices/`）
+
+| 组件 | 技术 | 说明 |
+|------|------|------|
+| 网关 | **Traefik** | 路由、ForwardAuth 统一验签 |
+| 消息 | **NATS JetStream** | 登录事件解耦 |
+| 服务 | auth / identity / system / audit / file / monitor / bpm + shared | 按域拆分的基础设施服务 |
+| 契约 | **OpenAPI 3.1** | 从路由生成 + 前端类型 |
+
+### 🔭 可观测与存储（可选）
+
+| 组件 | 技术 |
+|------|------|
+| 指标 | **Prometheus** 📈（+ node_exporter 主机指标） |
+| 看板 | **Grafana** 📊 |
+| 告警 | **Alertmanager** 🚨（分组去抖 → 站内信闭环） |
+| 链路 | **OpenTelemetry** + Jaeger 🔭 |
+| 对象存储 | **MinIO**（S3 兼容） 📦 |
+
+### ⚙️ 工程化
+
+| 项 | 技术 |
+|----|------|
+| 容器 | **Docker Compose** 🐳 |
+| CI | **GitHub Actions** ⚙️ |
+| 提交规范 | **全中文** Conventional 风格（见 `CONTRIBUTING.md`） |
+
+---
+
+## ✅ 功能矩阵
+
+| 能力 | 状态 |
+|------|:----:|
+| 🔐 登录 / 邀请制注册 / JWT 刷新与撤销 / 验证码 / TOTP / OAuth | ✅ |
+| 🪪 OAuth2 授权服务端 + OIDC（authorization_code+PKCE / client_credentials / id_token / JWKS / 发现文档，控制台管理应用与令牌） | ✅ |
+| 🛡️ RBAC（用户、角色、权限、部门、菜单） | ✅ |
+| 🏢 多租户（共享库 + tenant_id，登录带租户码；租户开通自动建初始管理员、级联删除、租户级设置覆盖） | ✅ |
+| 📚 字典、公告、系统设置（DB 热配置）、在线用户 | ✅ |
+| 📝 登录日志 / 操作日志 / 审计日志（可选按保留天数自动清理） | ✅ |
+| 📁 文件上传（MinIO / 本地） | ✅ |
+| 📨 短信管理（渠道 provider 可插拔 + 模板 + 发送日志；服务间内部发送契约 `SYSTEM_INTERNAL_TOKEN` 门控） | ✅ |
+| 🖥️ 服务器 / PostgreSQL / Redis / 定时任务监控（60s 采样历史趋势 1h/24h/7d） | ✅ |
+| ❤️ 健康检查、Prometheus metrics、微服务健康总览（并发探测各服务 ready） | ✅ |
+| 🚨 告警（Prometheus 规则 + Alertmanager → 站内信；monitor 内置告警规则引擎：阈值规则 / 状态机 / 多通道通知（邮件 · 站内信 · 企业微信）+ 静默期 / 规则与事件管理页） | ✅ |
+| 💓 任务中心（分布式任务心跳上报 `shared/pkg/jobbeat`，超期即亮红） | ✅ |
+| 📋 审批流引擎（仿钉钉设计器 / 流程表单零代码发起 / 会签或签依次 / 条件分支 / 超时自动动作 / 加签委派 / 审批统计 / 终态回调） | ✅ |
+| 🚪 Traefik 网关 + ForwardAuth | ✅ |
+| 📡 NATS 登录事件 | ✅ |
+| 🐳 官方多架构镜像（amd64/arm64）/ Compose 一键启动 | ✅ |
+
+---
+
+## 🗺️ 架构总览
+
+```mermaid
+flowchart LR
+    B["🌐 浏览器"] --> GW["🚪 Traefik 网关 :8000"]
+
+    subgraph MS["🧩 microservices/"]
+        AUTH["🔐 auth"]
+        IDT["👥 identity"]
+        SYS["📚 system"]
+        AUD["📝 audit"]
+        FILE["📁 file"]
+        MON["📈 monitor · 迁移/兜底"]
+        BPM["✅ bpm · 审批流"]
+    end
+
+    GW -. "ForwardAuth 统一验签" .-> AUTH
+    GW --> AUTH & IDT & SYS & AUD & FILE & MON & BPM
+
+    subgraph INFRA["🗄️ 共享基础设施"]
+        PG[("🐘 PostgreSQL 18 + pgvector")]
+        RD[("🔴 Redis 8")]
+        NATS["📡 NATS JetStream"]
+        MC["📦 MinIO"]
+    end
+
+    MS --- PG & RD
+    AUTH -- "登录事件" --> NATS -- "持久消费" --> AUD
+    FILE --- MC
 ```
 
-访问 `http://localhost:8000`。首次登录 `admin` / `admin123`，登录后立即修改密码。数据栈与应用栈分离，停止应用不要删除数据卷。完整启动取决于机器资源和镜像下载，不承诺固定分钟数。
+- 业务服务只信任网关注入的 `X-Auth-*` 头，宿主机端口默认只绑 loopback，外部流量一律经网关。
+- `monitor` 持有 `PathPrefix(/api)` 兜底路由（priority 1），并负责共享 goose 迁移。
 
-- [本地联调](LOCAL_SETUP.md)
-- [生产部署](docs/deployment.md)
-- [版本升级](https://superiorchuo.github.io/gopherforge/docs/reference/upgrade)
-- [安全说明](docs/SECURITY.md)
+---
 
-在线 Demo 使用假数据，不连接真实业务 API，不是完整后端验收环境；GitHub Pages 显示的是已经部署的版本，未必与候选分支一致。
+## 📂 仓库结构
+
+```text
+gopherforge/
+├── microservices/                 # 🧩 微服务脚手架
+│   ├── services/
+│   │   ├── auth/                  # 🔐 认证、令牌、网关验签
+│   │   ├── identity/              # 👥 用户 / 角色 / 权限 / 部门
+│   │   ├── system/                # 📚 菜单 / 字典 / 公告 / 设置
+│   │   ├── audit/                 # 📝 日志与事件消费
+│   │   ├── file/                  # 📁 文件与 uploads
+│   │   ├── bpm/                   # ✅ 轻量审批流引擎
+│   │   ├── shared/                # 🧰 跨服务共享包（日志/响应/脱敏）
+│   │   └── monitor/               # 📈 监控、健康、共享迁移、兜底
+│   ├── web/                       # ⚛️ React + Ant Design
+│   ├── docker-compose.yml
+│   └── README.md
+├── platform/deploy/               # 🔭 Prometheus / Grafana / OTel
+├── docs/                          # 📖 工程文档
+│   ├── PRODUCT_LINES.md
+│   └── design/                    # 数据边界 / 多租户等专项设计
+├── CONTRIBUTING.md                # 🤝 贡献与提交规范
+└── LOCAL_SETUP.md                 # 💻 本地联调摘要
+```
+
+---
+
+## 🚀 快速开始
+
+### 📋 环境要求
+
+- 🐳 [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- 可选本地开发：🐹 Go **1.27.0+**、📦 Node.js **20.19+ / 22.12+**（推荐 24）、npm
 
 ### 🧩 微服务版
 
@@ -49,50 +246,163 @@ make compose-up
 git clone https://github.com/SuperiorChuo/gopherforge.git
 cd gopherforge/microservices
 cp .env.example .env
-# 1. 创建应用与有状态服务共享网络（一次性）
+cd .. && make compose-up      # 自动：共享网络 → infra 数据栈 → 应用栈
+```
+
+**不想本地构建？直接拉官方多架构镜像**（amd64 / arm64，每个正式版由 CI 构建推送到 ghcr）：
+
+```bash
+cd microservices
+export IMAGE_PREFIX=ghcr.io/superiorchuo/gopherforge/go-admin-kit
+export IMAGE_TAG=v0.8.0          # 用最新正式版号（见 Release 徽章）
+docker compose pull && docker compose up -d --no-build
+```
+
+> 生产部署（Nginx/HTTPS、密钥、备份、升级回滚）见 [文档站 · 生产部署](https://superiorchuo.github.io/gopherforge/docs/reference/deployment)。
+
+不用 make 的话，等价的三条命令（数据栈与应用栈分离，重建应用不碰数据）：
+
+```bash
+cd microservices
 docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
   docker network create --subnet 172.28.0.0/16 go-admin-kit-net
-# 2. 启动 PostgreSQL、Redis、NATS（需要对象存储时加 --profile storage）
 docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
-# 3. 启动应用栈
 docker compose --profile compose-fallback up -d --build
-# 或在仓库根目录执行：make compose-up（会按同样顺序启动）
 ```
 
 | 入口 | 地址 |
-| --- | --- |
-| 网关/前端 | `http://localhost:8000` |
+|------|------|
+| 🚪 统一网关（推荐） | http://localhost:8000 |
+| ⚛️ 前端直连 | http://localhost:3000 |
+| ❤️ 健康检查 | http://localhost:8000/api/v1/health/ready |
+| 🔐 认证服务调试 | http://localhost:8082 |
 
-## 升级与数据库
+更多 👉 [microservices/README.md](microservices/README.md)
 
-公开历史 SQL 保持原路径、原字节；完整产品升级使用追加的 forward-only 迁移。不要用源码目录覆盖旧迁移，也不要在生产运行 `goose down/reset`。请先备份数据库并在隔离副本演练；恢复使用经过验证的备份，不依赖不可逆迁移的 Down。
+### 🔑 默认账号（仅本地开发）
 
-迁移说明：[MIGRATIONS](docs/development/MIGRATIONS.md) · [发行验证](docs/release-validation.md)。
+| 用户名 | 密码 |
+|--------|------|
+| `admin` | `admin123` |
 
-## 验证与开发
+> ⚠️ 生产环境请立即修改密码，并替换 `.env` 中的 `JWT_SECRET`、数据库与中间件密钥。
+
+---
+
+## 🔌 端口一览
+
+| 用途 | 端口 |
+|------|------|
+| 前端 | `3000`（推荐走网关 `8000`） |
+| API | 经网关 `8000` / 各服务调试 `8081+` |
+| PostgreSQL | `5432` |
+| Redis | `6379` |
+
+冲突时在 `microservices/.env` 中修改 `*_PORT` 即可。
+
+---
+
+## 💻 本地开发（可选）
+
+下面的长时间运行命令请分别放在三个终端执行：
 
 ```bash
-npm ci --prefix microservices/web
-bash scripts/verify-product.sh all
-bash scripts/verify-product.sh public-migrations
-npm ci --prefix website
-npm test --prefix website
+# 终端 1：只起数据栈（PG/Redis/NATS）
+cd microservices
+make -C .. infra-up
+
+# 终端 2：启动要调试的 Go 服务（以 auth 为例）
+cd microservices/services/auth
+go run ./cmd
+
+# 终端 3：启动前端 HMR
+cd microservices/web
+npm ci
+npm run dev
 ```
 
-这些本机门禁不等于服务/API/worker/UI/live 监控及外部供应商的运行验收。隔离数据库、浏览器与发布身份验证要求见[发行验证](docs/release-validation.md)。
+完整联调说明 👉 [LOCAL_SETUP.md](LOCAL_SETUP.md)
 
-[参与贡献](CONTRIBUTING.md) · [API 契约](docs/development/API_CONTRACT.md) · [AI Agent 内核](docs/agent-kernel.md)
+---
 
-## 界面预览
+## 🧪 验证
 
-| 管理台 | 用户管理 |
-|---|---|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Users](docs/screenshots/users.png) |
+```bash
+cd microservices
+(cd services/monitor && go test ./... && go vet ./...)
+(cd web && npm run lint && npm run build)
+npm run test:smoke:unit && npm run test:contract
+API_BASE_URL=http://127.0.0.1:8000/api/v1 npm run smoke:api
+```
 
-截图展示已有管理页面，不作为所有业务链路的验收证据。
+OpenAPI：
 
-## 交流与许可证
+```bash
+cd microservices
+npm run api:contract
+git diff --exit-code -- services/monitor/docs/openapi.json
+```
 
-![微信群](docs/screenshots/wechat-group.png)
+---
 
-[MIT License](LICENSE)
+## 📁 配置与文档
+
+| 说明 | 路径 |
+|------|------|
+| 环境变量 | [`microservices/.env.example`](microservices/.env.example) |
+| 迁移 / OpenAPI | `microservices/services/monitor/migrations/`、`docs/openapi.json` |
+| 📖 **文档站（教程/模块文档/二开指南）** | https://superiorchuo.github.io/gopherforge/docs/ |
+| 📜 更新日志（与 Release notes 同源） | [文档站 · 更新日志](https://superiorchuo.github.io/gopherforge/docs/changelog) |
+| ❓ 常见问题 FAQ | [文档站 · FAQ](https://superiorchuo.github.io/gopherforge/docs/reference/faq) |
+| ⬆️ 版本升级指南 | [文档站 · 版本升级](https://superiorchuo.github.io/gopherforge/docs/reference/upgrade) |
+| 同类项目对比 | [`docs/comparison.md`](docs/comparison.md) |
+| 产品线对照 | [`docs/PRODUCT_LINES.md`](docs/PRODUCT_LINES.md) |
+| 安全说明 | [`docs/SECURITY.md`](docs/SECURITY.md) · [`SECURITY.md`](SECURITY.md) |
+| 工程说明 | [`docs/ENGINEERING.md`](docs/ENGINEERING.md) |
+
+---
+
+## 🔒 安全提示
+
+上线前请至少替换：
+
+- 🔑 `JWT_SECRET`
+- 🐘 PostgreSQL / 🔴 Redis / 📦 MinIO / 📊 Grafana 等密码与密钥
+- 👤 默认管理员密码策略
+- 🌐 `CORS_ALLOW_ORIGINS`
+
+---
+
+## 🛠️ 如何扩展业务
+
+这是一个**干净的脚手架**。要加业务能力（如 IM、CRM、AI 等），推荐：
+
+1. 在 `microservices/services/` 下新建一个业务微服务，加入 `go.work`。
+2. 在 `docker-compose.yml` 补一个服务块 + Traefik 路由标签（`PathPrefix` + 可选 ForwardAuth）。
+3. 迁移落到 `monitor/migrations/`（共享 goose 真源）。
+4. 前端在 `web/src/pages/` 加页面、`api/` 加接口、菜单种子补条目。
+
+> 原则：底座保持通用，业务域以「新微服务 + 网关标签」接入，避免把脚手架做成巨石。
+
+---
+
+## 🤝 开源协作
+
+<p>
+  <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/Contributing-欢迎贡献-brightgreen?logo=git&logoColor=white" alt="Contributing" /></a>
+  <a href="CODE_OF_CONDUCT.md"><img src="https://img.shields.io/badge/Code%20of%20Conduct-Contributor%20Covenant%202.1-5e5e5e?logo=contributorcovenant&logoColor=white" alt="Code of Conduct" /></a>
+  <a href="https://github.com/SuperiorChuo/gopherforge/issues"><img src="https://img.shields.io/badge/Issues-反馈问题-red?logo=github" alt="Issues" /></a>
+</p>
+
+- 贡献指南 👉 [CONTRIBUTING.md](CONTRIBUTING.md)（**提交标题与正文须全中文**）
+- 行为准则 👉 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)（Contributor Covenant v2.1）
+- 收录范围 👉 [docs/sync-policy.md](docs/sync-policy.md)（业务功能类需求不在本仓范围）
+- CI 👉 https://github.com/SuperiorChuo/gopherforge/actions
+
+---
+
+## 📄 License
+
+本项目基于 [MIT License](LICENSE) 开源。
+
+如果这个项目对你有帮助，欢迎 ⭐ **Star** · 🍴 **Fork** · 🔧 **PR**，一起把它打造成更好用的企业中台脚手架！
