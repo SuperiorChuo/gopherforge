@@ -1,16 +1,16 @@
-# 🚀 GopherForge · Go Microservices Admin Scaffold
+# 🚀 GopherForge · Go Microservices Platform
 
-**GopherForge** (formerly `go-admin-kit`) is an **open-source, production-grade Go microservices admin scaffold**: Go + Gin backend split into 7 infrastructure services, React 19 + Ant Design 6 frontend, Traefik gateway with unified auth, built-in RBAC, multi-tenancy, audit logs, monitoring and a code generator — the whole stack boots with one `make compose-up` (data stack and app stack are separate, so rebuilding the app never touches your data).
+**GopherForge** (formerly `go-admin-kit`) is an **open-source, enterprise-grade Go microservices admin & business platform**: Go + Gin backend split into **16 Go services** (infrastructure — auth / identity / system / audit / file / monitor / notify / AI / BPM / payments — plus business lines: IM support, call center, CRM, WeChat official accounts, tickets, visibility), React 19 + Ant Design 6 frontend, Traefik gateway with unified auth, built-in RBAC, multi-tenancy, audit logs, monitoring and a code generator — the whole stack boots with one `make compose-up` (data stack and app stack are separate, so rebuilding the app never touches your data).
 
 > 0.x project: APIs, database schemas and generated code formats may still change. Latest stable: see [Releases](https://github.com/SuperiorChuo/gopherforge/releases/latest) / [CHANGELOG](CHANGELOG.md); upgrade notes in the [docs](https://superiorchuo.github.io/gopherforge/docs/en/reference/upgrade). Before production use, follow the deployment guide for secret rotation, migration backups and rollback rehearsal.
 
-- **Who it's for**: Go teams building internal admin platforms or SaaS back-offices; teams that prefer **React over Vue** (most Go admin scaffolds ship Vue); projects that want real microservices as a starting point without business-module baggage.
-- **How it differs**: infrastructure only, zero business coupling — see the [comparison with gin-vue-admin, go-admin & RuoYi](docs/comparison.md).
-- **Time to running**: clone, `make compose-up`, ~3 minutes for gateway + 7 services + frontend + PostgreSQL/Redis/NATS. Or try the [Live Demo](https://superiorchuo.github.io/gopherforge/) first (front-end-only mock data, any credentials work).
+- **Who it's for**: Go teams building internal admin platforms or SaaS back-offices; teams that prefer **React over Vue** (most Go admin scaffolds ship Vue); projects that want a real microservices starting point with ready-made business domains to trim.
+- **How it differs**: infrastructure and business domains are layered and independently trimmable — see the [comparison with gin-vue-admin, go-admin & RuoYi](docs/comparison.md).
+- **Time to running**: clone, `make compose-up`, and the gateway + 16 services + frontend + PostgreSQL/Redis/NATS come up (elapsed time depends on machine resources and image pulls). Or try the [Live Demo](https://superiorchuo.github.io/gopherforge/) first (front-end-only mock data, any credentials work).
 
 <p align="center">
-  <strong>Production-grade Go microservices admin scaffold — infrastructure only, batteries included.</strong><br/>
-  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React 19 + Ant Design 6 &nbsp;·&nbsp; 🧩 Traefik gateway + 7 services
+  <strong>Enterprise-grade Go microservices platform — base and business domains in one.</strong><br/>
+  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React 19 + Ant Design 6 &nbsp;·&nbsp; 🧩 Traefik gateway + 16 services
 </p>
 
 <p align="center">
@@ -26,17 +26,17 @@
 
 ## Why GopherForge
 
-Most admin scaffolds are monoliths. GopherForge (formerly go-admin-kit) gives you a **real microservices architecture** you can grow into, without business-domain baggage:
+Most admin scaffolds are monoliths. GopherForge (formerly go-admin-kit) gives you a **real microservices architecture** you can grow into, with both the platform base and ready business domains:
 
 - **Traefik gateway + ForwardAuth**: one place verifies JWT; downstream services only trust gateway-injected `X-Auth-*` headers.
-- **7 infrastructure services**, split by domain: `auth` (login / JWT rotation &amp; revocation / OAuth / TOTP / **OAuth2 + OIDC provider** — authorization_code + PKCE, client_credentials, RS256 `id_token` with JWKS &amp; discovery endpoints, console-managed clients and tokens), `identity` (users / roles / permissions / departments), `system` (menus / dicts / notices / hot settings / code generator), `audit` (logs, NATS login events, optional retention-days auto-cleanup), `file` (MinIO / local), `monitor` (health / metrics / server &amp; DB &amp; Redis dashboards / cron jobs / one-glance service-health probe / distributed-job heartbeats), `bpm` (lightweight approval-flow engine: DingTalk-style designer, no-code flow forms, AND/OR/sequential approval, conditional branches, timeout auto-actions, add-sign &amp; delegation, analytics), plus a `shared` library.
+- **16 Go services**, split by domain: base — `auth` (login / JWT rotation &amp; revocation / OAuth / TOTP / **OAuth2 + OIDC provider**), `identity` (users / roles / permissions / departments), `system` (menus / dicts / notices / hot settings / code generator), `audit` (logs, NATS login events, optional retention-days auto-cleanup), `file` (MinIO / local), `monitor` (health / metrics / dashboards / cron jobs / shared goose migrations), `ai` (model management with AES-GCM encrypted keys, embedded agent worker, usage &amp; quotas), `notify` (in-console messages / templates / channels), `bpm` (lightweight approval-flow engine), `pay` (**mock channel only** — the WeChat/Alipay adapters are not implemented yet), plus business lines — `im` (customer support), `cc` (call center), `crm`, `mp`, `visibility`, `ticket` — and a `shared` library.
 - **Alerting loop built in (optional)**: node_exporter host metrics + Prometheus alert rules (service down / low disk / high memory / 5xx surge) + Alertmanager grouping &amp; dedup, delivered as in-console notifications via the notify webhook.
 - **React 19 + Ant Design 6** front end with dark-space / light dual themes and a glassmorphism look.
 - **Code generator**: pick a table, tick the fields, get a CRUD starter kit (Go model / store / handlers / routes + React list page + menu SQL) as preview or zip.
 - **Engineering done for you**: goose versioned migrations, OpenAPI 3.1 contracts with CI drift checks, Prometheus metrics, optional OTel + Jaeger tracing, Playwright E2E through the gateway, secret-scanning pre-commit hook.
 - **RBAC with data scopes** (all / department &amp; below / self) and optional multi-tenant (`tenant_id`) support.
 
-Adding business capability = add one microservice + one gateway label. The base stays clean.
+Adding business capability = add one microservice + one gateway label; the experimental business lines can be trimmed the same way.
 
 ## Quick start
 
@@ -81,9 +81,14 @@ docker compose --profile compose-fallback up -d --build
 
 ## Scope
 
-This repository is the **scaffold distribution line**: platform-neutral infrastructure only, synced from an internally maintained full-featured upstream. Business domains (IM, call center, CRM, …) never land here — see [docs/sync-policy.md](docs/sync-policy.md).
+This repository is the **public product line**: the complete platform (infrastructure base + business domains), synced per [docs/sync-policy.md](docs/sync-policy.md) — internal materials and private history stay out.
 
-Issues and PRs are welcome for anything scaffold-related: base bugs, engineering, docs.
+Known boundaries shipping with this release:
+
+- **Payments**: mock channel only (isolated testing / demo). The WeChat/Alipay adapters are **not implemented**; configuring merchant credentials does not enable real payments.
+- **Experimental business lines** (IM, call center, CRM, official accounts, tickets, visibility): APIs and schemas may still change; the call center additionally needs `CC_FS_API_BASE` and a FreeSWITCH media deployment for full acceptance.
+
+Issues and PRs are welcome for anything in scope: product bugs, engineering, docs.
 
 ## Contributing
 

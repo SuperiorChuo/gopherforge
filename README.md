@@ -3,19 +3,19 @@
   <strong>📱 欢迎加群 · 加我拉群，一起交流使用与开发</strong>
 </p>
 
-# 🚀 GopherForge · Go 微服务后台管理脚手架
+# 🚀 GopherForge · Go 微服务管理与业务平台
 
-**GopherForge**（曾用名 `go-admin-kit`）是一套**开源的企业级 Go 微服务后台管理系统脚手架**：后端 Go + Gin 按域拆分 7 个基础服务，前端 React 19 + Ant Design 6，Traefik 网关统一鉴权，自带 RBAC 权限、多租户、审计日志、系统监控与代码生成器，`make compose-up` 一条命令拉起全栈（数据栈与应用栈分离，重建应用不触碰数据）。
+**GopherForge**（曾用名 `go-admin-kit`）是一套**开源的企业级 Go 微服务管理与业务平台**：后端 Go + Gin 按域拆分 **16 个 Go 服务**（认证 / RBAC / 系统 / 审计 / 文件 / 监控 / 通知 / AI / BPM / 支付等底座，以及 IM 客服、呼叫中心、CRM、公众号、工单、可见度业务线），前端 React 19 + Ant Design 6，Traefik 网关统一鉴权，自带 RBAC 权限、多租户、审计日志、系统监控与代码生成器，`make compose-up` 一条命令拉起全栈（数据栈与应用栈分离，重建应用不触碰数据）。
 
 > 0.x 阶段项目：API、数据库表结构和生成代码格式仍可能调整。最新正式版见下方 **Release 徽章** 与 [CHANGELOG](CHANGELOG.md)，升级注意事项见[文档站 · 版本升级](https://superiorchuo.github.io/gopherforge/docs/reference/upgrade)；上线前请按部署文档完成密钥替换、迁移备份和回滚演练。
 
 - **适合谁**：需要快速搭建企业内部管理平台 / SaaS 管理后台的 Go 团队；前端更熟 React 而不想用 Vue 的团队；想要真微服务架构（而非单体）作为起点、又不想背业务包袱的项目。
-- **和同类有何不同**：只含基础设施、零业务耦合——对比 gin-vue-admin、go-admin、RuoYi 系见 [同类项目对比](docs/comparison.md)。
-- **多快能跑起来**：克隆后 `make compose-up`，约 3 分钟拉起网关 + 7 服务 + 前端 + PostgreSQL/Redis/NATS；或先玩 [在线 Demo](https://superiorchuo.github.io/gopherforge/)（纯前端假数据，任意账号可登录）。
+- **和同类有何不同**：底座与业务域分层、业务线可按需裁剪——对比 gin-vue-admin、go-admin、RuoYi 系见 [同类项目对比](docs/comparison.md)。
+- **多快能跑起来**：克隆后 `make compose-up`，拉起网关 + 16 服务 + 前端 + PostgreSQL/Redis/NATS（所需时间取决于机器资源与镜像下载）；或先玩 [在线 Demo](https://superiorchuo.github.io/gopherforge/)（纯前端假数据，任意账号可登录）。
 
 <p align="center">
-  <strong>✨ 企业级微服务后台脚手架 · 只含基础设施 · 开箱即用 ✨</strong><br/>
-  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React + Ant Design &nbsp;·&nbsp; 🧩 Traefik 网关 + 7 服务
+  <strong>✨ 企业级微服务中台 · 底座 + 业务域一体 · 开箱即用 ✨</strong><br/>
+  🐹 Go + Gin &nbsp;·&nbsp; ⚛️ React + Ant Design &nbsp;·&nbsp; 🧩 Traefik 网关 + 16 服务
 </p>
 
 <p align="center">
@@ -69,7 +69,8 @@
 
 | 亮点 | 说明 |
 |:-----|:-----|
-| 🧩 **纯脚手架** | 只含平台无关的基础设施服务（认证/RBAC/系统/日志/文件/监控），不带业务耦合，是干净的起点。 |
+| 🧩 **底座 + 业务域** | 基础设施服务（认证/RBAC/系统/日志/文件/监控/通知）之外，内置 IM 客服、呼叫中心、CRM、公众号、AI 增强等业务域，可按需裁剪。 |
+| ⚠️ **边界清晰** | IM / 呼叫 / CRM / 公众号 / 工单 / 可见度为实验业务线（API 与表结构可能调整）；支付当前仅 mock 渠道，微信/支付宝适配器尚未实现。 |
 | ⚛️ **前端统一** | React + Ant Design 深空/亮色双主题，一套视觉语言（渐变卡片墙 + 抽屉）。 |
 | 🐳 **开箱即用** | Docker Compose 一键拉起依赖、网关/服务与前端；内置 RBAC、日志、监控、迁移。 |
 | 🏗️ **工程完备** | CI、OpenAPI、健康检查、Prometheus、可选链路追踪与对象存储。 |
@@ -124,7 +125,7 @@
 |------|------|------|
 | 网关 | **Traefik** | 路由、ForwardAuth 统一验签 |
 | 消息 | **NATS JetStream** | 登录事件解耦 |
-| 服务 | auth / identity / system / audit / file / monitor / bpm + shared | 按域拆分的基础设施服务 |
+| 服务 | 底座 auth / identity / system / audit / file / monitor / ai / notify / bpm / pay · 业务线 im / cc / crm / mp / visibility / ticket | 共 **16 个 Go 服务进程**（AI 服务内嵌 worker，无独立 worker 容器；migrate 复用 monitor 镜像），另有 `services/shared` 公共库 |
 | 契约 | **OpenAPI 3.1** | 从路由生成 + 前端类型 |
 
 ### 🔭 可观测与存储（可选）
@@ -166,7 +167,18 @@
 | 📋 审批流引擎（仿钉钉设计器 / 流程表单零代码发起 / 会签或签依次 / 条件分支 / 超时自动动作 / 加签委派 / 审批统计 / 终态回调） | ✅ |
 | 🚪 Traefik 网关 + ForwardAuth | ✅ |
 | 📡 NATS 登录事件 | ✅ |
+| 🤖 AI（模型配置 AES-GCM 加密 / 内嵌 agent worker / 用量与配额） | ✅ |
+| 🔔 通知中心（站内信 / 模板 / 多渠道） | ✅ |
+| 💬 IM 智能客服（访客组件 / 坐席工作台 / 知识库 / 敏感词） | 🧪 |
+| ☎️ 呼叫中心（FreeSWITCH 媒体 + control-api；完整验收需部署侧 `CC_FS_API_BASE` 与媒体环境） | 🧪 |
+| 🤝 CRM（线索 / 客户 / 商机 / 合同回款） | 🧪 |
+| 📱 公众号运营 | 🧪 |
+| 🎫 工单 | 🧪 |
+| 👁️ AI 可见度 | 🧪 |
+| 💳 支付中心（**仅 mock 渠道**：隔离测试/演示；微信/支付宝适配器尚未实现，配商户凭据不能真实收款） | ⚠️ |
 | 🐳 官方多架构镜像（amd64/arm64）/ Compose 一键启动 | ✅ |
+
+> 🧪 = 实验业务线：API 与表结构可能调整，生产采用前请单独评估；⚠️ = 能力边界，随版本一并知悉。
 
 ---
 
@@ -183,11 +195,24 @@ flowchart LR
         AUD["📝 audit"]
         FILE["📁 file"]
         MON["📈 monitor · 迁移/兜底"]
+        AI["🤖 ai · 模型/worker"]
+        NTF["🔔 notify"]
         BPM["✅ bpm · 审批流"]
+        PAY["💳 pay · mock 渠道"]
+    end
+
+    subgraph BIZ["🧪 业务线（实验）"]
+        IMS["💬 im 客服"]
+        CCS["☎️ cc 呼叫"]
+        CRMS["🤝 crm"]
+        MPS["📱 mp 公众号"]
+        VIS["👁️ visibility"]
+        TKT["🎫 ticket"]
     end
 
     GW -. "ForwardAuth 统一验签" .-> AUTH
-    GW --> AUTH & IDT & SYS & AUD & FILE & MON & BPM
+    GW --> AUTH & IDT & SYS & AUD & FILE & MON & AI & NTF & BPM & PAY
+    GW --> BIZ
 
     subgraph INFRA["🗄️ 共享基础设施"]
         PG[("🐘 PostgreSQL 18 + pgvector")]
@@ -203,6 +228,7 @@ flowchart LR
 
 - 业务服务只信任网关注入的 `X-Auth-*` 头，宿主机端口默认只绑 loopback，外部流量一律经网关。
 - `monitor` 持有 `PathPrefix(/api)` 兜底路由（priority 1），并负责共享 goose 迁移。
+- 呼叫媒体面 `freeswitch-cc/` 独立 compose（FreeSWITCH + control-api），由中台 `cc` 服务控制、事件 HMAC 回传；AI worker 内嵌于 `ai` 服务。
 
 ---
 
@@ -210,19 +236,25 @@ flowchart LR
 
 ```text
 gopherforge/
-├── microservices/                 # 🧩 微服务脚手架
+├── microservices/                 # 🧩 微服务中台
 │   ├── services/
 │   │   ├── auth/                  # 🔐 认证、令牌、网关验签
 │   │   ├── identity/              # 👥 用户 / 角色 / 权限 / 部门
 │   │   ├── system/                # 📚 菜单 / 字典 / 公告 / 设置
 │   │   ├── audit/                 # 📝 日志与事件消费
 │   │   ├── file/                  # 📁 文件与 uploads
+│   │   ├── monitor/               # 📈 监控、健康、共享迁移、兜底
+│   │   ├── ai/                    # 🤖 模型管理 / 内嵌 agent worker
+│   │   ├── notify/                # 🔔 站内信 / 模板 / 渠道
 │   │   ├── bpm/                   # ✅ 轻量审批流引擎
-│   │   ├── shared/                # 🧰 跨服务共享包（日志/响应/脱敏）
-│   │   └── monitor/               # 📈 监控、健康、共享迁移、兜底
+│   │   ├── pay/                   # 💳 支付中心（仅 mock 渠道）
+│   │   ├── im/  cc/  crm/         # 🧪 实验业务线：客服 / 呼叫 / CRM
+│   │   ├── mp/  visibility/  ticket/  # 🧪 公众号 / AI 可见度 / 工单
+│   │   └── shared/                # 🧰 跨服务共享包（日志/响应/脱敏）
 │   ├── web/                       # ⚛️ React + Ant Design
 │   ├── docker-compose.yml
 │   └── README.md
+├── freeswitch-cc/                 # ☎️ FreeSWITCH 媒体 + control-api（独立 compose）
 ├── platform/deploy/               # 🔭 Prometheus / Grafana / OTel
 ├── docs/                          # 📖 工程文档
 │   ├── PRODUCT_LINES.md
@@ -375,7 +407,7 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 
 ## 🛠️ 如何扩展业务
 
-这是一个**干净的脚手架**。要加业务能力（如 IM、CRM、AI 等），推荐：
+底座与业务域分层。要新增业务能力或裁剪实验业务线，推荐：
 
 1. 在 `microservices/services/` 下新建一个业务微服务，加入 `go.work`。
 2. 在 `docker-compose.yml` 补一个服务块 + Traefik 路由标签（`PathPrefix` + 可选 ForwardAuth）。
@@ -396,7 +428,7 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 
 - 贡献指南 👉 [CONTRIBUTING.md](CONTRIBUTING.md)（**提交标题与正文须全中文**）
 - 行为准则 👉 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)（Contributor Covenant v2.1）
-- 收录范围 👉 [docs/sync-policy.md](docs/sync-policy.md)（业务功能类需求不在本仓范围）
+- 收录范围 👉 [docs/sync-policy.md](docs/sync-policy.md)（公开产品范围与内部资料边界）
 - CI 👉 https://github.com/SuperiorChuo/gopherforge/actions
 
 ---
@@ -405,4 +437,4 @@ git diff --exit-code -- services/monitor/docs/openapi.json
 
 本项目基于 [MIT License](LICENSE) 开源。
 
-如果这个项目对你有帮助，欢迎 ⭐ **Star** · 🍴 **Fork** · 🔧 **PR**，一起把它打造成更好用的企业中台脚手架！
+如果这个项目对你有帮助，欢迎 ⭐ **Star** · 🍴 **Fork** · 🔧 **PR**，一起把它打造成更好用的企业级微服务平台！
