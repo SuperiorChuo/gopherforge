@@ -115,7 +115,7 @@ const darkTheme: ThemeConfig = {
     },
     Table: {
       headerBg: 'rgba(255, 255, 255, 0.03)',
-      headerColor: 'rgba(203, 213, 225, 0.8)',
+      headerColor: 'rgba(226, 232, 240, 0.95)',
       rowHoverBg: 'rgba(99, 102, 241, 0.07)',
       borderColor: 'rgba(148, 163, 184, 0.1)',
       colorBgContainer: 'transparent',

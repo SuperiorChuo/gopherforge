@@ -6,6 +6,21 @@
   border-right: 1px solid rgba(148, 163, 184, 0.12);
 }
 
+/* 320px 侧栏内 5 段筛选（全部/我的/排队/机器人/已结束）：压缩内边距与字号，
+   避免 CJK 标签被省略号截断（实测「机器人/已结束」显示为「机…/已…」） */
+.im-desk-sider .ant-segmented-item {
+  padding-inline: 2px;
+}
+
+.im-desk-sider .ant-segmented-item-label {
+  min-width: 0;
+  padding-inline: 4px;
+  font-size: 12px;
+  line-height: 22px;
+  text-align: center;
+  white-space: nowrap;
+}
+
 /* 窄屏：Card header 允许换行，extra（状态/按钮组）不挤出视口
    （390 实测 extra 溢出右侧；antd 6 Card head 无 wrapper，直接作用 head） */
 @media (max-width: 575px) {

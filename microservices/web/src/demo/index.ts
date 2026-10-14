@@ -1016,6 +1016,7 @@ const routes: Array<[string, RegExp, Handler]> = [
   ['get', /^\/api\/v1\/visibility\/overview$/, (_m, _b, q) => ({ stats: visibilityOverviewStats, days: Number(q.get('days') ?? 30), demo_mode: true })],
   ['get', /^\/api\/v1\/visibility\/geo\/leaderboard$/, () => visibilityGeoLeaderboard],
   ['post', /^\/api\/v1\/visibility\/seed-demo$/, () => ({ seeded: true })],
+  ['get', /^\/api\/v1\/ticket\/stats$/, () => ({ open: 5, in_progress: 3, resolved: 18, closed: 42, overdue: 2, mine_open: 3, mine_overdue: 1 })],
 ]
 
 /* --------------------------------- adapter -------------------------------- */

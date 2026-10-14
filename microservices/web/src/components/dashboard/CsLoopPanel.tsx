@@ -233,10 +233,10 @@ export default function CsLoopPanel() {
                   <span className="cs-loop-metric-title">{m.title}</span>
                 </div>
                 <div className="cs-loop-metric-value">
-                  {loading || m.value == null ? (
+                  {loading ? (
                     <Skeleton.Button active size="small" style={{ width: 48, height: 28 }} />
                   ) : (
-                    <CountUpValue value={m.value} />
+                    <CountUpValue value={m.value ?? 0} />
                   )}
                 </div>
                 <div className="cs-loop-metric-foot">
