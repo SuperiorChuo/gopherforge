@@ -10,6 +10,7 @@ import (
 	"github.com/go-admin-kit/services/im/internal/sensitive"
 	"github.com/go-admin-kit/services/im/internal/storage"
 	"github.com/go-admin-kit/services/im/internal/store/im"
+	"github.com/go-admin-kit/services/shared/pkg/gatewayauth"
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
 	"gorm.io/gorm"
 	"net/http"
@@ -23,6 +24,9 @@ type Server struct {
 	Hub      *hub.Hub
 	AgentHub *hub.AgentHub
 	Secret   string
+	// AgentVerifier checks tokens and IM permissions with the auth owner on
+	// mixed guest/agent endpoints, including query-token WebSockets.
+	AgentVerifier *authjwt.Verifier
 	// Bot 是可选的 AI / stub 客户端（M4）。
 	Bot             bot.Client
 	BotSystemPrompt string
@@ -91,9 +95,63 @@ func resolveAgentTenantID(c *gin.Context, jwtTenant uint64) uint64 {
 	return authjwt.NormalizeTenantID(jwtTenant)
 }
 
+// agentPermitted reports whether the trusted gateway identity carries an IM
+// agent/admin permission. These headers are only trustworthy behind the
+// gateway's auth-chain hop (auth-sanitize clears client-supplied X-Auth-*).
+func agentPermitted(c *gin.Context) bool {
+	granted := gatewayauth.ParsePermissions(c.GetHeader("X-Auth-Permissions"))
+	for _, code := range []string{"im:agent:access", "im:admin:manage", "*"} {
+		if _, ok := granted[code]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// verifyAgentToken validates an access token with its owner (auth-service).
+// A locally valid signature never grants the agent role by itself: revoked or
+// rotated tokens and valid users without IM permissions must not enter agent
+// flows. Failures close with the owner's verdict (401/403) or 503.
+func (s *Server) verifyAgentToken(c *gin.Context, token string) (*authjwt.AgentClaims, bool) {
+	// Cheap local sanity check first: malformed, expired or wrong-secret tokens
+	// are rejected without a network call. A locally valid signature is not an
+	// authorization — the owner's verdict below is what grants the agent role.
+	if _, err := authjwt.ParseAgent(s.Secret, token); err != nil {
+		Fail(c, http.StatusUnauthorized, "invalid agent token")
+		return nil, false
+	}
+	if s.AgentVerifier == nil {
+		Fail(c, http.StatusServiceUnavailable, "agent verification unavailable")
+		return nil, false
+	}
+	claims, err := s.AgentVerifier.VerifyAgent(c.Request.Context(), token)
+	switch {
+	case err == nil:
+		return claims, true
+	case errors.Is(err, authjwt.ErrForbidden):
+		Fail(c, http.StatusForbidden, "insufficient permissions")
+	case errors.Is(err, authjwt.ErrUnauthorized):
+		Fail(c, http.StatusUnauthorized, "invalid agent token")
+	default:
+		Fail(c, http.StatusServiceUnavailable, "agent verification unavailable")
+	}
+	return nil, false
+}
+
 func (s *Server) requireAgent(c *gin.Context) (*authjwt.AgentClaims, bool) {
-	// 优先使用网关请求头（若存在）
+	// Bearer tokens are always verified with their owner, even when the
+	// gateway already filled identity headers: the shared visitor/agent
+	// endpoints are reachable outside auth-chain, where headers can be forged.
+	if tok := bearer(c); tok != "" {
+		return s.verifyAgentToken(c, tok)
+	}
+	// Cookie-console sessions arrive without a bearer; only the auth-chain hop
+	// may assert their identity headers, and they need the same IM permission.
 	if uid := c.GetHeader("X-Auth-User-ID"); uid != "" {
+		if !agentPermitted(c) {
+			Fail(c, http.StatusForbidden, "insufficient permissions")
+			return nil, false
+		}
 		id, err := strconv.ParseUint(uid, 10, 64)
 		if err == nil && id > 0 {
 			return &authjwt.AgentClaims{
@@ -103,18 +161,8 @@ func (s *Server) requireAgent(c *gin.Context) (*authjwt.AgentClaims, bool) {
 			}, true
 		}
 	}
-	tok := bearer(c)
-	if tok == "" {
-		Fail(c, http.StatusUnauthorized, "missing agent token")
-		return nil, false
-	}
-	claims, err := authjwt.ParseAgent(s.Secret, tok)
-	if err != nil {
-		Fail(c, http.StatusUnauthorized, "invalid agent token")
-		return nil, false
-	}
-	claims.TenantID = resolveAgentTenantID(c, claims.TenantID)
-	return claims, true
+	Fail(c, http.StatusUnauthorized, "missing agent token")
+	return nil, false
 }
 
 // sameHostOrigin 报告 origin 是否指向服务本请求的主机

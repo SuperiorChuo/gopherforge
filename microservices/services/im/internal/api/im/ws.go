@@ -49,13 +49,17 @@ func (s *Server) WebSocket(c *gin.Context) {
 	if g, err := authjwt.ParseGuest(s.Secret, token); err == nil {
 		isGuest = true
 		visitorID = g.VisitorID
-	} else if a, err := authjwt.ParseAgent(s.Secret, token); err == nil {
-		agentID = a.UserID
-		// WS 经网关代理时优先使用网关头；否则用 JWT 声明（默认 1）。
-		agentTenant = resolveAgentTenantID(c, a.TenantID)
 	} else {
-		Fail(c, http.StatusUnauthorized, "invalid token")
-		return
+		// Agent tokens are validated with their owner before any subscription:
+		// a query-string token must carry a current IM permission, exactly like
+		// the agent REST group. Tenant comes from the verified identity, not
+		// from client-controlled headers.
+		a, ok := s.verifyAgentToken(c, token)
+		if !ok {
+			return
+		}
+		agentID = a.UserID
+		agentTenant = a.TenantID
 	}
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)

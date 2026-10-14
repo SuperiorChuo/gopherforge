@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/im/internal/api/im"
+	"github.com/go-admin-kit/services/im/internal/authjwt"
 	"github.com/go-admin-kit/services/im/internal/bot"
 	"github.com/go-admin-kit/services/im/internal/config"
 	"github.com/go-admin-kit/services/im/internal/hub"
@@ -122,6 +123,7 @@ func main() {
 		Hub:             convHub,
 		AgentHub:        agentHub,
 		Secret:          cfg.JWTSecret,
+		AgentVerifier:   authjwt.NewVerifier(cfg.AuthAPIBase),
 		Bot:             botClient,
 		BotSystemPrompt: cfg.AISystemPrompt,
 		AIEnabled:       cfg.AIEnabled,

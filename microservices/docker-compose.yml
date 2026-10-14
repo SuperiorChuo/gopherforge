@@ -595,6 +595,9 @@ services:
       # 转人工站内信（notify-service）
       NOTIFY_API_BASE: ${NOTIFY_API_BASE:-http://go-admin-kit-notify:8095}
       NOTIFY_INTERNAL_TOKEN: ${NOTIFY_INTERNAL_TOKEN:-}
+      # 坐席访问令牌的有效性/吊销和 IM 权限由签发方 auth-service 核验
+      # （/internal/verify）；缺配时坐席路径 fail closed，不影响访客链路。
+      AUTH_API_BASE: ${AUTH_API_BASE:-http://go-admin-kit-auth:8082}
       # 附件走 MinIO（im/ 前缀共享 bucket）；本地卷保留作旧文件回源
       IM_STORAGE_TYPE: ${IM_STORAGE_TYPE:-minio}
       UPLOAD_MINIO_ENDPOINT: ${UPLOAD_MINIO_ENDPOINT:-go-admin-kit-minio:9000}
@@ -615,6 +618,14 @@ services:
       traefik.http.routers.im.entrypoints: web,websecure
       traefik.http.routers.im.priority: "100"
       traefik.http.routers.im.middlewares: auth-chain
+      # 访客/Widget 公共链路：guest token 是 IM 自签 Bearer，不是 auth JWT，
+      # 过不了 access-token 校验；跳过 auth-verify，但必须保留 auth-sanitize
+      # 清除客户端伪造的 X-Auth-* 身份头。这些端点内的 agent 身份由
+      # im-service 持 guest token 的对端路径或向 auth-service 核验。
+      traefik.http.routers.im-open.rule: "PathPrefix(`/api/v1/im/visitor`) || PathPrefix(`/api/v1/im/conversations`) || PathPrefix(`/api/v1/im/widget`) || PathPrefix(`/api/v1/im/attachments`)"
+      traefik.http.routers.im-open.entrypoints: web,websecure
+      traefik.http.routers.im-open.priority: "110"
+      traefik.http.routers.im-open.middlewares: auth-sanitize
       traefik.http.services.im.loadbalancer.server.port: "8088"
     depends_on:
       migrate:

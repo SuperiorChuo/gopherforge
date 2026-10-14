@@ -1,8 +1,8 @@
 package config
 
 import (
-	"github.com/go-admin-kit/services/shared/pkg/envsecret"
 	"fmt"
+	"github.com/go-admin-kit/services/shared/pkg/envsecret"
 	"log"
 	"os"
 	"strconv"
@@ -64,6 +64,11 @@ type Config struct {
 	// 通知中心（站内信）。token 为空则禁用转人工收件箱推送。
 	NotifyAPIBase       string
 	NotifyInternalToken string
+
+	// AuthAPIBase 是 auth-service 内部地址。IM 用它校验坐席访问令牌的
+	// 有效性/吊销状态及当前 IM 权限（/internal/verify）；配置缺失时坐席
+	// 路径 fail closed，不影响访客链路。
+	AuthAPIBase string
 }
 
 func Load() Config {
@@ -118,6 +123,8 @@ func build() Config {
 
 		NotifyAPIBase:       getenv("NOTIFY_API_BASE", "http://go-admin-kit-notify:8095"),
 		NotifyInternalToken: getSecret("NOTIFY_INTERNAL_TOKEN", ""),
+
+		AuthAPIBase: getenv("AUTH_API_BASE", "http://go-admin-kit-auth:8082"),
 	}
 }
 

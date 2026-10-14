@@ -11,6 +11,10 @@ SCHEMAS = {
     "pay": "pay_svc", "bpm": "bpm_svc",
 }
 IDENTITY_CLIENTS = ("ai", "notify", "crm", "visibility", "bpm")
+IM_VISITOR_PREFIXES = (
+    "/api/v1/im/visitor", "/api/v1/im/conversations",
+    "/api/v1/im/widget", "/api/v1/im/attachments",
+)
 
 
 def environment(source, service):
@@ -101,6 +105,56 @@ class ComposeRuntimeContracts(unittest.TestCase):
             for path in (*admin_paths, "/im/widget-settings", "/im/visitor-admin", "/im/ws-debug", "/im/uploads-manager"):
                 with self.subTest(mode=mode, frontend=path):
                     self.assertFalse(matches(path))
+    def test_im_visitor_router_skips_access_token_but_strips_client_identity(self):
+        # Guest tokens are IM-issued Bearer credentials, not auth JWTs, so the
+        # gateway must route these REST paths without access-token verification
+        # (Compose used to reject every legitimate guest). The shared bypass
+        # must never skip auth-sanitize: identity headers stay authoritative
+        # only if the gateway cleared client-supplied X-Auth-* values first.
+        for mode, source in (("compose", self.compose), ("stack", self.stack)):
+            blocks = re.findall(r"^  im-service:\n(.*?)(?=^  \S|\Z)", source, re.M | re.S)
+            self.assertEqual(len(blocks), 1)
+            rules = re.findall(r"^ +traefik\.http\.routers\.im-open\.rule: ([^\n]+)$", blocks[0], re.M)
+            self.assertEqual(len(rules), 1)
+            terms = []
+            for term in rules[0].strip("\"'").split(" || "):
+                match = re.fullmatch(r"(Path|PathPrefix)\(`([^`]+)`\)", term)
+                self.assertIsNotNone(match, term)
+                terms.append(match.groups())
+            priorities = re.findall(
+                r"^ +traefik\.http\.routers\.im-open\.priority: ['\"]?(\d+)['\"]?$", blocks[0], re.M)
+            self.assertEqual(len(priorities), 1)
+            self.assertGreater(int(priorities[0]), 100)  # must win over the auth-chain router
+            middlewares = re.findall(
+                r"^ +traefik\.http\.routers\.im-open\.middlewares: ([^\n]+)$", blocks[0], re.M)
+            self.assertEqual(middlewares, ["auth-sanitize@docker" if mode == "stack" else "auth-sanitize"])
+            main_middlewares = re.findall(
+                r"^ +traefik\.http\.routers\.im\.middlewares: ([^\n]+)$", blocks[0], re.M)
+            self.assertEqual(main_middlewares, ["auth-chain@docker" if mode == "stack" else "auth-chain"])
+
+            def matches(path):
+                return any(path == value if kind == "Path" else path.startswith(value)
+                           for kind, value in terms)
+
+            for prefix in IM_VISITOR_PREFIXES:
+                with self.subTest(mode=mode, visitor=prefix):
+                    self.assertTrue(matches(prefix))
+                    self.assertTrue(matches(prefix + "/item"))
+            for path in ("/api/v1/im/agent/me", "/api/v1/im/admin/sites",
+                         "/im/visitor", "/api/v1/imx/conversations", "/api/v1/other"):
+                with self.subTest(mode=mode, protected=path):
+                    self.assertFalse(matches(path))
+
+    def test_im_service_verifies_agent_tokens_with_their_owner(self):
+        # Mixed visitor/agent endpoints cannot trust gateway headers alone;
+        # im-service must reach auth-service's /internal/verify for revocation
+        # and current IM permissions.
+        for mode, source in (("compose", self.compose), ("stack", self.stack)):
+            with self.subTest(mode=mode):
+                self.assertEqual(
+                    environment(source, "im").get("AUTH_API_BASE"),
+                    "${AUTH_API_BASE:-http://go-admin-kit-auth:8082}",
+                )
 
 
 if __name__ == "__main__":
