@@ -99,6 +99,29 @@ const menuRows = [
   { id: 38, name: 'bpm-definitions', title: '流程定义', icon: 'fork', path: '/bpm/definitions', component: 'bpm/definitions/index', parent_id: 35, sort: 3, status: 1, hidden: 0, permission: 'bpm:definition:list' },
   { id: 40, name: 'profile', title: '个人中心', icon: 'user-circle', path: '/profile', component: 'Layout', parent_id: 0, sort: 99, status: 1, hidden: 1 },
   { id: 41, name: 'profile-index', title: '个人中心', icon: 'user', path: '/profile/index', component: 'profile/index', parent_id: 40, sort: 1, status: 1, hidden: 0 },
+  // ---- v0.8.0 业务域：菜单入口与真实路由对齐，演示模式可从侧栏发现业务页 ----
+  { id: 100, name: 'im', title: '智能客服', icon: 'message', path: '/im', component: 'Layout', parent_id: 0, sort: 4, status: 1, hidden: 0 },
+  { id: 101, name: 'im-desk', title: '坐席工作台', icon: 'message', path: '/im/desk', component: 'im/desk/index', parent_id: 100, sort: 1, status: 1, hidden: 0 },
+  { id: 102, name: 'im-sites', title: '埋码站点', icon: 'global', path: '/im/sites', component: 'im/sites/index', parent_id: 100, sort: 2, status: 1, hidden: 0 },
+  { id: 103, name: 'im-stats', title: '客服统计', icon: 'chart', path: '/im/stats', component: 'im/stats/index', parent_id: 100, sort: 3, status: 1, hidden: 0 },
+  { id: 104, name: 'ticket', title: '工单中心', icon: 'file-text', path: '/ticket', component: 'ticket/index', parent_id: 100, sort: 4, status: 1, hidden: 0 },
+  { id: 110, name: 'cc', title: '呼叫中心', icon: 'phone', path: '/cc', component: 'Layout', parent_id: 0, sort: 5, status: 1, hidden: 0 },
+  { id: 111, name: 'cc-workbench', title: '坐席工作台', icon: 'desktop', path: '/cc/workbench', component: 'cc/workbench/index', parent_id: 110, sort: 1, status: 1, hidden: 0 },
+  { id: 112, name: 'cc-calls', title: '呼叫话单', icon: 'phone', path: '/cc/calls', component: 'cc/calls/index', parent_id: 110, sort: 2, status: 1, hidden: 0 },
+  { id: 113, name: 'cc-reports', title: '呼叫报表', icon: 'chart', path: '/cc/reports', component: 'cc/reports/index', parent_id: 110, sort: 3, status: 1, hidden: 0 },
+  { id: 120, name: 'crm', title: '销售 CRM', icon: 'fund', path: '/crm', component: 'Layout', parent_id: 0, sort: 6, status: 1, hidden: 0 },
+  { id: 121, name: 'crm-dashboard', title: '销售看板', icon: 'fund', path: '/crm/dashboard', component: 'crm/dashboard/index', parent_id: 120, sort: 1, status: 1, hidden: 0 },
+  { id: 122, name: 'crm-leads', title: '所有名片', icon: 'user', path: '/crm/leads', component: 'crm/leads/index', parent_id: 120, sort: 2, status: 1, hidden: 0 },
+  { id: 123, name: 'crm-customers', title: '客户管理', icon: 'team', path: '/crm/customers', component: 'crm/customers/index', parent_id: 120, sort: 3, status: 1, hidden: 0 },
+  { id: 130, name: 'mp', title: '公众号运营', icon: 'wechat', path: '/mp', component: 'Layout', parent_id: 0, sort: 7, status: 1, hidden: 0 },
+  { id: 131, name: 'mp-accounts', title: '账号管理', icon: 'wechat', path: '/mp/accounts', component: 'mp/accounts/index', parent_id: 130, sort: 1, status: 1, hidden: 0 },
+  { id: 140, name: 'visibility', title: 'AI 可见度', icon: 'radar', path: '/visibility', component: 'Layout', parent_id: 0, sort: 8, status: 1, hidden: 0 },
+  { id: 141, name: 'visibility-overview', title: '可见度总览', icon: 'radar', path: '/visibility/overview', component: 'visibility/overview/index', parent_id: 140, sort: 1, status: 1, hidden: 0 },
+  { id: 150, name: 'ai', title: 'AI 与智能体', icon: 'robot', path: '/ai', component: 'Layout', parent_id: 0, sort: 9, status: 1, hidden: 0 },
+  { id: 151, name: 'ai-agents', title: '智能体', icon: 'robot', path: '/ai/agents', component: 'ai/agents/index', parent_id: 150, sort: 1, status: 1, hidden: 0 },
+  { id: 152, name: 'ai-models', title: '模型配置', icon: 'control', path: '/system/ai-models', component: 'system/ai-models/index', parent_id: 150, sort: 2, status: 1, hidden: 0 },
+  { id: 160, name: 'pay', title: '支付中心', icon: 'money', path: '/pay', component: 'Layout', parent_id: 0, sort: 10, status: 1, hidden: 0 },
+  { id: 161, name: 'pay-index', title: '支付订单', icon: 'money', path: '/pay/index', component: 'pay/index/index', parent_id: 160, sort: 1, status: 1, hidden: 0 },
 ]
 
 function menuTree() {
@@ -425,6 +448,43 @@ const codegenPreview = (module: string) => ({
     { path: `menu-${module}.sql`, content: `-- 菜单 seed 示例\nINSERT INTO menus (name, title, path, component, ...) VALUES ('${module}', '演示模块', '/${module}', '${module}/index', ...);\n` },
   ],
 })
+
+/* ----------------------------- v0.8.0 业务域演示数据 ----------------------------- */
+
+const crmLeads = [
+  { id: 1, name: '林小满', company: '蓝海科技', phone: '13800000001', email: 'lin@example.com', source: '官网表单', status: 'new', owner_user_id: 0, department_id: 1, note: '关注客服一体化', created_at: daysAgo(1) },
+  { id: 2, name: '周叙', company: '叙风制造', phone: '13800000002', email: 'zhou@example.com', source: '展会', status: 'following', owner_user_id: 1, department_id: 1, note: '已寄样册，下周回访', created_at: daysAgo(3) },
+  { id: 3, name: '陈屿', company: '屿海物流', phone: '13800000003', email: 'chen@example.com', source: '转介绍', status: 'following', owner_user_id: 2, department_id: 2, note: '需求呼叫中心 + CRM', created_at: daysAgo(5) },
+  { id: 4, name: '苏晚', company: '晚晴零售', phone: '13800000004', email: 'su@example.com', source: '官网表单', status: 'converted', owner_user_id: 1, department_id: 1, customer_id: 1, note: '已转客户', created_at: daysAgo(12) },
+  { id: 5, name: '何川', company: '川流教育', phone: '13800000005', email: 'he@example.com', source: '广告投放', status: 'new', owner_user_id: 0, department_id: 2, note: '', created_at: daysAgo(2) },
+  { id: 6, name: '郑野', company: '野望传媒', phone: '13800000006', email: 'zheng@example.com', source: '电话', status: 'invalid', owner_user_id: 2, department_id: 2, note: '号码停用', created_at: daysAgo(20) },
+]
+
+const visibilityGeoLeaderboard = {
+  runs_used: 3,
+  mode: 'stub',
+  total_questions: 12,
+  items: [
+    { name: 'GopherForge', kind: 'brand', mentions: 42 },
+    { name: '同类产品甲', kind: 'competitor', mentions: 31 },
+    { name: '同类产品乙', kind: 'competitor', mentions: 22 },
+    { name: '同类产品丙', kind: 'competitor', mentions: 15 },
+    { name: '同类产品丁', kind: 'competitor', mentions: 9 },
+  ],
+  own_name: 'GopherForge',
+  own_rank: 1,
+  own_mentions: 42,
+  mention_rate: 0.78,
+  avg_position: 2,
+  best_position: 1,
+}
+
+const visibilityOverviewStats = {
+  brand_count: 4, competitor_count: 3, keyword_count: 24, keyword_top10: 15, keyword_no_rank: 3,
+  bing_top10: 12, baidu_top10: 10, google_top10: 11,
+  geo_prompt_count: 12, geo_run_count: 3, geo_result_count: 60, geo_mention_count: 47, geo_mention_rate: 0.78,
+  recent_runs: 3,
+}
 
 /* --------------------------------- 路由表 --------------------------------- */
 
@@ -947,6 +1007,15 @@ const routes: Array<[string, RegExp, Handler]> = [
     if (inst) inst.status = approved ? 'approved' : 'rejected'
     return { task_id: Number(m[1]), instance_id: task?.instance_id ?? 0, instance_status: inst?.status ?? 'running' }
   }],
+  // ---- v0.8.0 业务域：CRM 名片 / 可见度（无假数据的读接口走空列表回退） ----
+  ['get', /^\/api\/v1\/crm\/leads$/, (_m, _b, q) => paged(crmLeads, q)],
+  ['get', /^\/api\/v1\/crm\/org$/, () => ({
+    departments: [{ id: 1, name: '销售一部' }, { id: 2, name: '销售二部' }],
+    users: [{ id: 1, name: '管理员' }, { id: 2, name: '林小满' }],
+  })],
+  ['get', /^\/api\/v1\/visibility\/overview$/, (_m, _b, q) => ({ stats: visibilityOverviewStats, days: Number(q.get('days') ?? 30), demo_mode: true })],
+  ['get', /^\/api\/v1\/visibility\/geo\/leaderboard$/, () => visibilityGeoLeaderboard],
+  ['post', /^\/api\/v1\/visibility\/seed-demo$/, () => ({ seeded: true })],
 ]
 
 /* --------------------------------- adapter -------------------------------- */

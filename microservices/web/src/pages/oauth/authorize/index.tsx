@@ -105,7 +105,7 @@ export default function OAuth2AuthorizePage() {
             style={{ background: view.logo ? undefined : 'rgba(99,102,241,.28)' }}
           />
           <h2 className="login-form-title" style={{ marginTop: 12 }}>{view.client_name}</h2>
-          <p className="login-form-sub">{t('请求访问你的 Go Admin Kit 账户')}</p>
+          <p className="login-form-sub">{t('请求访问你的 GopherForge 账户')}</p>
           {view.description && <p className="oauth-consent-desc">{view.description}</p>}
         </div>
 
@@ -146,7 +146,7 @@ export default function OAuth2AuthorizePage() {
       <div className="oauth-consent-card login-liquid is-alive">
         <div className="oauth-consent-brand">
           <span className="login-logo-mark"><SafetyOutlined /></span>
-          <span className="login-logo-name">Go Admin Kit</span>
+          <span className="login-logo-name">GopherForge</span>
         </div>
         {renderBody()}
       </div>

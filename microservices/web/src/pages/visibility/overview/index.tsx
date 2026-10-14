@@ -155,7 +155,7 @@ export default function VisibilityOverviewPage() {
           title={<Space><TrophyOutlined /> {t('AI 推荐排行榜')}</Space>}
           extra={board?.mode === 'stub' && board.runs_used > 0 ? <Tag variant="filled">{t('模拟演示数据')}</Tag> : null}
         >
-          {!board || board.runs_used === 0 ? (
+          {!board || board.runs_used === 0 || !Array.isArray(board.items) ? (
             <Space direction="vertical">
               <Text type="secondary">{t('还没有完成的检测。做一次「真实 AI 检测」，就能看到 AI 推荐同类产品时把谁排在前面、你排第几。')}</Text>
               <Button type="primary" onClick={() => navigate('/visibility/geo')}>{t('去做 AI 提及检测')}</Button>
@@ -168,7 +168,7 @@ export default function VisibilityOverviewPage() {
                     title={t('你的品牌「{{name}}」当前排名', { name: board.own_name || t('未录入') })}
                     value={board.own_rank > 0 ? board.own_rank : t('未上榜')}
                     prefix={board.own_rank > 0 ? t('第') : undefined}
-                    suffix={board.own_rank > 0 ? t('名 / 共 {{n}} 个上榜品牌', { n: board.items.length }) : undefined}
+                    suffix={board.own_rank > 0 ? t('名 / 共 {{n}} 个上榜品牌', { n: (board.items ?? []).length }) : undefined}
                   />
                   <Text type="secondary">
                     {t('近 {{a}} 次检测 {{b}} 题 · 提及率 {{c}}%{{d}}', {
@@ -185,8 +185,8 @@ export default function VisibilityOverviewPage() {
               </Col>
               <Col xs={24} md={15}>
                 <Space direction="vertical" size={6} style={{ width: '100%' }}>
-                  {board.items.slice(0, 8).map((it, i) => {
-                    const max = board.items[0]?.mentions || 1
+                  {(board.items ?? []).slice(0, 8).map((it, i) => {
+                    const max = (board.items ?? [])[0]?.mentions || 1
                     const own = it.kind === 'brand'
                     return (
                       <Space key={it.name} style={{ width: '100%', display: 'flex' }}>

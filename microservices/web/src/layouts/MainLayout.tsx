@@ -405,7 +405,7 @@ export default function MainLayout() {
           <div className="app-logo-mark">
             <SafetyOutlined />
           </div>
-          {!collapsed && <span className="app-logo-text">Go Admin Kit</span>}
+          {!collapsed && <span className="app-logo-text">GopherForge</span>}
         </div>
         <div className="app-menu-scroll">
           <Menu
@@ -448,7 +448,7 @@ export default function MainLayout() {
              />
             <span className="app-mobile-title">
               <span className="app-mobile-title-icon">{groupMeta?.icon || <HomeOutlined />}</span>
-              <span className="app-mobile-title-text">{breadcrumbTitle ? t(breadcrumbTitle) : groupMeta?.label ? t(groupMeta.label) : 'Go Admin Kit'}</span>
+              <span className="app-mobile-title-text">{breadcrumbTitle ? t(breadcrumbTitle) : groupMeta?.label ? t(groupMeta.label) : 'GopherForge'}</span>
             </span>
           </Space>
 

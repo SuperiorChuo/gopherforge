@@ -89,7 +89,7 @@ export default function AuthShell({
             <div className="login-logo-mark">
               <SafetyOutlined />
             </div>
-            <span className="login-logo-name">Go Admin Kit</span>
+            <span className="login-logo-name">GopherForge</span>
           </div>
 
           <div className="login-brand-copy">
@@ -140,7 +140,7 @@ export default function AuthShell({
             )}
             {children}
             {footer === null ? null : (
-              <div className="login-footer">{footer ?? `© ${year} Go Admin Kit`}</div>
+              <div className="login-footer">{footer ?? `© ${year} GopherForge`}</div>
             )}
           </div>
         </div>

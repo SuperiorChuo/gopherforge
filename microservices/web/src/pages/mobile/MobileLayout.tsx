@@ -172,7 +172,7 @@ export default function MobileLayout() {
     <div className="m-app">
       <header className="m-topbar">
         <div className="m-brand">
-          <p className="m-brand-kicker">Go Admin Kit</p>
+          <p className="m-brand-kicker">GopherForge</p>
           <h1 className="m-brand-title">{title}</h1>
         </div>
         <div className="m-topbar-actions">
