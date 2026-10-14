@@ -61,6 +61,20 @@ const zhSidebar = {
         { text: '监控与可观测', link: '/modules/observability' },
       ],
     },
+    {
+      text: '业务域',
+      items: [
+        { text: 'AI 与智能体', link: '/modules/ai' },
+        { text: 'IM 智能客服', link: '/modules/im' },
+        { text: '呼叫中心', link: '/modules/cc' },
+        { text: '销售 CRM', link: '/modules/crm' },
+        { text: '公众号运营', link: '/modules/mp' },
+        { text: '工单', link: '/modules/ticket' },
+        { text: 'AI 可见度', link: '/modules/visibility' },
+        { text: '通知中心', link: '/modules/notify' },
+        { text: '支付中心（mock）', link: '/modules/pay' },
+      ],
+    },
   ],
   '/reference/': [
     {
@@ -116,6 +130,20 @@ const enSidebar = {
         { text: 'File Service', link: '/en/modules/file' },
         { text: 'Audit Logs', link: '/en/modules/audit' },
         { text: 'Monitoring & Observability', link: '/en/modules/observability' },
+      ],
+    },
+    {
+      text: 'Business Domains',
+      items: [
+        { text: 'AI & Agents', link: '/en/modules/ai' },
+        { text: 'IM Customer Support', link: '/en/modules/im' },
+        { text: 'Call Center', link: '/en/modules/cc' },
+        { text: 'Sales CRM', link: '/en/modules/crm' },
+        { text: 'WeChat Official Accounts', link: '/en/modules/mp' },
+        { text: 'Tickets', link: '/en/modules/ticket' },
+        { text: 'AI Visibility', link: '/en/modules/visibility' },
+        { text: 'Notifications', link: '/en/modules/notify' },
+        { text: 'Payments (mock)', link: '/en/modules/pay' },
       ],
     },
   ],
