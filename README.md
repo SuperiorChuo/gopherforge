@@ -43,6 +43,26 @@ make compose-up
 
 在线 Demo 使用假数据，不连接真实业务 API，不是完整后端验收环境；GitHub Pages 显示的是已经部署的版本，未必与候选分支一致。
 
+### 🧩 微服务版
+
+```bash
+git clone https://github.com/SuperiorChuo/gopherforge.git
+cd gopherforge/microservices
+cp .env.example .env
+# 1. 创建应用与有状态服务共享网络（一次性）
+docker network inspect go-admin-kit-net >/dev/null 2>&1 || \
+  docker network create --subnet 172.28.0.0/16 go-admin-kit-net
+# 2. 启动 PostgreSQL、Redis、NATS（需要对象存储时加 --profile storage）
+docker compose -p go-admin-kit-infra -f docker-compose.infra.yml up -d
+# 3. 启动应用栈
+docker compose --profile compose-fallback up -d --build
+# 或在仓库根目录执行：make compose-up（会按同样顺序启动）
+```
+
+| 入口 | 地址 |
+| --- | --- |
+| 网关/前端 | `http://localhost:8000` |
+
 ## 升级与数据库
 
 公开历史 SQL 保持原路径、原字节；完整产品升级使用追加的 forward-only 迁移。不要用源码目录覆盖旧迁移，也不要在生产运行 `goose down/reset`。请先备份数据库并在隔离副本演练；恢复使用经过验证的备份，不依赖不可逆迁移的 Down。
