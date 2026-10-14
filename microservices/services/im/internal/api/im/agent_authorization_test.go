@@ -145,3 +145,122 @@ func TestWSAuthorizedAgentAndGuestFlows(t *testing.T) {
 		})
 	}
 }
+
+func testAgentOwnerCookie(t *testing.T, srv *Server, session, permissions string, status int) *atomic.Int32 {
+	t.Helper()
+	calls := &atomic.Int32{}
+	owner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		if r.Method != http.MethodGet || r.URL.Path != "/internal/verify" || r.Header.Get("Authorization") != "" ||
+			r.Header.Get("Cookie") != "black8console_session="+session {
+			t.Error("owner received unexpected cookie verification request")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("X-Auth-User-ID", "42")
+		w.Header().Set("X-Auth-Tenant-ID", "1")
+		w.Header().Set("X-Auth-Permissions", permissions)
+		w.WriteHeader(status)
+	}))
+	t.Cleanup(owner.Close)
+	srv.AgentVerifier = authjwt.NewVerifier(owner.URL)
+	return calls
+}
+
+// A pure-cookie console session (no Authorization) reaches mixed REST endpoints
+// through the guest-capable im-open router; the session must be verified with
+// its owner before any agent action.
+func TestMixedIMEndpointsAcceptVerifiedCookieSession(t *testing.T) {
+	r, srv := newTestRouterWithServer(t)
+	guest := guestSession(t, r, "cookie-authz-guest")
+	conv := createConversation(t, r, guest)
+	session := "cookie-session-token-value"
+	calls := testAgentOwnerCookie(t, srv, session, "im:agent:access", http.StatusOK)
+	cookie := map[string]string{"Cookie": "black8console_session=" + session}
+	w, _ := do(t, r, http.MethodGet, "/api/v1/im/conversations/"+conv+"/messages", nil, cookie)
+	if w.Code != http.StatusOK {
+		t.Fatalf("cookie session read got %d, want 200 body %s", w.Code, w.Body.String())
+	}
+	w, _ = do(t, r, http.MethodPost, "/api/v1/im/conversations/"+conv+"/messages",
+		gin.H{"content": gin.H{"text": "cookie agent message"}}, cookie)
+	if w.Code != http.StatusOK {
+		t.Fatalf("cookie session send got %d, want 200 body %s", w.Code, w.Body.String())
+	}
+	if calls.Load() == 0 {
+		t.Fatal("cookie session entered agent flows without owner verification")
+	}
+}
+
+func TestCookieSessionRequiresOwnerPermission(t *testing.T) {
+	for _, tc := range []struct {
+		name, permissions string
+		ownerStatus, want int
+	}{
+		{"no IM permission", "system:user:list", 200, 403},
+		{"expired or revoked session", "*", 401, 401},
+		{"owner rejects session", "*", 403, 403},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r, srv := newTestRouterWithServer(t)
+			guest := guestSession(t, r, "cookie-neg-guest")
+			conv := createConversation(t, r, guest)
+			testAgentOwnerCookie(t, srv, "cookie-neg", tc.permissions, tc.ownerStatus)
+			w, _ := do(t, r, http.MethodPost, "/api/v1/im/conversations/"+conv+"/messages",
+				gin.H{"content": gin.H{"text": "must not write"}},
+				map[string]string{"Cookie": "black8console_session=cookie-neg"})
+			if w.Code != tc.want {
+				t.Fatalf("cookie session got %d, want %d", w.Code, tc.want)
+			}
+		})
+	}
+}
+
+func TestVerifierRejectsUnusableOwnerPaths(t *testing.T) {
+	token := signedAgentTestToken(t)
+	mixed := func(t *testing.T, r *gin.Engine) string {
+		guest := guestSession(t, r, "verifier-fault-guest")
+		return createConversation(t, r, guest)
+	}
+
+	t.Run("owner direct 403", func(t *testing.T) {
+		r, srv := newTestRouterWithServer(t)
+		conv := mixed(t, r)
+		testAgentOwner(t, srv, token, "*", http.StatusForbidden)
+		w, _ := do(t, r, http.MethodPost, "/api/v1/im/conversations/"+conv+"/messages",
+			gin.H{"content": gin.H{"text": "must not write"}}, map[string]string{"Authorization": "Bearer " + token})
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("owner 403 mapped to %d, want 403", w.Code)
+		}
+	})
+
+	t.Run("invalid verifier configuration fails closed", func(t *testing.T) {
+		r, srv := newTestRouterWithServer(t)
+		conv := mixed(t, r)
+		srv.AgentVerifier = authjwt.NewVerifier("http://[::1]:namedport/not-a-base")
+		w, _ := do(t, r, http.MethodPost, "/api/v1/im/conversations/"+conv+"/messages",
+			gin.H{"content": gin.H{"text": "must not write"}}, map[string]string{"Authorization": "Bearer " + token})
+		if w.Code != http.StatusServiceUnavailable {
+			t.Fatalf("invalid verifier config mapped to %d, want 503", w.Code)
+		}
+	})
+
+	t.Run("redirecting owner is not followed with credentials", func(t *testing.T) {
+		r, srv := newTestRouterWithServer(t)
+		conv := mixed(t, r)
+		target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Error("credentials must not follow a redirect")
+			w.WriteHeader(http.StatusOK)
+		}))
+		t.Cleanup(target.Close)
+		owner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, target.URL+"/internal/verify", http.StatusFound)
+		}))
+		t.Cleanup(owner.Close)
+		srv.AgentVerifier = authjwt.NewVerifier(owner.URL)
+		w, _ := do(t, r, http.MethodPost, "/api/v1/im/conversations/"+conv+"/messages",
+			gin.H{"content": gin.H{"text": "must not write"}}, map[string]string{"Authorization": "Bearer " + token})
+		if w.Code != http.StatusServiceUnavailable {
+			t.Fatalf("redirecting owner mapped to %d, want 503", w.Code)
+		}
+	})
+}

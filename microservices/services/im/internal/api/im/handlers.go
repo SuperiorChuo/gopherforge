@@ -10,6 +10,7 @@ import (
 	"github.com/go-admin-kit/services/im/internal/sensitive"
 	"github.com/go-admin-kit/services/im/internal/storage"
 	"github.com/go-admin-kit/services/im/internal/store/im"
+	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
 	"github.com/go-admin-kit/services/shared/pkg/gatewayauth"
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
 	"gorm.io/gorm"
@@ -125,6 +126,22 @@ func (s *Server) verifyAgentToken(c *gin.Context, token string) (*authjwt.AgentC
 		return nil, false
 	}
 	claims, err := s.AgentVerifier.VerifyAgent(c.Request.Context(), token)
+	return s.finishAgentVerify(c, claims, err)
+}
+
+// verifyAgentCookie validates a pure-cookie console session with its owner.
+// The guest-capable im-open routes bypass ForwardAuth, so IM must not silently
+// drop these sessions (regression) nor trust them without verification.
+func (s *Server) verifyAgentCookie(c *gin.Context, session string) (*authjwt.AgentClaims, bool) {
+	if s.AgentVerifier == nil {
+		Fail(c, http.StatusServiceUnavailable, "agent verification unavailable")
+		return nil, false
+	}
+	claims, err := s.AgentVerifier.VerifyAgentCookie(c.Request.Context(), session)
+	return s.finishAgentVerify(c, claims, err)
+}
+
+func (s *Server) finishAgentVerify(c *gin.Context, claims *authjwt.AgentClaims, err error) (*authjwt.AgentClaims, bool) {
 	switch {
 	case err == nil:
 		return claims, true
@@ -145,8 +162,15 @@ func (s *Server) requireAgent(c *gin.Context) (*authjwt.AgentClaims, bool) {
 	if tok := bearer(c); tok != "" {
 		return s.verifyAgentToken(c, tok)
 	}
-	// Cookie-console sessions arrive without a bearer; only the auth-chain hop
-	// may assert their identity headers, and they need the same IM permission.
+	// Pure-cookie console sessions also arrive on the guest-capable routes;
+	// verify the session with its owner instead of rejecting or trusting it.
+	if cookie, err := c.Cookie(consoleauth.SessionCookieName); err == nil {
+		if session := strings.TrimSpace(cookie); session != "" {
+			return s.verifyAgentCookie(c, session)
+		}
+	}
+	// Header-only identities can only come from the auth-chain hop
+	// (auth-sanitize cleared client copies), and they need the same IM permission.
 	if uid := c.GetHeader("X-Auth-User-ID"); uid != "" {
 		if !agentPermitted(c) {
 			Fail(c, http.StatusForbidden, "insufficient permissions")

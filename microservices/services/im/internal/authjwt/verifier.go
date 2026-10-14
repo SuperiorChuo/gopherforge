@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
 	"github.com/go-admin-kit/services/shared/pkg/gatewayauth"
 )
 
@@ -53,6 +54,25 @@ func (v *Verifier) VerifyAgent(ctx context.Context, token string) (*AgentClaims,
 	if strings.TrimSpace(token) == "" {
 		return nil, ErrUnauthorized
 	}
+	return v.verify(ctx, func(req *http.Request) {
+		req.Header.Set("Authorization", "Bearer "+token)
+	})
+}
+
+// VerifyAgentCookie validates a console session cookie with the same owner.
+// The guest-capable im-open routes bypass ForwardAuth, so a pure-cookie
+// console request arrives at IM without identity headers; the session must be
+// validated (and its permissions resolved) by auth-service before IM trusts it.
+func (v *Verifier) VerifyAgentCookie(ctx context.Context, session string) (*AgentClaims, error) {
+	if strings.TrimSpace(session) == "" {
+		return nil, ErrUnauthorized
+	}
+	return v.verify(ctx, func(req *http.Request) {
+		req.Header.Set("Cookie", consoleauth.SessionCookieName+"="+session)
+	})
+}
+
+func (v *Verifier) verify(ctx context.Context, decorate func(*http.Request)) (*AgentClaims, error) {
 	if v == nil || v.endpoint == "" || v.client == nil {
 		return nil, ErrUnavailable
 	}
@@ -60,7 +80,7 @@ func (v *Verifier) VerifyAgent(ctx context.Context, token string) (*AgentClaims,
 	if err != nil {
 		return nil, ErrUnavailable
 	}
-	req.Header.Set("Authorization", "Bearer "+token)
+	decorate(req)
 	resp, err := v.client.Do(req)
 	if err != nil {
 		return nil, ErrUnavailable
