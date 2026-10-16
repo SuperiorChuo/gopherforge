@@ -77,6 +77,32 @@ class WorkflowTests(unittest.TestCase):
         for path in paths:
             self.assertTrue((ROOT / path / "go.mod").is_file(), path)
 
+    def test_frontend_functional_demo_uses_supported_reduced_motion(self):
+        config = (ROOT / "microservices/web/playwright.demo.config.ts").read_text()
+        spec = (ROOT / "microservices/web/demo-e2e/entry.spec.ts").read_text()
+        self.assertIn("contextOptions: { reducedMotion: 'reduce' }", config)
+        self.assertIn("retries: 0", config)
+        self.assertEqual(spec.count("toHaveCSS('animation-name', 'none')"), 2)
+        self.assertNotIn("force: true", spec)
+        self.assertIn("expect(backendRequests).toEqual([])", spec)
+
+    def test_ci_keeps_failure_diagnostics_without_bypassing_build(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+        frontend = workflow.split("  micro-frontend:", 1)[1].split("  integration:", 1)[0]
+        artifact = frontend.split("name: Preserve frontend failure diagnostics", 1)[1]
+        self.assertIn("if: failure()", artifact)
+        self.assertIn("actions/upload-artifact@v4", artifact)
+        self.assertIn("path: microservices/web/test-results/", artifact)
+        integration = workflow.split("  integration:", 1)[1].split("  e2e:", 1)[0]
+        job_limit = int(re.search(r"^    timeout-minutes: (\d+)$", integration, re.M).group(1))
+        build = integration.split("name: Build compose images", 1)[1].split("name: Start postgres", 1)[0]
+        build_limit = int(re.search(r"timeout-minutes: (\d+)", build).group(1))
+        self.assertGreater(build_limit, 0)
+        self.assertGreaterEqual(job_limit - build_limit, 5)
+        self.assertNotIn("continue-on-error", integration)
+        self.assertIn("name: Dump compose state and logs\n        if: failure()", integration)
+        self.assertIn("name: Tear down the stack\n        if: always()", integration)
+
     def test_product_entrypoint_standalone_and_rejects_unknown_targets(self):
         # 没有任何本地治理目录的干净目录也能展示用法和拒绝错拼目标。
         source = (ROOT / "scripts/verify-product.sh").read_bytes()

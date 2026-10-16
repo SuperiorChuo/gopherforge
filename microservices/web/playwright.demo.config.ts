@@ -10,7 +10,9 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   retries: 0,
   reporter: 'list',
-  use: { baseURL, trace: 'retain-on-failure', screenshot: 'only-on-failure' },
+  // 功能回归使用产品已有的减少动效偏好；仍验证真实点击、守卫回跳与无后端请求。
+  // 默认登录卡片持续浮动，不以 force 点击或重试绕过 Playwright 的稳定性检查。
+  use: { baseURL, contextOptions: { reducedMotion: 'reduce' }, trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command: `npm run build && node scripts/prerender-spa.mjs && npm run preview -- --host 127.0.0.1 --port ${port} --strictPort`,
