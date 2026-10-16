@@ -83,14 +83,12 @@ jobs:
         uses: bufbuild/buf-setup-action@v1
         with:
           version: "1.54.0"
+      - name: Verify proto baseline regressions
+        run: python3 -B -m unittest discover -s scripts/tests -p 'test_release_proto.py' -v
       - name: Check for breaking changes
-        working-directory: microservices/services/api/proto
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            buf breaking --against '.git#branch=${{ github.base_ref }}'
-          else
-            buf breaking --against '.git#branch=main'
-          fi
+        env:
+          PROTO_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: bash scripts/check-proto-breaking.sh "$PROTO_BASE_SHA"
 
   # shared 是 16 个服务共用的公共库（metrics/logger/response/jobbeat/mask/iploc），必须单独门禁
   shared-module:
