@@ -3,15 +3,20 @@ package api
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/go-admin-kit/services/visibility/internal/authjwt"
 	"github.com/go-admin-kit/services/visibility/internal/runner"
 	"github.com/go-admin-kit/services/visibility/internal/store/visibility"
+	"gorm.io/gorm"
 )
 
 type Server struct {
@@ -102,6 +107,46 @@ func pathID(c *gin.Context, name string) (uint64, bool) {
 		return 0, false
 	}
 	return id, true
+}
+
+// An absent body keeps the historical default request. Malformed JSON must
+// never partially bind a request and start paid/background work.
+func bindOptionalJSON(c *gin.Context, dst any) bool {
+	decoder := json.NewDecoder(c.Request.Body)
+	if binding.EnableDecoderUseNumber {
+		decoder.UseNumber()
+	}
+	if binding.EnableDecoderDisallowUnknownFields {
+		decoder.DisallowUnknownFields()
+	}
+	if err := decoder.Decode(dst); errors.Is(err, io.EOF) {
+		return true
+	} else if err != nil {
+		writeFail(c, http.StatusBadRequest, "invalid body")
+		return false
+	}
+	// Gin's binder decodes only once. Reject trailing data, including a second
+	// valid JSON value, before a default/partially bound request starts work.
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		writeFail(c, http.StatusBadRequest, "invalid body")
+		return false
+	}
+	if binding.Validator != nil {
+		if err := binding.Validator.ValidateStruct(dst); err != nil {
+			writeFail(c, http.StatusBadRequest, "invalid body")
+			return false
+		}
+	}
+	return true
+}
+
+func writeLookupFailure(c *gin.Context, err error, missing string) {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		writeFail(c, http.StatusNotFound, missing)
+		return
+	}
+	writeFail(c, http.StatusInternalServerError, err.Error())
 }
 
 func pageOf(c *gin.Context) store.Page {

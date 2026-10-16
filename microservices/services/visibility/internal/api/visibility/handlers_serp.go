@@ -20,7 +20,9 @@ func (s *Server) CreateSerpCheck(c *gin.Context) {
 		return
 	}
 	var req createSerpCheckReq
-	_ = c.ShouldBindJSON(&req)
+	if !bindOptionalJSON(c, &req) {
+		return
+	}
 	task, reused, err := s.Runner.SubmitSerpTask(u.TenantID, u.UserID, req.KeywordID, "manual")
 	if err != nil {
 		writeFail(c, http.StatusBadRequest, err.Error())

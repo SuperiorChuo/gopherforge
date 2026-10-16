@@ -41,7 +41,9 @@ func (s *Server) GenerateBrands(c *gin.Context) {
 		return
 	}
 	var req generateBrandsReq
-	_ = c.ShouldBindJSON(&req)
+	if !bindOptionalJSON(c, &req) {
+		return
+	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 80*time.Second)
 	defer cancel()
 	items, fetched, err := s.Runner.GenerateBrands(ctx, u.TenantID, req.SiteURL, req.Hint)
@@ -72,40 +74,14 @@ func (s *Server) BatchCreateBrands(c *gin.Context) {
 		writeFail(c, http.StatusBadRequest, "一次最多提交 100 条")
 		return
 	}
-	seen, err := s.Store.ListBrandNames(u.TenantID)
+	items := make([]model.Brand, 0, len(req.Items))
+	for _, it := range req.Items {
+		items = append(items, model.Brand{Name: it.Name, Aliases: it.Aliases, Kind: it.Kind, Website: it.Website, Note: it.Note})
+	}
+	created, skipped, err := s.Store.BatchCreateBrands(c.Request.Context(), u.TenantID, items)
 	if err != nil {
 		writeFail(c, http.StatusInternalServerError, err.Error())
 		return
-	}
-	created, skipped := 0, 0
-	for _, it := range req.Items {
-		name := strings.TrimSpace(it.Name)
-		if name == "" {
-			continue
-		}
-		if seen[strings.ToLower(name)] {
-			skipped++
-			continue
-		}
-		kind := strings.TrimSpace(it.Kind)
-		if kind != "brand" {
-			kind = "competitor"
-		}
-		b := &model.Brand{
-			TenantID: u.TenantID,
-			Name:     name,
-			Aliases:  strings.TrimSpace(it.Aliases),
-			Kind:     kind,
-			Website:  strings.TrimSpace(it.Website),
-			Note:     strings.TrimSpace(it.Note),
-			Status:   1,
-		}
-		if err := s.Store.CreateBrand(c.Request.Context(), b); err != nil {
-			writeFail(c, http.StatusInternalServerError, err.Error())
-			return
-		}
-		seen[strings.ToLower(name)] = true
-		created++
 	}
 	writeOK(c, gin.H{"created": created, "skipped": skipped})
 }
@@ -127,7 +103,9 @@ func (s *Server) GenerateKeywords(c *gin.Context) {
 		return
 	}
 	var req generateKeywordsReq
-	_ = c.ShouldBindJSON(&req)
+	if !bindOptionalJSON(c, &req) {
+		return
+	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 80*time.Second)
 	defer cancel()
 	items, fetched, err := s.Runner.GenerateKeywords(ctx, u.TenantID, req.SiteURL, req.Hint, req.Count)
@@ -163,39 +141,14 @@ func (s *Server) BatchCreateKeywords(c *gin.Context) {
 		writeFail(c, http.StatusBadRequest, "一次最多提交 100 条")
 		return
 	}
-	existing, err := s.Store.ListKeywordTexts(u.TenantID)
+	items := make([]model.Keyword, 0, len(req.Items))
+	for _, it := range req.Items {
+		items = append(items, model.Keyword{Keyword: it.Keyword, Locale: it.Locale, TargetURL: it.TargetURL})
+	}
+	created, skipped, err := s.Store.BatchCreateKeywords(c.Request.Context(), u.TenantID, items)
 	if err != nil {
 		writeFail(c, http.StatusInternalServerError, err.Error())
 		return
-	}
-	seen := make(map[string]bool, len(existing))
-	for _, k := range existing {
-		seen[strings.ToLower(strings.TrimSpace(k))] = true
-	}
-	created, skipped := 0, 0
-	for _, it := range req.Items {
-		kw := strings.TrimSpace(it.Keyword)
-		if kw == "" {
-			continue
-		}
-		key := strings.ToLower(kw)
-		if seen[key] {
-			skipped++
-			continue
-		}
-		k := &model.Keyword{
-			TenantID:  u.TenantID,
-			Keyword:   kw,
-			Locale:    orDefault(strings.TrimSpace(it.Locale), "zh-CN"),
-			TargetURL: strings.TrimSpace(it.TargetURL),
-			Status:    "tracking",
-		}
-		if err := s.Store.CreateKeyword(c.Request.Context(), k); err != nil {
-			writeFail(c, http.StatusInternalServerError, err.Error())
-			return
-		}
-		seen[key] = true
-		created++
 	}
 	writeOK(c, gin.H{"created": created, "skipped": skipped})
 }
@@ -334,7 +287,7 @@ func (s *Server) CompareGeoRun(c *gin.Context) {
 	}
 	cur, err := s.Store.GetGeoRun(u.TenantID, id)
 	if err != nil {
-		writeFail(c, http.StatusNotFound, "检测记录不存在")
+		writeLookupFailure(c, err, "检测记录不存在")
 		return
 	}
 	if cur.Status != "done" {
@@ -345,7 +298,7 @@ func (s *Server) CompareGeoRun(c *gin.Context) {
 	if withID, _ := strconv.ParseUint(c.Query("with"), 10, 64); withID > 0 {
 		prev, err = s.Store.GetGeoRun(u.TenantID, withID)
 		if err != nil {
-			writeFail(c, http.StatusNotFound, "对比目标不存在")
+			writeLookupFailure(c, err, "对比目标不存在")
 			return
 		}
 		// 半程 run 的计数不可比；自比恒等无意义
@@ -364,8 +317,16 @@ func (s *Server) CompareGeoRun(c *gin.Context) {
 		writeOK(c, gin.H{"has_previous": false, "compare": nil})
 		return
 	}
-	curRes, _ := s.Store.ListGeoResults(u.TenantID, cur.ID)
-	prevRes, _ := s.Store.ListGeoResults(u.TenantID, prev.ID)
+	curRes, err := s.Store.ListGeoResults(u.TenantID, cur.ID)
+	if err != nil {
+		writeFail(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	prevRes, err := s.Store.ListGeoResults(u.TenantID, prev.ID)
+	if err != nil {
+		writeFail(c, http.StatusInternalServerError, err.Error())
+		return
+	}
 	cmp := store.BuildGeoRunCompare(cur, curRes, prev, prevRes)
 	writeOK(c, gin.H{
 		"has_previous": true,

@@ -345,7 +345,9 @@ func (s *Server) GenerateGeoPrompts(c *gin.Context) {
 		return
 	}
 	var req generatePromptsReq
-	_ = c.ShouldBindJSON(&req)
+	if !bindOptionalJSON(c, &req) {
+		return
+	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 80*time.Second)
 	defer cancel()
 	if site := strings.TrimSpace(req.SiteURL); site != "" {
@@ -385,39 +387,14 @@ func (s *Server) BatchCreateGeoPrompts(c *gin.Context) {
 		writeFail(c, http.StatusBadRequest, "一次最多提交 100 条")
 		return
 	}
-	existing, err := s.Store.ListGeoPromptQuestions(u.TenantID)
+	items := make([]model.GeoPrompt, 0, len(req.Items))
+	for _, it := range req.Items {
+		items = append(items, model.GeoPrompt{Question: it.Question, Category: it.Category, Engine: it.Engine})
+	}
+	created, skipped, err := s.Store.BatchCreateGeoPrompts(c.Request.Context(), u.TenantID, items)
 	if err != nil {
 		writeFail(c, http.StatusInternalServerError, err.Error())
 		return
-	}
-	seen := make(map[string]bool, len(existing))
-	for _, q := range existing {
-		seen[strings.ToLower(strings.TrimSpace(q))] = true
-	}
-	created, skipped := 0, 0
-	for _, it := range req.Items {
-		q := strings.TrimSpace(it.Question)
-		if q == "" {
-			continue
-		}
-		key := strings.ToLower(q)
-		if seen[key] {
-			skipped++
-			continue
-		}
-		p := &model.GeoPrompt{
-			TenantID: u.TenantID,
-			Category: orDefault(strings.TrimSpace(it.Category), "category"),
-			Question: q,
-			Engine:   orDefault(strings.TrimSpace(it.Engine), "llm"),
-			Status:   1,
-		}
-		if err := s.Store.CreateGeoPrompt(c.Request.Context(), p); err != nil {
-			writeFail(c, http.StatusInternalServerError, err.Error())
-			return
-		}
-		seen[key] = true
-		created++
 	}
 	writeOK(c, gin.H{"created": created, "skipped": skipped})
 }
@@ -494,7 +471,9 @@ func (s *Server) CreateGeoRun(c *gin.Context) {
 		return
 	}
 	var req createRunReq
-	_ = c.ShouldBindJSON(&req)
+	if !bindOptionalJSON(c, &req) {
+		return
+	}
 	mode := strings.TrimSpace(req.Mode)
 	engine := strings.TrimSpace(req.Engine)
 	// 默认走真实检测：不传 mode 曾经默认跑 stub，等于把"点一下开始检测"
@@ -563,10 +542,14 @@ func (s *Server) GetGeoRun(c *gin.Context) {
 	}
 	run, err := s.Store.GetGeoRun(u.TenantID, id)
 	if err != nil {
-		writeFail(c, http.StatusNotFound, "not found")
+		writeLookupFailure(c, err, "not found")
 		return
 	}
-	results, _ := s.Store.ListGeoResults(u.TenantID, id)
+	results, err := s.Store.ListGeoResults(u.TenantID, id)
+	if err != nil {
+		writeFail(c, http.StatusInternalServerError, err.Error())
+		return
+	}
 	var items []model.AdviceItem
 	if strings.TrimSpace(run.AdviceItemsJSON) != "" {
 		_ = json.Unmarshal([]byte(run.AdviceItemsJSON), &items)

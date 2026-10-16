@@ -77,10 +77,7 @@ func (r *Runner) execGeoRun(runID, tenantID uint64, mode, engineName string, ai 
 	}()
 	defer func() {
 		if p := recover(); p != nil {
-			log.Printf("geo run %d panic: %v", runID, p)
-			_ = r.store.UpdateGeoRun(tenantID, runID, map[string]any{
-				"status": "failed", "error": fmt.Sprintf("internal panic: %v", p), "finished_at": time.Now(),
-			})
+			r.failGeoRun(tenantID, runID, fmt.Sprintf("internal panic: %v", p))
 		}
 	}()
 
@@ -88,9 +85,7 @@ func (r *Runner) execGeoRun(runID, tenantID uint64, mode, engineName string, ai 
 	for i, p := range prompts {
 		select {
 		case <-r.ctx.Done():
-			_ = r.store.UpdateGeoRun(tenantID, runID, map[string]any{
-				"status": "failed", "error": "服务关闭，任务中断", "finished_at": time.Now(),
-			})
+			r.failGeoRun(tenantID, runID, "服务关闭，任务中断")
 			return
 		default:
 		}
@@ -126,10 +121,7 @@ func (r *Runner) execGeoRun(runID, tenantID uint64, mode, engineName string, ai 
 			}
 			if err != nil {
 				// 服务关闭导致的失败：直接标 failed 退出，别写"模型调用失败"的垃圾结果行
-				if r.ctx.Err() != nil {
-					_ = r.store.UpdateGeoRun(tenantID, runID, map[string]any{
-						"status": "failed", "error": "服务关闭，任务中断", "finished_at": time.Now(),
-					})
+				if r.failGeoIfClosing(tenantID, runID) {
 					return
 				}
 				// 只落错误本身。曾经这里会补一段 StubAnswer 假回答"让结果行有内容"，
@@ -220,21 +212,28 @@ func (r *Runner) execGeoRun(runID, tenantID uint64, mode, engineName string, ai 
 			return
 		}
 		if resultErr != nil {
-			// 结果行写失败就不计提及，避免 run 汇总与结果表对不上
-			log.Printf("geo run %d prompt %d create result: %v", runID, p.ID, resultErr)
-		} else if an.MentionBrand {
+			r.failGeoRun(tenantID, runID, fmt.Sprintf("create result for prompt %d: %v", p.ID, resultErr))
+			return
+		}
+		if an.MentionBrand {
 			mention++
 		}
-		_ = r.store.UpdateGeoRun(tenantID, runID, map[string]any{
+		if err := r.store.UpdateGeoRun(tenantID, runID, map[string]any{
 			"done_count": i + 1, "mention_count": mention,
-		})
+		}); err != nil {
+			r.failGeoRun(tenantID, runID, fmt.Sprintf("update progress: %v", err))
+			return
+		}
 	}
 	if r.failGeoIfClosing(tenantID, runID) {
 		return
 	}
-	_ = r.store.UpdateGeoRun(tenantID, runID, map[string]any{
+	if err := r.store.UpdateGeoRun(tenantID, runID, map[string]any{
 		"status": "done", "mention_count": mention, "finished_at": time.Now(),
-	})
+	}); err != nil {
+		r.failGeoRun(tenantID, runID, fmt.Sprintf("complete run: %v", err))
+		return
+	}
 	if mode == "llm" {
 		// 独立 goroutine：建议生成最长 200s，若同步执行会拖住 geoActive 占坑释放，
 		// 期间新提交拿到"已在进行"的假 running 占位。关闭开始后不再派生
@@ -257,9 +256,7 @@ func (r *Runner) failGeoIfClosing(tenantID, runID uint64) bool {
 	if r.ctx.Err() == nil {
 		return false
 	}
-	_ = r.store.UpdateGeoRun(tenantID, runID, map[string]any{
-		"status": "failed", "error": "服务关闭，任务中断", "finished_at": time.Now(),
-	})
+	r.failGeoRun(tenantID, runID, "服务关闭，任务中断")
 	return true
 }
 

@@ -69,10 +69,7 @@ func (r *Runner) execSerpTask(taskID, tenantID uint64, keywords []model.Keyword)
 	}()
 	defer func() {
 		if p := recover(); p != nil {
-			log.Printf("serp task %d panic: %v", taskID, p)
-			_ = r.store.UpdateSerpTask(tenantID, taskID, map[string]any{
-				"status": "failed", "error": fmt.Sprintf("internal panic: %v", p), "finished_at": time.Now(),
-			})
+			r.failSerpTask(tenantID, taskID, fmt.Sprintf("internal panic: %v", p))
 		}
 	}()
 
@@ -81,9 +78,7 @@ func (r *Runner) execSerpTask(taskID, tenantID uint64, keywords []model.Keyword)
 	for i, kw := range keywords {
 		select {
 		case <-r.ctx.Done():
-			_ = r.store.UpdateSerpTask(tenantID, taskID, map[string]any{
-				"status": "failed", "error": "服务关闭，任务中断", "finished_at": time.Now(),
-			})
+			r.failSerpTask(tenantID, taskID, "服务关闭，任务中断")
 			return
 		default:
 		}
@@ -94,9 +89,7 @@ func (r *Runner) execSerpTask(taskID, tenantID uint64, keywords []model.Keyword)
 				// 与循环顶部同构地标 failed 退出：末位关键词若走 continue 会直接
 				// 跳出循环、被收尾逻辑标成 done（实际最后一个词没采集）
 				t.Stop()
-				_ = r.store.UpdateSerpTask(tenantID, taskID, map[string]any{
-					"status": "failed", "error": "服务关闭，任务中断", "finished_at": time.Now(),
-				})
+				r.failSerpTask(tenantID, taskID, "服务关闭，任务中断")
 				return
 			case <-t.C:
 			}
@@ -104,13 +97,19 @@ func (r *Runner) execSerpTask(taskID, tenantID uint64, keywords []model.Keyword)
 
 		if strings.TrimSpace(kw.TargetURL) == "" {
 			failCount++
-			_ = r.store.CreateRankSnapshot(&model.RankSnapshot{
+			if err := r.store.CreateRankSnapshot(&model.RankSnapshot{
 				TenantID: tenantID, KeywordID: kw.ID, Engine: "all",
 				Error: "未填目标网页，无法匹配排名", TaskID: taskID,
-			})
-			_ = r.store.UpdateSerpTask(tenantID, taskID, map[string]any{
+			}); err != nil {
+				r.failSerpTask(tenantID, taskID, fmt.Sprintf("create missing-target snapshot: %v", err))
+				return
+			}
+			if err := r.store.UpdateSerpTask(tenantID, taskID, map[string]any{
 				"done_count": i + 1, "ok_count": okCount, "fail_count": failCount,
-			})
+			}); err != nil {
+				r.failSerpTask(tenantID, taskID, fmt.Sprintf("update progress: %v", err))
+				return
+			}
 			continue
 		}
 
@@ -124,7 +123,7 @@ func (r *Runner) execSerpTask(taskID, tenantID uint64, keywords []model.Keyword)
 				TenantID: tenantID, KeywordID: kw.ID, Engine: eng, TaskID: taskID,
 			}
 			if res.Err != nil {
-				snap.Error = res.Err.Error()
+				snap.Error = taskError(res.Err.Error())
 				engineFail[eng]++
 			} else {
 				engineOK[eng]++
@@ -132,26 +131,36 @@ func (r *Runner) execSerpTask(taskID, tenantID uint64, keywords []model.Keyword)
 				snap.SerpURL = res.SerpURL
 				ranks = append(ranks, store.EngineRank{Engine: eng, Rank: res.Rank})
 			}
-			_ = r.store.CreateRankSnapshot(snap)
+			if err := r.store.CreateRankSnapshot(snap); err != nil {
+				r.failSerpTask(tenantID, taskID, fmt.Sprintf("create %s snapshot: %v", eng, err))
+				return
+			}
 		}
 		if len(ranks) > 0 {
 			if err := r.store.ApplyEngineRanks(tenantID, kw.ID, ranks); err != nil {
-				log.Printf("serp task %d keyword %d apply ranks: %v", taskID, kw.ID, err)
+				r.failSerpTask(tenantID, taskID, fmt.Sprintf("apply ranks for keyword %d: %v", kw.ID, err))
+				return
 			}
 			okCount++
 		} else {
 			failCount++
 		}
-		_ = r.store.UpdateSerpTask(tenantID, taskID, map[string]any{
+		if err := r.store.UpdateSerpTask(tenantID, taskID, map[string]any{
 			"done_count": i + 1, "ok_count": okCount, "fail_count": failCount,
-		})
+		}); err != nil {
+			r.failSerpTask(tenantID, taskID, fmt.Sprintf("update progress: %v", err))
+			return
+		}
 	}
 	if r.failSerpIfClosing(tenantID, taskID) {
 		return
 	}
-	_ = r.store.UpdateSerpTask(tenantID, taskID, map[string]any{
+	if err := r.store.UpdateSerpTask(tenantID, taskID, map[string]any{
 		"status": "done", "finished_at": time.Now(),
-	})
+	}); err != nil {
+		r.failSerpTask(tenantID, taskID, fmt.Sprintf("complete task: %v", err))
+		return
+	}
 	// 引擎级成败汇总：任务级 ok_count 只要有一个引擎成功就计 ok，
 	// 单引擎被反爬封死（如 so360 连续多日全挂）在任务层完全不可见
 	for eng, n := range engineFail {
@@ -165,8 +174,6 @@ func (r *Runner) failSerpIfClosing(tenantID, taskID uint64) bool {
 	if r.ctx.Err() == nil {
 		return false
 	}
-	_ = r.store.UpdateSerpTask(tenantID, taskID, map[string]any{
-		"status": "failed", "error": "服务关闭，任务中断", "finished_at": time.Now(),
-	})
+	r.failSerpTask(tenantID, taskID, "服务关闭，任务中断")
 	return true
 }

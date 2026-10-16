@@ -340,7 +340,14 @@ func (s *Store) CreateGeoRun(r *model.GeoRun) error {
 }
 
 func (s *Store) UpdateGeoRun(tenantID, id uint64, updates map[string]any) error {
-	return tenantQ(s.db.Model(&model.GeoRun{}), tenantID).Where("id = ?", id).Updates(updates).Error
+	res := tenantQ(s.db.Model(&model.GeoRun{}), tenantID).Where("id = ?", id).Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected != 1 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (s *Store) GetGeoRun(tenantID, id uint64) (*model.GeoRun, error) {
@@ -368,6 +375,7 @@ func (s *Store) CreateGeoResult(r *model.GeoResult) error {
 	return s.db.Create(r).Error
 }
 
+//nolint:unbounded-find // 单次检测的完整结果用于详情、比较与建议；截断会改变统计口径。
 func (s *Store) ListGeoResults(tenantID, runID uint64) ([]model.GeoResult, error) {
 	list, err := fullread.All[model.GeoResult](tenantQ(s.db, tenantID).Where("run_id = ?", runID).Order("id ASC"))
 	if err != nil {
@@ -463,30 +471,34 @@ func BuildGeoRunCompare(cur *model.GeoRun, curRes []model.GeoResult, prev *model
 		q := strings.TrimSpace(r.Question)
 		prevMap[q] = prevMap[q] || r.MentionBrand
 	}
-	seen := map[string]bool{}
+	curMap := map[string]bool{}
+	var questions []string
 	for _, r := range curRes {
 		if r.Engine == "llm_fallback_stub" {
 			continue
 		}
 		q := strings.TrimSpace(r.Question)
-		if seen[q] {
-			continue
+		if _, exists := curMap[q]; !exists {
+			questions = append(questions, q)
 		}
-		seen[q] = true
+		curMap[q] = curMap[q] || r.MentionBrand
+	}
+	for _, q := range questions {
+		mentioned := curMap[q]
 		was, ok := prevMap[q]
 		if !ok {
 			continue
 		}
-		if r.MentionBrand && !was {
+		if mentioned && !was {
 			out.NewlyMentioned = append(out.NewlyMentioned, q)
 		}
-		if !r.MentionBrand && was {
+		if !mentioned && was {
 			out.NewlyMissed = append(out.NewlyMissed, q)
 		}
-		if !r.MentionBrand && !was {
+		if !mentioned && !was {
 			out.StillMissing = append(out.StillMissing, q)
 		}
-		if r.MentionBrand && was {
+		if mentioned && was {
 			out.StillMentioned++
 		}
 	}
@@ -513,7 +525,14 @@ func (s *Store) CreateSerpTask(t *model.SerpTask) error {
 }
 
 func (s *Store) UpdateSerpTask(tenantID, id uint64, updates map[string]any) error {
-	return tenantQ(s.db.Model(&model.SerpTask{}), tenantID).Where("id = ?", id).Updates(updates).Error
+	res := tenantQ(s.db.Model(&model.SerpTask{}), tenantID).Where("id = ?", id).Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected != 1 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (s *Store) GetSerpTask(tenantID, id uint64) (*model.SerpTask, error) {
@@ -563,6 +582,7 @@ func (s *Store) ListRankSnapshots(tenantID, keywordID uint64, engine string, day
 	if engine != "" {
 		q = q.Where("engine = ?", engine)
 	}
+	//nolint:unbounded-find // 趋势需要所选时间窗内的完整历史，不以任意条数截断。
 	return fullread.All[model.RankSnapshot](q.Order("id ASC"))
 }
 

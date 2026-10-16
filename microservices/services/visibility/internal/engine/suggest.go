@@ -338,6 +338,11 @@ func GenerateGeoAdvice(ctx context.Context, baseURL, apiKey, model string, run *
 	if err != nil {
 		// 兼容旧模型只吐 markdown 的情况：整段当 markdown，并从列表行抽 checklist
 		md := strings.TrimSpace(stripFence(out))
+		// A broken structured response is not a legacy markdown answer.
+		// In particular, never persist truncated JSON or a wrong JSON root.
+		if looksStructuredAdvice(out, md) {
+			return GeoAdviceBundle{}, fmt.Errorf("invalid advice JSON: %w", err)
+		}
 		if md == "" {
 			return GeoAdviceBundle{}, fmt.Errorf("模型未返回建议内容，请重试")
 		}
@@ -364,9 +369,75 @@ func GenerateGeoAdvice(ctx context.Context, baseURL, apiKey, model string, run *
 	return bundle, nil
 }
 
+// Markdown links/reference definitions are not JSON arrays. Other JSON-looking
+// lines (even after prose) must not fall back to persisted legacy Markdown.
+func adviceMarkdownLink(line string) bool {
+	if !strings.HasPrefix(line, "[") {
+		return false
+	}
+	depth := 0
+	for i := 0; i < len(line); i++ {
+		switch line[i] {
+		case '\\':
+			i++ // Escaped brackets do not delimit the label.
+		case '[':
+			depth++
+		case ']':
+			depth--
+			if depth != 0 {
+				continue
+			}
+			label := strings.TrimSpace(line[1:i])
+			if label == "" {
+				return false
+			}
+			tail := strings.TrimSpace(line[i+1:])
+			if strings.HasPrefix(tail, "(") || strings.HasPrefix(tail, "[") || strings.HasPrefix(tail, ":") {
+				return true
+			}
+			// A bare JSON-looking label is not a Markdown shortcut link.
+			return tail == "" && label[0] != '{' && label[0] != '[' && label[0] != '"'
+		}
+	}
+	return false
+}
+
+func looksStructuredAdvice(raw, md string) bool {
+	if json.Valid([]byte(md)) {
+		return true
+	}
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(strings.ToLower(line), "```json") || strings.HasPrefix(line, "{") {
+			return true
+		}
+		if start := strings.Index(line, "{"); start >= 0 {
+			// JSON permits whitespace between the opening brace and its key.
+			rest := strings.TrimSpace(line[start+1:])
+			if rest == "" || strings.HasPrefix(rest, "\"") {
+				return true
+			}
+		}
+		if start := strings.Index(line, "["); start >= 0 {
+			candidate := line[start:]
+			if json.Valid([]byte(candidate)) || !adviceMarkdownLink(candidate) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func parseGeoAdviceBundle(out string) (GeoAdviceBundle, error) {
 	s := stripFence(out)
 	start := strings.Index(s, "{")
+	// Do not extract an object nested inside an array, including after prose.
+	if start >= 0 {
+		prefix := strings.TrimSpace(s[:start])
+		if strings.HasSuffix(prefix, "[") {
+			return GeoAdviceBundle{}, fmt.Errorf("expected advice object, not array")
+		}
+	}
 	end := strings.LastIndex(s, "}")
 	if start < 0 || end <= start {
 		return GeoAdviceBundle{}, fmt.Errorf("no json object")
