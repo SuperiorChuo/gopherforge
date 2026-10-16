@@ -86,6 +86,16 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("force: true", spec)
         self.assertIn("expect(backendRequests).toEqual([])", spec)
 
+    def test_stack_builds_bound_builder_parallelism(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+        for job in ["integration", "e2e"]:
+            with self.subTest(job=job):
+                block = re.search(r"(?ms)^  " + job + r":.*?(?=^  [\w-]+:|\Z)", workflow).group()
+                setup = block.split("- uses: docker/setup-buildx-action@v3", 1)[1].split("- name: Build compose images", 1)[0]
+                self.assertIn("buildkitd-config-inline: |", setup)
+                self.assertRegex(setup, r"\[worker\.oci\]\s+max-parallelism = 2")
+                self.assertNotIn("continue-on-error", block)
+
     def test_ci_keeps_failure_diagnostics_without_bypassing_build(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text()
         frontend = workflow.split("  micro-frontend:", 1)[1].split("  integration:", 1)[0]

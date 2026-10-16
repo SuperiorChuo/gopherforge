@@ -439,6 +439,11 @@ jobs:
           node-version: '24'
 
       - uses: docker/setup-buildx-action@v3
+        with:
+          # 共享 runner 不同时启动全部服务的 Go 冷编译；不裁剪镜像矩阵。
+          buildkitd-config-inline: |
+            [worker.oci]
+              max-parallelism = 2
 
       - name: Build compose images
         timeout-minutes: 15
@@ -545,6 +550,10 @@ jobs:
           cache-dependency-path: microservices/web/package-lock.json
 
       - uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-config-inline: |
+            [worker.oci]
+              max-parallelism = 2
 
       - name: Build compose images
         uses: docker/bake-action@v7
