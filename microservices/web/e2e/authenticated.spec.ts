@@ -21,10 +21,10 @@ test.describe('认证后应用', () => {
     })
 
     const pages = [
-      { path: '/hermes/tasks', group: '协同运维', title: '互联任务' },
-      { path: '/hermes/ai-ops', group: '协同运维', title: 'AI 运维' },
-      { path: '/hermes/runtimes', group: '协同运维', title: '运行实例' },
-      { path: '/hermes/skills', group: '资源中心', title: '技能市场' },
+      { path: '/hermes/tasks', group: '协同运维', title: '设备动作队列' },
+      { path: '/hermes/ai-ops', group: '协同运维', title: '模型用量' },
+      { path: '/hermes/runtimes', group: '协同运维', title: '运行节点' },
+      { path: '/hermes/skills', group: '资源中心', title: '工具白名单' },
     ]
 
     for (const target of pages) {
@@ -57,7 +57,7 @@ test.describe('认证后应用', () => {
     await expect(page.getByText('无法加载重复客户，请重试。')).toBeVisible()
     await expect(page.getByText('未发现重复客户（按号码尾 11 位与同名检测）')).not.toBeVisible()
 
-    await page.getByRole('button', { name: '重试' }).click()
+    await page.getByRole('button', { name: /^重\s*试$/ }).click()
     await expect(page.getByText('未发现重复客户（按号码尾 11 位与同名检测）')).toBeVisible()
   })
 

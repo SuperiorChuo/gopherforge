@@ -1,4 +1,4 @@
-import { test } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { STORAGE_STATE } from './global-setup'
 // 全站原始扫描：en 模式下看 body 里所有可见 CJK 短串（i18n 渐进词典的漏网
 // 中文直查）。路由清单由 routes.ts 动态发现，勿手工登记。
@@ -13,9 +13,15 @@ test.describe('全站原始扫描', () => {
       const errs: string[] = []
       page.on('pageerror', (e) => errs.push(String(e).slice(0, 100)))
       await page.addInitScript(() => { if (!sessionStorage.getItem('c')) { sessionStorage.setItem('c','1'); localStorage.removeItem('app_locale') } })
-      await page.goto(path).catch(() => {})
+      await page.goto(path)
       await page.waitForTimeout(1200)
-      await page.locator('.app-lang-trigger').click().catch(() => {})
+      // 认证页没有 MainLayout；其语言按钮与主题按钮必须明确区分。
+      const language = page.locator('.app-lang-trigger, .login-locale-toggle')
+      await expect(language).toHaveCount(1)
+      await expect(language).toContainText('EN')
+      await language.click()
+      await expect(language).toContainText('中文')
+      await expect.poll(() => page.evaluate(() => localStorage.getItem('app_locale'))).toBe('en')
       await page.waitForTimeout(1200)
       const visibleZh = await page.evaluate(() => {
         const hu = /[一-鿿]/

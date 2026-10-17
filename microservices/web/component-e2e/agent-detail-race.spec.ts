@@ -3,7 +3,7 @@ import { test, expect, type Page, type Route } from '@playwright/test'
 // 组件 lane：以本地 Vite 为 baseURL，直接挂 /ai/agents 整页，不挂应用鉴权壳、不需要登录态。
 // 与 agent-events 的组件 lane 同一思路：只验证浏览器内的竞态与状态完备，
 // 不冒充真实网关 origin 的整页验收（那条走 production lane）。
-const componentURL = process.env.E2E_COMPONENT_BASE_URL || 'http://127.0.0.1:13201'
+// 使用组件配置启动的 Vite baseURL，不依赖固定端口或完整栈的静态 nginx。
 
 const definitionA = {
   id: 910001, tenant_id: 1, agent_key: 'definition_a', name: '定义A',
@@ -49,7 +49,7 @@ async function mountPage(page: Page, pending: Record<number, Route[]>, options: 
     );
   </script>`,
   }))
-  await page.goto(new URL('/agent-detail-component', componentURL).href)
+  await page.goto('/agent-detail-component')
   const rows = page.getByRole('button', { name: '详情', exact: true })
   await expect(rows).toHaveCount(2)
   return rows

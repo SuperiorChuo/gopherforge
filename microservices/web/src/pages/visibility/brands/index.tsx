@@ -237,7 +237,7 @@ export default function VisibilityBrandsPage() {
           glow="rgba(99, 102, 241, 0.35)"
           description="记录你的品牌和竞争对手，AI 提及检测时按这些名字识别"
           extra={
-            <Space>
+            <Space wrap>
               <Select
                 allowClear
                 placeholder={t('类型')}

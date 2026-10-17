@@ -51,7 +51,7 @@ test.describe('登录页', () => {
     const root = page.locator('html')
     await expect(root).toHaveAttribute('data-theme', 'dark')
 
-    await page.locator('.login-theme-toggle').click()
+    await page.getByRole('button', { name: /^切换(?:亮色|深色)$/ }).click()
 
     await expect(root).toHaveAttribute('data-theme', 'light')
     await expect
@@ -99,7 +99,7 @@ test.describe('登录页', () => {
     })
     await page.goto('/login')
     const root = page.locator('html')
-    const toggle = page.locator('.login-theme-toggle')
+    const toggle = page.getByRole('button', { name: /^切换(?:亮色|深色)$/ })
     await expect(root).toHaveAttribute('data-theme', 'dark')
 
     await toggle.click()

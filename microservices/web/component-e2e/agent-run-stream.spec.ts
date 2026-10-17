@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test'
 // 组件 lane：本地 Vite 挂 RunDrawer，不需要登录态。用于验证事件流驱动的两个行为：
 // ① 逐帧刷新必须被节流（后端单轮最多推 200 条事件）；
 // ② 流"正常结束"（干净 EOF、无 done 帧）也必须收尾，不能永远停在"实时跟踪中"。
-const componentURL = process.env.E2E_COMPONENT_BASE_URL || 'http://127.0.0.1:13201'
+// Vite 由组件配置管理，目标 origin 使用该配置的 baseURL。
 
 const RUN_ID = 920001
 
@@ -50,7 +50,7 @@ async function mountDrawer(page: Page, options: { frames: number; endWithoutDone
     );
   </script>`,
   }))
-  await page.goto(new URL('/agent-run-component', componentURL).href)
+  await page.goto('/agent-run-component')
   await expect(page.getByRole('dialog')).toBeVisible()
 }
 

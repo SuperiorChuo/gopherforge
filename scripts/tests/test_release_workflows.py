@@ -86,6 +86,29 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("force: true", spec)
         self.assertIn("expect(backendRequests).toEqual([])", spec)
 
+    def test_dev_only_agent_cases_run_in_the_component_lane(self):
+        web = ROOT / "microservices/web"
+        config = (web / "playwright.components.config.ts").read_text()
+        self.assertIn("testDir: './component-e2e'", config)
+        self.assertIn("webServer:", config)
+        for name, count in [("agent-detail-race.spec.ts", 4), ("agent-run-stream.spec.ts", 2)]:
+            self.assertFalse((web / "e2e" / name).exists(), name)
+            source = (web / "component-e2e" / name).read_text()
+            self.assertEqual(len(re.findall(r"^test\(", source, re.M)), count, name)
+            self.assertNotIn("13201", source)
+            self.assertNotIn("test.skip", source)
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+        frontend = workflow.split("  micro-frontend:", 1)[1].split("  integration:", 1)[0]
+        self.assertIn("npm run test:components", frontend)
+
+    def test_full_stack_e2e_retains_real_trace_output(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+        e2e = workflow.split("  e2e:", 1)[1]
+        artifact = e2e.split("name: Upload Playwright report", 1)[1]
+        self.assertIn("if: always()", artifact)
+        self.assertIn("microservices/web/test-results/", artifact)
+        self.assertIn("microservices/web/playwright-report/", artifact)
+
     def test_stack_builds_bound_builder_parallelism(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text()
         for job in ["integration", "e2e"]:
