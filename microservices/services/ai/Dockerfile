@@ -22,12 +22,12 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 # Run the ai-service on a pinned Alpine image as an unprivileged user.
 # Configuration is environment-only; migrations are owned by the monolith.
-FROM alpine:3.20 AS prebuilt
+FROM alpine:3.24 AS prebuilt
 COPY ai/.bin/main /app/main
 
 FROM ${MAIN_SRC} AS main-src
 
-FROM alpine:3.20
+FROM alpine:3.24
 
 WORKDIR /app
 
