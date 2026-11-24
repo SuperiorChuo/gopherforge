@@ -11,7 +11,7 @@
 | 运行基础 | `connpool`、`graceful`、`logger`、`metrics`、`middleware`、`response`、`pagination`、`errors`、`health`、`redis`、`database`、`captcha`、`cache`、`runtimeconfig` | 服务启动、HTTP 响应、分页、错误、健康检查、Redis、Postgres、验证码、缓存和运行时配置失效等通用运行能力 |
 | 配置与安全 | `envsecret`、`secretstrength`、`mask`、`secretbox`、`jwt`、`consoleauth`、`authdao`、`tenant`、`tenantctx`、`authz` | 配置密钥、凭据、身份会话、租户上下文和数据权限；`authz`/`tenantctx` 的服务消费者由 authz 收敛批次负责 |
 | 服务间通信 | `grpcx`、`identityclient`、`notifyclient`、`internalhttp`、`resilience`、`tlsutil`、`natsx`、`sharedapi` | gRPC/HTTP 客户端、重试、TLS、NATS 和跨服务契约适配 |
-| 网关与事件 | `gatewayauth`、`outbox`、`webhookx`、`audittrail`、`auditevents` | 网关鉴权、可靠事件、Webhook 和审计事件链路 |
+| 网关与事件 | `gatewayauth`、`outbox`、`webhookx`、`audittrail`、`auditevents`、`oplog` | 网关鉴权、可靠事件、Webhook、审计事件链路与跨服务操作日志批量落盘引擎 |
 | 可观测性与任务 | `observability`、`jobbeat` | Trace/metrics 注入与任务心跳/执行观测 |
 | 数据与业务适配 | `model`、`excel`、`exportproof`、`iploc`、`ipinfo`、`setting`、`mailer`、`idempotency` | 跨服务基础模型、导入导出、IP 定位、邮件、幂等和导出证明 |
 
@@ -27,6 +27,8 @@
 - `cache` 是七个基础设施服务会话 / 权限 / 验证码 / 字典 / OAuth2 缓存的单一真源。
 - `ipinfo` 是 audit 登录日志与 monitor IP API 共用的 IP 地理位置客户端；monolith 保留单进程适配。
 - `setting` 是七服务共用的 system_settings CRUD DAO；服务侧 alias 只为兼容既有 `internal/dao/system` import。
+- `audittrail` 承载 GORM 审计插件与基础设施服务共用的 Gin 审计上下文注入中间件（`AttachGinAuditContext` / `ActorFromGinContext`）。
+- `authdao` 是基础设施服务共用的用户查询、密码历史、TOTP/恢复码与认证 DAO 单一真源（`BaseUserDAO`、`AuthUserOps[U]`）；`auth`/`identity` 在嵌入基础上保留各自的租户扩展查询。
 - `runtimeconfig` 承载 Redis 失效通知与泛型运行时配置缓存状态机；设置键、配置结构、白名单和刷新解析逻辑仍由各服务保留。
 - `errors`、`internalhttp`、`tlsutil` 存在 shared 包之间的传递消费者；不能用“直接 import 数量”判断为孤立包。
 - 主仓特有的 `authz`、`tenantctx` 不同步到公开 micro 线；其消费者迁移由独立 authz 批次处理，本清单不覆盖并行实现。

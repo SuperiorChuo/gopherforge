@@ -34,6 +34,24 @@ func (d *OperationLogDAO) CreateLogContext(ctx context.Context, log *localmodel.
 	return d.dbWithContext(ctx).Create(log).Error
 }
 
+const operationLogInsertChunkSize = 100
+
+// CreateLogsContext persists a batch of operation logs in multi-row INSERTs.
+func (d *OperationLogDAO) CreateLogsContext(ctx context.Context, logs []*localmodel.OperationLog) error {
+	if len(logs) == 0 {
+		return nil
+	}
+	if len(logs) == 1 {
+		return d.CreateLogContext(ctx, logs[0])
+	}
+	for _, log := range logs {
+		if log != nil && log.TenantID == 0 {
+			log.TenantID = tenant.IDFromContext(ctx)
+		}
+	}
+	return d.dbWithContext(ctx).CreateInBatches(logs, operationLogInsertChunkSize).Error
+}
+
 func (d *OperationLogDAO) GetLogByIDContext(ctx context.Context, id uint) (*localmodel.OperationLog, error) {
 	var log localmodel.OperationLog
 	result := d.dbWithContext(authz.DisableDataScope(ctx)).First(&log, id)

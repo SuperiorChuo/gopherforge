@@ -49,6 +49,11 @@ func (s *OperationLogService) RecordContext(ctx context.Context, log *localmodel
 	return s.logDAO.CreateLogContext(ctx, log)
 }
 
+// RecordBatchContext persists a batch of operation logs in one round trip.
+func (s *OperationLogService) RecordBatchContext(ctx context.Context, logs []*localmodel.OperationLog) error {
+	return s.logDAO.CreateLogsContext(ctx, logs)
+}
+
 func (s *OperationLogService) GetLogByIDContext(ctx context.Context, id uint) (*localmodel.OperationLog, error) {
 	log, err := s.logDAO.GetLogByIDContext(ctx, id)
 	if err != nil {
