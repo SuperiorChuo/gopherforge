@@ -50,12 +50,20 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
   const [canceling, setCanceling] = useState(false)
   const [form] = Form.useForm()
 
+  const loadKey = open && instanceId ? instanceId : null
+  const [prevLoadKey, setPrevLoadKey] = useState<number | null>(null)
+  if (prevLoadKey !== loadKey) {
+    setPrevLoadKey(loadKey)
+    if (loadKey !== null) {
+      setLoading(true)
+      setInstance(null)
+      setEntries([])
+    }
+  }
+
   useEffect(() => {
     if (!open || !instanceId) return
     let alive = true
-    setLoading(true)
-    setInstance(null)
-    setEntries([])
     getInstance(instanceId)
       .then((inst) => {
         if (!alive) return
@@ -75,7 +83,7 @@ export default function BpmResubmitModal({ instanceId, open, onClose, onDone }: 
     return () => {
       alive = false
     }
-  }, [open, instanceId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, instanceId, form])
 
   const setValue = (key: string, value: unknown) => {
     setEntries((prev) => prev.map((e) => (e.key === key ? { ...e, value } : e)))

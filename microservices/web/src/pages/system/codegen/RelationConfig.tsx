@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button, Divider, Form, Input, Select, Space, Tooltip, Typography } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
@@ -53,16 +53,17 @@ function inferComponent(goType: string, dbType: string): CodegenFieldConfig['com
 
 export default function RelationConfig({ mode, schema, dictTypes, value, loadSchema, onChange }: Props) {
   const { t } = useTranslation()
+  const [prevSchemaName, setPrevSchemaName] = useState(schema.name)
   const [relatedSchemas, setRelatedSchemas] = useState<Record<string, CodegenSchema>>({})
+  if (prevSchemaName !== schema.name) {
+    setPrevSchemaName(schema.name)
+    setRelatedSchemas({})
+  }
   const integerColumns = schema.columns.filter((column) => !column.primary_key && column.go_type === 'int64' && !managedFields.has(column.name))
   const textColumns = schema.columns.filter((column) => !column.primary_key && column.go_type === 'string' && !managedFields.has(column.name))
   const regularColumns = schema.columns.filter((column) => !column.primary_key && !managedFields.has(column.name))
   const subCandidates = schema.relations.filter((relation) => relation.kind === 'one_to_many')
   const m2mCandidates = schema.relations.filter((relation) => relation.kind === 'many_to_many')
-
-  useEffect(() => {
-    setRelatedSchemas({})
-  }, [schema.name])
 
   async function ensureSchema(table: string) {
     if (relatedSchemas[table]) return relatedSchemas[table]

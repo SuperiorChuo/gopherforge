@@ -297,12 +297,14 @@ function JsonSettingCard({ setting, canUpdate, onSaved }: {
   onSaved: () => void
 }) {
   const { t } = useTranslation()
-  const [raw, setRaw] = useState('')
+  const [prevSetting, setPrevSetting] = useState(setting)
+  const [raw, setRaw] = useState(() => JSON.stringify(setting.value_json ?? {}, null, 2))
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
+  if (prevSetting !== setting) {
+    setPrevSetting(setting)
     setRaw(JSON.stringify(setting.value_json ?? {}, null, 2))
-  }, [setting])
+  }
 
   const handleSave = async () => {
     let parsed: Record<string, unknown>

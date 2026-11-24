@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button, Form, Input, Spin } from 'antd'
@@ -47,19 +47,29 @@ export default function MobileLayout() {
     registerMobileServiceWorker()
   }, [])
 
-  useEffect(() => {
-    if (!token) {
-      navigate(mobileLoginPath(location.pathname + location.search), { replace: true })
-      return
-    }
-    if (authReady || booting) return
+  const loadCurrentUser = useCallback(() => {
     setBooting(true)
     setBootError(null)
     void dispatch(fetchCurrentUser())
       .unwrap()
       .catch(() => setBootError(t('加载账号失败')))
       .finally(() => setBooting(false))
-  }, [token, authReady, booting, dispatch, navigate, location.pathname, location.search, t])
+  }, [dispatch, t])
+
+  useEffect(() => {
+    if (!token) {
+      navigate(mobileLoginPath(location.pathname + location.search), { replace: true })
+      return
+    }
+    if (authReady) return
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) loadCurrentUser()
+    })
+    return () => {
+      active = false
+    }
+  }, [token, authReady, navigate, location.pathname, location.search, loadCurrentUser])
 
   if (!token) return null
 
@@ -74,10 +84,7 @@ export default function MobileLayout() {
               type="primary"
               block
               loading={booting}
-              onClick={() => {
-                setBootError(null)
-                setBooting(false)
-              }}
+              onClick={loadCurrentUser}
             >
               {t('重试')}
             </Button>

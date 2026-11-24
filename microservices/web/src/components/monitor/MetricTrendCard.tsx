@@ -34,7 +34,13 @@ export default function MetricTrendCard({ title, metric, style }: MetricTrendCar
   )
 
   useEffect(() => {
-    void load(range)
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void load(range)
+    })
+    return () => {
+      active = false
+    }
   }, [range, load])
 
   return (

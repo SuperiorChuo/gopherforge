@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Alert, Button, DatePicker, Descriptions, Form, Grid,
@@ -90,13 +90,14 @@ export default function NoticePage() {
   const screens = Grid.useBreakpoint()
   const compactTable = !screens.md
 
-  const fetchList = (p: SearchParams) => NoticeAPI.getNoticeList(p)
-  const { list, total, loading, error, reload, patchList } = useTableQuery({ params, fetcher: fetchList })
   const [listLoaded, setListLoaded] = useState(false)
+  const fetchList = useCallback(async (p: SearchParams) => {
+    const res = await NoticeAPI.getNoticeList(p)
+    setListLoaded(true)
+    return res
+  }, [])
+  const { list, total, loading, error, reload, patchList } = useTableQuery({ params, fetcher: fetchList })
   const loadFailed = error
-  useEffect(() => {
-    if (!loading && !error) setListLoaded(true)
-  }, [error, loading])
 
   const handleSearch = (values: { keyword?: string; type?: number; status?: number }) => {
     setParams({ ...params, page: 1, ...values })

@@ -51,7 +51,15 @@ export default function LoginSecurityPage() {
       setConfigLoading(false)
     }
   }, [form])
-  useEffect(() => { void loadConfig() }, [loadConfig])
+  useEffect(() => {
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void loadConfig()
+    })
+    return () => {
+      active = false
+    }
+  }, [loadConfig])
   const saveConfig = async () => {
     const values = await form.validateFields().catch(() => null)
     if (!values) return
@@ -83,7 +91,15 @@ export default function LoginSecurityPage() {
       setBlockedLoading(false)
     }
   }, [])
-  useEffect(() => { void loadBlocked() }, [loadBlocked])
+  useEffect(() => {
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void loadBlocked()
+    })
+    return () => {
+      active = false
+    }
+  }, [loadBlocked])
   const doUnblock = async (ip: string) => {
     await unblockIP(ip)
     void loadBlocked()
@@ -109,7 +125,15 @@ export default function LoginSecurityPage() {
       setEventLoading(false)
     }
   }, [])
-  useEffect(() => { void fetchEvents(eventParams) }, [eventParams, fetchEvents])
+  useEffect(() => {
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void fetchEvents(eventParams)
+    })
+    return () => {
+      active = false
+    }
+  }, [eventParams, fetchEvents])
   const doProcess = async (id: number) => {
     await processLoginRiskEvent(id)
     void fetchEvents(eventParams)

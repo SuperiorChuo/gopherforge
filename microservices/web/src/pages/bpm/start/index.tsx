@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button, Card, Col, Form, Modal, Row, Space, Tag, Typography } from 'antd'
 import { FormOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
@@ -29,7 +29,7 @@ export default function BpmStartPage() {
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       setList(await listStartableDefinitions())
@@ -38,11 +38,17 @@ export default function BpmStartPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
-    void load()
-  }, [])
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void load()
+    })
+    return () => {
+      active = false
+    }
+  }, [load])
 
   const submit = async () => {
     if (!current) return

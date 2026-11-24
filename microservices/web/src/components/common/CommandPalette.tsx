@@ -47,13 +47,20 @@ export default function CommandPalette({ items }: { items: PaletteItem[] }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (prevOpen !== open) {
+    setPrevOpen(open)
     if (open) {
       setQuery('')
       setActive(0)
-      // Modal 渲染后再聚焦
-      setTimeout(() => inputRef.current?.focus(), 50)
     }
+  }
+
+  useEffect(() => {
+    if (!open) return
+    // Modal 渲染后再聚焦
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 50)
+    return () => window.clearTimeout(timer)
   }, [open])
 
   const filtered = useMemo(() => {

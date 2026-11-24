@@ -83,7 +83,13 @@ export default function JobPage() {
   }, [t])
 
   useEffect(() => {
-    fetchList(params)
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void fetchList(params)
+    })
+    return () => {
+      active = false
+    }
   }, [params, fetchList])
 
   // 目标清单只在挂载时取一次：它由后端的调度分发表决定，运行期不会变。
@@ -662,7 +668,15 @@ function HeartbeatsCard() {
     }
   }, [t])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void load()
+    })
+    return () => {
+      active = false
+    }
+  }, [load])
 
   const fmtInterval = (sec: number) => {
     if (!sec) return '—'

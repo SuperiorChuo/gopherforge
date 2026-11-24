@@ -107,17 +107,26 @@ export default function TenantPackagePage() {
   const treeData = useMemo(() => buildPermissionTree(visiblePerms), [visiblePerms])
   const visibleCodes = useMemo(() => visiblePerms.map((p) => p.code), [visiblePerms])
   const permissionFilterActive = Boolean(permissionKeyword.trim() || showSelectedOnly)
-  const effectiveExpandedKeys = permissionFilterActive ? filteredExpandedKeys : expandedKeys
+  const [prevFilterExpandedDep, setPrevFilterExpandedDep] = useState<{ active: boolean; codes: string[] }>({
+    active: permissionFilterActive,
+    codes: visibleCodes,
+  })
+  if (
+    prevFilterExpandedDep.active !== permissionFilterActive
+    || prevFilterExpandedDep.codes !== visibleCodes
+  ) {
+    setPrevFilterExpandedDep({ active: permissionFilterActive, codes: visibleCodes })
+    if (permissionFilterActive) {
+      setFilteredExpandedKeys(visibleCodes)
+    }
+  }
 
-  useEffect(() => {
-    if (permissionFilterActive) setFilteredExpandedKeys(visibleCodes)
-  }, [permissionFilterActive, visibleCodes])
-
-  useEffect(() => {
-    if (!editModal.open || !pendingInitialExpand || rootCodes.length === 0) return
+  if (editModal.open && pendingInitialExpand && rootCodes.length > 0) {
     setExpandedKeys(rootCodes)
     setPendingInitialExpand(false)
-  }, [editModal.open, pendingInitialExpand, rootCodes])
+  }
+
+  const effectiveExpandedKeys = permissionFilterActive ? filteredExpandedKeys : expandedKeys
 
   const fetchList = useCallback(async (p: SearchParams) => {
     const res = await PackageAPI.getTenantPackageList({
