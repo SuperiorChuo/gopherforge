@@ -44,7 +44,7 @@ func (a *AuditLogAPI) GetAuditLogs(c *gin.Context) {
 }
 
 // ExportAuditLogs streams audit rows as CSV with the same filters as the list.
-// before/after JSON snapshots are marshalled into single columns. Audit logs
+// before/after JSON snapshots are marshaled into single columns. Audit logs
 // are the compliance surface — no department data-scope is applied (platform
 // admins read the full tenant set, matching how the plugin writes rows).
 func (a *AuditLogAPI) ExportAuditLogs(c *gin.Context) {

@@ -68,7 +68,6 @@ var (
 	isProductionEnv       = secretstrength.IsProductionEnv
 	isStrongSecret        = secretstrength.IsStrongSecret
 	isWeakCredential      = secretstrength.IsWeakCredential
-	isPlaceholderValue    = secretstrength.IsPlaceholderValue
 	oauthConfigValueReady = secretstrength.OAuthConfigValueReady
 )
 

@@ -15,7 +15,7 @@ import (
 // lockInstance 取实例并加行锁（postgres FOR UPDATE；sqlite 单连接串行免锁）。
 func lockInstance(tx *gorm.DB, id, tenantID uint64) (*model.ProcessInstance, error) {
 	q := tx.Where("id = ? AND tenant_id = ?", id, tenantID)
-	if tx.Dialector.Name() == "postgres" {
+	if tx.Name() == "postgres" {
 		q = q.Clauses(clause.Locking{Strength: "UPDATE"})
 	}
 	var inst model.ProcessInstance

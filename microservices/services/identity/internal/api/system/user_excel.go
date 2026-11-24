@@ -202,7 +202,7 @@ func (a *UserManagementAPI) ImportUsers(c *gin.Context) {
 			}
 			deptID = id
 		}
-		status := int8(1)
+		var status int8
 		switch statusText {
 		case "", "启用", "1":
 			status = 1

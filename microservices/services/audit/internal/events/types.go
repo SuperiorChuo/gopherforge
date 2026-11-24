@@ -2,7 +2,6 @@ package events
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 	"time"
 
@@ -76,10 +75,4 @@ func warn(message string, err error) {
 // LoginLogRecorder is the persistence surface the consumer needs.
 type LoginLogRecorder interface {
 	RecordContext(ctx context.Context, info *systemsvc.LoginInfo) error
-}
-
-// loginLogEvent wraps the raw payload sent over Redis pub/sub.
-type loginLogEvent struct {
-	Subject string `json:"subject"`
-	Payload json.RawMessage
 }

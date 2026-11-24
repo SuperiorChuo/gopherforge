@@ -140,7 +140,7 @@ func (d *AuditLogDAO) ListLogsContext(ctx context.Context, req AuditLogListQuery
 // table; the export handler streams rows as they are returned.
 const maxExportRows = 50000
 
-// ExportLogsContext returns up to maxExportRows audit rows honouring the same
+// ExportLogsContext returns up to maxExportRows audit rows honoring the same
 // filters as the list, without pagination. Audit logs are the compliance
 // surface — written tenant-scoped by the plugin and read across tenants by
 // platform admins, so no department data-scope is applied here (unlike

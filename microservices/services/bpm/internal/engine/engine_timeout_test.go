@@ -19,16 +19,6 @@ func timeoutTree(t *testing.T, action string) []byte {
 	return mustTree(t, &flow.Schema{Version: 1, Start: startNode(n)})
 }
 
-func expireTask(t *testing.T, st interface {
-	DB() interface {
-		Exec(string, ...any) interface{ Error() error }
-	}
-}, taskID uint64) {
-	t.Helper()
-	_ = st
-	_ = taskID
-}
-
 // 超时自动通过：任务置 approved（系统），推进到下一节点并产出新待办。
 func TestTimeoutAutoPass(t *testing.T) {
 	st, e := openTest(t)
