@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: gopherforge-docs
+    runtime: static
+    buildCommand: cd website && npm ci && npm run build
+    staticPublishPath: website/.vitepress/dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=3600
+    region: singapore
