@@ -66,18 +66,25 @@ func (s *Server) WebSocket(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	defer conn.Close()
-
 	out := make(chan []byte, 64)
-	var once sync.Once
-	closeOut := func() { once.Do(func() { close(out) }) }
-	defer closeOut()
+	done := make(chan struct{})
+	var closeDoneOnce sync.Once
+	closeDone := func() { closeDoneOnce.Do(func() { close(done) }) }
 
-	// 写入协程
+	// 写入协程：通过 done 信号退出，永不关闭 out，彻底杜绝扇入协程并发 send on closed channel。
+	var writeWG sync.WaitGroup
+	writeWG.Add(1)
 	go func() {
-		for b := range out {
-			if err := conn.WriteMessage(websocket.TextMessage, b); err != nil {
+		defer writeWG.Done()
+		for {
+			select {
+			case <-done:
 				return
+			case b := <-out:
+				if err := conn.WriteMessage(websocket.TextMessage, b); err != nil {
+					closeDone()
+					return
+				}
 			}
 		}
 	}()
@@ -88,35 +95,53 @@ func (s *Server) WebSocket(c *gin.Context) {
 			return
 		}
 		select {
+		case <-done:
 		case out <- b:
 		default:
 		}
 	}
 
-	// 扇入订阅
+	// 扇入订阅：unsub 关闭上游 ch 并监听 done，退出前等待全部扇入和写协程收敛，无泄漏无竞态。
 	var mu sync.Mutex
 	var unsubs []func()
+	var subWG sync.WaitGroup
 
 	addSub := func(ch <-chan []byte, unsub func()) {
 		mu.Lock()
 		unsubs = append(unsubs, unsub)
 		mu.Unlock()
+		subWG.Add(1)
 		go func() {
-			for b := range ch {
+			defer subWG.Done()
+			for {
 				select {
-				case out <- b:
-				default:
+				case <-done:
+					return
+				case b, ok := <-ch:
+					if !ok {
+						return
+					}
+					select {
+					case <-done:
+						return
+					case out <- b:
+					default:
+					}
 				}
 			}
 		}()
 	}
 
 	defer func() {
+		closeDone()
+		_ = conn.Close()
 		mu.Lock()
 		for _, u := range unsubs {
 			u()
 		}
 		mu.Unlock()
+		subWG.Wait()
+		writeWG.Wait()
 	}()
 
 	if !isGuest {

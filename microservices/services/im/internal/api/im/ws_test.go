@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -189,4 +190,46 @@ func TestWSVisitorSendRateLimited(t *testing.T) {
 	if !strings.Contains(string(f.Payload), "rate limited") {
 		t.Fatalf("expected rate limited error, got %s", f.Payload)
 	}
+}
+
+// TestWSDisconnectUnderConcurrentBroadcastNoPanic 回归：断连与高频 Hub 广播并发时，
+// 扇入协程不得向已关闭的 out channel 发送导致进程 panic。
+func TestWSDisconnectUnderConcurrentBroadcastNoPanic(t *testing.T) {
+	ts, r, srv := wsServer(t)
+	token := guestSession(t, r, "ws-race-close")
+	conv := createConversation(t, r, token)
+
+	stopPub := make(chan struct{})
+	var pubWG sync.WaitGroup
+	pubWG.Add(1)
+	go func() {
+		defer pubWG.Done()
+		for i := 0; ; i++ {
+			select {
+			case <-stopPub:
+				return
+			default:
+				srv.Hub.Publish(conv, gin.H{"type": "message.new", "payload": gin.H{"seq": i}})
+			}
+		}
+	}()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 12; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			url := "ws" + strings.TrimPrefix(ts.URL, "http") + "/im/ws?token=" + token
+			conn, _, err := websocket.DefaultDialer.Dial(url, nil)
+			if err != nil {
+				return
+			}
+			_ = conn.WriteJSON(gin.H{"type": "conversation.subscribe", "payload": gin.H{"conversation_public_id": conv}})
+			time.Sleep(5 * time.Millisecond)
+			_ = conn.Close()
+		}()
+	}
+	wg.Wait()
+	close(stopPub)
+	pubWG.Wait()
 }
