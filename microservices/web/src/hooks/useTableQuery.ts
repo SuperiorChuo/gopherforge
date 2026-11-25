@@ -56,7 +56,13 @@ export function useTableQuery<T, P>({ params, fetcher, onError, enabled = true }
 
   useEffect(() => {
     if (!enabled) return
-    void reload()
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void reload()
+    })
+    return () => {
+      active = false
+    }
   }, [enabled, reload])
 
   return { ...state, reload, patchList }

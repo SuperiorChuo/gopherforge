@@ -1,12 +1,10 @@
-import { lazy, Suspense, type ComponentType } from 'react'
 import { Navigate, type RouteObject } from 'react-router-dom'
+import { lazyLoad, type RouteStyleLoader } from './lazyLoad'
 
 // 管理台骨架与页面一样懒加载：静态引它会让登录页背上整个 MainLayout 依赖树
 // （Layout/Menu/Dropdown 等 antd 组件），而登录页一个都用不到。
 // 工厂只此一处，预取与路由渲染共用同一模块缓存。
 const importMainLayout = () => import('@/layouts/MainLayout')
-
-type RouteStyleLoader = () => Promise<unknown>
 
 const routeStyles = {
   auth: () => import('@/styles/routes/auth'),
@@ -36,35 +34,6 @@ export function prefetchMainLayout(): () => void {
   }
   const timer = setTimeout(run, 300)
   return () => clearTimeout(timer)
-}
-
-// 路由懒加载兜底:玻璃卡片骨架,比孤零零的 Spin 更接近成品布局
-function RouteFallback() {
-  return (
-    <div className="route-fallback">
-      <div className="route-fallback-bar" />
-      <div className="route-fallback-card" />
-    </div>
-  )
-}
-
-function lazyLoad(
-  factory: () => Promise<{ default: ComponentType }>,
-  styles: RouteStyleLoader[] = [],
-) {
-  const Comp = lazy(
-    styles.length
-      ? async () => {
-          const [page] = await Promise.all([factory(), ...styles.map((loadStyle) => loadStyle())])
-          return page
-        }
-      : factory,
-  )
-  return (
-    <Suspense fallback={<RouteFallback />}>
-      <Comp />
-    </Suspense>
-  )
 }
 
 const routes: RouteObject[] = [

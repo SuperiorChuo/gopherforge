@@ -208,7 +208,13 @@ export default function MobileHomePage() {
   }, [hasPerm])
 
   useEffect(() => {
-    load()
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) load()
+    })
+    return () => {
+      active = false
+    }
   }, [load])
 
   const hour = new Date().getHours()

@@ -143,11 +143,10 @@ func sanitize(c *Config) []string {
 // ProductionMode 供使用点判断是否要 fail closed。
 func (c Config) ProductionMode() bool { return isProductionEnv(c.AppEnv) } // 凭证校验函数已迁移至 shared/pkg/secretstrength，此处保留薄包装以兼容调用方。
 var (
-	isProductionEnv       = secretstrength.IsProductionEnv
-	isStrongSecret        = secretstrength.IsStrongSecret
-	isWeakCredential      = secretstrength.IsWeakCredential
-	isPlaceholderValue    = secretstrength.IsPlaceholderValue
-	oauthConfigValueReady = secretstrength.OAuthConfigValueReady
+	isProductionEnv    = secretstrength.IsProductionEnv
+	isStrongSecret     = secretstrength.IsStrongSecret
+	isWeakCredential   = secretstrength.IsWeakCredential
+	isPlaceholderValue = secretstrength.IsPlaceholderValue
 )
 
 func getenvDuration(key string, fallback time.Duration) time.Duration {

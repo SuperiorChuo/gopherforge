@@ -64,7 +64,7 @@ func (a *LoginLogAPI) GetLoginLogs(c *gin.Context) {
 	response.PageSuccess(c, logs, total, req.Page, req.PageSize)
 }
 
-// ExportLoginLogs exports login logs as CSV, honouring the same filters and
+// ExportLoginLogs exports login logs as CSV, honoring the same filters and
 // data scope as the list endpoint.
 func (a *LoginLogAPI) ExportLoginLogs(c *gin.Context) {
 	var req system.LoginLogListRequest

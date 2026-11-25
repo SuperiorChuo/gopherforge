@@ -26,7 +26,13 @@ export default function MobileOnlinePage() {
   }, [])
 
   useEffect(() => {
-    void load()
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void load()
+    })
+    return () => {
+      active = false
+    }
   }, [load])
 
   const handleKick = async (row: OnlineUser) => {

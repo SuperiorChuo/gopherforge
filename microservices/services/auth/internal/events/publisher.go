@@ -179,7 +179,7 @@ func (p *Publisher) publish(subject string, event any) {
 	}
 	if p.slots == nil {
 		// Lazy fallback for hand-constructed Publishers (tests); real
-		// constructors initialise slots so concurrent logins never race here.
+		// constructors initialize slots so concurrent logins never race here.
 		p.slots = make(chan struct{}, maxConcurrentPublishes)
 	}
 	select {

@@ -88,7 +88,15 @@ export default function TaskRunsPanel() {
     }
   }, [])
 
-  useEffect(() => { void loadSummary() }, [loadSummary])
+  useEffect(() => {
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void loadSummary()
+    })
+    return () => {
+      active = false
+    }
+  }, [loadSummary])
 
   const reloadAll = () => {
     void reload()

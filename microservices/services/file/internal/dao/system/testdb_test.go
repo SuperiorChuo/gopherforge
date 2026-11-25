@@ -40,25 +40,3 @@ func setupSystemDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 
 	return db, mock
 }
-
-func newInjectedDepartmentMenuDAOTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
-	t.Helper()
-
-	sqlDB, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("open sqlmock db: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Fatalf("unmet database expectations: %v", err)
-		}
-		_ = sqlDB.Close()
-	})
-	db, err := gorm.Open(postgres.New(postgres.Config{
-		Conn: sqlDB,
-	}), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open gorm sqlmock db: %v", err)
-	}
-	return db, mock
-}

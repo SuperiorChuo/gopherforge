@@ -198,7 +198,7 @@ func (d *WebhookDAO) ClaimDeliveries(ctx context.Context, limit int) ([]localmod
 	if limit <= 0 {
 		limit = 20
 	}
-	if d.db.Dialector.Name() != "postgres" {
+	if d.db.Name() != "postgres" {
 		var rows []localmodel.WebhookDelivery
 		err := d.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			if err := tx.Where("status IN ? AND next_attempt_at <= ?", []string{localmodel.WebhookDeliveryPending, localmodel.WebhookDeliveryRetrying}, time.Now()).Order("next_attempt_at,id").Limit(limit).Find(&rows).Error; err != nil {

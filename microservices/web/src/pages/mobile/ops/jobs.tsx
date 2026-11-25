@@ -29,7 +29,13 @@ export default function MobileJobsPage() {
   }, [])
 
   useEffect(() => {
-    void load()
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void load()
+    })
+    return () => {
+      active = false
+    }
   }, [load])
 
   return (

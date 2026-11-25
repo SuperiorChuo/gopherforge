@@ -58,7 +58,7 @@ func (j *JSONB) UnmarshalJSON(b []byte) error {
 
 // GormDBDataType 按方言选择列类型：postgres 用 jsonb，其余（sqlite 测试）用 text。
 func (JSONB) GormDBDataType(db *gorm.DB, _ *schema.Field) string {
-	if db.Dialector.Name() == "postgres" {
+	if db.Name() == "postgres" {
 		return "jsonb"
 	}
 	return "text"

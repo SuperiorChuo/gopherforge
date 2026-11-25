@@ -20,8 +20,11 @@ type Options<T> = {
  * - 连续 3 次请求失败自动停止并回调 onError
  */
 export function usePollingTask<T>({ taskId, fetcher, isDone, intervalMs = 2000, onTick, onFinish, onError }: Options<T>) {
-  const [data, setData] = useState<T | null>(null)
-  const [polling, setPolling] = useState(false)
+  const [state, setState] = useState<{ taskId: number | null; data: T | null; finished: boolean }>({
+    taskId: null,
+    data: null,
+    finished: false,
+  })
   const cbRef = useRef({ fetcher, isDone, onTick, onFinish, onError })
   // latest-ref 写入放 effect（声明在主 effect 前，先于首轮 tick 执行）；
   // render 期写 ref 在 StrictMode 弃用渲染下会残留错值。
@@ -31,11 +34,8 @@ export function usePollingTask<T>({ taskId, fetcher, isDone, intervalMs = 2000, 
 
   useEffect(() => {
     if (taskId == null) {
-      setPolling(false)
       return
     }
-    setData(null)
-    setPolling(true)
     // in-flight/failures 必须是本 effect 的局部量：跨 taskId 用 ref 会让
     // 新任务的首轮 tick 被上一个任务未返回的请求阻塞
     let inFlight = false
@@ -50,12 +50,12 @@ export function usePollingTask<T>({ taskId, fetcher, isDone, intervalMs = 2000, 
         const t = await cbRef.current.fetcher(taskId)
         failures = 0
         if (stopped) return
-        setData(t)
+        const done = cbRef.current.isDone(t)
+        setState({ taskId, data: t, finished: done })
         cbRef.current.onTick?.(t)
-        if (cbRef.current.isDone(t)) {
+        if (done) {
           stopped = true
           stop()
-          setPolling(false)
           cbRef.current.onFinish?.(t)
         }
       } catch {
@@ -63,7 +63,11 @@ export function usePollingTask<T>({ taskId, fetcher, isDone, intervalMs = 2000, 
         if (failures >= 3 && !stopped) {
           stopped = true
           stop()
-          setPolling(false)
+          setState((prev) => ({
+            taskId,
+            data: prev.taskId === taskId ? prev.data : null,
+            finished: true,
+          }))
           cbRef.current.onError?.()
         }
       } finally {
@@ -106,5 +110,7 @@ export function usePollingTask<T>({ taskId, fetcher, isDone, intervalMs = 2000, 
     }
   }, [taskId, intervalMs])
 
+  const data = taskId != null && state.taskId === taskId ? state.data : null
+  const polling = taskId != null && (state.taskId !== taskId || !state.finished)
   return { data, polling }
 }

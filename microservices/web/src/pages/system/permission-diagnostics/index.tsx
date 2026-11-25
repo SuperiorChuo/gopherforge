@@ -43,11 +43,24 @@ export default function PermissionDiagnosticsPage() {
   const [menusUnavailable, setMenusUnavailable] = useState(false)
 
   useEffect(() => {
-    setUsersLoading(true)
-    getUserList({ page: 1, page_size: 100 })
-      .then((response) => setUsers(response.list ?? []))
-      .catch(() => message.error(t('加载用户失败')))
-      .finally(() => setUsersLoading(false))
+    let active = true
+    void Promise.resolve().then(() => {
+      if (!active) return
+      setUsersLoading(true)
+      getUserList({ page: 1, page_size: 100 })
+        .then((response) => {
+          if (active) setUsers(response.list ?? [])
+        })
+        .catch(() => {
+          if (active) message.error(t('加载用户失败'))
+        })
+        .finally(() => {
+          if (active) setUsersLoading(false)
+        })
+    })
+    return () => {
+      active = false
+    }
   }, [t])
 
   const loadPermissionOptions = async (keyword = '') => {
@@ -62,11 +75,24 @@ export default function PermissionDiagnosticsPage() {
   }
 
   useEffect(() => {
-    setPermissionsLoading(true)
-    getPermissionDiagnosticOptions({ limit: 100 })
-      .then(setPermissionOptions)
-      .catch(() => message.error(t('加载权限失败')))
-      .finally(() => setPermissionsLoading(false))
+    let active = true
+    void Promise.resolve().then(() => {
+      if (!active) return
+      setPermissionsLoading(true)
+      getPermissionDiagnosticOptions({ limit: 100 })
+        .then((options) => {
+          if (active) setPermissionOptions(options)
+        })
+        .catch(() => {
+          if (active) message.error(t('加载权限失败'))
+        })
+        .finally(() => {
+          if (active) setPermissionsLoading(false)
+        })
+    })
+    return () => {
+      active = false
+    }
   }, [t])
 
   const permissionSelectOptions = useMemo(() => permissionOptions.map((permission) => ({

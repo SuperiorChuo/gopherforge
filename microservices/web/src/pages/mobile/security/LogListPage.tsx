@@ -32,7 +32,13 @@ export default function LogListPage<T>({ title, emptyText, load, render, rowKey 
   }, [load])
 
   useEffect(() => {
-    void refresh()
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void refresh()
+    })
+    return () => {
+      active = false
+    }
   }, [refresh])
 
   return (

@@ -25,7 +25,13 @@ export default function MobileHealthPage() {
   }, [])
 
   useEffect(() => {
-    void load()
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void load()
+    })
+    return () => {
+      active = false
+    }
   }, [load])
 
   return (

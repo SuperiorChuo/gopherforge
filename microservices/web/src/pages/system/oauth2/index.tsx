@@ -129,7 +129,15 @@ function ClientsTab() {
     }
   }, [params, t])
 
-  useEffect(() => { fetchList() }, [fetchList])
+  useEffect(() => {
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void fetchList()
+    })
+    return () => {
+      active = false
+    }
+  }, [fetchList])
   useEffect(() => {
     OAuth2API.getOAuth2Catalog().then(setCatalog).catch(() => undefined)
   }, [])
@@ -441,7 +449,15 @@ function TokensTab() {
     }
   }, [params, t])
 
-  useEffect(() => { fetchList() }, [fetchList])
+  useEffect(() => {
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void fetchList()
+    })
+    return () => {
+      active = false
+    }
+  }, [fetchList])
 
   const handleRevoke = async (id: number) => {
     try {

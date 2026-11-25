@@ -43,6 +43,21 @@ function safeRedirectTarget(): string {
   return isMobileAppPath() ? MOBILE_BASE : '/dashboard'
 }
 
+function detectInitialTenantCode(): string | undefined {
+  const params = new URLSearchParams(window.location.search)
+  const q = params.get('tenant') || params.get('tenant_code')
+  if (q) return q
+  const host = window.location.hostname.toLowerCase()
+  const parts = host.split('.')
+  if (parts.length >= 2) {
+    const label = parts[0]
+    if (label && !['www', 'api', 'app', 'admin', 'localhost'].includes(label) && !/^\d+$/.test(label)) {
+      return label
+    }
+  }
+  return undefined
+}
+
 export default function LoginPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
@@ -62,7 +77,12 @@ export default function LoginPage() {
   const [totpStep, setTotpStep] = useState(false)
   const [challengeId, setChallengeId] = useState<string | null>(null)
   const [totpLoading, setTotpLoading] = useState(false)
-  const [tenantOpen, setTenantOpen] = useState(false)
+  // 租户：URL / 子域预填时自动展开；否则默认折叠
+  const [initialFormValues] = useState<{ tenant_code: string } | undefined>(() => {
+    const tenantCode = detectInitialTenantCode()
+    return tenantCode ? { tenant_code: tenantCode } : undefined
+  })
+  const [tenantOpen, setTenantOpen] = useState(() => Boolean(initialFormValues))
   const [success, setSuccess] = useState(false)
   const [capsLock, setCapsLock] = useState(false)
 
@@ -112,28 +132,14 @@ export default function LoginPage() {
   }, [form, showError, t])
 
   useEffect(() => {
-    refreshCaptcha()
+    let active = true
+    void Promise.resolve().then(() => {
+      if (active) void refreshCaptcha()
+    })
+    return () => {
+      active = false
+    }
   }, [refreshCaptcha])
-
-  // 租户：URL / 子域预填时自动展开；否则默认折叠
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const q = params.get('tenant') || params.get('tenant_code')
-    if (q) {
-      form.setFieldValue('tenant_code', q)
-      setTenantOpen(true)
-      return
-    }
-    const host = window.location.hostname.toLowerCase()
-    const parts = host.split('.')
-    if (parts.length >= 2) {
-      const label = parts[0]
-      if (label && !['www', 'api', 'app', 'admin', 'localhost'].includes(label) && !/^\d+$/.test(label)) {
-        form.setFieldValue('tenant_code', label)
-        setTenantOpen(true)
-      }
-    }
-  }, [form])
 
   // 首焦：用户名
   useEffect(() => {
@@ -255,6 +261,7 @@ export default function LoginPage() {
         <Form
           form={form}
           name="login"
+          initialValues={initialFormValues}
           onFinish={onFinish}
           autoComplete="off"
           size="large"

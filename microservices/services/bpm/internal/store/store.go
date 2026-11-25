@@ -75,7 +75,7 @@ func NewWithDB(db *gorm.DB) (*Store, error) {
 // + id DESC 分页；统计按 tenant + definition_key / node_name 分组）。
 // IF NOT EXISTS 幂等；仅 PG 执行（测试注入 sqlite，DESC 索引对其无意义）。
 func (s *Store) ensureIndexes() error {
-	if s.db.Dialector.Name() != "postgres" {
+	if s.db.Name() != "postgres" {
 		return nil
 	}
 	for _, stmt := range indexStatements() {
@@ -119,7 +119,7 @@ func (s *Store) ClaimCallbackJobs(limit int, lease time.Duration) ([]model.Callb
 	var jobs []model.CallbackJob
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		q := tx.Where("status = ? AND next_at <= ?", "pending", now).Order("id").Limit(limit)
-		if tx.Dialector.Name() == "postgres" {
+		if tx.Name() == "postgres" {
 			q = q.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"})
 		}
 		if err := q.Find(&jobs).Error; err != nil {
@@ -460,7 +460,7 @@ func (s *Store) ListDefinitions(tenantID uint64, f DefinitionFilter) ([]Definiti
 	if err := base.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	offset, limit := f.Page.clamp()
+	offset, limit := f.clamp()
 	var latest []model.ProcessDefinition
 	if err := base.Order("id DESC").Offset(offset).Limit(limit).Find(&latest).Error; err != nil {
 		return nil, 0, err
@@ -631,12 +631,18 @@ func (s *Store) GetTask(id, tenantID uint64) (*model.Task, error) {
 	return &t, nil
 }
 
+const (
+	maxInstanceTasks = 500
+	maxInstanceLogs  = 1000
+	maxInstanceCc    = 500
+)
+
 // ListInstanceTasks 实例的全部任务（流转图标注用，按创建正序）。
 func (s *Store) ListInstanceTasks(instanceID, tenantID uint64) ([]model.Task, error) {
 	var list []model.Task
 	err := tenantQ(s.db, tenantID).
 		Where("instance_id = ?", instanceID).
-		Order("id ASC").Find(&list).Error
+		Order("id ASC").Limit(maxInstanceTasks).Find(&list).Error
 	return list, err
 }
 
@@ -645,7 +651,7 @@ func (s *Store) ListInstanceLogs(instanceID, tenantID uint64) ([]model.ProcessLo
 	var list []model.ProcessLog
 	err := tenantQ(s.db, tenantID).
 		Where("instance_id = ?", instanceID).
-		Order("id ASC").Find(&list).Error
+		Order("id ASC").Limit(maxInstanceLogs).Find(&list).Error
 	return list, err
 }
 
@@ -654,7 +660,7 @@ func (s *Store) ListInstanceCc(instanceID, tenantID uint64) ([]model.CcRecord, e
 	var list []model.CcRecord
 	err := tenantQ(s.db, tenantID).
 		Where("instance_id = ?", instanceID).
-		Order("id ASC").Find(&list).Error
+		Order("id ASC").Limit(maxInstanceCc).Find(&list).Error
 	return list, err
 }
 
@@ -979,7 +985,7 @@ func round1(v float64) float64 { return math.Round(v*10) / 10 }
 // PG 用 EXTRACT(EPOCH FROM b - a)，sqlite 用 julianday 天差 × 24
 // （测试注入 sqlite，值域与 PG 一致，只是精度受存储格式限制）。
 func avgHoursExpr(db *gorm.DB, from, to string) string {
-	if db.Dialector.Name() == "postgres" {
+	if db.Name() == "postgres" {
 		return fmt.Sprintf("AVG(EXTRACT(EPOCH FROM (%s - %s)) / 3600.0)", to, from)
 	}
 	return fmt.Sprintf("AVG((julianday(%s) - julianday(%s)) * 24.0)", to, from)

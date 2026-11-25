@@ -5,14 +5,15 @@ import { useEffect, useRef, useState } from 'react'
  * 尊重系统"减少动态效果"设置，此时直接跳到目标值。
  */
 export function useCountUp(target: number, duration = 800): number {
+  const reducedMotion =
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const [display, setDisplay] = useState(0)
   const fromRef = useRef(0)
   const rafRef = useRef(0)
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (reducedMotion) {
       fromRef.current = target
-      setDisplay(target)
       return
     }
     const from = fromRef.current
@@ -32,7 +33,7 @@ export function useCountUp(target: number, duration = 800): number {
     }
     rafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [target, duration])
+  }, [target, duration, reducedMotion])
 
-  return display
+  return reducedMotion ? target : display
 }

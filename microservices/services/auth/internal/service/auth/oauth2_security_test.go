@@ -251,14 +251,16 @@ func TestJWKSExposesOnlyPublicKey(t *testing.T) {
 	eBytes, _ := base64.RawURLEncoding.DecodeString(k["e"].(string))
 	n := new(big.Int).SetBytes(nBytes)
 	e := new(big.Int).SetBytes(eBytes)
-	if n.Cmp(oidc.priv.PublicKey.N) != 0 || int(e.Int64()) != oidc.priv.PublicKey.E {
+	if n.Cmp(oidc.priv.N) != 0 || int(e.Int64()) != oidc.priv.E {
 		t.Error("jwk n/e do not match the signing public key")
 	}
 }
 
 func TestKeyIDStableForSameKey(t *testing.T) {
 	priv, _ := rsa.GenerateKey(rand.Reader, 2048)
-	if keyID(&priv.PublicKey) != keyID(&priv.PublicKey) {
+	first := keyID(&priv.PublicKey)
+	second := keyID(&priv.PublicKey)
+	if first != second {
 		t.Error("keyID must be deterministic for the same key")
 	}
 	// PEM round-trip must preserve the kid (proves cross-replica stability).

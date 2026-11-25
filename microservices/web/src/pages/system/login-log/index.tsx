@@ -69,21 +69,24 @@ export default function LoginLogPage() {
 
   useEffect(() => {
     let cancelled = false
-    setGeoLoading(true)
-    getLoginGeoDistribution(geoDays)
-      .then((data) => {
-        if (cancelled) return
-        setGeoData(data)
-        setGeoFailed(false)
-      })
-      .catch(() => {
-        if (cancelled) return
-        // 保留旧数据；从未拿到过数据时记失败态供空态文案区分
-        setGeoFailed(true)
-      })
-      .finally(() => {
-        if (!cancelled) setGeoLoading(false)
-      })
+    void Promise.resolve().then(() => {
+      if (cancelled) return
+      setGeoLoading(true)
+      getLoginGeoDistribution(geoDays)
+        .then((data) => {
+          if (cancelled) return
+          setGeoData(data)
+          setGeoFailed(false)
+        })
+        .catch(() => {
+          if (cancelled) return
+          // 保留旧数据；从未拿到过数据时记失败态供空态文案区分
+          setGeoFailed(true)
+        })
+        .finally(() => {
+          if (!cancelled) setGeoLoading(false)
+        })
+    })
     return () => {
       cancelled = true
     }

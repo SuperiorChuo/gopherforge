@@ -60,8 +60,15 @@ export default function MobileTasksPage() {
   }, [detailMode, taskId])
 
   useEffect(() => {
-    if (detailMode) void loadDetail()
-    else void loadList()
+    let active = true
+    void Promise.resolve().then(() => {
+      if (!active) return
+      if (detailMode) void loadDetail()
+      else void loadList()
+    })
+    return () => {
+      active = false
+    }
   }, [detailMode, loadDetail, loadList])
 
   const canApprove = !detail?.actions || detail.actions.includes('approve')

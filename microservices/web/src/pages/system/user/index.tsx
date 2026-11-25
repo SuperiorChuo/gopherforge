@@ -118,27 +118,32 @@ export default function UserPage() {
   const onLoadError = useCallback(() => message.error(t('获取用户列表失败')), [t])
   const { list, total, loading, reload } = useTableQuery({ params, fetcher: fetchList, onError: onLoadError })
 
-  const fetchRoles = async () => {
-    try {
-      const res = await getRoleList({ page: 1, page_size: 200 })
-      setRoles(res.list)
-    } catch {
-      // ignore
-    }
-  }
-
   useEffect(() => {
-    fetchRoles()
+    let active = true
+    getRoleList({ page: 1, page_size: 200 })
+      .then((res) => {
+        if (active) setRoles(res.list)
+      })
+      .catch(() => {
+        // ignore
+      })
     getDepartmentList({ page: 1, page_size: 200 })
-      .then((res) => setDepts(res.list))
+      .then((res) => {
+        if (active) setDepts(res.list)
+      })
       .catch(() => {
         // ignore
       })
     getAllPosts()
-      .then((res) => setPosts(res ?? []))
+      .then((res) => {
+        if (active) setPosts(res ?? [])
+      })
       .catch(() => {
         // ignore
       })
+    return () => {
+      active = false
+    }
   }, [])
 
   const handleSearch = (values: { keyword?: string; status?: number }) => {
