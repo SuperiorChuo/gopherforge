@@ -40,7 +40,7 @@ func (s *Store) migrate() error {
 // 因此每次启动都跑也安全（新库直接 0 行命中）。
 func (s *Store) backfillConversationLastSeq() error {
 	var stmt string
-	switch s.db.Dialector.Name() {
+	switch s.db.Name() {
 	case "postgres":
 		stmt = `UPDATE im_conversations c SET last_seq = m.max_seq
 			FROM (SELECT conversation_id, MAX(seq) AS max_seq FROM im_messages GROUP BY conversation_id) m
@@ -71,7 +71,7 @@ func (s *Store) ensureIndexes() error {
 	).Error; err != nil {
 		return fmt.Errorf("ensure ux_im_messages_conv_seq: %w", err)
 	}
-	if s.db.Dialector.Name() != "postgres" {
+	if s.db.Name() != "postgres" {
 		return nil
 	}
 	stmts := []string{

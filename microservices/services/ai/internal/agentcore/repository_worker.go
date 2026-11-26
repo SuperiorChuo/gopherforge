@@ -20,7 +20,7 @@ func (r *Repository) ClaimNext(ctx context.Context, owner string, leaseDuration 
 	now := r.now().UTC()
 	expires := now.Add(leaseDuration)
 	claimCtx := tenant.DisableScope(ctx)
-	if r.db.Dialector.Name() == "sqlite" {
+	if r.db.Name() == "sqlite" {
 		return r.claimNextSQLite(claimCtx, owner, now, expires)
 	}
 	var claimed AgentRun
@@ -619,7 +619,7 @@ func ensureOwnedRun(tx *gorm.DB, run AgentRun, owner string) error {
 	query := tx.Model(&AgentRun{}).
 		Select("id").
 		Where("tenant_id = ? AND id = ? AND lease_owner = ? AND status IN ?", run.TenantID, run.ID, owner, []string{RunRunning, RunCancelling})
-	if tx.Dialector.Name() != "sqlite" {
+	if tx.Name() != "sqlite" {
 		// Serialize every event-producing transaction for one Run. PostgreSQL
 		// sequence values are allocated before commit; without this lock an SSE
 		// cursor could observe a larger event ID and later miss a smaller one.

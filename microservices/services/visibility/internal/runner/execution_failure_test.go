@@ -20,7 +20,7 @@ type executionFailureStore struct {
 func (s *executionFailureStore) CreateGeoResult(result *model.GeoResult) error {
 	s.resultCalls++
 	if s.hook == "double failure" && s.resultCalls == 2 {
-		return persistenceFailure
+		return errPersistenceFailure
 	}
 	s.results++
 	return s.persistenceStore.CreateGeoResult(result)
@@ -30,7 +30,7 @@ func (s *executionFailureStore) GetGeoRun(tenant, id uint64) (*model.GeoRun, err
 	if s.hook == "panic" {
 		panic("advice hook panic")
 	}
-	return nil, persistenceFailure
+	return nil, errPersistenceFailure
 }
 
 func TestGeoPartialResultsAndFailedStateWriteRemainVisible(t *testing.T) {

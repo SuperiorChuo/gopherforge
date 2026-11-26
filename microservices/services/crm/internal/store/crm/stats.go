@@ -179,51 +179,6 @@ func (s *Store) Stats(ctx context.Context, tenantID uint64, since time.Time) (*S
 	return out, nil
 }
 
-// monthlyTrend returns monthly leads/won/revenue for the last N months.
-func (s *Store) monthlyTrend(tenantID uint64, since time.Time) []TrendBucket {
-	var buckets []TrendBucket
-
-	type agg struct {
-		Month string
-		N     int64
-		Amt   int64
-	}
-	var rows []agg
-
-	// leads per month
-	if err := tenantQ(s.db.Model(&model.Lead{}), tenantID).
-		Where("created_at >= ?", since).
-		Select("to_char(created_at, 'YYYY-MM') AS month, COUNT(*) AS n, 0 AS amt").
-		Group("month").Order("month").Scan(&rows).Error; err == nil {
-		for _, r := range rows {
-			buckets = append(buckets, TrendBucket{Month: r.Month, Leads: r.N})
-		}
-	}
-	// won opps per month
-	rows = nil
-	if err := tenantQ(s.db.Model(&model.Opportunity{}), tenantID).
-		Where("stage = ? AND won_at >= ?", "won", since).
-		Select("to_char(won_at, 'YYYY-MM') AS month, COUNT(*) AS n, COALESCE(SUM(amount_cents),0) AS amt").
-		Group("month").Order("month").Scan(&rows).Error; err == nil {
-		for _, r := range rows {
-			found := false
-			for i := range buckets {
-				if buckets[i].Month == r.Month {
-					buckets[i].Won = r.N
-					buckets[i].Revenue = r.Amt
-					found = true
-					break
-				}
-			}
-			if !found {
-				buckets = append(buckets, TrendBucket{Month: r.Month, Won: r.N, Revenue: r.Amt})
-			}
-		}
-	}
-	sort.Slice(buckets, func(i, j int) bool { return buckets[i].Month < buckets[j].Month })
-	return buckets
-}
-
 // TimelineEvent 客户时间线事件。
 type TimelineEvent struct {
 	Type       string    `json:"type"` // followup | stage_change | contract | lead_convert

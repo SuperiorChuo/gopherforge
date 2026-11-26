@@ -151,7 +151,7 @@ func Dial(ctx context.Context, r *Resolver, serviceName string, opts ...grpc.Dia
 		}`),
 	}
 	dialOpts = append(dialOpts, opts...)
-	return grpc.DialContext(ctx, addr, dialOpts...)
+	return grpc.NewClient(addr, dialOpts...)
 }
 
 func recoveryUnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {

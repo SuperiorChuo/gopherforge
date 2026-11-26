@@ -27,7 +27,7 @@ func loadState(db *gorm.DB) (*mutationState, bool) {
 }
 
 func mutationValueCount(value reflect.Value) int {
-	for value.IsValid() && (value.Kind() == reflect.Ptr || value.Kind() == reflect.Interface) {
+	for value.IsValid() && (value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) {
 		if value.IsNil() {
 			return 0
 		}
@@ -43,7 +43,7 @@ func mutationValueCount(value reflect.Value) int {
 }
 
 func isSupportedCreateValue(value reflect.Value) bool {
-	for value.IsValid() && (value.Kind() == reflect.Ptr || value.Kind() == reflect.Interface) {
+	for value.IsValid() && (value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) {
 		if value.IsNil() {
 			return false
 		}
@@ -73,7 +73,7 @@ func setTenantField(db *gorm.DB, fieldName string, tenantID uint) {
 		return
 	}
 	value := db.Statement.ReflectValue
-	for value.IsValid() && (value.Kind() == reflect.Ptr || value.Kind() == reflect.Interface) {
+	for value.IsValid() && (value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) {
 		value = value.Elem()
 	}
 	if value.Kind() == reflect.Slice || value.Kind() == reflect.Array {
@@ -95,7 +95,7 @@ func primaryIDsFromValue(db *gorm.DB, value reflect.Value, primaryKey *schema.Fi
 		return nil, nil
 	}
 	probe := value
-	for probe.IsValid() && (probe.Kind() == reflect.Ptr || probe.Kind() == reflect.Interface) {
+	for probe.IsValid() && (probe.Kind() == reflect.Pointer || probe.Kind() == reflect.Interface) {
 		if probe.IsNil() {
 			return nil, nil
 		}
@@ -285,7 +285,7 @@ func flattenIDValue(value any) []any {
 		return nil
 	}
 	reflected := reflect.ValueOf(value)
-	for reflected.IsValid() && (reflected.Kind() == reflect.Ptr || reflected.Kind() == reflect.Interface) {
+	for reflected.IsValid() && (reflected.Kind() == reflect.Pointer || reflected.Kind() == reflect.Interface) {
 		if reflected.IsNil() {
 			return nil
 		}
@@ -336,7 +336,7 @@ func isZeroPrimaryID(value any) bool {
 		return true
 	}
 	reflected := reflect.ValueOf(value)
-	for reflected.IsValid() && (reflected.Kind() == reflect.Ptr || reflected.Kind() == reflect.Interface) {
+	for reflected.IsValid() && (reflected.Kind() == reflect.Pointer || reflected.Kind() == reflect.Interface) {
 		if reflected.IsNil() {
 			return true
 		}

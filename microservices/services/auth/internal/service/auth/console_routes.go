@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	authDAO "github.com/go-admin-kit/services/auth/internal/dao/auth"
+	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
 	model "github.com/go-admin-kit/services/shared/pkg/model"
 	"gorm.io/gorm"
 )
@@ -524,14 +525,7 @@ func ConsoleLoginSuccessSnapshot(meta ConsoleAuthRequestMetadata, record *model.
 }
 
 func ConsoleRoleCodes(roles []model.Role) []string {
-	values := make([]string, 0, len(roles))
-	for _, role := range roles {
-		code := strings.TrimSpace(role.Code)
-		if code != "" {
-			values = append(values, code)
-		}
-	}
-	return UniqueSortedConsoleStrings(values)
+	return consoleauth.ConsoleRoleCodes(roles)
 }
 
 func ConsolePermissionsForUser(ctx context.Context, routes ConsoleRouteService, user *model.User, base []string) []string {

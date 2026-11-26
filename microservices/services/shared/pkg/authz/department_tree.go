@@ -157,7 +157,7 @@ func StartDepartmentTreeInvalidationListener(ctx context.Context) (io.Closer, er
 		return nil, fmt.Errorf("authz remote cache not configured")
 	}
 	return rc.StartSubscriber(ctx, departmentTreeInvalidateChannel, func(_ context.Context, payload string) {
-		// "clear" is still honoured so that a peer running the pre-sharding build
+		// "clear" is still honored so that a peer running the pre-sharding build
 		// can invalidate this process during a rolling deploy.
 		if payload == departmentTreeInvalidatePayloadClear {
 			defaultDepartmentTreeCache.clearAllLocal()

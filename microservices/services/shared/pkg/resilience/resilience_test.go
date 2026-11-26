@@ -9,14 +9,14 @@ import (
 	"time"
 )
 
-var boom = errors.New("boom")
+var errBoom = errors.New("boom")
 
 // failN 前 n 次失败、之后成功，并统计调用次数。
 func failN(calls *int, n int) func(context.Context) error {
 	return func(context.Context) error {
 		*calls++
 		if *calls <= n {
-			return boom
+			return errBoom
 		}
 		return nil
 	}
@@ -47,7 +47,7 @@ func TestDoRetriesThenSuccess(t *testing.T) {
 func TestDoExhaustsRetries(t *testing.T) {
 	var calls int
 	err := Do(context.Background(), Options{MaxRetries: 2, BaseDelay: time.Millisecond}, failN(&calls, 99))
-	if !errors.Is(err, boom) {
+	if !errors.Is(err, errBoom) {
 		t.Fatalf("want boom, got %v", err)
 	}
 	if calls != 3 {
@@ -58,7 +58,7 @@ func TestDoExhaustsRetries(t *testing.T) {
 func TestMaxRetriesZeroMeansNoRetry(t *testing.T) {
 	var calls int
 	err := Do(context.Background(), Options{MaxRetries: 0}, failN(&calls, 99))
-	if !errors.Is(err, boom) {
+	if !errors.Is(err, errBoom) {
 		t.Fatalf("want boom, got %v", err)
 	}
 	if calls != 1 {
@@ -88,7 +88,7 @@ func TestDoBackoffRespectsContextCancel(t *testing.T) {
 		if calls == 1 {
 			cancel() // 首次尝试期间取消
 		}
-		return boom
+		return errBoom
 	})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("want context.Canceled, got %v", err)
@@ -117,7 +117,7 @@ func TestOptionsDoResultReturnsValue(t *testing.T) {
 	v, err := (Options{MaxRetries: 2}).DoResult(context.Background(), func(context.Context) (string, error) {
 		calls++
 		if calls <= 1 {
-			return "", boom
+			return "", errBoom
 		}
 		return "ok", nil
 	})

@@ -380,7 +380,7 @@ func (i *SchemaInspector) inspectColumns(table string) ([]ColumnInfo, error) {
 
 func (i *SchemaInspector) columnComments(table string) (map[string]string, error) {
 	comments := map[string]string{}
-	if i.db.Dialector.Name() != "postgres" {
+	if i.db.Name() != "postgres" {
 		return comments, nil
 	}
 	type columnComment struct {
@@ -403,7 +403,7 @@ func (i *SchemaInspector) columnComments(table string) (map[string]string, error
 
 func (i *SchemaInspector) primaryKeyColumns(table string) (map[string]bool, error) {
 	result := map[string]bool{}
-	switch i.db.Dialector.Name() {
+	switch i.db.Name() {
 	case "sqlite":
 		type sqliteColumn struct {
 			Name string `gorm:"column:name"`
@@ -440,7 +440,7 @@ func (i *SchemaInspector) primaryKeyColumns(table string) (map[string]bool, erro
 }
 
 func (i *SchemaInspector) tableComment(table string) (string, error) {
-	if i.db.Dialector.Name() != "postgres" {
+	if i.db.Name() != "postgres" {
 		return "", nil
 	}
 	var comment string
@@ -449,10 +449,10 @@ func (i *SchemaInspector) tableComment(table string) (string, error) {
 }
 
 func (i *SchemaInspector) foreignKeys(table string) ([]ForeignKeyInfo, error) {
-	if i.db.Dialector.Name() == "postgres" {
+	if i.db.Name() == "postgres" {
 		return i.postgresForeignKeys(table)
 	}
-	if i.db.Dialector.Name() == "sqlite" {
+	if i.db.Name() == "sqlite" {
 		return i.sqliteForeignKeys(table)
 	}
 	return nil, nil

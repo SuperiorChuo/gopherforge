@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"net"
@@ -389,12 +388,4 @@ func writeAtomic(target string, data []byte, mode os.FileMode) (err error) {
 
 func safeDomain(domain string) string {
 	return strings.ReplaceAll(domain, ".", "_")
-}
-
-func certificateFingerprint(fullchain string) (string, error) {
-	block, _ := pem.Decode([]byte(fullchain))
-	if block == nil || block.Type != "CERTIFICATE" {
-		return "", fmt.Errorf("invalid certificate PEM")
-	}
-	return fingerprintDER(block.Bytes), nil
 }

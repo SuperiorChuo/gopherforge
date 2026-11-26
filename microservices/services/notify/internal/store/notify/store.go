@@ -87,7 +87,7 @@ func (s *Store) DB() *gorm.DB { return s.db }
 // 仅 PG 执行（测试注入 sqlite）。原来 notify_messages 只有 6 个单列索引，
 // 而热路径查询都是多列条件，PG 每次只能用其中一个。
 func (s *Store) ensureIndexes() error {
-	if s.db.Dialector.Name() != "postgres" {
+	if s.db.Name() != "postgres" {
 		return nil
 	}
 	stmts := []string{

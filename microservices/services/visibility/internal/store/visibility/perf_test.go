@@ -145,7 +145,7 @@ func TestOverviewAggregatesMatchPerRowCount(t *testing.T) {
 func TestEnsureIndexesIdempotent(t *testing.T) {
 	s := newTestStore(t)
 	// sqlite 直接返回，不报错即可
-	if s.db.Dialector.Name() != "postgres" {
+	if s.db.Name() != "postgres" {
 		return
 	}
 	// 若在 PG 下跑（CI），重复执行不报错

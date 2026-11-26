@@ -179,14 +179,7 @@ func (d *AIUsageLogDAO) GetDailyStats(ctx context.Context, startDate, endDate ti
 
 	stats := make([]DailyStats, len(results))
 	for i, r := range results {
-		stats[i] = DailyStats{
-			Date:            r.Date,
-			TotalRequests:   r.TotalRequests,
-			SuccessRequests: r.SuccessRequests,
-			TotalTokens:     r.TotalTokens,
-			TotalCost:       r.TotalCost,
-			AvgLatencyMs:    r.AvgLatencyMs,
-		}
+		stats[i] = DailyStats(r)
 	}
 	return stats, nil
 }
@@ -219,13 +212,7 @@ func (d *AIUsageLogDAO) GetTopUsers(ctx context.Context, startTime, endTime time
 
 	stats := make([]UserStats, len(results))
 	for i, r := range results {
-		stats[i] = UserStats{
-			UserID:        r.UserID,
-			Username:      r.Username,
-			TotalRequests: r.TotalRequests,
-			TotalTokens:   r.TotalTokens,
-			TotalCost:     r.TotalCost,
-		}
+		stats[i] = UserStats(r)
 	}
 	return stats, nil
 }

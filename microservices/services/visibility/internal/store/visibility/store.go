@@ -64,7 +64,7 @@ func NewWithDB(db *gorm.DB) (*Store, error) {
 // + id DESC 分页，概览按 tenant+status 聚合）。IF NOT EXISTS 幂等；
 // 仅 PG 执行（测试注入 sqlite）。
 func (s *Store) ensureIndexes() error {
-	if s.db.Dialector.Name() != "postgres" {
+	if s.db.Name() != "postgres" {
 		return nil
 	}
 	for _, stmt := range indexStatements() {

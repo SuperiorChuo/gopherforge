@@ -42,7 +42,6 @@ func validate(cfg Config) error {
 var (
 	isProductionEnv       = secretstrength.IsProductionEnv
 	isStrongSecret        = secretstrength.IsStrongSecret
-	isPlaceholderValue    = secretstrength.IsPlaceholderValue
 	oauthConfigValueReady = secretstrength.OAuthConfigValueReady
 )
 

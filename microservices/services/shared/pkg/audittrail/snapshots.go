@@ -33,7 +33,7 @@ func (p *Plugin) fetchSnapshots(db *gorm.DB, state *mutationState, lock bool) (m
 	if state.target.TenantField != "" {
 		query = query.Where(clause.Eq{Column: clause.Column{Name: state.target.TenantField}, Value: state.tenantID})
 	}
-	if lock && supportsRowLock(db.Dialector.Name()) {
+	if lock && supportsRowLock(db.Name()) {
 		query = query.Clauses(clause.Locking{Strength: "UPDATE"})
 	}
 	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: state.primaryKey.DBName}})

@@ -46,7 +46,7 @@ func ValidateEndpoint(ctx context.Context, raw string, policy Policy) (*url.URL,
 	if err != nil || u.Hostname() == "" || u.User != nil || u.Fragment != "" {
 		return nil, ErrInvalidEndpoint
 	}
-	if u.Scheme != "https" && !(policy.AllowHTTP && u.Scheme == "http") {
+	if u.Scheme != "https" && (!policy.AllowHTTP || u.Scheme != "http") {
 		return nil, fmt.Errorf("%w: HTTPS is required", ErrInvalidEndpoint)
 	}
 	if err := validateHost(ctx, u.Hostname(), policy); err != nil {

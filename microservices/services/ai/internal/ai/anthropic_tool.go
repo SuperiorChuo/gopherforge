@@ -92,7 +92,7 @@ func (p *AnthropicProvider) CompleteTools(ctx context.Context, request ToolChatR
 		if !json.Valid(tool.InputSchema) {
 			return ToolChatResponse{}, fmt.Errorf("anthropic tool %s has invalid input schema", tool.Name)
 		}
-		payload.Tools = append(payload.Tools, anthropicToolSpec{Name: tool.Name, Description: tool.Description, InputSchema: tool.InputSchema})
+		payload.Tools = append(payload.Tools, anthropicToolSpec(tool))
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {

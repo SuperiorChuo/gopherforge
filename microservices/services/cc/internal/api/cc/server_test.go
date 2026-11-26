@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -105,7 +106,7 @@ func TestWebhookLifecycleMergesIntoSingleCall(t *testing.T) {
 		}
 	}
 
-	list, total, err := srv.Store.ListCalls(nil, store.ListCallsQuery{TenantID: 1})
+	list, total, err := srv.Store.ListCalls(context.Background(), store.ListCallsQuery{TenantID: 1})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -133,7 +134,7 @@ func TestWebhookOutOfOrderStatusDoesNotRegress(t *testing.T) {
 	_ = postWebhook(r, envelope("call.hangup", "call-2", map[string]any{"duration_sec": float64(5)}), "")
 	_ = postWebhook(r, envelope("call.ringing", "call-2", nil), "") // 迟到的 ringing
 
-	list, _, err := srv.Store.ListCalls(nil, store.ListCallsQuery{TenantID: 1})
+	list, _, err := srv.Store.ListCalls(context.Background(), store.ListCallsQuery{TenantID: 1})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -147,7 +148,7 @@ func TestWebhookTestEventStoredAsLogOnly(t *testing.T) {
 	if w := postWebhook(r, envelope("call.test", "t-1", nil), ""); w.Code != http.StatusOK {
 		t.Fatalf("status = %d", w.Code)
 	}
-	_, total, _ := srv.Store.ListCalls(nil, store.ListCallsQuery{TenantID: 1})
+	_, total, _ := srv.Store.ListCalls(context.Background(), store.ListCallsQuery{TenantID: 1})
 	if total != 0 {
 		t.Fatalf("call.test must not create call rows, got %d", total)
 	}

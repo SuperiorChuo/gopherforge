@@ -85,7 +85,7 @@ func Open(dsn string) (*Store, error) {
 // tenant_id 索引只能过滤不能供序，PG 仍要排序全部命中行。全部 IF NOT EXISTS
 // 幂等，仅 PG 执行（单测注入 sqlite 时直接跳过）。
 func (s *Store) EnsureIndexes() error {
-	if s.db.Dialector.Name() != "postgres" {
+	if s.db.Name() != "postgres" {
 		return nil
 	}
 	for _, stmt := range ensureIndexStatements() {

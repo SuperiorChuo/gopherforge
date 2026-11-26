@@ -180,7 +180,8 @@ func TestNewKeyAndHash(t *testing.T) {
 	if k1 == k2 {
 		t.Fatal("NewKey should be random")
 	}
-	if Hash(struct{ X int }{1}) != Hash(struct{ X int }{1}) {
+	h1, h2 := Hash(struct{ X int }{1}), Hash(struct{ X int }{1})
+	if h1 != h2 {
 		t.Fatal("Hash unstable")
 	}
 	if Hash(struct{ X int }{1}) == Hash(struct{ X int }{2}) {

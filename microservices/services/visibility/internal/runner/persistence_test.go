@@ -19,12 +19,12 @@ type persistenceStore struct {
 	geoUpdates, serpUpdates  []map[string]any
 }
 
-var persistenceFailure = errors.New("injected persistence failure")
+var errPersistenceFailure = errors.New("injected persistence failure")
 
 func (s *persistenceStore) fail(stage string) error {
 	if s.stage == stage {
 		s.hits++
-		return persistenceFailure
+		return errPersistenceFailure
 	}
 	return nil
 }
@@ -36,9 +36,10 @@ func (s *persistenceStore) CreateGeoResult(r *model.GeoResult) error {
 }
 func (s *persistenceStore) UpdateGeoRun(t, id uint64, u map[string]any) error {
 	stage := "progress"
-	if u["status"] == "done" {
+	switch u["status"] {
+	case "done":
 		stage = "complete"
-	} else if u["status"] == "failed" {
+	case "failed":
 		stage = "failure"
 	}
 	if err := s.fail(stage); err != nil {
@@ -63,9 +64,10 @@ func (s *persistenceStore) ApplyEngineRanks(uint64, uint64, []store.EngineRank) 
 }
 func (s *persistenceStore) UpdateSerpTask(t, id uint64, u map[string]any) error {
 	stage := "progress"
-	if u["status"] == "done" {
+	switch u["status"] {
+	case "done":
 		stage = "complete"
-	} else if u["status"] == "failed" {
+	case "failed":
 		stage = "failure"
 	}
 	if err := s.fail(stage); err != nil {
@@ -81,7 +83,7 @@ func assertFailedUpdates(t *testing.T, updates []map[string]any) {
 	}
 	last := updates[len(updates)-1]
 	text, _ := last["error"].(string)
-	if last["status"] != "failed" || last["finished_at"] == nil || !strings.Contains(text, persistenceFailure.Error()) {
+	if last["status"] != "failed" || last["finished_at"] == nil || !strings.Contains(text, errPersistenceFailure.Error()) {
 		t.Fatalf("persistence failure falsely completed: updates=%v", updates)
 	}
 	for _, u := range updates {

@@ -176,9 +176,8 @@ func demoModeEnabled(key, appEnv string) bool {
 var (
 	isProductionEnv       = secretstrength.IsProductionEnv
 	isStrongSecret        = secretstrength.IsStrongSecret
-	isWeakCredential      = secretstrength.IsWeakCredential
-	isPlaceholderValue    = secretstrength.IsPlaceholderValue
-	oauthConfigValueReady = secretstrength.OAuthConfigValueReady
+	isWeakCredential   = secretstrength.IsWeakCredential
+	isPlaceholderValue = secretstrength.IsPlaceholderValue
 )
 
 func splitCSV(s string) []string {

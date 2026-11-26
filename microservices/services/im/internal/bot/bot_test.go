@@ -1,6 +1,9 @@
 package bot
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestWantsHuman(t *testing.T) {
 	cases := []struct {
@@ -23,7 +26,7 @@ func TestWantsHuman(t *testing.T) {
 
 func TestStubComplete(t *testing.T) {
 	s := NewStub()
-	out, err := s.Complete(nil, "", []Message{{Role: "user", Content: "你好"}})
+	out, err := s.Complete(context.Background(), "", []Message{{Role: "user", Content: "你好"}})
 	if err != nil || out == "" {
 		t.Fatalf("stub: %v %q", err, out)
 	}

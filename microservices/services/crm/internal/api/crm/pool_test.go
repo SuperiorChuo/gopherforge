@@ -49,7 +49,7 @@ func TestLeadAssignAndClaim(t *testing.T) {
 	}
 
 	// 部门池视图可见
-	w, env = call(t, r, http.MethodGet, "/api/v1/crm/leads?scope=dept&department_id=5", nil, "")
+	_, env = call(t, r, http.MethodGet, "/api/v1/crm/leads?scope=dept&department_id=5", nil, "")
 	var list struct {
 		Total int64 `json:"total"`
 	}
@@ -68,7 +68,7 @@ func TestLeadAssignAndClaim(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("re-claim: %d", w.Code)
 	}
-	w, env = call(t, r, http.MethodGet, "/api/v1/crm/leads?scope=mine", nil, "")
+	_, env = call(t, r, http.MethodGet, "/api/v1/crm/leads?scope=mine", nil, "")
 	decode(t, env.Data, &list)
 	if list.Total != 1 {
 		t.Fatalf("mine total = %d", list.Total)
@@ -82,7 +82,7 @@ func TestLeadAssignAndClaim(t *testing.T) {
 	}
 
 	// 分配日志留痕（名片0：assign + claim）
-	w, env = call(t, r, http.MethodGet,
+	_, env = call(t, r, http.MethodGet,
 		fmt.Sprintf("/api/v1/crm/assign-logs?target_type=lead&target_id=%d", ids[0]), nil, "")
 	var logs struct {
 		List []struct {
@@ -244,7 +244,7 @@ func TestPoolRulesAndRecycle(t *testing.T) {
 	}
 
 	// 公海视图有 c1；领取后回到我的
-	w, env = call(t, r, http.MethodGet, "/api/v1/crm/customers?scope=pool", nil, "")
+	_, env = call(t, r, http.MethodGet, "/api/v1/crm/customers?scope=pool", nil, "")
 	var list struct {
 		Total int64 `json:"total"`
 	}
@@ -257,7 +257,7 @@ func TestPoolRulesAndRecycle(t *testing.T) {
 		t.Fatalf("claim: %d %s", w.Code, w.Body.String())
 	}
 	// 领取刷新计时 → 跨期视图为空
-	w, env = call(t, r, http.MethodGet, "/api/v1/crm/customers?scope=overdue", nil, "")
+	_, env = call(t, r, http.MethodGet, "/api/v1/crm/customers?scope=overdue", nil, "")
 	decode(t, env.Data, &list)
 	// c2 是 A 级 40 天 < 90 天不算跨期；c3 被保护但口径上仍超期（跨期视图不含保护判断，
 	// 用于提醒销售），owner 是本人 → total 应为 1（c3）
@@ -271,7 +271,7 @@ func TestPoolRulesAndRecycle(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("release: %d", w.Code)
 	}
-	w, env = call(t, r, http.MethodGet, "/api/v1/crm/customers?scope=pool", nil, "")
+	_, env = call(t, r, http.MethodGet, "/api/v1/crm/customers?scope=pool", nil, "")
 	decode(t, env.Data, &list)
 	if list.Total != 1 {
 		t.Fatalf("pool after release = %d", list.Total)
@@ -294,7 +294,7 @@ func TestRevisitScope(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("followup: %d", w.Code)
 	}
-	w, env = call(t, r, http.MethodGet, "/api/v1/crm/customers?scope=revisit", nil, "")
+	_, env = call(t, r, http.MethodGet, "/api/v1/crm/customers?scope=revisit", nil, "")
 	var list struct {
 		Total int64 `json:"total"`
 	}
@@ -310,7 +310,7 @@ func TestRevisitScope(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("followup2: %d", w.Code)
 	}
-	w, env = call(t, r, http.MethodGet, "/api/v1/crm/customers?scope=revisit", nil, "")
+	_, env = call(t, r, http.MethodGet, "/api/v1/crm/customers?scope=revisit", nil, "")
 	decode(t, env.Data, &list)
 	if list.Total != 0 {
 		t.Fatalf("revisit after done = %d", list.Total)

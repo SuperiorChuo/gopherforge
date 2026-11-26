@@ -1,20 +1,8 @@
-// Hermes 办公室布局算法与共享视觉常量。3D 场景的部门岛与工位排列完全由此生成。
-import type { SeatStatus } from '@/api/ai/hermes-office'
+// Hermes 办公室布局算法。3D 场景的部门岛与工位排列完全由此生成；视觉常量与共享类型位于 constants.ts。
+import type { OfficeDepartmentPod } from './constants'
 
-export const SEAT_STATUS_COLORS: Record<SeatStatus, string> = {
-  online: '#22b96f',
-  offline: '#94a3b8',
-  error: '#ef5350',
-  unprovisioned: '#eaa229',
-  empty: '#c4ccd7',
-}
-
-export interface OfficeDepartmentPod {
-  key: string
-  name: string
-  color: string
-  seatIds: number[]
-}
+export { SEAT_STATUS_COLORS } from './constants'
+export type { OfficeDepartmentPod } from './constants'
 
 export interface DepartmentPodLayout extends OfficeDepartmentPod {
   x: number

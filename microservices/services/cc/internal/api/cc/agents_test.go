@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -113,7 +114,7 @@ func TestWebhookAttributesBoundAgent(t *testing.T) {
 		t.Fatalf("webhook: status = %d body=%s", w.Code, w.Body.String())
 	}
 
-	list, _, err := srv.Store.ListCalls(nil, store.ListCallsQuery{TenantID: 1})
+	list, _, err := srv.Store.ListCalls(context.Background(), store.ListCallsQuery{TenantID: 1})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -124,7 +125,7 @@ func TestWebhookAttributesBoundAgent(t *testing.T) {
 	// 未绑定分机不归因
 	body = envelope("call.answered", "call-nobind", map[string]any{"agent_ext": "2000"})
 	_ = postWebhook(r, body, "")
-	list, _, _ = srv.Store.ListCalls(nil, store.ListCallsQuery{TenantID: 1})
+	list, _, _ = srv.Store.ListCalls(context.Background(), store.ListCallsQuery{TenantID: 1})
 	for _, c := range list {
 		if c.CallID == "call-nobind" && c.AgentUserID != nil {
 			t.Fatalf("unbound ext must not attribute, got %v", *c.AgentUserID)

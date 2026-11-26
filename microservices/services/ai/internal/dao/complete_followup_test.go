@@ -57,7 +57,7 @@ func TestCompleteSetEnabledCronJobs(t *testing.T) {
 
 func TestCompleteSetSeatProjectionPostgres(t *testing.T) {
 	db := testdb.Open(t, &localmodel.HermesOfficeSeat{})
-	if db.Dialector.Name() != "postgres" {
+	if db.Name() != "postgres" {
 		t.Skip("DISTINCT ON projection requires isolated PostgreSQL")
 	}
 	const n = fullread.BatchSize*2 + 1

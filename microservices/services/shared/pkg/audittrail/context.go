@@ -48,7 +48,7 @@ func WithTenantID(ctx context.Context, tenantID uint) context.Context {
 	}
 	// Existing service tenant plugins read the historical string key. Keep it
 	// in sync while using the package-private key as the audit contract.
-	ctx = context.WithValue(ctx, tenantCompatibilityContextKey, tenantID)
+	ctx = context.WithValue(ctx, tenantCompatibilityContextKey, tenantID) //nolint:staticcheck // SA1029: intentional legacy string key for service tenant plugins
 	return context.WithValue(ctx, tenantContextKey{}, tenantID)
 }
 

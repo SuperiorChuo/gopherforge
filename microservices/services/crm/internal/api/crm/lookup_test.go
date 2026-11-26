@@ -66,7 +66,7 @@ func TestPhoneLookup(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("empty phone: %d", w.Code)
 	}
-	w, env = call(t, r, http.MethodGet, "/api/v1/crm/lookup?phone=13511112222", nil, "2")
+	_, env = call(t, r, http.MethodGet, "/api/v1/crm/lookup?phone=13511112222", nil, "2")
 	var cross struct {
 		Matched string `json:"matched"`
 	}

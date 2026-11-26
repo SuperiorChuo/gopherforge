@@ -97,9 +97,8 @@ func (c Config) ProductionMode() bool { return isProductionEnv(c.AppEnv) } // å‡
 var (
 	isProductionEnv       = secretstrength.IsProductionEnv
 	isStrongSecret        = secretstrength.IsStrongSecret
-	isWeakCredential      = secretstrength.IsWeakCredential
-	isPlaceholderValue    = secretstrength.IsPlaceholderValue
-	oauthConfigValueReady = secretstrength.OAuthConfigValueReady
+	isWeakCredential   = secretstrength.IsWeakCredential
+	isPlaceholderValue = secretstrength.IsPlaceholderValue
 )
 
 func (c Config) DSN() string {

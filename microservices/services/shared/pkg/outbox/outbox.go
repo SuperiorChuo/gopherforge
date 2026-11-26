@@ -248,7 +248,7 @@ func Claim(db *gorm.DB, limit int) ([]Event, error) {
 }
 
 func isPostgres(db *gorm.DB) bool {
-	name := strings.ToLower(db.Dialector.Name())
+	name := strings.ToLower(db.Name())
 	return name == "postgres" || name == "postgresql"
 }
 

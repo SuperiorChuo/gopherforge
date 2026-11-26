@@ -29,7 +29,9 @@
 - `setting` 是七服务共用的 system_settings CRUD DAO；服务侧 alias 只为兼容既有 `internal/dao/system` import。
 - `audittrail` 承载 GORM 审计插件与基础设施服务共用的 Gin 审计上下文注入中间件（`AttachGinAuditContext` / `ActorFromGinContext`）。
 - `authdao` 是基础设施服务共用的用户查询、密码历史、TOTP/恢复码与认证 DAO 单一真源（`BaseUserDAO`、`AuthUserOps[U]`）；`auth`/`identity` 在嵌入基础上保留各自的租户扩展查询。
-- `runtimeconfig` 承载 Redis 失效通知与泛型运行时配置缓存状态机；设置键、配置结构、白名单和刷新解析逻辑仍由各服务保留。
+- `consoleauth` 是基础设施服务共用的 Web 控制台 Cookie 会话持久化/校验/吊销、角色码提取与会话响应构建单一真源（`ConsoleSessionService`、`BuildConsoleSession`、`ConsoleRoleCodes`）。
+- `runtimeconfig` 承载 Redis 失效通知、泛型运行时配置缓存状态机以及基础设施服务共用的 `SecurityPolicy` 模型、缓存读取器与单实例持有器（`DefaultSecurityPolicyHolder`）；各服务仅保留本地配置默认值与扩展设置（如邮件、AI Provider）。
+- `middleware` 除鉴权/限流基础组件外，同时承载基础设施服务共用的登录失败限流器与 IP 失败护盾（`LoginLimiter`、`LoginLimitConfig`、`RecordLoginFailureWithIPContext`、`IsIPBlockedContext`）。
 - `errors`、`internalhttp`、`tlsutil` 存在 shared 包之间的传递消费者；不能用“直接 import 数量”判断为孤立包。
 - 主仓特有的 `authz`、`tenantctx` 不同步到公开 micro 线；其消费者迁移由独立 authz 批次处理，本清单不覆盖并行实现。
 

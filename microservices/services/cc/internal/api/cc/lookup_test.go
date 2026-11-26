@@ -5,6 +5,7 @@ package api
 // 挂机跟进在 CRM 失败时不影响 CDR 响应、命中时按内容写入。
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -72,11 +73,11 @@ func TestLookupAggregates(t *testing.T) {
 	srv, r := newTestServer(t, "")
 
 	// contact 备注名（cc_contacts）
-	if _, err := srv.Store.UpsertContact(nil, &store.Contact{TenantID: 1, Number: "13800000000", Name: "老王", Remark: "VIP"}); err != nil {
+	if _, err := srv.Store.UpsertContact(context.Background(), &store.Contact{TenantID: 1, Number: "13800000000", Name: "老王", Remark: "VIP"}); err != nil {
 		t.Fatalf("upsert contact: %v", err)
 	}
 	// 一通历史话单（caller 命中）
-	if _, err := srv.Store.ApplyEvent(nil, "cdr.json", &store.Call{
+	if _, err := srv.Store.ApplyEvent(context.Background(), "cdr.json", &store.Call{
 		TenantID: 1, CallID: "c-hist-1", Direction: "inbound",
 		Caller: "13800000000", Callee: "1000", AgentExt: "1000", Status: "hangup", DurationSec: 30,
 	}); err != nil {
@@ -110,7 +111,7 @@ func TestLookupAggregates(t *testing.T) {
 	}
 
 	// 2) 号码只有联系人、无 CRM、无历史
-	if _, err := srv.Store.UpsertContact(nil, &store.Contact{TenantID: 1, Number: "13900000000", Name: "小李"}); err != nil {
+	if _, err := srv.Store.UpsertContact(context.Background(), &store.Contact{TenantID: 1, Number: "13900000000", Name: "小李"}); err != nil {
 		t.Fatalf("upsert: %v", err)
 	}
 	_, data = authGet(t, r, "/api/v1/cc/lookup?number=13900000000")
@@ -198,7 +199,7 @@ func TestCDRFollowFailureDoesNotBreakResponse(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("cdr status = %d, want 200 despite follow failure; body=%s", w.Code, w.Body.String())
 	}
-	_, total, _ := srv.Store.ListCalls(nil, store.ListCallsQuery{TenantID: 1})
+	_, total, _ := srv.Store.ListCalls(context.Background(), store.ListCallsQuery{TenantID: 1})
 	if total != 1 {
 		t.Fatalf("call rows = %d, want 1 (CDR must persist regardless)", total)
 	}

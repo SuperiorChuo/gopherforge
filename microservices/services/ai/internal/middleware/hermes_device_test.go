@@ -140,7 +140,7 @@ func TestHermesDeviceAuthAllowsRevokedDeviceFinalControlMessages(t *testing.T) {
 func TestHermesDeviceAuthRejectsAllRequestsAfterRevocationConfirmation(t *testing.T) {
 	now := time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC)
 	revokedAt := now.Add(-time.Minute)
-	router, privateKey, _ := setupHermesDeviceAuthRouter(t, now, &revokedAt)
+	_, privateKey, _ := setupHermesDeviceAuthRouter(t, now, &revokedAt)
 
 	// Rebuild the helper's device state through a dedicated router because the
 	// returned store is intentionally hidden from callers.
@@ -155,7 +155,7 @@ func TestHermesDeviceAuthRejectsAllRequestsAfterRevocationConfirmation(t *testin
 		RevocationConfirmed: true,
 	}}
 	nonces := &hermesNonceStoreStub{used: make(map[string]struct{})}
-	router = gin.New()
+	router := gin.New()
 	router.GET("/api/v1/ai/hermes/device/desired-state", HermesDeviceAuth(store, nonces, func() time.Time { return now }), func(c *gin.Context) {
 		c.Status(http.StatusNoContent)
 	})

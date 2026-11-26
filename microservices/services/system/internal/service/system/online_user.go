@@ -327,10 +327,6 @@ func onlineUserExpiryScore(expiration time.Duration, expiresAt time.Time) float6
 	return float64(time.Now().Add(expiration).Unix())
 }
 
-func (s *OnlineUserService) pruneExpiredOnlineUsers(ctx context.Context) error {
-	return s.pruneExpiredIndex(ctx, onlineUserIndexKey)
-}
-
 func (s *OnlineUserService) pruneExpiredIndex(ctx context.Context, indexKey string) error {
 	now := strconv.FormatInt(time.Now().Unix(), 10)
 	return s.redisClient().ZRemRangeByScore(ctx, indexKey, "-inf", now).Err()

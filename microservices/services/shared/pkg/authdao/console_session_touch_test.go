@@ -32,7 +32,7 @@ func TestConsoleSessionDAOTouchThrottlesByLastSeenAge(t *testing.T) {
 }
 
 // staleAfter <= 0 restores the unconditional write, so the throttle can be
-// turned off by configuration without changing behaviour in any other way.
+// turned off by configuration without changing behavior in any other way.
 func TestConsoleSessionDAOTouchWritesUnconditionallyWhenThrottleDisabled(t *testing.T) {
 	db, mock := newAuthDAOTestDB(t)
 	now := time.Now().UTC()

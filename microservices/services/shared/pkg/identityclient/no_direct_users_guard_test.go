@@ -18,14 +18,6 @@ var businessServices = []string{
 
 var forbiddenUsersSQL = regexp.MustCompile(`(?i)(JOIN\s+users\b|Table\(\s*"users"\s*\)|FROM\s+users\b)`)
 
-// 允许出现的假阳性片段（规则名常量、注释里的说明等）
-var allowSubstr = []string{
-	`RuleUsers`,
-	`"users"`, // JSON 字段名 "users": 常见；JOIN 另由正则卡
-	`// `,
-	`/*`,
-}
-
 func TestBusinessServicesNoDirectUsersSQL(t *testing.T) {
 	// shared/pkg/identityclient → services/
 	servicesRoot := filepath.Clean(filepath.Join("..", "..", ".."))

@@ -65,7 +65,7 @@ func ExportZIP(plan GenerationPlan) ([]byte, error) {
 func writeZIPFile(writer *zip.Writer, name string, content []byte) error {
 	header := &zip.FileHeader{Name: name, Method: zip.Deflate}
 	header.SetMode(0o644)
-	header.SetModTime(time.Date(1980, time.January, 1, 0, 0, 0, 0, time.UTC))
+	header.Modified = time.Date(1980, time.January, 1, 0, 0, 0, 0, time.UTC)
 	entry, err := writer.CreateHeader(header)
 	if err != nil {
 		return fmt.Errorf("创建 ZIP 条目 %s 失败: %w", name, err)

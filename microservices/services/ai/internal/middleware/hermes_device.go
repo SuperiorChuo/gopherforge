@@ -49,7 +49,7 @@ func NewRedisHermesNonceStore(client goredis.Cmdable) *RedisHermesNonceStore {
 
 func (s *RedisHermesNonceStore) Use(ctx context.Context, deviceID, nonce string, ttl time.Duration) (bool, error) {
 	if s == nil || s.client == nil {
-		return false, fmt.Errorf("Hermes nonce store is unavailable")
+		return false, fmt.Errorf("hermes nonce store is unavailable")
 	}
 	digest := sha256.Sum256([]byte(nonce))
 	key := "hermes:nonce:" + deviceID + ":" + hex.EncodeToString(digest[:])
@@ -170,7 +170,7 @@ func HermesDeviceAuth(store HermesDeviceIdentityStore, nonces HermesNonceStore, 
 		c.Set("user_id", device.UserID)
 		c.Set("tenant_id", device.TenantID)
 		ctx := tenant.WithContext(c.Request.Context(), device.TenantID)
-		ctx = context.WithValue(ctx, HermesDeviceContextKey, device)
+		ctx = context.WithValue(ctx, HermesDeviceContextKey, device) //nolint:staticcheck // SA1029: matches exported HermesDeviceContextKey contract
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	}
@@ -192,7 +192,7 @@ func allowHermesRevocationConfirmation(request *http.Request) bool {
 	}
 }
 
-var errHermesBodyTooLarge = fmt.Errorf("Hermes request body exceeds %d bytes", hermesMaxSignedBody)
+var errHermesBodyTooLarge = fmt.Errorf("hermes request body exceeds %d bytes", hermesMaxSignedBody)
 
 func readHermesSignedBody(request *http.Request) ([]byte, error) {
 	if request.Body == nil {
