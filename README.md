@@ -1,7 +1,7 @@
-<p align="center">
+<!-- <p align="center">
   <img src="docs/screenshots/wechat-group.png" alt="GopherForge 微信交流群二维码" width="400" /><br/>
   <strong>📱 欢迎加群 · 加我拉群，一起交流使用与开发</strong>
-</p>
+</p> -->
 
 # 🚀 GopherForge · Go 微服务管理与业务平台
 
