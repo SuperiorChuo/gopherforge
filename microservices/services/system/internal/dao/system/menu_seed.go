@@ -128,7 +128,7 @@ func existingMenuIdentity(item model.Menu, existing []model.Menu) (uint, error) 
 		for _, current := range existing {
 			name := item.Name != "" && item.Name == current.Name
 			path := item.Path != "" && item.Path == current.Path
-			if (exact && !(name && path)) || (!exact && !(name || path)) {
+			if (exact && (!name || !path)) || (!exact && !name && !path) {
 				continue
 			}
 			matches = append(matches, current.ID)

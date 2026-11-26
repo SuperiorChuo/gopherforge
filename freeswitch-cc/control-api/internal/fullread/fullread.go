@@ -38,7 +38,7 @@ func All[T any](query *gorm.DB) ([]T, error) {
 	if _, limited := query.Statement.Clauses["LIMIT"]; limited {
 		return nil, errors.New("fullread: limit/offset would truncate a complete set")
 	}
-	dialect := query.Dialector.Name()
+	dialect := query.Name()
 	if dialect != "postgres" && dialect != "sqlite" {
 		return nil, fmt.Errorf("fullread: unsupported dialect %q", dialect)
 	}
