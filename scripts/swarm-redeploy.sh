@@ -331,6 +331,14 @@ wait_for_service() {
       | awk -v name="$full_name" '$1 == name {print $2}')
     desired=$(docker service inspect --format '{{.Spec.Mode.Replicated.Replicas}}' \
       "$full_name" 2>/dev/null || true)
+    if [ "$desired" = "0" ]; then
+      if printf '%s\n' "${SVCS[@]}" | grep -qx "$service"; then
+        echo "[swarm] 错误：本次部署目标 $full_name 期望副本数为 0（0/0），请检查 stack 声明" >&2
+        return 1
+      fi
+      echo "[swarm] 警告：$full_name 当前处于 0/0 缩容状态（未参与本次滚动；如需恢复请执行 swarm-redeploy.sh $service）" >&2
+      return 0
+    fi
     if [ -n "$desired" ] && [ "$replicas" = "$desired/$desired" ]; then
       return 0
     fi

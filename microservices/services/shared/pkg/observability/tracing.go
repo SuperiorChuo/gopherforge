@@ -86,9 +86,10 @@ func InitTracerFromEnv(ctx context.Context, serviceName string) (shutdown func(c
 	if endpoint == "" {
 		endpoint = "otel-collector:4317"
 	}
+	resolvedName := fallbackString(os.Getenv("OTEL_SERVICE_NAME"), fallbackString(os.Getenv("TRACING_SERVICE_NAME"), serviceName))
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
-			semconv.ServiceName(serviceName),
+			semconv.ServiceName(resolvedName),
 			semconv.ServiceVersion("1.0.0"),
 		),
 	)

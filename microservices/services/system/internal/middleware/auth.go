@@ -80,17 +80,9 @@ func AuthMiddleware() gin.HandlerFunc {
 			}
 		}
 
+		// 直验 JWT 的服务不经 ForwardAuth，租户与平台管理员身份必须严格取自已验签的 claims，
+		// 禁止被客户端可控的 X-Auth-* 请求头覆盖或提权。
 		tenantID := jwt.NormalizeTenantID(claims.TenantID)
-		// 优先使用网关透传的租户（ForwardAuth 场景下）。
-		if h := c.GetHeader("X-Auth-Tenant-ID"); h != "" {
-			if n, err := strconv.ParseUint(h, 10, 64); err == nil && n > 0 {
-				tenantID = uint(n)
-			}
-		}
-		// Platform administrator authority is security-sensitive and must come
-		// from the verified JWT. X-Auth-* headers are transport metadata from
-		// ForwardAuth, but they are also client-controlled on any direct service
-		// path and therefore must never be allowed to elevate this claim.
 		platformAdmin := claims.PlatformAdmin
 		// 平台运维人员可通过 X-Act-Tenant-ID 以其他租户身份操作（M4）。
 		if platformAdmin {

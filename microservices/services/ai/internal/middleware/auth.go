@@ -10,6 +10,7 @@ import (
 	"github.com/go-admin-kit/services/shared/pkg/authz"
 	"github.com/go-admin-kit/services/shared/pkg/cache"
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
+	"github.com/go-admin-kit/services/shared/pkg/gatewayauth"
 	"github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 
@@ -24,8 +25,24 @@ const TenantIDContextKey = tenant.ContextKey
 var errAuthUserStoreMissing = errors.New("auth: user store is not configured")
 
 // AuthMiddleware validates an access token and stores the actor in the request context.
+// When routed behind gateway ForwardAuth (or trusted internal callers forwarding X-Auth-*),
+// it consumes the verified X-Auth-* headers directly without a second JWT/Redis/DB round-trip.
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if id, ok := gatewayauth.IdentityFromGinContext(c); ok {
+			c.Set("user_id", id.UserID)
+			c.Set("username", id.Username)
+			c.Set("tenant_id", id.TenantID)
+			c.Set("platform_admin", id.PlatformAdmin)
+			c.Set(gatewayauth.ContextKeyTrusted, true)
+			ctx := context.WithValue(c.Request.Context(), TenantIDContextKey, id.TenantID)
+			ctx = context.WithValue(ctx, tenant.PlatformAdminContextKey, id.PlatformAdmin)
+			c.Request = c.Request.WithContext(ctx)
+			SetAuditActor(c, DefaultAuditActorType, id.Username)
+			c.Next()
+			return
+		}
+
 		authHeader := c.GetHeader("Authorization")
 		tokenString, tokenSource := consoleauth.TokenFromGinContextWithSource(c)
 		if authHeader == "" && tokenString == "" {
@@ -80,17 +97,10 @@ func AuthMiddleware() gin.HandlerFunc {
 			}
 		}
 
+		// Direct JWT fallback (without ForwardAuth): tenant and platform-admin must
+		// come strictly from verified token claims, never from X-Auth-* headers.
 		tenantID := jwt.NormalizeTenantID(claims.TenantID)
-		// Prefer gateway-propagated tenant when present (ForwardAuth).
-		if h := c.GetHeader("X-Auth-Tenant-ID"); h != "" {
-			if n, err := strconv.ParseUint(h, 10, 64); err == nil && n > 0 {
-				tenantID = uint(n)
-			}
-		}
 		platformAdmin := claims.PlatformAdmin
-		if h := c.GetHeader("X-Auth-Platform-Admin"); h == "1" || strings.EqualFold(h, "true") {
-			platformAdmin = true
-		}
 		// Platform operators may act-as another tenant via X-Act-Tenant-ID (M4).
 		if platformAdmin {
 			if h := c.GetHeader("X-Act-Tenant-ID"); h != "" {
@@ -171,6 +181,13 @@ func RoleMiddleware(requiredRoles ...string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		if c.GetBool(gatewayauth.ContextKeyTrusted) {
+			if _, superAdmin := gatewayauth.HasAnyPermission(c.GetHeader(gatewayauth.HeaderPermissions)); superAdmin && containsAnyString([]string{"super_admin"}, requiredRoles) {
+				c.Set(authz.RoleCodesContextKey, []string{"super_admin"})
+				c.Next()
+				return
+			}
+		}
 
 		grantedRoles, err := userRoleCodesContext(c.Request.Context(), userID.(uint))
 		if err != nil {
@@ -196,6 +213,20 @@ func PermissionMiddleware(requiredPermissions ...string) gin.HandlerFunc {
 		if !exists {
 			response.UnauthorizedWithCode(c, response.ErrorCodeAuthContextMissing, "user not found in context")
 			c.Abort()
+			return
+		}
+
+		if c.GetBool(gatewayauth.ContextKeyTrusted) {
+			allowed, superAdmin := gatewayauth.HasAnyPermission(c.GetHeader(gatewayauth.HeaderPermissions), requiredPermissions...)
+			if superAdmin {
+				c.Set(authz.RoleCodesContextKey, []string{"super_admin"})
+			}
+			if !allowed {
+				response.Forbidden(c, "insufficient permissions")
+				c.Abort()
+				return
+			}
+			c.Next()
 			return
 		}
 

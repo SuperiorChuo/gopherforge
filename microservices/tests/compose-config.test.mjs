@@ -131,7 +131,7 @@ test('Swarm 主入口先保证 infra 与 gateway，再通过 stack 更新业务�
     /docker compose[\s\S]*--profile compose-fallback[\s\S]*up -d[\s\S]*gateway/,
   )
   assert.match(script, /docker stack deploy/)
-  assert.match(script, /docker service update --force/)
+  assert.match(script, /docker service update(?:\s+--image\s+"[^"]+")?\s+--force/)
   assert.doesNotMatch(
     script,
     /docker compose --profile compose-fallback up -d --build "\$\{SVCS\[@\]\}"/,
@@ -189,4 +189,24 @@ test('回滚入口按已存在的 Swarm 服务优先回滚，否则保留 Compos
   assert.match(script, /docker service inspect/)
   assert.match(script, /docker service update --image/)
   assert.match(script, /docker compose --profile compose-fallback/)
+})
+
+test('网关入口统一在 web 与 websecure 首跳剥离伪造 X-Auth 头，且 Swarm 各服务追踪名独立', () => {
+  const compose = readFileSync(new URL('../docker-compose.yml', import.meta.url), 'utf8')
+  const stack = readFileSync(new URL('../docker-stack.yml', import.meta.url), 'utf8')
+
+  assert.match(compose, /--entrypoints\.web\.http\.middlewares=auth-sanitize@docker,/)
+  assert.match(compose, /--entrypoints\.websecure\.http\.middlewares=auth-sanitize@docker,/)
+  assert.doesNotMatch(stack, /TRACING_SERVICE_NAME:.*go-admin-kit-api/)
+
+  for (const svc of [
+    'auth', 'identity', 'file', 'ai', 'mp', 'notify', 'im', 'monitor',
+    'system', 'audit', 'cc', 'crm', 'visibility', 'ticket', 'pay', 'bpm',
+  ]) {
+    assert.match(
+      stack,
+      new RegExp(`TRACING_SERVICE_NAME:\\s*go-admin-kit-${svc}\\b`),
+      `docker-stack.yml 缺少独立追踪名 go-admin-kit-${svc}`,
+    )
+  }
 })

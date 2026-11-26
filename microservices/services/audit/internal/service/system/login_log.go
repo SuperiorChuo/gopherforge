@@ -89,17 +89,17 @@ func (s *LoginLogService) RecordContext(ctx context.Context, info *LoginInfo) er
 	log := &localmodel.LoginLog{
 		TenantID:  tenant.EnsureID(ctx, info.TenantID),
 		UserID:    info.UserID,
-		Username:  info.Username,
+		Username:  truncateString(info.Username, 50),
 		LoginType: info.LoginType,
 		Status:    info.Status,
-		IP:        info.IP,
-		Location:  getIPLocation(ctx, info.IP),
-		Device:    device,
-		OS:        os,
-		Browser:   browser,
+		IP:        truncateString(info.IP, 45),
+		Location:  truncateString(getIPLocation(ctx, info.IP), 100),
+		Device:    truncateString(device, 50),
+		OS:        truncateString(os, 50),
+		Browser:   truncateString(browser, 50),
 		UserAgent: truncateString(info.UserAgent, 500),
 		DeviceID:  truncateString(info.DeviceID, 64),
-		Message:   info.Message,
+		Message:   truncateString(info.Message, 255),
 		CreatedAt: info.OccurredAt,
 	}
 
@@ -323,10 +323,15 @@ func getIPLocation(ctx context.Context, ip string) string {
 }
 
 func truncateString(s string, maxLen int) string {
+	s = strings.ToValidUTF8(s, "")
 	if len(s) <= maxLen {
 		return s
 	}
-	return s[:maxLen]
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	return string(runes[:maxLen])
 }
 
 // notifyAbnormalLogin sends an in-console alert when a login comes from an IP

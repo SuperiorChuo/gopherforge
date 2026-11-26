@@ -78,17 +78,9 @@ func AuthMiddleware() gin.HandlerFunc {
 			}
 		}
 
+		// Direct JWT services do not sit behind ForwardAuth; tenant and platform-admin
+		// claims must come strictly from the verified token, never from X-Auth-* headers.
 		tenantID := jwt.NormalizeTenantID(claims.TenantID)
-		// Prefer gateway-propagated tenant when present (ForwardAuth).
-		if h := c.GetHeader("X-Auth-Tenant-ID"); h != "" {
-			if n, err := strconv.ParseUint(h, 10, 64); err == nil && n > 0 {
-				tenantID = uint(n)
-			}
-		}
-		// Platform administrator authority is security-sensitive and must come
-		// from the verified JWT. X-Auth-* headers are transport metadata from
-		// ForwardAuth, but they are also client-controlled on any direct service
-		// path and therefore must never be allowed to elevate this claim.
 		platformAdmin := claims.PlatformAdmin
 		// Platform operators may act-as another tenant via X-Act-Tenant-ID (M4).
 		if platformAdmin {

@@ -101,7 +101,7 @@ services:
       DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME:-admin}
       METRICS_ENABLED: ${METRICS_ENABLED:-true}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-monitor
       TRACING_ENVIRONMENT: ${TRACING_ENVIRONMENT:-development}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
       TRACING_SAMPLE_RATIO: ${TRACING_SAMPLE_RATIO:-1.0}
@@ -1238,7 +1238,7 @@ services:
       # 信任转发源（隧道/宿主 loopback/gwbridge/overlay）采用 Caddy 的 X-Forwarded-For 真实 IP
       - --entrypoints.web.forwardedHeaders.trustedIPs=127.0.0.1,172.22.0.1/32,172.28.0.0/16
       # entrypoint 级限流：所有 web 流量先过网关限流中间件（再进 ForwardAuth）
-      - --entrypoints.web.http.middlewares=gateway-ratelimit@docker,gateway-secure-headers@docker,gateway-compress@docker
+      - --entrypoints.web.http.middlewares=auth-sanitize@docker,gateway-ratelimit@docker,gateway-secure-headers@docker,gateway-compress@docker
       # TLS-ready：websecure 端口 + 自签兜底。真实证书由 system-service
       # 唯一签发并写入 file provider，不再与 Traefik certresolver 竞争 ACME。
       - --entrypoints.websecure.address=:443
@@ -1246,7 +1246,7 @@ services:
       - --entrypoints.websecure.forwardedHeaders.trustedIPs=127.0.0.1,172.22.0.1/32,172.28.0.0/16
       # websecure 与 web 同中间件链：限流/安全头/压缩全覆盖（此前只挂 web，
       # TLS 落地后 443 端口裸奔）。HSTS 由 GATEWAY_HSTS_ENABLED 门控。
-      - --entrypoints.websecure.http.middlewares=gateway-ratelimit@docker,gateway-secure-headers@docker,gateway-compress@docker
+      - --entrypoints.websecure.http.middlewares=auth-sanitize@docker,gateway-ratelimit@docker,gateway-secure-headers@docker,gateway-compress@docker
       # 证书由 system-service 签发并原子生成动态配置，避免与 Traefik resolver 双 owner。
       - --providers.file.directory=/var/lib/go-admin-kit/edgecert/traefik-dynamic
       - --providers.file.watch=true
