@@ -62,7 +62,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-auth
     healthcheck:
       test:
       - CMD-SHELL
@@ -131,7 +131,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-identity
     healthcheck:
       test:
       - CMD-SHELL
@@ -214,7 +214,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-file
     volumes:
     - go_admin_kit_uploads:/app/uploads
     healthcheck:
@@ -301,7 +301,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-ai
     healthcheck:
       test:
       - CMD-SHELL
@@ -372,7 +372,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-mp
     healthcheck:
       test:
       - CMD-SHELL
@@ -450,7 +450,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-notify
     healthcheck:
       test:
       - CMD-SHELL
@@ -517,7 +517,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-im
       IM_RETENTION_DAYS: ${IM_RETENTION_DAYS:-180}
       AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:8087}
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:-}
@@ -696,7 +696,7 @@ services:
       DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME:-admin}
       METRICS_ENABLED: ${METRICS_ENABLED:-true}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-monitor
       TRACING_ENVIRONMENT: ${TRACING_ENVIRONMENT:-development}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
       TRACING_SAMPLE_RATIO: ${TRACING_SAMPLE_RATIO:-1.0}
@@ -789,7 +789,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-system
     volumes:
     - ./data:/app/data:ro
     - ${EDGE_CERT_HOST_DIR:-./certs}:/var/lib/go-admin-kit/edgecert
@@ -881,7 +881,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-audit
     volumes:
     - ./data:/app/data:ro
     secrets:
@@ -968,7 +968,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-cc
     healthcheck:
       test:
       - CMD-SHELL
@@ -1044,7 +1044,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-crm
     healthcheck:
       test:
       - CMD-SHELL
@@ -1118,7 +1118,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-visibility
     healthcheck:
       test:
       - CMD-SHELL
@@ -1185,7 +1185,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-ticket
     healthcheck:
       test:
       - CMD-SHELL
@@ -1254,7 +1254,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-pay
     healthcheck:
       test:
       - CMD-SHELL
@@ -1330,7 +1330,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       TRACING_ENABLED: ${TRACING_ENABLED:-true}
       TRACING_OTLP_ENDPOINT: ${TRACING_OTLP_ENDPOINT:-otel-collector:4317}
-      TRACING_SERVICE_NAME: ${TRACING_SERVICE_NAME:-go-admin-kit-api}
+      TRACING_SERVICE_NAME: go-admin-kit-bpm
     healthcheck:
       test:
       - CMD-SHELL

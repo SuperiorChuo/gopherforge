@@ -12,6 +12,7 @@ import (
 	"github.com/go-admin-kit/services/monitor/internal/config"
 	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
+	"github.com/go-admin-kit/services/shared/pkg/gatewayauth"
 	"github.com/go-admin-kit/services/shared/pkg/response"
 	jwtlib "github.com/golang-jwt/jwt/v5"
 )
@@ -118,6 +119,38 @@ func TestPermissionMiddlewareUsesStableErrorCodeForMissingUserContext(t *testing
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
 	}
 	assertAuthErrorCode(t, recorder.Body.Bytes(), response.ErrorCodeAuthContextMissing)
+}
+
+func TestGatewayForwardAuthFastPathSkipsJWTAndEnforcesPermissions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(AuthMiddleware())
+	router.GET("/server", PermissionMiddleware("system:monitor:server"), func(c *gin.Context) {
+		response.Success(c, gin.H{
+			"user_id":   c.GetUint("user_id"),
+			"tenant_id": c.GetUint("tenant_id"),
+		})
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/server", nil)
+	req.Header.Set(gatewayauth.HeaderUserID, "88")
+	req.Header.Set(gatewayauth.HeaderUsername, "ops")
+	req.Header.Set(gatewayauth.HeaderTenantID, "2")
+	req.Header.Set(gatewayauth.HeaderPermissions, "*")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("allowed status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+
+	deniedReq := httptest.NewRequest(http.MethodGet, "/server", nil)
+	deniedReq.Header.Set(gatewayauth.HeaderUserID, "88")
+	deniedReq.Header.Set(gatewayauth.HeaderPermissions, "system:job:list")
+	deniedRec := httptest.NewRecorder()
+	router.ServeHTTP(deniedRec, deniedReq)
+	if deniedRec.Code != http.StatusForbidden {
+		t.Fatalf("denied status = %d, want 403; body=%s", deniedRec.Code, deniedRec.Body.String())
+	}
 }
 
 func TestAuthMiddlewareUsesStableErrorCodeForExpiredToken(t *testing.T) {

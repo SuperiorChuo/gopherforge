@@ -40,3 +40,16 @@ func TestLoginLogServiceGetUserLastLoginContextReturnsNotFoundSentinel(t *testin
 		t.Fatalf("GetUserLastLoginContext() error = %v, want ErrLoginLogNotFound", err)
 	}
 }
+
+func TestTruncateStringPreservesUTF8AndCapsRunes(t *testing.T) {
+	sqli := "testuserX' AND (SELECT CASE WHEN 1=1 THEN (SELECT 1 FROM (SELECT SLEEP(0))a) ELSE 1 END)=''"
+	got := truncateString(sqli, 50)
+	if len([]rune(got)) != 50 {
+		t.Fatalf("len(runes) = %d, want 50", len([]rune(got)))
+	}
+	cjk := "管理员测试账号名称超长字符截断验证一二三四五六七八九十"
+	gotCJK := truncateString(cjk, 10)
+	if gotCJK != "管理员测试账号名称超" {
+		t.Fatalf("gotCJK = %q, want 10 runes without broken UTF-8", gotCJK)
+	}
+}

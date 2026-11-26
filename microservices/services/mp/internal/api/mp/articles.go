@@ -282,10 +282,12 @@ func (s *Server) PublishArticle(c *gin.Context) {
 
 func (s *Server) aiAuth(c *gin.Context) aiclient.Auth {
 	return aiclient.Auth{
-		UserID:   c.GetHeader("X-Auth-User-ID"),
-		Username: c.GetHeader("X-Auth-Username"),
-		TenantID: c.GetHeader("X-Auth-Tenant-ID"),
-		Bearer:   bearer(c),
+		UserID:        c.GetHeader("X-Auth-User-ID"),
+		Username:      c.GetHeader("X-Auth-Username"),
+		TenantID:      c.GetHeader("X-Auth-Tenant-ID"),
+		PlatformAdmin: c.GetHeader("X-Auth-Platform-Admin"),
+		Permissions:   c.GetHeader("X-Auth-Permissions"),
+		Bearer:        bearer(c),
 	}
 }
 

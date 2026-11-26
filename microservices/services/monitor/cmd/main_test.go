@@ -306,8 +306,8 @@ func TestShutdownJobSchedulerWaitsForRunningJobs(t *testing.T) {
 	released := make(chan struct{})
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		close(scheduler.done)
 		close(released)
+		close(scheduler.done)
 	}()
 
 	if err := shutdownJobScheduler(scheduler, time.Second); err != nil {

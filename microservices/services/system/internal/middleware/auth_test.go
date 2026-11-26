@@ -250,6 +250,39 @@ func TestAuthMiddlewareDoesNotTrustPlatformAdminHeader(t *testing.T) {
 	}
 }
 
+func TestAuthMiddlewareDoesNotTrustTenantHeaderOnDirectJWT(t *testing.T) {
+	setAuthMiddlewareJWTConfig(t)
+	token := signedAuthMiddlewareToken(t, jwtpkg.Claims{
+		UserID: 42, Username: "alice", TenantID: 3, TokenType: jwtpkg.AccessTokenType,
+		RegisteredClaims: jwtlib.RegisteredClaims{
+			ExpiresAt: jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
+			IssuedAt:  jwtlib.NewNumericDate(time.Now()),
+			NotBefore: jwtlib.NewNumericDate(time.Now()),
+			Issuer:    "unit-test", Subject: "42", ID: "tenant-bound-token",
+		},
+	})
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(AuthMiddleware())
+	var gotTenant uint
+	router.GET("/", func(c *gin.Context) {
+		gotTenant = c.GetUint("tenant_id")
+		response.Success(c, nil)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Auth-Tenant-ID", "99")
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if gotTenant != 3 {
+		t.Fatalf("tenant=%d, want 3", gotTenant)
+	}
+}
+
 func requestThroughAuthMiddleware(t *testing.T, token string) *httptest.ResponseRecorder {
 	t.Helper()
 	return requestThroughAuthMiddlewareWithAuthorizationHeader(t, "Bearer "+token)

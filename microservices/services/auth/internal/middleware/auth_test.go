@@ -243,10 +243,47 @@ func TestAuthMiddlewareDoesNotTrustPlatformAdminHeader(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("X-Auth-Platform-Admin", "true")
+	req.Header.Set("X-Auth-Tenant-ID", "99")
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
 	if recorder.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+}
+
+func TestAuthMiddlewareDoesNotTrustTenantHeaderOnDirectJWT(t *testing.T) {
+	setAuthMiddlewareJWTConfig(t)
+	token := signedAuthMiddlewareToken(t, jwtpkg.Claims{
+		UserID: 42, Username: "alice", TenantID: 3, TokenType: jwtpkg.AccessTokenType,
+		RegisteredClaims: jwtlib.RegisteredClaims{
+			ExpiresAt: jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
+			IssuedAt:  jwtlib.NewNumericDate(time.Now()),
+			NotBefore: jwtlib.NewNumericDate(time.Now()),
+			Issuer:    "unit-test", Subject: "42", ID: "tenant-bound-token",
+		},
+	})
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(AuthMiddleware())
+	var gotTenant uint
+	var gotPlatform bool
+	router.GET("/", func(c *gin.Context) {
+		gotTenant = c.GetUint("tenant_id")
+		gotPlatform = c.GetBool("platform_admin")
+		response.Success(c, nil)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Auth-Tenant-ID", "99")
+	req.Header.Set("X-Auth-Platform-Admin", "1")
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if gotTenant != 3 || gotPlatform {
+		t.Fatalf("tenant=%d platform=%v, want tenant=3 platform=false", gotTenant, gotPlatform)
 	}
 }
 

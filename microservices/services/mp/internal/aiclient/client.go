@@ -28,10 +28,12 @@ func New(baseURL string) *Client {
 
 // Auth 透传给 ai-service 的鉴权头（来自网关注入或调用方 JWT）。
 type Auth struct {
-	UserID   string
-	Username string
-	TenantID string
-	Bearer   string // 可选，X-Auth 头缺失时用
+	UserID        string
+	Username      string
+	TenantID      string
+	PlatformAdmin string
+	Permissions   string
+	Bearer        string // 可选，X-Auth 头缺失时用
 }
 
 func (c *Client) do(ctx context.Context, path string, body any, auth Auth, out any) error {
@@ -48,6 +50,12 @@ func (c *Client) do(ctx context.Context, path string, body any, auth Auth, out a
 		req.Header.Set("X-Auth-User-ID", auth.UserID)
 		req.Header.Set("X-Auth-Username", auth.Username)
 		req.Header.Set("X-Auth-Tenant-ID", auth.TenantID)
+		if auth.PlatformAdmin != "" {
+			req.Header.Set("X-Auth-Platform-Admin", auth.PlatformAdmin)
+		}
+		if auth.Permissions != "" {
+			req.Header.Set("X-Auth-Permissions", auth.Permissions)
+		}
 	}
 	if auth.Bearer != "" {
 		req.Header.Set("Authorization", "Bearer "+auth.Bearer)

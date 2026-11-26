@@ -36,3 +36,27 @@ func TestRequireAnyPermission(t *testing.T) {
 		})
 	}
 }
+
+func TestIdentityFromGinContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	if _, ok := IdentityFromGinContext(c); ok {
+		t.Fatal("expected missing header to return ok=false")
+	}
+
+	c.Request.Header.Set(HeaderUserID, "42")
+	c.Request.Header.Set(HeaderUsername, "alice")
+	c.Request.Header.Set(HeaderTenantID, "3")
+	c.Request.Header.Set(HeaderPlatformAdmin, "1")
+	c.Request.Header.Set(HeaderActTenantID, "9")
+
+	id, ok := IdentityFromGinContext(c)
+	if !ok {
+		t.Fatal("expected valid header to return ok=true")
+	}
+	if id.UserID != 42 || id.Username != "alice" || id.TenantID != 9 || !id.PlatformAdmin {
+		t.Fatalf("unexpected identity: %+v", id)
+	}
+}
