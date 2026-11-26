@@ -1,0 +1,304 @@
+package consoleauth
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
+	"github.com/go-admin-kit/services/shared/pkg/cache"
+	jwtpkg "github.com/go-admin-kit/services/shared/pkg/jwt"
+	model "github.com/go-admin-kit/services/shared/pkg/model"
+	"gorm.io/gorm"
+)
+
+var (
+	ErrConsoleSessionInvalid = errors.New("console session is invalid")
+	ErrConsoleSessionRevoked = errors.New("console session has been revoked")
+	ErrConsoleSessionExpired = errors.New("console session has expired")
+)
+
+const (
+	DefaultConsoleSessionTouchInterval = 60 * time.Second
+	EnvConsoleSessionTouchInterval     = "CONSOLE_SESSION_TOUCH_INTERVAL_SECONDS"
+)
+
+// ConsoleSessionService persists and validates web-console cookie sessions.
+type ConsoleSessionService struct {
+	dao *authdao.ConsoleSessionDAO
+}
+
+// NewConsoleSessionServiceWithDB builds a ConsoleSessionService backed by an
+// injected database handle.
+func NewConsoleSessionServiceWithDB(db *gorm.DB) ConsoleSessionService {
+	dao := authdao.NewConsoleSessionDAO(db)
+	return ConsoleSessionService{dao: &dao}
+}
+
+type ConsoleSessionUser struct {
+	ID                 uint     `json:"id"`
+	Username           string   `json:"username"`
+	DisplayName        string   `json:"display_name"`
+	Role               string   `json:"role"`
+	Roles              []string `json:"roles"`
+	Permissions        []string `json:"permissions"`
+	ActorType          string   `json:"actor_type"`
+	ActorID            string   `json:"actor_id"`
+	Nickname           string   `json:"nickname"`
+	Avatar             string   `json:"avatar"`
+	MustChangePassword bool     `json:"must_change_password"`
+}
+
+type ConsoleSessionResponse struct {
+	Authenticated bool               `json:"authenticated"`
+	AuthEnabled   bool               `json:"auth_enabled"`
+	User          ConsoleSessionUser `json:"user"`
+	ExpiresAt     string             `json:"expires_at"`
+	TTLSec        int                `json:"ttl_sec"`
+	AccessToken   string             `json:"access_token,omitempty"`
+	RefreshToken  string             `json:"refresh_token,omitempty"`
+}
+
+// ConsoleSessionUserInput carries the user fields needed to assemble a
+// ConsoleSessionResponse without coupling callers to one concrete User struct.
+type ConsoleSessionUserInput struct {
+	ID                 uint
+	Username           string
+	Nickname           string
+	Avatar             string
+	MustChangePassword bool
+	Roles              []model.Role
+}
+
+func (s ConsoleSessionService) sessionDAO() authdao.ConsoleSessionDAO {
+	if s.dao != nil {
+		return *s.dao
+	}
+	return authdao.ConsoleSessionDAO{}
+}
+
+func (s ConsoleSessionService) CreateFromTokenContext(ctx context.Context, token, clientIP, userAgent string) (*model.ConsoleSession, error) {
+	claims, err := jwtpkg.ParseTokenContext(ctx, strings.TrimSpace(token))
+	if err != nil {
+		return nil, err
+	}
+	if claims.TokenType != jwtpkg.AccessTokenType || claims.ID == "" || claims.ExpiresAt == nil || claims.IssuedAt == nil {
+		return nil, ErrConsoleSessionInvalid
+	}
+	sessionDAO := s.sessionDAO()
+	if !sessionDAO.Ready() {
+		return nil, ErrConsoleSessionInvalid
+	}
+
+	now := time.Now().UTC()
+	record := &model.ConsoleSession{
+		SessionID:        claims.ID,
+		Username:         claims.Username,
+		IssuedAt:         claims.IssuedAt.UTC(),
+		ExpiresAt:        claims.ExpiresAt.UTC(),
+		LastSeenAt:       &now,
+		ClientIPHash:     HashSummary(clientIP),
+		UserAgentHash:    HashSummary(userAgent),
+		UserAgentPreview: TruncateRunes(strings.TrimSpace(userAgent), 255),
+		CreatedAt:        now,
+	}
+	if err := sessionDAO.CreateContext(ctx, record); err != nil {
+		return nil, err
+	}
+	return record, nil
+}
+
+func (s ConsoleSessionService) ValidateActiveSessionContext(ctx context.Context, sessionID, username string) (*model.ConsoleSession, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	sessionDAO := s.sessionDAO()
+	if sessionID == "" || !sessionDAO.Ready() {
+		return nil, ErrConsoleSessionInvalid
+	}
+
+	record, err := sessionDAO.GetBySessionIDContext(ctx, sessionID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrConsoleSessionInvalid
+		}
+		return nil, err
+	}
+	if record.RevokedAt != nil {
+		return nil, ErrConsoleSessionRevoked
+	}
+	if !record.ExpiresAt.After(time.Now().UTC()) {
+		return nil, ErrConsoleSessionExpired
+	}
+	if trimmed := strings.TrimSpace(username); trimmed != "" && record.Username != trimmed {
+		return nil, ErrConsoleSessionInvalid
+	}
+
+	now := time.Now().UTC()
+	if err := sessionDAO.TouchContext(ctx, record.SessionID, now, ConsoleSessionTouchInterval()); err != nil {
+		return nil, err
+	}
+	record.LastSeenAt = &now
+	return record, nil
+}
+
+// ConsoleSessionTouchInterval is the minimum age of last_seen_at before a
+// validation refreshes it. Configurable via CONSOLE_SESSION_TOUCH_INTERVAL_SECONDS;
+// 0 restores a write on every request.
+func ConsoleSessionTouchInterval() time.Duration {
+	raw := strings.TrimSpace(os.Getenv(EnvConsoleSessionTouchInterval))
+	if raw == "" {
+		return DefaultConsoleSessionTouchInterval
+	}
+	seconds, err := strconv.Atoi(raw)
+	if err != nil || seconds < 0 {
+		return DefaultConsoleSessionTouchInterval
+	}
+	return time.Duration(seconds) * time.Second
+}
+
+func (s ConsoleSessionService) RevokeByTokenContext(ctx context.Context, token string) (*model.ConsoleSession, error) {
+	claims, err := jwtpkg.ParseTokenContext(ctx, strings.TrimSpace(token))
+	if err != nil {
+		return nil, err
+	}
+	return s.RevokeBySessionIDContext(ctx, claims.ID)
+}
+
+func (s ConsoleSessionService) RevokeBySessionIDContext(ctx context.Context, sessionID string) (*model.ConsoleSession, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	sessionDAO := s.sessionDAO()
+	if sessionID == "" || !sessionDAO.Ready() {
+		return nil, ErrConsoleSessionInvalid
+	}
+
+	record, err := sessionDAO.GetBySessionIDContext(ctx, sessionID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrConsoleSessionInvalid
+		}
+		return nil, err
+	}
+	if record.RevokedAt == nil {
+		now := time.Now().UTC()
+		if err := sessionDAO.RevokeContext(ctx, record, now); err != nil {
+			return nil, err
+		}
+		record.RevokedAt = &now
+	}
+	// Every logout and administrative revoke funnels through here, so this is the
+	// one place the validation cache has to be dropped. Without it a logged-out
+	// cookie would keep passing AuthMiddleware until the entry expired.
+	_ = cache.NewCacheService().DelConsoleSessionContext(ctx, sessionID)
+	return record, nil
+}
+
+func ConsoleSessionSnapshot(record *model.ConsoleSession) map[string]any {
+	if record == nil {
+		return nil
+	}
+	return map[string]any{
+		"session_id": record.SessionID,
+		"username":   record.Username,
+		"issued_at":  record.IssuedAt,
+		"expires_at": record.ExpiresAt,
+		"revoked_at": record.RevokedAt,
+	}
+}
+
+// ConsoleRoleCodes extracts the sorted, de-duplicated role codes carried on a
+// console session.
+func ConsoleRoleCodes(roles []model.Role) []string {
+	set := map[string]bool{}
+	for _, role := range roles {
+		if code := strings.TrimSpace(role.Code); code != "" {
+			set[code] = true
+		}
+	}
+	values := make([]string, 0, len(set))
+	for value := range set {
+		values = append(values, value)
+	}
+	sort.Strings(values)
+	return values
+}
+
+func BuildConsoleSession(ctx context.Context, user *model.User, permissions []string, accessToken, refreshToken string) ConsoleSessionResponse {
+	return BuildConsoleSessionFromInput(ctx, ConsoleSessionUserInput{
+		ID:                 user.ID,
+		Username:           user.Username,
+		Nickname:           user.Nickname,
+		Avatar:             user.Avatar,
+		MustChangePassword: user.MustChangePassword,
+		Roles:              user.Roles,
+	}, permissions, accessToken, refreshToken)
+}
+
+func BuildConsoleSessionFromInput(ctx context.Context, user ConsoleSessionUserInput, permissions []string, accessToken, refreshToken string) ConsoleSessionResponse {
+	expiresAt := time.Now().UTC().Add(time.Hour)
+	if accessToken != "" {
+		if claims, err := jwtpkg.ParseTokenContext(ctx, accessToken); err == nil && claims.ExpiresAt != nil {
+			expiresAt = claims.ExpiresAt.UTC()
+		}
+	}
+	ttl := int(time.Until(expiresAt).Seconds())
+	if ttl < 0 {
+		ttl = 0
+	}
+	return ConsoleSessionResponse{
+		Authenticated: true,
+		AuthEnabled:   true,
+		User:          buildConsoleSessionUser(user, permissions),
+		ExpiresAt:     expiresAt.Format(time.RFC3339),
+		TTLSec:        ttl,
+		AccessToken:   accessToken,
+		RefreshToken:  refreshToken,
+	}
+}
+
+func buildConsoleSessionUser(user ConsoleSessionUserInput, permissions []string) ConsoleSessionUser {
+	roles := ConsoleRoleCodes(user.Roles)
+	role := "operator"
+	if len(roles) > 0 {
+		role = roles[0]
+	}
+	displayName := strings.TrimSpace(user.Nickname)
+	if displayName == "" {
+		displayName = user.Username
+	}
+	return ConsoleSessionUser{
+		ID:                 user.ID,
+		Username:           user.Username,
+		DisplayName:        displayName,
+		Role:               role,
+		Roles:              roles,
+		Permissions:        permissions,
+		ActorType:          "operator",
+		ActorID:            user.Username,
+		Nickname:           user.Nickname,
+		Avatar:             user.Avatar,
+		MustChangePassword: user.MustChangePassword,
+	}
+}
+
+func HashSummary(value string) string {
+	normalized := strings.TrimSpace(value)
+	if normalized == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(normalized))
+	return hex.EncodeToString(sum[:])
+}
+
+func TruncateRunes(value string, maxRunes int) string {
+	if maxRunes <= 0 || utf8.RuneCountInString(value) <= maxRunes {
+		return value
+	}
+	runes := []rune(value)
+	return string(runes[:maxRunes])
+}

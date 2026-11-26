@@ -1,122 +1,40 @@
 package runtimeconfig
 
 import (
-	"context"
-	"errors"
-	"sync"
 	"time"
 
 	"github.com/go-admin-kit/services/auth/internal/config"
 	systemdao "github.com/go-admin-kit/services/auth/internal/dao/system"
-	"github.com/go-admin-kit/services/shared/pkg/database"
-	model "github.com/go-admin-kit/services/shared/pkg/model"
 	sharedruntimeconfig "github.com/go-admin-kit/services/shared/pkg/runtimeconfig"
 )
 
-const SecurityPolicySettingKey = "security.policy"
+const SecurityPolicySettingKey = sharedruntimeconfig.SecurityPolicySettingKey
 
-var ErrStoreUnavailable = errors.New("runtime config store unavailable")
+var ErrStoreUnavailable = sharedruntimeconfig.ErrStoreUnavailable
 
-type SecurityPolicy struct {
-	PasswordMaxAgeDays      int
-	PasswordHistoryCount    int
-	LoginLimitEnabled       bool
-	LoginLimitMaxFailures   int
-	LoginLimitWindowMinutes int
-	LoginLimitLockMinutes   int
-	// LoginIPShield* 是 IP 级失败护盾参数（独立于账号锁定）。
-	LoginIPShieldMaxFailures   int
-	LoginIPShieldWindowMinutes int
-	LoginIPShieldBlockMinutes  int
-	// LoginAlertEnabled 控制 audit 侧「新设备/新 IP 登录」站内信提醒。
-	LoginAlertEnabled      bool
-	RateLimitEnabled       bool
-	RateLimitWindowSeconds int
-	RateLimitMaxRequests   int
-}
+type (
+	SecurityPolicy             = sharedruntimeconfig.SecurityPolicy
+	SecurityPolicyReader       = sharedruntimeconfig.SecurityPolicyReader
+	SecurityPolicyInvalidator  = sharedruntimeconfig.SecurityPolicyInvalidator
+	SecurityPolicyStore        = sharedruntimeconfig.SecurityPolicyStore
+	CachedSecurityPolicyReader = sharedruntimeconfig.CachedSecurityPolicyReader
+)
 
-type SecurityPolicyReader interface {
-	SecurityPolicy(ctx context.Context) SecurityPolicy
-}
-
-type SecurityPolicyInvalidator interface {
-	Refresh(ctx context.Context) error
-}
-
-type SecurityPolicyStore interface {
-	GetByKeyContext(ctx context.Context, key string) (*model.SystemSetting, error)
-}
-
-type CachedSecurityPolicyReader struct {
-	reader *sharedruntimeconfig.CachedSettingReader[SecurityPolicy]
-}
+var defaultPolicyHolder = sharedruntimeconfig.NewDefaultSecurityPolicyHolder(
+	SecurityPolicyFromConfig,
+	func() SecurityPolicyStore { return systemdao.NewSettingDAO(nil) },
+)
 
 func NewCachedSecurityPolicyReader(store SecurityPolicyStore, ttl time.Duration) *CachedSecurityPolicyReader {
-	return &CachedSecurityPolicyReader{reader: sharedruntimeconfig.NewCachedSettingReader(
-		store, SecurityPolicySettingKey, ttl, SecurityPolicyFromConfig, applySecurityPolicySetting,
-	)}
+	return sharedruntimeconfig.NewCachedSecurityPolicyReader(store, ttl, SecurityPolicyFromConfig)
 }
-
-var (
-	defaultSecurityPolicyOnce   sync.Once
-	defaultSecurityPolicyReader *CachedSecurityPolicyReader
-)
 
 func DefaultSecurityPolicyReader() *CachedSecurityPolicyReader {
-	defaultSecurityPolicyOnce.Do(func() {
-		defaultSecurityPolicyReader = NewCachedSecurityPolicyReader(defaultSecurityPolicyStore{}, 30*time.Second)
-	})
-	return defaultSecurityPolicyReader
+	return defaultPolicyHolder.Reader()
 }
 
-var (
-	securityPolicyStoreMu sync.RWMutex
-	securityPolicyStore   SecurityPolicyStore
-)
-
-// SetSecurityPolicyStore installs the store behind DefaultSecurityPolicyReader
-// and returns a restore function. The default reader resolves the store per
-// lookup, so wiring only needs to happen before the first request is served.
 func SetSecurityPolicyStore(store SecurityPolicyStore) func() {
-	securityPolicyStoreMu.Lock()
-	previous := securityPolicyStore
-	securityPolicyStore = store
-	securityPolicyStoreMu.Unlock()
-
-	return func() {
-		securityPolicyStoreMu.Lock()
-		securityPolicyStore = previous
-		securityPolicyStoreMu.Unlock()
-	}
-}
-
-type defaultSecurityPolicyStore struct{}
-
-func (defaultSecurityPolicyStore) GetByKeyContext(ctx context.Context, key string) (*model.SystemSetting, error) {
-	securityPolicyStoreMu.RLock()
-	store := securityPolicyStore
-	securityPolicyStoreMu.RUnlock()
-	if store != nil {
-		return store.GetByKeyContext(ctx, key)
-	}
-	if database.DB == nil {
-		return nil, ErrStoreUnavailable
-	}
-	return systemdao.NewSettingDAO(nil).GetByKeyContext(ctx, key)
-}
-
-func (r *CachedSecurityPolicyReader) SecurityPolicy(ctx context.Context) SecurityPolicy {
-	if r == nil || r.reader == nil {
-		return SecurityPolicyFromConfig()
-	}
-	return r.reader.Value(ctx)
-}
-
-func (r *CachedSecurityPolicyReader) Refresh(ctx context.Context) error {
-	if r == nil || r.reader == nil {
-		return nil
-	}
-	return r.reader.Refresh(ctx)
+	return defaultPolicyHolder.SetStore(store)
 }
 
 func SecurityPolicyFromConfig() SecurityPolicy {
@@ -137,26 +55,4 @@ func SecurityPolicyFromConfig() SecurityPolicy {
 		RateLimitWindowSeconds:     sharedruntimeconfig.PositiveOrDefault(rateLimit.WindowSeconds, 1),
 		RateLimitMaxRequests:       sharedruntimeconfig.PositiveOrDefault(rateLimit.MaxRequests, 100),
 	}
-}
-
-func applySecurityPolicySetting(policy SecurityPolicy, value map[string]any) SecurityPolicy {
-	if value == nil {
-		return policy
-	}
-	policy.PasswordMaxAgeDays = sharedruntimeconfig.NonNegativeSetting(value, "password_max_age_days", policy.PasswordMaxAgeDays)
-	policy.PasswordHistoryCount = sharedruntimeconfig.NonNegativeSetting(value, "password_history_count", policy.PasswordHistoryCount)
-	policy.LoginLimitMaxFailures = sharedruntimeconfig.PositiveSetting(value, "login_limit_max_failures", policy.LoginLimitMaxFailures)
-	policy.LoginLimitWindowMinutes = sharedruntimeconfig.PositiveSetting(value, "login_limit_window_minutes", policy.LoginLimitWindowMinutes)
-	policy.LoginLimitLockMinutes = sharedruntimeconfig.PositiveSetting(value, "login_limit_lock_minutes", policy.LoginLimitLockMinutes)
-	policy.LoginIPShieldMaxFailures = sharedruntimeconfig.PositiveSetting(value, "login_ip_shield_max_failures", policy.LoginIPShieldMaxFailures)
-	policy.LoginIPShieldWindowMinutes = sharedruntimeconfig.PositiveSetting(value, "login_ip_shield_window_minutes", policy.LoginIPShieldWindowMinutes)
-	policy.LoginIPShieldBlockMinutes = sharedruntimeconfig.PositiveSetting(value, "login_ip_shield_block_minutes", policy.LoginIPShieldBlockMinutes)
-	if enabled, ok := boolSetting(value["login_alert_enabled"]); ok {
-		policy.LoginAlertEnabled = enabled
-	}
-	if rps, ok := sharedruntimeconfig.PositiveInt(value["rate_limit_rps"]); ok {
-		policy.RateLimitWindowSeconds = 1
-		policy.RateLimitMaxRequests = rps
-	}
-	return policy
 }

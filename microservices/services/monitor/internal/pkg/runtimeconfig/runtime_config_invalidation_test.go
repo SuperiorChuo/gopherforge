@@ -137,24 +137,17 @@ func setupRuntimeConfigRedisClient(t *testing.T) {
 func installDefaultRuntimeConfigReaders(t *testing.T, store *countingRuntimeConfigStore) {
 	t.Helper()
 
-	previousSecurityReader := defaultSecurityPolicyReader
+	restoreSecurityReader := defaultPolicyHolder.SetReader(NewCachedSecurityPolicyReader(store, time.Minute))
 	previousEmailReader := defaultEmailNotificationReader
 
-	defaultSecurityPolicyOnce = sync.Once{}
-	defaultSecurityPolicyReader = NewCachedSecurityPolicyReader(store, time.Minute)
-	defaultSecurityPolicyOnce.Do(func() {})
 	defaultEmailNotificationOnce = sync.Once{}
 	defaultEmailNotificationReader = NewCachedEmailNotificationReader(store, time.Minute)
 	defaultEmailNotificationOnce.Do(func() {})
 
 	t.Cleanup(func() {
-		defaultSecurityPolicyReader = previousSecurityReader
+		restoreSecurityReader()
 		defaultEmailNotificationReader = previousEmailReader
 
-		defaultSecurityPolicyOnce = sync.Once{}
-		if previousSecurityReader != nil {
-			defaultSecurityPolicyOnce.Do(func() {})
-		}
 		defaultEmailNotificationOnce = sync.Once{}
 		if previousEmailReader != nil {
 			defaultEmailNotificationOnce.Do(func() {})

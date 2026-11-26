@@ -1,91 +1,29 @@
 package auth
 
 import (
-	"context"
-	"errors"
-	"os"
-	"strconv"
-	"strings"
 	"time"
 
-	authdao "github.com/go-admin-kit/services/shared/pkg/authdao"
-	model "github.com/go-admin-kit/services/shared/pkg/model"
+	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
 	"gorm.io/gorm"
 )
 
-var (
-	ErrConsoleSessionInvalid = errors.New("console session is invalid")
-	ErrConsoleSessionRevoked = errors.New("console session has been revoked")
-	ErrConsoleSessionExpired = errors.New("console session has expired")
-)
-
 const (
-	defaultConsoleSessionTouchInterval = 60 * time.Second
-	envConsoleSessionTouchInterval     = "CONSOLE_SESSION_TOUCH_INTERVAL_SECONDS"
+	defaultConsoleSessionTouchInterval = consoleauth.DefaultConsoleSessionTouchInterval
+	envConsoleSessionTouchInterval     = consoleauth.EnvConsoleSessionTouchInterval
 )
 
-// ConsoleSessionService persists and validates web-console cookie sessions.
-type ConsoleSessionService struct {
-	dao *authdao.ConsoleSessionDAO
-}
+var (
+	ErrConsoleSessionInvalid = consoleauth.ErrConsoleSessionInvalid
+	ErrConsoleSessionRevoked = consoleauth.ErrConsoleSessionRevoked
+	ErrConsoleSessionExpired = consoleauth.ErrConsoleSessionExpired
+)
 
-// NewConsoleSessionServiceWithDB builds a ConsoleSessionService backed by an
-// injected database handle.
+type ConsoleSessionService = consoleauth.ConsoleSessionService
+
 func NewConsoleSessionServiceWithDB(db *gorm.DB) ConsoleSessionService {
-	dao := authdao.NewConsoleSessionDAO(db)
-	return ConsoleSessionService{dao: &dao}
+	return consoleauth.NewConsoleSessionServiceWithDB(db)
 }
 
-func (s ConsoleSessionService) sessionDAO() authdao.ConsoleSessionDAO {
-	if s.dao != nil {
-		return *s.dao
-	}
-	return authdao.ConsoleSessionDAO{}
-}
-
-func (s ConsoleSessionService) ValidateActiveSessionContext(ctx context.Context, sessionID, username string) (*model.ConsoleSession, error) {
-	sessionID = strings.TrimSpace(sessionID)
-	sessionDAO := s.sessionDAO()
-	if sessionID == "" || !sessionDAO.Ready() {
-		return nil, ErrConsoleSessionInvalid
-	}
-
-	record, err := sessionDAO.GetBySessionIDContext(ctx, sessionID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrConsoleSessionInvalid
-		}
-		return nil, err
-	}
-	if record.RevokedAt != nil {
-		return nil, ErrConsoleSessionRevoked
-	}
-	if !record.ExpiresAt.After(time.Now().UTC()) {
-		return nil, ErrConsoleSessionExpired
-	}
-	if trimmed := strings.TrimSpace(username); trimmed != "" && record.Username != trimmed {
-		return nil, ErrConsoleSessionInvalid
-	}
-
-	now := time.Now().UTC()
-	if err := sessionDAO.TouchContext(ctx, record.SessionID, now, ConsoleSessionTouchInterval()); err != nil {
-		return nil, err
-	}
-	record.LastSeenAt = &now
-	return record, nil
-}
-
-// ConsoleSessionTouchInterval is the minimum age of last_seen_at before a
-// validation refreshes it. Configurable via CONSOLE_SESSION_TOUCH_INTERVAL_SECONDS;
-// 0 restores a write on every request.
 func ConsoleSessionTouchInterval() time.Duration {
-	raw := strings.TrimSpace(os.Getenv(envConsoleSessionTouchInterval))
-	if raw == "" {
-		return defaultConsoleSessionTouchInterval
-	}
-	seconds, err := strconv.Atoi(raw)
-	if err != nil || seconds < 0 {
-		return defaultConsoleSessionTouchInterval
-	}
-	return time.Duration(seconds) * time.Second
+	return consoleauth.ConsoleSessionTouchInterval()
 }
