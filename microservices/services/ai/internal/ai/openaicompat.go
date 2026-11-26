@@ -120,7 +120,7 @@ func (p *OpenAICompatProvider) Chat(ctx context.Context, msgs []ChatMessage, onD
 		StreamOptions: &openAIStreamOptions{IncludeUsage: true},
 	}
 	for _, m := range msgs {
-		payload.Messages = append(payload.Messages, openAIChatMessage{Role: m.Role, Content: m.Content})
+		payload.Messages = append(payload.Messages, openAIChatMessage(m))
 	}
 
 	body, err := json.Marshal(payload)

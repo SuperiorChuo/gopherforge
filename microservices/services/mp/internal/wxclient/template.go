@@ -45,12 +45,7 @@ type templateSendResp struct {
 //	{"touser":...,"template_id":...,"url":...,"data":{...}}
 //	→ {"errcode":0,"errmsg":"ok","msgid":123}
 func (c *Client) SendTemplate(ctx context.Context, account *store.MpAccount, msg TemplateMessage) (int64, error) {
-	body := templateSendReq{
-		ToUser:     msg.ToUser,
-		TemplateID: msg.TemplateID,
-		URL:        msg.URL,
-		Data:       msg.Data,
-	}
+	body := templateSendReq(msg)
 	var out templateSendResp
 	if err := c.doJSON(ctx, account, http.MethodPost, templateSendPath, body, &out); err != nil {
 		return 0, err

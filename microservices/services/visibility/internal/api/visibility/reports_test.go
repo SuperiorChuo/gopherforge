@@ -25,13 +25,14 @@ func TestAdviceHTTPPreservesPreviousDataOnFailure(t *testing.T) {
 					t.Errorf("unexpected local AI request: %s", req.URL.Path)
 				}
 				content := `{"markdown":"new advice","actions":[{"id":"a1","title":"new action","priority":"HIGH"}]}`
-				if stage == "malformed" {
+				switch stage {
+				case "malformed":
 					content = `{"markdown":false}`
-				} else if stage == "prefixed malformed" {
+				case "prefixed malformed":
 					content = "建议如下：\n{\"markdown\":\"truncated"
-				} else if stage == "inline malformed" {
+				case "inline malformed":
 					content = `建议如下：{ "markdown": "truncated`
-				} else if stage == "scalar" {
+				case "scalar":
 					content = "null"
 				}
 				_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": content}}}})

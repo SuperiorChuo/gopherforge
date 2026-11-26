@@ -72,7 +72,7 @@ func NewWithDB(db *gorm.DB) (*Store, error) {
 // tenant_id 过滤 + id DESC 分页，单列 tenant_id 索引扫完还要排序）。
 // 全部 IF NOT EXISTS 幂等；仅 PG 执行（测试注入 sqlite，DESC 索引对其无意义）。
 func (s *Store) ensureIndexes() error {
-	if s.db.Dialector.Name() != "postgres" {
+	if s.db.Name() != "postgres" {
 		return nil
 	}
 	for _, stmt := range indexStatements() {

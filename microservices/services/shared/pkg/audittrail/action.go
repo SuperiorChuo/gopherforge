@@ -17,7 +17,7 @@ import (
 // ActionRecord describes a security-sensitive read/action which cannot be
 // captured by the GORM mutation callbacks (for example, private-key export).
 // Metadata must contain operational facts only; it is masked again before
-// persistence as a defence in depth.
+// persistence as a defense in depth.
 type ActionRecord struct {
 	TenantID   uint
 	Action     string

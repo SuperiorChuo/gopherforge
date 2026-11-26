@@ -31,7 +31,7 @@ func (s *Store) FindDuplicateGroups(tenantID uint64, limit int) ([]DupGroup, err
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
-	phoneExpr, phoneDigitsExpr, nameExpr := duplicateKeyExprs(s.db.Dialector.Name())
+	phoneExpr, phoneDigitsExpr, nameExpr := duplicateKeyExprs(s.db.Name())
 	phoneKeys, err := s.findDuplicateKeys(tenantID, phoneExpr,
 		"LENGTH("+phoneDigitsExpr+") >= ?", []any{6}, nil, limit)
 	if err != nil {
@@ -115,7 +115,7 @@ func (s *Store) customersForDuplicateKeys(tenantID uint64, expr string, keys []s
 	if err != nil {
 		return nil, err
 	}
-	phoneExpr, _, nameExpr := duplicateKeyExprs(s.db.Dialector.Name())
+	phoneExpr, _, nameExpr := duplicateKeyExprs(s.db.Name())
 	for _, customer := range customers {
 		key := strings.ReplaceAll(strings.TrimSpace(customer.Name), " ", "")
 		if expr == phoneExpr {

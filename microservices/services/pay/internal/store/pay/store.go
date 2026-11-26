@@ -68,7 +68,7 @@ func (s *Store) DB() *gorm.DB { return s.db }
 // lockOrder 行锁取单（postgres FOR UPDATE；sqlite 串行免锁，照 bpm lockInstance 先例）。
 func lockOrder(tx *gorm.DB, tenantID uint64, orderNo string) (*model.Order, error) {
 	q := tx.Where("tenant_id = ? AND order_no = ?", tenantID, orderNo)
-	if tx.Dialector.Name() == "postgres" {
+	if tx.Name() == "postgres" {
 		q = q.Clauses(clause.Locking{Strength: "UPDATE"})
 	}
 	var o model.Order
@@ -278,7 +278,7 @@ func (s *Store) ExpireDueOrders(limit int) (int, error) {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		q := tx.Where("status IN ? AND expire_at < ?", []string{model.OrderWaiting, model.OrderPaying}, time.Now()).
 			Order("id").Limit(limit)
-		if tx.Dialector.Name() == "postgres" {
+		if tx.Name() == "postgres" {
 			q = q.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"})
 		}
 		var due []model.Order
@@ -381,7 +381,7 @@ func (s *Store) ApplyRefundResult(ctx context.Context, tenantID uint64, refundNo
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var r model.Refund
 		q := tx.Where("tenant_id = ? AND refund_no = ?", tenantID, refundNo)
-		if tx.Dialector.Name() == "postgres" {
+		if tx.Name() == "postgres" {
 			q = q.Clauses(clause.Locking{Strength: "UPDATE"})
 		}
 		if err := q.First(&r).Error; err != nil {
@@ -446,7 +446,7 @@ func (s *Store) ClaimCallbackJobs(limit int, lease time.Duration) ([]model.Callb
 	var claimed []model.CallbackJob
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		q := tx.Where("status = ? AND next_at <= ?", "pending", time.Now()).Order("id").Limit(limit)
-		if tx.Dialector.Name() == "postgres" {
+		if tx.Name() == "postgres" {
 			q = q.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"})
 		}
 		if err := q.Find(&claimed).Error; err != nil {

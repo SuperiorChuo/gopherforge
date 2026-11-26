@@ -81,6 +81,7 @@ func main() {
 	// OpenTelemetry tracing (noop when TRACING_ENABLED != "true").
 	shutdownTracing, err := observability.InitTracerFromEnv(context.Background(), "cc")
 	if err != nil {
+		log.Printf("cc-service tracing init failed (noop fallback): %v", err)
 	}
 	defer func() { _ = shutdownTracing(context.Background()) }()
 

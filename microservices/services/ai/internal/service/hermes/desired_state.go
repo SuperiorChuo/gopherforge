@@ -245,7 +245,7 @@ func (s *HermesService) buildDesiredState(ctx context.Context, device *localmode
 			return nil, err
 		}
 		if storedArtifact.Status != localmodel.HermesArtifactApproved {
-			return nil, fmt.Errorf("Hermes artifact is no longer approved")
+			return nil, fmt.Errorf("hermes artifact is no longer approved")
 		}
 		artifact.Version = storedArtifact.Version
 		artifact.Commit = storedArtifact.UpstreamCommit

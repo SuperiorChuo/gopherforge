@@ -99,7 +99,7 @@ func (p *AnthropicProvider) Chat(ctx context.Context, msgs []ChatMessage, onDelt
 			systemParts = append(systemParts, m.Content)
 			continue
 		}
-		payload.Messages = append(payload.Messages, anthropicChatMessage{Role: m.Role, Content: m.Content})
+		payload.Messages = append(payload.Messages, anthropicChatMessage(m))
 	}
 	payload.System = strings.Join(systemParts, "\n\n")
 

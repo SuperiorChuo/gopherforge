@@ -49,8 +49,8 @@ func newTestRouterWithServer(t *testing.T) (*gin.Engine, *Server) {
 	}
 	// Phase 2C：identity owner API mock（查询同一测试 db，反映各测试 seed 的 users/departments）。
 	idSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/api/v1/internal/users/contacts":
+		switch r.URL.Path {
+		case "/api/v1/internal/users/contacts":
 			var req struct {
 				TenantID uint64   `json:"tenant_id"`
 				IDs      []uint64 `json:"ids"`
@@ -71,7 +71,7 @@ func newTestRouterWithServer(t *testing.T) (*gin.Engine, *Server) {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]any{"contacts": contacts})
-		case r.URL.Path == "/api/v1/internal/users/data-scope":
+		case "/api/v1/internal/users/data-scope":
 			id := r.URL.Query().Get("id")
 			tid := r.URL.Query().Get("tenant_id")
 			var scopes []string
@@ -94,7 +94,7 @@ func newTestRouterWithServer(t *testing.T) (*gin.Engine, *Server) {
 				Where("id = ? AND tenant_id = ?", id, tid).Limit(1).Scan(&deptID).Error
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]any{"data_scope": ds, "department_id": deptID})
-		case r.URL.Path == "/api/v1/internal/departments/members":
+		case "/api/v1/internal/departments/members":
 			deptID := r.URL.Query().Get("department_id")
 			tid := r.URL.Query().Get("tenant_id")
 			// BFS 展开部门树（parent_id），再取树内全部启用成员。
@@ -115,7 +115,7 @@ func newTestRouterWithServer(t *testing.T) (*gin.Engine, *Server) {
 			_ = db.Table("users").Where("department_id IN ? AND tenant_id = ? AND status = 1", tree, tid).Pluck("id", &all).Error
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]any{"ids": all})
-		case r.URL.Path == "/api/v1/internal/departments/info":
+		case "/api/v1/internal/departments/info":
 			id := r.URL.Query().Get("id")
 			tid := r.URL.Query().Get("tenant_id")
 			var n int64
@@ -269,7 +269,7 @@ func TestLeadToWonPipeline(t *testing.T) {
 	}
 
 	// 6. 阶段日志完整（创建+2 次推进）
-	w, env = call(t, r, http.MethodGet, fmt.Sprintf("/api/v1/crm/opportunities/%d", oppID), nil, "")
+	_, env = call(t, r, http.MethodGet, fmt.Sprintf("/api/v1/crm/opportunities/%d", oppID), nil, "")
 	var oppDetail struct {
 		StageLogs []struct {
 			ToStage string `json:"to_stage"`
@@ -384,7 +384,7 @@ func TestTenantIsolation(t *testing.T) {
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("cross-tenant read: %d", w.Code)
 	}
-	w, env = call(t, r, http.MethodGet, "/api/v1/crm/customers", nil, "2")
+	_, env = call(t, r, http.MethodGet, "/api/v1/crm/customers", nil, "2")
 	var list struct {
 		Total int64 `json:"total"`
 	}
@@ -422,7 +422,7 @@ func TestFollowUps(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("bad target: %d", w.Code)
 	}
-	w, env = call(t, r, http.MethodGet, fmt.Sprintf("/api/v1/crm/followups?target_type=customer&target_id=%d", cu.ID), nil, "")
+	_, env = call(t, r, http.MethodGet, fmt.Sprintf("/api/v1/crm/followups?target_type=customer&target_id=%d", cu.ID), nil, "")
 	var fres struct {
 		List []struct {
 			Content string `json:"content"`

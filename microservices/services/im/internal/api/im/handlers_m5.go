@@ -393,7 +393,7 @@ func normalizeWechat(raw string) string {
 	if raw[0] < 'A' || (raw[0] > 'Z' && raw[0] < 'a') || raw[0] > 'z' {
 		// 也允许首字符是 unicode 字母？这里按 ASCII 处理
 		r0 := rune(raw[0])
-		if !((r0 >= 'a' && r0 <= 'z') || (r0 >= 'A' && r0 <= 'Z')) {
+		if (r0 < 'a' || r0 > 'z') && (r0 < 'A' || r0 > 'Z') {
 			return ""
 		}
 	}

@@ -499,9 +499,10 @@ func (s *Server) CreateGeoRun(c *gin.Context) {
 	}
 	if mode == "llm" && !s.Runner.EngineConfigured(engine) {
 		msg := "未配置 AI 模型密钥：请在控制台 AI 设置或服务器环境变量中配置"
-		if engine == "perplexity" {
+		switch engine {
+		case "perplexity":
 			msg = "未配置 Perplexity API 密钥（服务器环境变量 PERPLEXITY_API_KEY）"
-		} else if engine == "gemini" {
+		case "gemini":
 			msg = "未配置 Gemini API 密钥（服务器环境变量 GEMINI_API_KEY）"
 		}
 		writeFail(c, http.StatusBadRequest, msg)

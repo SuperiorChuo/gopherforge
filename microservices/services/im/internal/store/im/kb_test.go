@@ -18,9 +18,6 @@ func TestKnowledgeTokensAndScore(t *testing.T) {
 	if sc < 1 {
 		t.Fatalf("score=%v", sc)
 	}
-	if scoreKnowledge("无关内容", toks, "如何退款") > 0 && scoreKnowledge("无关内容", []string{"如何退款"}, "如何退款") != 0 {
-		// 完整查询不在文本中，tokens 可能命中也可能不命中
-	}
 	if scoreKnowledge("无关内容", []string{"xyzabc"}, "xyzabc") != 0 {
 		t.Fatal("expected zero")
 	}

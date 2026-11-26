@@ -107,7 +107,7 @@ func (s *Store) ClaimFanSyncJobs(ctx context.Context, limit int, lease time.Dura
 			(status = ? AND next_at <= ?) OR
 			(status = ? AND lease_until IS NOT NULL AND lease_until <= ?)
 		)`, "pending", now, "running", now).Order("id").Limit(limit)
-		if tx.Dialector.Name() == "postgres" {
+		if tx.Name() == "postgres" {
 			q = q.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"})
 		}
 		if err := q.Find(&claimed).Error; err != nil {
@@ -203,7 +203,7 @@ func (s *Store) CommitFanSyncBatch(
 			"id = ? AND status = ? AND lease_token = ? AND page_offset = ? AND lease_until > ?",
 			job.ID, "running", job.LeaseToken, job.PageOffset, now,
 		)
-		if tx.Dialector.Name() == "postgres" {
+		if tx.Name() == "postgres" {
 			// Keep ClaimFanSyncJobs(... SKIP LOCKED) from recovering this job
 			// while its profile/reconciliation transaction is still committing.
 			q = q.Clauses(clause.Locking{Strength: "UPDATE"})
@@ -292,7 +292,7 @@ func (s *Store) FinishEmptyFanSyncJob(ctx context.Context, job *MpFanSyncJob, to
 			"id = ? AND status = ? AND lease_token = ? AND lease_until > ?",
 			job.ID, "running", job.LeaseToken, now,
 		)
-		if tx.Dialector.Name() == "postgres" {
+		if tx.Name() == "postgres" {
 			q = q.Clauses(clause.Locking{Strength: "UPDATE"})
 		}
 		if err := q.First(&current).Error; err != nil {

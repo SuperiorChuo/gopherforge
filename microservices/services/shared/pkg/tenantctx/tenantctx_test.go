@@ -16,7 +16,8 @@ func TestFromContextMissing(t *testing.T) {
 	if got := FromContext(context.Background()); got != 0 {
 		t.Fatalf("FromContext(empty) = %d, want 0", got)
 	}
-	if got := FromContext(nil); got != 0 {
+	var nilCtx context.Context
+	if got := FromContext(nilCtx); got != 0 {
 		t.Fatalf("FromContext(nil) = %d, want 0", got)
 	}
 }

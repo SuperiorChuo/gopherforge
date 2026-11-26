@@ -123,8 +123,8 @@ func (s *HermesOfficeService) ListSeats(ctx context.Context, floorID uint64) ([]
 	out := make([]OfficeSeatView, 0, len(rows))
 	for _, r := range rows {
 		view := OfficeSeatView{Seat: r.HermesOfficeSeat}
-		if r.HermesOfficeSeat.UserID > 0 && r.Username != "" {
-			view.User = &OfficeSeatUser{ID: r.HermesOfficeSeat.UserID, Username: r.Username, Nickname: r.Nickname}
+		if r.UserID > 0 && r.Username != "" {
+			view.User = &OfficeSeatUser{ID: r.UserID, Username: r.Username, Nickname: r.Nickname}
 		}
 		if r.DeviceID != "" {
 			dev := &OfficeSeatDevice{

@@ -252,7 +252,7 @@ func setTenantIDOnDest(dest any, tenantID uint) {
 		return
 	}
 	v := reflect.ValueOf(dest)
-	for v.Kind() == reflect.Ptr {
+	for v.Kind() == reflect.Pointer {
 		if v.IsNil() {
 			return
 		}
@@ -267,7 +267,7 @@ func setTenantIDOnDest(dest any, tenantID uint) {
 	case reflect.Slice:
 		for i := 0; i < v.Len(); i++ {
 			elem := v.Index(i)
-			for elem.Kind() == reflect.Ptr {
+			for elem.Kind() == reflect.Pointer {
 				if elem.IsNil() {
 					break
 				}

@@ -157,7 +157,7 @@ func TestReadCursorsAndUnread(t *testing.T) {
 		map[string]any{"seq": 1}, auth); w.Code != http.StatusOK {
 		t.Fatal("visitor mark read")
 	}
-	w, env = do(t, r, http.MethodGet, msgPath, nil, auth)
+	_, env = do(t, r, http.MethodGet, msgPath, nil, auth)
 	decodeInto(t, env.Data, &data)
 	if data.Conversation.VisitorLastReadSeq != last {
 		t.Fatalf("cursor regressed to %d", data.Conversation.VisitorLastReadSeq)

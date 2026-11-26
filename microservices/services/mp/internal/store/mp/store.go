@@ -55,7 +55,7 @@ func migrateSchema(db *gorm.DB) error {
 			&MpArticle{},
 		)
 	}
-	if db.Dialector.Name() != "postgres" {
+	if db.Name() != "postgres" {
 		return migrate(db)
 	}
 	return db.Transaction(func(tx *gorm.DB) error {
@@ -133,7 +133,7 @@ func deduplicateLegacyInboundMessages(db *gorm.DB) error {
 		return nil
 	}
 	var sql string
-	if db.Dialector.Name() == "postgres" {
+	if db.Name() == "postgres" {
 		sql = `DELETE FROM mp_messages AS stale
 			USING mp_messages AS kept
 			WHERE stale.direction = 'in'
@@ -494,7 +494,7 @@ func (s *Store) ClaimPublishResultJobs(limit int, lease time.Duration) ([]MpPubl
 	var claimed []MpPublishResultJob
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		q := tx.Where("status = ? AND next_at <= ?", "pending", time.Now()).Order("id").Limit(limit)
-		if tx.Dialector.Name() == "postgres" {
+		if tx.Name() == "postgres" {
 			q = q.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"})
 		}
 		if err := q.Find(&claimed).Error; err != nil {

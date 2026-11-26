@@ -259,7 +259,6 @@ func (s *Server) botReply(ctx context.Context, siteID, convID uint64, publicID, 
 	kbMode := "off"
 	kbSource := "" // vector | keyword
 	if kbOn {
-		kbMode = "none"
 		// M1.5：优先 ai-service 向量检索，失败/无命中再降级关键词
 		if s.KBVector != nil && s.KBVector.Enabled() {
 			vctx, vcancel := context.WithTimeout(ctx, 10*time.Second)

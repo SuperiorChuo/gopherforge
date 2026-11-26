@@ -6,7 +6,8 @@ import (
 )
 
 func TestFromContextAndWithContext(t *testing.T) {
-	if FromContext(nil) != 0 {
+	var nilCtx context.Context
+	if FromContext(nilCtx) != 0 {
 		t.Fatal("nil ctx")
 	}
 	ctx := WithContext(context.Background(), 42)
@@ -45,7 +46,8 @@ func TestFromContextOrDefault(t *testing.T) {
 	if got := FromContextOrDefault(context.Background()); got != DefaultID {
 		t.Fatalf("empty context = %d, want %d", got, DefaultID)
 	}
-	if got := FromContextOrDefault(nil); got != DefaultID {
+	var nilCtx context.Context
+	if got := FromContextOrDefault(nilCtx); got != DefaultID {
 		t.Fatalf("nil ctx default = %d, want %d", got, DefaultID)
 	}
 	ctx := context.WithValue(context.Background(), ContextKey, uint(9))

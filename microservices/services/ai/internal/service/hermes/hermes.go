@@ -17,9 +17,9 @@ import (
 )
 
 var (
-	ErrHermesControlPlaneUnavailable = errors.New("Hermes control plane is unavailable")
+	ErrHermesControlPlaneUnavailable = errors.New("hermes control plane is unavailable")
 	ErrHermesInvalidInput            = errors.New("invalid Hermes request")
-	ErrHermesPolicyNotConfigured     = errors.New("Hermes policy is not configured")
+	ErrHermesPolicyNotConfigured     = errors.New("hermes policy is not configured")
 	// ErrHermesInstanceLimit 是端侧能力限制，不是设计上的禁止：表结构已支持
 	// 一节点多实例，等 gak-hermes-manager 支持多 profile 后去掉这道拦截即可。
 	ErrHermesInstanceLimit = errors.New("this node already runs an instance; gak-hermes-manager does not support multiple instances per node yet")
@@ -65,7 +65,7 @@ func NewHermesPolicySigner(encoded string) (*HermesPolicySigner, error) {
 	case ed25519.PrivateKeySize:
 		privateKey = ed25519.PrivateKey(append([]byte(nil), keyBytes...))
 	default:
-		return nil, fmt.Errorf("Hermes policy signing key must decode to %d-byte seed or %d-byte private key", ed25519.SeedSize, ed25519.PrivateKeySize)
+		return nil, fmt.Errorf("hermes policy signing key must decode to %d-byte seed or %d-byte private key", ed25519.SeedSize, ed25519.PrivateKeySize)
 	}
 	publicKey := append(ed25519.PublicKey(nil), privateKey.Public().(ed25519.PublicKey)...)
 	return &HermesPolicySigner{privateKey: privateKey, publicKey: publicKey}, nil
@@ -83,7 +83,7 @@ func NewHermesPublicKeyVerifier(encoded string) (ed25519.PublicKey, error) {
 		return nil, fmt.Errorf("decode Hermes skill signing public key: %w", err)
 	}
 	if len(keyBytes) != ed25519.PublicKeySize {
-		return nil, fmt.Errorf("Hermes skill signing public key must decode to %d bytes", ed25519.PublicKeySize)
+		return nil, fmt.Errorf("hermes skill signing public key must decode to %d bytes", ed25519.PublicKeySize)
 	}
 	return ed25519.PublicKey(append([]byte(nil), keyBytes...)), nil
 }

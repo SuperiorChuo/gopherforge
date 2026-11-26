@@ -82,8 +82,3 @@ func (s *Store) deptExists(ctx context.Context, deptID, tenantID uint64) bool {
 	_, err := s.idClient.DepartmentInfo(ctx, deptID, tenantID)
 	return err == nil
 }
-
-// userInTenantActive 校验用户启用 + 属于租户（bpm 同口径）。
-func (s *Store) userInTenantActive(ctx context.Context, userID, tenantID uint64) bool {
-	return s.userInTenant(ctx, userID, tenantID)
-}

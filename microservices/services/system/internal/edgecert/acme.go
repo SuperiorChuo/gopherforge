@@ -203,7 +203,8 @@ func (i ACMEIssuer) Issue(ctx context.Context, req IssueRequest) (result IssueRe
 		return IssueResult{}, ErrProviderOrderTerminal
 	}
 
-	if order.Status == acme.StatusPending {
+	switch order.Status {
+	case acme.StatusPending:
 		if err := i.completeAuthorizations(ctx, client, req, order); err != nil {
 			return IssueResult{}, err
 		}
@@ -211,7 +212,7 @@ func (i ACMEIssuer) Issue(ctx context.Context, req IssueRequest) (result IssueRe
 		if err != nil {
 			return IssueResult{}, providerOrderFailure("order readiness wait", err)
 		}
-	} else if order.Status == acme.StatusProcessing {
+	case acme.StatusProcessing:
 		order, err = client.WaitOrder(ctx, orderURI)
 		if err != nil {
 			return IssueResult{}, providerOrderFailure("order processing wait", err)
@@ -445,16 +446,4 @@ func loadOrCreateCertificateKey(existing []byte) (crypto.Signer, []byte, error) 
 func fingerprintDER(der []byte) string {
 	sum := sha256.Sum256(der)
 	return hex.EncodeToString(sum[:])
-}
-
-func parseLeaf(fullchain string) (*x509.Certificate, error) {
-	block, _ := pem.Decode([]byte(fullchain))
-	if block == nil || block.Type != "CERTIFICATE" {
-		return nil, fmt.Errorf("invalid certificate PEM")
-	}
-	leaf, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("parse certificate: %w", err)
-	}
-	return leaf, nil
 }

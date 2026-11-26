@@ -68,7 +68,7 @@ func (s *Store) ClaimNotificationJobs(limit int, lease time.Duration) ([]model.N
 	now := time.Now()
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		q := tx.Where("status = ? AND next_at <= ?", "pending", now).Order("id").Limit(limit)
-		if tx.Dialector.Name() == "postgres" {
+		if tx.Name() == "postgres" {
 			q = q.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"})
 		}
 		if err := q.Find(&jobs).Error; err != nil || len(jobs) == 0 {
@@ -252,7 +252,7 @@ func (s *Store) ListTickets(tenantID uint64, f TicketFilter) ([]model.Ticket, in
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	offset, limit := f.Page.clamp()
+	offset, limit := f.clamp()
 	var list []model.Ticket
 	err := q.Order("id DESC").Offset(offset).Limit(limit).Find(&list).Error
 	return list, total, err

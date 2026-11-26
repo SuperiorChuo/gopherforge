@@ -252,7 +252,7 @@ func (s *HermesService) UpdateMcpServer(ctx context.Context, actorID uint, id ui
 		return err
 	}
 	revision := current.SecretRevision
-	if request.SecretJSON != nil && len(request.SecretJSON) > 0 {
+	if len(request.SecretJSON) > 0 {
 		revision++
 	}
 	fields := map[string]any{
@@ -271,7 +271,7 @@ func (s *HermesService) UpdateMcpServer(ctx context.Context, actorID uint, id ui
 		"secret_revision": revision,
 		"updated_at":      s.now().UTC(),
 	}
-	if request.SecretJSON != nil && len(request.SecretJSON) > 0 {
+	if len(request.SecretJSON) > 0 {
 		fields["secret_json"] = request.SecretJSON
 	}
 	return s.dao.UpdateMcpServer(ctx, id, fields)
