@@ -86,8 +86,8 @@ jobs:
           set -uo pipefail
           # runner 默认 bash -e，这里要自己拿 exit code，先关掉 -e
           set +e
-          # govulncheck 固定用 @latest：漏洞库与分析逻辑都在里面，钉死版本等于钉死漏洞库
-          go run golang.org/x/vuln/cmd/govulncheck@latest -format json ./... > govulncheck.json
+          # 与本地共用模块工具链与固定分析器版本；漏洞数据库仍在线更新。
+          bash "$GITHUB_WORKSPACE/scripts/govulncheck.sh" . -format json ./... > govulncheck.json
           code=$?
           # 0 = 无发现；3 = 有发现（json 模式一般仍返回 0）；其它 = 工具真的挂了
           if [ "$code" != '0' ] && [ "$code" != '3' ]; then
