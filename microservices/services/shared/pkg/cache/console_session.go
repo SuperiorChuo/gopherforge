@@ -104,13 +104,12 @@ func (s *CacheService) SetConsoleSessionContext(ctx context.Context, sessionID s
 	userIndexKey := fmt.Sprintf(KeyConsoleSessionUserIndex, identity.UserID)
 	pipe := client.TxPipeline()
 	pipe.Set(ctx, key, payload, expire)
-	// The per-user and global indexes let the existing permission/role
-	// invalidation channel drop live sessions too. Their TTL is generous
-	// relative to the entry TTL so an index never expires before its members.
+	// Indexes outlive the longest configured payload TTL. Each write also
+	// sweeps expired members; renewing an index alone would retain old sessions.
 	pipe.SAdd(ctx, userIndexKey, key)
-	pipe.Expire(ctx, userIndexKey, expire+consoleSessionMaxExpire)
+	maintainCacheIndex(ctx, pipe, userIndexKey, consoleSessionMaxExpire+cacheIndexGrace, false)
 	pipe.SAdd(ctx, KeyConsoleSessionIndex, key)
-	pipe.Expire(ctx, KeyConsoleSessionIndex, expire+consoleSessionMaxExpire)
+	maintainCacheIndex(ctx, pipe, KeyConsoleSessionIndex, consoleSessionMaxExpire+cacheIndexGrace, false)
 	_, err = pipe.Exec(ctx)
 	return err
 }
@@ -172,17 +171,7 @@ func (s *CacheService) DelConsoleSessionsForUsersContext(ctx context.Context, us
 			continue
 		}
 		userIndexKey := fmt.Sprintf(KeyConsoleSessionUserIndex, userID)
-		keys, err := client.SMembers(ctx, userIndexKey).Result()
-		if err != nil {
-			return err
-		}
-		pipe := client.TxPipeline()
-		if len(keys) > 0 {
-			pipe.Del(ctx, keys...)
-			pipe.SRem(ctx, KeyConsoleSessionIndex, stringsToAny(keys)...)
-		}
-		pipe.Del(ctx, userIndexKey)
-		if _, err := pipe.Exec(ctx); err != nil {
+		if err := invalidateCacheIndex(ctx, client, userIndexKey, KeyConsoleSessionIndex); err != nil {
 			return err
 		}
 	}
@@ -195,16 +184,5 @@ func (s *CacheService) DelAllConsoleSessionsContext(ctx context.Context) error {
 	if client == nil {
 		return nil
 	}
-	keys, err := client.SMembers(ctx, KeyConsoleSessionIndex).Result()
-	if err != nil {
-		return err
-	}
-
-	pipe := client.TxPipeline()
-	if len(keys) > 0 {
-		pipe.Del(ctx, keys...)
-	}
-	pipe.Del(ctx, KeyConsoleSessionIndex)
-	_, err = pipe.Exec(ctx)
-	return err
+	return invalidateCacheIndex(ctx, client, KeyConsoleSessionIndex)
 }
