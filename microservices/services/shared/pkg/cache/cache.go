@@ -197,6 +197,7 @@ func (s *CacheService) SetUserPermissionsContext(ctx context.Context, userID uin
 		pipe.SAdd(ctx, key, stringsToAny(permissions)...)
 		pipe.Expire(ctx, key, UserPermissionsExpire)
 		pipe.SAdd(ctx, KeyUserPermissionsIndex, key)
+		maintainCacheIndex(ctx, pipe, KeyUserPermissionsIndex, UserPermissionsExpire+cacheIndexGrace, true)
 	} else {
 		pipe.SRem(ctx, KeyUserPermissionsIndex, key)
 	}
@@ -248,6 +249,7 @@ func (s *CacheService) SetUserPermHeaderContext(ctx context.Context, userID uint
 	pipe := s.redisClient().TxPipeline()
 	pipe.Set(ctx, key, header, UserPermHeaderExpire)
 	pipe.SAdd(ctx, KeyUserPermHeaderIndex, key)
+	maintainCacheIndex(ctx, pipe, KeyUserPermHeaderIndex, UserPermHeaderExpire+cacheIndexGrace, true)
 	_, err := pipe.Exec(ctx)
 	return err
 }
@@ -269,33 +271,11 @@ func (s *CacheService) DelUserPermHeaderBatchContext(ctx context.Context, userID
 }
 
 func (s *CacheService) DelAllUserPermHeadersContext(ctx context.Context) error {
-	keys, err := s.redisClient().SMembers(ctx, KeyUserPermHeaderIndex).Result()
-	if err != nil {
-		return err
-	}
-
-	pipe := s.redisClient().TxPipeline()
-	if len(keys) > 0 {
-		pipe.Del(ctx, keys...)
-	}
-	pipe.Del(ctx, KeyUserPermHeaderIndex)
-	_, err = pipe.Exec(ctx)
-	return err
+	return invalidateCacheIndex(ctx, s.redisClient(), KeyUserPermHeaderIndex)
 }
 
 func (s *CacheService) DelAllUserPermissionsContext(ctx context.Context) error {
-	keys, err := s.redisClient().SMembers(ctx, KeyUserPermissionsIndex).Result()
-	if err != nil {
-		return err
-	}
-
-	pipe := s.redisClient().TxPipeline()
-	if len(keys) > 0 {
-		pipe.Del(ctx, keys...)
-	}
-	pipe.Del(ctx, KeyUserPermissionsIndex)
-	_, err = pipe.Exec(ctx)
-	return err
+	return invalidateCacheIndex(ctx, s.redisClient(), KeyUserPermissionsIndex)
 }
 
 // Role-code cache: same lifetime and same invalidation points as the permission
@@ -310,6 +290,7 @@ func (s *CacheService) SetUserRolesContext(ctx context.Context, userID uint, rol
 		pipe.SAdd(ctx, key, stringsToAny(roleCodes)...)
 		pipe.Expire(ctx, key, UserRolesExpire)
 		pipe.SAdd(ctx, KeyUserRolesIndex, key)
+		maintainCacheIndex(ctx, pipe, KeyUserRolesIndex, UserRolesExpire+cacheIndexGrace, true)
 	} else {
 		pipe.SRem(ctx, KeyUserRolesIndex, key)
 	}
@@ -348,18 +329,7 @@ func (s *CacheService) DelUserRolesBatchContext(ctx context.Context, userIDs []u
 }
 
 func (s *CacheService) DelAllUserRolesContext(ctx context.Context) error {
-	keys, err := s.redisClient().SMembers(ctx, KeyUserRolesIndex).Result()
-	if err != nil {
-		return err
-	}
-
-	pipe := s.redisClient().TxPipeline()
-	if len(keys) > 0 {
-		pipe.Del(ctx, keys...)
-	}
-	pipe.Del(ctx, KeyUserRolesIndex)
-	_, err = pipe.Exec(ctx)
-	return err
+	return invalidateCacheIndex(ctx, s.redisClient(), KeyUserRolesIndex)
 }
 
 func (s *CacheService) redisClient() RedisClient {

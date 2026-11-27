@@ -82,7 +82,7 @@ func Open(t testing.TB, models ...any) *gorm.DB {
 	if err := db.AutoMigrate(models...); err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("complete-set fixture dialect=%s", db.Dialector.Name())
+	t.Logf("complete-set fixture dialect=%s", db.Name())
 	return db
 }
 

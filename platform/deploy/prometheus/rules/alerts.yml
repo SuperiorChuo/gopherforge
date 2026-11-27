@@ -24,6 +24,48 @@ groups:
           summary: "FreeSWITCH ESL 连接断开"
           description: "control-api 连续 5 分钟无法从 FS 采集，呼叫事件与话单可能丢失。"
 
+  - name: redis
+    rules:
+      # redis_exporter v1.71.0: INFO used_memory / maxmemory → 以下 bytes 指标。
+      # maxmemory=0 表示无上限；容量预警使用 used_memory，非 RSS。
+      - alert: RedisMemoryHigh
+        expr: >
+          (redis_memory_used_bytes{job="redis"} /
+           (redis_memory_max_bytes{job="redis"} > 0)) > 0.85
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Redis 内存接近上限：{{ $labels.instance }}"
+          description: "used_memory/maxmemory 持续 5 分钟超过 85%；检查缓存 TTL、索引清理与容量，保留 noeviction 安全语义。"
+
+      # 首次 OOM 前系列可能缺失；只按健康实例补零，不跨实例聚合。
+      - record: instance:redis_oom_errors_total:sum
+        expr: >
+          (sum without (err) (redis_errors_total{job="redis", err="OOM"})
+           or (0 * redis_up{job="redis"}))
+          and (redis_up{job="redis"} == 1)
+
+      - alert: RedisOOMErrors
+        expr: >
+          (increase(instance:redis_oom_errors_total:sum[5m]) > 0)
+          and (redis_up{job="redis"} == 1)
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "Redis OOM 命令拒绝：{{ $labels.instance }}"
+          description: "最近 5 分钟检测到新增 OOM 错误，持续 1 分钟；noeviction 达到内存上限会拒绝需要分配内存的命令，检查容量与业务错误。"
+
+      # exporter 抓取失败由 ServiceDown 覆盖；redis_up 表示 Redis 采集是否成功。
+      - alert: RedisDown
+        expr: >
+          (redis_up{job="redis"} == 0)
+          or ((up{job="redis"} == 1) unless redis_up{job="redis"})
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "Redis 不可达：{{ $labels.instance }}"
+          description: "连续 1 分钟 redis_up=0，或 exporter 抓取成功但缺少 redis_up；检查 Redis 进程、网络和认证。"
+
   - name: host
     rules:
       # 磁盘可用低于 15%：录音/备份最容易吃满盘。

@@ -21,8 +21,8 @@ import (
 // 也就是让热路径完全绕开数据库。
 //
 // 键设计沿用角色编码缓存（见 cache.go）：每个逻辑答案一个键，
-// 外加一个充当索引的 Redis set，因此失效就是对已写入的键做一次精确的
-// SMEMBERS + DEL——没有 SCAN、没有 KEYS、不会残留过期键。
+// 外加一个充当索引的 Redis set。写入时分批清理已过期成员，失效时分批原子删除
+// 索引中的载荷；不扫描全库，也不把整个索引一次性读入应用内存。
 //
 // 租户隔离：dict_types / dict_items 目前不携带 tenant_id（见 monitor/migrations/000001），
 // 所以这些行是平台全局的。
@@ -186,9 +186,7 @@ func (s *CacheService) SetDictCodesContext(ctx context.Context, tenantID uint, e
 		keys = append(keys, key)
 	}
 	pipe.SAdd(ctx, KeyDictIndex, keys...)
-	// 索引的存活时间比它的成员更长，因此绝不可能中途过期，
-	// 也不会留下失效逻辑遗漏的孤立键。
-	pipe.Expire(ctx, KeyDictIndex, expire+dictDataMaxExpire)
+	maintainCacheIndex(ctx, pipe, KeyDictIndex, dictDataMaxExpire+cacheIndexGrace, false)
 	_, err := pipe.Exec(ctx)
 	return err
 }
@@ -232,7 +230,7 @@ func (s *CacheService) SetAllDictDataContext(ctx context.Context, tenantID uint,
 	pipe := client.TxPipeline()
 	pipe.Set(ctx, key, payload, expire)
 	pipe.SAdd(ctx, KeyDictIndex, key)
-	pipe.Expire(ctx, KeyDictIndex, expire+dictDataMaxExpire)
+	maintainCacheIndex(ctx, pipe, KeyDictIndex, dictDataMaxExpire+cacheIndexGrace, false)
 	_, err = pipe.Exec(ctx)
 	return err
 }
@@ -248,16 +246,5 @@ func (s *CacheService) DelAllDictDataContext(ctx context.Context) error {
 	if client == nil {
 		return nil
 	}
-	keys, err := client.SMembers(ctx, KeyDictIndex).Result()
-	if err != nil {
-		return err
-	}
-
-	pipe := client.TxPipeline()
-	if len(keys) > 0 {
-		pipe.Del(ctx, keys...)
-	}
-	pipe.Del(ctx, KeyDictIndex)
-	_, err = pipe.Exec(ctx)
-	return err
+	return invalidateCacheIndex(ctx, client, KeyDictIndex)
 }

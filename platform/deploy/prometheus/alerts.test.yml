@@ -1,0 +1,334 @@
+# Redis 告警规则测试；放在 rules/ 外，避免被 prometheus.yml 的 rules/*.yml 加载。
+# 本机有 promtool 时，在本目录运行：
+#   promtool check rules rules/alerts.yml
+#   promtool test rules alerts.test.yml
+# 容器内隔离验证（在包含本目录文件的目录执行；不 reload、不启动服务栈）：
+#   docker run --rm --network none --entrypoint /bin/promtool \
+#     -v "$PWD:/etc/prometheus:ro" -w /etc/prometheus prom/prometheus:v3.13.2 \
+#     check config /etc/prometheus/prometheus.yml
+#   docker run --rm --network none --entrypoint /bin/promtool \
+#     -v "$PWD:/etc/prometheus:ro" -w /etc/prometheus prom/prometheus:v3.13.2 \
+#     test rules alerts.test.yml
+# 也可将此目录复制到现有 Prometheus 容器的独立 /tmp 子目录，
+# 用 /bin/promtool check rules 与 test rules 验证，完成后仅清理该子目录。
+#
+# 指标来源（固定 exporter 版本，默认 namespace=redis）：
+# https://github.com/oliver006/redis_exporter/blob/v1.71.0/exporter/exporter.go
+#   used_memory -> redis_memory_used_bytes；maxmemory -> redis_memory_max_bytes；
+#   redis_up=1 表示 Redis 采集成功，0 表示失败（包括连接/认证问题）。
+# https://github.com/oliver006/redis_exporter/blob/v1.71.0/exporter/info.go
+#   INFO errorstat_OOM:count=N -> redis_errors_total{err="OOM"} N，类型 counter；
+#   commands_rejected_calls_total 包含其它拒绝原因，不能单独用于 OOM 告警。
+# 内存口径是 used_memory/maxmemory，非 RSS；不扣除不参与驱逐判断的 AOF/复制缓冲区。
+# OOM 前可能完全没有 err="OOM" 系列，recording rule 仅按健康实例补零；
+# 健康样本已建立后，首次 OOM 也可检出。刚开始监控即有历史正计数且不再增长时，
+# 无法确定其发生时间，不作新增错误告警。停增后最多约 5 分钟恢复；reset 本身不报警。
+# 若整个目标从发现配置中消失（连 up 都没有），这些按目标规则无法推断目标清单。
+# YAML anchors 只复用预期告警内容；评估频率与 prometheus.yml 保持一致。
+rule_files:
+  - rules/alerts.yml
+evaluation_interval: 15s
+
+tests:
+  - name: memory threshold below equal above debounce and recovery
+    interval: 15s
+    input_series:
+      - series: 'redis_memory_used_bytes{job="redis",instance="redis-a:9121"}'
+        values: '840+0x3 850+0x3 900+0x23 800+0x8'
+      - series: 'redis_memory_max_bytes{job="redis",instance="redis-a:9121"}'
+        values: '1000+0x40'
+    alert_rule_test:
+      - eval_time: 45s
+        alertname: RedisMemoryHigh
+        exp_alerts: []
+      - eval_time: 1m45s
+        alertname: RedisMemoryHigh
+        exp_alerts: []
+      - eval_time: 6m45s
+        alertname: RedisMemoryHigh
+        exp_alerts: []
+      - eval_time: 7m
+        alertname: RedisMemoryHigh
+        exp_alerts:
+          - &memory_alert
+            exp_labels: { job: redis, instance: 'redis-a:9121', severity: warning }
+            exp_annotations: &memory_annotations
+              summary: 'Redis 内存接近上限：redis-a:9121'
+              description: 'used_memory/maxmemory 持续 5 分钟超过 85%；检查缓存 TTL、索引清理与容量，保留 noeviction 安全语义。'
+      - eval_time: 8m
+        alertname: RedisMemoryHigh
+        exp_alerts: []
+
+  - name: memory short spike does not fire
+    interval: 15s
+    input_series:
+      - series: 'redis_memory_used_bytes{job="redis",instance="redis-a:9121"}'
+        values: '900+0x18 800+0x5'
+      - series: 'redis_memory_max_bytes{job="redis",instance="redis-a:9121"}'
+        values: '1000+0x24'
+    alert_rule_test:
+      - eval_time: 4m30s
+        alertname: RedisMemoryHigh
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: RedisMemoryHigh
+        exp_alerts: []
+
+  - name: memory exact threshold never fires
+    interval: 15s
+    input_series:
+      - series: 'redis_memory_used_bytes{job="redis",instance="redis-a:9121"}'
+        values: '850+0x40'
+      - series: 'redis_memory_max_bytes{job="redis",instance="redis-a:9121"}'
+        values: '1000+0x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: RedisMemoryHigh
+        exp_alerts: []
+
+  - name: unlimited or incomplete memory metrics do not fire
+    interval: 15s
+    input_series:
+      - series: 'redis_memory_used_bytes{job="redis",instance="unlimited:9121"}'
+        values: '900+0x40'
+      - series: 'redis_memory_max_bytes{job="redis",instance="unlimited:9121"}'
+        values: '0+0x40'
+      - series: 'redis_memory_used_bytes{job="redis",instance="missing-limit:9121"}'
+        values: '900+0x40'
+      - series: 'redis_memory_max_bytes{job="redis",instance="missing-used:9121"}'
+        values: '1000+0x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: RedisMemoryHigh
+        exp_alerts: []
+
+  - name: memory pairs complete target labels and ignores other jobs
+    interval: 15s
+    input_series:
+      - series: 'redis_memory_used_bytes{job="redis",instance="redis-a:9121",cluster="alpha"}'
+        values: '900+0x24'
+      - series: 'redis_memory_max_bytes{job="redis",instance="redis-a:9121",cluster="alpha"}'
+        values: '1000+0x24'
+      - series: 'redis_memory_used_bytes{job="redis",instance="redis-a:9121",cluster="beta"}'
+        values: '900+0x24'
+      - series: 'redis_memory_max_bytes{job="redis",instance="redis-a:9121",cluster="beta"}'
+        values: '2000+0x24'
+      - series: 'redis_memory_used_bytes{job="redis",instance="redis-b:9121",cluster="alpha"}'
+        values: '500+0x24'
+      - series: 'redis_memory_max_bytes{job="redis",instance="redis-b:9121",cluster="alpha"}'
+        values: '1000+0x24'
+      - series: 'redis_memory_used_bytes{job="other",instance="redis-a:9121",cluster="alpha"}'
+        values: '950+0x24'
+      - series: 'redis_memory_max_bytes{job="other",instance="redis-a:9121",cluster="alpha"}'
+        values: '1000+0x24'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: RedisMemoryHigh
+        exp_alerts:
+          - exp_labels: { job: redis, instance: 'redis-a:9121', cluster: alpha, severity: warning }
+            exp_annotations: *memory_annotations
+
+  - name: first OOM without prior error series preserves labels and recovers
+    interval: 15s
+    input_series:
+      - series: 'redis_up{job="redis",instance="redis-a:9121",cluster="alpha"}'
+        values: '1+0x32'
+      - series: 'redis_up{job="redis",instance="redis-a:9121",cluster="beta"}'
+        values: '1+0x32'
+      - series: 'redis_up{job="redis",instance="redis-b:9121",cluster="alpha"}'
+        values: '1+0x32'
+      - series: 'redis_errors_total{job="redis",instance="redis-a:9121",cluster="alpha",err="OOM"}'
+        values: '_ _ _ _ 1+0x28'
+      - series: 'redis_errors_total{job="redis",instance="redis-a:9121",cluster="beta",err="ERR"}'
+        values: '1+1x32'
+    promql_expr_test:
+      - expr: 'instance:redis_oom_errors_total:sum'
+        eval_time: 30s
+        exp_samples:
+          - labels: 'instance:redis_oom_errors_total:sum{job="redis",instance="redis-a:9121",cluster="alpha"}'
+            value: 0
+          - labels: 'instance:redis_oom_errors_total:sum{job="redis",instance="redis-a:9121",cluster="beta"}'
+            value: 0
+          - labels: 'instance:redis_oom_errors_total:sum{job="redis",instance="redis-b:9121",cluster="alpha"}'
+            value: 0
+    alert_rule_test:
+      - eval_time: 1m45s
+        alertname: RedisOOMErrors
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: RedisOOMErrors
+        exp_alerts:
+          - &oom_alert
+            exp_labels: { job: redis, instance: 'redis-a:9121', cluster: alpha, severity: critical }
+            exp_annotations:
+              summary: 'Redis OOM 命令拒绝：redis-a:9121'
+              description: '最近 5 分钟检测到新增 OOM 错误，持续 1 分钟；noeviction 达到内存上限会拒绝需要分配内存的命令，检查容量与业务错误。'
+      - eval_time: 5m30s
+        alertname: RedisOOMErrors
+        exp_alerts: [*oom_alert]
+      - eval_time: 5m45s
+        alertname: RedisOOMErrors
+        exp_alerts: []
+
+  - name: historical OOM and other error types do not fire
+    interval: 15s
+    input_series:
+      - series: 'redis_up{job="redis",instance="redis-a:9121"}'
+        values: '1+0x40'
+      - series: 'redis_up{job="redis",instance="redis-b:9121"}'
+        values: '1+0x40'
+      - series: 'redis_errors_total{job="redis",instance="redis-a:9121",err="OOM"}'
+        values: '42+0x40'
+      - series: 'redis_errors_total{job="redis",instance="redis-b:9121",err="ERR"}'
+        values: '0+1x40'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: RedisOOMErrors
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: RedisOOMErrors
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: RedisOOMErrors
+        exp_alerts: []
+
+  - name: OOM counter reset is silent but subsequent error fires and recovers
+    interval: 15s
+    input_series:
+      - series: 'redis_up{job="redis",instance="redis-a:9121",cluster="alpha"}'
+        values: '1+0x40'
+      - series: 'redis_errors_total{job="redis",instance="redis-a:9121",cluster="alpha",err="OOM"}'
+        values: '5+0x7 0+0x3 1+0x28'
+    alert_rule_test:
+      - eval_time: 2m45s
+        alertname: RedisOOMErrors
+        exp_alerts: []
+      - eval_time: 3m45s
+        alertname: RedisOOMErrors
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: RedisOOMErrors
+        exp_alerts: [*oom_alert]
+      - eval_time: 7m30s
+        alertname: RedisOOMErrors
+        exp_alerts: [*oom_alert]
+      - eval_time: 7m45s
+        alertname: RedisOOMErrors
+        exp_alerts: []
+
+  - name: Redis outage recovers without turning historical OOM into new errors
+    interval: 15s
+    input_series:
+      - series: 'up{job="redis",instance="redis-a:9121"}'
+        values: '1+0x32'
+      - series: 'redis_up{job="redis",instance="redis-a:9121"}'
+        values: '1+0x7 0+0x7 1+0x16'
+      - series: 'redis_errors_total{job="redis",instance="redis-a:9121",err="OOM"}'
+        values: '5+0x7 stale _ _ _ _ _ _ _ 5+0x16'
+    promql_expr_test:
+      - expr: 'instance:redis_oom_errors_total:sum'
+        eval_time: 3m
+        exp_samples: []
+    alert_rule_test:
+      - eval_time: 2m45s
+        alertname: RedisDown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: RedisDown
+        exp_alerts:
+          - &down_alert
+            exp_labels: { job: redis, instance: 'redis-a:9121', severity: critical }
+            exp_annotations:
+              summary: 'Redis 不可达：redis-a:9121'
+              description: '连续 1 分钟 redis_up=0，或 exporter 抓取成功但缺少 redis_up；检查 Redis 进程、网络和认证。'
+      - eval_time: 4m
+        alertname: RedisDown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: RedisOOMErrors
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: RedisOOMErrors
+        exp_alerts: []
+
+  - name: brief Redis connection failure is debounced
+    interval: 15s
+    input_series:
+      - series: 'up{job="redis",instance="redis-a:9121"}'
+        values: '1+0x24'
+      - series: 'redis_up{job="redis",instance="redis-a:9121"}'
+        values: '1+0x3 0+0x2 1+0x17'
+    alert_rule_test:
+      - eval_time: 1m30s
+        alertname: RedisDown
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: RedisDown
+        exp_alerts: []
+
+  - name: successful exporter scrape without redis_up fires then recovers
+    interval: 15s
+    input_series:
+      - series: 'up{job="redis",instance="redis-a:9121"}'
+        values: '1+0x24'
+      - series: 'redis_up{job="redis",instance="redis-a:9121"}'
+        values: '_ _ _ _ _ _ _ _ 1+0x16'
+    alert_rule_test:
+      - eval_time: 45s
+        alertname: RedisDown
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: RedisDown
+        exp_alerts: [*down_alert]
+      - eval_time: 2m
+        alertname: RedisDown
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: RedisOOMErrors
+        exp_alerts: []
+
+  - name: exporter scrape failure is covered by existing ServiceDown
+    interval: 15s
+    input_series:
+      - series: 'up{job="redis",instance="redis-a:9121"}'
+        values: '0+0x15 1+0x8'
+      - series: 'redis_up{job="redis",instance="redis-a:9121"}'
+        values: '_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 1+0x8'
+    alert_rule_test:
+      - eval_time: 2m45s
+        alertname: ServiceDown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels: { job: redis, instance: 'redis-a:9121', severity: critical }
+            exp_annotations:
+              summary: '监控目标掉线：redis/redis-a:9121'
+              description: 'Prometheus 连续 3 分钟抓不到该目标，服务可能已宕或网络不通。'
+      - eval_time: 4m
+        alertname: ServiceDown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: RedisDown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: RedisOOMErrors
+        exp_alerts: []
+
+  - name: absent Redis targets produce no synthetic unlabeled series or alerts
+    interval: 15s
+    input_series: []
+    promql_expr_test:
+      - expr: 'instance:redis_oom_errors_total:sum'
+        eval_time: 10m
+        exp_samples: []
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: RedisMemoryHigh
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: RedisOOMErrors
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: RedisDown
+        exp_alerts: []
