@@ -3,14 +3,18 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/im/internal/authjwt"
 	"github.com/go-admin-kit/services/im/internal/model"
 	"github.com/go-admin-kit/services/im/internal/store/im"
+	"github.com/go-admin-kit/services/shared/pkg/wsticket"
 	"github.com/gorilla/websocket"
 )
+
+const imWSTicketScope = "im_ws"
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
@@ -29,37 +33,61 @@ type wsSendPayload struct {
 	Content              map[string]any `json:"content"`
 }
 
-// GET /im/ws?token=（WebSocket 连接，token 鉴权）
-func (s *Server) WebSocket(c *gin.Context) {
-	token := c.Query("token")
-	if token == "" {
-		token = bearer(c)
-	}
-	if token == "" {
-		Fail(c, http.StatusUnauthorized, "missing token")
+// CreateWebSocketTicket handles POST /api/v1/im/agent/ws/ticket — 签发 60 秒
+// 一次性坐席 WS 握手票据，使坐席端不再把长期 Access JWT 拼在 /im/ws?token= URL 中。
+func (s *Server) CreateWebSocketTicket(c *gin.Context) {
+	agent, ok := s.requireAgent(c)
+	if !ok {
 		return
 	}
+	ticket, err := wsticket.Mint(s.Secret, imWSTicketScope, agent.UserID, agent.TenantID, agent.Username, wsticket.DefaultTTL)
+	if err != nil {
+		Fail(c, http.StatusInternalServerError, "failed to create websocket ticket")
+		return
+	}
+	OK(c, gin.H{"ticket": ticket})
+}
 
+// GET /im/ws?ticket=...（坐席一次性票据）或 ?token=...（访客 guest token / 兼容回退）
+func (s *Server) WebSocket(c *gin.Context) {
 	var (
 		isGuest     bool
 		visitorID   uint64
 		agentID     uint64
 		agentTenant uint64
 	)
-	if g, err := authjwt.ParseGuest(s.Secret, token); err == nil {
-		isGuest = true
-		visitorID = g.VisitorID
-	} else {
-		// Agent tokens are validated with their owner before any subscription:
-		// a query-string token must carry a current IM permission, exactly like
-		// the agent REST group. Tenant comes from the verified identity, not
-		// from client-controlled headers.
-		a, ok := s.verifyAgentToken(c, token)
-		if !ok {
+	if ticket := strings.TrimSpace(c.Query("ticket")); ticket != "" {
+		claims, err := s.wsTicketStore().Consume(s.Secret, imWSTicketScope, ticket)
+		if err != nil {
+			Fail(c, http.StatusUnauthorized, "invalid websocket ticket")
 			return
 		}
-		agentID = a.UserID
-		agentTenant = a.TenantID
+		agentID = claims.UserID
+		agentTenant = resolveAgentTenantID(c, claims.TenantID)
+	} else {
+		token := c.Query("token")
+		if token == "" {
+			token = bearer(c)
+		}
+		if token == "" {
+			Fail(c, http.StatusUnauthorized, "missing token")
+			return
+		}
+		if g, err := authjwt.ParseGuest(s.Secret, token); err == nil {
+			isGuest = true
+			visitorID = g.VisitorID
+		} else {
+			// Agent tokens are validated with their owner before any subscription:
+			// a query-string token must carry a current IM permission, exactly like
+			// the agent REST group. Tenant comes from the verified identity, not
+			// from client-controlled headers.
+			a, ok := s.verifyAgentToken(c, token)
+			if !ok {
+				return
+			}
+			agentID = a.UserID
+			agentTenant = a.TenantID
+		}
 	}
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)

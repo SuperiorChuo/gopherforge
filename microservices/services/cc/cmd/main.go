@@ -21,6 +21,7 @@ import (
 	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"github.com/go-admin-kit/services/shared/pkg/metrics"
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
+	"github.com/go-admin-kit/services/shared/pkg/wsticket"
 )
 
 func main() {
@@ -75,6 +76,7 @@ func main() {
 			ASRURL: cfg.ASRURL, ASRKey: cfg.ASRKey, ASRModel: cfg.ASRModel,
 		}),
 		InternalToken: cfg.InternalToken,
+		WSTickets:     wsticket.NewStore(),
 	}
 	log.Printf("cc-service fs_api=%q webhook_signed=%v crm_linked=%v", cfg.FSAPIBase, cfg.WebhookSecret != "", srv.CRM.Enabled())
 
@@ -110,9 +112,9 @@ func main() {
 	r.POST("/api/v1/cc/cdr", srv.ReceiveCDR)
 	// 来显归属：mod_cidlookup 直连反查（无鉴权，裸文本客户名/404）
 	r.GET("/api/v1/cc/cid", srv.CidLookup)
-	// 实时事件 WS（坐席浏览器弹屏底座）：握手带不了 Authorization 头，走 ?token=
-	// 自校验，故排在网关 cc-open 白名单（不挂 ForwardAuth）。
+	// 实时事件 WS（坐席浏览器弹屏底座）：经 POST /api/v1/cc/ws/ticket 换取 60 秒一次性票据。
 	r.GET("/api/v1/cc/ws", srv.WebSocket)
+	r.POST("/api/v1/cc/ws/ticket", gatewayauth.RequireAnyPermission("cc:read", "cc:write"), srv.CreateWebSocketTicket)
 	// 内部：notify → 语音通知入队（X-Internal-Token，内网直连，不走网关）
 	r.POST("/api/v1/cc/internal/voice-notify", srv.InternalVoiceNotify)
 	r.POST("/api/v1/cc/internal/risk-check", srv.InternalRiskCheck)

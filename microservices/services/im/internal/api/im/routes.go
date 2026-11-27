@@ -29,6 +29,7 @@ func (s *Server) RegisterRoutes(r *gin.Engine) {
 
 	// 坐席（M1 + M3 + M4）
 	agent := r.Group("/api/v1/im/agent", gatewayauth.RequireAnyPermission("im:agent:access", "im:admin:manage"))
+	agent.POST("/ws/ticket", s.CreateWebSocketTicket)
 	agent.GET("/me", s.AgentMe)
 	agent.PUT("/presence", s.AgentPresence)
 	agent.GET("/conversations", s.AgentListConversations)

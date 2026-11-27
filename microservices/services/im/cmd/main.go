@@ -25,6 +25,7 @@ import (
 	"github.com/go-admin-kit/services/shared/pkg/graceful"
 	"github.com/go-admin-kit/services/shared/pkg/metrics"
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
+	"github.com/go-admin-kit/services/shared/pkg/wsticket"
 )
 
 func main() {
@@ -134,6 +135,7 @@ func main() {
 		Limits:          api.DefaultLimits(),
 		SensitiveWords:  cfg.SensitiveWords,
 		Sensitive:       sensitive.NewCache(st),
+		WSTickets:       wsticket.NewStore(),
 	}
 	if len(cfg.SensitiveWords) > 0 {
 		log.Printf("im sensitive words: %d env fallback entries (console word list managed in DB)", len(cfg.SensitiveWords))

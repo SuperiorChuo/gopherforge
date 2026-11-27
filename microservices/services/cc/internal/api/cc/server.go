@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"encoding/json"
@@ -22,6 +23,7 @@ import (
 	"github.com/go-admin-kit/services/cc/internal/fsclient"
 	"github.com/go-admin-kit/services/cc/internal/hub"
 	"github.com/go-admin-kit/services/cc/internal/store/cc"
+	"github.com/go-admin-kit/services/shared/pkg/wsticket"
 )
 
 type Server struct {
@@ -48,6 +50,18 @@ type Server struct {
 	// InternalToken 给 notify-service 调语音通知内部端点（X-Internal-Token）。
 	// 空=内部端点 503，拒绝裸奔。
 	InternalToken string
+	// WSTickets 签发与单次消费 /api/v1/cc/ws 握手票据（避免长期 JWT 暴露在 URL Query 中）。
+	WSTickets     *wsticket.Store
+	wsTicketsOnce sync.Once
+}
+
+func (s *Server) wsTicketStore() *wsticket.Store {
+	s.wsTicketsOnce.Do(func() {
+		if s.WSTickets == nil {
+			s.WSTickets = wsticket.NewStore()
+		}
+	})
+	return s.WSTickets
 }
 
 // ---- envelope helpers (统一 {code,message,data}，与核心服务一致) ----

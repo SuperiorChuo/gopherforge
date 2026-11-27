@@ -33,6 +33,7 @@ import StatusPill, { type StatusTone } from '@/components/common/StatusPill'
 import {
   acceptConversation,
   closeConversation,
+  createImWsTicket,
   createQuickReply,
   deleteQuickReply,
   getAgentMe,
@@ -76,7 +77,6 @@ import {
   normalizeContactValue,
   type ContactHit,
 } from '@/utils/imContact'
-import { getToken } from '@/utils/request'
 import { useVisibilityInterval } from '@/hooks/useVisibilityInterval'
 
 const { Sider, Content } = Layout
@@ -733,70 +733,84 @@ export default function ImDeskPage() {
 
   useEffect(() => {
     if (import.meta.env.VITE_DEMO === '1') return
-    const token = getToken()
-    if (!token) return
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-    const ws = new WebSocket(`${proto}://${location.host}/im/ws?token=${encodeURIComponent(token)}`)
-    wsRef.current = ws
-    ws.onopen = () => {
-      const cur = activeRef.current
-      if (cur) {
-        ws.send(
-          JSON.stringify({ type: 'conversation.subscribe', payload: { conversation_public_id: cur.public_id } }),
-        )
-      }
-    }
-    ws.onmessage = (ev) => {
+    let cancelled = false
+    let ws: WebSocket | null = null
+
+    const openSocket = async () => {
+      let ticket = ''
       try {
-        const msg = JSON.parse(ev.data)
+        const res = await createImWsTicket()
+        ticket = res?.ticket || ''
+      } catch {
+        return
+      }
+      if (cancelled || !ticket) return
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+      ws = new WebSocket(`${proto}://${location.host}/im/ws?ticket=${encodeURIComponent(ticket)}`)
+      wsRef.current = ws
+      ws.onopen = () => {
         const cur = activeRef.current
-        if (
-          msg.type === 'conversation.updated' ||
-          msg.type === 'queue.updated' ||
-          msg.type === 'presence.updated' ||
-          msg.type === 'conversation.read'
-        ) {
-          throttledRefreshList()
-        }
-        // 当前会话的实时状态（资料变更 / 读回执）
-        if (msg.type === 'conversation.updated' && cur && msg.payload?.public_id === cur.public_id) {
-          setActive(msg.payload as ImConversation)
-        }
-        if (msg.type === 'conversation.read' && cur && msg.payload?.conversation_public_id === cur.public_id) {
-          const { reader, seq } = msg.payload as { reader: string; seq: number }
-          setActive((prev) =>
-            prev
-              ? reader === 'visitor'
-                ? { ...prev, visitor_last_read_seq: seq }
-                : { ...prev, agent_last_read_seq: seq }
-              : prev,
+        if (cur && ws) {
+          ws.send(
+            JSON.stringify({ type: 'conversation.subscribe', payload: { conversation_public_id: cur.public_id } }),
           )
         }
-        if (msg.type === 'message.new') {
-          const m = msg.payload?.message as ImMessage
-          const convPid = msg.payload?.conversation_public_id as string | undefined
-          if (cur && convPid === cur.public_id) {
-            setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]))
-            if (m.sender_type !== 'agent') {
-              void markRead(cur.public_id)
+      }
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data)
+          const cur = activeRef.current
+          if (
+            msg.type === 'conversation.updated' ||
+            msg.type === 'queue.updated' ||
+            msg.type === 'presence.updated' ||
+            msg.type === 'conversation.read'
+          ) {
+            throttledRefreshList()
+          }
+          // 当前会话的实时状态（资料变更 / 读回执）
+          if (msg.type === 'conversation.updated' && cur && msg.payload?.public_id === cur.public_id) {
+            setActive(msg.payload as ImConversation)
+          }
+          if (msg.type === 'conversation.read' && cur && msg.payload?.conversation_public_id === cur.public_id) {
+            const { reader, seq } = msg.payload as { reader: string; seq: number }
+            setActive((prev) =>
+              prev
+                ? reader === 'visitor'
+                  ? { ...prev, visitor_last_read_seq: seq }
+                  : { ...prev, agent_last_read_seq: seq }
+                : prev,
+            )
+          }
+          if (msg.type === 'message.new') {
+            const m = msg.payload?.message as ImMessage
+            const convPid = msg.payload?.conversation_public_id as string | undefined
+            if (cur && convPid === cur.public_id) {
+              setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]))
+              if (m.sender_type !== 'agent') {
+                void markRead(cur.public_id)
+                if (soundOnRef.current) playDing()
+              }
+            } else if (m?.sender_type === 'visitor') {
+              // 非当前会话的新消息也提醒（此前浏览过的会话仍在订阅内，列表未读徽标 + 声音）
               if (soundOnRef.current) playDing()
             }
-          } else if (m?.sender_type === 'visitor') {
-            // 非当前会话的新消息也提醒（此前浏览过的会话仍在订阅内，列表未读徽标 + 声音）
-            if (soundOnRef.current) playDing()
           }
+          if (msg.type === 'message.recalled' && cur && msg.payload?.conversation_public_id === cur.public_id) {
+            const m = msg.payload.message as ImMessage
+            setMessages((prev) => prev.map((x) => (x.id === m.id ? m : x)))
+          }
+        } catch {
+          /* ignore */
         }
-        if (msg.type === 'message.recalled' && cur && msg.payload?.conversation_public_id === cur.public_id) {
-          const m = msg.payload.message as ImMessage
-          setMessages((prev) => prev.map((x) => (x.id === m.id ? m : x)))
-        }
-      } catch {
-        /* ignore */
       }
     }
+
+    void openSocket()
     return () => {
+      cancelled = true
       wsRef.current = null
-      ws.close()
+      if (ws) ws.close()
     }
   }, [markRead, playDing, throttledRefreshList])
 

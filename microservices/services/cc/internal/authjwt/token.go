@@ -9,9 +9,10 @@ import (
 )
 
 type AgentClaims struct {
-	UserID   uint64 `json:"user_id"`
-	Username string `json:"username"`
-	TenantID uint64 `json:"tenant_id"`
+	UserID    uint64 `json:"user_id"`
+	Username  string `json:"username"`
+	TenantID  uint64 `json:"tenant_id"`
+	TokenType string `json:"token_type"`
 	jwt.RegisteredClaims
 }
 
@@ -24,6 +25,7 @@ func NormalizeTenantID(id uint64) uint64 {
 }
 
 // ParseAgent parses auth-service access tokens (user_id claim).
+// Non-access token types (refresh, totp_challenge, ws_ticket) are explicitly rejected.
 func ParseAgent(secret, token string) (*AgentClaims, error) {
 	t, err := jwt.ParseWithClaims(token, &AgentClaims{}, func(t *jwt.Token) (any, error) {
 		if t.Method != jwt.SigningMethodHS256 {
@@ -37,6 +39,9 @@ func ParseAgent(secret, token string) (*AgentClaims, error) {
 	c, ok := t.Claims.(*AgentClaims)
 	if !ok || !t.Valid || c.UserID == 0 {
 		return nil, errors.New("invalid agent token")
+	}
+	if c.TokenType != "" && c.TokenType != "access" {
+		return nil, errors.New("invalid agent token type")
 	}
 	c.TenantID = NormalizeTenantID(c.TenantID)
 	return c, nil

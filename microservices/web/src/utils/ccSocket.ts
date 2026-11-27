@@ -1,10 +1,9 @@
 // cc-service 实时话务事件通道（坐席浏览器弹屏底座）。
 //
-// 单例连接 /api/v1/cc/ws（?token= 自校验，参照 im/desk 的 WS 写法），把话务事件
-// call.ringing/answered/hangup 广播给订阅者。连接管理照搬 NotificationBell 的指数
-// 退避重连，并加一层应用层心跳 ping（后端每 <pongWait 回一次协议级 ping，本端也
-// 主动 ping 兜底代理超时）。多处订阅共享同一条连接（引用计数，无人订阅即断开）。
-import { getToken } from '@/utils/request'
+// 单例连接 /api/v1/cc/ws：先经 POST /api/v1/cc/ws/ticket 换取 60 秒一次性握手票据
+// 再建立 WebSocket（不把长期 Access JWT 拼入 URL Query，兼容 HttpOnly Cookie 会话），
+// 把话务事件 call.ringing/answered/hangup 广播给订阅者。多处订阅共享同一条连接（引用计数）。
+import { createCcWsTicket } from '@/api/cc'
 
 export interface CcCallEvent {
   type: 'call.ringing' | 'call.answered' | 'call.hangup'
@@ -27,6 +26,7 @@ const backoff = (attempt: number) => Math.min(2000 * 2 ** attempt, 30000)
 const PING_INTERVAL = 25000
 
 let ws: WebSocket | null = null
+let connecting = false
 let retries = 0
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let pingTimer: ReturnType<typeof setInterval> | null = null
@@ -50,18 +50,29 @@ function scheduleReconnect() {
   retries += 1
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null
-    connect()
+    void connect()
   }, delay)
 }
 
-function connect() {
-  if (import.meta.env.VITE_DEMO === '1' || handlers.size === 0) return
+async function connect() {
+  if (import.meta.env.VITE_DEMO === '1' || handlers.size === 0 || connecting) return
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return
-  const token = getToken()
-  if (!token) return
+  connecting = true
+  let ticket = ''
+  try {
+    const res = await createCcWsTicket()
+    ticket = res?.ticket || ''
+  } catch {
+    connecting = false
+    scheduleReconnect()
+    return
+  }
+  connecting = false
+  if (!ticket || handlers.size === 0) return
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
   const sock = new WebSocket(
-    `${proto}://${window.location.host}/api/v1/cc/ws?token=${encodeURIComponent(token)}`,
+    `${proto}://${window.location.host}/api/v1/cc/ws?ticket=${encodeURIComponent(ticket)}`,
   )
   ws = sock
 
@@ -123,7 +134,7 @@ function connect() {
 // 最后一个取消订阅时断开连接（引用计数）。
 export function subscribeCcEvents(cb: Handler): () => void {
   handlers.add(cb)
-  connect()
+  void connect()
   return () => {
     handlers.delete(cb)
     if (handlers.size === 0) {

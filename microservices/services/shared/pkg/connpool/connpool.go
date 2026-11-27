@@ -12,15 +12,22 @@ import (
 	"gorm.io/gorm"
 )
 
-// Apply 给连接池立护栏。默认 20/10（高并发口径），低流量服务可用
-// DB_MAX_OPEN_CONNS / DB_MAX_IDLE_CONNS 覆盖。
+// DefaultMaxOpenConns 与 DefaultMaxIdleConns 按 16 微服务全栈副本总数与 PG
+// max_connections=300 对齐（预留 start-first 滚动更新瞬时双倍副本与迁移裕量）。
+const (
+	DefaultMaxOpenConns = 10
+	DefaultMaxIdleConns = 5
+)
+
+// Apply 给连接池立护栏。默认 10/5，高流量服务可用
+// DB_MAX_OPEN_CONNS / DB_MAX_IDLE_CONNS 环境变量按需放大。
 func Apply(db *gorm.DB) {
 	sqlDB, err := db.DB()
 	if err != nil {
 		return
 	}
-	sqlDB.SetMaxOpenConns(envInt("DB_MAX_OPEN_CONNS", 20))
-	sqlDB.SetMaxIdleConns(envInt("DB_MAX_IDLE_CONNS", 10))
+	sqlDB.SetMaxOpenConns(envInt("DB_MAX_OPEN_CONNS", DefaultMaxOpenConns))
+	sqlDB.SetMaxIdleConns(envInt("DB_MAX_IDLE_CONNS", DefaultMaxIdleConns))
 	sqlDB.SetConnMaxLifetime(time.Duration(envInt("DB_CONN_MAX_LIFETIME_SECONDS", 300)) * time.Second)
 	sqlDB.SetConnMaxIdleTime(time.Duration(envInt("DB_CONN_MAX_IDLE_TIME_SECONDS", 180)) * time.Second)
 }

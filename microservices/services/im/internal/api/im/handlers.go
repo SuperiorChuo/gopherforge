@@ -13,11 +13,13 @@ import (
 	"github.com/go-admin-kit/services/shared/pkg/consoleauth"
 	"github.com/go-admin-kit/services/shared/pkg/gatewayauth"
 	"github.com/go-admin-kit/services/shared/pkg/notifyclient"
+	"github.com/go-admin-kit/services/shared/pkg/wsticket"
 	"gorm.io/gorm"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type Server struct {
@@ -49,6 +51,18 @@ type Server struct {
 	// Sensitive 是基于数据库的租户词库缓存（控制台管理、
 	// 打码/拦截、热生效）。nil = 仅 env 词。
 	Sensitive *sensitive.Cache
+	// WSTickets 签发与单次消费坐席 /im/ws 握手票据（避免长期 JWT 进入 URL/日志）。
+	WSTickets     *wsticket.Store
+	wsTicketsOnce sync.Once
+}
+
+func (s *Server) wsTicketStore() *wsticket.Store {
+	s.wsTicketsOnce.Do(func() {
+		if s.WSTickets == nil {
+			s.WSTickets = wsticket.NewStore()
+		}
+	})
+	return s.WSTickets
 }
 
 func OK(c *gin.Context, data any) {
