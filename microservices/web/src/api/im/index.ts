@@ -429,3 +429,7 @@ export function testSensitiveText(text: string) {
     hits: ImSensitiveHit[] | null
   }>
 }
+
+export function createImWsTicket() {
+  return request.post('/api/v1/im/agent/ws/ticket', {}) as Promise<{ ticket: string }>
+}

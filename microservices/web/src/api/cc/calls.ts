@@ -143,3 +143,7 @@ export function getCcFsStatus() {
 export function testCcWebhook() {
   return request.post('/api/v1/cc/fs/webhook-test', {}) as Promise<Record<string, unknown>>
 }
+
+export function createCcWsTicket() {
+  return request.post('/api/v1/cc/ws/ticket', {}) as Promise<{ ticket: string }>
+}

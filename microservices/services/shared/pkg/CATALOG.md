@@ -11,7 +11,7 @@
 | 运行基础 | `connpool`、`graceful`、`logger`、`metrics`、`middleware`、`response`、`pagination`、`errors`、`health`、`redis`、`database`、`captcha`、`cache`、`runtimeconfig` | 服务启动、HTTP 响应、分页、错误、健康检查、Redis、Postgres、验证码、缓存和运行时配置失效等通用运行能力 |
 | 配置与安全 | `envsecret`、`secretstrength`、`mask`、`secretbox`、`jwt`、`consoleauth`、`authdao`、`tenant`、`tenantctx`、`authz` | 配置密钥、凭据、身份会话、租户上下文和数据权限；`authz`/`tenantctx` 的服务消费者由 authz 收敛批次负责 |
 | 服务间通信 | `grpcx`、`identityclient`、`notifyclient`、`internalhttp`、`resilience`、`tlsutil`、`natsx`、`sharedapi` | gRPC/HTTP 客户端、重试、TLS、NATS 和跨服务契约适配 |
-| 网关与事件 | `gatewayauth`、`outbox`、`webhookx`、`audittrail`、`auditevents`、`oplog` | 网关鉴权、可靠事件、Webhook、审计事件链路与跨服务操作日志批量落盘引擎 |
+| 网关与事件 | `gatewayauth`、`wsticket`、`outbox`、`webhookx`、`audittrail`、`auditevents`、`oplog` | 网关鉴权、短期一次性 WebSocket 握手票据、可靠事件、Webhook、审计事件链路与跨服务操作日志批量落盘引擎 |
 | 可观测性与任务 | `observability`、`jobbeat` | Trace/metrics 注入与任务心跳/执行观测 |
 | 数据与业务适配 | `model`、`excel`、`exportproof`、`iploc`、`ipinfo`、`setting`、`mailer`、`idempotency` | 跨服务基础模型、导入导出、IP 定位、邮件、幂等和导出证明 |
 
@@ -32,6 +32,7 @@
 - `consoleauth` 是基础设施服务共用的 Web 控制台 Cookie 会话持久化/校验/吊销、角色码提取与会话响应构建单一真源（`ConsoleSessionService`、`BuildConsoleSession`、`ConsoleRoleCodes`）。
 - `runtimeconfig` 承载 Redis 失效通知、泛型运行时配置缓存状态机以及基础设施服务共用的 `SecurityPolicy` 模型、缓存读取器与单实例持有器（`DefaultSecurityPolicyHolder`）；各服务仅保留本地配置默认值与扩展设置（如邮件、AI Provider）。
 - `middleware` 除鉴权/限流基础组件外，同时承载基础设施服务共用的登录失败限流器与 IP 失败护盾（`LoginLimiter`、`LoginLimitConfig`、`RecordLoginFailureWithIPContext`、`IsIPBlockedContext`）。
+- `wsticket` 是 `cc`、`im` 等实时通道共用的短期一次性 WebSocket 握手票据签发与单次消费验证器，避免浏览器把长期 Access JWT 暴露在 URL Query / 网关访问日志中。
 - `errors`、`internalhttp`、`tlsutil` 存在 shared 包之间的传递消费者；不能用“直接 import 数量”判断为孤立包。
 - 主仓特有的 `authz`、`tenantctx` 不同步到公开 micro 线；其消费者迁移由独立 authz 批次处理，本清单不覆盖并行实现。
 

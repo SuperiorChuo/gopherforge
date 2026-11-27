@@ -2,12 +2,16 @@ package api
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-admin-kit/services/cc/internal/authjwt"
+	"github.com/go-admin-kit/services/shared/pkg/wsticket"
 	"github.com/gorilla/websocket"
 )
+
+const ccWSTicketScope = "cc_ws"
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
@@ -19,16 +23,36 @@ const (
 	wsPingPeriod = (wsPongWait * 9) / 10
 )
 
+// CreateWebSocketTicket handles POST /api/v1/cc/ws/ticket — 签发 60 秒一次性
+// 握手票据，使浏览器不再将长期 Access JWT 暴露在 /api/v1/cc/ws?token= 日志中。
+func (s *Server) CreateWebSocketTicket(c *gin.Context) {
+	agent, authorized := s.requireAgent(c)
+	if !authorized {
+		return
+	}
+	ticket, err := wsticket.Mint(s.Secret, ccWSTicketScope, agent.UserID, agent.TenantID, agent.Username, wsticket.DefaultTTL)
+	if err != nil {
+		fail(c, http.StatusInternalServerError, "failed to create websocket ticket")
+		return
+	}
+	ok(c, gin.H{"ticket": ticket})
+}
+
 // WebSocket handles GET /api/v1/cc/ws — 坐席浏览器实时话务事件通道（来电弹屏底座）。
 //
-// 鉴权照搬 im-service 的 /im/ws 做法：浏览器 WS 握手带不了 Authorization 头，故
-// 用 ?token= 传 access token，本端 authjwt.ParseAgent 校验。该端点在网关侧走
-// cc-open 路由（不挂 ForwardAuth），与 webhook/cdr/cid 同列——升级请求不经
-// ForwardAuth，token 由本 handler 自校验。gateway 头（X-Auth-User-ID）也兜底放行，
-// 便于内网直连/测试。升级端点不走 {code,message,data} envelope。
+// 优先消费 POST /api/v1/cc/ws/ticket 签发的 60 秒一次性票据（?ticket=）；
+// 保留网关头（X-Auth-User-ID）与 legacy access token（?token= / Bearer）兜底。
 func (s *Server) WebSocket(c *gin.Context) {
 	var userID, tenantID uint64
-	if uid := gatewayUserID(c); uid > 0 {
+	if ticket := strings.TrimSpace(c.Query("ticket")); ticket != "" {
+		claims, err := s.wsTicketStore().Consume(s.Secret, ccWSTicketScope, ticket)
+		if err != nil {
+			fail(c, http.StatusUnauthorized, "invalid websocket ticket")
+			return
+		}
+		userID = claims.UserID
+		tenantID = claims.TenantID
+	} else if uid := gatewayUserID(c); uid > 0 {
 		userID = uid
 		tenantID = tenantFromHeader(c)
 	} else {

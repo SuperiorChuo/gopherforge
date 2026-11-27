@@ -210,3 +210,14 @@ test('网关入口统一在 web 与 websecure 首跳剥离伪造 X-Auth 头，�
     )
   }
 })
+
+test('Redis 禁止静默驱逐安全态键且业务服务默认数据库连接池不超卖 PG 上限', () => {
+  const infra = readFileSync(new URL('../docker-compose.infra.yml', import.meta.url), 'utf8')
+  const connpool = readFileSync(new URL('../services/shared/pkg/connpool/connpool.go', import.meta.url), 'utf8')
+  const aiDefaults = readFileSync(new URL('../services/ai/internal/config/defaults.go', import.meta.url), 'utf8')
+
+  assert.match(infra, /--maxmemory-policy noeviction/)
+  assert.doesNotMatch(infra, /--maxmemory-policy (?:volatile|allkeys)-/)
+  assert.match(connpool, /DefaultMaxOpenConns\s*=\s*10\b/)
+  assert.match(aiDefaults, /MaxOpenConns:\s*10,/)
+})

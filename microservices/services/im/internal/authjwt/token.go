@@ -22,9 +22,10 @@ type GuestClaims struct {
 }
 
 type AgentClaims struct {
-	UserID   uint64 `json:"user_id"`
-	Username string `json:"username"`
-	TenantID uint64 `json:"tenant_id"`
+	UserID    uint64 `json:"user_id"`
+	Username  string `json:"username"`
+	TenantID  uint64 `json:"tenant_id"`
+	TokenType string `json:"token_type"`
 	jwt.RegisteredClaims
 }
 
@@ -82,6 +83,9 @@ func ParseAgent(secret, token string) (*AgentClaims, error) {
 	c, ok := t.Claims.(*AgentClaims)
 	if !ok || !t.Valid || c.UserID == 0 {
 		return nil, errors.New("invalid agent token")
+	}
+	if c.TokenType != "" && c.TokenType != "access" {
+		return nil, errors.New("invalid agent token type")
 	}
 	c.TenantID = NormalizeTenantID(c.TenantID)
 	return c, nil
