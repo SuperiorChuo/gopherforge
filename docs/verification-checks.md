@@ -35,7 +35,7 @@ bash scripts/verify-product.sh security-go
 
 `scan-go-modules.py` 通过 `git ls-files -z` 枚举全部已跟踪的 `go.mod`，默认输出按路径排序的仓库根相对目录 JSON，`--lines` 用于本地循环。新增模块须先加入 Git 索引；未跟踪的临时模块不纳入扫描。Git 执行失败、空清单、缺失或非普通文件、符号链接和越界路径均明确失败，不输出部分清单。该机制独立于 `release-workspace.py`，不改变发行 workspace 的语义。
 
-主仓与 public 扫描 `clients/hermes-manager`、`freeswitch-cc/control-api`、`microservices/services`、`microservices/tools/dbdoc` 共 4 个模块；微服务线扫描后两个模块；单体线扫描 `server`、`tools/dbdoc`，仅提供本地入口。Security Scan 使用同一清单，工作目录、依赖缓存及报告路径均相对仓库根目录；缓存匹配模块内的 `go.*`，覆盖 `go.mod` 与存在的 `go.sum`，兼容纯标准库模块没有 `go.sum` 的情况。CI / Release / Security Scan 的 `GO_VERSION` 统一为 `1.27.4`。
+主仓与 public 扫描 `clients/hermes-manager`、`freeswitch-cc/control-api`、`microservices/services`、`microservices/tools/dbdoc` 共 4 个模块；微服务线扫描后两个模块；单体线扫描 `server`、`tools/dbdoc`，仅提供本地入口。Security Scan 使用同一清单，工作目录、依赖缓存及报告路径均相对仓库根目录；缓存匹配模块内的 `go.*`，覆盖 `go.mod` 与存在的 `go.sum`，兼容纯标准库模块没有 `go.sum` 的情况。CI / Release / Security Scan 的 `GO_VERSION` 统一为 `1.27.4`。 Go CI 固定使用 `golangci-lint v2.14.0`，其分析器支持 Go 1.27.4 的 export data v5；保留原有 lint 规则。
 
 `checks` 包含真实 Git 正负控、扫描退出码传播验证及当前仓库模块枚举，不下载扫描器或访问漏洞数据库。`security-go` 显式执行在线扫描，任何模块返回非零即失败；默认 `all` 不包含它。以下单模块入口仍可用于定向复查。
 
