@@ -49,7 +49,7 @@ class WorkflowTests(unittest.TestCase):
         images = json.loads(entries["services"])["include"]
         self.assertEqual({image["service"] for image in images}, {"monitor-service", "ai-service"})
 
-    def test_security_matrix_runs_real_workspace_parser(self):
+    def test_security_matrix_runs_real_tracked_module_discovery(self):
         source = (ROOT / ".github/workflows/security-scan.yml").read_text()
         block = source.split("id: modules\n        run: |\n", 1)[1].split("\n  govulncheck:", 1)[0]
         with tempfile.TemporaryDirectory(prefix="security-matrix-") as tmp:
@@ -58,15 +58,51 @@ class WorkflowTests(unittest.TestCase):
                            env={**os.environ, "GITHUB_OUTPUT": str(output)}, check=True)
             name, value = output.read_text().strip().split("=", 1)
         self.assertEqual(name, "modules")
-        self.assertEqual(json.loads(value), ["services", "tools/dbdoc"])
+        self.assertEqual(json.loads(value), ["clients/hermes-manager", "freeswitch-cc/control-api",
+                                             "microservices/services", "microservices/tools/dbdoc"])
+        self.assertIn("working-directory: ${{ matrix.module }}\n", source)
+        self.assertIn("cache-dependency-path: ${{ matrix.module }}/go.*\n", source)
+        self.assertIn("path: ${{ matrix.module }}/govulncheck.json\n", source)
+        self.assertNotIn("microservices/${{ matrix.module }}", source)
+
+    def test_security_matrix_discovery_failure_does_not_publish_output(self):
+        source = (ROOT / ".github/workflows/security-scan.yml").read_text()
+        block = source.split("id: modules\n        run: |\n", 1)[1].split("\n  govulncheck:", 1)[0]
+        with tempfile.TemporaryDirectory(prefix="security-matrix-failure-") as tmp:
+            root = Path(tmp)
+            (root / "scripts").mkdir()
+            (root / "scripts/scan-go-modules.py").write_bytes((ROOT / "scripts/scan-go-modules.py").read_bytes())
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            output = root / "output"
+            for missing in [False, True]:
+                with self.subTest(missing_tracked_manifest=missing):
+                    if missing:
+                        (root / "go.mod").write_text("module example.com/missing\n")
+                        subprocess.run(["git", "add", "go.mod"], cwd=root, check=True)
+                        (root / "go.mod").unlink()
+                    result = subprocess.run(["bash", "-c", textwrap.dedent(block)], cwd=root,
+                                            env={**os.environ, "GITHUB_OUTPUT": str(output)},
+                                            capture_output=True, text=True)
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertFalse(output.exists(), "失败不得发布空矩阵或部分矩阵")
 
     def test_fixed_cache_paths_exist(self):
         for name in ["ci", "release", "security-scan"]:
             source = (ROOT / f".github/workflows/{name}.yml").read_text()
             for path in re.findall(r"cache-dependency-path: ([^\n]+)", source):
-                if "${{" in path:
-                    path = path.replace("${{ matrix.module }}", "services")
-                self.assertTrue((ROOT / path).is_file(), f"{name}: 不存在的依赖缓存路径 {path}")
+                paths = [path]
+                if "${{ matrix.module }}" in path:
+                    script = "scan-go-modules.py" if name == "security-scan" else "release-workspace.py"
+                    result = subprocess.run(["python3", "-B", str(ROOT / "scripts" / script)],
+                                            cwd=ROOT, check=True, capture_output=True, text=True)
+                    paths = [path.replace("${{ matrix.module }}", module) for module in json.loads(result.stdout)]
+                elif "${{ matrix.directory }}" in path:
+                    block = source.split("  npm-audit:\n", 1)[1]
+                    directories = json.loads(re.search(r"^        directory: (\[[^\n]+\])$", block, re.M).group(1))
+                    paths = [path.replace("${{ matrix.directory }}", directory) for directory in directories]
+                for expanded in paths:
+                    matches = [match for match in ROOT.glob(expanded) if match.is_file()]
+                    self.assertTrue(matches, f"{name}: 不存在的依赖缓存路径 {expanded}")
 
     def test_dependabot_tracks_real_product_modules(self):
         source = (ROOT / ".github/dependabot.yml").read_text()

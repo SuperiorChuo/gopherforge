@@ -9,7 +9,7 @@ GopherForge is an open-source Go microservices and business platform. The main s
 ## Requirements
 
 - Docker Engine **24+** and Docker Compose v2; [Docker Desktop](https://www.docker.com/products/docker-desktop/) is recommended on macOS and Windows
-- Optional local development: Go **1.27.0+** (both the language and build baseline are 1.27.0), Node.js **20.19+ / 22.12+** (24 recommended)
+- Optional local development: Go **1.27.4+** (both the language and build baseline are 1.27.4), Node.js **20.19+ / 22.12+** (24 recommended)
 
 ## One-command startup
 

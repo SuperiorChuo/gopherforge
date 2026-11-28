@@ -3,8 +3,9 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-for script in check-code-layout govulncheck verify-checks; do
+for script in check-code-layout govulncheck verify-checks verify-product; do
   bash -n "scripts/$script.sh"
 done
-python3 -B -m unittest -v scripts/tests/test_code_layout.py scripts/tests/test_govulncheck.py
+python3 -B -m unittest -v scripts/tests/test_code_layout.py scripts/tests/test_govulncheck.py scripts/tests/test_scan_go_modules.py scripts/tests/test_security_npm.py
 bash scripts/check-code-layout.sh
+python3 -B scripts/scan-go-modules.py

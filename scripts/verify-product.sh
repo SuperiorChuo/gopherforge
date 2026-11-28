@@ -33,6 +33,14 @@ all_go() {
   done
 }
 
+security_go() {
+  local modules module
+  modules="$(python3 -B "$ROOT/scripts/scan-go-modules.py" --root "$ROOT" --lines)"
+  while IFS= read -r module; do
+    bash "$ROOT/scripts/govulncheck.sh" "$ROOT/$module"
+  done <<< "$modules"
+}
+
 frontend() {
   (cd "$ROOT/microservices/web" && npm run lint:i18n && npm run lint && npm test && npm run build)
 }
@@ -63,12 +71,13 @@ case "$TARGET" in
   public-migrations) python3 -B "$ROOT/scripts/release-migrations.py" ;;
   public-hygiene) python3 -B "$ROOT/scripts/release-hygiene.py" ;;
   all-go) all_go ;;
+  security-go) security_go ;;
   frontend) frontend ;;
   contract) contract ;;
   compose) (cd "$ROOT/microservices" && npm run test:compose:config) ;;
   all) bash "$ROOT/scripts/verify-checks.sh"; release_tools; all_go; frontend; contract ;;
   -h|--help)
-    echo '用法: bash scripts/verify-product.sh [checks|release-tools|public-migrations|public-hygiene|all-go|frontend|contract|compose|all]'
+    echo '用法: bash scripts/verify-product.sh [checks|release-tools|public-migrations|public-hygiene|all-go|security-go|frontend|contract|compose|all]'
     echo 'all 不启动 Docker，也不替代远程部署与带数据升级验收。'
     exit 0
     ;;

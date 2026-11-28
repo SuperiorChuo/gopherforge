@@ -15,7 +15,7 @@ export const SITE_META = {
     releaseImages: 17,
   },
   stack: {
-    go: '1.27.0',
+    go: '1.27.4',
     node: '24',
     react: '19',
     antd: '6',

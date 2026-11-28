@@ -34,7 +34,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/🐹_Go-1.27.0-00ADD8?logo=go&logoColor=white" alt="Go" />
+  <img src="https://img.shields.io/badge/🐹_Go-1.27.4-00ADD8?logo=go&logoColor=white" alt="Go" />
   <img src="https://img.shields.io/badge/Gin-1.12-08A4E0?logo=go&logoColor=white" alt="Gin" />
   <img src="https://img.shields.io/badge/GORM-1.31-00ADD8?logo=go&logoColor=white" alt="GORM" />
   <img src="https://img.shields.io/badge/🔐_JWT-v5-000000?logo=jsonwebtokens&logoColor=white" alt="JWT" />
@@ -270,7 +270,7 @@ gopherforge/
 ### 📋 环境要求
 
 - 🐳 [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- 可选本地开发：🐹 Go **1.27.0+**、📦 Node.js **20.19+ / 22.12+**（推荐 24）、npm
+- 可选本地开发：🐹 Go **1.27.4+**、📦 Node.js **20.19+ / 22.12+**（推荐 24）、npm
 
 ### 🧩 微服务版
 
