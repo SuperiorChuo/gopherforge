@@ -8,7 +8,7 @@ TARGET="${1:-all}"
 run_go() {
   local path="$1"
   echo "== ${path}: build / vet / test -race =="
-  (cd "$ROOT/$path" && go build ./... && go vet ./... && go test -race ./...)
+  (cd "$ROOT/$path" && go build ./... && go vet ./... && go test -race -count=1 ./...)
 }
 
 release_tools() {
@@ -57,6 +57,7 @@ contract() {
 }
 
 case "$TARGET" in
+  checks) bash "$ROOT/scripts/verify-checks.sh" ;;
   release-tools) release_tools ;;
   # 私有开发历史与公开历史不同；此目标只在公开候选执行，不混入源码 all。
   public-migrations) python3 -B "$ROOT/scripts/release-migrations.py" ;;
@@ -65,9 +66,9 @@ case "$TARGET" in
   frontend) frontend ;;
   contract) contract ;;
   compose) (cd "$ROOT/microservices" && npm run test:compose:config) ;;
-  all) release_tools; all_go; frontend; contract ;;
+  all) bash "$ROOT/scripts/verify-checks.sh"; release_tools; all_go; frontend; contract ;;
   -h|--help)
-    echo '用法: bash scripts/verify-product.sh [release-tools|public-migrations|public-hygiene|all-go|frontend|contract|compose|all]'
+    echo '用法: bash scripts/verify-product.sh [checks|release-tools|public-migrations|public-hygiene|all-go|frontend|contract|compose|all]'
     echo 'all 不启动 Docker，也不替代远程部署与带数据升级验收。'
     exit 0
     ;;
