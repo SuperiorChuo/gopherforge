@@ -20,7 +20,24 @@ bash scripts/verify-product.sh frontend
 
 CI 的各 Go 服务测试开启 race detector；Monitor 保留 atomic coverage。前端继续运行完整的既有检查，并执行 `npm test`。工程脚本回归与真实目录检查在 Workspace job 中执行。
 
+## npm 依赖审计
+
+Security Scan 审计完整依赖树（包含构建工具等 devDependencies），以 `npm audit --audit-level=high` 阻断高危及以上发现。主仓审计 `microservices/web`；带文档站的发行线使用目录矩阵分别审计 `microservices/web` 与 `website`，缓存绑定各目录自己的 `package-lock.json`，一项失败不取消另一项。`checks` 验证真实锁文件覆盖及审计命令的失败传播，不访问漏洞服务。
+
 ## Go 漏洞扫描
+
+从仓库根目录运行全部已跟踪 Go 模块的扫描：
+
+```sh
+python3 -B scripts/scan-go-modules.py
+bash scripts/verify-product.sh security-go
+```
+
+`scan-go-modules.py` 通过 `git ls-files -z` 枚举全部已跟踪的 `go.mod`，默认输出按路径排序的仓库根相对目录 JSON，`--lines` 用于本地循环。新增模块须先加入 Git 索引；未跟踪的临时模块不纳入扫描。Git 执行失败、空清单、缺失或非普通文件、符号链接和越界路径均明确失败，不输出部分清单。该机制独立于 `release-workspace.py`，不改变发行 workspace 的语义。
+
+主仓与 public 扫描 `clients/hermes-manager`、`freeswitch-cc/control-api`、`microservices/services`、`microservices/tools/dbdoc` 共 4 个模块；微服务线扫描后两个模块；单体线扫描 `server`、`tools/dbdoc`，仅提供本地入口。Security Scan 使用同一清单，工作目录、依赖缓存及报告路径均相对仓库根目录；缓存匹配模块内的 `go.*`，覆盖 `go.mod` 与存在的 `go.sum`，兼容纯标准库模块没有 `go.sum` 的情况。CI / Release / Security Scan 的 `GO_VERSION` 统一为 `1.27.4`。
+
+`checks` 包含真实 Git 正负控、扫描退出码传播验证及当前仓库模块枚举，不下载扫描器或访问漏洞数据库。`security-go` 显式执行在线扫描，任何模块返回非零即失败；默认 `all` 不包含它。以下单模块入口仍可用于定向复查。
 
 微服务仓库：
 

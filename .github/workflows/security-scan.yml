@@ -1,6 +1,6 @@
 # 供应链 / 代码安全扫描：PR 上跑快的，每周定时跑全的。
 #
-# 模块发现与 Release 共用产品脚本，避免 workspace 布局变更后漏扫服务。
+# 安全扫描独立枚举全部已跟踪 go.mod，覆盖发行 workspace 外的附属模块。
 #
 # 【失败阈值的取舍】目标是"能长期开着而不会天天红"，所以分三档：
 #   1. govulncheck（Go 官方，零配置）——只报"你的代码真的调到了漏洞函数"的可达发现。
@@ -37,7 +37,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: '1.27.0'
+  GO_VERSION: '1.27.4'
   NODE_VERSION: '24'
   # 固定版本，别用 latest；0.69.4 ~ 0.69.6 是被投毒的版本，永远不要用
   TRIVY_IMAGE: 'aquasec/trivy:0.72.0'
@@ -50,15 +50,11 @@ jobs:
       modules: ${{ steps.modules.outputs.modules }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: false
-      - name: 从 go.work 取实际模块
+      - name: 从已跟踪 go.mod 取全部模块
         id: modules
         run: |
           set -euo pipefail
-          modules="$(python3 -B scripts/release-workspace.py)"
+          modules="$(python3 -B scripts/scan-go-modules.py)"
           printf 'modules=%s\n' "$modules" >> "$GITHUB_OUTPUT"
 
   govulncheck:
@@ -76,10 +72,11 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: microservices/${{ matrix.module }}/go.sum
+          # 纯标准库模块可能没有 go.sum；go.mod 与存在的 go.sum 都参与缓存键。
+          cache-dependency-path: ${{ matrix.module }}/go.*
 
       - name: 扫描可达漏洞
-        working-directory: microservices/${{ matrix.module }}
+        working-directory: ${{ matrix.module }}
         env:
           MODULE: ${{ matrix.module }}
         run: |
@@ -158,7 +155,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: govulncheck-${{ strategy.job-index }}
-          path: microservices/${{ matrix.module }}/govulncheck.json
+          path: ${{ matrix.module }}/govulncheck.json
           retention-days: 14
           if-no-files-found: ignore
 
@@ -266,11 +263,15 @@ jobs:
             "$IMAGE_REF"
 
   npm-audit:
-    name: npm audit · 前端完整依赖
+    name: npm audit · ${{ matrix.directory }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        directory: ["microservices/web", "website"]
     defaults:
       run:
-        working-directory: microservices/web
+        working-directory: ${{ matrix.directory }}
     steps:
       - uses: actions/checkout@v6
 
@@ -278,7 +279,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: microservices/web/package-lock.json
+          cache-dependency-path: ${{ matrix.directory }}/package-lock.json
 
       - name: 高危及以上阻断
         run: npm audit --audit-level=high

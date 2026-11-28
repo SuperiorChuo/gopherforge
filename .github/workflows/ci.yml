@@ -11,7 +11,7 @@ on:
 # 实际编译用的工具链由各模块 go.mod 的 toolchain 指令决定（GOTOOLCHAIN=auto
 # 会自升），这里对齐同一版本只是为了省掉每个 job 一次工具链下载。
 env:
-  GO_VERSION: '1.27.0'
+  GO_VERSION: '1.27.4'
 
 jobs:
   # 全业务公开不再禁服务名/schema；内部资料、密钥和公开 SQL 历史身份仍须逐项拒绝。

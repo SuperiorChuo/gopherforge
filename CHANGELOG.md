@@ -9,7 +9,9 @@
 
 ### 安全
 
-- **前端依赖（同步自主项目）**：兼容更新 Capacitor core/android/ios、Axios、xmldom、brace-expansion 与 source-map-js，清除本轮前端依赖审计的高危和严重告警；未使用强制降级或放宽审计阈值。Capacitor CLI 依赖链仍有三项中危告警，需另行评估。
+- **文档站依赖与审计**：既有 Vite 6 override 更新至 6.4.6，修复开发服务器依赖告警，并将文档站纳入持续 npm 审计。
+- **Go 依赖与扫描覆盖（同步自主项目）**：Go 工具链升级至 1.27.4，修复 compress、x/crypto 与独立 control-api 的 QUIC 漏洞。安全扫描自动覆盖全部已跟踪的 Go 模块，补齐 control-api、Hermes manager；模块缺失或发现失败会阻断。
+- **前端依赖（同步自主项目）**：兼容更新 Capacitor core/android/ios、Axios、xmldom、brace-expansion 与 source-map-js，并将 Capacitor CLI 升至 8.6.3、更新 rimraf/glob/minimatch 依赖链，修复此前剩余的中危告警；未使用强制降级或放宽审计阈值。
 
 ### 修复
 
